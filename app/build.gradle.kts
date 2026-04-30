@@ -41,6 +41,15 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    systemProperty("typelauncher.screenshot.baselineDir", "${projectDir}/src/test/snapshots")
+    systemProperty("typelauncher.screenshot.actualDir", "${layout.buildDirectory.get().asFile}/reports/screenshot-tests/actual")
+    systemProperty(
+        "typelauncher.screenshot.record",
+        providers.gradleProperty("typelauncher.screenshot.record").orElse("false").get(),
+    )
+}
+
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
