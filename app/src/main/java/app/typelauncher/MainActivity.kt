@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
         val appSearchClearButton = findViewById<ImageButton>(R.id.app_search_clear_button)
         val settingsLaunchGate = SettingsLaunchGate()
         val dockedAppStore = DockedAppStore(this)
+        val appLaunchStatsStore = AppLaunchStatsStore(this)
         appSearchInput.requestFocus()
         appSearchInput.post {
             getSystemService<InputMethodManager>()
@@ -65,7 +66,7 @@ class MainActivity : AppCompatActivity() {
         val baseTop = root.paddingTop
         val baseBottom = root.paddingBottom
         fun refreshLists(query: String) {
-            filteredApps.replaceWith(installedApps.filterByName(query))
+            filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore))
             filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
             installedAppNamesAdapter.replaceWith(filteredApps.map { app -> app.name })
             renderDockedApps(
@@ -73,7 +74,9 @@ class MainActivity : AppCompatActivity() {
                 dockedAppsRow = dockedAppsList,
                 appSearchInput = appSearchInput,
                 dockedAppStore = dockedAppStore,
+                appLaunchStatsStore = appLaunchStatsStore,
                 afterDockChanged = { refreshLists(appSearchInput.text.toString().trim()) },
+                afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
             )
             dockedAppsHint.isVisible = filteredDockedApps.isEmpty()
             dockedAppsList.isVisible = filteredDockedApps.isNotEmpty()
@@ -109,7 +112,13 @@ class MainActivity : AppCompatActivity() {
                     downTime = event?.downTime,
                 )
             ) {
-                launchActiveApp(filteredApps, appSearchInput.text.toString(), appSearchInput)
+                launchActiveApp(
+                    filteredApps = filteredApps,
+                    query = appSearchInput.text.toString(),
+                    appSearchInput = appSearchInput,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
+                )
             }
             true
         }
@@ -120,7 +129,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<ListView>(R.id.installed_apps_list).apply {
             adapter = installedAppNamesAdapter
             setOnItemClickListener { _, _, position, _ ->
-                launchAndClearQuery(filteredApps[position].launchIntent, appSearchInput)
+                launchAndClearQuery(
+                    app = filteredApps[position],
+                    appSearchInput = appSearchInput,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
+                )
             }
             setOnItemLongClickListener { _, view, position, _ ->
                 showAppMenu(
@@ -179,16 +193,25 @@ class MainActivity : AppCompatActivity() {
                 .setData(Uri.parse("package:$packageName"))
     }
 
-    private fun List<InstalledApp>.filterByName(query: String): List<InstalledApp> =
+    private fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
         if (query.isEmpty()) {
-            this
+            sortedWith(
+                compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+            )
         } else {
             filter { app -> app.name.contains(query, ignoreCase = true) }
         }
 
     private fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
         filter { app -> app.id in dockedAppIds }
-            .filterByName(query)
+            .let { dockedApps ->
+                if (query.isEmpty()) {
+                    dockedApps
+                } else {
+                    dockedApps.filter { app -> app.name.contains(query, ignoreCase = true) }
+                }
+            }
             .sortedBy { app -> dockedAppIds.indexOf(app.id) }
 
     private fun MutableList<InstalledApp>.replaceWith(apps: List<InstalledApp>) {
@@ -205,14 +228,33 @@ class MainActivity : AppCompatActivity() {
         filteredApps: List<InstalledApp>,
         query: String,
         appSearchInput: EditText,
+        appLaunchStatsStore: AppLaunchStatsStore,
+        afterLaunch: () -> Unit,
     ) {
         if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
             launchAndClearQuery(Intent(Settings.ACTION_SETTINGS), appSearchInput)
             return
         }
-        filteredApps.firstOrNull()?.launchIntent?.let { intent ->
-            launchAndClearQuery(intent, appSearchInput)
+        filteredApps.firstOrNull()?.let { app ->
+            launchAndClearQuery(
+                app = app,
+                appSearchInput = appSearchInput,
+                appLaunchStatsStore = appLaunchStatsStore,
+                afterLaunch = afterLaunch,
+            )
         }
+    }
+
+    private fun launchAndClearQuery(
+        app: InstalledApp,
+        appSearchInput: EditText,
+        appLaunchStatsStore: AppLaunchStatsStore,
+        afterLaunch: () -> Unit,
+    ) {
+        startActivity(app.launchIntent.asLauncherTaskIntent())
+        appLaunchStatsStore.recordLaunch(app.id)
+        appSearchInput.text?.clear()
+        afterLaunch()
     }
 
     private fun launchAndClearQuery(intent: Intent, appSearchInput: EditText) {
@@ -228,7 +270,9 @@ class MainActivity : AppCompatActivity() {
         dockedAppsRow: LinearLayout,
         appSearchInput: EditText,
         dockedAppStore: DockedAppStore,
+        appLaunchStatsStore: AppLaunchStatsStore,
         afterDockChanged: () -> Unit,
+        afterLaunch: () -> Unit,
     ) {
         dockedAppsRow.removeAllViews()
         dockedApps.forEach { app ->
@@ -241,7 +285,12 @@ class MainActivity : AppCompatActivity() {
                 val padding = DOCK_APP_ICON_PADDING_DP.dpToPx()
                 setPadding(padding, padding, padding, padding)
                 setOnClickListener {
-                    launchAndClearQuery(app.launchIntent, appSearchInput)
+                    launchAndClearQuery(
+                        app = app,
+                        appSearchInput = appSearchInput,
+                        appLaunchStatsStore = appLaunchStatsStore,
+                        afterLaunch = afterLaunch,
+                    )
                 }
                 setOnLongClickListener {
                     showAppMenu(
@@ -391,6 +440,26 @@ class MainActivity : AppCompatActivity() {
             const val PREFERENCES_NAME = "docked_apps"
             const val KEY_DOCKED_APP_IDS = "docked_app_ids"
             const val DOCKED_APP_ID_SEPARATOR = "\n"
+        }
+    }
+
+    private class AppLaunchStatsStore(context: Context) {
+        private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+        fun launchCount(appId: String): Int =
+            sharedPreferences.getInt(appId.toLaunchCountKey(), 0)
+
+        fun recordLaunch(appId: String) {
+            sharedPreferences.edit()
+                .putInt(appId.toLaunchCountKey(), launchCount(appId) + 1)
+                .apply()
+        }
+
+        private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
+
+        private companion object {
+            const val PREFERENCES_NAME = "app_launch_stats"
+            const val KEY_LAUNCH_COUNT_PREFIX = "launch_count:"
         }
     }
 }
