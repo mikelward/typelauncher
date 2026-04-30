@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.content.ComponentName
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
@@ -67,6 +68,10 @@ class MainActivity : AppCompatActivity() {
             setOnItemClickListener { _, _, position, _ ->
                 startActivity(filteredApps[position].launchIntent)
             }
+            setOnItemLongClickListener { _, _, position, _ ->
+                startActivity(filteredApps[position].appInfoIntent)
+                true
+            }
         }
         appSearchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -89,6 +94,7 @@ class MainActivity : AppCompatActivity() {
                 val activityInfo = resolveInfo.activityInfo
                 InstalledApp(
                     name = resolveInfo.loadLabel(packageManager).toString(),
+                    packageName = activityInfo.packageName,
                     launchIntent = Intent.makeMainActivity(
                         ComponentName(activityInfo.packageName, activityInfo.name),
                     ),
@@ -100,8 +106,13 @@ class MainActivity : AppCompatActivity() {
 
     private data class InstalledApp(
         val name: String,
+        val packageName: String,
         val launchIntent: Intent,
-    )
+    ) {
+        val appInfoIntent: Intent
+            get() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.parse("package:$packageName"))
+    }
 
     private fun List<InstalledApp>.filterByName(query: String): List<InstalledApp> =
         if (query.isEmpty()) {

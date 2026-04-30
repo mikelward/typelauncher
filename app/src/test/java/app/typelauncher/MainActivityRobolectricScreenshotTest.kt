@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.net.Uri
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
@@ -191,6 +192,26 @@ class MainActivityRobolectricScreenshotTest {
 
         val startedIntent = shadowOf(activity).nextStartedActivity
         assertEquals(android.provider.Settings.ACTION_SETTINGS, startedIntent.action)
+    }
+
+    @Test
+    fun longPressingFilteredApp_opensAndroidAppInfoForThatApp() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("calendar")
+
+        val handled = list.performItemLongClick(
+            list.getChildAt(0),
+            0,
+            list.adapter.getItemId(0),
+        )
+
+        val startedIntent = shadowOf(activity).nextStartedActivity
+        assertTrue("long click is consumed", handled)
+        assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, startedIntent.action)
+        assertEquals(Uri.parse("package:app.typelauncher.fake2"), startedIntent.data)
     }
 
     private fun layout(root: View) {
