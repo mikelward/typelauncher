@@ -14,6 +14,7 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
@@ -166,7 +167,7 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue(clearButton.isVisible)
 
         search.setText("ca")
-        assertEquals(listOf("Calculator", "Calendar", "Camera"), list.appNames())
+        assertEquals(listOf("Calculator", "Calendar", "Camera", "Work Calendar"), list.appNames())
 
         search.setText("er")
         assertEquals(listOf("Browser", "Camera", "Type Launcher"), list.appNames())
@@ -184,7 +185,7 @@ class MainActivityRobolectricScreenshotTest {
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
 
         search.setText("cal")
-        assertEquals(listOf("Calculator", "Calendar"), list.appNames())
+        assertEquals(listOf("Calculator", "Calendar", "Work Calendar"), list.appNames())
         assertTrue(clearButton.isVisible)
 
         clearButton.performClick()
@@ -192,6 +193,27 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue("search query is cleared", search.text.isNullOrEmpty())
         assertFalse(clearButton.isVisible)
         assertEquals(ALL_FAKE_APP_NAMES, list.appNames())
+    }
+
+    @Test
+    fun workAppBadge_isShownAtSameRightInsetAsSearchClearButton() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val clearButton = activity.findViewById<ImageButton>(R.id.app_search_clear_button)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("work")
+        layout(root)
+
+        assertEquals(listOf("Work Calendar"), list.appNames())
+        assertTrue("work search row is rendered", list.childCount > 0)
+        val workRow = list.getChildAt(0)
+        val workBadge = workRow.findViewById<ImageView>(R.id.work_app_badge)
+        assertEquals("Work Calendar", workRow.findViewById<TextView>(android.R.id.text1).text.toString())
+        assertTrue("work apps show badge", workBadge.isVisible)
+        assertEquals("work badge matches clear button width", clearButton.width, workBadge.width)
+        assertEquals("work badge matches clear button right inset", clearButton.right, workBadge.right)
     }
 
     @Test
@@ -226,7 +248,7 @@ class MainActivityRobolectricScreenshotTest {
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
 
         search.setText("ca")
-        assertEquals(listOf("Calculator", "Calendar", "Camera"), list.appNames())
+        assertEquals(listOf("Calculator", "Calendar", "Camera", "Work Calendar"), list.appNames())
         assertTrue(clearButton.isVisible)
 
         list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
@@ -237,7 +259,7 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
         assertFalse(clearButton.isVisible)
         assertEquals(
-            listOf("Calculator", "Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher"),
+            listOf("Calculator", "Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
             list.appNames(),
         )
     }
@@ -257,13 +279,17 @@ class MainActivityRobolectricScreenshotTest {
 
         assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
         assertEquals(
-            listOf("Calculator", "Calendar", "Browser", "Camera", "Clock", "Files", "Settings", "Type Launcher"),
+            listOf("Calculator", "Calendar", "Browser", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
             list.appNames(),
         )
 
         search.setText("ca")
 
-        assertEquals("typed searches stay alphabetic", listOf("Calculator", "Calendar", "Camera"), list.appNames())
+        assertEquals(
+            "typed searches stay alphabetic",
+            listOf("Calculator", "Calendar", "Camera", "Work Calendar"),
+            list.appNames(),
+        )
     }
 
     @Test
@@ -435,7 +461,7 @@ class MainActivityRobolectricScreenshotTest {
         layout(root, width = 1440)
         installedList.dockItems(activity, 0, 1, 2, 3, 4, 5, 6, 7)
 
-        assertEquals(ALL_FAKE_APP_NAMES, dockedAppsList.appNames())
+        assertEquals(ALL_FAKE_APP_NAMES.dropLast(1), dockedAppsList.appNames())
     }
 
     @Test
@@ -574,7 +600,10 @@ class MainActivityRobolectricScreenshotTest {
 
     private fun buildActivityWithFakeLauncherApps(): ActivityController<MainActivity> {
         seedFakeLauncherApps()
-        return Robolectric.buildActivity(MainActivity::class.java).setup()
+        return Robolectric.buildActivity(
+            MainActivity::class.java,
+            Intent().putExtra(TEST_WORK_PACKAGES_EXTRA, arrayOf("app.typelauncher.fake8")),
+        ).setup()
     }
 
     private fun seedFakeLauncherApps() {
@@ -602,8 +631,8 @@ class MainActivityRobolectricScreenshotTest {
 
     private fun ListView.appNames(): List<String> {
         @Suppress("UNCHECKED_CAST")
-        val appNamesAdapter = adapter as ArrayAdapter<String>
-        return (0 until appNamesAdapter.count).map { index -> appNamesAdapter.getItem(index).orEmpty() }
+        val appNamesAdapter = adapter as ArrayAdapter<*>
+        return (0 until appNamesAdapter.count).map { index -> appNamesAdapter.getItem(index).toString() }
     }
 
     private fun LinearLayout.appNames(): List<String> =
@@ -649,6 +678,7 @@ class MainActivityRobolectricScreenshotTest {
             "Files",
             "Settings",
             "Type Launcher",
+            "Work Calendar",
         )
     }
 }

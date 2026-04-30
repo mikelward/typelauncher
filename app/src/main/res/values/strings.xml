@@ -2,6 +2,7 @@
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name</string>
     <string name="app_search_clear_button_description">Clear search text</string>
+    <string name="work_app_badge_description">Work app</string>
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Long press apps to dock</string>
