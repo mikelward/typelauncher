@@ -41,9 +41,9 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
     @Before
-    fun clearPinnedApps() {
+    fun clearDockedApps() {
         org.robolectric.RuntimeEnvironment.getApplication()
-            .getSharedPreferences("pinned_apps", android.content.Context.MODE_PRIVATE)
+            .getSharedPreferences("docked_apps", android.content.Context.MODE_PRIVATE)
             .edit()
             .clear()
             .commit()
@@ -151,15 +151,15 @@ class MainActivityRobolectricScreenshotTest {
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val clearButton = activity.findViewById<ImageButton>(R.id.app_search_clear_button)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
-        assertEquals(emptyList<String>(), pinnedList.appNames())
+        assertEquals(emptyList<String>(), dockedAppsList.appNames())
         assertFalse(clearButton.isVisible)
 
         search.setText("settings")
         assertEquals(listOf("Settings"), list.appNames())
-        assertEquals(emptyList<String>(), pinnedList.appNames())
+        assertEquals(emptyList<String>(), dockedAppsList.appNames())
         assertTrue(clearButton.isVisible)
 
         search.setText("ca")
@@ -275,7 +275,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun longPressingFilteredApp_showsAppInfoAndPinMenuItems() {
+    fun longPressingFilteredApp_showsAppInfoAndDockMenuItems() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
@@ -294,7 +294,7 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue("long click is consumed", handled)
         val menu = activity.latestAppMenu?.menu
         assertEquals("App info", menu?.getItem(0)?.title.toString())
-        assertEquals("Pin", menu?.getItem(1)?.title.toString())
+        assertEquals("Dock", menu?.getItem(1)?.title.toString())
     }
 
     @Test
@@ -316,84 +316,89 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun pinningApp_addsItToBottomPinnedListAndOffersUnpin() {
+    fun dockingApp_addsItToBottomDockAndOffersUndock() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsCard = activity.findViewById<LinearLayout>(R.id.docked_apps_card)
+        val dockedAppsHint = activity.findViewById<TextView>(R.id.docked_apps_hint)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
         search.setText("cal")
         layout(root)
         installedList.longClickItem(0)
-        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
         layout(root)
 
-        assertTrue("pinned card is visible", pinnedCard.isVisible)
-        assertEquals(listOf("Calculator"), pinnedList.appNames())
+        assertTrue("dock is visible", dockedAppsCard.isVisible)
+        assertFalse("dock hint is hidden", dockedAppsHint.isVisible)
+        assertEquals(listOf("Calculator"), dockedAppsList.appNames())
         installedList.longClickItem(0)
-        assertEquals("Unpin", activity.latestAppMenu?.menu?.getItem(1)?.title.toString())
+        assertEquals("Undock", activity.latestAppMenu?.menu?.getItem(1)?.title.toString())
     }
 
     @Test
-    fun unpinningPinnedApp_removesPinnedListWhenEmpty() {
+    fun undockingDockedApp_restoresDockHintWhenEmpty() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsCard = activity.findViewById<LinearLayout>(R.id.docked_apps_card)
+        val dockedAppsHint = activity.findViewById<TextView>(R.id.docked_apps_hint)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
         layout(root)
         installedList.longClickItem(0)
-        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
         layout(root)
-        pinnedList.getChildAt(0).performLongClick()
-        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        dockedAppsList.getChildAt(0).performLongClick()
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
         layout(root)
 
-        assertFalse("pinned card is hidden", pinnedCard.isVisible)
-        assertEquals(emptyList<String>(), pinnedList.appNames())
+        assertTrue("dock remains visible", dockedAppsCard.isVisible)
+        assertTrue("dock hint is shown", dockedAppsHint.isVisible)
+        assertEquals("Long press apps to dock", dockedAppsHint.text.toString())
+        assertEquals(emptyList<String>(), dockedAppsList.appNames())
     }
 
     @Test
-    fun pinnedList_isFilteredBySameSearchQuery() {
+    fun dockedList_isFilteredBySameSearchQuery() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
         layout(root)
-        installedList.pinItems(activity, 0, 1)
+        installedList.dockItems(activity, 0, 1)
 
         search.setText("cal")
-        assertEquals(listOf("Calculator"), pinnedList.appNames())
+        assertEquals(listOf("Calculator"), dockedAppsList.appNames())
 
         search.setText("browser")
-        assertEquals(listOf("Browser"), pinnedList.appNames())
+        assertEquals(listOf("Browser"), dockedAppsList.appNames())
     }
 
     @Test
-    fun pinningMoreThanFourApps_doesNotAddMorePinnedRows() {
+    fun dockingMoreThanFourApps_doesNotAddMoreDockIcons() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
         layout(root)
-        installedList.pinItems(activity, 0, 1, 2, 3, 4)
+        installedList.dockItems(activity, 0, 1, 2, 3, 4)
 
-        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings"), pinnedList.appNames())
+        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings"), dockedAppsList.appNames())
     }
 
     @Test
-    fun pinnedList_staysAtBottomAndNoMoreThanHalfUsableHeight() {
+    fun dockedList_staysAtBottomAndNoMoreThanHalfUsableHeight() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsCard = activity.findViewById<LinearLayout>(R.id.docked_apps_card)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
         val imeBottomInsetPx = dpToPx(320)
         val insets = WindowInsetsCompat.Builder()
             .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, dpToPx(24), 0, dpToPx(48)))
@@ -402,21 +407,21 @@ class MainActivityRobolectricScreenshotTest {
 
         ViewCompat.dispatchApplyWindowInsets(root, insets)
         layout(root)
-        installedList.pinItems(activity, 0, 1, 2, 3)
+        installedList.dockItems(activity, 0, 1, 2, 3)
         layout(root)
         val screenshot = drawToBitmap(root)
-        val file = screenshotOutputFile("main_activity_pinned_icon_row_robolectric.png")
+        val file = screenshotOutputFile("main_activity_docked_icon_row_robolectric.png")
         file.parentFile?.mkdirs()
         file.outputStream().buffered().use { output ->
             screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
 
         val usableHeight = root.height - root.paddingTop - root.paddingBottom
-        assertTrue("pinned list is visible", pinnedCard.isVisible)
-        assertEquals(4, pinnedList.childCount)
-        assertEquals(1, pinnedList.distinctRowTops().size)
-        assertTrue("pinned list is at bottom of visible content", pinnedCard.bottom <= root.height - root.paddingBottom)
-        assertTrue("pinned card uses no more than half of usable height", pinnedCard.height <= usableHeight / 2)
+        assertTrue("dock is visible", dockedAppsCard.isVisible)
+        assertEquals(4, dockedAppsList.childCount)
+        assertEquals(1, dockedAppsList.distinctRowTops().size)
+        assertTrue("dock is at bottom of visible content", dockedAppsCard.bottom <= root.height - root.paddingBottom)
+        assertTrue("dock uses no more than half of usable height", dockedAppsCard.height <= usableHeight / 2)
     }
 
     private fun layout(root: View) {
@@ -557,10 +562,10 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
-    private fun ListView.pinItems(activity: MainActivity, vararg positions: Int) {
+    private fun ListView.dockItems(activity: MainActivity, vararg positions: Int) {
         positions.forEach { position ->
             longClickItem(position)
-            activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+            activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
         }
     }
 
@@ -575,6 +580,6 @@ class MainActivityRobolectricScreenshotTest {
 
     private companion object {
         const val MENU_ITEM_APP_INFO = 1
-        const val MENU_ITEM_TOGGLE_PIN = 2
+        const val MENU_ITEM_TOGGLE_DOCK = 2
     }
 }

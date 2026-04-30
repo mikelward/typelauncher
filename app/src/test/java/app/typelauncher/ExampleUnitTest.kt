@@ -21,23 +21,25 @@ class ExampleUnitTest {
         val input = layout.getElementsByTagName("EditText").item(0)
         val clearButton = layout.getElementsByTagName("ImageButton").item(0)
         val installedCard = layout.getElementsByTagName("LinearLayout").item(1)
-        val pinnedCard = layout.getElementsByTagName("LinearLayout").item(2)
-        val pinnedRow = layout.getElementsByTagName("LinearLayout").item(3)
+        val dockCard = layout.getElementsByTagName("LinearLayout").item(2)
+        val dockRow = layout.getElementsByTagName("LinearLayout").item(3)
         val list = layout.getElementsByTagName("ListView").item(0)
-        val pinnedScroller = layout.getElementsByTagName("HorizontalScrollView").item(0)
+        val dockHint = layout.getElementsByTagName("TextView").item(0)
+        val dockScroller = layout.getElementsByTagName("HorizontalScrollView").item(0)
         val searchContainerAttrs = searchContainer.attributes
         val attrs = input.attributes
         val clearButtonAttrs = clearButton.attributes
         val installedCardAttrs = installedCard.attributes
-        val pinnedCardAttrs = pinnedCard.attributes
-        val pinnedRowAttrs = pinnedRow.attributes
+        val dockCardAttrs = dockCard.attributes
+        val dockHintAttrs = dockHint.attributes
+        val dockRowAttrs = dockRow.attributes
         val listAttrs = list.attributes
-        val pinnedScrollerAttrs = pinnedScroller.attributes
+        val dockScrollerAttrs = dockScroller.attributes
 
         assertEquals("vertical", root.attributes.getNamedItem("android:orientation").nodeValue)
         assertEquals(searchContainer, root.elementChildren()[0])
         assertEquals(installedCard, root.elementChildren()[1])
-        assertEquals(pinnedCard, root.elementChildren()[2])
+        assertEquals(dockCard, root.elementChildren()[2])
         assertEquals("@+id/app_search_input_container", searchContainerAttrs.getNamedItem("android:id").nodeValue)
         assertEquals("@+id/app_search_input", attrs.getNamedItem("android:id").nodeValue)
         assertEquals("1", attrs.getNamedItem("android:maxLines").nodeValue)
@@ -54,12 +56,14 @@ class ExampleUnitTest {
         assertEquals("@+id/installed_apps_list", listAttrs.getNamedItem("android:id").nodeValue)
         assertEquals("match_parent", listAttrs.getNamedItem("android:layout_height").nodeValue)
         assertEquals("@string/installed_apps_list_label", listAttrs.getNamedItem("android:contentDescription").nodeValue)
-        assertEquals("@+id/pinned_apps_card", pinnedCardAttrs.getNamedItem("android:id").nodeValue)
-        assertEquals("gone", pinnedCardAttrs.getNamedItem("android:visibility").nodeValue)
-        assertEquals("@string/pinned_apps_list_label", pinnedScrollerAttrs.getNamedItem("android:contentDescription").nodeValue)
-        assertEquals("@+id/pinned_apps_list", pinnedRowAttrs.getNamedItem("android:id").nodeValue)
-        assertEquals("horizontal", pinnedRowAttrs.getNamedItem("android:orientation").nodeValue)
-        assertEquals("56dp", pinnedRowAttrs.getNamedItem("android:layout_height").nodeValue)
+        assertEquals("@+id/docked_apps_card", dockCardAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("@+id/docked_apps_hint", dockHintAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("@string/dock_apps_hint", dockHintAttrs.getNamedItem("android:text").nodeValue)
+        assertEquals("@string/dock_apps_list_label", dockScrollerAttrs.getNamedItem("android:contentDescription").nodeValue)
+        assertEquals("@+id/docked_apps_list", dockRowAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("horizontal", dockRowAttrs.getNamedItem("android:orientation").nodeValue)
+        assertEquals("56dp", dockRowAttrs.getNamedItem("android:layout_height").nodeValue)
+        assertEquals("gone", dockRowAttrs.getNamedItem("android:visibility").nodeValue)
     }
 
     @Test
@@ -100,15 +104,15 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun mainActivity_longPressShowsStandardMenuWithAppInfoAndPinToggle() {
+    fun mainActivity_longPressShowsStandardMenuWithAppInfoAndDockToggle() {
         val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
 
         assertTrue(source.contains("PopupMenu(this, anchor)"))
         assertTrue(source.contains("R.string.app_menu_app_info"))
-        assertTrue(source.contains("R.string.app_menu_pin"))
-        assertTrue(source.contains("R.string.app_menu_unpin"))
+        assertTrue(source.contains("R.string.app_menu_dock"))
+        assertTrue(source.contains("R.string.app_menu_undock"))
         assertTrue(source.contains("MENU_ITEM_APP_INFO"))
-        assertTrue(source.contains("MENU_ITEM_TOGGLE_PIN"))
+        assertTrue(source.contains("MENU_ITEM_TOGGLE_DOCK"))
     }
 
     @Test
