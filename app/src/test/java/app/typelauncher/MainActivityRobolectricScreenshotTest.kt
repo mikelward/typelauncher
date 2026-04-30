@@ -197,12 +197,15 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun longPressingFilteredApp_opensAndroidAppInfoForThatApp() {
         val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
 
         search.setText("calendar")
+        layout(root)
 
-        val handled = list.performItemLongClick(
+        val handled = list.onItemLongClickListener.onItemLongClick(
+            list,
             list.getChildAt(0),
             0,
             list.adapter.getItemId(0),
