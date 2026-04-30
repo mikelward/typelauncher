@@ -65,7 +65,7 @@ class ExampleUnitTest {
         val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
 
         assertTrue(source.contains("setOnItemClickListener"))
-        assertTrue(source.contains("startActivity(installedApps[position].launchIntent)"))
+        assertTrue(source.contains("startActivity(filteredApps[position].launchIntent)"))
         assertTrue(source.contains("Intent.makeMainActivity"))
     }
 
