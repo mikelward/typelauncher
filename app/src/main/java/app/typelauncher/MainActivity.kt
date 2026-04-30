@@ -16,6 +16,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupMenu
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
 
         val root = findViewById<View>(R.id.main_root)
         val appSearchInput = findViewById<EditText>(R.id.app_search_input)
+        val appSearchClearButton = findViewById<ImageButton>(R.id.app_search_clear_button)
         val settingsLaunchGate = SettingsLaunchGate()
         val pinnedAppStore = PinnedAppStore(this)
         appSearchInput.requestFocus()
@@ -132,14 +134,18 @@ class MainActivity : AppCompatActivity() {
                     downTime = event?.downTime,
                 )
             ) {
-                launchActiveApp(filteredApps, appSearchInput.text.toString())
+                launchActiveApp(filteredApps, appSearchInput.text.toString(), appSearchInput)
             }
             true
+        }
+        appSearchClearButton.setOnClickListener {
+            appSearchInput.text?.clear()
+            appSearchInput.requestFocus()
         }
         findViewById<ListView>(R.id.installed_apps_list).apply {
             adapter = installedAppNamesAdapter
             setOnItemClickListener { _, _, position, _ ->
-                startActivity(filteredApps[position].launchIntent)
+                launchAndClearQuery(filteredApps[position].launchIntent, appSearchInput)
             }
             setOnItemLongClickListener { _, view, position, _ ->
                 showAppMenu(
@@ -154,7 +160,7 @@ class MainActivity : AppCompatActivity() {
         pinnedAppsList.apply {
             adapter = pinnedAppNamesAdapter
             setOnItemClickListener { _, _, position, _ ->
-                startActivity(filteredPinnedApps[position].launchIntent)
+                launchAndClearQuery(filteredPinnedApps[position].launchIntent, appSearchInput)
             }
             setOnItemLongClickListener { _, view, position, _ ->
                 showAppMenu(
@@ -173,10 +179,12 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
                 val query = text?.toString().orEmpty().trim()
                 refreshLists(query)
+                appSearchClearButton.isVisible = text?.isNotEmpty() == true
             }
 
             override fun afterTextChanged(text: Editable?) = Unit
         })
+        appSearchClearButton.isVisible = appSearchInput.text?.isNotEmpty() == true
     }
 
     private fun installedApps(): List<InstalledApp> {
@@ -231,12 +239,23 @@ class MainActivity : AppCompatActivity() {
         addAll(appNames)
     }
 
-    private fun launchActiveApp(filteredApps: List<InstalledApp>, query: String) {
+    private fun launchActiveApp(
+        filteredApps: List<InstalledApp>,
+        query: String,
+        appSearchInput: EditText,
+    ) {
         if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
-            startActivity(Intent(Settings.ACTION_SETTINGS))
+            launchAndClearQuery(Intent(Settings.ACTION_SETTINGS), appSearchInput)
             return
         }
-        filteredApps.firstOrNull()?.launchIntent?.let(::startActivity)
+        filteredApps.firstOrNull()?.launchIntent?.let { intent ->
+            launchAndClearQuery(intent, appSearchInput)
+        }
+    }
+
+    private fun launchAndClearQuery(intent: Intent, appSearchInput: EditText) {
+        startActivity(intent)
+        appSearchInput.text?.clear()
     }
 
     private fun showAppMenu(
