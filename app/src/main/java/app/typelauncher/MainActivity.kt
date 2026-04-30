@@ -19,6 +19,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val appSearchInput = findViewById<EditText>(R.id.app_search_input)
+        val settingsLaunchGate = SettingsLaunchGate()
         appSearchInput.requestFocus()
         appSearchInput.setOnEditorActionListener { _, actionId, event ->
             val isSearchAction = actionId == EditorInfo.IME_ACTION_SEARCH
@@ -32,7 +33,13 @@ class MainActivity : AppCompatActivity() {
                 return@setOnEditorActionListener false
             }
 
-            if (event == null || event.action == KeyEvent.ACTION_UP) {
+            if (settingsLaunchGate.shouldLaunch(
+                    action = event?.action,
+                    keyCode = event?.keyCode,
+                    repeatCount = event?.repeatCount ?: 0,
+                    downTime = event?.downTime,
+                )
+            ) {
                 startActivity(Intent(Settings.ACTION_SETTINGS))
             }
             true
@@ -78,5 +85,46 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val SETTINGS_QUERY = "settings"
+    }
+}
+
+internal class SettingsLaunchGate {
+    private var lastHandledEnterDownTime = NO_DOWN_TIME
+
+    fun shouldLaunch(action: Int?, keyCode: Int?, repeatCount: Int, downTime: Long?): Boolean {
+        if (action == null || keyCode == null) {
+            lastHandledEnterDownTime = NO_DOWN_TIME
+            return true
+        }
+
+        if (keyCode != KeyEvent.KEYCODE_ENTER) {
+            lastHandledEnterDownTime = NO_DOWN_TIME
+            return true
+        }
+
+        return when (action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (repeatCount > 0) {
+                    false
+                } else {
+                    lastHandledEnterDownTime = downTime ?: NO_DOWN_TIME
+                    true
+                }
+            }
+            KeyEvent.ACTION_UP -> {
+                val wasHandledOnDown = downTime != null && downTime == lastHandledEnterDownTime
+                if (wasHandledOnDown) {
+                    lastHandledEnterDownTime = NO_DOWN_TIME
+                    false
+                } else {
+                    true
+                }
+            }
+            else -> false
+        }
+    }
+
+    private companion object {
+        const val NO_DOWN_TIME = Long.MIN_VALUE
     }
 }
