@@ -20,7 +20,6 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.ViewAnimator
-import android.widget.ViewAnimator
 import android.view.inputmethod.EditorInfo
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
@@ -181,8 +180,11 @@ class MainActivityRobolectricScreenshotTest {
         val switcher = activity.findViewById<LauncherScreenSwitcher>(R.id.launcher_screen_switcher)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
         val agendaRoot = activity.findViewById<View>(R.id.agenda_root)
+        val root = activity.findViewById<View>(R.id.main_root)
+        val switcherView = activity.findViewById<View>(R.id.launcher_screen_switcher)
 
-        layout(activity.findViewById(R.id.main_root))
+        layout(root)
+        layout(switcherView)
         dispatchSwipe(
             target = installedList,
             startX = 900f,
@@ -201,9 +203,12 @@ class MainActivityRobolectricScreenshotTest {
         val switcher = activity.findViewById<LauncherScreenSwitcher>(R.id.launcher_screen_switcher)
         val agendaEventsList = activity.findViewById<ListView>(R.id.agenda_events_list)
         val homeRoot = activity.findViewById<View>(R.id.main_root)
+        val agendaRoot = activity.findViewById<View>(R.id.agenda_root)
+        val switcherView = activity.findViewById<View>(R.id.launcher_screen_switcher)
 
         switcher.displayedChild = 0
-        layout(activity.findViewById(R.id.agenda_root))
+        layout(agendaRoot)
+        layout(switcherView)
         dispatchSwipe(
             target = agendaEventsList,
             startX = 120f,
@@ -725,21 +730,22 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     private fun dispatchSwipe(target: View, startX: Float, endX: Float, y: Float) {
+        val switcher = target.rootView.findViewById<LauncherScreenSwitcher>(R.id.launcher_screen_switcher)
         val middleX = (startX + endX) / 2f
         val downTime = System.currentTimeMillis()
         var eventTime = downTime
         val down = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_DOWN, startX, y, 0)
-        target.dispatchTouchEvent(down)
+        switcher.dispatchTouchEvent(down)
         down.recycle()
 
         eventTime += 16
         val move = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_MOVE, middleX, y, 0)
-        target.dispatchTouchEvent(move)
+        switcher.dispatchTouchEvent(move)
         move.recycle()
 
         eventTime += 16
         val up = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_UP, endX, y, 0)
-        target.dispatchTouchEvent(up)
+        switcher.dispatchTouchEvent(up)
         up.recycle()
     }
 
