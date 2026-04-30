@@ -286,7 +286,7 @@ class MainActivity : AppCompatActivity() {
                         if (isDocked) {
                             dockedAppStore.undock(app.id)
                             afterDockChanged()
-                        } else if (dockedAppStore.dock(app.id)) {
+                        } else if (dockedAppStore.dock(app.id, dockCapacityFor())) {
                             afterDockChanged()
                         } else {
                             Toast.makeText(
@@ -304,9 +304,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun dockCapacityFor(): Int {
+        val dockedAppsCard = findViewById<LinearLayout>(R.id.docked_apps_card)
+        val dockedAppsRow = findViewById<LinearLayout>(R.id.docked_apps_list)
+        val dockViewportWidth = (dockedAppsRow.parent as? View)?.width?.takeIf { width -> width > 0 }
+            ?: dockedAppsCard.width.takeIf { width -> width > 0 }
+        val fallbackViewportWidth = resources.displayMetrics.widthPixels - (DOCK_CARD_HORIZONTAL_MARGIN_DP * 2).dpToPx()
+        val availableWidth = ((dockViewportWidth ?: fallbackViewportWidth) - dockedAppsRow.paddingLeft - dockedAppsRow.paddingRight)
+            .coerceAtLeast(0)
+        val iconWidth = DOCK_APP_ICON_SIZE_DP.dpToPx()
+        val iconsThatFit = availableWidth / iconWidth
+        return iconsThatFit.coerceAtLeast(MIN_DOCKED_APPS)
+    }
+
     private companion object {
         const val SETTINGS_QUERY = "settings"
-        const val MAX_DOCKED_APPS = 4
+        const val MIN_DOCKED_APPS = 1
+        const val DOCK_CARD_HORIZONTAL_MARGIN_DP = 24
         const val DOCK_APP_ICON_SIZE_DP = 56
         const val DOCK_APP_ICON_PADDING_DP = 8
         const val MENU_GROUP_APP_ACTIONS = 0
@@ -349,11 +363,11 @@ class MainActivity : AppCompatActivity() {
 
         fun contains(appId: String): Boolean = appId in dockedIds
 
-        fun dock(appId: String): Boolean {
+        fun dock(appId: String, maxDockedApps: Int): Boolean {
             if (appId in dockedIds) {
                 return true
             }
-            if (dockedIds.size >= MAX_DOCKED_APPS) {
+            if (dockedIds.size >= maxDockedApps) {
                 return false
             }
             dockedIds.add(appId)
