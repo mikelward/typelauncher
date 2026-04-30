@@ -81,14 +81,23 @@
         android:paddingVertical="4dp"
         android:visibility="gone">
 
-        <ListView
-            android:id="@+id/pinned_apps_list"
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/white"
             android:contentDescription="@string/pinned_apps_list_label"
-            android:divider="@android:color/transparent"
-            android:dividerHeight="0dp" />
+            android:fillViewport="true"
+            android:overScrollMode="never"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/pinned_apps_list"
+                android:layout_width="wrap_content"
+                android:layout_height="56dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp" />
+        </HorizontalScrollView>
     </LinearLayout>
 
 </LinearLayout>
