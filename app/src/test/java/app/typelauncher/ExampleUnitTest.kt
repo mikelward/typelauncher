@@ -17,27 +17,35 @@ class ExampleUnitTest {
     fun launcherLayout_showsSearchThenInstalledAppsList() {
         val layout = parseLayout()
         val root = layout.documentElement
+        val searchContainer = layout.getElementsByTagName("FrameLayout").item(0)
         val input = layout.getElementsByTagName("EditText").item(0)
+        val clearButton = layout.getElementsByTagName("ImageButton").item(0)
         val installedCard = layout.getElementsByTagName("LinearLayout").item(1)
         val pinnedCard = layout.getElementsByTagName("LinearLayout").item(2)
         val list = layout.getElementsByTagName("ListView").item(0)
         val pinnedList = layout.getElementsByTagName("ListView").item(1)
+        val searchContainerAttrs = searchContainer.attributes
         val attrs = input.attributes
+        val clearButtonAttrs = clearButton.attributes
         val installedCardAttrs = installedCard.attributes
         val pinnedCardAttrs = pinnedCard.attributes
         val listAttrs = list.attributes
         val pinnedListAttrs = pinnedList.attributes
 
         assertEquals("vertical", root.attributes.getNamedItem("android:orientation").nodeValue)
-        assertEquals(input, root.elementChildren()[0])
+        assertEquals(searchContainer, root.elementChildren()[0])
         assertEquals(installedCard, root.elementChildren()[1])
         assertEquals(pinnedCard, root.elementChildren()[2])
+        assertEquals("@+id/app_search_input_container", searchContainerAttrs.getNamedItem("android:id").nodeValue)
         assertEquals("@+id/app_search_input", attrs.getNamedItem("android:id").nodeValue)
         assertEquals("1", attrs.getNamedItem("android:maxLines").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:singleLine").nodeValue)
         assertEquals("actionSearch", attrs.getNamedItem("android:imeOptions").nodeValue)
         assertEquals("text", attrs.getNamedItem("android:inputType").nodeValue)
         assertEquals("@string/app_search_hint", attrs.getNamedItem("android:hint").nodeValue)
+        assertEquals("@+id/app_search_clear_button", clearButtonAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("gone", clearButtonAttrs.getNamedItem("android:visibility").nodeValue)
+        assertEquals("@string/app_search_clear_button_description", clearButtonAttrs.getNamedItem("android:contentDescription").nodeValue)
         assertEquals("@+id/installed_apps_card", installedCardAttrs.getNamedItem("android:id").nodeValue)
         assertEquals("0dp", installedCardAttrs.getNamedItem("android:layout_height").nodeValue)
         assertEquals("1", installedCardAttrs.getNamedItem("android:layout_weight").nodeValue)
@@ -78,7 +86,7 @@ class ExampleUnitTest {
         val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
 
         assertTrue(source.contains("setOnItemClickListener"))
-        assertTrue(source.contains("startActivity(filteredApps[position].launchIntent)"))
+        assertTrue(source.contains("launchAndClearQuery(filteredApps[position].launchIntent, appSearchInput)"))
         assertTrue(source.contains("Intent.makeMainActivity"))
     }
 
