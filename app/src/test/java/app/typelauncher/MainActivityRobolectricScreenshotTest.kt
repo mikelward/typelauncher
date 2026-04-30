@@ -32,7 +32,7 @@ class MainActivityRobolectricScreenshotTest {
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
-        search.setText("settings")
+        assertTrue("search hint is visible when empty", search.text.isNullOrEmpty())
 
         val imeBottomInsetPx = dpToPx(320)
         val insets = WindowInsetsCompat.Builder()
@@ -68,7 +68,7 @@ class MainActivityRobolectricScreenshotTest {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
-        search.setText("settings")
+        assertTrue("search hint is visible when empty", search.text.isNullOrEmpty())
         val insets = WindowInsetsCompat.Builder()
             .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 0))
             .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 0))
