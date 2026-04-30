@@ -82,6 +82,11 @@ class MainActivityRobolectricScreenshotTest {
         hintFile.outputStream().buffered().use { output ->
             hintVisibleScreenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
+        val hintCrop = cropAroundSearchField(hintVisibleScreenshot, search)
+        val hintCropFile = screenshotOutputFile("main_activity_keyboard_hidden_hint_search_crop_robolectric.png")
+        hintCropFile.outputStream().buffered().use { output ->
+            hintCrop.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
 
         search.setText("settings")
         layout(root)
@@ -89,6 +94,11 @@ class MainActivityRobolectricScreenshotTest {
         val typedFile = screenshotOutputFile("main_activity_keyboard_hidden_typed_robolectric.png")
         typedFile.outputStream().buffered().use { output ->
             typedScreenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+        val typedCrop = cropAroundSearchField(typedScreenshot, search)
+        val typedCropFile = screenshotOutputFile("main_activity_keyboard_hidden_typed_search_crop_robolectric.png")
+        typedCropFile.outputStream().buffered().use { output ->
+            typedCrop.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
 
         assertEquals(root.width, hintVisibleScreenshot.width)
@@ -111,6 +121,17 @@ class MainActivityRobolectricScreenshotTest {
         val canvas = Canvas(bitmap)
         root.draw(canvas)
         return bitmap
+    }
+
+    private fun cropAroundSearchField(bitmap: Bitmap, search: View): Bitmap {
+        val horizontalPadding = dpToPx(8)
+        val top = (search.top - dpToPx(8)).coerceAtLeast(0)
+        val bottom = (search.bottom + dpToPx(24)).coerceAtMost(bitmap.height)
+        val left = (search.left - horizontalPadding).coerceAtLeast(0)
+        val right = (search.right + horizontalPadding).coerceAtMost(bitmap.width)
+        val width = (right - left).coerceAtLeast(1)
+        val height = (bottom - top).coerceAtLeast(1)
+        return Bitmap.createBitmap(bitmap, left, top, width, height)
     }
 
     private fun buildActivityWithFakeLauncherApps(): ActivityController<MainActivity> {
