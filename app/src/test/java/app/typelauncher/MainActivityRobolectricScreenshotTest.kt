@@ -37,7 +37,7 @@ import org.robolectric.android.controller.ActivityController
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
     @Before
@@ -153,7 +153,7 @@ class MainActivityRobolectricScreenshotTest {
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
         val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
-        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+        assertEquals(ALL_FAKE_APP_NAMES, list.appNames())
         assertEquals(emptyList<String>(), dockedAppsList.appNames())
         assertFalse(clearButton.isVisible)
 
@@ -163,13 +163,13 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue(clearButton.isVisible)
 
         search.setText("ca")
-        assertEquals(listOf("Calculator", "Calendar"), list.appNames())
+        assertEquals(listOf("Calculator", "Calendar", "Camera"), list.appNames())
 
         search.setText("er")
-        assertEquals(listOf("Browser", "Type Launcher"), list.appNames())
+        assertEquals(listOf("Browser", "Camera", "Type Launcher"), list.appNames())
 
         search.setText("")
-        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+        assertEquals(ALL_FAKE_APP_NAMES, list.appNames())
         assertFalse(clearButton.isVisible)
     }
 
@@ -188,7 +188,7 @@ class MainActivityRobolectricScreenshotTest {
 
         assertTrue("search query is cleared", search.text.isNullOrEmpty())
         assertFalse(clearButton.isVisible)
-        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+        assertEquals(ALL_FAKE_APP_NAMES, list.appNames())
     }
 
     @Test
@@ -223,7 +223,7 @@ class MainActivityRobolectricScreenshotTest {
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
 
         search.setText("ca")
-        assertEquals(listOf("Calculator", "Calendar"), list.appNames())
+        assertEquals(listOf("Calculator", "Calendar", "Camera"), list.appNames())
         assertTrue(clearButton.isVisible)
 
         list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
@@ -233,7 +233,7 @@ class MainActivityRobolectricScreenshotTest {
         assertStandardLauncherFlags(startedIntent)
         assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
         assertFalse(clearButton.isVisible)
-        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+        assertEquals(ALL_FAKE_APP_NAMES, list.appNames())
     }
 
     @Test
@@ -380,16 +380,48 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockingMoreThanFourApps_doesNotAddMoreDockIcons() {
+    fun dockingApps_allowsSixAppsWhenTheyFitPixelPortraitWidth() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
         val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
 
         layout(root)
-        installedList.dockItems(activity, 0, 1, 2, 3, 4)
+        installedList.dockItems(activity, 0, 1, 2, 3, 4, 5, 6, 7)
 
-        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings"), dockedAppsList.appNames())
+        assertEquals(
+            listOf("Browser", "Calculator", "Calendar", "Camera", "Clock", "Files"),
+            dockedAppsList.appNames(),
+        )
+    }
+
+    @Test
+    fun dockingApps_allowsMoreThanSixAppsWhenTheyFitWiderPortraitWidth() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
+
+        layout(root, width = 1440)
+        installedList.dockItems(activity, 0, 1, 2, 3, 4, 5, 6, 7)
+
+        assertEquals(ALL_FAKE_APP_NAMES, dockedAppsList.appNames())
+    }
+
+    @Test
+    fun dockingMoreAppsThanFitPortraitWidth_stopsAtFitCapacity() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
+
+        layout(root, width = 720)
+        installedList.dockItems(activity, 0, 1, 2, 3, 4, 5, 6, 7)
+
+        assertEquals(
+            listOf("Browser", "Calculator", "Calendar"),
+            dockedAppsList.appNames(),
+        )
     }
 
     @Test
@@ -407,7 +439,7 @@ class MainActivityRobolectricScreenshotTest {
 
         ViewCompat.dispatchApplyWindowInsets(root, insets)
         layout(root)
-        installedList.dockItems(activity, 0, 1, 2, 3)
+        installedList.dockItems(activity, 0, 1, 2, 3, 4, 5, 6, 7)
         layout(root)
         val screenshot = drawToBitmap(root)
         val file = screenshotOutputFile("main_activity_docked_icon_row_robolectric.png")
@@ -418,15 +450,13 @@ class MainActivityRobolectricScreenshotTest {
 
         val usableHeight = root.height - root.paddingTop - root.paddingBottom
         assertTrue("dock is visible", dockedAppsCard.isVisible)
-        assertEquals(4, dockedAppsList.childCount)
+        assertEquals(6, dockedAppsList.childCount)
         assertEquals(1, dockedAppsList.distinctRowTops().size)
         assertTrue("dock is at bottom of visible content", dockedAppsCard.bottom <= root.height - root.paddingBottom)
         assertTrue("dock uses no more than half of usable height", dockedAppsCard.height <= usableHeight / 2)
     }
 
-    private fun layout(root: View) {
-        val width = 1080
-        val height = 2400
+    private fun layout(root: View, width: Int = 1080, height: Int = 2400) {
         val widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
         val heightSpec = View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
         root.measure(widthSpec, heightSpec)
@@ -520,8 +550,7 @@ class MainActivityRobolectricScreenshotTest {
     private fun seedFakeLauncherApps() {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val packageManager = shadowOf(org.robolectric.RuntimeEnvironment.getApplication().packageManager)
-        val labels = listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher")
-        labels.forEachIndexed { index, label ->
+        ALL_FAKE_APP_NAMES.forEachIndexed { index, label ->
             val packageName = "app.typelauncher.fake$index"
             val resolveInfo = ResolveInfo().apply {
                 nonLocalizedLabel = label
@@ -581,5 +610,15 @@ class MainActivityRobolectricScreenshotTest {
     private companion object {
         const val MENU_ITEM_APP_INFO = 1
         const val MENU_ITEM_TOGGLE_DOCK = 2
+        val ALL_FAKE_APP_NAMES = listOf(
+            "Browser",
+            "Calculator",
+            "Calendar",
+            "Camera",
+            "Clock",
+            "Files",
+            "Settings",
+            "Type Launcher",
+        )
     }
 }
