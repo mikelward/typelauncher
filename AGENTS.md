@@ -7,7 +7,7 @@ Android home screen launcher app (Kotlin, single `:app` module).
 ### Environment
 
 - **JDK 21** is pre-installed on the VM. AGP 9.2.0 requires JDK 17+.
-- **Android SDK** is installed at `/opt/android-sdk`. Environment variables `ANDROID_HOME`, `JAVA_HOME`, and `PATH` are set via `~/.bashrc`.
+- **Android SDK** is installed at `/opt/android-sdk`. Environment variables `ANDROID_HOME`, `JAVA_HOME`, and `PATH` are set via `~/.bashrc`. In non-login/non-interactive shells (e.g. plain `Shell` tool calls), you may need to `source ~/.bashrc` or export these variables explicitly before running Gradle commands.
 - The Gradle wrapper (`./gradlew`) auto-downloads Gradle 9.4.1 on first run.
 - AGP auto-installs `Android SDK Platform 36.1` (compileSdk minor API level 1) on the first build if only `platforms;android-36` is present.
 
