@@ -4,4 +4,24 @@
     android:layout_height="match_parent"
     android:background="@color/blue">
 
+    <EditText
+        android:id="@+id/app_search_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_margin="24dp"
+        android:autofillHints=""
+        android:background="@android:color/white"
+        android:hint="@string/app_search_hint"
+        android:imeOptions="actionSearch"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:maxLines="1"
+        android:minHeight="48dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:singleLine="true"
+        android:textColor="@color/black"
+        android:textColorHint="@color/black" />
+
 </FrameLayout>
