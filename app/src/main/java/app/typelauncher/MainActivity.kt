@@ -254,9 +254,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchAndClearQuery(intent: Intent, appSearchInput: EditText) {
-        startActivity(intent)
+        startActivity(intent.asLauncherTaskIntent())
         appSearchInput.text?.clear()
     }
+
+    private fun Intent.asLauncherTaskIntent(): Intent =
+        Intent(this).addFlags(LAUNCHER_TASK_FLAGS)
 
     private fun showAppMenu(
         anchor: View,
@@ -309,6 +312,8 @@ class MainActivity : AppCompatActivity() {
         const val MENU_GROUP_APP_ACTIONS = 0
         const val MENU_ITEM_APP_INFO = 1
         const val MENU_ITEM_TOGGLE_PIN = 2
+        const val LAUNCHER_TASK_FLAGS =
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
     }
 
     private class InstalledAppsAdapter(
