@@ -3,6 +3,9 @@ package app.typelauncher
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ResolveInfo
 import android.view.View
 import android.widget.EditText
 import android.widget.ListView
@@ -16,6 +19,8 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ActivityController
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
@@ -23,10 +28,11 @@ import java.io.File
 class MainActivityRobolectricScreenshotTest {
     @Test
     fun screenshot_keyboardVisible_keepsSearchAndListAboveImeInset() {
-        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+        search.setText("settings")
 
         val imeBottomInsetPx = dpToPx(320)
         val insets = WindowInsetsCompat.Builder()
@@ -45,6 +51,8 @@ class MainActivityRobolectricScreenshotTest {
 
         val imeTop = root.height - imeBottomInsetPx
         assertTrue("root is measured", root.height > 0)
+        assertTrue("list has launcher app rows", list.adapter != null && list.adapter.count >= 4)
+        assertTrue("list rendered rows", list.childCount > 0)
         assertTrue("search remains above ime", search.bottom <= imeTop)
         assertTrue("list remains above ime", list.bottom <= imeTop)
         assertTrue("list starts below search", list.top >= search.bottom)
@@ -57,8 +65,10 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun screenshot_keyboardHidden_matchesFullHeightLayout() {
-        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        search.setText("settings")
         val insets = WindowInsetsCompat.Builder()
             .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 0))
             .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 0))
@@ -91,6 +101,29 @@ class MainActivityRobolectricScreenshotTest {
         val canvas = Canvas(bitmap)
         root.draw(canvas)
         return bitmap
+    }
+
+    private fun buildActivityWithFakeLauncherApps(): ActivityController<MainActivity> {
+        seedFakeLauncherApps()
+        return Robolectric.buildActivity(MainActivity::class.java).setup()
+    }
+
+    private fun seedFakeLauncherApps() {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val packageManager = shadowOf(org.robolectric.RuntimeEnvironment.getApplication().packageManager)
+        val labels = listOf("Browser", "Calculator", "Calendar", "Settings")
+        labels.forEachIndexed { index, label ->
+            val packageName = "app.typelauncher.fake$index"
+            val resolveInfo = ResolveInfo().apply {
+                nonLocalizedLabel = label
+                activityInfo = ActivityInfo().apply {
+                    this.packageName = packageName
+                    name = "$packageName.LaunchActivity"
+                }
+            }
+            @Suppress("DEPRECATION")
+            packageManager.addResolveInfoForIntent(launcherIntent, resolveInfo)
+        }
     }
 
     private fun screenshotOutputFile(name: String): File =
