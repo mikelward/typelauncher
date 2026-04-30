@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
 import androidx.core.graphics.Insets
@@ -124,6 +125,27 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(root.height, typedScreenshot.height)
     }
 
+    @Test
+    fun typingInSearch_filtersInstalledAppsByNameSubstring() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+
+        search.setText("settings")
+        assertEquals(listOf("Settings"), list.appNames())
+
+        search.setText("ca")
+        assertEquals(listOf("Calculator", "Calendar"), list.appNames())
+
+        search.setText("er")
+        assertEquals(listOf("Browser", "Type Launcher"), list.appNames())
+
+        search.setText("")
+        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+    }
+
     private fun layout(root: View) {
         val width = 1080
         val height = 2400
@@ -220,7 +242,7 @@ class MainActivityRobolectricScreenshotTest {
     private fun seedFakeLauncherApps() {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val packageManager = shadowOf(org.robolectric.RuntimeEnvironment.getApplication().packageManager)
-        val labels = listOf("Browser", "Calculator", "Calendar", "Settings")
+        val labels = listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher")
         labels.forEachIndexed { index, label ->
             val packageName = "app.typelauncher.fake$index"
             val resolveInfo = ResolveInfo().apply {
@@ -240,5 +262,11 @@ class MainActivityRobolectricScreenshotTest {
 
     private fun dpToPx(dp: Int): Int =
         (dp * 420f / 160f).toInt()
+
+    private fun ListView.appNames(): List<String> {
+        @Suppress("UNCHECKED_CAST")
+        val appNamesAdapter = adapter as ArrayAdapter<String>
+        return (0 until appNamesAdapter.count).map { index -> appNamesAdapter.getItem(index).orEmpty() }
+    }
 
 }
