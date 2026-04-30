@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -55,16 +57,30 @@ class MainActivity : AppCompatActivity() {
         }
 
         val installedApps = installedApps()
+        val filteredApps = installedApps.toMutableList()
+        val installedAppNamesAdapter = ArrayAdapter(
+            this@MainActivity,
+            R.layout.installed_app_list_item,
+            filteredApps.map { app -> app.name }.toMutableList(),
+        )
         findViewById<ListView>(R.id.installed_apps_list).apply {
-            adapter = ArrayAdapter(
-                this@MainActivity,
-                R.layout.installed_app_list_item,
-                installedApps.map { app -> app.name },
-            )
+            adapter = installedAppNamesAdapter
             setOnItemClickListener { _, _, position, _ ->
-                startActivity(installedApps[position].launchIntent)
+                startActivity(filteredApps[position].launchIntent)
             }
         }
+        appSearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = text?.toString().orEmpty().trim()
+                filteredApps.replaceWith(installedApps.filterByName(query))
+                installedAppNamesAdapter.clear()
+                installedAppNamesAdapter.addAll(filteredApps.map { app -> app.name })
+            }
+
+            override fun afterTextChanged(text: Editable?) = Unit
+        })
     }
 
     private fun installedApps(): List<InstalledApp> {
@@ -87,6 +103,18 @@ class MainActivity : AppCompatActivity() {
         val name: String,
         val launchIntent: Intent,
     )
+
+    private fun List<InstalledApp>.filterByName(query: String): List<InstalledApp> =
+        if (query.isEmpty()) {
+            this
+        } else {
+            filter { app -> app.name.contains(query, ignoreCase = true) }
+        }
+
+    private fun MutableList<InstalledApp>.replaceWith(apps: List<InstalledApp>) {
+        clear()
+        addAll(apps)
+    }
 
     private fun applyImeInsets() {
         val root = findViewById<android.view.View>(R.id.main_root)
