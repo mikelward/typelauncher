@@ -26,9 +26,21 @@ Android home screen launcher app (Kotlin, single `:app` module).
 - UI changes must include or update screenshot tests that cover the changed UI state.
 - Run the relevant tests before submitting changes and report any environment limitations clearly.
 
+### Emulator and connected tests
+
+- **Android Emulator** (v36.5.11) is installed at `$ANDROID_HOME/emulator/` and exposed on `PATH` via `~/.bashrc`.
+- **System image**: `system-images;android-36;google_apis;x86_64` (Google APIs Intel x86_64, API 36).
+- **KVM is not available** in the Cursor Cloud VM (`/dev/kvm` does not exist). The VM runs inside Firecracker, which does not expose nested virtualization.
+- Without KVM the emulator falls back to software emulation (TCG/QEMU), which is extremely slow and may not boot reliably. Running `connectedDebugAndroidTest` or `installDebug` in the cloud VM is therefore **not practical** without a KVM-capable host.
+- To create an AVD for local or KVM-enabled CI use:
+  ```sh
+  avdmanager create avd -n "pixel_api36" -k "system-images;android-36;google_apis;x86_64" -d "pixel_6"
+  emulator -avd pixel_api36 -no-window -no-audio -gpu swiftshader_indirect
+  ```
+- On a KVM-capable host, verify with `emulator -accel-check` (should report "KVM is operational").
+
 ### Notes
 
 - This is a pure Android client app with no backend services, databases, or Docker dependencies.
-- Instrumented tests (`androidTest`) require an Android emulator or device and cannot run in the cloud VM without additional emulator setup.
 - The lint report is written to `app/build/reports/lint-results-debug.html`.
 - First build takes ~1-2 minutes due to Gradle daemon startup and dependency downloads; subsequent builds are much faster.
