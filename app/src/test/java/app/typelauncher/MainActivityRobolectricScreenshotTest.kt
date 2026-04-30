@@ -13,6 +13,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
@@ -148,15 +149,18 @@ class MainActivityRobolectricScreenshotTest {
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val clearButton = activity.findViewById<ImageButton>(R.id.app_search_clear_button)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
         val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
 
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
         assertEquals(emptyList<String>(), pinnedList.appNames())
+        assertFalse(clearButton.isVisible)
 
         search.setText("settings")
         assertEquals(listOf("Settings"), list.appNames())
         assertEquals(emptyList<String>(), pinnedList.appNames())
+        assertTrue(clearButton.isVisible)
 
         search.setText("ca")
         assertEquals(listOf("Calculator", "Calendar"), list.appNames())
@@ -165,6 +169,25 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(listOf("Browser", "Type Launcher"), list.appNames())
 
         search.setText("")
+        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+        assertFalse(clearButton.isVisible)
+    }
+
+    @Test
+    fun clearButton_clearsSearchFieldAndRestoresUnfilteredResults() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val clearButton = activity.findViewById<ImageButton>(R.id.app_search_clear_button)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("cal")
+        assertEquals(listOf("Calculator", "Calendar"), list.appNames())
+        assertTrue(clearButton.isVisible)
+
+        clearButton.performClick()
+
+        assertTrue("search query is cleared", search.text.isNullOrEmpty())
+        assertFalse(clearButton.isVisible)
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
     }
 
@@ -189,6 +212,26 @@ class MainActivityRobolectricScreenshotTest {
         val startedIntent = shadowOf(activity).nextStartedActivity
         assertEquals("app.typelauncher.fake1", startedIntent.component?.packageName)
         assertEquals("app.typelauncher.fake1.LaunchActivity", startedIntent.component?.className)
+    }
+
+    @Test
+    fun tappingInstalledApp_launchesAndClearsSearchQuery() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val clearButton = activity.findViewById<ImageButton>(R.id.app_search_clear_button)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("ca")
+        assertEquals(listOf("Calculator", "Calendar"), list.appNames())
+        assertTrue(clearButton.isVisible)
+
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+
+        val startedIntent = shadowOf(activity).nextStartedActivity
+        assertEquals("app.typelauncher.fake1", startedIntent.component?.packageName)
+        assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
+        assertFalse(clearButton.isVisible)
+        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
     }
 
     @Test
