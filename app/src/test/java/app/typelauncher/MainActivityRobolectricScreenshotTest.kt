@@ -10,6 +10,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.ColorDrawable
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -18,6 +19,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
+import android.widget.ViewAnimator
+import android.widget.ViewAnimator
 import android.view.inputmethod.EditorInfo
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
@@ -35,6 +38,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
+import org.robolectric.shadows.ShadowLooper
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
@@ -147,6 +151,69 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(root.height, hintVisibleScreenshot.height)
         assertEquals(root.width, typedScreenshot.width)
         assertEquals(root.height, typedScreenshot.height)
+    }
+
+    @Test
+    fun screenshot_minusOneAgenda_withoutPermission_showsPermissionCard() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val agendaRoot = activity.findViewById<View>(R.id.agenda_root)
+        val permissionCard = activity.findViewById<View>(R.id.agenda_permission_card)
+        val eventsCard = activity.findViewById<View>(R.id.agenda_events_card)
+        val emptyState = activity.findViewById<View>(R.id.agenda_empty_state)
+
+        layout(agendaRoot)
+
+        val screenshot = drawToBitmap(agendaRoot)
+        val file = screenshotOutputFile("main_activity_minus_one_agenda_permission_robolectric.png")
+        file.parentFile?.mkdirs()
+        file.outputStream().buffered().use { output ->
+            screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+
+        assertTrue("permission card is visible", permissionCard.isVisible)
+        assertFalse("events card is hidden", eventsCard.isVisible)
+        assertFalse("empty state is hidden", emptyState.isVisible)
+    }
+
+    @Test
+    fun swipingLeftAcrossInstalledAppsList_navigatesToAgendaPage() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val switcher = activity.findViewById<LauncherScreenSwitcher>(R.id.launcher_screen_switcher)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val agendaRoot = activity.findViewById<View>(R.id.agenda_root)
+
+        layout(activity.findViewById(R.id.main_root))
+        dispatchSwipe(
+            target = installedList,
+            startX = 900f,
+            endX = 120f,
+            y = 900f,
+        )
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        assertEquals("agenda page selected after left swipe", 0, switcher.displayedChild)
+        assertTrue("agenda root is displayed", agendaRoot.isShown)
+    }
+
+    @Test
+    fun swipingRightAcrossAgendaEventsList_navigatesBackHomePage() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val switcher = activity.findViewById<LauncherScreenSwitcher>(R.id.launcher_screen_switcher)
+        val agendaEventsList = activity.findViewById<ListView>(R.id.agenda_events_list)
+        val homeRoot = activity.findViewById<View>(R.id.main_root)
+
+        switcher.displayedChild = 0
+        layout(activity.findViewById(R.id.agenda_root))
+        dispatchSwipe(
+            target = agendaEventsList,
+            startX = 120f,
+            endX = 920f,
+            y = 900f,
+        )
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        assertEquals("home page selected after right swipe", 1, switcher.displayedChild)
+        assertTrue("home root is displayed", homeRoot.isShown)
     }
 
     @Test
@@ -655,6 +722,25 @@ class MainActivityRobolectricScreenshotTest {
             longClickItem(position)
             activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
         }
+    }
+
+    private fun dispatchSwipe(target: View, startX: Float, endX: Float, y: Float) {
+        val middleX = (startX + endX) / 2f
+        val downTime = System.currentTimeMillis()
+        var eventTime = downTime
+        val down = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_DOWN, startX, y, 0)
+        target.dispatchTouchEvent(down)
+        down.recycle()
+
+        eventTime += 16
+        val move = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_MOVE, middleX, y, 0)
+        target.dispatchTouchEvent(move)
+        move.recycle()
+
+        eventTime += 16
+        val up = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_UP, endX, y, 0)
+        target.dispatchTouchEvent(up)
+        up.recycle()
     }
 
     private fun assertStandardLauncherFlags(intent: Intent) {

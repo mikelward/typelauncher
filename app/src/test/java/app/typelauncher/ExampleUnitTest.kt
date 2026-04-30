@@ -1,6 +1,7 @@
 package app.typelauncher
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -9,13 +10,23 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class ExampleUnitTest {
     @Test
-    fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+    fun launcherLayout_showsAgendaAndHomePagesInScreenSwitcher() {
+        val layout = parseMainLayout()
+        val root = layout.documentElement
+        val children = root.elementChildren()
+
+        assertEquals("app.typelauncher.LauncherScreenSwitcher", root.nodeName)
+        assertEquals("@+id/launcher_screen_switcher", root.attributes.getNamedItem("android:id").nodeValue)
+        assertEquals(2, children.size)
+        assertEquals("include", children[0].nodeName)
+        assertEquals("@layout/launcher_agenda_page", children[0].attributes.getNamedItem("layout").nodeValue)
+        assertEquals("include", children[1].nodeName)
+        assertEquals("@layout/launcher_home_page", children[1].attributes.getNamedItem("layout").nodeValue)
     }
 
     @Test
-    fun launcherLayout_showsSearchThenInstalledAppsList() {
-        val layout = parseLayout()
+    fun homeLayout_containsSearchClearInstalledAndDockSections() {
+        val layout = parseLayout("src/main/res/layout/launcher_home_page.xml")
         val root = layout.documentElement
         val searchContainer = layout.getElementsByTagName("FrameLayout").item(0)
         val input = layout.getElementsByTagName("EditText").item(0)
@@ -73,12 +84,15 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun mainActivity_queriesLauncherAppsAndResizesAboveKeyboard() {
+    fun mainActivity_manifestHasLauncherFlagsAndCalendarPermission() {
         val manifest = parseManifest()
         val activity = manifest.getElementsByTagName("activity").item(0)
         val queryIntent = manifest.getElementsByTagName("queries").item(0).elementChildren().single()
         val queryElements = queryIntent.elementChildren()
         val attrs = activity.attributes
+        val permissions = manifest.getElementsByTagName("uses-permission")
+        val names = (0 until permissions.length)
+            .map { index -> permissions.item(index).attributes.getNamedItem("android:name").nodeValue }
 
         assertEquals("true", attrs.getNamedItem("android:clearTaskOnLaunch").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:excludeFromRecents").nodeValue)
@@ -90,53 +104,29 @@ class ExampleUnitTest {
         assertEquals("android.intent.action.MAIN", queryElements[0].attributes.getNamedItem("android:name").nodeValue)
         assertEquals("category", queryElements[1].nodeName)
         assertEquals("android.intent.category.LAUNCHER", queryElements[1].attributes.getNamedItem("android:name").nodeValue)
+        assertTrue(names.contains("android.permission.READ_CALENDAR"))
     }
 
     @Test
-    fun mainLayout_hasRootViewForImeInsetsDispatch() {
-        val layout = parseLayout()
-        val root = layout.documentElement
-        assertEquals("@+id/main_root", root.attributes.getNamedItem("android:id").nodeValue)
-    }
-
-    @Test
-    fun mainActivity_launchesTappedAppListItem() {
+    fun mainActivity_containsAgendaSwipeAndDockHooks() {
         val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
 
-        assertTrue(source.contains("setOnItemClickListener"))
-        assertTrue(source.contains("appLaunchStatsStore.recordLaunch(app.id)"))
-        assertTrue(source.contains("Intent.makeMainActivity"))
-        assertTrue(source.contains("asLauncherTaskIntent"))
-    }
-
-    @Test
-    fun mainActivity_longPressShowsStandardMenuWithAppInfoAndDockToggle() {
-        val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
-
-        assertTrue(source.contains("PopupMenu(this, anchor)"))
-        assertTrue(source.contains("R.string.app_menu_app_info"))
+        assertTrue(source.contains("launcher_screen_switcher"))
+        assertTrue(source.contains("LauncherScreenSwitcher"))
+        assertTrue(source.contains("tryShowAgendaScreen"))
+        assertTrue(source.contains("CalendarContract.Instances"))
+        assertTrue(source.contains("AgendaEventOrganizer.forNow"))
+        assertTrue(source.contains("ActivityResultContracts.RequestPermission"))
+        assertTrue(source.contains("renderDockedApps"))
+        assertTrue(source.contains("launchAndClearQuery"))
         assertTrue(source.contains("R.string.app_menu_dock"))
-        assertTrue(source.contains("R.string.app_menu_undock"))
-        assertTrue(source.contains("MENU_ITEM_APP_INFO"))
-        assertTrue(source.contains("MENU_ITEM_TOGGLE_DOCK"))
     }
 
-    @Test
-    fun mainActivity_launchesSettingsFromSearchAction() {
-        val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
+    private fun parseMainLayout() = parseLayout("src/main/res/layout/activity_main.xml")
 
-        assertTrue(source.contains("setOnEditorActionListener"))
-        assertTrue(source.contains("EditorInfo.IME_ACTION_SEARCH"))
-        assertTrue(source.contains("KeyEvent.KEYCODE_ENTER"))
-        assertTrue(source.contains("SETTINGS_QUERY = \"settings\""))
-        assertTrue(source.contains("Settings.ACTION_SETTINGS"))
-        assertTrue(source.contains("ignoreCase = true"))
-        assertTrue(source.contains("trim()"))
-    }
-
-    private fun parseLayout() = DocumentBuilderFactory.newInstance()
+    private fun parseLayout(path: String) = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
-        .parse(File("src/main/res/layout/activity_main.xml"))
+        .parse(File(path))
 
     private fun parseInstalledAppListItem() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()

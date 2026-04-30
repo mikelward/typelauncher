@@ -6,6 +6,14 @@
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Long press apps to dock</string>
+    <string name="agenda_title">Agenda</string>
+    <string name="agenda_events_list_label">Calendar agenda events</string>
+    <string name="agenda_permission_message">Allow calendar access to show your agenda on this -1 screen.</string>
+    <string name="agenda_permission_button">Allow calendar</string>
+    <string name="agenda_empty_state">No all-day or upcoming events right now.</string>
+    <string name="agenda_all_day_label">All day</string>
+    <string name="agenda_event_untitled">Untitled event</string>
+    <string name="agenda_swipe_hint">Swipe right to return home</string>
     <string name="app_menu_app_info">App info</string>
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
