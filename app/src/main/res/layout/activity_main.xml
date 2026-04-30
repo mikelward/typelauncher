@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -44,7 +45,7 @@
             android:contentDescription="@string/app_search_clear_button_description"
             android:padding="8dp"
             android:src="@drawable/ic_search_clear"
-            android:tint="@color/black"
+            app:tint="@color/black"
             android:visibility="gone" />
     </FrameLayout>
 
