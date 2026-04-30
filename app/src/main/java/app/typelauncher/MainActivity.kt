@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.getSystemService
 
@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             appSearchInput.requestFocus()
-            ViewCompat.getWindowInsetsController(appSearchInput)
+            WindowCompat.getInsetsController(window, appSearchInput)
                 ?.show(WindowInsetsCompat.Type.ime())
             getSystemService<InputMethodManager>()
                 ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
