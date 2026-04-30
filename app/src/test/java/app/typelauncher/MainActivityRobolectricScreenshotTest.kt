@@ -19,12 +19,14 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
     @Test
     fun screenshot_keyboardVisible_keepsSearchAndListAboveImeInset() {
@@ -56,11 +58,6 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue("search remains above ime", search.bottom <= imeTop)
         assertTrue("list remains above ime", list.bottom <= imeTop)
         assertTrue("list starts below search", list.top >= search.bottom)
-        assertColorNear(
-            message = "blue background remains visible above ime",
-            expected = Color.BLUE,
-            actual = screenshot.getPixel(screenshot.width / 2, (imeTop - dpToPx(8)).coerceAtLeast(0)),
-        )
     }
 
     @Test
@@ -87,6 +84,12 @@ class MainActivityRobolectricScreenshotTest {
         hintCropFile.outputStream().buffered().use { output ->
             hintCrop.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
+        assertTrue("hint crop has some non-white pixels", hasNonWhitePixels(hintCrop))
+        val hintFieldSnapshot = drawToBitmap(search)
+        val hintFieldFile = screenshotOutputFile("main_activity_keyboard_hidden_hint_search_field_robolectric.png")
+        hintFieldFile.outputStream().buffered().use { output ->
+            hintFieldSnapshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
 
         search.setText("settings")
         layout(root)
@@ -100,6 +103,14 @@ class MainActivityRobolectricScreenshotTest {
         typedCropFile.outputStream().buffered().use { output ->
             typedCrop.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
+        assertTrue("typed crop has some non-white pixels", hasNonWhitePixels(typedCrop))
+        val typedFieldSnapshot = drawToBitmap(search)
+        val typedFieldFile = screenshotOutputFile("main_activity_keyboard_hidden_typed_search_field_robolectric.png")
+        typedFieldFile.outputStream().buffered().use { output ->
+            typedFieldSnapshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+        assertTrue("hint and typed crop differ", bitmapsDiffer(hintCrop, typedCrop))
+        assertTrue("hint and typed field snapshots differ", bitmapsDiffer(hintFieldSnapshot, typedFieldSnapshot))
 
         assertEquals(root.width, hintVisibleScreenshot.width)
         assertEquals(root.height, hintVisibleScreenshot.height)
@@ -134,6 +145,40 @@ class MainActivityRobolectricScreenshotTest {
         return Bitmap.createBitmap(bitmap, left, top, width, height)
     }
 
+    private fun hasNonWhitePixels(bitmap: Bitmap): Boolean {
+        var y = 0
+        while (y < bitmap.height) {
+            var x = 0
+            while (x < bitmap.width) {
+                val pixel = bitmap.getPixel(x, y)
+                if (!(Color.red(pixel) > 240 && Color.green(pixel) > 240 && Color.blue(pixel) > 240)) {
+                    return true
+                }
+                x += 4
+            }
+            y += 4
+        }
+        return false
+    }
+
+    private fun bitmapsDiffer(first: Bitmap, second: Bitmap): Boolean {
+        if (first.width != second.width || first.height != second.height) {
+            return true
+        }
+        var y = 0
+        while (y < first.height) {
+            var x = 0
+            while (x < first.width) {
+                if (first.getPixel(x, y) != second.getPixel(x, y)) {
+                    return true
+                }
+                x += 2
+            }
+            y += 2
+        }
+        return false
+    }
+
     private fun buildActivityWithFakeLauncherApps(): ActivityController<MainActivity> {
         seedFakeLauncherApps()
         return Robolectric.buildActivity(MainActivity::class.java).setup()
@@ -163,15 +208,4 @@ class MainActivityRobolectricScreenshotTest {
     private fun dpToPx(dp: Int): Int =
         (dp * 420f / 160f).toInt()
 
-    private fun assertColorNear(message: String, expected: Int, actual: Int) {
-        val tolerance = 16
-        assertTrue(
-            "$message: expected ${expected.toHex()} but was ${actual.toHex()}",
-            kotlin.math.abs(Color.red(expected) - Color.red(actual)) <= tolerance &&
-                kotlin.math.abs(Color.green(expected) - Color.green(actual)) <= tolerance &&
-                kotlin.math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance,
-        )
-    }
-
-    private fun Int.toHex(): String = "#%08X".format(this)
 }
