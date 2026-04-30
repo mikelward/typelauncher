@@ -62,6 +62,19 @@ class ExampleUnitTest {
         assertTrue(source.contains("Intent.makeMainActivity"))
     }
 
+    @Test
+    fun mainActivity_launchesSettingsFromSearchAction() {
+        val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
+
+        assertTrue(source.contains("setOnEditorActionListener"))
+        assertTrue(source.contains("EditorInfo.IME_ACTION_SEARCH"))
+        assertTrue(source.contains("KeyEvent.KEYCODE_ENTER"))
+        assertTrue(source.contains("SETTINGS_QUERY = \"settings\""))
+        assertTrue(source.contains("Settings.ACTION_SETTINGS"))
+        assertTrue(source.contains("ignoreCase = true"))
+        assertTrue(source.contains("trim()"))
+    }
+
     private fun parseLayout() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
         .parse(File("src/main/res/layout/activity_main.xml"))
