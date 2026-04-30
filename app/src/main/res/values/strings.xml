@@ -17,5 +17,5 @@
     <string name="app_menu_app_info">App info</string>
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
-    <string name="docked_apps_limit_message">Dock up to 4 apps</string>
+    <string name="docked_apps_limit_message">Too many apps in dock. Dock up to %1$d apps.</string>
 </resources>

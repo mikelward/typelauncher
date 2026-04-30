@@ -602,7 +602,7 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             Toast.makeText(
                                 this@MainActivity,
-                                R.string.docked_apps_limit_message,
+                                getString(R.string.docked_apps_limit_message, dockCapacityFor()),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
