@@ -38,6 +38,7 @@ import org.robolectric.annotation.GraphicsMode
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.shadows.ShadowLooper
+import org.robolectric.shadows.ShadowToast
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
@@ -550,6 +551,18 @@ class MainActivityRobolectricScreenshotTest {
             listOf("Browser", "Calculator", "Calendar"),
             dockedAppsList.appNames(),
         )
+    }
+
+    @Test
+    fun dockingMoreAppsThanFit_showsCurrentDockCapacityMessage() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        layout(root, width = 720)
+        installedList.dockItems(activity, 0, 1, 2, 3)
+
+        assertEquals("Too many apps in dock. Dock up to 3 apps.", ShadowToast.getTextOfLatestToast())
     }
 
     @Test
