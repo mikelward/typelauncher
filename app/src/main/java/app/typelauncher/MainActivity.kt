@@ -35,6 +35,7 @@ import kotlin.math.max
 class MainActivity : AppCompatActivity() {
     internal var latestAppMenu: PopupMenu? = null
         private set
+    private lateinit var homeSearchKeyboardController: HomeSearchKeyboardController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,12 +47,6 @@ class MainActivity : AppCompatActivity() {
         val settingsLaunchGate = SettingsLaunchGate()
         val dockedAppStore = DockedAppStore(this)
         val appLaunchStatsStore = AppLaunchStatsStore(this)
-        appSearchInput.requestFocus()
-        appSearchInput.post {
-            getSystemService<InputMethodManager>()
-                ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
-        }
-
         val installedApps = installedApps()
         val filteredApps = installedApps.toMutableList()
         val filteredDockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").toMutableList()
@@ -65,6 +60,21 @@ class MainActivity : AppCompatActivity() {
         val dockedAppsList = findViewById<LinearLayout>(R.id.docked_apps_list)
         val baseTop = root.paddingTop
         val baseBottom = root.paddingBottom
+        homeSearchKeyboardController = HomeSearchKeyboardController(
+            requestSearchFocus = { appSearchInput.requestFocus() },
+            searchHasFocus = { appSearchInput.hasFocus() },
+            searchHasWindowFocus = { appSearchInput.hasWindowFocus() },
+            postToSearch = { block -> appSearchInput.post { block() } },
+            postDelayedToSearch = { block, delayMillis -> appSearchInput.postDelayed({ block() }, delayMillis) },
+            showSearchKeyboard = {
+                getSystemService<InputMethodManager>()
+                    ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
+            },
+        )
+        homeSearchKeyboardController.showKeyboard()
+        appSearchInput.setOnFocusChangeListener { _, hasFocus ->
+            homeSearchKeyboardController.onSearchFocusChanged(hasFocus)
+        }
         fun refreshLists(query: String) {
             filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore))
             filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
@@ -86,6 +96,9 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            homeSearchKeyboardController.onImeVisibilityChanged(
+                imeVisible = ime.bottom > 0 || insets.isVisible(WindowInsetsCompat.Type.ime()),
+            )
             val bottomInset = max(systemBars.bottom, ime.bottom)
             val combined = Insets.of(systemBars.left, systemBars.top, systemBars.right, bottomInset)
             view.setPadding(
@@ -159,6 +172,20 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(text: Editable?) = Unit
         })
         appSearchClearButton.isVisible = appSearchInput.text?.isNotEmpty() == true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::homeSearchKeyboardController.isInitialized) {
+            homeSearchKeyboardController.showKeyboard()
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && ::homeSearchKeyboardController.isInitialized) {
+            homeSearchKeyboardController.showKeyboard()
+        }
     }
 
     private fun installedApps(): List<InstalledApp> {
@@ -461,6 +488,57 @@ class MainActivity : AppCompatActivity() {
             const val PREFERENCES_NAME = "app_launch_stats"
             const val KEY_LAUNCH_COUNT_PREFIX = "launch_count:"
         }
+    }
+}
+
+internal class HomeSearchKeyboardController(
+    private val requestSearchFocus: () -> Unit,
+    private val searchHasFocus: () -> Boolean,
+    private val searchHasWindowFocus: () -> Boolean,
+    private val postToSearch: (() -> Unit) -> Unit,
+    private val postDelayedToSearch: (() -> Unit, Long) -> Unit,
+    private val showSearchKeyboard: () -> Unit,
+) {
+    private var keyboardShowScheduled = false
+
+    fun showKeyboard() {
+        requestSearchFocus()
+        postToSearch {
+            if (searchHasFocus() && searchHasWindowFocus()) {
+                showSearchKeyboard()
+            }
+        }
+    }
+
+    fun onSearchFocusChanged(hasFocus: Boolean) {
+        if (hasFocus || !searchHasFocus()) {
+            showKeyboard()
+        }
+    }
+
+    fun onImeVisibilityChanged(imeVisible: Boolean) {
+        if (!imeVisible && searchHasFocus()) {
+            scheduleShowKeyboard()
+        }
+    }
+
+    private fun scheduleShowKeyboard() {
+        if (keyboardShowScheduled) {
+            return
+        }
+
+        keyboardShowScheduled = true
+        postDelayedToSearch(
+            {
+                keyboardShowScheduled = false
+                showKeyboard()
+            },
+            KEYBOARD_RESHOW_DELAY_MILLIS,
+        )
+    }
+
+    internal companion object {
+        const val KEYBOARD_RESHOW_DELAY_MILLIS = 150L
     }
 }
 
