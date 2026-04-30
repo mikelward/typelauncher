@@ -20,6 +20,12 @@ Android home screen launcher app (Kotlin, single `:app` module).
 | Run lint | `./gradlew lint` |
 | Clean build | `./gradlew clean` |
 
+### Testing expectations
+
+- Code changes must include or update relevant unit tests.
+- UI changes must include or update screenshot tests that cover the changed UI state.
+- Run the relevant tests before submitting changes and report any environment limitations clearly.
+
 ### Notes
 
 - This is a pure Android client app with no backend services, databases, or Docker dependencies.
