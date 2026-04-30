@@ -2,6 +2,8 @@ package app.typelauncher
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.time.Instant
+import java.time.ZoneId
 
 class AgendaEventOrganizerTest {
     @Test
@@ -51,7 +53,7 @@ class AgendaEventOrganizerTest {
     }
 
     @Test
-    fun excludes_tomorrowAllDayWhenUserLocalDateStillPreviousDay() {
+    fun excludes_tomorrowAllDayWhenLocalDateIsStillPreviousUtcDay() {
         val now = 1_000L
         val utcTodayStart = 0L
         val utcTomorrowStart = 86_400_000L
