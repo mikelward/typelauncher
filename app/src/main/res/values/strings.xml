@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name</string>
+    <string name="installed_apps_list_label">Installed apps</string>
 </resources>

@@ -7,6 +7,7 @@ import android.os.Environment
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.ListView
 import androidx.core.content.getSystemService
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -33,23 +34,31 @@ class KeyboardScreenshotTest {
     }
 
     @Test
-    fun fullScreenScreenshot_keyboardOpen_showsBackgroundAndSearchBar() {
+    fun fullScreenScreenshot_keyboardOpen_showsSearchBarAndInstalledAppsList() {
         showSoftKeyboardEvenWhenHardwareKeyboardIsConnected()
 
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             var launchedActivity: MainActivity? = null
             var searchBarBounds = Bounds()
+            var appListBounds = Bounds()
 
             scenario.onActivity { activity ->
                 launchedActivity = activity
                 val input = activity.findViewById<EditText>(R.id.app_search_input)
+                val appList = activity.findViewById<ListView>(R.id.installed_apps_list)
                 input.requestFocus()
                 activity.getSystemService<InputMethodManager>()
                     ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
                 searchBarBounds = input.boundsOnScreen()
+                appListBounds = appList.boundsOnScreen()
             }
 
             val imeTop = waitForIme(requireNotNull(launchedActivity))
+            scenario.onActivity { activity ->
+                searchBarBounds = activity.findViewById<EditText>(R.id.app_search_input).boundsOnScreen()
+                appListBounds = activity.findViewById<ListView>(R.id.installed_apps_list).boundsOnScreen()
+            }
+
             val screenshotFile = screenshotOutputFile()
             assertTrue("full-screen screenshot was captured", device.takeScreenshot(screenshotFile))
 
@@ -58,8 +67,11 @@ class KeyboardScreenshotTest {
             assertEquals(device.displayHeight, screenshot.height)
             assertColorNear("blue background remains visible", Color.BLUE, screenshot.pixelAt(screenshot.width / 2, imeTop - 80))
             assertColorNear("white search bar remains visible", Color.WHITE, screenshot.pixelAt(searchBarBounds.centerX, searchBarBounds.centerY))
+            assertColorNear("white installed apps list remains visible", Color.WHITE, screenshot.pixelAt(appListBounds.centerX, appListBounds.top + 12))
             assertTrue("IME covers the bottom of the display", imeTop < screenshot.height)
             assertTrue("search bar is above the IME", searchBarBounds.bottom < imeTop)
+            assertTrue("installed apps list is below the search bar", searchBarBounds.bottom < appListBounds.top)
+            assertTrue("installed apps list is above the IME", appListBounds.bottom < imeTop)
         }
     }
 
@@ -102,7 +114,7 @@ class KeyboardScreenshotTest {
         return File(directory, "full_screen_keyboard_open.png")
     }
 
-    private fun EditText.boundsOnScreen(): Bounds {
+    private fun android.view.View.boundsOnScreen(): Bounds {
         val location = IntArray(2)
         getLocationOnScreen(location)
         return Bounds(
