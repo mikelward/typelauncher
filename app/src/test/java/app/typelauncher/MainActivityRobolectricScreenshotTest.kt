@@ -151,7 +151,7 @@ class MainActivityRobolectricScreenshotTest {
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val clearButton = activity.findViewById<ImageButton>(R.id.app_search_clear_button)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
 
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
         assertEquals(emptyList<String>(), pinnedList.appNames())
@@ -322,7 +322,7 @@ class MainActivityRobolectricScreenshotTest {
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
         val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
 
         search.setText("cal")
         layout(root)
@@ -342,13 +342,13 @@ class MainActivityRobolectricScreenshotTest {
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
         val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
 
         layout(root)
         installedList.longClickItem(0)
         activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
         layout(root)
-        pinnedList.longClickItem(0)
+        pinnedList.getChildAt(0).performLongClick()
         activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
         layout(root)
 
@@ -362,7 +362,7 @@ class MainActivityRobolectricScreenshotTest {
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
 
         layout(root)
         installedList.pinItems(activity, 0, 1)
@@ -379,7 +379,7 @@ class MainActivityRobolectricScreenshotTest {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
-        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
 
         layout(root)
         installedList.pinItems(activity, 0, 1, 2, 3, 4)
@@ -393,7 +393,7 @@ class MainActivityRobolectricScreenshotTest {
         val root = activity.findViewById<View>(R.id.main_root)
         val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
         val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedList = activity.findViewById<LinearLayout>(R.id.pinned_apps_list)
         val imeBottomInsetPx = dpToPx(320)
         val insets = WindowInsetsCompat.Builder()
             .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, dpToPx(24), 0, dpToPx(48)))
@@ -404,10 +404,17 @@ class MainActivityRobolectricScreenshotTest {
         layout(root)
         installedList.pinItems(activity, 0, 1, 2, 3)
         layout(root)
+        val screenshot = drawToBitmap(root)
+        val file = screenshotOutputFile("main_activity_pinned_icon_row_robolectric.png")
+        file.parentFile?.mkdirs()
+        file.outputStream().buffered().use { output ->
+            screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
 
         val usableHeight = root.height - root.paddingTop - root.paddingBottom
         assertTrue("pinned list is visible", pinnedCard.isVisible)
-        assertEquals(4, pinnedList.adapter.count)
+        assertEquals(4, pinnedList.childCount)
+        assertEquals(1, pinnedList.distinctRowTops().size)
         assertTrue("pinned list is at bottom of visible content", pinnedCard.bottom <= root.height - root.paddingBottom)
         assertTrue("pinned card uses no more than half of usable height", pinnedCard.height <= usableHeight / 2)
     }
@@ -534,6 +541,12 @@ class MainActivityRobolectricScreenshotTest {
         val appNamesAdapter = adapter as ArrayAdapter<String>
         return (0 until appNamesAdapter.count).map { index -> appNamesAdapter.getItem(index).orEmpty() }
     }
+
+    private fun LinearLayout.appNames(): List<String> =
+        (0 until childCount).map { index -> getChildAt(index).contentDescription.toString() }
+
+    private fun LinearLayout.distinctRowTops(): Set<Int> =
+        (0 until childCount).map { index -> getChildAt(index).top }.toSet()
 
     private fun ListView.longClickItem(position: Int) {
         onItemLongClickListener.onItemLongClick(

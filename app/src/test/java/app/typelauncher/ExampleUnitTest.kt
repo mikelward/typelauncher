@@ -22,15 +22,17 @@ class ExampleUnitTest {
         val clearButton = layout.getElementsByTagName("ImageButton").item(0)
         val installedCard = layout.getElementsByTagName("LinearLayout").item(1)
         val pinnedCard = layout.getElementsByTagName("LinearLayout").item(2)
+        val pinnedRow = layout.getElementsByTagName("LinearLayout").item(3)
         val list = layout.getElementsByTagName("ListView").item(0)
-        val pinnedList = layout.getElementsByTagName("ListView").item(1)
+        val pinnedScroller = layout.getElementsByTagName("HorizontalScrollView").item(0)
         val searchContainerAttrs = searchContainer.attributes
         val attrs = input.attributes
         val clearButtonAttrs = clearButton.attributes
         val installedCardAttrs = installedCard.attributes
         val pinnedCardAttrs = pinnedCard.attributes
+        val pinnedRowAttrs = pinnedRow.attributes
         val listAttrs = list.attributes
-        val pinnedListAttrs = pinnedList.attributes
+        val pinnedScrollerAttrs = pinnedScroller.attributes
 
         assertEquals("vertical", root.attributes.getNamedItem("android:orientation").nodeValue)
         assertEquals(searchContainer, root.elementChildren()[0])
@@ -54,8 +56,10 @@ class ExampleUnitTest {
         assertEquals("@string/installed_apps_list_label", listAttrs.getNamedItem("android:contentDescription").nodeValue)
         assertEquals("@+id/pinned_apps_card", pinnedCardAttrs.getNamedItem("android:id").nodeValue)
         assertEquals("gone", pinnedCardAttrs.getNamedItem("android:visibility").nodeValue)
-        assertEquals("@+id/pinned_apps_list", pinnedListAttrs.getNamedItem("android:id").nodeValue)
-        assertEquals("@string/pinned_apps_list_label", pinnedListAttrs.getNamedItem("android:contentDescription").nodeValue)
+        assertEquals("@string/pinned_apps_list_label", pinnedScrollerAttrs.getNamedItem("android:contentDescription").nodeValue)
+        assertEquals("@+id/pinned_apps_list", pinnedRowAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("horizontal", pinnedRowAttrs.getNamedItem("android:orientation").nodeValue)
+        assertEquals("56dp", pinnedRowAttrs.getNamedItem("android:layout_height").nodeValue)
     }
 
     @Test

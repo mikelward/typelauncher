@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -57,45 +58,23 @@ class MainActivity : AppCompatActivity() {
             this@MainActivity,
             filteredApps.map { app -> app.name }.toMutableList(),
         )
-        val pinnedAppNamesAdapter = InstalledAppsAdapter(
-            this@MainActivity,
-            filteredPinnedApps.map { app -> app.name }.toMutableList(),
-        )
         val installedAppsCard = findViewById<LinearLayout>(R.id.installed_apps_card)
         val pinnedAppsCard = findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedAppsList = findViewById<ListView>(R.id.pinned_apps_list)
+        val pinnedAppsList = findViewById<LinearLayout>(R.id.pinned_apps_list)
         val baseTop = root.paddingTop
         val baseBottom = root.paddingBottom
-        var usableHeight = 0
-        fun updatePinnedHeight() {
-            val visibleRows = filteredPinnedApps.size.coerceAtMost(MAX_PINNED_APPS)
-            if (visibleRows == 0 || usableHeight == 0) {
-                pinnedAppsCard.layoutParams = pinnedAppsCard.layoutParams.apply {
-                    height = ViewGroup.LayoutParams.WRAP_CONTENT
-                }
-                return
-            }
-
-            val rowHeight = (PINNED_APP_ROW_HEIGHT_DP * resources.displayMetrics.density).toInt()
-            val desiredListHeight = rowHeight * visibleRows
-            val cardVerticalPadding = pinnedAppsCard.paddingTop + pinnedAppsCard.paddingBottom
-            val maxCardHeight = usableHeight / 2
-            val listHeight = minOf(desiredListHeight, maxCardHeight - cardVerticalPadding)
-                .coerceAtLeast(0)
-            pinnedAppsList.layoutParams = pinnedAppsList.layoutParams.apply {
-                height = listHeight
-            }
-            pinnedAppsCard.layoutParams = pinnedAppsCard.layoutParams.apply {
-                height = listHeight + cardVerticalPadding
-            }
-        }
         fun refreshLists(query: String) {
             filteredApps.replaceWith(installedApps.filterByName(query))
             filteredPinnedApps.replaceWith(installedApps.filterPinnedByName(pinnedAppStore.pinnedAppIds, query))
             installedAppNamesAdapter.replaceWith(filteredApps.map { app -> app.name })
-            pinnedAppNamesAdapter.replaceWith(filteredPinnedApps.map { app -> app.name })
+            renderPinnedApps(
+                pinnedApps = filteredPinnedApps,
+                pinnedAppsRow = pinnedAppsList,
+                appSearchInput = appSearchInput,
+                pinnedAppStore = pinnedAppStore,
+                afterPinnedChanged = { refreshLists(appSearchInput.text.toString().trim()) },
+            )
             pinnedAppsCard.isVisible = filteredPinnedApps.isNotEmpty()
-            updatePinnedHeight()
             installedAppsCard.requestLayout()
             pinnedAppsCard.requestLayout()
         }
@@ -110,13 +89,7 @@ class MainActivity : AppCompatActivity() {
                 combined.right,
                 baseBottom + combined.bottom,
             )
-            usableHeight = (view.height - view.paddingTop - view.paddingBottom).coerceAtLeast(0)
-            updatePinnedHeight()
             insets
-        }
-        root.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-            usableHeight = (view.height - view.paddingTop - view.paddingBottom).coerceAtLeast(0)
-            updatePinnedHeight()
         }
         ViewCompat.requestApplyInsets(root)
         appSearchInput.setOnEditorActionListener { _, actionId, event ->
@@ -157,21 +130,6 @@ class MainActivity : AppCompatActivity() {
                 true
             }
         }
-        pinnedAppsList.apply {
-            adapter = pinnedAppNamesAdapter
-            setOnItemClickListener { _, _, position, _ ->
-                launchAndClearQuery(filteredPinnedApps[position].launchIntent, appSearchInput)
-            }
-            setOnItemLongClickListener { _, view, position, _ ->
-                showAppMenu(
-                    anchor = view,
-                    app = filteredPinnedApps[position],
-                    pinnedAppStore = pinnedAppStore,
-                    afterPinnedChanged = { refreshLists(appSearchInput.text.toString().trim()) },
-                )
-                true
-            }
-        }
         refreshLists("")
         appSearchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -198,6 +156,7 @@ class MainActivity : AppCompatActivity() {
                     launchIntent = Intent.makeMainActivity(
                         ComponentName(activityInfo.packageName, activityInfo.name),
                     ),
+                    icon = resolveInfo.loadIcon(packageManager),
                 )
             }
             .distinctBy { app -> app.name }
@@ -208,6 +167,7 @@ class MainActivity : AppCompatActivity() {
         val name: String,
         val packageName: String,
         val launchIntent: Intent,
+        val icon: Drawable,
     ) {
         val id: String
             get() = launchIntent.component?.flattenToString() ?: packageName
@@ -261,6 +221,43 @@ class MainActivity : AppCompatActivity() {
     private fun Intent.asLauncherTaskIntent(): Intent =
         Intent(this).addFlags(LAUNCHER_TASK_FLAGS)
 
+    private fun renderPinnedApps(
+        pinnedApps: List<InstalledApp>,
+        pinnedAppsRow: LinearLayout,
+        appSearchInput: EditText,
+        pinnedAppStore: PinnedAppStore,
+        afterPinnedChanged: () -> Unit,
+    ) {
+        pinnedAppsRow.removeAllViews()
+        pinnedApps.forEach { app ->
+            val button = ImageButton(this).apply {
+                layoutParams = LinearLayout.LayoutParams(PINNED_APP_ICON_SIZE_DP.dpToPx(), PINNED_APP_ICON_SIZE_DP.dpToPx())
+                background = null
+                contentDescription = app.name
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                setImageDrawable(app.icon.constantState?.newDrawable()?.mutate() ?: app.icon)
+                val padding = PINNED_APP_ICON_PADDING_DP.dpToPx()
+                setPadding(padding, padding, padding, padding)
+                setOnClickListener {
+                    launchAndClearQuery(app.launchIntent, appSearchInput)
+                }
+                setOnLongClickListener {
+                    showAppMenu(
+                        anchor = this,
+                        app = app,
+                        pinnedAppStore = pinnedAppStore,
+                        afterPinnedChanged = afterPinnedChanged,
+                    )
+                    true
+                }
+            }
+            pinnedAppsRow.addView(button)
+        }
+    }
+
+    private fun Int.dpToPx(): Int =
+        (this * resources.displayMetrics.density).toInt()
+
     private fun showAppMenu(
         anchor: View,
         app: InstalledApp,
@@ -308,7 +305,8 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val SETTINGS_QUERY = "settings"
         const val MAX_PINNED_APPS = 4
-        const val PINNED_APP_ROW_HEIGHT_DP = 48
+        const val PINNED_APP_ICON_SIZE_DP = 56
+        const val PINNED_APP_ICON_PADDING_DP = 8
         const val MENU_GROUP_APP_ACTIONS = 0
         const val MENU_ITEM_APP_INFO = 1
         const val MENU_ITEM_TOGGLE_PIN = 2
