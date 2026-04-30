@@ -41,12 +41,15 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
     @Before
-    fun clearDockedApps() {
-        org.robolectric.RuntimeEnvironment.getApplication()
-            .getSharedPreferences("docked_apps", android.content.Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .commit()
+    fun clearStoredLauncherData() {
+        val application = org.robolectric.RuntimeEnvironment.getApplication()
+        listOf("docked_apps", "app_launch_stats").forEach { preferenceName ->
+            application
+                .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+        }
     }
 
     @Test
@@ -233,7 +236,34 @@ class MainActivityRobolectricScreenshotTest {
         assertStandardLauncherFlags(startedIntent)
         assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
         assertFalse(clearButton.isVisible)
-        assertEquals(ALL_FAKE_APP_NAMES, list.appNames())
+        assertEquals(
+            listOf("Calculator", "Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher"),
+            list.appNames(),
+        )
+    }
+
+    @Test
+    fun launchedAppsMoveAheadOfLessUsedAppsWhenSearchIsEmpty() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("calendar")
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        search.setText("calculator")
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        search.setText("calculator")
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+
+        assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
+        assertEquals(
+            listOf("Calculator", "Calendar", "Browser", "Camera", "Clock", "Files", "Settings", "Type Launcher"),
+            list.appNames(),
+        )
+
+        search.setText("ca")
+
+        assertEquals("typed searches stay alphabetic", listOf("Calculator", "Calendar", "Camera"), list.appNames())
     }
 
     @Test

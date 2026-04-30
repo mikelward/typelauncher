@@ -98,7 +98,7 @@ class ExampleUnitTest {
         val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
 
         assertTrue(source.contains("setOnItemClickListener"))
-        assertTrue(source.contains("launchAndClearQuery(filteredApps[position].launchIntent, appSearchInput)"))
+        assertTrue(source.contains("appLaunchStatsStore.recordLaunch(app.id)"))
         assertTrue(source.contains("Intent.makeMainActivity"))
         assertTrue(source.contains("asLauncherTaskIntent"))
     }
