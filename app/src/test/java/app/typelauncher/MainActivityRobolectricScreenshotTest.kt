@@ -3,6 +3,7 @@ package app.typelauncher
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
@@ -45,6 +46,11 @@ class MainActivityRobolectricScreenshotTest {
         layout(root)
 
         val screenshot = drawToBitmap(root)
+        drawFakeKeyboardOverlay(
+            screenshot = screenshot,
+            imeTop = root.height - imeBottomInsetPx,
+            label = "Keyboard (simulated)",
+        )
         val file = screenshotOutputFile("main_activity_keyboard_visible_robolectric.png")
         file.parentFile?.mkdirs()
         file.outputStream().buffered().use { output ->
@@ -132,6 +138,33 @@ class MainActivityRobolectricScreenshotTest {
         val canvas = Canvas(bitmap)
         root.draw(canvas)
         return bitmap
+    }
+
+    private fun drawFakeKeyboardOverlay(screenshot: Bitmap, imeTop: Int, label: String) {
+        val top = imeTop.coerceIn(0, screenshot.height)
+        val canvas = Canvas(screenshot)
+        val keyboardPaint = Paint().apply {
+            color = Color.rgb(232, 234, 237)
+            style = Paint.Style.FILL
+        }
+        canvas.drawRect(
+            0f,
+            top.toFloat(),
+            screenshot.width.toFloat(),
+            screenshot.height.toFloat(),
+            keyboardPaint,
+        )
+        val textPaint = Paint().apply {
+            color = Color.DKGRAY
+            textSize = dpToPx(22).toFloat()
+            isAntiAlias = true
+        }
+        canvas.drawText(
+            label,
+            dpToPx(24).toFloat(),
+            (top + dpToPx(56)).toFloat(),
+            textPaint,
+        )
     }
 
     private fun cropAroundSearchField(bitmap: Bitmap, search: View): Bitmap {
