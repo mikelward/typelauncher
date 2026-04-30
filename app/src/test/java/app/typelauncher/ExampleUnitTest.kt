@@ -54,6 +54,13 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun mainLayout_hasRootViewForImeInsetsDispatch() {
+        val layout = parseLayout()
+        val root = layout.documentElement
+        assertEquals("@+id/main_root", root.attributes.getNamedItem("android:id").nodeValue)
+    }
+
+    @Test
     fun mainActivity_launchesTappedAppListItem() {
         val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
 

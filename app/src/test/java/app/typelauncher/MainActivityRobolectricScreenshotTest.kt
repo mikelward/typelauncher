@@ -1,0 +1,113 @@
+package app.typelauncher
+
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.view.View
+import android.widget.EditText
+import android.widget.ListView
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.io.File
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+class MainActivityRobolectricScreenshotTest {
+    @Test
+    fun screenshot_keyboardVisible_keepsSearchAndListAboveImeInset() {
+        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        val imeBottomInsetPx = dpToPx(320)
+        val insets = WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 0))
+            .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, imeBottomInsetPx))
+            .build()
+        ViewCompat.dispatchApplyWindowInsets(root, insets)
+        layout(root)
+
+        val screenshot = drawToBitmap(root)
+        val file = screenshotOutputFile("main_activity_keyboard_visible_robolectric.png")
+        file.parentFile?.mkdirs()
+        file.outputStream().buffered().use { output ->
+            screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+
+        val imeTop = root.height - imeBottomInsetPx
+        assertTrue("root is measured", root.height > 0)
+        assertTrue("search remains above ime", search.bottom <= imeTop)
+        assertTrue("list remains above ime", list.bottom <= imeTop)
+        assertTrue("list starts below search", list.top >= search.bottom)
+        assertColorNear(
+            message = "blue background remains visible above ime",
+            expected = Color.BLUE,
+            actual = screenshot.getPixel(screenshot.width / 2, (imeTop - dpToPx(8)).coerceAtLeast(0)),
+        )
+    }
+
+    @Test
+    fun screenshot_keyboardHidden_matchesFullHeightLayout() {
+        val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val insets = WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 0))
+            .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 0))
+            .build()
+        ViewCompat.dispatchApplyWindowInsets(root, insets)
+        layout(root)
+
+        val screenshot = drawToBitmap(root)
+        val file = screenshotOutputFile("main_activity_keyboard_hidden_robolectric.png")
+        file.parentFile?.mkdirs()
+        file.outputStream().buffered().use { output ->
+            screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+
+        assertEquals(root.width, screenshot.width)
+        assertEquals(root.height, screenshot.height)
+    }
+
+    private fun layout(root: View) {
+        val width = 1080
+        val height = 2400
+        val widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
+        root.measure(widthSpec, heightSpec)
+        root.layout(0, 0, width, height)
+    }
+
+    private fun drawToBitmap(root: View): Bitmap {
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        root.draw(canvas)
+        return bitmap
+    }
+
+    private fun screenshotOutputFile(name: String): File =
+        File("build/reports/robolectric-screenshots/$name")
+
+    private fun dpToPx(dp: Int): Int =
+        (dp * 420f / 160f).toInt()
+
+    private fun assertColorNear(message: String, expected: Int, actual: Int) {
+        val tolerance = 16
+        assertTrue(
+            "$message: expected ${expected.toHex()} but was ${actual.toHex()}",
+            kotlin.math.abs(Color.red(expected) - Color.red(actual)) <= tolerance &&
+                kotlin.math.abs(Color.green(expected) - Color.green(actual)) <= tolerance &&
+                kotlin.math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance,
+        )
+    }
+
+    private fun Int.toHex(): String = "#%08X".format(this)
+}
