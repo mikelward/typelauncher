@@ -13,14 +13,18 @@ import android.view.KeyEvent
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.view.inputmethod.EditorInfo
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -35,11 +39,21 @@ import java.io.File
 @Config(sdk = [36])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
+    @Before
+    fun clearPinnedApps() {
+        org.robolectric.RuntimeEnvironment.getApplication()
+            .getSharedPreferences("pinned_apps", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+    }
+
     @Test
     fun screenshot_keyboardVisible_keepsSearchAndListAboveImeInset() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val installedCard = activity.findViewById<LinearLayout>(R.id.installed_apps_card)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
         assertTrue("search hint is visible when empty", search.text.isNullOrEmpty())
 
@@ -68,8 +82,8 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue("list has launcher app rows", list.adapter != null && list.adapter.count >= 4)
         assertTrue("list rendered rows", list.childCount > 0)
         assertTrue("search remains above ime", search.bottom <= imeTop)
-        assertTrue("list remains above ime", list.bottom <= imeTop)
-        assertTrue("list starts below search", list.top >= search.bottom)
+        assertTrue("installed apps card remains above ime", installedCard.bottom <= imeTop)
+        assertTrue("installed apps card starts below search", installedCard.top >= search.bottom)
     }
 
     @Test
@@ -135,11 +149,14 @@ class MainActivityRobolectricScreenshotTest {
         val activity = buildActivityWithFakeLauncherApps().get()
         val search = activity.findViewById<EditText>(R.id.app_search_input)
         val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
 
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
+        assertEquals(emptyList<String>(), pinnedList.appNames())
 
         search.setText("settings")
         assertEquals(listOf("Settings"), list.appNames())
+        assertEquals(emptyList<String>(), pinnedList.appNames())
 
         search.setText("ca")
         assertEquals(listOf("Calculator", "Calendar"), list.appNames())
@@ -195,7 +212,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun longPressingFilteredApp_opensAndroidAppInfoForThatApp() {
+    fun longPressingFilteredApp_showsAppInfoAndPinMenuItems() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
@@ -211,10 +228,125 @@ class MainActivityRobolectricScreenshotTest {
             list.adapter.getItemId(0),
         )
 
-        val startedIntent = shadowOf(activity).nextStartedActivity
         assertTrue("long click is consumed", handled)
+        val menu = activity.latestAppMenu?.menu
+        assertEquals("App info", menu?.getItem(0)?.title.toString())
+        assertEquals("Pin", menu?.getItem(1)?.title.toString())
+    }
+
+    @Test
+    fun appMenuAppInfo_opensAndroidAppInfoForThatApp() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("calendar")
+        layout(root)
+        list.longClickItem(0)
+
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_APP_INFO, 0)
+
+        val startedIntent = shadowOf(activity).nextStartedActivity
         assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, startedIntent.action)
         assertEquals(Uri.parse("package:app.typelauncher.fake2"), startedIntent.data)
+    }
+
+    @Test
+    fun pinningApp_addsItToBottomPinnedListAndOffersUnpin() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
+        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+
+        search.setText("cal")
+        layout(root)
+        installedList.longClickItem(0)
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        layout(root)
+
+        assertTrue("pinned card is visible", pinnedCard.isVisible)
+        assertEquals(listOf("Calculator"), pinnedList.appNames())
+        installedList.longClickItem(0)
+        assertEquals("Unpin", activity.latestAppMenu?.menu?.getItem(1)?.title.toString())
+    }
+
+    @Test
+    fun unpinningPinnedApp_removesPinnedListWhenEmpty() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
+        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+
+        layout(root)
+        installedList.longClickItem(0)
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        layout(root)
+        pinnedList.longClickItem(0)
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        layout(root)
+
+        assertFalse("pinned card is hidden", pinnedCard.isVisible)
+        assertEquals(emptyList<String>(), pinnedList.appNames())
+    }
+
+    @Test
+    fun pinnedList_isFilteredBySameSearchQuery() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+
+        layout(root)
+        installedList.pinItems(activity, 0, 1)
+
+        search.setText("cal")
+        assertEquals(listOf("Calculator"), pinnedList.appNames())
+
+        search.setText("browser")
+        assertEquals(listOf("Browser"), pinnedList.appNames())
+    }
+
+    @Test
+    fun pinningMoreThanFourApps_doesNotAddMorePinnedRows() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+
+        layout(root)
+        installedList.pinItems(activity, 0, 1, 2, 3, 4)
+
+        assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings"), pinnedList.appNames())
+    }
+
+    @Test
+    fun pinnedList_staysAtBottomAndNoMoreThanHalfUsableHeight() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val installedList = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val pinnedCard = activity.findViewById<LinearLayout>(R.id.pinned_apps_card)
+        val pinnedList = activity.findViewById<ListView>(R.id.pinned_apps_list)
+        val imeBottomInsetPx = dpToPx(320)
+        val insets = WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, dpToPx(24), 0, dpToPx(48)))
+            .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, imeBottomInsetPx))
+            .build()
+
+        ViewCompat.dispatchApplyWindowInsets(root, insets)
+        layout(root)
+        installedList.pinItems(activity, 0, 1, 2, 3)
+        layout(root)
+
+        val usableHeight = root.height - root.paddingTop - root.paddingBottom
+        assertTrue("pinned list is visible", pinnedCard.isVisible)
+        assertEquals(4, pinnedList.adapter.count)
+        assertTrue("pinned list is at bottom of visible content", pinnedCard.bottom <= root.height - root.paddingBottom)
+        assertTrue("pinned card uses no more than half of usable height", pinnedCard.height <= usableHeight / 2)
     }
 
     private fun layout(root: View) {
@@ -340,7 +472,27 @@ class MainActivityRobolectricScreenshotTest {
         return (0 until appNamesAdapter.count).map { index -> appNamesAdapter.getItem(index).orEmpty() }
     }
 
+    private fun ListView.longClickItem(position: Int) {
+        onItemLongClickListener.onItemLongClick(
+            this,
+            getChildAt(position),
+            position,
+            adapter.getItemId(position),
+        )
+    }
+
+    private fun ListView.pinItems(activity: MainActivity, vararg positions: Int) {
+        positions.forEach { position ->
+            longClickItem(position)
+            activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
+        }
+    }
+
     private fun View.backgroundColor(): Int =
         (background as ColorDrawable).color
 
+    private companion object {
+        const val MENU_ITEM_APP_INFO = 1
+        const val MENU_ITEM_TOGGLE_PIN = 2
+    }
 }

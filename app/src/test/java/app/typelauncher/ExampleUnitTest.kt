@@ -18,23 +18,36 @@ class ExampleUnitTest {
         val layout = parseLayout()
         val root = layout.documentElement
         val input = layout.getElementsByTagName("EditText").item(0)
+        val installedCard = layout.getElementsByTagName("LinearLayout").item(1)
+        val pinnedCard = layout.getElementsByTagName("LinearLayout").item(2)
         val list = layout.getElementsByTagName("ListView").item(0)
+        val pinnedList = layout.getElementsByTagName("ListView").item(1)
         val attrs = input.attributes
+        val installedCardAttrs = installedCard.attributes
+        val pinnedCardAttrs = pinnedCard.attributes
         val listAttrs = list.attributes
+        val pinnedListAttrs = pinnedList.attributes
 
         assertEquals("vertical", root.attributes.getNamedItem("android:orientation").nodeValue)
         assertEquals(input, root.elementChildren()[0])
-        assertEquals(list, root.elementChildren()[1])
+        assertEquals(installedCard, root.elementChildren()[1])
+        assertEquals(pinnedCard, root.elementChildren()[2])
         assertEquals("@+id/app_search_input", attrs.getNamedItem("android:id").nodeValue)
         assertEquals("1", attrs.getNamedItem("android:maxLines").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:singleLine").nodeValue)
         assertEquals("actionSearch", attrs.getNamedItem("android:imeOptions").nodeValue)
         assertEquals("text", attrs.getNamedItem("android:inputType").nodeValue)
         assertEquals("@string/app_search_hint", attrs.getNamedItem("android:hint").nodeValue)
+        assertEquals("@+id/installed_apps_card", installedCardAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("0dp", installedCardAttrs.getNamedItem("android:layout_height").nodeValue)
+        assertEquals("1", installedCardAttrs.getNamedItem("android:layout_weight").nodeValue)
         assertEquals("@+id/installed_apps_list", listAttrs.getNamedItem("android:id").nodeValue)
-        assertEquals("0dp", listAttrs.getNamedItem("android:layout_height").nodeValue)
-        assertEquals("1", listAttrs.getNamedItem("android:layout_weight").nodeValue)
+        assertEquals("match_parent", listAttrs.getNamedItem("android:layout_height").nodeValue)
         assertEquals("@string/installed_apps_list_label", listAttrs.getNamedItem("android:contentDescription").nodeValue)
+        assertEquals("@+id/pinned_apps_card", pinnedCardAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("gone", pinnedCardAttrs.getNamedItem("android:visibility").nodeValue)
+        assertEquals("@+id/pinned_apps_list", pinnedListAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("@string/pinned_apps_list_label", pinnedListAttrs.getNamedItem("android:contentDescription").nodeValue)
     }
 
     @Test
@@ -67,6 +80,18 @@ class ExampleUnitTest {
         assertTrue(source.contains("setOnItemClickListener"))
         assertTrue(source.contains("startActivity(filteredApps[position].launchIntent)"))
         assertTrue(source.contains("Intent.makeMainActivity"))
+    }
+
+    @Test
+    fun mainActivity_longPressShowsStandardMenuWithAppInfoAndPinToggle() {
+        val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
+
+        assertTrue(source.contains("PopupMenu(this, anchor)"))
+        assertTrue(source.contains("R.string.app_menu_app_info"))
+        assertTrue(source.contains("R.string.app_menu_pin"))
+        assertTrue(source.contains("R.string.app_menu_unpin"))
+        assertTrue(source.contains("MENU_ITEM_APP_INFO"))
+        assertTrue(source.contains("MENU_ITEM_TOGGLE_PIN"))
     }
 
     @Test
