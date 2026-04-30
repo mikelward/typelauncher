@@ -64,7 +64,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun screenshot_keyboardHidden_matchesFullHeightLayout() {
+    fun screenshot_keyboardHidden_rendersHintAndTypedState() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)
         val search = activity.findViewById<EditText>(R.id.app_search_input)
@@ -76,15 +76,25 @@ class MainActivityRobolectricScreenshotTest {
         ViewCompat.dispatchApplyWindowInsets(root, insets)
         layout(root)
 
-        val screenshot = drawToBitmap(root)
-        val file = screenshotOutputFile("main_activity_keyboard_hidden_robolectric.png")
-        file.parentFile?.mkdirs()
-        file.outputStream().buffered().use { output ->
-            screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        val hintVisibleScreenshot = drawToBitmap(root)
+        val hintFile = screenshotOutputFile("main_activity_keyboard_hidden_hint_robolectric.png")
+        hintFile.parentFile?.mkdirs()
+        hintFile.outputStream().buffered().use { output ->
+            hintVisibleScreenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
 
-        assertEquals(root.width, screenshot.width)
-        assertEquals(root.height, screenshot.height)
+        search.setText("settings")
+        layout(root)
+        val typedScreenshot = drawToBitmap(root)
+        val typedFile = screenshotOutputFile("main_activity_keyboard_hidden_typed_robolectric.png")
+        typedFile.outputStream().buffered().use { output ->
+            typedScreenshot.compress(Bitmap.CompressFormat.PNG, 100, output)
+        }
+
+        assertEquals(root.width, hintVisibleScreenshot.width)
+        assertEquals(root.height, hintVisibleScreenshot.height)
+        assertEquals(root.width, typedScreenshot.width)
+        assertEquals(root.height, typedScreenshot.height)
     }
 
     private fun layout(root: View) {
