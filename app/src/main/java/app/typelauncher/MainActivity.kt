@@ -5,10 +5,13 @@ import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Process
+import android.os.UserHandle
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.Editable
@@ -24,6 +27,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupMenu
@@ -43,9 +47,12 @@ import java.time.ZoneOffset
 import java.util.LinkedHashSet
 import kotlin.math.max
 
+internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
+
 class MainActivity : AppCompatActivity() {
     internal var latestAppMenu: PopupMenu? = null
         private set
+    private lateinit var homeSearchKeyboardController: HomeSearchKeyboardController
     private var launcherScreenSwitcher: LauncherScreenSwitcher? = null
     private var searchInputView: EditText? = null
     private var agendaUi: AgendaUi? = null
@@ -74,20 +81,14 @@ class MainActivity : AppCompatActivity() {
         val settingsLaunchGate = SettingsLaunchGate()
         searchInputView = appSearchInput
         val dockedAppStore = DockedAppStore(this)
-        appSearchInput.requestFocus()
-        appSearchInput.post {
-            getSystemService<InputMethodManager>()
-                ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
-        }
-
+        val appLaunchStatsStore = AppLaunchStatsStore(this)
         setupAgendaUi()
-
         val installedApps = installedApps()
         val filteredApps = installedApps.toMutableList()
         val filteredDockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").toMutableList()
         val installedAppNamesAdapter = InstalledAppsAdapter(
             this@MainActivity,
-            filteredApps.map { app -> app.name }.toMutableList(),
+            filteredApps.toMutableList(),
         )
         val installedAppsCard = findViewById<LinearLayout>(R.id.installed_apps_card)
         val dockedAppsCard = findViewById<LinearLayout>(R.id.docked_apps_card)
@@ -95,16 +96,33 @@ class MainActivity : AppCompatActivity() {
         val dockedAppsList = findViewById<LinearLayout>(R.id.docked_apps_list)
         val baseTop = root.paddingTop
         val baseBottom = root.paddingBottom
+        homeSearchKeyboardController = HomeSearchKeyboardController(
+            requestSearchFocus = { appSearchInput.requestFocus() },
+            searchHasFocus = { appSearchInput.hasFocus() },
+            searchHasWindowFocus = { appSearchInput.hasWindowFocus() },
+            postToSearch = { block -> appSearchInput.post { block() } },
+            postDelayedToSearch = { block, delayMillis -> appSearchInput.postDelayed({ block() }, delayMillis) },
+            showSearchKeyboard = {
+                getSystemService<InputMethodManager>()
+                    ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
+            },
+        )
+        homeSearchKeyboardController.showKeyboard()
+        appSearchInput.setOnFocusChangeListener { _, hasFocus ->
+            homeSearchKeyboardController.onSearchFocusChanged(hasFocus)
+        }
         fun refreshLists(query: String) {
-            filteredApps.replaceWith(installedApps.filterByName(query))
+            filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore))
             filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
-            installedAppNamesAdapter.replaceWith(filteredApps.map { app -> app.name })
+            installedAppNamesAdapter.replaceWith(filteredApps)
             renderDockedApps(
                 dockedApps = filteredDockedApps,
                 dockedAppsRow = dockedAppsList,
                 appSearchInput = appSearchInput,
                 dockedAppStore = dockedAppStore,
+                appLaunchStatsStore = appLaunchStatsStore,
                 afterDockChanged = { refreshLists(appSearchInput.text.toString().trim()) },
+                afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
             )
             dockedAppsHint.isVisible = filteredDockedApps.isEmpty()
             dockedAppsList.isVisible = filteredDockedApps.isNotEmpty()
@@ -114,6 +132,9 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            homeSearchKeyboardController.onImeVisibilityChanged(
+                imeVisible = ime.bottom > 0 || insets.isVisible(WindowInsetsCompat.Type.ime()),
+            )
             val bottomInset = max(systemBars.bottom, ime.bottom)
             val combined = Insets.of(systemBars.left, systemBars.top, systemBars.right, bottomInset)
             view.setPadding(
@@ -140,7 +161,13 @@ class MainActivity : AppCompatActivity() {
                     downTime = event?.downTime,
                 )
             ) {
-                launchActiveApp(filteredApps, appSearchInput.text.toString(), appSearchInput)
+                launchActiveApp(
+                    filteredApps = filteredApps,
+                    query = appSearchInput.text.toString(),
+                    appSearchInput = appSearchInput,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
+                )
             }
             true
         }
@@ -151,7 +178,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<ListView>(R.id.installed_apps_list).apply {
             adapter = installedAppNamesAdapter
             setOnItemClickListener { _, _, position, _ ->
-                launchAndClearQuery(filteredApps[position].launchIntent, appSearchInput)
+                launchAndClearQuery(
+                    app = filteredApps[position],
+                    appSearchInput = appSearchInput,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
+                )
             }
             setOnItemLongClickListener { _, view, position, _ ->
                 showAppMenu(
@@ -182,6 +214,18 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (launcherScreenSwitcher?.displayedChild == AGENDA_SCREEN_INDEX) {
             refreshAgenda()
+        } else if (::homeSearchKeyboardController.isInitialized) {
+            homeSearchKeyboardController.showKeyboard()
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus &&
+            launcherScreenSwitcher?.displayedChild == HOME_SCREEN_INDEX &&
+            ::homeSearchKeyboardController.isInitialized
+        ) {
+            homeSearchKeyboardController.showKeyboard()
         }
     }
 
@@ -245,11 +289,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun showHomeScreen() {
         launcherScreenSwitcher?.displayedChild = HOME_SCREEN_INDEX
-        val searchView = searchInputView ?: return
-        searchView.requestFocus()
-        searchView.post {
-            getSystemService<InputMethodManager>()
-                ?.showSoftInput(searchView, InputMethodManager.SHOW_IMPLICIT)
+        searchInputView?.requestFocus()
+        if (::homeSearchKeyboardController.isInitialized) {
+            homeSearchKeyboardController.showKeyboard()
         }
     }
 
@@ -278,7 +320,6 @@ class MainActivity : AppCompatActivity() {
         val zone = ZoneId.systemDefault()
         val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
         val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val startOfTomorrow = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val utcTodayStart = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val utcTomorrowStart = today.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val queryEnd = today.plusDays(AGENDA_LOOKAHEAD_DAYS).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -330,20 +371,59 @@ class MainActivity : AppCompatActivity() {
 
     private fun installedApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        return packageManager.queryIntentActivities(launcherIntent, 0)
-            .map { resolveInfo ->
-                val activityInfo = resolveInfo.activityInfo
-                InstalledApp(
-                    name = resolveInfo.loadLabel(packageManager).toString(),
-                    packageName = activityInfo.packageName,
-                    launchIntent = Intent.makeMainActivity(
-                        ComponentName(activityInfo.packageName, activityInfo.name),
-                    ),
-                    icon = resolveInfo.loadIcon(packageManager),
-                )
+        val personalUser = Process.myUserHandle()
+        return getSystemService<LauncherApps>()
+            ?.profiles
+            .orEmpty()
+            .flatMap { user ->
+                getSystemService<LauncherApps>()
+                    ?.getActivityList(null, user)
+                    .orEmpty()
+                    .map { activity ->
+                        InstalledApp(
+                            name = activity.label.toString(),
+                            packageName = activity.applicationInfo.packageName,
+                            launchIntent = Intent.makeMainActivity(activity.componentName),
+                            icon = activity.getIcon(0),
+                            user = user,
+                            isWorkApp = user != personalUser,
+                            launchWithLauncherApps = true,
+                        )
+                    }
             }
-            .distinctBy { app -> app.name }
+            .ifEmpty {
+                packageManager.queryIntentActivities(launcherIntent, 0)
+                    .map { resolveInfo ->
+                        val activityInfo = resolveInfo.activityInfo
+                        InstalledApp(
+                            name = resolveInfo.loadLabel(packageManager).toString(),
+                            packageName = activityInfo.packageName,
+                            launchIntent = Intent.makeMainActivity(
+                                ComponentName(activityInfo.packageName, activityInfo.name),
+                            ),
+                            icon = resolveInfo.loadIcon(packageManager),
+                            user = personalUser,
+                            isWorkApp = false,
+                            launchWithLauncherApps = false,
+                        )
+                    }
+            }
+            .markWorkAppsForTests()
+            .distinctBy { app -> app.name.lowercase() to app.isWorkApp }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name })
+    }
+
+    private fun List<InstalledApp>.markWorkAppsForTests(): List<InstalledApp> {
+        val workPackages = intent
+            ?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)
+            ?.toSet()
+            .orEmpty()
+        if (workPackages.isEmpty()) {
+            return this
+        }
+        return map { app ->
+            if (app.packageName in workPackages) app.copy(isWorkApp = true) else app
+        }
     }
 
     private data class InstalledApp(
@@ -351,25 +431,39 @@ class MainActivity : AppCompatActivity() {
         val packageName: String,
         val launchIntent: Intent,
         val icon: Drawable,
+        val user: UserHandle,
+        val isWorkApp: Boolean,
+        val launchWithLauncherApps: Boolean,
     ) {
         val id: String
-            get() = launchIntent.component?.flattenToString() ?: packageName
+            get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
 
         val appInfoIntent: Intent
             get() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 .setData(Uri.parse("package:$packageName"))
+
+        override fun toString(): String = name
     }
 
-    private fun List<InstalledApp>.filterByName(query: String): List<InstalledApp> =
+    private fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
         if (query.isEmpty()) {
-            this
+            sortedWith(
+                compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+            )
         } else {
             filter { app -> app.name.contains(query, ignoreCase = true) }
         }
 
     private fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
         filter { app -> app.id in dockedAppIds }
-            .filterByName(query)
+            .let { dockedApps ->
+                if (query.isEmpty()) {
+                    dockedApps
+                } else {
+                    dockedApps.filter { app -> app.name.contains(query, ignoreCase = true) }
+                }
+            }
             .sortedBy { app -> dockedAppIds.indexOf(app.id) }
 
     private fun MutableList<InstalledApp>.replaceWith(apps: List<InstalledApp>) {
@@ -377,28 +471,57 @@ class MainActivity : AppCompatActivity() {
         addAll(apps)
     }
 
-    private fun ArrayAdapter<String>.replaceWith(appNames: List<String>) {
+    private fun InstalledAppsAdapter.replaceWith(apps: List<InstalledApp>) {
         clear()
-        addAll(appNames)
+        addAll(apps)
     }
 
     private fun launchActiveApp(
         filteredApps: List<InstalledApp>,
         query: String,
         appSearchInput: EditText,
+        appLaunchStatsStore: AppLaunchStatsStore,
+        afterLaunch: () -> Unit,
     ) {
         if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
             launchAndClearQuery(Intent(Settings.ACTION_SETTINGS), appSearchInput)
             return
         }
-        filteredApps.firstOrNull()?.launchIntent?.let { intent ->
-            launchAndClearQuery(intent, appSearchInput)
+        filteredApps.firstOrNull()?.let { app ->
+            launchAndClearQuery(
+                app = app,
+                appSearchInput = appSearchInput,
+                appLaunchStatsStore = appLaunchStatsStore,
+                afterLaunch = afterLaunch,
+            )
         }
+    }
+
+    private fun launchAndClearQuery(
+        app: InstalledApp,
+        appSearchInput: EditText,
+        appLaunchStatsStore: AppLaunchStatsStore,
+        afterLaunch: () -> Unit,
+    ) {
+        launchApp(app)
+        appLaunchStatsStore.recordLaunch(app.id)
+        appSearchInput.text?.clear()
+        afterLaunch()
     }
 
     private fun launchAndClearQuery(intent: Intent, appSearchInput: EditText) {
         startActivity(intent.asLauncherTaskIntent())
         appSearchInput.text?.clear()
+    }
+
+    private fun launchApp(app: InstalledApp) {
+        val component = app.launchIntent.component
+        if (app.launchWithLauncherApps && component != null) {
+            getSystemService<LauncherApps>()
+                ?.startMainActivity(component, app.user, null, null)
+        } else {
+            startActivity(app.launchIntent.asLauncherTaskIntent())
+        }
     }
 
     private fun Intent.asLauncherTaskIntent(): Intent =
@@ -409,7 +532,9 @@ class MainActivity : AppCompatActivity() {
         dockedAppsRow: LinearLayout,
         appSearchInput: EditText,
         dockedAppStore: DockedAppStore,
+        appLaunchStatsStore: AppLaunchStatsStore,
         afterDockChanged: () -> Unit,
+        afterLaunch: () -> Unit,
     ) {
         dockedAppsRow.removeAllViews()
         dockedApps.forEach { app ->
@@ -422,7 +547,12 @@ class MainActivity : AppCompatActivity() {
                 val padding = DOCK_APP_ICON_PADDING_DP.dpToPx()
                 setPadding(padding, padding, padding, padding)
                 setOnClickListener {
-                    launchAndClearQuery(app.launchIntent, appSearchInput)
+                    launchAndClearQuery(
+                        app = app,
+                        appSearchInput = appSearchInput,
+                        appLaunchStatsStore = appLaunchStatsStore,
+                        afterLaunch = afterLaunch,
+                    )
                 }
                 setOnLongClickListener {
                     showAppMenu(
@@ -502,7 +632,6 @@ class MainActivity : AppCompatActivity() {
         const val SETTINGS_QUERY = "settings"
         const val MIN_DOCKED_APPS = 1
         const val DOCK_CARD_HORIZONTAL_MARGIN_DP = 24
-        const val MAX_DOCKED_APPS = 4
         const val DOCK_APP_ICON_SIZE_DP = 56
         const val DOCK_APP_ICON_PADDING_DP = 8
         const val MENU_GROUP_APP_ACTIONS = 0
@@ -514,10 +643,11 @@ class MainActivity : AppCompatActivity() {
         const val HOME_SCREEN_INDEX = 1
         const val AGENDA_LOOKAHEAD_DAYS = 7L
     }
+
     private class InstalledAppsAdapter(
-        context: Context,
-        appNames: MutableList<String>,
-    ) : ArrayAdapter<String>(context, R.layout.installed_app_list_item, appNames) {
+        context: android.content.Context,
+        apps: MutableList<InstalledApp>,
+    ) : ArrayAdapter<InstalledApp>(context, R.layout.installed_app_list_item, apps) {
         private val inflater = LayoutInflater.from(context)
         private val activeBackgroundColor = context.getColor(R.color.active_app_background)
         private val defaultBackgroundColor = context.getColor(android.R.color.white)
@@ -525,7 +655,10 @@ class MainActivity : AppCompatActivity() {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = convertView ?: inflater.inflate(R.layout.installed_app_list_item, parent, false)
             val textView = view.findViewById<TextView>(android.R.id.text1)
-            textView.text = getItem(position).orEmpty()
+            val workBadge = view.findViewById<ImageView>(R.id.work_app_badge)
+            val app = getItem(position)
+            textView.text = app?.name.orEmpty()
+            workBadge.isVisible = app?.isWorkApp == true
             view.setBackgroundColor(if (position == ACTIVE_APP_POSITION) activeBackgroundColor else defaultBackgroundColor)
             return view
         }
@@ -613,6 +746,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private class AppLaunchStatsStore(context: Context) {
+        private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+        fun launchCount(appId: String): Int =
+            sharedPreferences.getInt(appId.toLaunchCountKey(), 0)
+
+        fun recordLaunch(appId: String) {
+            sharedPreferences.edit()
+                .putInt(appId.toLaunchCountKey(), launchCount(appId) + 1)
+                .apply()
+        }
+
+        private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
+
+        private companion object {
+            const val PREFERENCES_NAME = "app_launch_stats"
+            const val KEY_LAUNCH_COUNT_PREFIX = "launch_count:"
+        }
+    }
+
     private data class AgendaUi(
         val permissionCard: View,
         val emptyState: View,
@@ -626,7 +779,57 @@ class MainActivity : AppCompatActivity() {
         val endMillis: Long,
         val isAllDay: Boolean,
     )
+}
 
+internal class HomeSearchKeyboardController(
+    private val requestSearchFocus: () -> Unit,
+    private val searchHasFocus: () -> Boolean,
+    private val searchHasWindowFocus: () -> Boolean,
+    private val postToSearch: (() -> Unit) -> Unit,
+    private val postDelayedToSearch: (() -> Unit, Long) -> Unit,
+    private val showSearchKeyboard: () -> Unit,
+) {
+    private var keyboardShowScheduled = false
+
+    fun showKeyboard() {
+        requestSearchFocus()
+        postToSearch {
+            if (searchHasFocus() && searchHasWindowFocus()) {
+                showSearchKeyboard()
+            }
+        }
+    }
+
+    fun onSearchFocusChanged(hasFocus: Boolean) {
+        if (hasFocus || !searchHasFocus()) {
+            showKeyboard()
+        }
+    }
+
+    fun onImeVisibilityChanged(imeVisible: Boolean) {
+        if (!imeVisible && searchHasFocus()) {
+            scheduleShowKeyboard()
+        }
+    }
+
+    private fun scheduleShowKeyboard() {
+        if (keyboardShowScheduled) {
+            return
+        }
+
+        keyboardShowScheduled = true
+        postDelayedToSearch(
+            {
+                keyboardShowScheduled = false
+                showKeyboard()
+            },
+            KEYBOARD_RESHOW_DELAY_MILLIS,
+        )
+    }
+
+    internal companion object {
+        const val KEYBOARD_RESHOW_DELAY_MILLIS = 150L
+    }
 }
 
 internal class SettingsLaunchGate {
