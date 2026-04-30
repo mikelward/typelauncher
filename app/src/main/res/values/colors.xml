@@ -9,4 +9,5 @@
     <color name="white">#FFFFFFFF</color>
     <color name="blue">#FF0000FF</color>
     <color name="active_app_background">#FFE3F2FD</color>
+    <color name="pinned_app_background">#FFFFF8E1</color>
 </resources>

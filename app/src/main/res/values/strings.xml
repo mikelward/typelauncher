@@ -2,4 +2,9 @@
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name</string>
     <string name="installed_apps_list_label">Installed apps</string>
+    <string name="pinned_apps_list_label">Pinned apps</string>
+    <string name="app_menu_app_info">App info</string>
+    <string name="app_menu_pin">Pin</string>
+    <string name="app_menu_unpin">Unpin</string>
+    <string name="pinned_apps_limit_message">Pin up to 4 apps</string>
 </resources>
