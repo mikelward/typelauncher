@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Type Launcher</string>
+    <string name="app_search_hint">Type an app name</string>
 </resources>
