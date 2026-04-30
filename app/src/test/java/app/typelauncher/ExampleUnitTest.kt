@@ -53,6 +53,15 @@ class ExampleUnitTest {
         assertEquals("android.intent.category.LAUNCHER", queryElements[1].attributes.getNamedItem("android:name").nodeValue)
     }
 
+    @Test
+    fun mainActivity_launchesTappedAppListItem() {
+        val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
+
+        assertTrue(source.contains("setOnItemClickListener"))
+        assertTrue(source.contains("startActivity(installedApps[position].launchIntent)"))
+        assertTrue(source.contains("Intent.makeMainActivity"))
+    }
+
     private fun parseLayout() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
         .parse(File("src/main/res/layout/activity_main.xml"))

@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
 import android.view.inputmethod.InputMethodManager
@@ -21,18 +22,37 @@ class MainActivity : AppCompatActivity() {
                 ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
         }
 
-        findViewById<ListView>(R.id.installed_apps_list).adapter = ArrayAdapter(
-            this,
-            R.layout.installed_app_list_item,
-            installedAppNames(),
-        )
+        val installedApps = installedApps()
+        findViewById<ListView>(R.id.installed_apps_list).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity,
+                R.layout.installed_app_list_item,
+                installedApps.map { app -> app.name },
+            )
+            setOnItemClickListener { _, _, position, _ ->
+                startActivity(installedApps[position].launchIntent)
+            }
+        }
     }
 
-    private fun installedAppNames(): List<String> {
+    private fun installedApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         return packageManager.queryIntentActivities(launcherIntent, 0)
-            .map { resolveInfo -> resolveInfo.loadLabel(packageManager).toString() }
-            .distinct()
-            .sortedWith(String.CASE_INSENSITIVE_ORDER)
+            .map { resolveInfo ->
+                val activityInfo = resolveInfo.activityInfo
+                InstalledApp(
+                    name = resolveInfo.loadLabel(packageManager).toString(),
+                    launchIntent = Intent.makeMainActivity(
+                        ComponentName(activityInfo.packageName, activityInfo.name),
+                    ),
+                )
+            }
+            .distinctBy { app -> app.name }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name })
     }
+
+    private data class InstalledApp(
+        val name: String,
+        val launchIntent: Intent,
+    )
 }
