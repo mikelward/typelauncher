@@ -3,7 +3,7 @@ package app.typelauncher
 import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
-import android.view.ViewAnimator
+import android.widget.ViewAnimator
 import kotlin.math.abs
 
 class LauncherScreenSwitcher @JvmOverloads constructor(
@@ -13,22 +13,9 @@ class LauncherScreenSwitcher @JvmOverloads constructor(
     private var touchStartX = 0f
     private var touchStartY = 0f
     private var isSwiping = false
-    private var gestureEnabled = true
     var swipeListener: SwipeListener? = null
-        private set
-
-    fun setGestureEnabled(enabled: Boolean) {
-        gestureEnabled = enabled
-    }
-
-    fun setSwipeNavigateListener(listener: SwipeListener?) {
-        swipeListener = listener
-    }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
-        if (!gestureEnabled) {
-            return super.onInterceptTouchEvent(event)
-        }
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 touchStartX = event.x
@@ -54,9 +41,6 @@ class LauncherScreenSwitcher @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!gestureEnabled) {
-            return super.onTouchEvent(event)
-        }
         when (event.actionMasked) {
             MotionEvent.ACTION_MOVE -> {
                 if (isSwiping) {
@@ -64,7 +48,12 @@ class LauncherScreenSwitcher @JvmOverloads constructor(
                 }
             }
             MotionEvent.ACTION_UP -> {
-                val handled = swipeListener?.onSwipe(event.x - touchStartX, event.y - touchStartY) == true
+                val deltaX = event.x - touchStartX
+                val handled = if (deltaX < 0f) {
+                    swipeListener?.onSwipeLeft() == true
+                } else {
+                    swipeListener?.onSwipeRight() == true
+                }
                 isSwiping = false
                 return handled || super.onTouchEvent(event)
             }
@@ -75,8 +64,9 @@ class LauncherScreenSwitcher @JvmOverloads constructor(
         return if (isSwiping) true else super.onTouchEvent(event)
     }
 
-    fun interface SwipeListener {
-        fun onSwipe(deltaX: Float, deltaY: Float): Boolean
+    interface SwipeListener {
+        fun onSwipeLeft(): Boolean
+        fun onSwipeRight(): Boolean
     }
 
     private companion object {
