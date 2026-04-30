@@ -3,9 +3,12 @@ package app.typelauncher
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.LauncherApps
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Process
+import android.os.UserHandle
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
@@ -18,6 +21,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.PopupMenu
@@ -31,6 +35,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import java.util.LinkedHashSet
 import kotlin.math.max
+
+internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 
 class MainActivity : AppCompatActivity() {
     internal var latestAppMenu: PopupMenu? = null
@@ -57,7 +63,7 @@ class MainActivity : AppCompatActivity() {
         val filteredDockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").toMutableList()
         val installedAppNamesAdapter = InstalledAppsAdapter(
             this@MainActivity,
-            filteredApps.map { app -> app.name }.toMutableList(),
+            filteredApps.toMutableList(),
         )
         val installedAppsCard = findViewById<LinearLayout>(R.id.installed_apps_card)
         val dockedAppsCard = findViewById<LinearLayout>(R.id.docked_apps_card)
@@ -68,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         fun refreshLists(query: String) {
             filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore))
             filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
-            installedAppNamesAdapter.replaceWith(filteredApps.map { app -> app.name })
+            installedAppNamesAdapter.replaceWith(filteredApps)
             renderDockedApps(
                 dockedApps = filteredDockedApps,
                 dockedAppsRow = dockedAppsList,
@@ -163,20 +169,59 @@ class MainActivity : AppCompatActivity() {
 
     private fun installedApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        return packageManager.queryIntentActivities(launcherIntent, 0)
-            .map { resolveInfo ->
-                val activityInfo = resolveInfo.activityInfo
-                InstalledApp(
-                    name = resolveInfo.loadLabel(packageManager).toString(),
-                    packageName = activityInfo.packageName,
-                    launchIntent = Intent.makeMainActivity(
-                        ComponentName(activityInfo.packageName, activityInfo.name),
-                    ),
-                    icon = resolveInfo.loadIcon(packageManager),
-                )
+        val personalUser = Process.myUserHandle()
+        return getSystemService<LauncherApps>()
+            ?.profiles
+            .orEmpty()
+            .flatMap { user ->
+                getSystemService<LauncherApps>()
+                    ?.getActivityList(null, user)
+                    .orEmpty()
+                    .map { activity ->
+                        InstalledApp(
+                            name = activity.label.toString(),
+                            packageName = activity.applicationInfo.packageName,
+                            launchIntent = Intent.makeMainActivity(activity.componentName),
+                            icon = activity.getIcon(0),
+                            user = user,
+                            isWorkApp = user != personalUser,
+                            launchWithLauncherApps = true,
+                        )
+                    }
             }
-            .distinctBy { app -> app.name }
+            .ifEmpty {
+                packageManager.queryIntentActivities(launcherIntent, 0)
+                    .map { resolveInfo ->
+                        val activityInfo = resolveInfo.activityInfo
+                        InstalledApp(
+                            name = resolveInfo.loadLabel(packageManager).toString(),
+                            packageName = activityInfo.packageName,
+                            launchIntent = Intent.makeMainActivity(
+                                ComponentName(activityInfo.packageName, activityInfo.name),
+                            ),
+                            icon = resolveInfo.loadIcon(packageManager),
+                            user = personalUser,
+                            isWorkApp = false,
+                            launchWithLauncherApps = false,
+                        )
+                    }
+            }
+            .markWorkAppsForTests()
+            .distinctBy { app -> app.name.lowercase() to app.isWorkApp }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name })
+    }
+
+    private fun List<InstalledApp>.markWorkAppsForTests(): List<InstalledApp> {
+        val workPackages = intent
+            ?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)
+            ?.toSet()
+            .orEmpty()
+        if (workPackages.isEmpty()) {
+            return this
+        }
+        return map { app ->
+            if (app.packageName in workPackages) app.copy(isWorkApp = true) else app
+        }
     }
 
     private data class InstalledApp(
@@ -184,13 +229,18 @@ class MainActivity : AppCompatActivity() {
         val packageName: String,
         val launchIntent: Intent,
         val icon: Drawable,
+        val user: UserHandle,
+        val isWorkApp: Boolean,
+        val launchWithLauncherApps: Boolean,
     ) {
         val id: String
-            get() = launchIntent.component?.flattenToString() ?: packageName
+            get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
 
         val appInfoIntent: Intent
             get() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 .setData(Uri.parse("package:$packageName"))
+
+        override fun toString(): String = name
     }
 
     private fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
@@ -219,9 +269,9 @@ class MainActivity : AppCompatActivity() {
         addAll(apps)
     }
 
-    private fun ArrayAdapter<String>.replaceWith(appNames: List<String>) {
+    private fun InstalledAppsAdapter.replaceWith(apps: List<InstalledApp>) {
         clear()
-        addAll(appNames)
+        addAll(apps)
     }
 
     private fun launchActiveApp(
@@ -251,7 +301,7 @@ class MainActivity : AppCompatActivity() {
         appLaunchStatsStore: AppLaunchStatsStore,
         afterLaunch: () -> Unit,
     ) {
-        startActivity(app.launchIntent.asLauncherTaskIntent())
+        launchApp(app)
         appLaunchStatsStore.recordLaunch(app.id)
         appSearchInput.text?.clear()
         afterLaunch()
@@ -260,6 +310,16 @@ class MainActivity : AppCompatActivity() {
     private fun launchAndClearQuery(intent: Intent, appSearchInput: EditText) {
         startActivity(intent.asLauncherTaskIntent())
         appSearchInput.text?.clear()
+    }
+
+    private fun launchApp(app: InstalledApp) {
+        val component = app.launchIntent.component
+        if (app.launchWithLauncherApps && component != null) {
+            getSystemService<LauncherApps>()
+                ?.startMainActivity(component, app.user, null, null)
+        } else {
+            startActivity(app.launchIntent.asLauncherTaskIntent())
+        }
     }
 
     private fun Intent.asLauncherTaskIntent(): Intent =
@@ -381,8 +441,8 @@ class MainActivity : AppCompatActivity() {
 
     private class InstalledAppsAdapter(
         context: android.content.Context,
-        appNames: MutableList<String>,
-    ) : ArrayAdapter<String>(context, R.layout.installed_app_list_item, appNames) {
+        apps: MutableList<InstalledApp>,
+    ) : ArrayAdapter<InstalledApp>(context, R.layout.installed_app_list_item, apps) {
         private val inflater = LayoutInflater.from(context)
         private val activeBackgroundColor = context.getColor(R.color.active_app_background)
         private val defaultBackgroundColor = context.getColor(android.R.color.white)
@@ -390,7 +450,10 @@ class MainActivity : AppCompatActivity() {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = convertView ?: inflater.inflate(R.layout.installed_app_list_item, parent, false)
             val textView = view.findViewById<TextView>(android.R.id.text1)
-            textView.text = getItem(position).orEmpty()
+            val workBadge = view.findViewById<ImageView>(R.id.work_app_badge)
+            val app = getItem(position)
+            textView.text = app?.name.orEmpty()
+            workBadge.isVisible = app?.isWorkApp == true
             view.setBackgroundColor(if (position == ACTIVE_APP_POSITION) activeBackgroundColor else defaultBackgroundColor)
             return view
         }

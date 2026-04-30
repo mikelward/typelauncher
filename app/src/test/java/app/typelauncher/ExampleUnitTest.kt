@@ -26,6 +26,7 @@ class ExampleUnitTest {
         val list = layout.getElementsByTagName("ListView").item(0)
         val dockHint = layout.getElementsByTagName("TextView").item(0)
         val dockScroller = layout.getElementsByTagName("HorizontalScrollView").item(0)
+        val workBadge = parseInstalledAppListItem().getElementsByTagName("ImageView").item(0)
         val searchContainerAttrs = searchContainer.attributes
         val attrs = input.attributes
         val clearButtonAttrs = clearButton.attributes
@@ -35,6 +36,7 @@ class ExampleUnitTest {
         val dockRowAttrs = dockRow.attributes
         val listAttrs = list.attributes
         val dockScrollerAttrs = dockScroller.attributes
+        val workBadgeAttrs = workBadge.attributes
 
         assertEquals("vertical", root.attributes.getNamedItem("android:orientation").nodeValue)
         assertEquals(searchContainer, root.elementChildren()[0])
@@ -64,6 +66,10 @@ class ExampleUnitTest {
         assertEquals("horizontal", dockRowAttrs.getNamedItem("android:orientation").nodeValue)
         assertEquals("56dp", dockRowAttrs.getNamedItem("android:layout_height").nodeValue)
         assertEquals("gone", dockRowAttrs.getNamedItem("android:visibility").nodeValue)
+        assertEquals("@+id/work_app_badge", workBadgeAttrs.getNamedItem("android:id").nodeValue)
+        assertEquals("36dp", workBadgeAttrs.getNamedItem("android:layout_width").nodeValue)
+        assertEquals("6dp", workBadgeAttrs.getNamedItem("android:layout_marginEnd").nodeValue)
+        assertEquals("@string/work_app_badge_description", workBadgeAttrs.getNamedItem("android:contentDescription").nodeValue)
     }
 
     @Test
@@ -131,6 +137,10 @@ class ExampleUnitTest {
     private fun parseLayout() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
         .parse(File("src/main/res/layout/activity_main.xml"))
+
+    private fun parseInstalledAppListItem() = DocumentBuilderFactory.newInstance()
+        .newDocumentBuilder()
+        .parse(File("src/main/res/layout/installed_app_list_item.xml"))
 
     private fun parseManifest() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
