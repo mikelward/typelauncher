@@ -18,4 +18,17 @@
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
     <string name="docked_apps_limit_message">Too many apps in dock. Dock up to %1$d apps.</string>
+    <string name="navigate_to_agenda">Open agenda</string>
+    <string name="navigate_to_home">Back to home</string>
+    <string name="calendar_permission_required_title">Calendar permission required</string>
+    <string name="calendar_permission_status">Action required</string>
+    <string name="agenda_empty_title">Your agenda is clear</string>
+    <string name="home_search_title">Find an app</string>
+    <string name="dock_title">Dock</string>
+    <string name="dock_subtitle">Up to %1$d apps fit here</string>
+    <string name="home_empty_title">No matches</string>
+    <string name="home_empty_body">Try a shorter app name or clear the search.</string>
+    <string name="agenda_permission_title">Show calendar events</string>
+    <string name="navigate_home_description">Return to launcher search</string>
+    <string name="app_actions_description">App actions</string>
 </resources>

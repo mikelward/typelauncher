@@ -72,8 +72,8 @@ class AgendaEventOrganizerTest {
         assertEquals(listOf("today all day utc"), ordered.map { it.title })
     }
 
-    private fun event(title: String, begin: Long, end: Long, isAllDay: Boolean): MainActivity.AgendaEvent =
-        MainActivity.AgendaEvent(
+    private fun event(title: String, begin: Long, end: Long, isAllDay: Boolean): AgendaEvent =
+        AgendaEvent(
             title = title,
             beginMillis = begin,
             endMillis = end,

@@ -1,320 +1,920 @@
 package app.typelauncher
 
 import android.Manifest
+import android.app.Application
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.os.UserHandle
 import android.provider.CalendarContract
 import android.provider.Settings
-import android.text.Editable
-import android.text.TextWatcher
 import android.text.format.DateUtils
-import android.view.LayoutInflater
 import android.view.KeyEvent
-import android.view.View
-import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ListView
-import android.widget.PopupMenu
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
-import androidx.core.graphics.Insets
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isVisible
+import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.CreationExtras
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.LinkedHashSet
-import kotlin.math.max
+import kotlin.math.abs
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 
-class MainActivity : AppCompatActivity() {
-    internal var latestAppMenu: PopupMenu? = null
+class MainActivity : ComponentActivity() {
+    internal lateinit var viewModel: LauncherViewModel
         private set
-    private lateinit var homeSearchKeyboardController: HomeSearchKeyboardController
-    private var launcherScreenSwitcher: LauncherScreenSwitcher? = null
-    private var searchInputView: EditText? = null
-    private var agendaUi: AgendaUi? = null
 
     private val requestCalendarPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            refreshAgenda()
+            viewModel.refreshAgenda()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        launcherScreenSwitcher = findViewById<LauncherScreenSwitcher>(R.id.launcher_screen_switcher).apply {
-            displayedChild = HOME_SCREEN_INDEX
-            swipeListener = object : LauncherScreenSwitcher.SwipeListener {
-                override fun onSwipeLeft(): Boolean = tryShowAgendaScreen()
-
-                override fun onSwipeRight(): Boolean = tryShowHomeScreen()
-            }
-        }
-
-        val root = findViewById<View>(R.id.main_root)
-        val appSearchInput = findViewById<EditText>(R.id.app_search_input)
-        val appSearchClearButton = findViewById<ImageButton>(R.id.app_search_clear_button)
-        val settingsLaunchGate = SettingsLaunchGate()
-        searchInputView = appSearchInput
-        val dockedAppStore = DockedAppStore(this)
-        val appLaunchStatsStore = AppLaunchStatsStore(this)
-        setupAgendaUi()
-        val installedApps = installedApps()
-        val filteredApps = installedApps.toMutableList()
-        val filteredDockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").toMutableList()
-        val installedAppNamesAdapter = InstalledAppsAdapter(
-            this@MainActivity,
-            filteredApps.toMutableList(),
-        )
-        val installedAppsCard = findViewById<LinearLayout>(R.id.installed_apps_card)
-        val dockedAppsCard = findViewById<LinearLayout>(R.id.docked_apps_card)
-        val dockedAppsHint = findViewById<TextView>(R.id.docked_apps_hint)
-        val dockedAppsList = findViewById<LinearLayout>(R.id.docked_apps_list)
-        val baseTop = root.paddingTop
-        val baseBottom = root.paddingBottom
-        homeSearchKeyboardController = HomeSearchKeyboardController(
-            requestSearchFocus = { appSearchInput.requestFocus() },
-            searchHasFocus = { appSearchInput.hasFocus() },
-            searchHasWindowFocus = { appSearchInput.hasWindowFocus() },
-            postToSearch = { block -> appSearchInput.post { block() } },
-            postDelayedToSearch = { block, delayMillis -> appSearchInput.postDelayed({ block() }, delayMillis) },
-            showSearchKeyboard = {
-                getSystemService<InputMethodManager>()
-                    ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
-            },
-        )
-        homeSearchKeyboardController.showKeyboard()
-        appSearchInput.setOnFocusChangeListener { _, hasFocus ->
-            homeSearchKeyboardController.onSearchFocusChanged(hasFocus)
-        }
-        fun refreshLists(query: String) {
-            filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore))
-            filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
-            installedAppNamesAdapter.replaceWith(filteredApps)
-            renderDockedApps(
-                dockedApps = filteredDockedApps,
-                dockedAppsRow = dockedAppsList,
-                appSearchInput = appSearchInput,
-                dockedAppStore = dockedAppStore,
-                appLaunchStatsStore = appLaunchStatsStore,
-                afterDockChanged = { refreshLists(appSearchInput.text.toString().trim()) },
-                afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
-            )
-            dockedAppsHint.isVisible = filteredDockedApps.isEmpty()
-            dockedAppsList.isVisible = filteredDockedApps.isNotEmpty()
-            installedAppsCard.requestLayout()
-            dockedAppsCard.requestLayout()
-        }
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            homeSearchKeyboardController.onImeVisibilityChanged(
-                imeVisible = ime.bottom > 0 || insets.isVisible(WindowInsetsCompat.Type.ime()),
-            )
-            val bottomInset = max(systemBars.bottom, ime.bottom)
-            val combined = Insets.of(systemBars.left, systemBars.top, systemBars.right, bottomInset)
-            view.setPadding(
-                combined.left,
-                baseTop + combined.top,
-                combined.right,
-                baseBottom + combined.bottom,
-            )
-            insets
-        }
-        ViewCompat.requestApplyInsets(root)
-        appSearchInput.setOnEditorActionListener { _, actionId, event ->
-            val isSearchAction = actionId == EditorInfo.IME_ACTION_SEARCH
-            val isEnterKey = event?.keyCode == KeyEvent.KEYCODE_ENTER
-
-            if (!isSearchAction && !isEnterKey) {
-                return@setOnEditorActionListener false
-            }
-
-            if (settingsLaunchGate.shouldLaunch(
-                    action = event?.action,
-                    keyCode = event?.keyCode,
-                    repeatCount = event?.repeatCount ?: 0,
-                    downTime = event?.downTime,
-                )
-            ) {
-                launchActiveApp(
-                    filteredApps = filteredApps,
-                    query = appSearchInput.text.toString(),
-                    appSearchInput = appSearchInput,
-                    appLaunchStatsStore = appLaunchStatsStore,
-                    afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
+        viewModel = ViewModelProvider(
+            this,
+            LauncherViewModel.factory(
+                app = application,
+                workPackages = intent?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)?.toSet().orEmpty(),
+            ),
+        )[LauncherViewModel::class.java]
+        setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    viewModel = viewModel,
+                    onRequestCalendarPermission = {
+                        requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                    },
                 )
             }
-            true
         }
-        appSearchClearButton.setOnClickListener {
-            appSearchInput.text?.clear()
-            appSearchInput.requestFocus()
-        }
-        findViewById<ListView>(R.id.installed_apps_list).apply {
-            adapter = installedAppNamesAdapter
-            setOnItemClickListener { _, _, position, _ ->
-                launchAndClearQuery(
-                    app = filteredApps[position],
-                    appSearchInput = appSearchInput,
-                    appLaunchStatsStore = appLaunchStatsStore,
-                    afterLaunch = { refreshLists(appSearchInput.text.toString().trim()) },
-                )
-            }
-            setOnItemLongClickListener { _, view, position, _ ->
-                showAppMenu(
-                    anchor = view,
-                    app = filteredApps[position],
-                    dockedAppStore = dockedAppStore,
-                    afterDockChanged = { refreshLists(appSearchInput.text.toString().trim()) },
-                )
-                true
-            }
-        }
-        refreshLists("")
-        appSearchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
-
-            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
-                val query = text?.toString().orEmpty().trim()
-                refreshLists(query)
-                appSearchClearButton.isVisible = text?.isNotEmpty() == true
-            }
-
-            override fun afterTextChanged(text: Editable?) = Unit
-        })
-        appSearchClearButton.isVisible = appSearchInput.text?.isNotEmpty() == true
     }
 
     override fun onResume() {
         super.onResume()
-        if (launcherScreenSwitcher?.displayedChild == AGENDA_SCREEN_INDEX) {
-            refreshAgenda()
-        } else if (::homeSearchKeyboardController.isInitialized) {
-            homeSearchKeyboardController.showKeyboard()
+        viewModel.refreshPermissionDrivenUi()
+    }
+}
+
+@Composable
+private fun TypeLauncherApp(
+    viewModel: LauncherViewModel,
+    onRequestCalendarPermission: () -> Unit,
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissionDrivenUi()
+            }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus &&
-            launcherScreenSwitcher?.displayedChild == HOME_SCREEN_INDEX &&
-            ::homeSearchKeyboardController.isInitialized
-        ) {
-            homeSearchKeyboardController.showKeyboard()
-        }
-    }
+    TypeLauncherApp(
+        state = state,
+        onQueryChanged = viewModel::setQuery,
+        onClearQuery = { viewModel.setQuery("") },
+        onLaunchActiveApp = viewModel::launchActiveApp,
+        onLaunchApp = viewModel::launchApp,
+        onOpenAppInfo = viewModel::openAppInfo,
+        onToggleDock = viewModel::toggleDock,
+        onShowAgenda = viewModel::showAgenda,
+        onShowHome = viewModel::showHome,
+        onRequestCalendarPermission = onRequestCalendarPermission,
+    )
+}
 
-    private fun setupAgendaUi() {
-        val agendaRoot = findViewById<View>(R.id.agenda_root)
-        val permissionCard = findViewById<LinearLayout>(R.id.agenda_permission_card)
-        val permissionButton = findViewById<Button>(R.id.agenda_permission_button)
-        val emptyState = findViewById<TextView>(R.id.agenda_empty_state)
-        val eventsCard = findViewById<LinearLayout>(R.id.agenda_events_card)
-        val eventsList = findViewById<ListView>(R.id.agenda_events_list)
-        val eventAdapter = AgendaEventsAdapter(this, mutableListOf())
-        eventsList.adapter = eventAdapter
-        agendaUi = AgendaUi(
-            permissionCard = permissionCard,
-            emptyState = emptyState,
-            eventsCard = eventsCard,
-            eventAdapter = eventAdapter,
-        )
-        permissionButton.setOnClickListener {
-            requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-        }
-
-        val baseTop = agendaRoot.paddingTop
-        val baseBottom = agendaRoot.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(agendaRoot) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(
-                systemBars.left,
-                baseTop + systemBars.top,
-                systemBars.right,
-                baseBottom + systemBars.bottom,
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TypeLauncherApp(
+    state: LauncherUiState,
+    onQueryChanged: (String) -> Unit,
+    onClearQuery: () -> Unit,
+    onLaunchActiveApp: () -> Unit,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onShowAgenda: () -> Unit,
+    onShowHome: () -> Unit,
+    onRequestCalendarPermission: () -> Unit,
+) {
+    val title = if (state.screen == LauncherScreen.Home) stringResource(R.string.app_name) else stringResource(R.string.agenda_title)
+    Scaffold(
+        contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    if (state.screen == LauncherScreen.Agenda) {
+                        IconButton(onClick = onShowHome) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_home_description))
+                        }
+                    }
+                },
+                actions = {
+                    if (state.screen == LauncherScreen.Home) {
+                        TextButton(onClick = onShowAgenda) {
+                            Text(stringResource(R.string.agenda_title))
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                ),
             )
-            insets
-        }
-        ViewCompat.requestApplyInsets(agendaRoot)
-    }
-
-    private fun tryShowAgendaScreen(): Boolean {
-        if (launcherScreenSwitcher?.displayedChild != HOME_SCREEN_INDEX) {
-            return false
-        }
-        showAgendaScreen()
-        return true
-    }
-
-    private fun tryShowHomeScreen(): Boolean {
-        if (launcherScreenSwitcher?.displayedChild != AGENDA_SCREEN_INDEX) {
-            return false
-        }
-        showHomeScreen()
-        return true
-    }
-
-    private fun showAgendaScreen() {
-        launcherScreenSwitcher?.displayedChild = AGENDA_SCREEN_INDEX
-        currentFocus?.let { focusedView ->
-            getSystemService<InputMethodManager>()?.hideSoftInputFromWindow(focusedView.windowToken, 0)
-        }
-        refreshAgenda()
-    }
-
-    private fun showHomeScreen() {
-        launcherScreenSwitcher?.displayedChild = HOME_SCREEN_INDEX
-        searchInputView?.requestFocus()
-        if (::homeSearchKeyboardController.isInitialized) {
-            homeSearchKeyboardController.showKeyboard()
+        },
+    ) { innerPadding ->
+        SwipeNavigationBox(
+            screen = state.screen,
+            onShowAgenda = onShowAgenda,
+            onShowHome = onShowHome,
+        ) {
+            when (state.screen) {
+                LauncherScreen.Home -> HomeScreen(
+                    state = state,
+                    innerPadding = innerPadding,
+                    onQueryChanged = onQueryChanged,
+                    onClearQuery = onClearQuery,
+                    onLaunchActiveApp = onLaunchActiveApp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                )
+                LauncherScreen.Agenda -> AgendaScreen(
+                    agenda = state.agenda,
+                    innerPadding = innerPadding,
+                    onRequestCalendarPermission = onRequestCalendarPermission,
+                )
+            }
         }
     }
+}
 
-    private fun refreshAgenda() {
-        val ui = agendaUi ?: return
-        if (!hasCalendarPermission()) {
-            ui.permissionCard.isVisible = true
-            ui.eventsCard.isVisible = false
-            ui.emptyState.isVisible = false
-            ui.eventAdapter.replaceWith(emptyList())
+@Composable
+private fun SwipeNavigationBox(
+    screen: LauncherScreen,
+    onShowAgenda: () -> Unit,
+    onShowHome: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    var dragAmount by remember { mutableFloatStateOf(0f) }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(screen) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragAmount = 0f },
+                    onHorizontalDrag = { _, dragDelta -> dragAmount += dragDelta },
+                    onDragEnd = {
+                        if (abs(dragAmount) >= SWIPE_THRESHOLD_PX) {
+                            if (dragAmount < 0 && screen == LauncherScreen.Home) {
+                                onShowAgenda()
+                            } else if (dragAmount > 0 && screen == LauncherScreen.Agenda) {
+                                onShowHome()
+                            }
+                        }
+                    },
+                    onDragCancel = { dragAmount = 0f },
+                )
+            },
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun HomeScreen(
+    state: LauncherUiState,
+    innerPadding: PaddingValues,
+    onQueryChanged: (String) -> Unit,
+    onClearQuery: () -> Unit,
+    onLaunchActiveApp: () -> Unit,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+) {
+    val configuration = LocalConfiguration.current
+    val dockCapacity = ((configuration.screenWidthDp - 32) / DOCK_APP_ICON_SIZE_DP).coerceAtLeast(MIN_DOCKED_APPS)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(innerPadding)
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .testTag(HOME_SCREEN_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        SearchCard(
+            query = state.query,
+            onQueryChanged = onQueryChanged,
+            onClearQuery = onClearQuery,
+            onLaunchActiveApp = onLaunchActiveApp,
+        )
+        DockCard(
+            dockedApps = state.dockedApps,
+            dockCapacity = dockCapacity,
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+        )
+        AppsCard(
+            apps = state.filteredApps,
+            dockCapacity = dockCapacity,
+            modifier = Modifier.weight(1f),
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+        )
+    }
+}
+
+@Composable
+private fun SearchCard(
+    query: String,
+    onQueryChanged: (String) -> Unit,
+    onClearQuery: () -> Unit,
+    onLaunchActiveApp: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboard?.show()
+    }
+    SectionCard {
+        Text(
+            text = stringResource(R.string.home_search_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChanged,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .onKeyEvent { event ->
+                    if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER && event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        onLaunchActiveApp()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                .testTag(SEARCH_FIELD_TAG),
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = onClearQuery) {
+                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.app_search_clear_button_description))
+                    }
+                }
+            },
+            singleLine = true,
+            label = { Text(stringResource(R.string.app_search_hint)) },
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Search,
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    focusManager.clearFocus(force = false)
+                    onLaunchActiveApp()
+                },
+            ),
+        )
+    }
+}
+
+@Composable
+private fun DockCard(
+    dockedApps: List<InstalledApp>,
+    dockCapacity: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+) {
+    SectionCard(Modifier.testTag(DOCK_CARD_TAG)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.PushPin, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(stringResource(R.string.dock_title), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.dock_subtitle, dockCapacity),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (dockedApps.isEmpty()) {
+            Text(
+                text = stringResource(R.string.dock_apps_hint),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .testTag(DOCK_HINT_TAG),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .testTag(DOCK_LIST_TAG),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                dockedApps.forEach { app ->
+                    DockedAppButton(
+                        app = app,
+                        dockCapacity = dockCapacity,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppsCard(
+    apps: List<InstalledApp>,
+    dockCapacity: Int,
+    modifier: Modifier = Modifier,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+) {
+    SectionCard(modifier.testTag(APPS_CARD_TAG)) {
+        Text(stringResource(R.string.installed_apps_list_label), style = MaterialTheme.typography.titleMedium)
+        if (apps.isEmpty()) {
+            EmptyState(
+                icon = Icons.Filled.Search,
+                title = stringResource(R.string.home_empty_title),
+                body = stringResource(R.string.home_empty_body),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(APPS_LIST_TAG),
+            ) {
+                items(apps, key = { app -> app.id }) { app ->
+                    AppRow(
+                        app = app,
+                        isActive = app == apps.first(),
+                        dockCapacity = dockCapacity,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppRow(
+    app: InstalledApp,
+    isActive: Boolean,
+    dockCapacity: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowColor, MaterialTheme.shapes.medium)
+            .clickable { onLaunchApp(app) }
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .testTag("$APP_ROW_TAG:${app.name}"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AppIcon(app = app)
+        Column(Modifier.weight(1f)) {
+            Text(app.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = if (app.isWorkApp) stringResource(R.string.work_app_badge_description) else app.packageName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (app.isWorkApp) {
+            Icon(
+                Icons.Filled.Badge,
+                contentDescription = stringResource(R.string.work_app_badge_description),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.app_actions_description, app.name))
+            }
+            AppActionsMenu(
+                expanded = menuExpanded,
+                app = app,
+                dockCapacity = dockCapacity,
+                onDismiss = { menuExpanded = false },
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DockedAppButton(
+    app: InstalledApp,
+    dockCapacity: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        Column(
+            modifier = Modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { onLaunchApp(app) },
+                )
+                .semantics { contentDescription = app.name }
+                .padding(4.dp)
+                .testTag("$DOCK_APP_TAG:${app.name}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppIcon(app = app, modifier = Modifier.size(48.dp))
+            Text(
+                text = app.name,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onLaunchApp(app) },
+                )
+                .semantics {
+                    role = Role.Button
+                    contentDescription = app.name
+                },
+        )
+        IconButton(
+            onClick = { menuExpanded = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(36.dp),
+        ) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.app_actions_description, app.name))
+        }
+        AppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            dockCapacity = dockCapacity,
+            onDismiss = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+        )
+    }
+}
+
+@Composable
+private fun AppActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    dockCapacity: Int,
+    onDismiss: () -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_app_info)) },
+            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismiss()
+                onOpenAppInfo(app)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
+            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismiss()
+                onToggleDock(app, dockCapacity)
+            },
+        )
+    }
+}
+
+@Composable
+private fun AppIcon(app: InstalledApp, modifier: Modifier = Modifier.size(40.dp)) {
+    val bitmap = remember(app.id, app.icon) {
+        app.icon?.toBitmap(width = 96, height = 96)?.asImageBitmap()
+    }
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
+        } else {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                modifier = Modifier.padding(8.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AgendaScreen(
+    agenda: AgendaUiState,
+    innerPadding: PaddingValues,
+    onRequestCalendarPermission: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(innerPadding)
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .testTag(AGENDA_SCREEN_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            stringResource(R.string.agenda_swipe_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        when (agenda) {
+            AgendaUiState.PermissionRequired -> PermissionCard(onRequestCalendarPermission)
+            AgendaUiState.Empty -> EmptyAgendaCard()
+            is AgendaUiState.Events -> AgendaEventsCard(agenda.events, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PermissionCard(onRequestCalendarPermission: () -> Unit) {
+    SectionCard(
+        modifier = Modifier.testTag(AGENDA_PERMISSION_TAG),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+    ) {
+        Text(stringResource(R.string.agenda_permission_title), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.agenda_permission_message), style = MaterialTheme.typography.bodyMedium)
+        Button(
+            onClick = onRequestCalendarPermission,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.agenda_permission_button))
+        }
+    }
+}
+
+@Composable
+private fun EmptyAgendaCard() {
+    SectionCard(Modifier.testTag(AGENDA_EMPTY_TAG)) {
+        EmptyState(
+            icon = Icons.Filled.EventBusy,
+            title = stringResource(R.string.agenda_empty_title),
+            body = stringResource(R.string.agenda_empty_state),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun AgendaEventsCard(events: List<AgendaEvent>, modifier: Modifier = Modifier) {
+    SectionCard(modifier.testTag(AGENDA_EVENTS_TAG)) {
+        Text(stringResource(R.string.agenda_events_list_label), style = MaterialTheme.typography.titleMedium)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(events) { event ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column {
+                        Text(event.title, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            event.displayTime,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun SectionCard(
+    modifier: Modifier = Modifier,
+    colors: CardColors = CardDefaults.cardColors(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = colors,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun TypeLauncherTheme(
+    darkTheme: Boolean = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    val context = LocalContext.current
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme -> dynamicDarkColorScheme(context)
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicLightColorScheme(context)
+        darkTheme -> darkScheme
+        else -> lightScheme
+    }
+    MaterialTheme(
+        colorScheme = colorScheme,
+        content = content,
+    )
+}
+
+internal class LauncherViewModel(
+    private val app: Application,
+    private val workPackages: Set<String>,
+) : ViewModel() {
+    private val dockedAppStore = DockedAppStore(app)
+    private val appLaunchStatsStore = AppLaunchStatsStore(app)
+    private val settingsLaunchGate = SettingsLaunchGate()
+    private var installedApps: List<InstalledApp> = loadInstalledApps()
+    private val _uiState = MutableStateFlow(
+        LauncherUiState(
+            filteredApps = installedApps.filterByName("", appLaunchStatsStore).markDocked(),
+            dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").markDocked(),
+            agenda = loadAgendaState(),
+        ),
+    )
+    val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
+
+    fun setQuery(query: String) {
+        _uiState.update { state -> state.copy(query = query) }
+        refreshLists()
+    }
+
+    fun showAgenda() {
+        _uiState.update { it.copy(screen = LauncherScreen.Agenda, agenda = loadAgendaState()) }
+    }
+
+    fun showHome() {
+        _uiState.update { it.copy(screen = LauncherScreen.Home) }
+    }
+
+    fun refreshPermissionDrivenUi() {
+        if (_uiState.value.screen == LauncherScreen.Agenda) {
+            refreshAgenda()
+        }
+    }
+
+    fun refreshAgenda() {
+        _uiState.update { it.copy(agenda = loadAgendaState()) }
+    }
+
+    fun launchActiveApp() {
+        val query = _uiState.value.query
+        if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
+            startActivity(Intent(Settings.ACTION_SETTINGS).asLauncherTaskIntent())
+            setQuery("")
             return
         }
+        _uiState.value.filteredApps.firstOrNull()?.let(::launchApp)
+    }
 
+    fun launchApp(app: InstalledApp) {
+        val component = app.launchIntent.component
+        if (app.launchWithLauncherApps && component != null) {
+            this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
+        } else {
+            startActivity(app.launchIntent.asLauncherTaskIntent())
+        }
+        appLaunchStatsStore.recordLaunch(app.id)
+        setQuery("")
+    }
+
+    fun openAppInfo(app: InstalledApp) {
+        startActivity(app.appInfoIntent)
+    }
+
+    fun toggleDock(app: InstalledApp, maxDockedApps: Int) {
+        if (app.isDocked) {
+            dockedAppStore.undock(app.id)
+        } else if (!dockedAppStore.dock(app.id, maxDockedApps)) {
+            Toast.makeText(
+                this.app,
+                this.app.getString(R.string.docked_apps_limit_message, maxDockedApps),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+        refreshLists()
+    }
+
+    private fun refreshLists() {
+        val query = _uiState.value.query.trim()
+        _uiState.update { state ->
+            state.copy(
+                filteredApps = installedApps.filterByName(query, appLaunchStatsStore).markDocked(),
+                dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),
+            )
+        }
+    }
+
+    private fun startActivity(intent: Intent) {
+        app.startActivity(intent.asLauncherTaskIntent())
+    }
+
+    private fun loadAgendaState(): AgendaUiState {
+        if (!hasCalendarPermission()) {
+            return AgendaUiState.PermissionRequired
+        }
         val events = loadAgendaEvents()
-        ui.permissionCard.isVisible = false
-        ui.eventAdapter.replaceWith(events)
-        ui.eventsCard.isVisible = events.isNotEmpty()
-        ui.emptyState.isVisible = events.isEmpty()
+        return if (events.isEmpty()) AgendaUiState.Empty else AgendaUiState.Events(events)
     }
 
     private fun hasCalendarPermission(): Boolean =
-        ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) ==
-            PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(app, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
     private fun loadAgendaEvents(nowMillis: Long = System.currentTimeMillis()): List<AgendaEvent> {
         val zone = ZoneId.systemDefault()
@@ -336,7 +936,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         try {
-            contentResolver.query(
+            app.contentResolver.query(
                 instanceUri,
                 projection,
                 null,
@@ -350,10 +950,11 @@ class MainActivity : AppCompatActivity() {
                 while (cursor.moveToNext()) {
                     events += AgendaEvent(
                         title = cursor.getString(titleIndex)?.takeIf { it.isNotBlank() }
-                            ?: getString(R.string.agenda_event_untitled),
+                            ?: app.getString(R.string.agenda_event_untitled),
                         beginMillis = cursor.getLong(beginIndex),
                         endMillis = cursor.getLong(endIndex),
                         isAllDay = cursor.getInt(allDayIndex) == 1,
+                        displayTime = "",
                     )
                 }
             }
@@ -366,17 +967,17 @@ class MainActivity : AppCompatActivity() {
             nowMillis = nowMillis,
             utcTodayStartMillis = utcTodayStart,
             utcTomorrowStartMillis = utcTomorrowStart,
-        )
+        ).map { event -> event.copy(displayTime = event.formatTime(app)) }
     }
 
-    private fun installedApps(): List<InstalledApp> {
+    private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
-        return getSystemService<LauncherApps>()
+        return app.getSystemService<LauncherApps>()
             ?.profiles
             .orEmpty()
             .flatMap { user ->
-                getSystemService<LauncherApps>()
+                app.getSystemService<LauncherApps>()
                     ?.getActivityList(null, user)
                     .orEmpty()
                     .map { activity ->
@@ -386,449 +987,192 @@ class MainActivity : AppCompatActivity() {
                             launchIntent = Intent.makeMainActivity(activity.componentName),
                             icon = activity.getIcon(0),
                             user = user,
-                            isWorkApp = user != personalUser,
+                            isWorkApp = user != personalUser || activity.applicationInfo.packageName in workPackages,
                             launchWithLauncherApps = true,
                         )
                     }
             }
             .ifEmpty {
-                packageManager.queryIntentActivities(launcherIntent, 0)
+                app.packageManager.queryIntentActivities(launcherIntent, 0)
                     .map { resolveInfo ->
                         val activityInfo = resolveInfo.activityInfo
                         InstalledApp(
-                            name = resolveInfo.loadLabel(packageManager).toString(),
+                            name = resolveInfo.loadLabel(app.packageManager).toString(),
                             packageName = activityInfo.packageName,
                             launchIntent = Intent.makeMainActivity(
                                 ComponentName(activityInfo.packageName, activityInfo.name),
                             ),
-                            icon = resolveInfo.loadIcon(packageManager),
+                            icon = resolveInfo.loadIcon(app.packageManager),
                             user = personalUser,
-                            isWorkApp = false,
+                            isWorkApp = activityInfo.packageName in workPackages,
                             launchWithLauncherApps = false,
                         )
                     }
             }
-            .markWorkAppsForTests()
-            .distinctBy { app -> app.name.lowercase() to app.isWorkApp }
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name })
+            .distinctBy { launcherApp -> launcherApp.name.lowercase() to launcherApp.isWorkApp }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
     }
 
-    private fun List<InstalledApp>.markWorkAppsForTests(): List<InstalledApp> {
-        val workPackages = intent
-            ?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)
-            ?.toSet()
-            .orEmpty()
-        if (workPackages.isEmpty()) {
-            return this
-        }
-        return map { app ->
-            if (app.packageName in workPackages) app.copy(isWorkApp = true) else app
-        }
-    }
+    private fun List<InstalledApp>.markDocked(): List<InstalledApp> =
+        map { launcherApp -> launcherApp.copy(isDocked = dockedAppStore.contains(launcherApp.id)) }
 
-    private data class InstalledApp(
-        val name: String,
-        val packageName: String,
-        val launchIntent: Intent,
-        val icon: Drawable,
-        val user: UserHandle,
-        val isWorkApp: Boolean,
-        val launchWithLauncherApps: Boolean,
-    ) {
-        val id: String
-            get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
-
-        val appInfoIntent: Intent
-            get() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                .setData(Uri.parse("package:$packageName"))
-
-        override fun toString(): String = name
-    }
-
-    private fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
-        if (query.isEmpty()) {
-            sortedWith(
-                compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
-            )
-        } else {
-            filter { app -> app.name.contains(query, ignoreCase = true) }
-        }
-
-    private fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
-        filter { app -> app.id in dockedAppIds }
-            .let { dockedApps ->
-                if (query.isEmpty()) {
-                    dockedApps
-                } else {
-                    dockedApps.filter { app -> app.name.contains(query, ignoreCase = true) }
-                }
+    companion object {
+        fun factory(app: Application, workPackages: Set<String>): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
+                    LauncherViewModel(app, workPackages) as T
             }
-            .sortedBy { app -> dockedAppIds.indexOf(app.id) }
+    }
+}
 
-    private fun MutableList<InstalledApp>.replaceWith(apps: List<InstalledApp>) {
-        clear()
-        addAll(apps)
+internal data class LauncherUiState(
+    val screen: LauncherScreen = LauncherScreen.Home,
+    val query: String = "",
+    val filteredApps: List<InstalledApp> = emptyList(),
+    val dockedApps: List<InstalledApp> = emptyList(),
+    val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
+)
+
+internal enum class LauncherScreen {
+    Home,
+    Agenda,
+}
+
+internal sealed interface AgendaUiState {
+    data object PermissionRequired : AgendaUiState
+    data object Empty : AgendaUiState
+    data class Events(val events: List<AgendaEvent>) : AgendaUiState
+}
+
+internal data class InstalledApp(
+    val name: String,
+    val packageName: String,
+    val launchIntent: Intent,
+    val icon: Drawable?,
+    val user: UserHandle,
+    val isWorkApp: Boolean,
+    val launchWithLauncherApps: Boolean,
+    val isDocked: Boolean = false,
+) {
+    val id: String
+        get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
+
+    val appInfoIntent: Intent
+        get() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.parse("package:$packageName"))
+            .asLauncherTaskIntent()
+
+    override fun toString(): String = name
+}
+
+internal data class AgendaEvent(
+    val title: String,
+    val beginMillis: Long,
+    val endMillis: Long,
+    val isAllDay: Boolean,
+    val displayTime: String = "",
+)
+
+internal fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
+    if (query.isEmpty()) {
+        sortedWith(
+            compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+        )
+    } else {
+        filter { app -> app.name.contains(query, ignoreCase = true) }
     }
 
-    private fun InstalledAppsAdapter.replaceWith(apps: List<InstalledApp>) {
-        clear()
-        addAll(apps)
-    }
-
-    private fun launchActiveApp(
-        filteredApps: List<InstalledApp>,
-        query: String,
-        appSearchInput: EditText,
-        appLaunchStatsStore: AppLaunchStatsStore,
-        afterLaunch: () -> Unit,
-    ) {
-        if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
-            launchAndClearQuery(Intent(Settings.ACTION_SETTINGS), appSearchInput)
-            return
-        }
-        filteredApps.firstOrNull()?.let { app ->
-            launchAndClearQuery(
-                app = app,
-                appSearchInput = appSearchInput,
-                appLaunchStatsStore = appLaunchStatsStore,
-                afterLaunch = afterLaunch,
-            )
-        }
-    }
-
-    private fun launchAndClearQuery(
-        app: InstalledApp,
-        appSearchInput: EditText,
-        appLaunchStatsStore: AppLaunchStatsStore,
-        afterLaunch: () -> Unit,
-    ) {
-        launchApp(app)
-        appLaunchStatsStore.recordLaunch(app.id)
-        appSearchInput.text?.clear()
-        afterLaunch()
-    }
-
-    private fun launchAndClearQuery(intent: Intent, appSearchInput: EditText) {
-        startActivity(intent.asLauncherTaskIntent())
-        appSearchInput.text?.clear()
-    }
-
-    private fun launchApp(app: InstalledApp) {
-        val component = app.launchIntent.component
-        if (app.launchWithLauncherApps && component != null) {
-            getSystemService<LauncherApps>()
-                ?.startMainActivity(component, app.user, null, null)
-        } else {
-            startActivity(app.launchIntent.asLauncherTaskIntent())
-        }
-    }
-
-    private fun Intent.asLauncherTaskIntent(): Intent =
-        Intent(this).addFlags(LAUNCHER_TASK_FLAGS)
-
-    private fun renderDockedApps(
-        dockedApps: List<InstalledApp>,
-        dockedAppsRow: LinearLayout,
-        appSearchInput: EditText,
-        dockedAppStore: DockedAppStore,
-        appLaunchStatsStore: AppLaunchStatsStore,
-        afterDockChanged: () -> Unit,
-        afterLaunch: () -> Unit,
-    ) {
-        dockedAppsRow.removeAllViews()
-        dockedApps.forEach { app ->
-            val button = ImageButton(this).apply {
-                layoutParams = LinearLayout.LayoutParams(DOCK_APP_ICON_SIZE_DP.dpToPx(), DOCK_APP_ICON_SIZE_DP.dpToPx())
-                background = null
-                contentDescription = app.name
-                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-                setImageDrawable(app.icon.constantState?.newDrawable()?.mutate() ?: app.icon)
-                val padding = DOCK_APP_ICON_PADDING_DP.dpToPx()
-                setPadding(padding, padding, padding, padding)
-                setOnClickListener {
-                    launchAndClearQuery(
-                        app = app,
-                        appSearchInput = appSearchInput,
-                        appLaunchStatsStore = appLaunchStatsStore,
-                        afterLaunch = afterLaunch,
-                    )
-                }
-                setOnLongClickListener {
-                    showAppMenu(
-                        anchor = this,
-                        app = app,
-                        dockedAppStore = dockedAppStore,
-                        afterDockChanged = afterDockChanged,
-                    )
-                    true
-                }
+internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
+    filter { app -> app.id in dockedAppIds }
+        .let { dockedApps ->
+            if (query.isEmpty()) {
+                dockedApps
+            } else {
+                dockedApps.filter { app -> app.name.contains(query, ignoreCase = true) }
             }
-            dockedAppsRow.addView(button)
+        }
+        .sortedBy { app -> dockedAppIds.indexOf(app.id) }
+
+internal fun Intent.asLauncherTaskIntent(): Intent =
+    Intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+
+private fun AgendaEvent.formatTime(context: Context): String {
+    if (isAllDay) {
+        return context.getString(R.string.agenda_all_day_label)
+    }
+    val zone = ZoneId.systemDefault()
+    val eventDay = Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate()
+    val today = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone).toLocalDate()
+    val flags = if (eventDay == today) {
+        DateUtils.FORMAT_SHOW_TIME
+    } else {
+        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
+    }
+    return DateUtils.formatDateRange(context, beginMillis, endMillis, flags).toString()
+}
+
+internal class DockedAppStore(context: Context) {
+    private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private var dockedIds = sharedPreferences.getString(KEY_DOCKED_APP_IDS, "").orEmpty()
+        .split(DOCKED_APP_ID_SEPARATOR)
+        .filter { appId -> appId.isNotBlank() }
+        .toCollection(LinkedHashSet())
+
+    val dockedAppIds: List<String>
+        get() = dockedIds.toList()
+
+    fun contains(appId: String): Boolean = appId in dockedIds
+
+    fun dock(appId: String, maxDockedApps: Int): Boolean {
+        if (appId in dockedIds) {
+            return true
+        }
+        if (dockedIds.size >= maxDockedApps) {
+            return false
+        }
+        dockedIds.add(appId)
+        save()
+        return true
+    }
+
+    fun undock(appId: String) {
+        if (dockedIds.remove(appId)) {
+            save()
         }
     }
 
-    private fun Int.dpToPx(): Int =
-        (this * resources.displayMetrics.density).toInt()
-
-    private fun showAppMenu(
-        anchor: View,
-        app: InstalledApp,
-        dockedAppStore: DockedAppStore,
-        afterDockChanged: () -> Unit,
-    ) {
-        val isDocked = dockedAppStore.contains(app.id)
-        PopupMenu(this, anchor).apply {
-            latestAppMenu = this
-            menu.add(MENU_GROUP_APP_ACTIONS, MENU_ITEM_APP_INFO, 0, getString(R.string.app_menu_app_info))
-            menu.add(
-                MENU_GROUP_APP_ACTIONS,
-                MENU_ITEM_TOGGLE_DOCK,
-                1,
-                getString(if (isDocked) R.string.app_menu_undock else R.string.app_menu_dock),
-            )
-            setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    MENU_ITEM_APP_INFO -> {
-                        startActivity(app.appInfoIntent)
-                        true
-                    }
-                    MENU_ITEM_TOGGLE_DOCK -> {
-                        if (isDocked) {
-                            dockedAppStore.undock(app.id)
-                            afterDockChanged()
-                        } else if (dockedAppStore.dock(app.id, dockCapacityFor())) {
-                            afterDockChanged()
-                        } else {
-                            Toast.makeText(
-                                this@MainActivity,
-                                getString(R.string.docked_apps_limit_message, dockCapacityFor()),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                        true
-                    }
-                    else -> false
-                }
-            }
-            show()
-        }
-    }
-
-    private fun dockCapacityFor(): Int {
-        val dockedAppsCard = findViewById<LinearLayout>(R.id.docked_apps_card)
-        val dockedAppsRow = findViewById<LinearLayout>(R.id.docked_apps_list)
-        val dockViewportWidth = (dockedAppsRow.parent as? View)?.width?.takeIf { width -> width > 0 }
-            ?: dockedAppsCard.width.takeIf { width -> width > 0 }
-        val fallbackViewportWidth = resources.displayMetrics.widthPixels - (DOCK_CARD_HORIZONTAL_MARGIN_DP * 2).dpToPx()
-        val availableWidth = ((dockViewportWidth ?: fallbackViewportWidth) - dockedAppsRow.paddingLeft - dockedAppsRow.paddingRight)
-            .coerceAtLeast(0)
-        val iconWidth = DOCK_APP_ICON_SIZE_DP.dpToPx()
-        val iconsThatFit = availableWidth / iconWidth
-        return iconsThatFit.coerceAtLeast(MIN_DOCKED_APPS)
+    private fun save() {
+        sharedPreferences.edit()
+            .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
+            .apply()
     }
 
     private companion object {
-        const val SETTINGS_QUERY = "settings"
-        const val MIN_DOCKED_APPS = 1
-        const val DOCK_CARD_HORIZONTAL_MARGIN_DP = 24
-        const val DOCK_APP_ICON_SIZE_DP = 56
-        const val DOCK_APP_ICON_PADDING_DP = 8
-        const val MENU_GROUP_APP_ACTIONS = 0
-        const val MENU_ITEM_APP_INFO = 1
-        const val MENU_ITEM_TOGGLE_DOCK = 2
-        const val LAUNCHER_TASK_FLAGS =
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-        const val AGENDA_SCREEN_INDEX = 0
-        const val HOME_SCREEN_INDEX = 1
-        const val AGENDA_LOOKAHEAD_DAYS = 7L
+        const val PREFERENCES_NAME = "docked_apps"
+        const val KEY_DOCKED_APP_IDS = "docked_app_ids"
+        const val DOCKED_APP_ID_SEPARATOR = "\n"
     }
-
-    private class InstalledAppsAdapter(
-        context: android.content.Context,
-        apps: MutableList<InstalledApp>,
-    ) : ArrayAdapter<InstalledApp>(context, R.layout.installed_app_list_item, apps) {
-        private val inflater = LayoutInflater.from(context)
-        private val activeBackgroundColor = context.getColor(R.color.active_app_background)
-        private val defaultBackgroundColor = context.getColor(android.R.color.white)
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = convertView ?: inflater.inflate(R.layout.installed_app_list_item, parent, false)
-            val textView = view.findViewById<TextView>(android.R.id.text1)
-            val workBadge = view.findViewById<ImageView>(R.id.work_app_badge)
-            val app = getItem(position)
-            textView.text = app?.name.orEmpty()
-            workBadge.isVisible = app?.isWorkApp == true
-            view.setBackgroundColor(if (position == ACTIVE_APP_POSITION) activeBackgroundColor else defaultBackgroundColor)
-            return view
-        }
-
-        private companion object {
-            const val ACTIVE_APP_POSITION = 0
-        }
-    }
-
-    private class AgendaEventsAdapter(
-        context: Context,
-        private val events: MutableList<AgendaEvent>,
-    ) : ArrayAdapter<AgendaEvent>(context, R.layout.agenda_event_list_item, events) {
-        private val inflater = LayoutInflater.from(context)
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = convertView ?: inflater.inflate(R.layout.agenda_event_list_item, parent, false)
-            val event = getItem(position) ?: return view
-            view.findViewById<TextView>(R.id.agenda_event_title).text = event.title
-            view.findViewById<TextView>(R.id.agenda_event_time).text = formatTime(event)
-            return view
-        }
-
-        fun replaceWith(items: List<AgendaEvent>) {
-            clear()
-            addAll(items)
-        }
-
-        private fun formatTime(event: AgendaEvent): CharSequence {
-            if (event.isAllDay) {
-                return context.getString(R.string.agenda_all_day_label)
-            }
-            val zone = ZoneId.systemDefault()
-            val eventDay = Instant.ofEpochMilli(event.beginMillis).atZone(zone).toLocalDate()
-            val today = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone).toLocalDate()
-            val flags = if (eventDay == today) {
-                DateUtils.FORMAT_SHOW_TIME
-            } else {
-                DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
-            }
-            return DateUtils.formatDateRange(context, event.beginMillis, event.endMillis, flags)
-        }
-    }
-
-    private class DockedAppStore(context: Context) {
-        private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-        private var dockedIds = sharedPreferences.getString(KEY_DOCKED_APP_IDS, "").orEmpty()
-            .split(DOCKED_APP_ID_SEPARATOR)
-            .filter { appId -> appId.isNotBlank() }
-            .toCollection(LinkedHashSet())
-
-        val dockedAppIds: List<String>
-            get() = dockedIds.toList()
-
-        fun contains(appId: String): Boolean = appId in dockedIds
-
-        fun dock(appId: String, maxDockedApps: Int): Boolean {
-            if (appId in dockedIds) {
-                return true
-            }
-            if (dockedIds.size >= maxDockedApps) {
-                return false
-            }
-            dockedIds.add(appId)
-            save()
-            return true
-        }
-
-        fun undock(appId: String) {
-            if (dockedIds.remove(appId)) {
-                save()
-            }
-        }
-
-        private fun save() {
-            sharedPreferences.edit()
-                .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
-                .apply()
-        }
-
-        private companion object {
-            const val PREFERENCES_NAME = "docked_apps"
-            const val KEY_DOCKED_APP_IDS = "docked_app_ids"
-            const val DOCKED_APP_ID_SEPARATOR = "\n"
-        }
-    }
-
-    private class AppLaunchStatsStore(context: Context) {
-        private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-
-        fun launchCount(appId: String): Int =
-            sharedPreferences.getInt(appId.toLaunchCountKey(), 0)
-
-        fun recordLaunch(appId: String) {
-            sharedPreferences.edit()
-                .putInt(appId.toLaunchCountKey(), launchCount(appId) + 1)
-                .apply()
-        }
-
-        private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
-
-        private companion object {
-            const val PREFERENCES_NAME = "app_launch_stats"
-            const val KEY_LAUNCH_COUNT_PREFIX = "launch_count:"
-        }
-    }
-
-    private data class AgendaUi(
-        val permissionCard: View,
-        val emptyState: View,
-        val eventsCard: View,
-        val eventAdapter: AgendaEventsAdapter,
-    )
-
-    data class AgendaEvent(
-        val title: String,
-        val beginMillis: Long,
-        val endMillis: Long,
-        val isAllDay: Boolean,
-    )
 }
 
-internal class HomeSearchKeyboardController(
-    private val requestSearchFocus: () -> Unit,
-    private val searchHasFocus: () -> Boolean,
-    private val searchHasWindowFocus: () -> Boolean,
-    private val postToSearch: (() -> Unit) -> Unit,
-    private val postDelayedToSearch: (() -> Unit, Long) -> Unit,
-    private val showSearchKeyboard: () -> Unit,
-) {
-    private var keyboardShowScheduled = false
+internal class AppLaunchStatsStore(context: Context) {
+    private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    fun showKeyboard() {
-        requestSearchFocus()
-        postToSearch {
-            if (searchHasFocus() && searchHasWindowFocus()) {
-                showSearchKeyboard()
-            }
-        }
+    fun launchCount(appId: String): Int =
+        sharedPreferences.getInt(appId.toLaunchCountKey(), 0)
+
+    fun recordLaunch(appId: String) {
+        sharedPreferences.edit()
+            .putInt(appId.toLaunchCountKey(), launchCount(appId) + 1)
+            .apply()
     }
 
-    fun onSearchFocusChanged(hasFocus: Boolean) {
-        if (hasFocus || !searchHasFocus()) {
-            showKeyboard()
-        }
-    }
+    private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
 
-    fun onImeVisibilityChanged(imeVisible: Boolean) {
-        if (!imeVisible && searchHasFocus()) {
-            scheduleShowKeyboard()
-        }
-    }
-
-    private fun scheduleShowKeyboard() {
-        if (keyboardShowScheduled) {
-            return
-        }
-
-        keyboardShowScheduled = true
-        postDelayedToSearch(
-            {
-                keyboardShowScheduled = false
-                showKeyboard()
-            },
-            KEYBOARD_RESHOW_DELAY_MILLIS,
-        )
-    }
-
-    internal companion object {
-        const val KEYBOARD_RESHOW_DELAY_MILLIS = 150L
+    private companion object {
+        const val PREFERENCES_NAME = "app_launch_stats"
+        const val KEY_LAUNCH_COUNT_PREFIX = "launch_count:"
     }
 }
 
@@ -875,11 +1219,11 @@ internal class SettingsLaunchGate {
 
 internal object AgendaEventOrganizer {
     fun forNow(
-        events: List<MainActivity.AgendaEvent>,
+        events: List<AgendaEvent>,
         nowMillis: Long,
         utcTodayStartMillis: Long,
         utcTomorrowStartMillis: Long,
-    ): List<MainActivity.AgendaEvent> {
+    ): List<AgendaEvent> {
         val todayAllDayEvents = events.asSequence()
             .filter { event ->
                 event.isAllDay &&
@@ -898,3 +1242,165 @@ internal object AgendaEventOrganizer {
         return todayAllDayEvents + intersectingOrUpcoming
     }
 }
+
+private val lightScheme = lightColorScheme(
+    primary = Color(0xFF1E6FFF),
+    background = Color(0xFFF7F8FA),
+    onBackground = Color(0xFF1B1C1F),
+)
+
+private val darkScheme = darkColorScheme(
+    primary = Color(0xFF8AB4FF),
+    onPrimary = Color(0xFF002E6E),
+    background = Color(0xFF101114),
+    onBackground = Color(0xFFE3E3E6),
+)
+
+internal const val HOME_SCREEN_TAG = "home_screen"
+internal const val AGENDA_SCREEN_TAG = "agenda_screen"
+internal const val SEARCH_FIELD_TAG = "search_field"
+internal const val APPS_CARD_TAG = "apps_card"
+internal const val APPS_LIST_TAG = "apps_list"
+internal const val APP_ROW_TAG = "app_row"
+internal const val DOCK_CARD_TAG = "dock_card"
+internal const val DOCK_LIST_TAG = "dock_list"
+internal const val DOCK_HINT_TAG = "dock_hint"
+internal const val DOCK_APP_TAG = "dock_app"
+internal const val AGENDA_PERMISSION_TAG = "agenda_permission"
+internal const val AGENDA_EMPTY_TAG = "agenda_empty"
+internal const val AGENDA_EVENTS_TAG = "agenda_events"
+internal const val APP_INFO_ACTION_TAG = "app_info_action"
+internal const val TOGGLE_DOCK_ACTION_TAG = "toggle_dock_action"
+
+private const val SETTINGS_QUERY = "settings"
+private const val MIN_DOCKED_APPS = 1
+private const val DOCK_APP_ICON_SIZE_DP = 56
+private const val SWIPE_THRESHOLD_PX = 120f
+private const val AGENDA_LOOKAHEAD_DAYS = 7L
+
+@Preview(name = "Home empty")
+@Composable
+private fun HomeEmptyPreview() {
+    TypeLauncherTheme(dynamicColor = false) {
+        TypeLauncherApp(
+            state = LauncherUiState(filteredApps = emptyList()),
+            onQueryChanged = {},
+            onClearQuery = {},
+            onLaunchActiveApp = {},
+            onLaunchApp = {},
+            onOpenAppInfo = {},
+            onToggleDock = { _, _ -> },
+            onShowAgenda = {},
+            onShowHome = {},
+            onRequestCalendarPermission = {},
+        )
+    }
+}
+
+@Preview(name = "Home running", fontScale = 1.3f)
+@Composable
+private fun HomeRunningLargeFontPreview() {
+    TypeLauncherTheme(dynamicColor = false) {
+        TypeLauncherApp(
+            state = LauncherUiState(
+                filteredApps = previewApps,
+                dockedApps = previewApps.take(2).map { it.copy(isDocked = true) },
+            ),
+            onQueryChanged = {},
+            onClearQuery = {},
+            onLaunchActiveApp = {},
+            onLaunchApp = {},
+            onOpenAppInfo = {},
+            onToggleDock = { _, _ -> },
+            onShowAgenda = {},
+            onShowHome = {},
+            onRequestCalendarPermission = {},
+        )
+    }
+}
+
+@Preview(name = "Agenda permission", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AgendaPermissionDarkPreview() {
+    TypeLauncherTheme(dynamicColor = false) {
+        TypeLauncherApp(
+            state = LauncherUiState(screen = LauncherScreen.Agenda, agenda = AgendaUiState.PermissionRequired),
+            onQueryChanged = {},
+            onClearQuery = {},
+            onLaunchActiveApp = {},
+            onLaunchApp = {},
+            onOpenAppInfo = {},
+            onToggleDock = { _, _ -> },
+            onShowAgenda = {},
+            onShowHome = {},
+            onRequestCalendarPermission = {},
+        )
+    }
+}
+
+@Preview(name = "Agenda empty RTL", locale = "ar")
+@Composable
+private fun AgendaEmptyRtlPreview() {
+    TypeLauncherTheme(dynamicColor = false) {
+        TypeLauncherApp(
+            state = LauncherUiState(screen = LauncherScreen.Agenda, agenda = AgendaUiState.Empty),
+            onQueryChanged = {},
+            onClearQuery = {},
+            onLaunchActiveApp = {},
+            onLaunchApp = {},
+            onOpenAppInfo = {},
+            onToggleDock = { _, _ -> },
+            onShowAgenda = {},
+            onShowHome = {},
+            onRequestCalendarPermission = {},
+        )
+    }
+}
+
+@Preview(name = "Agenda events")
+@Composable
+private fun AgendaEventsPreview() {
+    TypeLauncherTheme(dynamicColor = false) {
+        TypeLauncherApp(
+            state = LauncherUiState(
+                screen = LauncherScreen.Agenda,
+                agenda = AgendaUiState.Events(
+                    listOf(
+                        AgendaEvent("Planning", 0L, 1L, false, "10:00 AM"),
+                        AgendaEvent("Launch day", 0L, 1L, true, "All day"),
+                    ),
+                ),
+            ),
+            onQueryChanged = {},
+            onClearQuery = {},
+            onLaunchActiveApp = {},
+            onLaunchApp = {},
+            onOpenAppInfo = {},
+            onToggleDock = { _, _ -> },
+            onShowAgenda = {},
+            onShowHome = {},
+            onRequestCalendarPermission = {},
+        )
+    }
+}
+
+private val previewApps = listOf(
+    InstalledApp(
+        name = "Calendar",
+        packageName = "app.preview.calendar",
+        launchIntent = Intent(),
+        icon = null,
+        user = Process.myUserHandle(),
+        isWorkApp = false,
+        launchWithLauncherApps = false,
+    ),
+    InstalledApp(
+        name = "Work Calendar",
+        packageName = "app.preview.workcalendar",
+        launchIntent = Intent(),
+        icon = null,
+        user = Process.myUserHandle(),
+        isWorkApp = true,
+        launchWithLauncherApps = false,
+    ),
+)
