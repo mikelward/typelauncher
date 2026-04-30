@@ -12,11 +12,16 @@ import android.widget.EditText
 import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.getSystemService
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import kotlin.math.max
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        applyImeInsets()
 
         val appSearchInput = findViewById<EditText>(R.id.app_search_input)
         val settingsLaunchGate = SettingsLaunchGate()
@@ -82,6 +87,26 @@ class MainActivity : AppCompatActivity() {
         val name: String,
         val launchIntent: Intent,
     )
+
+    private fun applyImeInsets() {
+        val root = findViewById<android.view.View>(R.id.main_root)
+        val baseTop = root.paddingTop
+        val baseBottom = root.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val bottomInset = max(systemBars.bottom, ime.bottom)
+            val combined = Insets.of(systemBars.left, systemBars.top, systemBars.right, bottomInset)
+            view.setPadding(
+                combined.left,
+                baseTop + combined.top,
+                combined.right,
+                baseBottom + combined.bottom,
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+    }
 
     private companion object {
         const val SETTINGS_QUERY = "settings"

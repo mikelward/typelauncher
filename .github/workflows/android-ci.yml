@@ -33,7 +33,7 @@ jobs:
         run: ./gradlew lint
 
   connected-tests:
-    name: Keyboard screenshot test
+    name: Keyboard screenshot unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -49,22 +49,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Run instrumented screenshot test
-        uses: ReactiveCircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          arch: x86_64
-          profile: pixel_6
-          target: google_apis
-          disable-animations: true
-          script: |
-            ./gradlew connectedDebugAndroidTest
-            mkdir -p app/build/outputs/keyboard-screenshots
-            adb pull /sdcard/Android/data/app.typelauncher/files/Pictures/screenshots/full_screen_keyboard_open.png app/build/outputs/keyboard-screenshots/full_screen_keyboard_open.png
+      - name: Run Robolectric keyboard screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest"
 
-      - name: Upload keyboard screenshot
+      - name: Upload keyboard screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: keyboard-screenshot
-          path: app/build/outputs/keyboard-screenshots/
+          name: keyboard-screenshot-unit
+          path: app/build/reports/robolectric-screenshots/
