@@ -71,32 +71,42 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/pinned_apps_card"
+        android:id="@+id/docked_apps_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"
         android:layout_marginBottom="12dp"
         android:background="@android:color/white"
         android:orientation="vertical"
-        android:paddingVertical="4dp"
-        android:visibility="gone">
+        android:paddingVertical="4dp">
+
+        <TextView
+            android:id="@+id/docked_apps_hint"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:text="@string/dock_apps_hint"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
 
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/white"
-            android:contentDescription="@string/pinned_apps_list_label"
+            android:contentDescription="@string/dock_apps_list_label"
             android:fillViewport="true"
             android:overScrollMode="never"
             android:scrollbars="none">
 
             <LinearLayout
-                android:id="@+id/pinned_apps_list"
+                android:id="@+id/docked_apps_list"
                 android:layout_width="wrap_content"
                 android:layout_height="56dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingHorizontal="8dp" />
+                android:paddingHorizontal="8dp"
+                android:visibility="gone" />
         </HorizontalScrollView>
     </LinearLayout>
 

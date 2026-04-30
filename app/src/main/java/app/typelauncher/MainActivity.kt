@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
         val appSearchInput = findViewById<EditText>(R.id.app_search_input)
         val appSearchClearButton = findViewById<ImageButton>(R.id.app_search_clear_button)
         val settingsLaunchGate = SettingsLaunchGate()
-        val pinnedAppStore = PinnedAppStore(this)
+        val dockedAppStore = DockedAppStore(this)
         appSearchInput.requestFocus()
         appSearchInput.post {
             getSystemService<InputMethodManager>()
@@ -53,30 +53,32 @@ class MainActivity : AppCompatActivity() {
 
         val installedApps = installedApps()
         val filteredApps = installedApps.toMutableList()
-        val filteredPinnedApps = installedApps.filterPinnedByName(pinnedAppStore.pinnedAppIds, "").toMutableList()
+        val filteredDockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").toMutableList()
         val installedAppNamesAdapter = InstalledAppsAdapter(
             this@MainActivity,
             filteredApps.map { app -> app.name }.toMutableList(),
         )
         val installedAppsCard = findViewById<LinearLayout>(R.id.installed_apps_card)
-        val pinnedAppsCard = findViewById<LinearLayout>(R.id.pinned_apps_card)
-        val pinnedAppsList = findViewById<LinearLayout>(R.id.pinned_apps_list)
+        val dockedAppsCard = findViewById<LinearLayout>(R.id.docked_apps_card)
+        val dockedAppsHint = findViewById<TextView>(R.id.docked_apps_hint)
+        val dockedAppsList = findViewById<LinearLayout>(R.id.docked_apps_list)
         val baseTop = root.paddingTop
         val baseBottom = root.paddingBottom
         fun refreshLists(query: String) {
             filteredApps.replaceWith(installedApps.filterByName(query))
-            filteredPinnedApps.replaceWith(installedApps.filterPinnedByName(pinnedAppStore.pinnedAppIds, query))
+            filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
             installedAppNamesAdapter.replaceWith(filteredApps.map { app -> app.name })
-            renderPinnedApps(
-                pinnedApps = filteredPinnedApps,
-                pinnedAppsRow = pinnedAppsList,
+            renderDockedApps(
+                dockedApps = filteredDockedApps,
+                dockedAppsRow = dockedAppsList,
                 appSearchInput = appSearchInput,
-                pinnedAppStore = pinnedAppStore,
-                afterPinnedChanged = { refreshLists(appSearchInput.text.toString().trim()) },
+                dockedAppStore = dockedAppStore,
+                afterDockChanged = { refreshLists(appSearchInput.text.toString().trim()) },
             )
-            pinnedAppsCard.isVisible = filteredPinnedApps.isNotEmpty()
+            dockedAppsHint.isVisible = filteredDockedApps.isEmpty()
+            dockedAppsList.isVisible = filteredDockedApps.isNotEmpty()
             installedAppsCard.requestLayout()
-            pinnedAppsCard.requestLayout()
+            dockedAppsCard.requestLayout()
         }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -124,8 +126,8 @@ class MainActivity : AppCompatActivity() {
                 showAppMenu(
                     anchor = view,
                     app = filteredApps[position],
-                    pinnedAppStore = pinnedAppStore,
-                    afterPinnedChanged = { refreshLists(appSearchInput.text.toString().trim()) },
+                    dockedAppStore = dockedAppStore,
+                    afterDockChanged = { refreshLists(appSearchInput.text.toString().trim()) },
                 )
                 true
             }
@@ -184,10 +186,10 @@ class MainActivity : AppCompatActivity() {
             filter { app -> app.name.contains(query, ignoreCase = true) }
         }
 
-    private fun List<InstalledApp>.filterPinnedByName(pinnedAppIds: List<String>, query: String): List<InstalledApp> =
-        filter { app -> app.id in pinnedAppIds }
+    private fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
+        filter { app -> app.id in dockedAppIds }
             .filterByName(query)
-            .sortedBy { app -> pinnedAppIds.indexOf(app.id) }
+            .sortedBy { app -> dockedAppIds.indexOf(app.id) }
 
     private fun MutableList<InstalledApp>.replaceWith(apps: List<InstalledApp>) {
         clear()
@@ -221,22 +223,22 @@ class MainActivity : AppCompatActivity() {
     private fun Intent.asLauncherTaskIntent(): Intent =
         Intent(this).addFlags(LAUNCHER_TASK_FLAGS)
 
-    private fun renderPinnedApps(
-        pinnedApps: List<InstalledApp>,
-        pinnedAppsRow: LinearLayout,
+    private fun renderDockedApps(
+        dockedApps: List<InstalledApp>,
+        dockedAppsRow: LinearLayout,
         appSearchInput: EditText,
-        pinnedAppStore: PinnedAppStore,
-        afterPinnedChanged: () -> Unit,
+        dockedAppStore: DockedAppStore,
+        afterDockChanged: () -> Unit,
     ) {
-        pinnedAppsRow.removeAllViews()
-        pinnedApps.forEach { app ->
+        dockedAppsRow.removeAllViews()
+        dockedApps.forEach { app ->
             val button = ImageButton(this).apply {
-                layoutParams = LinearLayout.LayoutParams(PINNED_APP_ICON_SIZE_DP.dpToPx(), PINNED_APP_ICON_SIZE_DP.dpToPx())
+                layoutParams = LinearLayout.LayoutParams(DOCK_APP_ICON_SIZE_DP.dpToPx(), DOCK_APP_ICON_SIZE_DP.dpToPx())
                 background = null
                 contentDescription = app.name
                 scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                 setImageDrawable(app.icon.constantState?.newDrawable()?.mutate() ?: app.icon)
-                val padding = PINNED_APP_ICON_PADDING_DP.dpToPx()
+                val padding = DOCK_APP_ICON_PADDING_DP.dpToPx()
                 setPadding(padding, padding, padding, padding)
                 setOnClickListener {
                     launchAndClearQuery(app.launchIntent, appSearchInput)
@@ -245,13 +247,13 @@ class MainActivity : AppCompatActivity() {
                     showAppMenu(
                         anchor = this,
                         app = app,
-                        pinnedAppStore = pinnedAppStore,
-                        afterPinnedChanged = afterPinnedChanged,
+                        dockedAppStore = dockedAppStore,
+                        afterDockChanged = afterDockChanged,
                     )
                     true
                 }
             }
-            pinnedAppsRow.addView(button)
+            dockedAppsRow.addView(button)
         }
     }
 
@@ -261,18 +263,18 @@ class MainActivity : AppCompatActivity() {
     private fun showAppMenu(
         anchor: View,
         app: InstalledApp,
-        pinnedAppStore: PinnedAppStore,
-        afterPinnedChanged: () -> Unit,
+        dockedAppStore: DockedAppStore,
+        afterDockChanged: () -> Unit,
     ) {
-        val isPinned = pinnedAppStore.contains(app.id)
+        val isDocked = dockedAppStore.contains(app.id)
         PopupMenu(this, anchor).apply {
             latestAppMenu = this
             menu.add(MENU_GROUP_APP_ACTIONS, MENU_ITEM_APP_INFO, 0, getString(R.string.app_menu_app_info))
             menu.add(
                 MENU_GROUP_APP_ACTIONS,
-                MENU_ITEM_TOGGLE_PIN,
+                MENU_ITEM_TOGGLE_DOCK,
                 1,
-                getString(if (isPinned) R.string.app_menu_unpin else R.string.app_menu_pin),
+                getString(if (isDocked) R.string.app_menu_undock else R.string.app_menu_dock),
             )
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -280,16 +282,16 @@ class MainActivity : AppCompatActivity() {
                         startActivity(app.appInfoIntent)
                         true
                     }
-                    MENU_ITEM_TOGGLE_PIN -> {
-                        if (isPinned) {
-                            pinnedAppStore.unpin(app.id)
-                            afterPinnedChanged()
-                        } else if (pinnedAppStore.pin(app.id)) {
-                            afterPinnedChanged()
+                    MENU_ITEM_TOGGLE_DOCK -> {
+                        if (isDocked) {
+                            dockedAppStore.undock(app.id)
+                            afterDockChanged()
+                        } else if (dockedAppStore.dock(app.id)) {
+                            afterDockChanged()
                         } else {
                             Toast.makeText(
                                 this@MainActivity,
-                                R.string.pinned_apps_limit_message,
+                                R.string.docked_apps_limit_message,
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -304,12 +306,12 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val SETTINGS_QUERY = "settings"
-        const val MAX_PINNED_APPS = 4
-        const val PINNED_APP_ICON_SIZE_DP = 56
-        const val PINNED_APP_ICON_PADDING_DP = 8
+        const val MAX_DOCKED_APPS = 4
+        const val DOCK_APP_ICON_SIZE_DP = 56
+        const val DOCK_APP_ICON_PADDING_DP = 8
         const val MENU_GROUP_APP_ACTIONS = 0
         const val MENU_ITEM_APP_INFO = 1
-        const val MENU_ITEM_TOGGLE_PIN = 2
+        const val MENU_ITEM_TOGGLE_DOCK = 2
         const val LAUNCHER_TASK_FLAGS =
             Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
     }
@@ -335,46 +337,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private class PinnedAppStore(context: Context) {
+    private class DockedAppStore(context: Context) {
         private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-        private var pinnedIds = sharedPreferences.getString(KEY_PINNED_APP_IDS, "").orEmpty()
-            .split(PINNED_APP_ID_SEPARATOR)
+        private var dockedIds = sharedPreferences.getString(KEY_DOCKED_APP_IDS, "").orEmpty()
+            .split(DOCKED_APP_ID_SEPARATOR)
             .filter { appId -> appId.isNotBlank() }
             .toCollection(LinkedHashSet())
 
-        val pinnedAppIds: List<String>
-            get() = pinnedIds.toList()
+        val dockedAppIds: List<String>
+            get() = dockedIds.toList()
 
-        fun contains(appId: String): Boolean = appId in pinnedIds
+        fun contains(appId: String): Boolean = appId in dockedIds
 
-        fun pin(appId: String): Boolean {
-            if (appId in pinnedIds) {
+        fun dock(appId: String): Boolean {
+            if (appId in dockedIds) {
                 return true
             }
-            if (pinnedIds.size >= MAX_PINNED_APPS) {
+            if (dockedIds.size >= MAX_DOCKED_APPS) {
                 return false
             }
-            pinnedIds.add(appId)
+            dockedIds.add(appId)
             save()
             return true
         }
 
-        fun unpin(appId: String) {
-            if (pinnedIds.remove(appId)) {
+        fun undock(appId: String) {
+            if (dockedIds.remove(appId)) {
                 save()
             }
         }
 
         private fun save() {
             sharedPreferences.edit()
-                .putString(KEY_PINNED_APP_IDS, pinnedIds.joinToString(PINNED_APP_ID_SEPARATOR))
+                .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
                 .apply()
         }
 
         private companion object {
-            const val PREFERENCES_NAME = "pinned_apps"
-            const val KEY_PINNED_APP_IDS = "pinned_app_ids"
-            const val PINNED_APP_ID_SEPARATOR = "\n"
+            const val PREFERENCES_NAME = "docked_apps"
+            const val KEY_DOCKED_APP_IDS = "docked_app_ids"
+            const val DOCKED_APP_ID_SEPARATOR = "\n"
         }
     }
 }

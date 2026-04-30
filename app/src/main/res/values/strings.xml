@@ -3,9 +3,10 @@
     <string name="app_search_hint">Type an app name</string>
     <string name="app_search_clear_button_description">Clear search text</string>
     <string name="installed_apps_list_label">Installed apps</string>
-    <string name="pinned_apps_list_label">Pinned apps</string>
+    <string name="dock_apps_list_label">Dock</string>
+    <string name="dock_apps_hint">Long press apps to dock</string>
     <string name="app_menu_app_info">App info</string>
-    <string name="app_menu_pin">Pin</string>
-    <string name="app_menu_unpin">Unpin</string>
-    <string name="pinned_apps_limit_message">Pin up to 4 apps</string>
+    <string name="app_menu_dock">Dock</string>
+    <string name="app_menu_undock">Undock</string>
+    <string name="docked_apps_limit_message">Dock up to 4 apps</string>
 </resources>
