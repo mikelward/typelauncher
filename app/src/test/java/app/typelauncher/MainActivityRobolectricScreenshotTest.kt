@@ -7,10 +7,14 @@ import android.graphics.Paint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
+import android.graphics.drawable.ColorDrawable
+import android.view.KeyEvent
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
+import android.widget.TextView
+import android.view.inputmethod.EditorInfo
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -146,6 +150,49 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
     }
 
+    @Test
+    fun firstFilteredApp_isHighlightedAndLaunchedBySearchAction() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("ca")
+        layout(root)
+
+        val activeRow = list.getChildAt(0)
+        val inactiveRow = list.getChildAt(1)
+        assertEquals("Calculator", activeRow.findViewById<TextView>(android.R.id.text1).text.toString())
+        assertEquals(activity.getColor(R.color.active_app_background), activeRow.backgroundColor())
+        assertEquals(activity.getColor(android.R.color.white), inactiveRow.backgroundColor())
+
+        search.onEditorAction(EditorInfo.IME_ACTION_SEARCH)
+
+        val startedIntent = shadowOf(activity).nextStartedActivity
+        assertEquals("app.typelauncher.fake1", startedIntent.component?.packageName)
+        assertEquals("app.typelauncher.fake1.LaunchActivity", startedIntent.component?.className)
+    }
+
+    @Test
+    fun settingsQuery_highlightsSettingsAndLaunchesAndroidSettingsBySearchAction() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        search.setText("settings")
+        layout(root)
+
+        val activeRow = list.getChildAt(0)
+        assertEquals("Settings", activeRow.findViewById<TextView>(android.R.id.text1).text.toString())
+        assertEquals(activity.getColor(R.color.active_app_background), activeRow.backgroundColor())
+
+        search.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+
+        val startedIntent = shadowOf(activity).nextStartedActivity
+        assertEquals(android.provider.Settings.ACTION_SETTINGS, startedIntent.action)
+    }
+
     private fun layout(root: View) {
         val width = 1080
         val height = 2400
@@ -268,5 +315,8 @@ class MainActivityRobolectricScreenshotTest {
         val appNamesAdapter = adapter as ArrayAdapter<String>
         return (0 until appNamesAdapter.count).map { index -> appNamesAdapter.getItem(index).orEmpty() }
     }
+
+    private fun View.backgroundColor(): Int =
+        (background as ColorDrawable).color
 
 }

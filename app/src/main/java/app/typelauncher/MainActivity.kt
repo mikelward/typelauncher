@@ -6,12 +6,16 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.LayoutInflater
 import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.getSystemService
 import androidx.core.graphics.Insets
@@ -28,15 +32,22 @@ class MainActivity : AppCompatActivity() {
         val appSearchInput = findViewById<EditText>(R.id.app_search_input)
         val settingsLaunchGate = SettingsLaunchGate()
         appSearchInput.requestFocus()
+        appSearchInput.post {
+            getSystemService<InputMethodManager>()
+                ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        val installedApps = installedApps()
+        val filteredApps = installedApps.toMutableList()
+        val installedAppNamesAdapter = InstalledAppsAdapter(
+            this@MainActivity,
+            filteredApps.map { app -> app.name }.toMutableList(),
+        )
         appSearchInput.setOnEditorActionListener { _, actionId, event ->
             val isSearchAction = actionId == EditorInfo.IME_ACTION_SEARCH
             val isEnterKey = event?.keyCode == KeyEvent.KEYCODE_ENTER
 
             if (!isSearchAction && !isEnterKey) {
-                return@setOnEditorActionListener false
-            }
-
-            if (!appSearchInput.text.toString().trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
                 return@setOnEditorActionListener false
             }
 
@@ -47,22 +58,10 @@ class MainActivity : AppCompatActivity() {
                     downTime = event?.downTime,
                 )
             ) {
-                startActivity(Intent(Settings.ACTION_SETTINGS))
+                launchActiveApp(filteredApps, appSearchInput.text.toString())
             }
             true
         }
-        appSearchInput.post {
-            getSystemService<InputMethodManager>()
-                ?.showSoftInput(appSearchInput, InputMethodManager.SHOW_IMPLICIT)
-        }
-
-        val installedApps = installedApps()
-        val filteredApps = installedApps.toMutableList()
-        val installedAppNamesAdapter = ArrayAdapter(
-            this@MainActivity,
-            R.layout.installed_app_list_item,
-            filteredApps.map { app -> app.name }.toMutableList(),
-        )
         findViewById<ListView>(R.id.installed_apps_list).apply {
             adapter = installedAppNamesAdapter
             setOnItemClickListener { _, _, position, _ ->
@@ -116,6 +115,14 @@ class MainActivity : AppCompatActivity() {
         addAll(apps)
     }
 
+    private fun launchActiveApp(filteredApps: List<InstalledApp>, query: String) {
+        if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
+            startActivity(Intent(Settings.ACTION_SETTINGS))
+            return
+        }
+        filteredApps.firstOrNull()?.launchIntent?.let(::startActivity)
+    }
+
     private fun applyImeInsets() {
         val root = findViewById<android.view.View>(R.id.main_root)
         val baseTop = root.paddingTop
@@ -138,6 +145,27 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val SETTINGS_QUERY = "settings"
+    }
+
+    private class InstalledAppsAdapter(
+        context: android.content.Context,
+        appNames: MutableList<String>,
+    ) : ArrayAdapter<String>(context, R.layout.installed_app_list_item, appNames) {
+        private val inflater = LayoutInflater.from(context)
+        private val activeBackgroundColor = context.getColor(R.color.active_app_background)
+        private val defaultBackgroundColor = context.getColor(android.R.color.white)
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = convertView ?: inflater.inflate(R.layout.installed_app_list_item, parent, false)
+            val textView = view.findViewById<TextView>(android.R.id.text1)
+            textView.text = getItem(position).orEmpty()
+            view.setBackgroundColor(if (position == ACTIVE_APP_POSITION) activeBackgroundColor else defaultBackgroundColor)
+            return view
+        }
+
+        private companion object {
+            const val ACTIVE_APP_POSITION = 0
+        }
     }
 }
 
