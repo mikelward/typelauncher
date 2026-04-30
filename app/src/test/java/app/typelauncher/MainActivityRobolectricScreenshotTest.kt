@@ -212,6 +212,7 @@ class MainActivityRobolectricScreenshotTest {
         val startedIntent = shadowOf(activity).nextStartedActivity
         assertEquals("app.typelauncher.fake1", startedIntent.component?.packageName)
         assertEquals("app.typelauncher.fake1.LaunchActivity", startedIntent.component?.className)
+        assertStandardLauncherFlags(startedIntent)
     }
 
     @Test
@@ -229,6 +230,7 @@ class MainActivityRobolectricScreenshotTest {
 
         val startedIntent = shadowOf(activity).nextStartedActivity
         assertEquals("app.typelauncher.fake1", startedIntent.component?.packageName)
+        assertStandardLauncherFlags(startedIntent)
         assertTrue("search query is cleared after launch", search.text.isNullOrEmpty())
         assertFalse(clearButton.isVisible)
         assertEquals(listOf("Browser", "Calculator", "Calendar", "Settings", "Type Launcher"), list.appNames())
@@ -252,6 +254,24 @@ class MainActivityRobolectricScreenshotTest {
 
         val startedIntent = shadowOf(activity).nextStartedActivity
         assertEquals(android.provider.Settings.ACTION_SETTINGS, startedIntent.action)
+        assertStandardLauncherFlags(startedIntent)
+    }
+
+    @Test
+    fun launchingApp_doesNotMutateCachedLaunchIntent() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        val firstStartedIntent = shadowOf(activity).nextStartedActivity
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        val secondStartedIntent = shadowOf(activity).nextStartedActivity
+
+        assertTrue("search query is cleared after first launch", search.text.isNullOrEmpty())
+        assertStandardLauncherFlags(firstStartedIntent)
+        assertStandardLauncherFlags(secondStartedIntent)
+        assertFalse("each launch uses a fresh intent copy", firstStartedIntent === secondStartedIntent)
     }
 
     @Test
@@ -529,6 +549,12 @@ class MainActivityRobolectricScreenshotTest {
             longClickItem(position)
             activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_PIN, 0)
         }
+    }
+
+    private fun assertStandardLauncherFlags(intent: Intent) {
+        val launcherFlags = Intent.FLAG_ACTIVITY_NEW_TASK or
+            Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        assertEquals(launcherFlags, intent.flags and launcherFlags)
     }
 
     private fun View.backgroundColor(): Int =

@@ -66,6 +66,10 @@ class ExampleUnitTest {
         val queryElements = queryIntent.elementChildren()
         val attrs = activity.attributes
 
+        assertEquals("true", attrs.getNamedItem("android:clearTaskOnLaunch").nodeValue)
+        assertEquals("true", attrs.getNamedItem("android:excludeFromRecents").nodeValue)
+        assertEquals("singleTask", attrs.getNamedItem("android:launchMode").nodeValue)
+        assertEquals("true", attrs.getNamedItem("android:stateNotNeeded").nodeValue)
         assertEquals("stateAlwaysVisible|adjustResize", attrs.getNamedItem("android:windowSoftInputMode").nodeValue)
         assertEquals("intent", queryIntent.nodeName)
         assertEquals("action", queryElements[0].nodeName)
@@ -88,6 +92,7 @@ class ExampleUnitTest {
         assertTrue(source.contains("setOnItemClickListener"))
         assertTrue(source.contains("launchAndClearQuery(filteredApps[position].launchIntent, appSearchInput)"))
         assertTrue(source.contains("Intent.makeMainActivity"))
+        assertTrue(source.contains("asLauncherTaskIntent"))
     }
 
     @Test
