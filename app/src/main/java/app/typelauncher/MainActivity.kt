@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -75,7 +76,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -143,6 +146,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.LinkedHashSet
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 internal const val CAROUSEL_TAG = "carousel"
@@ -295,6 +299,10 @@ private fun TypeLauncherApp(
         onOpenAppInfo = viewModel::openAppInfo,
         onToggleDock = viewModel::toggleDock,
         onResetRank = viewModel::resetRank,
+        onOpenSettings = viewModel::openSettings,
+        onCloseSettings = viewModel::closeSettings,
+        onDockEnabledChanged = viewModel::setDockEnabled,
+        onDockIconSizeChanged = viewModel::setDockIconSizeDp,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
@@ -315,6 +323,10 @@ private fun TypeLauncherApp(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onOpenSettings: () -> Unit,
+    onCloseSettings: () -> Unit,
+    onDockEnabledChanged: (Boolean) -> Unit,
+    onDockIconSizeChanged: (Int) -> Unit,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
@@ -326,36 +338,51 @@ private fun TypeLauncherApp(
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
-        SwipeNavigationBox(
-            screen = state.screen,
-            onShowAgenda = onShowAgenda,
-            onShowWidgets = onShowWidgets,
-            onShowHome = onShowHome,
-        ) { pageScreen ->
-            when (pageScreen) {
-                LauncherScreen.Home -> HomeScreen(
-                    state = state,
-                    innerPadding = innerPadding,
-                    onQueryChanged = onQueryChanged,
-                    onClearQuery = onClearQuery,
-                    onLaunchActiveApp = onLaunchActiveApp,
-                    onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
-                    onResetRank = onResetRank,
-                )
-                LauncherScreen.Widgets -> WidgetsScreen(
-                    widgetIds = state.widgetIds,
-                    appWidgetHost = appWidgetHost,
-                    appWidgetManager = appWidgetManager,
-                    innerPadding = innerPadding,
-                    onAddWidget = onAddWidget,
-                )
-                LauncherScreen.Agenda -> AgendaScreen(
-                    agenda = state.agenda,
-                    innerPadding = innerPadding,
-                    onRequestCalendarPermission = onRequestCalendarPermission,
-                )
+        if (state.isSettingsOpen) {
+            SettingsScreen(
+                state = state,
+                innerPadding = innerPadding,
+                onCloseSettings = onCloseSettings,
+                onDockEnabledChanged = onDockEnabledChanged,
+                onDockIconSizeChanged = onDockIconSizeChanged,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
+        } else {
+            SwipeNavigationBox(
+                screen = state.screen,
+                onShowAgenda = onShowAgenda,
+                onShowWidgets = onShowWidgets,
+                onShowHome = onShowHome,
+            ) { pageScreen ->
+                when (pageScreen) {
+                    LauncherScreen.Home -> HomeScreen(
+                        state = state,
+                        innerPadding = innerPadding,
+                        onQueryChanged = onQueryChanged,
+                        onClearQuery = onClearQuery,
+                        onLaunchActiveApp = onLaunchActiveApp,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
+                        onOpenSettings = onOpenSettings,
+                    )
+                    LauncherScreen.Widgets -> WidgetsScreen(
+                        widgetIds = state.widgetIds,
+                        appWidgetHost = appWidgetHost,
+                        appWidgetManager = appWidgetManager,
+                        innerPadding = innerPadding,
+                        onAddWidget = onAddWidget,
+                    )
+                    LauncherScreen.Agenda -> AgendaScreen(
+                        agenda = state.agenda,
+                        innerPadding = innerPadding,
+                        onRequestCalendarPermission = onRequestCalendarPermission,
+                    )
+                }
             }
         }
     }
@@ -442,9 +469,10 @@ private fun HomeScreen(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    val dockCapacity = ((configuration.screenWidthDp - 32) / DOCK_APP_ICON_SIZE_DP).coerceAtLeast(MIN_DOCKED_APPS)
+    val dockCapacity = ((configuration.screenWidthDp - 32) / state.dockIconSizeDp).coerceAtLeast(MIN_DOCKED_APPS)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -458,6 +486,7 @@ private fun HomeScreen(
             query = state.query,
             onQueryChanged = onQueryChanged,
             onClearQuery = onClearQuery,
+            onOpenSettings = onOpenSettings,
             onLaunchActiveApp = onLaunchActiveApp,
         )
         AppsCard(
@@ -469,13 +498,16 @@ private fun HomeScreen(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
         )
-        DockCard(
-            dockedApps = state.dockedApps,
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-        )
+        if (state.isDockEnabled) {
+            DockCard(
+                dockedApps = state.dockedApps,
+                dockIconSizeDp = state.dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
+        }
     }
 }
 
@@ -484,6 +516,7 @@ private fun SearchCard(
     query: String,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
+    onOpenSettings: () -> Unit,
     onLaunchActiveApp: () -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -515,6 +548,13 @@ private fun SearchCard(
                     IconButton(onClick = onClearQuery) {
                         Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.app_search_clear_button_description))
                     }
+                } else {
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.testTag(SETTINGS_BUTTON_TAG),
+                    ) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_open_button_description))
+                    }
                 }
             },
             singleLine = true,
@@ -538,6 +578,7 @@ private fun SearchCard(
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
+    dockIconSizeDp: Int,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -564,6 +605,7 @@ private fun DockCard(
                 dockedApps.forEach { app ->
                     DockedAppButton(
                         app = app,
+                        dockIconSizeDp = dockIconSizeDp,
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -702,6 +744,7 @@ private fun AppActionsMenu(
 @Composable
 private fun DockedAppButton(
     app: InstalledApp,
+    dockIconSizeDp: Int,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -716,7 +759,7 @@ private fun DockedAppButton(
                 .testTag("$DOCK_APP_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AppIcon(app = app, size = 56.dp)
+            AppIcon(app = app, size = dockIconSizeDp.dp)
         }
         Box(
             modifier = Modifier
@@ -738,6 +781,94 @@ private fun DockedAppButton(
             app = app,
             dockCapacity = Int.MAX_VALUE,
             onDismiss = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+        )
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    state: LauncherUiState,
+    innerPadding: PaddingValues,
+    onCloseSettings: () -> Unit,
+    onDockEnabledChanged: (Boolean) -> Unit,
+    onDockIconSizeChanged: (Int) -> Unit,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    val configuration = LocalConfiguration.current
+    val dockCapacity = ((configuration.screenWidthDp - 32) / state.dockIconSizeDp).coerceAtLeast(MIN_DOCKED_APPS)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(innerPadding)
+            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+            .testTag(SETTINGS_SCREEN_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_title),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Button(
+                onClick = onCloseSettings,
+                modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
+            ) {
+                Text(stringResource(R.string.settings_done_button))
+            }
+        }
+        SectionCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_dock_enabled_title), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.settings_dock_enabled_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.isDockEnabled,
+                    onCheckedChange = onDockEnabledChanged,
+                    modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
+                )
+            }
+            Text(
+                text = stringResource(R.string.settings_dock_icon_size_label, state.dockIconSizeDp),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Slider(
+                value = state.dockIconSizeDp.toFloat(),
+                onValueChange = { value -> onDockIconSizeChanged(value.roundToInt()) },
+                valueRange = MIN_DOCK_APP_ICON_SIZE_DP.toFloat()..MAX_DOCK_APP_ICON_SIZE_DP.toFloat(),
+                modifier = Modifier.testTag(DOCK_ICON_SIZE_SLIDER_TAG),
+            )
+        }
+        Text(
+            text = stringResource(R.string.settings_dock_preview_label),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        DockCard(
+            dockedApps = state.dockedApps,
+            dockIconSizeDp = state.dockIconSizeDp,
+            onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
@@ -1032,6 +1163,7 @@ internal class LauncherViewModel(
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val widgetStore = WidgetStore(app)
+    private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = loadInstalledApps()
@@ -1041,6 +1173,8 @@ internal class LauncherViewModel(
             dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").markDocked(),
             widgetIds = widgetStore.widgetIds,
             agenda = loadAgendaState(),
+            isDockEnabled = dockSettingsStore.isDockEnabled,
+            dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -1118,6 +1252,25 @@ internal class LauncherViewModel(
     fun addWidget(appWidgetId: Int) {
         widgetStore.add(appWidgetId)
         _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
+    }
+
+    fun openSettings() {
+        _uiState.update { it.copy(isSettingsOpen = true) }
+    }
+
+    fun closeSettings() {
+        _uiState.update { it.copy(isSettingsOpen = false) }
+    }
+
+    fun setDockEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isDockEnabled = isEnabled
+        _uiState.update { it.copy(isDockEnabled = isEnabled) }
+    }
+
+    fun setDockIconSizeDp(sizeDp: Int) {
+        val clampedSizeDp = sizeDp.coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
+        dockSettingsStore.dockIconSizeDp = clampedSizeDp
+        _uiState.update { it.copy(dockIconSizeDp = clampedSizeDp) }
     }
 
     private fun refreshLists() {
@@ -1268,6 +1421,9 @@ internal data class LauncherUiState(
     val dockedApps: List<InstalledApp> = emptyList(),
     val widgetIds: List<Int> = emptyList(),
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
+    val isSettingsOpen: Boolean = false,
+    val isDockEnabled: Boolean = true,
+    val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
 )
 
 internal enum class LauncherScreen {
@@ -1464,6 +1620,34 @@ internal class WidgetStore(context: Context) {
     }
 }
 
+internal class DockSettingsStore(context: Context) {
+    private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+    var isDockEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_DOCK_ENABLED, true)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_DOCK_ENABLED, value)
+                .apply()
+        }
+
+    var dockIconSizeDp: Int
+        get() = sharedPreferences
+            .getInt(KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)
+            .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
+        set(value) {
+            sharedPreferences.edit()
+                .putInt(KEY_DOCK_ICON_SIZE_DP, value.coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP))
+                .apply()
+        }
+
+    private companion object {
+        const val PREFERENCES_NAME = "dock_settings"
+        const val KEY_DOCK_ENABLED = "dock_enabled"
+        const val KEY_DOCK_ICON_SIZE_DP = "dock_icon_size_dp"
+    }
+}
+
 internal class AppLaunchStatsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
@@ -1591,10 +1775,17 @@ internal const val AGENDA_EMPTY_TAG = "agenda_empty"
 internal const val AGENDA_EVENTS_TAG = "agenda_events"
 internal const val ADD_WIDGET_CARD_TAG = "add_widget_card"
 internal const val WIDGET_CARD_TAG = "widget_card"
+internal const val SETTINGS_BUTTON_TAG = "settings_button"
+internal const val SETTINGS_SCREEN_TAG = "settings_screen"
+internal const val SETTINGS_DONE_BUTTON_TAG = "settings_done_button"
+internal const val DOCK_ENABLED_SWITCH_TAG = "dock_enabled_switch"
+internal const val DOCK_ICON_SIZE_SLIDER_TAG = "dock_icon_size_slider"
 private const val SETTINGS_QUERY = "settings"
 private const val DOCKED_APP_LIST_RANK = -1
 private const val MIN_DOCKED_APPS = 1
-private const val DOCK_APP_ICON_SIZE_DP = 56
+internal const val MIN_DOCK_APP_ICON_SIZE_DP = 40
+internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 56
+internal const val MAX_DOCK_APP_ICON_SIZE_DP = 80
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
 private const val APP_WIDGET_HOST_ID = 1024
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
@@ -1613,6 +1804,10 @@ private fun HomeEmptyPreview() {
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
             onResetRank = {},
+            onOpenSettings = {},
+            onCloseSettings = {},
+            onDockEnabledChanged = {},
+            onDockIconSizeChanged = {},
             onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},
@@ -1640,6 +1835,10 @@ private fun HomeRunningLargeFontPreview() {
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
             onResetRank = {},
+            onOpenSettings = {},
+            onCloseSettings = {},
+            onDockEnabledChanged = {},
+            onDockIconSizeChanged = {},
             onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},
@@ -1664,6 +1863,10 @@ private fun AgendaPermissionDarkPreview() {
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
             onResetRank = {},
+            onOpenSettings = {},
+            onCloseSettings = {},
+            onDockEnabledChanged = {},
+            onDockIconSizeChanged = {},
             onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},
@@ -1688,6 +1891,10 @@ private fun AgendaEmptyRtlPreview() {
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
             onResetRank = {},
+            onOpenSettings = {},
+            onCloseSettings = {},
+            onDockEnabledChanged = {},
+            onDockIconSizeChanged = {},
             onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},
@@ -1720,6 +1927,10 @@ private fun AgendaEventsPreview() {
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
             onResetRank = {},
+            onOpenSettings = {},
+            onCloseSettings = {},
+            onDockEnabledChanged = {},
+            onDockIconSizeChanged = {},
             onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},

@@ -21,9 +21,10 @@ This document records the current product and technical design decisions for Typ
 
 ## Navigation
 
-- The app currently has three screens: `Home`, `Widgets`, and `Agenda`.
+- The app has three carousel screens, `Home`, `Widgets`, and `Agenda`, plus a settings page opened from Home.
 - Horizontal swipes move between screens through a Compose `HorizontalPager`; swiping right-to-left from `Home` opens the +1 `Widgets` screen, then the `Agenda` screen.
 - Pager navigation uses an effectively infinite carousel so swiping left or right always wraps across `Home`, `Widgets`, and `Agenda`; user swipes are handled as discrete gestures, not free-scrolling pager flings, so each gesture can advance exactly one screen at most.
+- Settings is an in-app page outside the carousel, opened by the gear icon in the empty search field and closed with a Done button.
 - `LauncherScreenSwitcher` is a legacy/custom `ViewAnimator` swipe helper and is not part of the current Compose runtime path.
 - Swipe handling was introduced because child lists can otherwise consume gestures before launcher-level navigation sees them.
 
@@ -35,6 +36,7 @@ This document records the current product and technical design decisions for Typ
 - Pressing the keyboard search action or Enter launches the active first filtered app.
 - Enter key handling is designed around Android editor action variance: an Enter down event should be enough to launch, while repeat and matching up events should not double-launch.
 - A query equal to `settings`, ignoring case and surrounding whitespace, launches Android system settings instead of an installed app.
+- The search field trailing slot shows the settings gear when the query is empty, or the clear-search button when the query is non-empty; both controls are never shown together.
 - Launching an app records one launch count and clears the search query.
 - Long-press app actions expose App info, Dock/Undock, and Reset rank.
 - App info opens Android's application details screen for the selected package.
@@ -53,9 +55,12 @@ This document records the current product and technical design decisions for Typ
 ## Dock behavior
 
 - Docked app IDs are persisted in `SharedPreferences` under the `docked_apps` store.
+- Dock settings are persisted in `SharedPreferences` under the `dock_settings` store.
 - Dock order is the persisted insertion order.
 - The dock is filtered by the same search query as the app list.
-- Dock capacity is derived from screen width and icon size, with a minimum of one app.
+- Dock visibility can be disabled from settings; disabling hides the Home dock but keeps the settings preview available.
+- Dock icon size can be adjusted from settings from 40dp to 80dp, defaulting to 56dp, with the real dock component shown as a live preview.
+- Dock capacity is derived from screen width and the configured icon size, with a minimum of one app.
 - Trying to dock beyond the current capacity shows a toast and leaves persisted dock state unchanged.
 - This feature was renamed from "pinned apps" to "dock"; new UI, tests, strings, and docs should use dock terminology.
 - The dock is pinned after the app list and represented as a horizontal icon row rather than a second text list.
@@ -79,6 +84,7 @@ This document records the current product and technical design decisions for Typ
 ## Persistence
 
 - Dock membership is stored in `SharedPreferences` as newline-separated app IDs.
+- Dock visibility and icon size are stored in `SharedPreferences`.
 - Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID.
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.
