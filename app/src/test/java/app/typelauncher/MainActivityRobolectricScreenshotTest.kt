@@ -78,6 +78,17 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun systemBackFromHome_showsAgenda() {
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+    }
+
+    @Test
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")
         composeRule.waitForIdle()

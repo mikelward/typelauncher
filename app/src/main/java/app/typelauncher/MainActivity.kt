@@ -21,6 +21,7 @@ import android.text.format.DateUtils
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -215,6 +216,10 @@ private fun TypeLauncherApp(
     onShowHome: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
+    BackHandler(enabled = state.screen == LauncherScreen.Home) {
+        onShowAgenda()
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
