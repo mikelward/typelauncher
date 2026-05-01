@@ -341,6 +341,7 @@ class MainActivityRobolectricScreenshotTest {
             "disabled dock preview gives dock space to the app list",
             disabledPreviewHeight > enabledPreviewHeight,
         )
+        saveScreenshot("compose_settings_preview_dock_disabled_robolectric.png")
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
