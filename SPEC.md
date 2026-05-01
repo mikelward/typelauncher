@@ -62,6 +62,11 @@ This document records the current product and technical design decisions for Typ
 - Work apps show a badge on their icons.
 - Apps are currently de-duplicated by lowercased display name plus work-profile status. This means multiple personal apps with the same display name are intentionally collapsed until disambiguation is designed.
 - Work-profile launches use `LauncherApps.startMainActivity` when a component is available; fallback launches use an activity intent with launcher task flags.
+- App loading on cold start uses a two-phase approach to reduce perceived latency:
+  1. **Phase 1 (fast targeted load):** dock app IDs are already known from `DockedAppStore`; their package names are extracted and loaded via individual `LauncherApps.getActivityList(packageName, user)` calls. The top-N apps from the previous session (stored in `InstalledAppCache`) are loaded the same way. These results populate the dock and app list immediately.
+  2. **Phase 2 (full scan):** `LauncherApps.getActivityList(null, user)` loads all packages and replaces the phase-1 results.
+  3. **Phase 3 (cache update):** `InstalledAppCache` is updated with the top 20 apps by usage and the first 20 alphabetically, ready for the next cold start.
+- App IDs encode package name and component as `"userHashCode:packageName/className"` (or `"userHashCode:packageName"` when no component is available), so package names can be extracted from stored IDs without an extra cache.
 
 ## Dock behavior
 
@@ -101,9 +106,10 @@ This document records the current product and technical design decisions for Typ
 
 ## Persistence
 
-- Dock membership is stored in `SharedPreferences` as newline-separated app IDs.
-- Dock visibility, dock icon size, the app-list icon-only preference, and the app-list sort order are stored in `SharedPreferences`.
-- Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID.
+- Dock membership is stored in `SharedPreferences` as newline-separated app IDs (`docked_apps` store).
+- Dock visibility, dock icon size, the app-list icon-only preference, and the app-list sort order are stored in `SharedPreferences` (`dock_settings` store).
+- Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID (`app_launch_stats` store).
+- The top-N pre-load cache is stored in `SharedPreferences` under the `installed_app_cache` store with two keys: `top_by_usage` (top 20 apps by launch count) and `top_alphabetical` (first 20 apps alphabetically). Each value is a newline-separated list of `"packageName:userHashCode"` entries.
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.
 

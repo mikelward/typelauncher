@@ -10,9 +10,11 @@ import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.Process
+import android.os.UserHandle
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -22,6 +24,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +46,9 @@ internal class LauncherViewModel(
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
+    private val installedAppCache = InstalledAppCache(app)
     private val settingsLaunchGate = SettingsLaunchGate()
+    private val personalUser: UserHandle = Process.myUserHandle()
     private var installedApps: List<InstalledApp> = emptyList()
     private var agendaVersion = 0
     private val _uiState = MutableStateFlow(
@@ -60,10 +65,47 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
-        // TODO: persist a small InstalledApp metadata cache (id, name, package, optional
-        //   icon path) so the dock and last-known app list can render on the very first
-        //   frame without waiting for LauncherApps.getActivityList. Today the launcher
-        //   shows an empty/loading state on cold start until the IO load below completes.
+
+        // Phase 1: targeted preload. Read the prefs synchronously on the main thread (instant —
+        // the tiny SharedPreferences files are loaded into memory during app startup). Only
+        // dispatch to IO if there is real work; in tests the prefs are always cleared before each
+        // test, so no IO coroutine is launched and there is no concurrent background-thread
+        // activity that could interfere with Phase 2's IO work.
+        val preloadDockedIds = dockedAppStore.dockedAppIds
+        val preloadCachedEntries = when (dockSettingsStore.appListSortOrder) {
+            AppListSortOrder.Usage -> installedAppCache.topByUsage()
+            AppListSortOrder.Alphabetical -> installedAppCache.topAlphabetical()
+        }
+        if (preloadDockedIds.isNotEmpty() || preloadCachedEntries.isNotEmpty()) {
+            viewModelScope.launch(ioDispatcher) {
+                val (preloadedDock, preloadedApps) = try {
+                    preloadApps(preloadDockedIds, preloadCachedEntries)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    LauncherDebugLog.warning("LauncherViewModel preload failed, falling back to full load", e)
+                    return@launch
+                }
+                if (preloadedDock.isNotEmpty() || preloadedApps.isNotEmpty()) {
+                    withContext(Dispatchers.Main.immediate) {
+                        _uiState.update { state ->
+                            if (!state.isLoadingApps) return@update state
+                            state.copy(
+                                dockedApps = preloadedDock.markDocked(),
+                                filteredApps = preloadedApps,
+                                isLoadingApps = false,
+                            )
+                        }
+                    }
+                    LauncherDebugLog.event(
+                        "LauncherViewModel preload done dock=${preloadedDock.size} apps=${preloadedApps.size}",
+                    )
+                }
+            }
+        }
+
+        // Phase 2: full app list scan + agenda. Cache update (Phase 3) runs in the same IO block
+        // so the coroutine structure matches origin/main: one withContext(IO) then isLoadingApps=false.
         viewModelScope.launch {
             val initAgendaVersion = agendaVersion
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
@@ -76,6 +118,7 @@ internal class LauncherViewModel(
                         trace.setAttribute("state", it::class.simpleName ?: "unknown")
                     }
                 }
+                updateAppCache(apps)
                 apps to agenda
             }
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
@@ -338,6 +381,68 @@ internal class LauncherViewModel(
         logState("setDockVisibleIconCount requested=$count")
     }
 
+    private data class DockIdParts(val packageName: String, val userHash: Int, val className: String?)
+
+    private fun preloadApps(
+        dockedIds: List<String>,
+        cachedEntries: List<InstalledAppCache.CachedEntry>,
+    ): Pair<List<InstalledApp>, List<InstalledApp>> {
+        val launcherApps = app.getSystemService<LauncherApps>()
+            ?: return emptyList<InstalledApp>() to emptyList<InstalledApp>()
+        val profiles = launcherApps.profiles
+
+        val dockedApps = dockedIds
+            .mapNotNull { id ->
+                val parts = parseDockId(id) ?: return@mapNotNull null
+                val user = profiles.find { it.hashCode() == parts.userHash } ?: return@mapNotNull null
+                val activities = launcherApps.getActivityList(parts.packageName, user)
+                val activity = if (parts.className != null) {
+                    activities.find { it.componentName.className == parts.className }
+                } else {
+                    activities.firstOrNull()
+                }
+                activity?.toInstalledApp(user, personalUser, workPackages)
+            }
+            .distinctBy { it.id }
+
+        fun loadByPackage(entry: InstalledAppCache.CachedEntry): InstalledApp? {
+            val user = profiles.find { it.hashCode() == entry.userHashCode } ?: return null
+            return launcherApps.getActivityList(entry.packageName, user)
+                .firstOrNull()
+                ?.toInstalledApp(user, personalUser, workPackages)
+        }
+
+        val topApps = cachedEntries
+            .mapNotNull { entry -> loadByPackage(entry) }
+            .distinctBy { it.id }
+
+        return dockedApps to topApps
+    }
+
+    private fun parseDockId(appId: String): DockIdParts? {
+        val colonIdx = appId.indexOf(':')
+        if (colonIdx < 0) return null
+        val userHash = appId.substring(0, colonIdx).toIntOrNull() ?: return null
+        val component = appId.substring(colonIdx + 1)
+        val slashIdx = component.indexOf('/')
+        return if (slashIdx >= 0) {
+            DockIdParts(component.substring(0, slashIdx), userHash, component.substring(slashIdx + 1))
+        } else {
+            DockIdParts(component, userHash, null)
+        }
+    }
+
+    private fun updateAppCache(apps: List<InstalledApp>) {
+        val sortedByUsage = apps.filterByName(
+            query = "",
+            appLaunchStatsStore = appLaunchStatsStore,
+            downrankedAppIds = emptyList(),
+            sortOrder = AppListSortOrder.Usage,
+        )
+        installedAppCache.update(sortedByAlpha = apps, sortedByUsage = sortedByUsage)
+        LauncherDebugLog.event("updateAppCache count=${apps.size}")
+    }
+
     private fun refreshLists() {
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
@@ -437,7 +542,6 @@ internal class LauncherViewModel(
 
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val personalUser = Process.myUserHandle()
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
         val profileApps = launcherApps
@@ -568,6 +672,20 @@ private fun AppWidgetProviderInfo.toWidgetProvider(context: Context): WidgetProv
 
 private fun estimateCellSpan(sizeDp: Int): Int =
     ((sizeDp + WIDGET_CELL_ESTIMATE_DP - 1) / WIDGET_CELL_ESTIMATE_DP).coerceAtLeast(1)
+
+private fun LauncherActivityInfo.toInstalledApp(
+    user: UserHandle,
+    personalUser: UserHandle,
+    workPackages: Set<String>,
+): InstalledApp = InstalledApp(
+    name = label.toString(),
+    packageName = applicationInfo.packageName,
+    launchIntent = Intent.makeMainActivity(componentName),
+    icon = getIcon(0),
+    user = user,
+    isWorkApp = user != personalUser || applicationInfo.packageName in workPackages,
+    launchWithLauncherApps = true,
+)
 
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
