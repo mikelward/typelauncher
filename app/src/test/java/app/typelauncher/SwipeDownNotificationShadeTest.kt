@@ -58,7 +58,7 @@ class SwipeDownNotificationShadeTest {
             }
         }
 
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).performTouchInput { swipeDown() }
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
         assertEquals(1, swipeDownCount)
@@ -101,7 +101,7 @@ class SwipeDownNotificationShadeTest {
             }
         }
 
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
