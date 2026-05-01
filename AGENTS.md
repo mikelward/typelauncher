@@ -2,6 +2,10 @@
 
 Android home screen launcher app (Kotlin, single `:app` module).
 
+## Project documentation
+
+- Keep `SPEC.md` up to date when changing product behavior, architecture, persistence, permissions, navigation, or testing strategy.
+
 ## Cursor Cloud specific instructions
 
 ### Environment
