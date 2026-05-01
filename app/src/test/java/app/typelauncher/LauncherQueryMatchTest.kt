@@ -143,7 +143,12 @@ class LauncherQueryMatchTest {
     fun substringTierMatchesWhenAnchorRulesReject() {
         assertEquals(LauncherMatchTier.Substring, "Gmail".launcherMatchTier("mail"))
         assertEquals(LauncherMatchTier.Substring, "1password".launcherMatchTier("pass"))
-        assertEquals(LauncherMatchTier.Substring, "Air France".launcherMatchTier("fa"))
+        // "Air France" does NOT contain "fa" (the F is followed by 'r'), so the
+        // substring fallback can't rescue it either — it still returns null.
+        assertNull("Air France".launcherMatchTier("fa"))
+        // But "Snail" contains "ail" mid-word: anchor rules reject it (lowercase
+        // 'a' isn't a boundary), substring rules accept it.
+        assertEquals(LauncherMatchTier.Substring, "Snail".launcherMatchTier("ail"))
     }
 
     @Test
