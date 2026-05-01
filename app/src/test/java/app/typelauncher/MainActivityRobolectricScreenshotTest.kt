@@ -366,6 +366,56 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun dockedAppsSortAsZeroLaunchesButKeepTrackingLaunches() {
+        val activity = buildActivityWithFakeLauncherApps().get()
+        val root = activity.findViewById<View>(R.id.main_root)
+        val search = activity.findViewById<EditText>(R.id.app_search_input)
+        val list = activity.findViewById<ListView>(R.id.installed_apps_list)
+        val dockedAppsList = activity.findViewById<LinearLayout>(R.id.docked_apps_list)
+
+        search.setText("calendar")
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        search.setText("calculator")
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        search.setText("calculator")
+        list.onItemClickListener?.onItemClick(list, null, 0, list.adapter.getItemId(0))
+        assertEquals(
+            listOf("Calculator", "Calendar", "Browser", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
+            list.appNames(),
+        )
+
+        search.setText("calculator")
+        layout(root)
+        list.longClickItem(0)
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
+        search.setText("")
+
+        assertEquals(listOf("Calculator"), dockedAppsList.appNames())
+        assertEquals(
+            "docked calculator sorts with zero-launch apps",
+            listOf("Calendar", "Browser", "Calculator", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
+            list.appNames(),
+        )
+
+        dockedAppsList.getChildAt(0).performClick()
+        assertEquals(
+            "launching from dock does not promote while docked",
+            listOf("Calendar", "Browser", "Calculator", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
+            list.appNames(),
+        )
+
+        dockedAppsList.getChildAt(0).performLongClick()
+        activity.latestAppMenu?.menu?.performIdentifierAction(MENU_ITEM_TOGGLE_DOCK, 0)
+
+        assertEquals(emptyList<String>(), dockedAppsList.appNames())
+        assertEquals(
+            "undocked calculator uses its tracked launch count again",
+            listOf("Calculator", "Calendar", "Browser", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
+            list.appNames(),
+        )
+    }
+
+    @Test
     fun settingsQuery_highlightsSettingsAndLaunchesAndroidSettingsBySearchAction() {
         val activity = buildActivityWithFakeLauncherApps().get()
         val root = activity.findViewById<View>(R.id.main_root)

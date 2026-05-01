@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity() {
         val appLaunchStatsStore = AppLaunchStatsStore(this)
         setupAgendaUi()
         val installedApps = installedApps()
-        val filteredApps = installedApps.toMutableList()
+        val filteredApps = installedApps.filterByName("", appLaunchStatsStore, dockedAppStore.dockedAppIds).toMutableList()
         val filteredDockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").toMutableList()
         val installedAppNamesAdapter = InstalledAppsAdapter(
             this@MainActivity,
@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
             homeSearchKeyboardController.onSearchFocusChanged(hasFocus)
         }
         fun refreshLists(query: String) {
-            filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore))
+            filteredApps.replaceWith(installedApps.filterByName(query, appLaunchStatsStore, dockedAppStore.dockedAppIds))
             filteredDockedApps.replaceWith(installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query))
             installedAppNamesAdapter.replaceWith(filteredApps)
             renderDockedApps(
@@ -445,10 +445,16 @@ class MainActivity : AppCompatActivity() {
         override fun toString(): String = name
     }
 
-    private fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
+    private fun List<InstalledApp>.filterByName(
+        query: String,
+        appLaunchStatsStore: AppLaunchStatsStore,
+        dockedAppIds: List<String>,
+    ): List<InstalledApp> =
         if (query.isEmpty()) {
             sortedWith(
-                compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
+                compareByDescending<InstalledApp> { app ->
+                    if (app.id in dockedAppIds) 0 else appLaunchStatsStore.launchCount(app.id)
+                }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
         } else {
