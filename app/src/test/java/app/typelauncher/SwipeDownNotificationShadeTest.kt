@@ -116,7 +116,6 @@ class SwipeDownNotificationShadeTest {
                 name = "App %02d".format(index),
                 packageName = "app.typelauncher.fake$index",
                 launchIntent = Intent(),
-                icon = null,
                 user = Process.myUserHandle(),
                 isWorkApp = false,
                 launchWithLauncherApps = false,

@@ -58,6 +58,7 @@ This document records the current product and technical design decisions for Typ
 
 - Installed launcher apps are loaded through `LauncherApps` across available profiles when possible.
 - If `LauncherApps` returns no activities, the app falls back to `PackageManager.queryIntentActivities` for `ACTION_MAIN` plus `CATEGORY_LAUNCHER`.
+- The cold-start load resolves only labels (not icons) so the app list can render as soon as `LauncherApps.getActivityList` returns. App icons are fetched lazily by `AppIconLoader` (an in-memory `LruCache` keyed by `userHandle.hashCode():componentName`) when each row enters the viewport — rows show the placeholder surface until the drawable arrives. The cache size is capped at 256 entries.
 - Work apps are identified when their `UserHandle` differs from the personal profile or when tests inject package names through `TEST_WORK_PACKAGES_EXTRA`.
 - Work apps show a badge on their icons.
 - Apps are currently de-duplicated by lowercased display name plus work-profile status. This means multiple personal apps with the same display name are intentionally collapsed until disambiguation is designed.

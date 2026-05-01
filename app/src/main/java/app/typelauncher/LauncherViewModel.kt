@@ -455,7 +455,6 @@ internal class LauncherViewModel(
                             name = activity.label.toString(),
                             packageName = activity.applicationInfo.packageName,
                             launchIntent = Intent.makeMainActivity(activity.componentName),
-                            icon = activity.getIcon(0),
                             user = user,
                             isWorkApp = user != personalUser || activity.applicationInfo.packageName in workPackages,
                             launchWithLauncherApps = true,
@@ -475,7 +474,6 @@ internal class LauncherViewModel(
                             launchIntent = Intent.makeMainActivity(
                                 ComponentName(activityInfo.packageName, activityInfo.name),
                             ),
-                            icon = resolveInfo.loadIcon(app.packageManager),
                             user = personalUser,
                             isWorkApp = activityInfo.packageName in workPackages,
                             launchWithLauncherApps = false,
