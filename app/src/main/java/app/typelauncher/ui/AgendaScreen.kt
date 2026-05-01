@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,23 +13,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @Composable
 internal fun AgendaScreen(
@@ -95,12 +102,45 @@ private fun AgendaEventsCard(
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val zone = remember { ZoneId.systemDefault() }
+    val today = remember { LocalDate.now(zone) }
     SectionCard(modifier.testTag(AGENDA_EVENTS_TAG)) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(events) { event ->
-                AgendaEventRow(event = event, onOpenAgendaEvent = onOpenAgendaEvent)
+            var lastDate: LocalDate? = null
+            events.forEach { event ->
+                val eventDate = event.localDate(zone, today)
+                if (eventDate != lastDate) {
+                    lastDate = eventDate
+                    val label = formatDayLabel(context, eventDate, today, zone)
+                    item(key = "header:$eventDate") {
+                        DayHeader(label = label, date = eventDate)
+                    }
+                }
+                item(key = "event:${event.eventId}") {
+                    AgendaEventRow(event = event, onOpenAgendaEvent = onOpenAgendaEvent)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DayHeader(label: String, date: LocalDate) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("$AGENDA_DAY_HEADER_TAG:$date")
+            .padding(top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f))
     }
 }
 
@@ -122,10 +162,12 @@ private fun AgendaEventRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = event.displayTime,
+            text = formatTimeForRow(event.displayTime),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(72.dp),
+            maxLines = 2,
+            overflow = TextOverflow.Visible,
+            modifier = Modifier.widthIn(min = 72.dp),
         )
         Box(
             modifier = Modifier
@@ -139,6 +181,41 @@ private fun AgendaEventRow(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+private val TIME_RANGE_DASH_REGEX = Regex("\\s*[\u2013\u2014-]\\s*")
+
+internal fun formatTimeForRow(rawTime: String): String {
+    // Force whitespace inside each time half to be non-breaking. The only
+    // remaining wrap opportunities are the regular spaces flanking the
+    // en-dash, so a narrow row breaks at the dash ("12:00\u00A0PM\n\u2013 1:00\u00A0PM")
+    // instead of mid-time ("12:00-13:0\n0"). Wide rows still fit on one line.
+    val match = TIME_RANGE_DASH_REGEX.find(rawTime)
+        ?: return rawTime.replace(' ', '\u00A0')
+    val before = rawTime.substring(0, match.range.first).replace(' ', '\u00A0')
+    val after = rawTime.substring(match.range.last + 1).replace(' ', '\u00A0')
+    return "$before \u2013 $after"
+}
+
+private fun AgendaEvent.localDate(zone: ZoneId, today: LocalDate): LocalDate =
+    if (isAllDay) today else Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate()
+
+private fun formatDayLabel(
+    context: android.content.Context,
+    date: LocalDate,
+    today: LocalDate,
+    zone: ZoneId,
+): String = when (date) {
+    today -> context.getString(R.string.agenda_day_today)
+    today.plusDays(1) -> context.getString(R.string.agenda_day_tomorrow)
+    else -> {
+        val millis = date.atStartOfDay(zone).toInstant().toEpochMilli()
+        DateUtils.formatDateTime(
+            context,
+            millis,
+            DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_MONTH,
         )
     }
 }

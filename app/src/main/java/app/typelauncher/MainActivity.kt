@@ -109,6 +109,13 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         LauncherDebugLog.activityCallback(this, "MainActivity.onNewIntent", intent)
+        handleLauncherIntent(intent)
+    }
+
+    internal fun handleLauncherIntent(intent: Intent) {
+        if (!intent.isLauncherEntryIntent()) return
+        LauncherDebugLog.event("handleLauncherIntent returning to launcher home")
+        viewModel.returnToLauncherHome()
     }
 
     override fun onRestart() {
@@ -298,6 +305,10 @@ class MainActivity : ComponentActivity() {
         deletePendingWidget(appWidgetId)
     }
 }
+
+private fun Intent.isLauncherEntryIntent(): Boolean =
+    action == Intent.ACTION_MAIN &&
+        (hasCategory(Intent.CATEGORY_HOME) || hasCategory(Intent.CATEGORY_LAUNCHER))
 
 private fun Int.trimMemoryDescription(): String =
     when (this) {
