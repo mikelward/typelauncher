@@ -34,7 +34,7 @@ This document records the current product and technical design decisions for Typ
 
 - The search field is focused on launch and requests the software keyboard.
 - Typing filters installed apps by case-insensitive substring match against the app label.
-- With an empty query, apps are sorted by descending recorded launch count, then alphabetically by display name.
+- With an empty query, apps are sorted by descending recorded launch count, then alphabetically by display name. Docked apps are pushed below non-docked apps only while the dock is enabled.
 - Pressing the keyboard search action or Enter opens in-app settings when the query is blank, opens Android system settings when the query is `settings`, or launches the active first filtered app otherwise.
 - The active first filtered app is highlighted in both text-list and icon-list modes so the Enter/search launch target is visible.
 - Enter key handling is designed around Android editor action variance: an Enter down event should be enough to launch, while repeat and matching up events should not double-launch.
@@ -62,7 +62,7 @@ This document records the current product and technical design decisions for Typ
 - Dock settings are persisted in `SharedPreferences` under the `dock_settings` store.
 - Dock order is the persisted insertion order.
 - The dock is filtered by the same search query as the app list.
-- Dock visibility can be disabled from settings; disabling hides the Home dock but keeps the settings preview available.
+- Dock visibility can be disabled from settings; disabling hides the Home dock and preview dock, and the settings app-list preview expands into the combined app-list/dock preview space.
 - Dock icon size is derived from a settings slider for the number of icons visible across the dock, so a larger visible icon count shrinks each icon and shows more apps before horizontal scrolling.
 - Docked app count is not capped by the visible icon count; extra docked apps remain available by scrolling the dock row.
 - This feature was renamed from "pinned apps" to "dock"; new UI, tests, strings, and docs should use dock terminology.

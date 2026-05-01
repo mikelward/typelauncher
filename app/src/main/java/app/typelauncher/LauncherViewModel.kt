@@ -39,7 +39,11 @@ internal class LauncherViewModel(
     private var installedApps: List<InstalledApp> = loadInstalledApps()
     private val _uiState = MutableStateFlow(
         LauncherUiState(
-            filteredApps = installedApps.filterByName("", appLaunchStatsStore, dockedAppStore.dockedAppIds).markDocked(),
+            filteredApps = installedApps.filterByName(
+                query = "",
+                appLaunchStatsStore = appLaunchStatsStore,
+                downrankedAppIds = dockedAppStore.dockedAppIds.takeIf { dockSettingsStore.isDockEnabled }.orEmpty(),
+            ).markDocked(),
             dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").markDocked(),
             widgetIds = widgetStore.widgetIds,
             agenda = loadAgendaState(),
@@ -199,6 +203,7 @@ internal class LauncherViewModel(
     fun setDockEnabled(isEnabled: Boolean) {
         dockSettingsStore.isDockEnabled = isEnabled
         _uiState.update { it.copy(isDockEnabled = isEnabled) }
+        refreshLists()
         logState("setDockEnabled")
     }
 
@@ -219,7 +224,11 @@ internal class LauncherViewModel(
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
             state.copy(
-                filteredApps = installedApps.filterByName(query, appLaunchStatsStore, dockedAppStore.dockedAppIds).markDocked(),
+                filteredApps = installedApps.filterByName(
+                    query = query,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    downrankedAppIds = dockedAppStore.dockedAppIds.takeIf { state.isDockEnabled }.orEmpty(),
+                ).markDocked(),
                 dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),
             )
         }

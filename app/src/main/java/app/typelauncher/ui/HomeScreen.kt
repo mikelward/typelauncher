@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -195,12 +196,13 @@ private fun SearchCard(
 private fun DockCard(
     dockedApps: List<InstalledApp>,
     dockIconSizeDp: Int,
+    modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
 ) {
-    SectionCard(Modifier.testTag(DOCK_CARD_TAG)) {
+    SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
         if (dockedApps.isEmpty()) {
             Text(
                 text = stringResource(R.string.dock_apps_hint),
@@ -604,14 +606,54 @@ internal fun SettingsScreen(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )
-        DockCard(
-            dockedApps = state.dockedApps,
+        SettingsPreview(
+            state = state,
             dockIconSizeDp = dockIconSizeDp,
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
         )
+    }
+}
+
+@Composable
+private fun SettingsPreview(
+    state: LauncherUiState,
+    dockIconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
+    val appListHeight = if (state.isDockEnabled) previewHeight else previewHeight * 2 + SETTINGS_PREVIEW_SPACING_DP.dp
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
+    ) {
+        AppsCard(
+            apps = state.filteredApps,
+            dockLimit = Int.MAX_VALUE,
+            isIconOnly = state.isAppListIconOnly,
+            iconSizeDp = dockIconSizeDp,
+            modifier = Modifier.height(appListHeight),
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+        )
+        if (state.isDockEnabled) {
+            DockCard(
+                dockedApps = state.dockedApps,
+                dockIconSizeDp = dockIconSizeDp,
+                modifier = Modifier.height(previewHeight),
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
+        }
     }
 }
 
@@ -667,3 +709,5 @@ private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp, testTa
 }
 
 private const val MIN_DOCKED_APPS = 1
+private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
+private const val SETTINGS_PREVIEW_SPACING_DP = 16
