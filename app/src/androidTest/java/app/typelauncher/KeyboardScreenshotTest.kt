@@ -16,6 +16,7 @@ import androidx.test.uiautomator.UiDevice
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -60,18 +61,44 @@ class KeyboardScreenshotTest {
             }
 
             val screenshotFile = screenshotOutputFile()
-            assertTrue("full-screen screenshot was captured", device.takeScreenshot(screenshotFile))
+            assertTrue(
+                "full-screen screenshot was captured to ${screenshotFile.path}",
+                device.takeScreenshot(screenshotFile),
+            )
+            val screenshotPath = screenshotFile.path
+            android.util.Log.i("KeyboardScreenshotTest", "screenshot captured: $screenshotPath")
 
-            val screenshot = android.graphics.BitmapFactory.decodeFile(screenshotFile.path)
+            val screenshot = android.graphics.BitmapFactory.decodeFile(screenshotPath)
             assertEquals(device.displayWidth, screenshot.width)
             assertEquals(device.displayHeight, screenshot.height)
-            assertColorNear("blue background remains visible", Color.BLUE, screenshot.pixelAt(screenshot.width / 2, imeTop - 80))
-            assertColorNear("white search bar remains visible", Color.WHITE, screenshot.pixelAt(searchBarBounds.centerX, searchBarBounds.centerY))
-            assertColorNear("white installed apps list remains visible", Color.WHITE, screenshot.pixelAt(appListBounds.centerX, appListBounds.top + 12))
-            assertTrue("IME covers the bottom of the display", imeTop < screenshot.height)
-            assertTrue("search bar is above the IME", searchBarBounds.bottom < imeTop)
-            assertTrue("installed apps list is below the search bar", searchBarBounds.bottom < appListBounds.top)
-            assertTrue("installed apps list is above the IME", appListBounds.bottom < imeTop)
+            assertColorNear(
+                "blue background remains visible",
+                Color.BLUE, screenshot, screenshot.width / 2, imeTop - 80, screenshotPath,
+            )
+            assertColorNear(
+                "white search bar remains visible",
+                Color.WHITE, screenshot, searchBarBounds.centerX, searchBarBounds.centerY, screenshotPath,
+            )
+            assertColorNear(
+                "white installed apps list remains visible",
+                Color.WHITE, screenshot, appListBounds.centerX, appListBounds.top + 12, screenshotPath,
+            )
+            assertTrue(
+                "IME covers the bottom of the display: imeTop=$imeTop, screenshotHeight=${screenshot.height} ($screenshotPath)",
+                imeTop < screenshot.height,
+            )
+            assertTrue(
+                "search bar is above the IME: searchBar=$searchBarBounds, imeTop=$imeTop ($screenshotPath)",
+                searchBarBounds.bottom < imeTop,
+            )
+            assertTrue(
+                "installed apps list is below the search bar: searchBar=$searchBarBounds, appList=$appListBounds ($screenshotPath)",
+                searchBarBounds.bottom < appListBounds.top,
+            )
+            assertTrue(
+                "installed apps list is above the IME: appList=$appListBounds, imeTop=$imeTop ($screenshotPath)",
+                appListBounds.bottom < imeTop,
+            )
         }
     }
 
@@ -100,7 +127,7 @@ class KeyboardScreenshotTest {
             }
             Thread.sleep(100)
         }
-        assertTrue("IME became visible", false)
+        fail("IME did not become visible within ${imeTimeoutMillis}ms")
         return 0
     }
 
@@ -128,10 +155,18 @@ class KeyboardScreenshotTest {
     private fun Bitmap.pixelAt(x: Int, y: Int): Int =
         getPixel(x.coerceIn(0, width - 1), y.coerceIn(0, height - 1))
 
-    private fun assertColorNear(message: String, expected: Int, actual: Int) {
+    private fun assertColorNear(
+        message: String,
+        expected: Int,
+        screenshot: Bitmap,
+        x: Int,
+        y: Int,
+        screenshotPath: String,
+    ) {
+        val actual = screenshot.pixelAt(x, y)
         val tolerance = 12
         assertTrue(
-            "$message: expected ${expected.toHex()} but was ${actual.toHex()}",
+            "$message at ($x, $y) in $screenshotPath: expected ${expected.toHex()} but was ${actual.toHex()}",
             kotlin.math.abs(Color.red(expected) - Color.red(actual)) <= tolerance &&
                 kotlin.math.abs(Color.green(expected) - Color.green(actual)) <= tolerance &&
                 kotlin.math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance,
