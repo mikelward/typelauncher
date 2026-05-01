@@ -1,5 +1,7 @@
 # TODO
 
+- Extend the widget picker filter to also match individual widget labels (and possibly description) within an app group, not just the app group names. Today (`WidgetsScreen.kt`'s `WidgetPickerCard`) only filters by `WidgetProvider.appName`.
+- Consider extracting a shared filter input composable so the widget picker filter and the home `SearchCard` share styling and clear-button behavior instead of duplicating the `OutlinedTextField` setup.
 - Decide whether empty-query Enter/Search should continue opening Type Launcher settings or do something else.
 - Design keyboard access for launching docked apps.
 - Handle work profile apps separately from personal profile apps, including launch behavior and UI labeling.

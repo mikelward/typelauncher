@@ -25,6 +25,10 @@
     <string name="widgets_picker_done">Done</string>
     <string name="widgets_picker_empty_title">No widgets available</string>
     <string name="widgets_picker_empty_body">Install apps with widgets to add them here.</string>
+    <string name="widgets_picker_no_matches_title">No matching apps</string>
+    <string name="widgets_picker_no_matches_body">Try a shorter app name or clear the filter.</string>
+    <string name="widgets_picker_filter_hint">Filter by app name</string>
+    <string name="widgets_picker_filter_clear_description">Clear filter</string>
     <string name="widgets_picker_show_app">Show</string>
     <string name="widgets_picker_hide_app">Hide</string>
     <string name="widgets_picker_preview_provider">Preview</string>
