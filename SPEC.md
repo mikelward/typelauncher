@@ -88,6 +88,8 @@ This document records the current product and technical design decisions for Typ
 - Agenda ordering places all-day events intersecting the current UTC day before timed events that intersect or follow the current moment.
 - Empty query results render an empty agenda state rather than an error.
 - Calendar `SecurityException`s are treated as empty results after the permission check.
+- Each event row mirrors the Google Calendar schedule view: the start time on the left, a vertical stripe in the per-event color (`CalendarContract.Instances.DISPLAY_COLOR`, which Google Calendar populates with the user's calendar color), and the title on the right. No leading event-type icon is drawn.
+- Tapping a row launches `Intent.ACTION_VIEW` on `content://com.android.calendar/events/<id>` with `EXTRA_EVENT_BEGIN_TIME`/`EXTRA_EVENT_END_TIME` so the user's calendar app opens the event details. If no calendar app handles the intent the tap is a no-op.
 
 ## Persistence
 

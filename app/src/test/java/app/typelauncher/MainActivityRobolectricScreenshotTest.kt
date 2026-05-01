@@ -99,6 +99,50 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_agenda_events_rendersGoogleCalendarStyleRows() {
+        composeRule.activity.viewModel.showAgendaEventsForTest(SAMPLE_AGENDA_EVENTS)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$AGENDA_EVENT_ROW_TAG:1").assertIsDisplayed()
+        composeRule.onNodeWithText("Standup").assertIsDisplayed()
+        composeRule.onNodeWithText("9:30 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Design review").assertIsDisplayed()
+        composeRule.onNodeWithText("1:00 PM").assertIsDisplayed()
+
+        saveScreenshot("compose_agenda_events_robolectric.png")
+    }
+
+    @Test
+    fun tappingAgendaEventRow_opensCalendarEventViaIntent() {
+        composeRule.activity.viewModel.showAgendaEventsForTest(SAMPLE_AGENDA_EVENTS)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$AGENDA_EVENT_ROW_TAG:42").performClick()
+        composeRule.waitForIdle()
+
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals(Intent.ACTION_VIEW, startedIntent.action)
+        assertEquals(
+            android.content.ContentUris.withAppendedId(
+                android.provider.CalendarContract.Events.CONTENT_URI,
+                42L,
+            ),
+            startedIntent.data,
+        )
+        assertEquals(
+            1_700_000_000_000L,
+            startedIntent.getLongExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, 0L),
+        )
+        assertEquals(
+            1_700_003_600_000L,
+            startedIntent.getLongExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, 0L),
+        )
+        assertStandardLauncherFlags(startedIntent)
+    }
+
+    @Test
     fun swipingMovesFromHomeToWidgetsToAgendaAndWrapsAround() {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
@@ -764,6 +808,27 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     private companion object {
+        val SAMPLE_AGENDA_EVENTS = listOf(
+            AgendaEvent(
+                title = "Standup",
+                beginMillis = 1_700_000_000_000L,
+                endMillis = 1_700_003_600_000L,
+                isAllDay = false,
+                displayTime = "9:30 AM",
+                eventId = 1L,
+                calendarColor = 0xFF1A73E8.toInt(),
+            ),
+            AgendaEvent(
+                title = "Design review",
+                beginMillis = 1_700_000_000_000L,
+                endMillis = 1_700_003_600_000L,
+                isAllDay = false,
+                displayTime = "1:00 PM",
+                eventId = 42L,
+                calendarColor = 0xFFD50000.toInt(),
+            ),
+        )
+
         val ALL_FAKE_APP_NAMES = listOf(
             "Browser",
             "Calculator",

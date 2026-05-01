@@ -36,6 +36,7 @@ private fun HomeEmptyPreview() {
             onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
+            onOpenAgendaEvent = {},
         )
     }
 }
@@ -73,6 +74,7 @@ private fun HomeRunningLargeFontPreview() {
             onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
+            onOpenAgendaEvent = {},
         )
     }
 }
@@ -107,6 +109,7 @@ private fun AgendaPermissionDarkPreview() {
             onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
+            onOpenAgendaEvent = {},
         )
     }
 }
@@ -141,6 +144,7 @@ private fun AgendaEmptyRtlPreview() {
             onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
+            onOpenAgendaEvent = {},
         )
     }
 }
@@ -154,8 +158,33 @@ private fun AgendaEventsPreview() {
                 screen = LauncherScreen.Agenda,
                 agenda = AgendaUiState.Events(
                     listOf(
-                        AgendaEvent("Planning", 0L, 1L, false, "10:00 AM"),
-                        AgendaEvent("Launch day", 0L, 1L, true, "All day"),
+                        AgendaEvent(
+                            title = "Launch day",
+                            beginMillis = 0L,
+                            endMillis = 1L,
+                            isAllDay = true,
+                            displayTime = "All day",
+                            eventId = 1L,
+                            calendarColor = 0xFF7CB342.toInt(),
+                        ),
+                        AgendaEvent(
+                            title = "Planning",
+                            beginMillis = 0L,
+                            endMillis = 1L,
+                            isAllDay = false,
+                            displayTime = "10:00 AM",
+                            eventId = 2L,
+                            calendarColor = 0xFF1A73E8.toInt(),
+                        ),
+                        AgendaEvent(
+                            title = "Design review",
+                            beginMillis = 0L,
+                            endMillis = 1L,
+                            isAllDay = false,
+                            displayTime = "1:30 PM",
+                            eventId = 3L,
+                            calendarColor = 0xFFD50000.toInt(),
+                        ),
                     ),
                 ),
             ),
@@ -183,6 +212,7 @@ private fun AgendaEventsPreview() {
             onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
+            onOpenAgendaEvent = {},
         )
     }
 }
