@@ -1148,12 +1148,14 @@ private fun WidgetPreview(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
     ) {
+        var generatedPreviewFailed by remember(preview.generated) { mutableStateOf(false) }
         when {
-            preview.generated != null -> AndroidView(
+            preview.generated != null && !generatedPreviewFailed -> AndroidView(
                 factory = { viewContext ->
-                    preview.generated.apply(viewContext, FrameLayout(viewContext)).also { view ->
-                        view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    }
+                    preview.generated.applyWidgetPreviewOrNull(viewContext)
+                        ?: FrameLayout(viewContext).also {
+                            generatedPreviewFailed = true
+                        }
                 },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -1871,8 +1873,17 @@ private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context:
     } else {
         null
     }
-    return WidgetPreviewValue(generated = generated, image = generated?.let { null } ?: previewImage)
+    return WidgetPreviewValue(generated = generated, image = previewImage)
 }
+
+internal fun RemoteViews.applyWidgetPreviewOrNull(context: Context): android.view.View? =
+    try {
+        apply(context, FrameLayout(context)).also { view ->
+            view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+    } catch (_: RuntimeException) {
+        null
+    }
 
 private fun WidgetProvider.icon(): Drawable? = icon ?: appIcon
 
