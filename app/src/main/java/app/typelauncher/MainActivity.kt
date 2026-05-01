@@ -28,7 +28,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -90,7 +91,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -293,28 +296,27 @@ private fun SwipeNavigationBox(
                 carouselVirtualPage = pagerState.settledPage
             }
             .pointerInput(pagerState, swipeThresholdPx) {
-                var dragAmountPx = 0f
-                var dragStartPage = pagerState.settledPage
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        dragAmountPx = 0f
-                        dragStartPage = pagerState.settledPage
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        dragAmountPx += dragAmount
-                    },
-                    onDragEnd = {
-                        if (abs(dragAmountPx) >= swipeThresholdPx) {
-                            val direction = if (dragAmountPx < 0f) 1 else -1
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(dragStartPage + direction)
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val dragStartPage = pagerState.settledPage
+                    var dragAmountPx = 0f
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { change ->
+                            dragAmountPx += change.positionChange().x
+                            if (abs(dragAmountPx) >= swipeThresholdPx) {
+                                change.consume()
                             }
                         }
-                    },
-                    onDragCancel = {
-                        dragAmountPx = 0f
-                    },
-                )
+                    } while (event.changes.any { it.pressed })
+
+                    if (abs(dragAmountPx) >= swipeThresholdPx) {
+                        val direction = if (dragAmountPx < 0f) 1 else -1
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(dragStartPage + direction)
+                        }
+                    }
+                }
             },
     ) { page ->
         content(LauncherScreen.fromCarouselPage(page))
