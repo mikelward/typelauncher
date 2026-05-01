@@ -182,6 +182,21 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun widgetLongPress_showsRemoveActionAndRemovesWidget() {
+        composeRule.activity.viewModel.addWidget(42)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").assertIsDisplayed()
+        saveScreenshot("compose_widget_remove_menu_robolectric.png")
+        composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<Int>(), composeRule.activity.viewModel.uiState.value.widgetIds)
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").assertDoesNotExist()
+    }
+
+    @Test
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
         composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")
@@ -515,7 +530,7 @@ class MainActivityRobolectricScreenshotTest {
             object : Statement() {
                 override fun evaluate() {
                     val application = RuntimeEnvironment.getApplication()
-                    listOf("docked_apps", "dock_settings", "app_launch_stats").forEach { preferenceName ->
+                    listOf("docked_apps", "dock_settings", "app_launch_stats", "widgets").forEach { preferenceName ->
                         application
                             .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)
                             .edit()
