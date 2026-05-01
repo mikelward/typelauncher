@@ -56,6 +56,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -81,7 +84,7 @@ android {
 
 tasks.register<Exec>("installAndRun") {
     dependsOn("installDebug")
-    commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher/.MainActivity")
+    commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher.debug/.MainActivity")
 }
 
 tasks.withType<Test>().configureEach {
