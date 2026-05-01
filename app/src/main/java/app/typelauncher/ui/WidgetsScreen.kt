@@ -24,8 +24,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,7 +37,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,12 +53,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -113,6 +123,7 @@ private fun WidgetPickerCard(
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
+        var filterQuery by remember { mutableStateOf("") }
         var expandedAppName by remember { mutableStateOf<String?>(null) }
         var expandedProviderId by remember { mutableStateOf<String?>(null) }
 
@@ -133,19 +144,69 @@ private fun WidgetPickerCard(
                 Text(stringResource(R.string.widgets_picker_done))
             }
         }
-        if (availableWidgets.isEmpty()) {
-            EmptyState(
+        val focusManager = LocalFocusManager.current
+        OutlinedTextField(
+            value = filterQuery,
+            onValueChange = { query ->
+                filterQuery = query
+                expandedAppName = null
+                expandedProviderId = null
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(WIDGET_PICKER_FILTER_TAG),
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (filterQuery.isNotEmpty()) {
+                    IconButton(onClick = {
+                        filterQuery = ""
+                        expandedAppName = null
+                        expandedProviderId = null
+                    }) {
+                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.widgets_picker_filter_clear))
+                    }
+                }
+            },
+            singleLine = true,
+            placeholder = { Text(stringResource(R.string.widgets_picker_filter_hint)) },
+            textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Search,
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = { focusManager.clearFocus(force = false) },
+            ),
+        )
+        // TODO: also filter by individual widget label, not just app name
+        val filteredWidgets = remember(availableWidgets, filterQuery) {
+            if (filterQuery.isEmpty()) {
+                availableWidgets
+            } else {
+                availableWidgets.filter { provider ->
+                    provider.appName.contains(filterQuery, ignoreCase = true)
+                }
+            }
+        }
+        when {
+            availableWidgets.isEmpty() -> EmptyState(
                 icon = Icons.Filled.Widgets,
                 title = stringResource(R.string.widgets_picker_empty_title),
                 body = stringResource(R.string.widgets_picker_empty_body),
                 modifier = Modifier.fillMaxWidth(),
             )
-        } else {
-            Column(
+            filteredWidgets.isEmpty() -> EmptyState(
+                icon = Icons.Filled.Widgets,
+                title = stringResource(R.string.widgets_picker_filter_empty_title),
+                body = stringResource(R.string.widgets_picker_filter_empty_body),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            else -> Column(
                 modifier = Modifier.testTag(WIDGET_PICKER_LIST_TAG),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                availableWidgets.groupBy { provider -> provider.appName }.forEach { (appName, providers) ->
+                filteredWidgets.groupBy { provider -> provider.appName }.forEach { (appName, providers) ->
                     val isAppExpanded = expandedAppName == appName
                     WidgetAppSection(
                         appName = appName,
