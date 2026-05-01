@@ -169,18 +169,21 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun tappingAddWidgetCard_launchesWidgetPicker() {
+    fun tappingAddWidgetCard_showsInAppWidgetPicker() {
         composeRule.activity.viewModel.showWidgets()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).performClick()
         composeRule.waitForIdle()
 
-        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
-        assertEquals(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_PICK, startedIntent.action)
-        assertTrue(
-            startedIntent.hasExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID),
-        )
+        composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Add widget").assertIsDisplayed()
+        composeRule.onNodeWithText("Choose a widget for the home screen").assertIsDisplayed()
+        composeRule.onNodeWithText("Done").assertIsDisplayed()
+        assertTrue(composeRule.activity.viewModel.uiState.value.isAddingWidget)
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertDoesNotExist()
     }
 
     @Test

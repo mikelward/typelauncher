@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.ContentUris
@@ -22,6 +23,8 @@ import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
 import android.view.KeyEvent
+import android.widget.FrameLayout
+import android.widget.RemoteViews
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -65,6 +68,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -165,7 +169,7 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             viewModel.refreshAgenda()
         }
-    private val pickWidgetLauncher =
+    private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val appWidgetId = result.data?.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -211,7 +215,9 @@ class MainActivity : ComponentActivity() {
                     viewModel = viewModel,
                     appWidgetHost = appWidgetHost,
                     appWidgetManager = appWidgetManager,
-                    onAddWidget = ::pickWidget,
+                    onAddWidget = viewModel::showWidgetPicker,
+                    onDismissWidgetPicker = viewModel::hideWidgetPicker,
+                    onSelectWidget = ::bindWidget,
                     onRemoveWidget = ::removeWidget,
                     onRequestCalendarPermission = {
                         requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
@@ -236,15 +242,26 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    private fun pickWidget() {
+    private fun bindWidget(provider: WidgetProvider) {
         val appWidgetId = appWidgetHost.allocateAppWidgetId()
         pendingWidgetId = appWidgetId
+        if (appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, provider.profile, provider.componentName, null)) {
+            configureOrAddWidget(appWidgetId)
+            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            return
+        }
+
+        val bindIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.componentName)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, provider.profile)
         try {
-            pickWidgetLauncher.launch(
-                Intent(AppWidgetManager.ACTION_APPWIDGET_PICK)
-                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
-            )
+            bindWidgetLauncher.launch(bindIntent)
         } catch (_: ActivityNotFoundException) {
+            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            deletePendingWidget(appWidgetId)
+            Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+        } catch (_: SecurityException) {
             pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
             deletePendingWidget(appWidgetId)
             Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
@@ -283,6 +300,8 @@ private fun TypeLauncherApp(
     appWidgetHost: AppWidgetHost,
     appWidgetManager: AppWidgetManager,
     onAddWidget: () -> Unit,
+    onDismissWidgetPicker: () -> Unit,
+    onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
@@ -317,6 +336,8 @@ private fun TypeLauncherApp(
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
         onAddWidget = onAddWidget,
+        onDismissWidgetPicker = onDismissWidgetPicker,
+        onSelectWidget = onSelectWidget,
         onRemoveWidget = onRemoveWidget,
         onRequestCalendarPermission = onRequestCalendarPermission,
     )
@@ -342,6 +363,8 @@ private fun TypeLauncherApp(
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     onAddWidget: () -> Unit,
+    onDismissWidgetPicker: () -> Unit,
+    onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
@@ -382,10 +405,14 @@ private fun TypeLauncherApp(
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
+                        availableWidgets = state.availableWidgets,
+                        isAddingWidget = state.isAddingWidget,
                         appWidgetHost = appWidgetHost,
                         appWidgetManager = appWidgetManager,
                         innerPadding = innerPadding,
                         onAddWidget = onAddWidget,
+                        onDismissWidgetPicker = onDismissWidgetPicker,
+                        onSelectWidget = onSelectWidget,
                         onRemoveWidget = onRemoveWidget,
                     )
                     LauncherScreen.Agenda -> AgendaScreen(
@@ -938,10 +965,14 @@ private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp) {
 @Composable
 private fun WidgetsScreen(
     widgetIds: List<Int>,
+    availableWidgets: List<WidgetProvider>,
+    isAddingWidget: Boolean,
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
     onAddWidget: () -> Unit,
+    onDismissWidgetPicker: () -> Unit,
+    onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
 ) {
     LazyColumn(
@@ -956,12 +987,219 @@ private fun WidgetsScreen(
         item {
             AddWidgetCard(onAddWidget = onAddWidget)
         }
+        if (isAddingWidget) {
+            item {
+                WidgetPickerCard(
+                    availableWidgets = availableWidgets,
+                    appWidgetManager = appWidgetManager,
+                    onDismissWidgetPicker = onDismissWidgetPicker,
+                    onSelectWidget = onSelectWidget,
+                )
+            }
+        }
         items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
             HostedWidgetCard(
                 widgetId = widgetId,
                 appWidgetHost = appWidgetHost,
                 appWidgetManager = appWidgetManager,
                 onRemoveWidget = onRemoveWidget,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WidgetPickerCard(
+    availableWidgets: List<WidgetProvider>,
+    appWidgetManager: AppWidgetManager?,
+    onDismissWidgetPicker: () -> Unit,
+    onSelectWidget: (WidgetProvider) -> Unit,
+) {
+    SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.widgets_picker_title), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.widgets_picker_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Button(onClick = onDismissWidgetPicker) {
+                Text(stringResource(R.string.widgets_picker_done))
+            }
+        }
+        if (availableWidgets.isEmpty()) {
+            EmptyState(
+                icon = Icons.Filled.Widgets,
+                title = stringResource(R.string.widgets_picker_empty_title),
+                body = stringResource(R.string.widgets_picker_empty_body),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            Column(
+                modifier = Modifier.testTag(WIDGET_PICKER_LIST_TAG),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                availableWidgets.groupBy { provider -> provider.appName }.forEach { (appName, providers) ->
+                    WidgetAppSection(
+                        appName = appName,
+                        providers = providers,
+                        appWidgetManager = appWidgetManager,
+                        onSelectWidget = onSelectWidget,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WidgetAppSection(
+    appName: String,
+    providers: List<WidgetProvider>,
+    appWidgetManager: AppWidgetManager?,
+    onSelectWidget: (WidgetProvider) -> Unit,
+) {
+    Column(
+        modifier = Modifier.testTag("$WIDGET_APP_HEADER_TAG:$appName"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = appName,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        providers.forEach { provider ->
+            WidgetProviderRow(
+                provider = provider,
+                appWidgetManager = appWidgetManager,
+                onSelectWidget = onSelectWidget,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WidgetProviderRow(
+    provider: WidgetProvider,
+    appWidgetManager: AppWidgetManager?,
+    onSelectWidget: (WidgetProvider) -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelectWidget(provider) }
+            .semantics { role = Role.Button }
+            .testTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            WidgetPreview(
+                provider = provider,
+                appWidgetManager = appWidgetManager,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp)
+                    .testTag("$WIDGET_PREVIEW_TAG:${provider.id}"),
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WidgetIcon(provider)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(provider.label, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        stringResource(
+                            R.string.widgets_picker_size_label,
+                            provider.targetCellWidth,
+                            provider.targetCellHeight,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WidgetPreview(
+    provider: WidgetProvider,
+    appWidgetManager: AppWidgetManager?,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val preview = remember(provider, appWidgetManager) {
+        provider.preview(appWidgetManager, context)
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        when {
+            preview.generated != null -> AndroidView(
+                factory = { viewContext ->
+                    preview.generated.apply(viewContext, FrameLayout(viewContext)).also { view ->
+                        view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+            preview.image != null -> Image(
+                bitmap = preview.image.toBitmap().asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp),
+                contentScale = ContentScale.Fit,
+            )
+            else -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.Widgets,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WidgetIcon(provider: WidgetProvider) {
+    val icon = remember(provider) { provider.icon() }
+    Box(
+        modifier = Modifier.size(36.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (icon != null) {
+            Image(
+                bitmap = icon.toBitmap().asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
+        } else {
+            Icon(
+                Icons.Filled.Widgets,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
@@ -1258,6 +1496,20 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(screen = LauncherScreen.Widgets) }
     }
 
+    fun showWidgetPicker() {
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Widgets,
+                isAddingWidget = true,
+                availableWidgets = loadAvailableWidgets(),
+            )
+        }
+    }
+
+    fun hideWidgetPicker() {
+        _uiState.update { it.copy(isAddingWidget = false) }
+    }
+
     fun showHome() {
         _uiState.update { it.copy(screen = LauncherScreen.Home) }
     }
@@ -1317,7 +1569,17 @@ internal class LauncherViewModel(
 
     fun addWidget(appWidgetId: Int) {
         widgetStore.add(appWidgetId)
-        _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Widgets,
+                isAddingWidget = false,
+                widgetIds = widgetStore.widgetIds,
+            )
+        }
+    }
+
+    internal fun refreshAvailableWidgetsForTest() {
+        _uiState.update { it.copy(availableWidgets = loadAvailableWidgets()) }
     }
 
     fun removeWidget(appWidgetId: Int) {
@@ -1466,6 +1728,16 @@ internal class LauncherViewModel(
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
     }
 
+    private fun loadAvailableWidgets(): List<WidgetProvider> =
+        AppWidgetManager.getInstance(app)
+            .installedProviders
+            .filter { provider -> provider.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_HIDE_FROM_PICKER == 0 }
+            .map { provider -> provider.toWidgetProvider(app) }
+            .sortedWith(
+                compareBy<WidgetProvider> { provider -> provider.appName.lowercase() }
+                    .thenBy { provider -> provider.label.lowercase() },
+            )
+
     private fun List<InstalledApp>.markDocked(): List<InstalledApp> =
         map { launcherApp ->
             val storedApp = installedApps.firstOrNull { installedApp -> installedApp.id == launcherApp.id } ?: launcherApp
@@ -1491,6 +1763,8 @@ internal data class LauncherUiState(
     val filteredApps: List<InstalledApp> = emptyList(),
     val dockedApps: List<InstalledApp> = emptyList(),
     val widgetIds: List<Int> = emptyList(),
+    val availableWidgets: List<WidgetProvider> = emptyList(),
+    val isAddingWidget: Boolean = false,
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
@@ -1562,6 +1836,46 @@ internal data class InstalledApp(
     override fun toString(): String = name
 }
 
+internal data class WidgetProvider(
+    val appName: String,
+    val label: String,
+    val componentName: ComponentName,
+    val profile: UserHandle,
+    val icon: Drawable?,
+    val appIcon: Drawable?,
+    val minWidth: Int,
+    val minHeight: Int,
+    val targetCellWidth: Int,
+    val targetCellHeight: Int,
+    val previewImage: Drawable?,
+) {
+    val id: String = "${profile.hashCode()}:${componentName.flattenToShortString()}"
+}
+
+private data class WidgetPreviewValue(
+    val generated: RemoteViews?,
+    val image: Drawable?,
+)
+
+private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context: Context): WidgetPreviewValue {
+    val generated = if (Build.VERSION.SDK_INT >= GENERATED_WIDGET_PREVIEW_MIN_API) {
+        try {
+            appWidgetManager?.getWidgetPreview(
+                componentName,
+                profile,
+                AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+            )
+        } catch (_: RuntimeException) {
+            null
+        }
+    } else {
+        null
+    }
+    return WidgetPreviewValue(generated = generated, image = generated?.let { null } ?: previewImage)
+}
+
+private fun WidgetProvider.icon(): Drawable? = icon ?: appIcon
+
 internal data class AgendaEvent(
     val title: String,
     val beginMillis: Long,
@@ -1614,6 +1928,35 @@ private fun AgendaEvent.formatTime(context: Context): String {
     }
     return DateUtils.formatDateRange(context, beginMillis, endMillis, flags).toString()
 }
+
+private fun AppWidgetProviderInfo.toWidgetProvider(context: Context): WidgetProvider {
+    val packageManager = context.packageManager
+    val appInfo = try {
+        packageManager.getApplicationInfo(provider.packageName, 0)
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    }
+    val appName = appInfo?.loadLabel(packageManager)?.toString()
+        ?.takeIf { label -> label.isNotBlank() }
+        ?: provider.packageName
+    val appIcon = appInfo?.loadIcon(packageManager)
+    return WidgetProvider(
+        appName = appName,
+        label = loadLabel(packageManager).takeIf { label -> label.isNotBlank() } ?: appName,
+        componentName = provider,
+        profile = profile,
+        icon = loadIcon(context, 0) ?: appIcon,
+        appIcon = appIcon,
+        minWidth = minWidth,
+        minHeight = minHeight,
+        targetCellWidth = targetCellWidth.takeIf { it > 0 } ?: estimateCellSpan(minWidth),
+        targetCellHeight = targetCellHeight.takeIf { it > 0 } ?: estimateCellSpan(minHeight),
+        previewImage = loadPreviewImage(context, 0),
+    )
+}
+
+private fun estimateCellSpan(sizeDp: Int): Int =
+    ((sizeDp + WIDGET_CELL_ESTIMATE_DP - 1) / WIDGET_CELL_ESTIMATE_DP).coerceAtLeast(1)
 
 internal class DockedAppStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -1858,6 +2201,11 @@ internal const val AGENDA_PERMISSION_TAG = "agenda_permission"
 internal const val AGENDA_EMPTY_TAG = "agenda_empty"
 internal const val AGENDA_EVENTS_TAG = "agenda_events"
 internal const val ADD_WIDGET_CARD_TAG = "add_widget_card"
+internal const val WIDGET_PICKER_TAG = "widget_picker"
+internal const val WIDGET_PICKER_LIST_TAG = "widget_picker_list"
+internal const val WIDGET_APP_HEADER_TAG = "widget_app_header"
+internal const val WIDGET_PROVIDER_ROW_TAG = "widget_provider_row"
+internal const val WIDGET_PREVIEW_TAG = "widget_preview"
 internal const val WIDGET_CARD_TAG = "widget_card"
 internal const val REMOVE_WIDGET_ACTION_TAG = "remove_widget_action"
 internal const val SETTINGS_BUTTON_TAG = "settings_button"
@@ -1875,6 +2223,9 @@ private const val AGENDA_LOOKAHEAD_DAYS = 7L
 private const val APP_WIDGET_HOST_ID = 1024
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
 private const val WIDGET_MIN_HEIGHT_DP = 96
+private const val WIDGET_PROVIDER_PREVIEW_HEIGHT_DP = 120
+private const val WIDGET_CELL_ESTIMATE_DP = 56
+private const val GENERATED_WIDGET_PREVIEW_MIN_API = 36
 
 @Preview(name = "Home empty")
 @Composable
@@ -1899,6 +2250,8 @@ private fun HomeEmptyPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onDismissWidgetPicker = {},
+            onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
@@ -1931,6 +2284,8 @@ private fun HomeRunningLargeFontPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onDismissWidgetPicker = {},
+            onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
@@ -1960,6 +2315,8 @@ private fun AgendaPermissionDarkPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onDismissWidgetPicker = {},
+            onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
@@ -1989,6 +2346,8 @@ private fun AgendaEmptyRtlPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onDismissWidgetPicker = {},
+            onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
@@ -2026,6 +2385,8 @@ private fun AgendaEventsPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onDismissWidgetPicker = {},
+            onSelectWidget = {},
             onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
