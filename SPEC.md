@@ -14,6 +14,7 @@ This document records the current product and technical design decisions for Typ
 
 - The active UI is Jetpack Compose rendered from `MainActivity.setContent`.
 - `LauncherViewModel` owns screen state through a `StateFlow<LauncherUiState>`, and composables render from that immutable state.
+- Runtime code is split into focused layers while keeping the `app.typelauncher` package: `MainActivity.kt` owns activity lifecycle and Android launchers, `LauncherViewModel.kt` owns state orchestration, `model/` contains immutable UI models, `ui/` contains Compose screens/theme/test tags/previews, `store/` contains `SharedPreferences` stores, and small helpers such as `LauncherIntents.kt`, `AgendaEventOrganizer.kt`, and `SettingsLaunchGate.kt` stay at the package root.
 - Material 3 is the visual system. Dynamic color is enabled on supported Android versions, with checked-in light and dark fallback color schemes.
 - The app uses edge-to-edge layout and applies status bar, navigation bar, and IME insets through the top-level `Scaffold`.
 - XML layout resources still exist from the earlier View-based implementation, but the current runtime UI path is Compose.

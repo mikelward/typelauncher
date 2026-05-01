@@ -35,17 +35,21 @@ class ManifestUnitTest {
 
     @Test
     fun mainActivity_sourceUsesComposeMaterialThemeAndLifecycleState() {
-        val source = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
+        val mainActivitySource = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
+        val typeLauncherAppSource = File("src/main/java/app/typelauncher/ui/TypeLauncherApp.kt").readText()
+        val homeScreenSource = File("src/main/java/app/typelauncher/ui/HomeScreen.kt").readText()
+        val themeSource = File("src/main/java/app/typelauncher/ui/TypeLauncherTheme.kt").readText()
+        val viewModelSource = File("src/main/java/app/typelauncher/LauncherViewModel.kt").readText()
 
-        assertTrue(source.contains("setContent"))
-        assertTrue(source.contains("MaterialTheme"))
-        assertTrue(source.contains("Scaffold"))
-        assertTrue(source.contains("Card"))
-        assertTrue(source.contains("OutlinedTextField"))
-        assertTrue(source.contains("collectAsStateWithLifecycle"))
-        assertTrue(source.contains("ViewModel"))
-        assertTrue(source.contains("dynamicLightColorScheme"))
-        assertTrue(source.contains("AgendaEventOrganizer.forNow"))
+        assertTrue(mainActivitySource.contains("setContent"))
+        assertTrue(themeSource.contains("MaterialTheme"))
+        assertTrue(typeLauncherAppSource.contains("Scaffold"))
+        assertTrue(homeScreenSource.contains("Card"))
+        assertTrue(homeScreenSource.contains("OutlinedTextField"))
+        assertTrue(typeLauncherAppSource.contains("collectAsStateWithLifecycle"))
+        assertTrue(viewModelSource.contains("ViewModel"))
+        assertTrue(themeSource.contains("dynamicLightColorScheme"))
+        assertTrue(viewModelSource.contains("AgendaEventOrganizer.forNow"))
     }
 
     private fun parseManifest() = DocumentBuilderFactory.newInstance()
