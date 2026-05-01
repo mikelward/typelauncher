@@ -421,14 +421,20 @@ private fun WidgetPreview(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            preview.image != null -> Image(
-                bitmap = preview.image.toBitmap().asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp),
-                contentScale = ContentScale.Fit,
-            )
+            preview.image != null -> {
+                val previewImage = preview.image
+                val previewBitmap = remember(previewImage) {
+                    previewImage.toBitmap().asImageBitmap()
+                }
+                Image(
+                    bitmap = previewBitmap,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            }
             else -> Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -446,13 +452,14 @@ private fun WidgetPreview(
 
 @Composable
 private fun WidgetAppIcon(appIcon: Drawable?) {
+    val bitmap = remember(appIcon) { appIcon?.toBitmap()?.asImageBitmap() }
     Box(
         modifier = Modifier.size(36.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (appIcon != null) {
+        if (bitmap != null) {
             Image(
-                bitmap = appIcon.toBitmap().asImageBitmap(),
+                bitmap = bitmap,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
@@ -470,14 +477,14 @@ private fun WidgetAppIcon(appIcon: Drawable?) {
 
 @Composable
 private fun WidgetIcon(provider: WidgetProvider) {
-    val icon = remember(provider) { provider.icon() }
+    val bitmap = remember(provider) { provider.icon()?.toBitmap()?.asImageBitmap() }
     Box(
         modifier = Modifier.size(36.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (icon != null) {
+        if (bitmap != null) {
             Image(
-                bitmap = icon.toBitmap().asImageBitmap(),
+                bitmap = bitmap,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
