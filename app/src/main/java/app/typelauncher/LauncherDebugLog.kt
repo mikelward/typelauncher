@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Window
-import app.typelauncher.model.LauncherUiState
 
 private const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
 
