@@ -38,12 +38,45 @@ class LauncherQueryMatchTest {
     }
 
     @Test
-    fun subsequentCharactersMayBeLowercaseAfterAnchor() {
-        // "boa" anchors at B (start of name); o and a then match as subsequence,
-        // including the lowercase o at index 1.
+    fun consecutiveLowercaseCharactersMatchAfterAnchor() {
+        // "boa" anchors at B; the lowercase o is consecutive with the anchor (no
+        // skip), and the capital A is a word-boundary skip target.
         assertTrue("BofA".matchesLauncherQuery("boa"))
-        assertTrue("BofA".matchesLauncherQuery("bf"))
+        // "ba" anchors at B and skips to the capital A — A is a boundary.
         assertTrue("BofA".matchesLauncherQuery("ba"))
+    }
+
+    @Test
+    fun skippedLowercaseCharactersRequireWordBoundary() {
+        // "bf" anchors at B, then would skip past lowercase o to land on the
+        // mid-word lowercase f. f is not a word boundary, so no match.
+        assertFalse("BofA".matchesLauncherQuery("bf"))
+    }
+
+    @Test
+    fun skipsIntoMidWordLowercaseDoNotMatch() {
+        // The reported bug: "fa" should not pull in apps where the only 'a'
+        // after the F-anchor sits in the middle of a word.
+        assertFalse("Air France".matchesLauncherQuery("fa"))
+        assertFalse("Fly Delta".matchesLauncherQuery("fa"))
+    }
+
+    @Test
+    fun acronymsAcrossWordsMatch() {
+        // "ATV" against "Apple TV": A anchors at start, T is uppercase
+        // (skip-boundary), V is consecutive with T.
+        assertTrue("Apple TV".matchesLauncherQuery("ATV"))
+        assertTrue("Apple TV".matchesLauncherQuery("atv"))
+    }
+
+    @Test
+    fun lowercaseStartOfNextWordIsASkipBoundary() {
+        // After matching 'g' at the start of "google mail", the lowercase 'm'
+        // beginning the second word is reachable because it follows a space.
+        assertTrue("google mail".matchesLauncherQuery("gm"))
+        // But a mid-word lowercase letter is not a boundary, even when the
+        // anchor is the start of the label.
+        assertFalse("google mail".matchesLauncherQuery("ga"))
     }
 
     @Test

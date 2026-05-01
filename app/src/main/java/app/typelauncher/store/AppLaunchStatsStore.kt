@@ -66,24 +66,37 @@ internal fun String.matchesLauncherQuery(query: String): Boolean {
     if (query.isEmpty()) return true
     val firstQueryChar = query[0]
     for (anchor in indices) {
-        if (!isWordBoundary(anchor)) continue
+        if (!isAnchorBoundary(anchor)) continue
         if (!this[anchor].equalsIgnoreCase(firstQueryChar)) continue
-        if (containsSubsequenceFrom(query, queryStart = 1, nameStart = anchor + 1)) return true
+        if (matchesQueryFrom(query, queryStart = 1, nameStart = anchor + 1)) return true
     }
     return false
 }
 
-private fun String.isWordBoundary(index: Int): Boolean {
+private fun String.isAnchorBoundary(index: Int): Boolean {
     if (index == 0) return true
     return this[index].isUpperCase()
 }
 
-private fun String.containsSubsequenceFrom(query: String, queryStart: Int, nameStart: Int): Boolean {
+private fun String.isSkipBoundary(index: Int): Boolean {
+    if (index == 0) return true
+    if (this[index].isUpperCase()) return true
+    return this[index - 1].isWhitespace()
+}
+
+private fun String.matchesQueryFrom(query: String, queryStart: Int, nameStart: Int): Boolean {
     var nameIndex = nameStart
     var queryIndex = queryStart
+    var skippedSinceLastMatch = false
     while (queryIndex < query.length) {
         if (nameIndex >= length) return false
-        if (this[nameIndex].equalsIgnoreCase(query[queryIndex])) queryIndex++
+        val matches = this[nameIndex].equalsIgnoreCase(query[queryIndex])
+        if (matches && (!skippedSinceLastMatch || isSkipBoundary(nameIndex))) {
+            queryIndex++
+            skippedSinceLastMatch = false
+        } else {
+            skippedSinceLastMatch = true
+        }
         nameIndex++
     }
     return true
