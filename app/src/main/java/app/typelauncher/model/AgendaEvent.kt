@@ -1,0 +1,9 @@
+package app.typelauncher
+
+internal data class AgendaEvent(
+    val title: String,
+    val beginMillis: Long,
+    val endMillis: Long,
+    val isAllDay: Boolean,
+    val displayTime: String = "",
+)
