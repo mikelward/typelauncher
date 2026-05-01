@@ -86,6 +86,7 @@ This document records the current product and technical design decisions for Typ
 - Selected app widget IDs are persisted in `SharedPreferences` under the `widgets` store and rendered through `AppWidgetHost` when provider info is available.
 - Static widget previews and provider-list app-icon thumbnails wrap their `Drawable.toBitmap().asImageBitmap()` conversions in `remember`, keyed on the source `Drawable` (or `WidgetProvider`), so scrolling the picker doesn't re-rasterize the same bitmap on every recomposition.
 - The MVP optimizes for full-width 4x1-style widgets by giving hosted widgets the whole page width and using the provider minimum height, reported in pixels, converted to Compose density-independent height with a launcher floor.
+- Provider rows in the picker show a "Very small, will be padded" note when the provider's reported minimum height (in dp) is below the launcher's floor, so users see at add time that those widgets will render taller than they request.
 - Long-pressing a widget opens a compact action menu with a Remove item; removing a widget deletes the host ID and updates the persisted widget list.
 
 ## Agenda behavior

@@ -348,6 +348,8 @@ private fun WidgetProviderRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 WidgetIcon(provider)
+                val density = LocalDensity.current
+                val paddedToFloor = with(density) { provider.minHeight.toDp() } < WIDGET_MIN_HEIGHT_DP.dp
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -362,6 +364,13 @@ private fun WidgetProviderRow(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (paddedToFloor) {
+                        Text(
+                            stringResource(R.string.widgets_picker_padded_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 Text(
                     text = if (isExpanded) {

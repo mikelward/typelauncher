@@ -148,6 +148,62 @@ class WidgetsScreenTest {
     }
 
     @Test
+    fun widgetPicker_showsPaddedNoteForProvidersBelowHeightFloor() {
+        val tiny = fakeWidgetProvider(appName = "Tiny", label = "Tiny widget", minHeight = 56)
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(tiny),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Very small, will be padded").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Tiny").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Very small, will be padded").assertIsDisplayed()
+    }
+
+    @Test
+    fun widgetPicker_omitsPaddedNoteWhenProviderHeightMeetsFloor() {
+        val tall = fakeWidgetProvider(appName = "Tall", label = "Tall widget", minHeight = 600)
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(tall),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Tall").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Very small, will be padded").assertDoesNotExist()
+    }
+
+    @Test
     fun widgetPicker_showsLoadingIndicatorBeforeWidgetsResolve() {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -171,7 +227,11 @@ class WidgetsScreenTest {
         composeRule.onNodeWithTag(WIDGET_PICKER_LIST_TAG).assertDoesNotExist()
     }
 
-    private fun fakeWidgetProvider(appName: String, label: String): WidgetProvider =
+    private fun fakeWidgetProvider(
+        appName: String,
+        label: String,
+        minHeight: Int = 56,
+    ): WidgetProvider =
         WidgetProvider(
             appName = appName,
             label = label,
@@ -180,7 +240,7 @@ class WidgetsScreenTest {
             icon = null,
             appIcon = null,
             minWidth = 112,
-            minHeight = 56,
+            minHeight = minHeight,
             targetCellWidth = 2,
             targetCellHeight = 1,
             previewImage = null,
