@@ -127,6 +127,7 @@ private fun WidgetPickerCard(
 ) {
     SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
         var expandedAppName by remember { mutableStateOf<String?>(null) }
+        var expandedProviderId by remember { mutableStateOf<String?>(null) }
         var filterQuery by remember { mutableStateOf("") }
 
         Row(
@@ -173,6 +174,7 @@ private fun WidgetPickerCard(
                 onQueryChanged = { value ->
                     filterQuery = value
                     expandedAppName = null
+                    expandedProviderId = null
                 },
             )
             // TODO: also filter individual widget labels within an app group, not just the app group names.
@@ -197,9 +199,14 @@ private fun WidgetPickerCard(
                             appName = appName,
                             providers = providers,
                             isExpanded = isAppExpanded,
+                            expandedProviderId = if (isAppExpanded) expandedProviderId else null,
                             appWidgetManager = appWidgetManager,
                             onToggleExpanded = {
                                 expandedAppName = if (isAppExpanded) null else appName
+                                expandedProviderId = null
+                            },
+                            onToggleProvider = { provider ->
+                                expandedProviderId = if (expandedProviderId == provider.id) null else provider.id
                             },
                             onSelectWidget = onSelectWidget,
                         )
@@ -251,8 +258,10 @@ private fun WidgetAppSection(
     appName: String,
     providers: List<WidgetProvider>,
     isExpanded: Boolean,
+    expandedProviderId: String?,
     appWidgetManager: AppWidgetManager?,
     onToggleExpanded: () -> Unit,
+    onToggleProvider: (WidgetProvider) -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     Column(
@@ -304,7 +313,9 @@ private fun WidgetAppSection(
             providers.forEach { provider ->
                 WidgetProviderRow(
                     provider = provider,
+                    isExpanded = expandedProviderId == provider.id,
                     appWidgetManager = appWidgetManager,
+                    onToggleExpanded = { onToggleProvider(provider) },
                     onSelectWidget = onSelectWidget,
                 )
             }
@@ -315,12 +326,16 @@ private fun WidgetAppSection(
 @Composable
 private fun WidgetProviderRow(
     provider: WidgetProvider,
+    isExpanded: Boolean,
     appWidgetManager: AppWidgetManager?,
+    onToggleExpanded: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onToggleExpanded)
+            .semantics { role = Role.Button }
             .testTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
@@ -357,17 +372,28 @@ private fun WidgetProviderRow(
                         )
                     }
                 }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (isExpanded) {
+                        stringResource(R.string.widgets_picker_collapse_app)
+                    } else {
+                        stringResource(R.string.widgets_picker_expand_app)
+                    },
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
-            WidgetPreview(
-                provider = provider,
-                appWidgetManager = appWidgetManager,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp)
-                    .testTag("$WIDGET_PREVIEW_TAG:${provider.id}"),
-            )
-            Button(onClick = { onSelectWidget(provider) }) {
-                Text(stringResource(R.string.widgets_add_button_description))
+            if (isExpanded) {
+                WidgetPreview(
+                    provider = provider,
+                    appWidgetManager = appWidgetManager,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp)
+                        .testTag("$WIDGET_PREVIEW_TAG:${provider.id}"),
+                )
+                Button(onClick = { onSelectWidget(provider) }) {
+                    Text(stringResource(R.string.widgets_add_button_description))
+                }
             }
         }
     }

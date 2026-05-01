@@ -81,7 +81,7 @@ This document records the current product and technical design decisions for Typ
 
 - The widgets screen is the launcher's +1 screen between the app list and agenda.
 - The top of the widgets screen is a full-width add card with a large plus button that opens the in-app add-widget page.
-- The add-widget page groups available home-screen widget providers in collapsed per-app rows. Expanding an app row reveals every provider it ships, each with its generated/static/placeholder preview and an Add button rendered immediately — no per-provider expansion step.
+- The add-widget page groups available home-screen widget providers in collapsed per-app rows and expands providers on demand. Expanding a provider row immediately renders its generated/static/placeholder preview and an Add button — there is no separate "Preview" toggle to load it.
 - The add-widget page has a filter field above the provider list that narrows the visible app groups by name using the same anchored fuzzy matcher as the installed-app list (`String.matchesLauncherQuery`), so typing behavior in the widget picker stays in sync with the launcher's app filter.
 - Selected app widget IDs are persisted in `SharedPreferences` under the `widgets` store and rendered through `AppWidgetHost` when provider info is available.
 - Static widget previews and provider-list app-icon thumbnails wrap their `Drawable.toBitmap().asImageBitmap()` conversions in `remember`, keyed on the source `Drawable` (or `WidgetProvider`), so scrolling the picker doesn't re-rasterize the same bitmap on every recomposition.
