@@ -24,7 +24,7 @@ class WidgetsScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun widgetPicker_rendersPreviewsOnlyAfterProviderExpansion() {
+    fun widgetPicker_rendersProviderPreviewsOnAppExpansion() {
         val provider = fakeWidgetProvider(appName = "Clock", label = "Analog clock")
 
         composeRule.setContent {
@@ -57,11 +57,6 @@ class WidgetsScreenTest {
         composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${provider.id}").assertDoesNotExist()
-
-        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}").performClick()
-        composeRule.waitForIdle()
-
         composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${provider.id}", useUnmergedTree = true).assertExists()
     }
 
