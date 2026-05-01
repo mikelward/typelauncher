@@ -553,6 +553,7 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
     onDockVisibleIconCountChanged: (Int) -> Unit,
+    onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -625,6 +626,27 @@ internal fun SettingsScreen(
                     checked = state.isAppListIconOnly,
                     onCheckedChange = onAppListIconOnlyChanged,
                     modifier = Modifier.testTag(APP_LIST_ICON_ONLY_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_app_list_sort_alphabetical_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.appListSortOrder == AppListSortOrder.Alphabetical,
+                    onCheckedChange = { isAlphabetical ->
+                        onAppListSortOrderChanged(
+                            if (isAlphabetical) AppListSortOrder.Alphabetical else AppListSortOrder.Usage,
+                        )
+                    },
+                    modifier = Modifier.testTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG),
                 )
             }
             Text(

@@ -15,6 +15,11 @@ private const val DOCK_HORIZONTAL_PADDING_DP = 64
 private const val DOCK_ITEM_HORIZONTAL_PADDING_DP = 8
 private const val DOCK_ITEM_SPACING_DP = 8
 
+internal enum class AppListSortOrder {
+    Usage,
+    Alphabetical,
+}
+
 internal data class LauncherUiState(
     val screen: LauncherScreen = LauncherScreen.Home,
     val query: String = "",
@@ -28,6 +33,7 @@ internal data class LauncherUiState(
     val isDockEnabled: Boolean = true,
     val isAppListIconOnly: Boolean = false,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
+    val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
     val isLoadingApps: Boolean = false,
 )
 

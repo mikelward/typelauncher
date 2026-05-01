@@ -72,11 +72,22 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    var appListSortOrder: AppListSortOrder
+        get() = sharedPreferences.getString(KEY_APP_LIST_SORT_ORDER, null)
+            ?.let { name -> runCatching { AppListSortOrder.valueOf(name) }.getOrNull() }
+            ?: AppListSortOrder.Usage
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_APP_LIST_SORT_ORDER, value.name)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
+        const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
     }
 }
 
