@@ -3,6 +3,22 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
 }
 
+fun gitOutput(vararg args: String, fallback: String): String =
+    try {
+        val output = providers.exec {
+            commandLine("git", *args)
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim()
+        output.ifEmpty { fallback }
+    } catch (_: Exception) {
+        fallback
+    }
+
+val gitCommitCount: Int =
+    gitOutput("rev-list", "--count", "HEAD", fallback = "1").toIntOrNull() ?: 1
+val gitShortSha: String = gitOutput("rev-parse", "--short", "HEAD", fallback = "unknown")
+val baseVersionName = "1.0"
+
 android {
     namespace = "app.typelauncher"
     compileSdk {
@@ -15,13 +31,28 @@ android {
         applicationId = "app.typelauncher"
         minSdk = 34
         targetSdk = 36
-        // TODO: derive versionCode from `git rev-list --count HEAD` so it monotonically
-        //   increases per commit and stays reproducible (same commit -> same number),
-        //   matching the ClothesCast app/build.gradle.kts approach.
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitCommitCount
+        versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        // CI materializes a stable debug keystore from a secret and points
+        // DEBUG_KEYSTORE_FILE at it, so successive Firebase App Distribution
+        // builds carry the same signature and tester devices can install
+        // them as updates. Local builds without DEBUG_KEYSTORE_FILE set
+        // fall through to AGP's auto-generated ~/.android/debug.keystore.
+        // See docs/firebase-app-distribution.md.
+        getByName("debug") {
+            val keystorePath = providers.environmentVariable("DEBUG_KEYSTORE_FILE").orNull
+            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("DEBUG_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("DEBUG_KEY_ALIAS").getOrElse("androiddebugkey")
+                keyPassword = providers.environmentVariable("DEBUG_KEY_PASSWORD").orNull
+            }
+        }
     }
 
     buildTypes {

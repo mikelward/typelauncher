@@ -189,6 +189,25 @@ adb devices
 
 Use a physical device for launcher behavior that may differ from emulators, including gesture navigation, default-home prompts, OEM launchers, and battery or background restrictions.
 
+## Versioning
+
+`versionCode` and `versionName` are derived from git at configure time:
+
+- `versionCode` = `git rev-list --count HEAD` (number of commits up to `HEAD`).
+- `versionName` = `"1.0.<commitCount>+<shortSha>"`, e.g. `1.0.50+5e6eb54`.
+
+This means the same commit always produces the same `versionCode`, and the short SHA is always recoverable from an installed APK via `adb shell dumpsys package app.typelauncher | grep versionName`.
+
+CI must check the repo out with full history for the count to be correct. The `actions/checkout` step uses `fetch-depth: 0`; if you run a build from a shallow clone, `versionCode` will collapse to `1`.
+
+If you need to override the base name (for example, to bump to `2.0`), edit `baseVersionName` in `app/build.gradle.kts`.
+
+## Firebase App Distribution
+
+CI uploads the debug APK to Firebase App Distribution as the last step of the `build` job, using `wzieba/Firebase-Distribution-Github-Action@v1`. The upload only runs on `push` to `main` and is silently skipped when the `FIREBASE_APP_ID` / `FIREBASE_SERVICE_ACCOUNT_JSON` secrets aren't set, so PRs and forks still get green CI.
+
+See [docs/firebase-app-distribution.md](docs/firebase-app-distribution.md) for the required GitHub secrets, the tester group convention, and how to upload manually from a workstation.
+
 ## Common Gradle commands
 
 | Task | Command |

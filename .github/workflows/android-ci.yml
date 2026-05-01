@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -23,7 +25,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Materialize debug keystore
+        # Decode the checked-in-only-as-a-secret debug keystore so CI-built APKs
+        # share a signing identity with previous CI builds. Without this, every
+        # runner generates its own ~/.android/debug.keystore and tester devices
+        # refuse to install successive Firebase App Distribution releases as
+        # updates. Skipped on PRs / forks where the secret isn't set; the build
+        # still finishes using AGP's auto-generated debug keystore.
+        if: env.DEBUG_KEYSTORE_BASE64 != ''
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
+          echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
+
       - name: Build debug APK
+        env:
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
+          DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
         run: ./gradlew assembleDebug
 
       - name: Run unit tests
@@ -32,6 +52,36 @@ jobs:
       - name: Run lint
         run: ./gradlew lint
 
+      - name: Distribute via Firebase App Distribution
+        # On push to main only — feature-branch CI runs would otherwise spam
+        # testers with WIP builds. Skipped when secrets aren't set so the build
+        # still finishes on a fresh repo / fork.
+        if: |
+          success() &&
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          env.FIREBASE_APP_ID != '' &&
+          env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          # Tester group must exist in Firebase App Distribution console — see
+          # docs/firebase-app-distribution.md. "testers" is the convention; rename
+          # there + here together if you change it.
+          groups: testers
+          file: app/build/outputs/apk/debug/app-debug.apk
+          # Push notification on the tester's phone shows the first ~60 chars
+          # of these notes, so put the most useful info first. Commit subject
+          # is normally that.
+          releaseNotes: |
+            ${{ github.event.head_commit.message }}
+            ---
+            Build: ${{ github.run_number }} · ${{ github.sha }}
+
   connected-tests:
     name: Keyboard screenshot unit tests
     runs-on: ubuntu-latest
@@ -39,6 +89,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v5
