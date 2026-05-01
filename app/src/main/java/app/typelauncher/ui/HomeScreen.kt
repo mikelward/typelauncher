@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -48,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +60,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -72,6 +75,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -562,6 +566,7 @@ internal fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
             )
+            SettingsOverflowMenu()
             Button(
                 onClick = onCloseSettings,
                 modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
@@ -636,6 +641,39 @@ internal fun SettingsScreen(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
         )
+    }
+}
+
+@Composable
+private fun SettingsOverflowMenu() {
+    var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(SETTINGS_OVERFLOW_BUTTON_TAG),
+        ) {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.settings_overflow_button_description),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(SETTINGS_OVERFLOW_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_report_bug_action)) },
+                modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
+                onClick = {
+                    expanded = false
+                    val activity = context.findActivity() ?: return@DropdownMenuItem
+                    scope.launch { BugReport.share(activity) }
+                },
+            )
+        }
     }
 }
 

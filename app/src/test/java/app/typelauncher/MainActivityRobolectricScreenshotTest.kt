@@ -305,6 +305,19 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun settingsOverflowMenuExposesReportBugAction() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Report bug").assertIsDisplayed()
+        saveScreenshot("compose_settings_overflow_menu_robolectric.png")
+    }
+
+    @Test
     fun defaultLauncherButtonStartsHomeRoleRequest() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).performClick()

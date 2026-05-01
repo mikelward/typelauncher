@@ -6,17 +6,29 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Window
+import java.text.SimpleDateFormat
+import java.util.ArrayDeque
+import java.util.Date
+import java.util.Locale
 
 private const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
+internal const val LOG_BUFFER_MAX_ENTRIES = 300
 
 internal object LauncherDebugLog {
+    private val buffer = ArrayDeque<String>(LOG_BUFFER_MAX_ENTRIES)
+    private val timestampFormat = ThreadLocal.withInitial {
+        SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
+    }
+
     fun event(message: String) {
+        record('D', message, throwable = null)
         if (BuildConfig.DEBUG) {
             Log.d(LAUNCHER_DEBUG_TAG, message)
         }
     }
 
     fun warning(message: String, throwable: Throwable? = null) {
+        record('W', message, throwable)
         if (BuildConfig.DEBUG) {
             Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
         }
@@ -27,6 +39,27 @@ internal object LauncherDebugLog {
             "$callback taskId=${activity.taskId} finishing=${activity.isFinishing} " +
                 "changingConfig=${activity.isChangingConfigurations} intent=${intent.debugSummary()}",
         )
+    }
+
+    /** Returns the captured log lines, oldest first. */
+    fun snapshot(): List<String> = synchronized(buffer) { buffer.toList() }
+
+    /** Test-only: empties the in-memory ring buffer so tests start from a known state. */
+    internal fun clearForTest() {
+        synchronized(buffer) { buffer.clear() }
+    }
+
+    private fun record(level: Char, message: String, throwable: Throwable?) {
+        val timestamp = timestampFormat.get().format(Date())
+        val entry = if (throwable == null) {
+            "$timestamp $level $LAUNCHER_DEBUG_TAG: $message"
+        } else {
+            "$timestamp $level $LAUNCHER_DEBUG_TAG: $message\n${Log.getStackTraceString(throwable).trimEnd()}"
+        }
+        synchronized(buffer) {
+            if (buffer.size >= LOG_BUFFER_MAX_ENTRIES) buffer.removeFirst()
+            buffer.addLast(entry)
+        }
     }
 }
 

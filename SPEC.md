@@ -18,6 +18,7 @@ This document records the current product and technical design decisions for Typ
 - Material 3 is the visual system. Dynamic color is enabled on supported Android versions, with checked-in light and dark fallback color schemes.
 - The app uses edge-to-edge layout and applies status bar, navigation bar, and IME insets through the top-level `Scaffold`.
 - Debug builds emit logcat diagnostics under the `TypeLauncherDebug` tag for activity/system lifecycle callbacks, first pre-draw, top-level Compose lifecycle/state rendering, launcher app loading, agenda/widget loading, and app/widget launch handoffs.
+- All builds (not just debug) capture the same diagnostic events into a process-local in-memory ring buffer, capped at 300 entries, that the bug-report helper attaches to share intents.
 - XML layout resources still exist from the earlier View-based implementation, but the current runtime UI path is Compose.
 - The Compose migration intentionally removed the old XML-driven home/agenda rendering path while preserving the launcher behaviors covered by tests.
 
@@ -27,6 +28,7 @@ This document records the current product and technical design decisions for Typ
 - Horizontal swipes move between screens through a Compose `HorizontalPager`; swiping right-to-left from `Home` opens the +1 `Widgets` screen, then the `Agenda` screen.
 - Pager navigation uses an effectively infinite carousel so swiping left or right always wraps across `Home`, `Widgets`, and `Agenda`; user swipes are handled as discrete gestures, not free-scrolling pager flings, so each gesture can advance exactly one screen at most.
 - Settings is an in-app page outside the carousel, opened by the gear icon in the empty search field and closed with a Done button. It includes a button that opens Android's home role request flow so Type Launcher can be selected as the default launcher.
+- The settings page header has an overflow menu with a Report bug action. Selecting it captures a screenshot of the current window via `PixelCopy`, builds a text payload (build/device info, persisted dock and widget settings, the recent log buffer), copies the text to the clipboard, and fires `Intent.ACTION_SEND` so the system share sheet can deliver the report. Screenshots are stored in `cacheDir/bug-reports/` (only the latest is kept) and exposed through a `FileProvider` whose authority is `${applicationId}.fileprovider`.
 - `LauncherScreenSwitcher` is a legacy/custom `ViewAnimator` swipe helper and is not part of the current Compose runtime path.
 - Swipe handling was introduced because child lists can otherwise consume gestures before launcher-level navigation sees them.
 
