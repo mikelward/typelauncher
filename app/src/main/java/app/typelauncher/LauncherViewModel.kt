@@ -291,7 +291,7 @@ internal class LauncherViewModel(
         val roleManager = app.getSystemService<RoleManager>()
         val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_HOME)
             ?: Intent(Settings.ACTION_HOME_SETTINGS)
-        startActivity(intent)
+        app.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun setDockEnabled(isEnabled: Boolean) {
