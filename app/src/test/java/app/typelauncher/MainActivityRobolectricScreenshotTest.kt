@@ -189,6 +189,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.activity.viewModel.showWidgetPicker()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            !composeRule.activity.viewModel.uiState.value.isLoadingAvailableWidgets
+        }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
