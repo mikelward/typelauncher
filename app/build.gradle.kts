@@ -48,6 +48,11 @@ android {
     }
 }
 
+tasks.register<Exec>("installAndRun") {
+    dependsOn("installDebug")
+    commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher/.MainActivity")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
