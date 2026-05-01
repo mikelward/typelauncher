@@ -2,6 +2,9 @@ package app.typelauncher
 
 import android.Manifest
 import android.app.Application
+import android.appwidget.AppWidgetHost
+import android.appwidget.AppWidgetManager
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
@@ -41,6 +44,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -54,6 +58,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
@@ -108,6 +113,7 @@ import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -145,15 +151,46 @@ private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPage
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
         private set
+    private lateinit var appWidgetHost: AppWidgetHost
+    private lateinit var appWidgetManager: AppWidgetManager
 
     private val requestCalendarPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             viewModel.refreshAgenda()
         }
+    private val pickWidgetLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val appWidgetId = result.data?.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
+            ) ?: pendingWidgetId
+            if (result.resultCode == RESULT_OK && appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                configureOrAddWidget(appWidgetId)
+            } else {
+                deletePendingWidget(appWidgetId)
+            }
+            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+        }
+    private val configureWidgetLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val appWidgetId = result.data?.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
+            ) ?: pendingWidgetId
+            if (result.resultCode == RESULT_OK && appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                viewModel.addWidget(appWidgetId)
+            } else {
+                deletePendingWidget(appWidgetId)
+            }
+            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+        }
+    private var pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        appWidgetHost = AppWidgetHost(this, APP_WIDGET_HOST_ID)
+        appWidgetManager = AppWidgetManager.getInstance(this)
         viewModel = ViewModelProvider(
             this,
             LauncherViewModel.factory(
@@ -165,6 +202,9 @@ class MainActivity : ComponentActivity() {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     viewModel = viewModel,
+                    appWidgetHost = appWidgetHost,
+                    appWidgetManager = appWidgetManager,
+                    onAddWidget = ::pickWidget,
                     onRequestCalendarPermission = {
                         requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                     },
@@ -173,15 +213,63 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        appWidgetHost.startListening()
+    }
+
     override fun onResume() {
         super.onResume()
         viewModel.refreshPermissionDrivenUi()
+    }
+
+    override fun onStop() {
+        appWidgetHost.stopListening()
+        super.onStop()
+    }
+
+    private fun pickWidget() {
+        val appWidgetId = appWidgetHost.allocateAppWidgetId()
+        pendingWidgetId = appWidgetId
+        try {
+            pickWidgetLauncher.launch(
+                Intent(AppWidgetManager.ACTION_APPWIDGET_PICK)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
+            )
+        } catch (_: ActivityNotFoundException) {
+            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            deletePendingWidget(appWidgetId)
+            Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun configureOrAddWidget(appWidgetId: Int) {
+        val providerInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
+        if (providerInfo?.configure != null) {
+            pendingWidgetId = appWidgetId
+            configureWidgetLauncher.launch(
+                Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                    .setComponent(providerInfo.configure)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
+            )
+        } else {
+            viewModel.addWidget(appWidgetId)
+        }
+    }
+
+    private fun deletePendingWidget(appWidgetId: Int) {
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            appWidgetHost.deleteAppWidgetId(appWidgetId)
+        }
     }
 }
 
 @Composable
 private fun TypeLauncherApp(
     viewModel: LauncherViewModel,
+    appWidgetHost: AppWidgetHost,
+    appWidgetManager: AppWidgetManager,
+    onAddWidget: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -206,7 +294,11 @@ private fun TypeLauncherApp(
         onToggleDock = viewModel::toggleDock,
         onResetRank = viewModel::resetRank,
         onShowAgenda = viewModel::showAgenda,
+        onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
+        appWidgetHost = appWidgetHost,
+        appWidgetManager = appWidgetManager,
+        onAddWidget = onAddWidget,
         onRequestCalendarPermission = onRequestCalendarPermission,
     )
 }
@@ -222,7 +314,11 @@ private fun TypeLauncherApp(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onShowAgenda: () -> Unit,
+    onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
+    appWidgetHost: AppWidgetHost?,
+    appWidgetManager: AppWidgetManager?,
+    onAddWidget: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
     Scaffold(
@@ -231,6 +327,7 @@ private fun TypeLauncherApp(
         SwipeNavigationBox(
             screen = state.screen,
             onShowAgenda = onShowAgenda,
+            onShowWidgets = onShowWidgets,
             onShowHome = onShowHome,
         ) { pageScreen ->
             when (pageScreen) {
@@ -244,6 +341,13 @@ private fun TypeLauncherApp(
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
                     onResetRank = onResetRank,
+                )
+                LauncherScreen.Widgets -> WidgetsScreen(
+                    widgetIds = state.widgetIds,
+                    appWidgetHost = appWidgetHost,
+                    appWidgetManager = appWidgetManager,
+                    innerPadding = innerPadding,
+                    onAddWidget = onAddWidget,
                 )
                 LauncherScreen.Agenda -> AgendaScreen(
                     agenda = state.agenda,
@@ -259,6 +363,7 @@ private fun TypeLauncherApp(
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
     onShowAgenda: () -> Unit,
+    onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
     content: @Composable (LauncherScreen) -> Unit,
 ) {
@@ -282,6 +387,7 @@ private fun SwipeNavigationBox(
     LaunchedEffect(settledPage) {
         when (LauncherScreen.fromCarouselPage(settledPage)) {
             LauncherScreen.Agenda -> if (screen != LauncherScreen.Agenda) onShowAgenda()
+            LauncherScreen.Widgets -> if (screen != LauncherScreen.Widgets) onShowWidgets()
             LauncherScreen.Home -> if (screen != LauncherScreen.Home) onShowHome()
         }
     }
@@ -689,6 +795,98 @@ private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp) {
 }
 
 @Composable
+private fun WidgetsScreen(
+    widgetIds: List<Int>,
+    appWidgetHost: AppWidgetHost?,
+    appWidgetManager: AppWidgetManager?,
+    innerPadding: PaddingValues,
+    onAddWidget: () -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(innerPadding)
+            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+            .testTag(WIDGETS_SCREEN_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            AddWidgetCard(onAddWidget = onAddWidget)
+        }
+        items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
+            HostedWidgetCard(
+                widgetId = widgetId,
+                appWidgetHost = appWidgetHost,
+                appWidgetManager = appWidgetManager,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddWidgetCard(onAddWidget: () -> Unit) {
+    val addWidgetDescription = stringResource(R.string.widgets_add_button_description)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(ADD_WIDGET_CARD_HEIGHT_DP.dp)
+            .clickable(onClick = onAddWidget)
+            .semantics {
+                role = Role.Button
+                contentDescription = addWidgetDescription
+            }
+            .testTag(ADD_WIDGET_CARD_TAG),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HostedWidgetCard(
+    widgetId: Int,
+    appWidgetHost: AppWidgetHost?,
+    appWidgetManager: AppWidgetManager?,
+) {
+    val providerInfo = remember(widgetId, appWidgetManager) {
+        appWidgetManager?.getAppWidgetInfo(widgetId)
+    }
+    if (appWidgetHost == null || providerInfo == null) {
+        SectionCard(Modifier.testTag("$WIDGET_CARD_TAG:$widgetId")) {
+            Text(
+                text = stringResource(R.string.widgets_unavailable),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+
+    AndroidView(
+        factory = { context ->
+            appWidgetHost.createView(context, widgetId, providerInfo).apply {
+                setAppWidget(widgetId, providerInfo)
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(providerInfo.minHeight.dp.coerceAtLeast(WIDGET_MIN_HEIGHT_DP.dp))
+            .testTag("$WIDGET_CARD_TAG:$widgetId"),
+    )
+}
+
+@Composable
 private fun AgendaScreen(
     agenda: AgendaUiState,
     innerPadding: PaddingValues,
@@ -827,6 +1025,7 @@ internal class LauncherViewModel(
     private val workPackages: Set<String>,
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
+    private val widgetStore = WidgetStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = loadInstalledApps()
@@ -834,6 +1033,7 @@ internal class LauncherViewModel(
         LauncherUiState(
             filteredApps = installedApps.filterByName("", appLaunchStatsStore, dockedAppStore.dockedAppIds).markDocked(),
             dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").markDocked(),
+            widgetIds = widgetStore.widgetIds,
             agenda = loadAgendaState(),
         ),
     )
@@ -846,6 +1046,10 @@ internal class LauncherViewModel(
 
     fun showAgenda() {
         _uiState.update { it.copy(screen = LauncherScreen.Agenda, agenda = loadAgendaState()) }
+    }
+
+    fun showWidgets() {
+        _uiState.update { it.copy(screen = LauncherScreen.Widgets) }
     }
 
     fun showHome() {
@@ -903,6 +1107,11 @@ internal class LauncherViewModel(
     fun resetRank(app: InstalledApp) {
         appLaunchStatsStore.resetLaunchCount(app.id)
         refreshLists()
+    }
+
+    fun addWidget(appWidgetId: Int) {
+        widgetStore.add(appWidgetId)
+        _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
     }
 
     private fun refreshLists() {
@@ -1051,12 +1260,14 @@ internal data class LauncherUiState(
     val query: String = "",
     val filteredApps: List<InstalledApp> = emptyList(),
     val dockedApps: List<InstalledApp> = emptyList(),
+    val widgetIds: List<Int> = emptyList(),
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
 )
 
 internal enum class LauncherScreen {
-    Agenda,
     Home,
+    Widgets,
+    Agenda,
     ;
 
     val carouselPage: Int
@@ -1214,6 +1425,39 @@ internal class DockedAppStore(context: Context) {
     }
 }
 
+internal class WidgetStore(context: Context) {
+    private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private var ids = load()
+
+    val widgetIds: List<Int>
+        get() = ids.toList()
+
+    fun add(appWidgetId: Int) {
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID || appWidgetId in ids) {
+            return
+        }
+        ids += appWidgetId
+        save()
+    }
+
+    private fun load(): List<Int> =
+        sharedPreferences.getString(KEY_APP_WIDGET_IDS, "").orEmpty()
+            .split(APP_WIDGET_ID_SEPARATOR)
+            .mapNotNull { value -> value.toIntOrNull() }
+
+    private fun save() {
+        sharedPreferences.edit()
+            .putString(KEY_APP_WIDGET_IDS, ids.joinToString(APP_WIDGET_ID_SEPARATOR))
+            .apply()
+    }
+
+    private companion object {
+        const val PREFERENCES_NAME = "widgets"
+        const val KEY_APP_WIDGET_IDS = "app_widget_ids"
+        const val APP_WIDGET_ID_SEPARATOR = "\n"
+    }
+}
+
 internal class AppLaunchStatsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
@@ -1321,6 +1565,7 @@ private val darkScheme = darkColorScheme(
 )
 
 internal const val HOME_SCREEN_TAG = "home_screen"
+internal const val WIDGETS_SCREEN_TAG = "widgets_screen"
 internal const val AGENDA_SCREEN_TAG = "agenda_screen"
 internal const val SEARCH_FIELD_TAG = "search_field"
 internal const val APPS_CARD_TAG = "apps_card"
@@ -1338,11 +1583,16 @@ internal const val DOCK_APP_TAG = "dock_app"
 internal const val AGENDA_PERMISSION_TAG = "agenda_permission"
 internal const val AGENDA_EMPTY_TAG = "agenda_empty"
 internal const val AGENDA_EVENTS_TAG = "agenda_events"
+internal const val ADD_WIDGET_CARD_TAG = "add_widget_card"
+internal const val WIDGET_CARD_TAG = "widget_card"
 private const val SETTINGS_QUERY = "settings"
 private const val DOCKED_APP_LIST_RANK = -1
 private const val MIN_DOCKED_APPS = 1
 private const val DOCK_APP_ICON_SIZE_DP = 56
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
+private const val APP_WIDGET_HOST_ID = 1024
+private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
+private const val WIDGET_MIN_HEIGHT_DP = 96
 
 @Preview(name = "Home empty")
 @Composable
@@ -1358,7 +1608,11 @@ private fun HomeEmptyPreview() {
             onToggleDock = { _, _ -> },
             onResetRank = {},
             onShowAgenda = {},
+            onShowWidgets = {},
             onShowHome = {},
+            appWidgetHost = null,
+            appWidgetManager = null,
+            onAddWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1381,7 +1635,11 @@ private fun HomeRunningLargeFontPreview() {
             onToggleDock = { _, _ -> },
             onResetRank = {},
             onShowAgenda = {},
+            onShowWidgets = {},
             onShowHome = {},
+            appWidgetHost = null,
+            appWidgetManager = null,
+            onAddWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1401,7 +1659,11 @@ private fun AgendaPermissionDarkPreview() {
             onToggleDock = { _, _ -> },
             onResetRank = {},
             onShowAgenda = {},
+            onShowWidgets = {},
             onShowHome = {},
+            appWidgetHost = null,
+            appWidgetManager = null,
+            onAddWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1421,7 +1683,11 @@ private fun AgendaEmptyRtlPreview() {
             onToggleDock = { _, _ -> },
             onResetRank = {},
             onShowAgenda = {},
+            onShowWidgets = {},
             onShowHome = {},
+            appWidgetHost = null,
+            appWidgetManager = null,
+            onAddWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1449,7 +1715,11 @@ private fun AgendaEventsPreview() {
             onToggleDock = { _, _ -> },
             onResetRank = {},
             onShowAgenda = {},
+            onShowWidgets = {},
             onShowHome = {},
+            appWidgetHost = null,
+            appWidgetManager = null,
+            onAddWidget = {},
             onRequestCalendarPermission = {},
         )
     }
