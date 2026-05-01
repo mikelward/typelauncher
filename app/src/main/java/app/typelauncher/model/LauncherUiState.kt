@@ -26,6 +26,7 @@ internal data class LauncherUiState(
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
+    val isAppListIconOnly: Boolean = false,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
 )
 

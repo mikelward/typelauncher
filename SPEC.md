@@ -44,6 +44,7 @@ This document records the current product and technical design decisions for Typ
 - Long-press app actions expose App info, Dock/Undock, and Reset rank.
 - App info opens Android's application details screen for the selected package.
 - Reset rank clears that app's stored launch count.
+- A settings toggle can switch the installed app list from text rows to an icon-only grid. It is off by default, and icon-only apps use the same icon size and visual treatment as the dock.
 - The UI intentionally omits section headers such as "Installed apps", "Dock", and "Agenda" to keep the launcher compact and action-oriented.
 
 ## Installed apps and profiles
@@ -88,7 +89,7 @@ This document records the current product and technical design decisions for Typ
 ## Persistence
 
 - Dock membership is stored in `SharedPreferences` as newline-separated app IDs.
-- Dock visibility and icon size are stored in `SharedPreferences`.
+- Dock visibility, dock icon size, and the app-list icon-only preference are stored in `SharedPreferences`.
 - Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID.
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.
