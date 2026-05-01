@@ -57,19 +57,28 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
-    var dockIconSizeDp: Int
+    var dockIconCount: Int
         get() = sharedPreferences
-            .getInt(KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)
-            .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
+            .takeIf { preferences -> preferences.contains(KEY_DOCK_ICON_COUNT) }
+            ?.getInt(KEY_DOCK_ICON_COUNT, DEFAULT_DOCK_ICON_COUNT)
+            ?: sharedPreferences.deriveDockIconCountFromLegacySize()
         set(value) {
             sharedPreferences.edit()
-                .putInt(KEY_DOCK_ICON_SIZE_DP, value.coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP))
+                .putInt(KEY_DOCK_ICON_COUNT, value.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT))
                 .apply()
         }
 
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
+        const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_DOCK_ICON_SIZE_DP = "dock_icon_size_dp"
     }
+}
+
+private fun android.content.SharedPreferences.deriveDockIconCountFromLegacySize(): Int {
+    val legacySize = getInt(KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)
+        .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
+    return dockSlotCountForIconSize(DEFAULT_DOCK_SCREEN_WIDTH_DP, legacySize)
+        .coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
 }

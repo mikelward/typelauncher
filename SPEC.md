@@ -61,9 +61,8 @@ This document records the current product and technical design decisions for Typ
 - Dock order is the persisted insertion order.
 - The dock is filtered by the same search query as the app list.
 - Dock visibility can be disabled from settings; disabling hides the Home dock but keeps the settings preview available.
-- Dock icon size can be adjusted from settings from 40dp to 80dp, defaulting to 56dp, with the real dock component shown as a live preview.
-- Dock capacity is derived from screen width and the configured icon size, with a minimum of one app.
-- Trying to dock beyond the current capacity shows a toast and leaves persisted dock state unchanged.
+- Dock icon size is derived from a settings slider for the number of icons visible across the dock, so a larger visible icon count shrinks each icon and shows more apps before horizontal scrolling.
+- Docked app count is not capped by the visible icon count; extra docked apps remain available by scrolling the dock row.
 - This feature was renamed from "pinned apps" to "dock"; new UI, tests, strings, and docs should use dock terminology.
 - The dock is pinned after the app list and represented as a horizontal icon row rather than a second text list.
 
