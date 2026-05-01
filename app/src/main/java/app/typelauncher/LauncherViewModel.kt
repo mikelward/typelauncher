@@ -44,6 +44,7 @@ internal class LauncherViewModel(
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
+    private var agendaVersion = 0
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
@@ -62,6 +63,7 @@ internal class LauncherViewModel(
         //   frame without waiting for LauncherApps.getActivityList. Today the launcher
         //   shows an empty/loading state on cold start until the IO load below completes.
         viewModelScope.launch {
+            val initAgendaVersion = agendaVersion
             val (loadedApps, loadedAgenda) = withContext(ioDispatcher) {
                 loadInstalledApps() to loadAgendaState()
             }
@@ -79,7 +81,7 @@ internal class LauncherViewModel(
                     dockedApps = installedApps
                         .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
                         .markDocked(),
-                    agenda = loadedAgenda,
+                    agenda = if (agendaVersion == initAgendaVersion) loadedAgenda else state.agenda,
                     isLoadingApps = false,
                 )
             }
@@ -100,6 +102,7 @@ internal class LauncherViewModel(
         // TODO: loadAgendaState queries CalendarContract on the calling thread when the
         //   permission is granted. Move this to viewModelScope/Dispatchers.IO so that
         //   swiping to the agenda screen never blocks the main thread.
+        agendaVersion++
         _uiState.update { it.copy(screen = LauncherScreen.Agenda, agenda = loadAgendaState()) }
         logState("showAgenda")
     }
@@ -134,6 +137,7 @@ internal class LauncherViewModel(
     }
 
     fun refreshAgenda() {
+        agendaVersion++
         _uiState.update { it.copy(agenda = loadAgendaState()) }
         logState("refreshAgenda")
     }
