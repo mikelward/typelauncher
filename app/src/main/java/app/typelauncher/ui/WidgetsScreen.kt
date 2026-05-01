@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,7 +36,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +58,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -115,6 +123,7 @@ private fun WidgetPickerCard(
     SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
         var expandedAppName by remember { mutableStateOf<String?>(null) }
         var expandedProviderId by remember { mutableStateOf<String?>(null) }
+        var filterQuery by remember { mutableStateOf("") }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -141,31 +150,88 @@ private fun WidgetPickerCard(
                 modifier = Modifier.fillMaxWidth(),
             )
         } else {
-            Column(
-                modifier = Modifier.testTag(WIDGET_PICKER_LIST_TAG),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                availableWidgets.groupBy { provider -> provider.appName }.forEach { (appName, providers) ->
-                    val isAppExpanded = expandedAppName == appName
-                    WidgetAppSection(
-                        appName = appName,
-                        providers = providers,
-                        isExpanded = isAppExpanded,
-                        expandedProviderId = if (isAppExpanded) expandedProviderId else null,
-                        appWidgetManager = appWidgetManager,
-                        onToggleExpanded = {
-                            expandedAppName = if (isAppExpanded) null else appName
-                            expandedProviderId = null
-                        },
-                        onToggleProvider = { provider ->
-                            expandedProviderId = if (expandedProviderId == provider.id) null else provider.id
-                        },
-                        onSelectWidget = onSelectWidget,
-                    )
+            WidgetPickerFilterField(
+                query = filterQuery,
+                onQueryChanged = { value ->
+                    filterQuery = value
+                    expandedAppName = null
+                    expandedProviderId = null
+                },
+            )
+            // TODO: also filter individual widget labels within an app group, not just the app group names.
+            val filteredGroups = availableWidgets
+                .groupBy { provider -> provider.appName }
+                .filterKeys { appName -> appName.contains(filterQuery.trim(), ignoreCase = true) }
+            if (filteredGroups.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Filled.Search,
+                    title = stringResource(R.string.widgets_picker_no_matches_title),
+                    body = stringResource(R.string.widgets_picker_no_matches_body),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Column(
+                    modifier = Modifier.testTag(WIDGET_PICKER_LIST_TAG),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    filteredGroups.forEach { (appName, providers) ->
+                        val isAppExpanded = expandedAppName == appName
+                        WidgetAppSection(
+                            appName = appName,
+                            providers = providers,
+                            isExpanded = isAppExpanded,
+                            expandedProviderId = if (isAppExpanded) expandedProviderId else null,
+                            appWidgetManager = appWidgetManager,
+                            onToggleExpanded = {
+                                expandedAppName = if (isAppExpanded) null else appName
+                                expandedProviderId = null
+                            },
+                            onToggleProvider = { provider ->
+                                expandedProviderId = if (expandedProviderId == provider.id) null else provider.id
+                            },
+                            onSelectWidget = onSelectWidget,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun WidgetPickerFilterField(
+    query: String,
+    onQueryChanged: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChanged,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(WIDGET_PICKER_FILTER_TAG),
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = { onQueryChanged("") },
+                    modifier = Modifier.testTag(WIDGET_PICKER_FILTER_CLEAR_TAG),
+                ) {
+                    Icon(
+                        Icons.Filled.Clear,
+                        contentDescription = stringResource(R.string.widgets_picker_filter_clear_description),
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        placeholder = { Text(stringResource(R.string.widgets_picker_filter_hint)) },
+        textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Words,
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Search,
+        ),
+    )
 }
 
 @Composable
