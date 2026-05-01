@@ -7,6 +7,13 @@ import android.os.UserHandle
 internal const val MIN_DOCK_APP_ICON_SIZE_DP = 40
 internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 56
 internal const val MAX_DOCK_APP_ICON_SIZE_DP = 80
+internal const val MIN_DOCK_ICON_COUNT = 1
+internal const val DEFAULT_DOCK_ICON_COUNT = 4
+internal const val MAX_DOCK_ICON_COUNT = 8
+internal const val DEFAULT_DOCK_SCREEN_WIDTH_DP = 411
+private const val DOCK_HORIZONTAL_PADDING_DP = 64
+private const val DOCK_ITEM_HORIZONTAL_PADDING_DP = 8
+private const val DOCK_ITEM_SPACING_DP = 8
 
 internal data class LauncherUiState(
     val screen: LauncherScreen = LauncherScreen.Home,
@@ -19,8 +26,29 @@ internal data class LauncherUiState(
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
-    val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
+    val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
 )
+
+internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
+    val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
+    return ((availableWidthDp + DOCK_ITEM_SPACING_DP) /
+        (iconSizeDp + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP)).coerceAtLeast(1)
+}
+
+internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
+    val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
+    val clampedSlotCount = slotCount.coerceAtLeast(1)
+    val itemChromeWidthDp = DOCK_ITEM_SPACING_DP * (clampedSlotCount - 1) +
+        DOCK_ITEM_HORIZONTAL_PADDING_DP * clampedSlotCount
+    return ((availableWidthDp - itemChromeWidthDp) / clampedSlotCount)
+        .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
+}
+
+internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
+    val minSlotCount = dockSlotCountForIconSize(screenWidthDp, MAX_DOCK_APP_ICON_SIZE_DP)
+    val maxSlotCount = dockSlotCountForIconSize(screenWidthDp, MIN_DOCK_APP_ICON_SIZE_DP)
+    return minSlotCount..maxSlotCount
+}
 
 internal data class WidgetProvider(
     val appName: String,

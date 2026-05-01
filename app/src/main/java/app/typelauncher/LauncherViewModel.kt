@@ -14,7 +14,6 @@ import android.os.Process
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModel
@@ -45,7 +44,7 @@ internal class LauncherViewModel(
             widgetIds = widgetStore.widgetIds,
             agenda = loadAgendaState(),
             isDockEnabled = dockSettingsStore.isDockEnabled,
-            dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
+            dockIconCount = dockSettingsStore.dockIconCount,
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -110,15 +109,11 @@ internal class LauncherViewModel(
         startActivity(app.appInfoIntent)
     }
 
-    fun toggleDock(app: InstalledApp, maxDockedApps: Int) {
+    fun toggleDock(app: InstalledApp, @Suppress("UNUSED_PARAMETER") dockLimit: Int) {
         if (app.isDocked) {
             dockedAppStore.undock(app.id)
-        } else if (!dockedAppStore.dock(app.id, maxDockedApps)) {
-            Toast.makeText(
-                this.app,
-                this.app.getString(R.string.docked_apps_limit_message, maxDockedApps),
-                Toast.LENGTH_SHORT,
-            ).show()
+        } else {
+            dockedAppStore.dock(app.id)
         }
         refreshLists()
     }
@@ -165,10 +160,10 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(isDockEnabled = isEnabled) }
     }
 
-    fun setDockIconSizeDp(sizeDp: Int) {
-        val clampedSizeDp = sizeDp.coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
-        dockSettingsStore.dockIconSizeDp = clampedSizeDp
-        _uiState.update { it.copy(dockIconSizeDp = clampedSizeDp) }
+    fun setDockVisibleIconCount(count: Int) {
+        val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
+        dockSettingsStore.dockIconCount = clampedCount
+        _uiState.update { it.copy(dockIconCount = clampedCount) }
     }
 
     private fun refreshLists() {

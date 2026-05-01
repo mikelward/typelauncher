@@ -260,7 +260,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
         composeRule.onNodeWithText("Show dock").assertIsDisplayed()
-        composeRule.onNodeWithText("Dock icon size: 56 dp").assertIsDisplayed()
+        composeRule.onNodeWithText("Dock icons visible: 4").assertIsDisplayed()
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
@@ -291,7 +291,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun changingDockIconSizeUpdatesLiveSettingsPreview() {
+    fun increasingDockVisibleIconCountShrinksLiveSettingsPreview() {
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
@@ -300,13 +300,13 @@ class MainActivityRobolectricScreenshotTest {
 
         val defaultIconBounds = composeRule.onNodeWithTag("$APP_ICON_TAG:Calculator").getBoundsInRoot()
         val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
-        viewModel.setDockIconSizeDp(MAX_DOCK_APP_ICON_SIZE_DP)
+        viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Dock icon size: 80 dp").assertIsDisplayed()
+        composeRule.onNodeWithText("Dock icons visible: 6").assertIsDisplayed()
         val largerIconBounds = composeRule.onNodeWithTag("$APP_ICON_TAG:Calculator").getBoundsInRoot()
-        val largerIconSize = largerIconBounds.right - largerIconBounds.left
-        assertTrue("preview icon grows after changing dock icon size", largerIconSize > defaultIconSize)
+        val smallerIconSize = largerIconBounds.right - largerIconBounds.left
+        assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 
         saveScreenshot("compose_settings_dock_preview_robolectric.png")
     }
@@ -484,13 +484,14 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockingMoreAppsThanFit_showsCurrentDockCapacityMessage() {
+    fun dockingMoreAppsThanFit_keepsAllDockedAppsScrollable() {
         val viewModel = composeRule.activity.viewModel
-        viewModel.uiState.value.filteredApps.take(4).forEach { app ->
-            viewModel.toggleDock(app, maxDockedApps = 3)
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
         }
 
-        assertEquals("Too many apps in dock. Dock up to 3 apps.", ShadowToast.getTextOfLatestToast())
+        assertEquals(8, viewModel.uiState.value.dockedApps.size)
+        assertEquals(null, ShadowToast.getTextOfLatestToast())
     }
 
     @Test

@@ -19,7 +19,6 @@
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
     <string name="app_menu_reset_rank">Reset rank</string>
-    <string name="docked_apps_limit_message">Too many apps in dock. Dock up to %1$d apps.</string>
     <string name="widgets_add_button_description">Add widget</string>
     <string name="widgets_picker_title">Add widget</string>
     <string name="widgets_picker_subtitle">Choose a widget for the home screen</string>
@@ -51,6 +50,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_done_button">Done</string>
     <string name="settings_dock_enabled_title">Show dock</string>
-    <string name="settings_dock_icon_size_label">Dock icon size: %1$d dp</string>
+    <string name="settings_dock_icon_count_label">Dock icons visible: %1$d</string>
+    <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>
     <string name="settings_dock_preview_label">Preview</string>
 </resources>

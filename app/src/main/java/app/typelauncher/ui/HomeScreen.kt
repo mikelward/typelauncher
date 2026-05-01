@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -82,7 +83,7 @@ internal fun HomeScreen(
     onOpenSettings: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    val dockCapacity = ((configuration.screenWidthDp - 32) / state.dockIconSizeDp).coerceAtLeast(MIN_DOCKED_APPS)
+    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -101,7 +102,7 @@ internal fun HomeScreen(
         )
         AppsCard(
             apps = state.filteredApps,
-            dockCapacity = dockCapacity,
+            dockLimit = Int.MAX_VALUE,
             modifier = Modifier.weight(1f),
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
@@ -111,7 +112,7 @@ internal fun HomeScreen(
         if (state.isDockEnabled) {
             DockCard(
                 dockedApps = state.dockedApps,
-                dockIconSizeDp = state.dockIconSizeDp,
+                dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
@@ -230,7 +231,7 @@ private fun DockCard(
 @Composable
 private fun AppsCard(
     apps: List<InstalledApp>,
-    dockCapacity: Int,
+    dockLimit: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -255,7 +256,7 @@ private fun AppsCard(
                     AppRow(
                         app = app,
                         isActive = app == apps.first(),
-                        dockCapacity = dockCapacity,
+                        dockLimit = dockLimit,
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -271,7 +272,7 @@ private fun AppsCard(
 private fun AppRow(
     app: InstalledApp,
     isActive: Boolean,
-    dockCapacity: Int,
+    dockLimit: Int,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -306,7 +307,7 @@ private fun AppRow(
         AppActionsMenu(
             expanded = menuExpanded,
             app = app,
-            dockCapacity = dockCapacity,
+            dockLimit = dockLimit,
             onDismiss = { menuExpanded = false },
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
@@ -319,7 +320,7 @@ private fun AppRow(
 private fun AppActionsMenu(
     expanded: Boolean,
     app: InstalledApp,
-    dockCapacity: Int,
+    dockLimit: Int,
     onDismiss: () -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -339,7 +340,7 @@ private fun AppActionsMenu(
             modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.name}"),
             onClick = {
                 onDismiss()
-                onToggleDock(app, dockCapacity)
+                onToggleDock(app, dockLimit)
             },
         )
         DropdownMenuItem(
@@ -406,14 +407,16 @@ internal fun SettingsScreen(
     innerPadding: PaddingValues,
     onCloseSettings: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
-    onDockIconSizeChanged: (Int) -> Unit,
+    onDockVisibleIconCountChanged: (Int) -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    val dockCapacity = ((configuration.screenWidthDp - 32) / state.dockIconSizeDp).coerceAtLeast(MIN_DOCKED_APPS)
+    val slotCountRange = dockSlotCountRange(configuration.screenWidthDp)
+    val dockIconCount = state.dockIconCount.coerceIn(slotCountRange)
+    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -457,14 +460,20 @@ internal fun SettingsScreen(
                 )
             }
             Text(
-                text = stringResource(R.string.settings_dock_icon_size_label, state.dockIconSizeDp),
+                text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
                 style = MaterialTheme.typography.titleMedium,
             )
             Slider(
-                value = state.dockIconSizeDp.toFloat(),
-                onValueChange = { value -> onDockIconSizeChanged(value.roundToInt()) },
-                valueRange = MIN_DOCK_APP_ICON_SIZE_DP.toFloat()..MAX_DOCK_APP_ICON_SIZE_DP.toFloat(),
-                modifier = Modifier.testTag(DOCK_ICON_SIZE_SLIDER_TAG),
+                value = dockIconCount.toFloat(),
+                onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
+                valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
+                steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),
+                modifier = Modifier.testTag(DOCK_ICON_COUNT_SLIDER_TAG),
+            )
+            Text(
+                text = stringResource(R.string.settings_dock_icon_size_value, dockIconSizeDp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Text(
@@ -474,7 +483,7 @@ internal fun SettingsScreen(
         )
         DockCard(
             dockedApps = state.dockedApps,
-            dockIconSizeDp = state.dockIconSizeDp,
+            dockIconSizeDp = dockIconSizeDp,
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
