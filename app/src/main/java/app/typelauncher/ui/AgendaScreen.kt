@@ -104,7 +104,11 @@ private fun AgendaEventsCard(
 ) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
-    val today = remember { LocalDate.now(zone) }
+    // Recompute today on every recomposition rather than caching it: the
+    // launcher process can survive past midnight, and a memoized value would
+    // keep showing yesterday's "Today"/"Tomorrow" labels until the screen is
+    // rebuilt for some other reason.
+    val today = LocalDate.now(zone)
     SectionCard(modifier.testTag(AGENDA_EVENTS_TAG)) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             var lastDate: LocalDate? = null
@@ -117,7 +121,11 @@ private fun AgendaEventsCard(
                         DayHeader(label = label, date = eventDate)
                     }
                 }
-                item(key = "event:${event.eventId}") {
+                // CalendarContract.Instances returns one row per occurrence of
+                // a recurring event; eventId alone is not unique across
+                // instances, so the key also includes beginMillis to keep
+                // LazyColumn keys distinct.
+                item(key = "event:${event.eventId}:${event.beginMillis}") {
                     AgendaEventRow(event = event, onOpenAgendaEvent = onOpenAgendaEvent)
                 }
             }
@@ -188,12 +196,14 @@ private fun AgendaEventRow(
 private val TIME_RANGE_DASH_REGEX = Regex("\\s*[\u2013\u2014-]\\s*")
 
 internal fun formatTimeForRow(rawTime: String): String {
-    // Force whitespace inside each time half to be non-breaking. The only
-    // remaining wrap opportunities are the regular spaces flanking the
-    // en-dash, so a narrow row breaks at the dash ("12:00\u00A0PM\n\u2013 1:00\u00A0PM")
-    // instead of mid-time ("12:00-13:0\n0"). Wide rows still fit on one line.
-    val match = TIME_RANGE_DASH_REGEX.find(rawTime)
-        ?: return rawTime.replace(' ', '\u00A0')
+    // For a start/end range, force the whitespace inside each time half to be
+    // non-breaking. The only remaining wrap opportunities are the regular
+    // spaces flanking the en-dash, so a narrow row breaks at the dash
+    // ("12:00\u00A0PM\n\u2013 1:00\u00A0PM") instead of mid-time
+    // ("12:00-13:0\n0"). Wide rows still fit on one line. Single-time strings
+    // ("9:30 AM", "All day") pass through unchanged so tests and accessibility
+    // tooling see the natural text.
+    val match = TIME_RANGE_DASH_REGEX.find(rawTime) ?: return rawTime
     val before = rawTime.substring(0, match.range.first).replace(' ', '\u00A0')
     val after = rawTime.substring(match.range.last + 1).replace(' ', '\u00A0')
     return "$before \u2013 $after"
