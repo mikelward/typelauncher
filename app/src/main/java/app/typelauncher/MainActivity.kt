@@ -212,6 +212,7 @@ class MainActivity : ComponentActivity() {
                     appWidgetHost = appWidgetHost,
                     appWidgetManager = appWidgetManager,
                     onAddWidget = ::pickWidget,
+                    onRemoveWidget = ::removeWidget,
                     onRequestCalendarPermission = {
                         requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                     },
@@ -269,6 +270,11 @@ class MainActivity : ComponentActivity() {
             appWidgetHost.deleteAppWidgetId(appWidgetId)
         }
     }
+
+    private fun removeWidget(appWidgetId: Int) {
+        viewModel.removeWidget(appWidgetId)
+        deletePendingWidget(appWidgetId)
+    }
 }
 
 @Composable
@@ -277,6 +283,7 @@ private fun TypeLauncherApp(
     appWidgetHost: AppWidgetHost,
     appWidgetManager: AppWidgetManager,
     onAddWidget: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -310,6 +317,7 @@ private fun TypeLauncherApp(
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
         onAddWidget = onAddWidget,
+        onRemoveWidget = onRemoveWidget,
         onRequestCalendarPermission = onRequestCalendarPermission,
     )
 }
@@ -334,6 +342,7 @@ private fun TypeLauncherApp(
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     onAddWidget: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
     Scaffold(
@@ -377,6 +386,7 @@ private fun TypeLauncherApp(
                         appWidgetManager = appWidgetManager,
                         innerPadding = innerPadding,
                         onAddWidget = onAddWidget,
+                        onRemoveWidget = onRemoveWidget,
                     )
                     LauncherScreen.Agenda -> AgendaScreen(
                         agenda = state.agenda,
@@ -932,6 +942,7 @@ private fun WidgetsScreen(
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
     onAddWidget: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -950,6 +961,7 @@ private fun WidgetsScreen(
                 widgetId = widgetId,
                 appWidgetHost = appWidgetHost,
                 appWidgetManager = appWidgetManager,
+                onRemoveWidget = onRemoveWidget,
             )
         }
     }
@@ -988,34 +1000,90 @@ private fun HostedWidgetCard(
     widgetId: Int,
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
+    onRemoveWidget: (Int) -> Unit,
 ) {
     val providerInfo = remember(widgetId, appWidgetManager) {
         appWidgetManager?.getAppWidgetInfo(widgetId)
     }
+    var menuExpanded by remember { mutableStateOf(false) }
     if (appWidgetHost == null || providerInfo == null) {
-        SectionCard(Modifier.testTag("$WIDGET_CARD_TAG:$widgetId")) {
-            Text(
-                text = stringResource(R.string.widgets_unavailable),
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Box {
+            SectionCard(
+                Modifier
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = { menuExpanded = true },
+                    )
+                    .testTag("$WIDGET_CARD_TAG:$widgetId"),
+            ) {
+                Text(
+                    text = stringResource(R.string.widgets_unavailable),
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            WidgetActionsMenu(
+                expanded = menuExpanded,
+                widgetId = widgetId,
+                onDismiss = { menuExpanded = false },
+                onRemoveWidget = onRemoveWidget,
             )
         }
         return
     }
 
     val density = LocalDensity.current
-    AndroidView(
-        factory = { context ->
-            appWidgetHost.createView(context, widgetId, providerInfo).apply {
-                setAppWidget(widgetId, providerInfo)
-            }
-        },
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(widgetCardHeight(providerInfo.minHeight, density))
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
-    )
+    ) {
+        AndroidView(
+            factory = { context ->
+                appWidgetHost.createView(context, widgetId, providerInfo).apply {
+                    setAppWidget(widgetId, providerInfo)
+                    setOnLongClickListener {
+                        menuExpanded = true
+                        true
+                    }
+                }
+            },
+            update = { view ->
+                view.setOnLongClickListener {
+                    menuExpanded = true
+                    true
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+        WidgetActionsMenu(
+            expanded = menuExpanded,
+            widgetId = widgetId,
+            onDismiss = { menuExpanded = false },
+            onRemoveWidget = onRemoveWidget,
+        )
+    }
+}
+
+@Composable
+private fun WidgetActionsMenu(
+    expanded: Boolean,
+    widgetId: Int,
+    onDismiss: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.widget_menu_remove)) },
+            modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
+            onClick = {
+                onDismiss()
+                onRemoveWidget(widgetId)
+            },
+        )
+    }
 }
 
 internal fun widgetCardHeight(minHeightPx: Int, density: Density): Dp =
@@ -1249,6 +1317,11 @@ internal class LauncherViewModel(
 
     fun addWidget(appWidgetId: Int) {
         widgetStore.add(appWidgetId)
+        _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
+    }
+
+    fun removeWidget(appWidgetId: Int) {
+        widgetStore.remove(appWidgetId)
         _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
     }
 
@@ -1600,6 +1673,13 @@ internal class WidgetStore(context: Context) {
         save()
     }
 
+    fun remove(appWidgetId: Int) {
+        if (ids.contains(appWidgetId)) {
+            ids = ids.filterNot { id -> id == appWidgetId }
+            save()
+        }
+    }
+
     private fun load(): List<Int> =
         sharedPreferences.getString(KEY_APP_WIDGET_IDS, "").orEmpty()
             .split(APP_WIDGET_ID_SEPARATOR)
@@ -1779,6 +1859,7 @@ internal const val AGENDA_EMPTY_TAG = "agenda_empty"
 internal const val AGENDA_EVENTS_TAG = "agenda_events"
 internal const val ADD_WIDGET_CARD_TAG = "add_widget_card"
 internal const val WIDGET_CARD_TAG = "widget_card"
+internal const val REMOVE_WIDGET_ACTION_TAG = "remove_widget_action"
 internal const val SETTINGS_BUTTON_TAG = "settings_button"
 internal const val SETTINGS_SCREEN_TAG = "settings_screen"
 internal const val SETTINGS_DONE_BUTTON_TAG = "settings_done_button"
@@ -1818,6 +1899,7 @@ private fun HomeEmptyPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1849,6 +1931,7 @@ private fun HomeRunningLargeFontPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1877,6 +1960,7 @@ private fun AgendaPermissionDarkPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1905,6 +1989,7 @@ private fun AgendaEmptyRtlPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
     }
@@ -1941,6 +2026,7 @@ private fun AgendaEventsPreview() {
             appWidgetHost = null,
             appWidgetManager = null,
             onAddWidget = {},
+            onRemoveWidget = {},
             onRequestCalendarPermission = {},
         )
     }
