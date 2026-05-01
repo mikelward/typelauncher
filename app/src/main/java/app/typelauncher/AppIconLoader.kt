@@ -11,24 +11,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.getSystemService
+import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal object AppIconLoader {
     private const val MAX_CACHED_ICONS = 256
-    private val cache = LruCache<String, Drawable>(MAX_CACHED_ICONS)
+    private const val ICON_BITMAP_SIZE_PX = 96
+    private val cache = LruCache<String, ImageBitmap>(MAX_CACHED_ICONS)
 
-    fun cached(id: String): Drawable? = cache.get(id)
+    fun cached(id: String): ImageBitmap? = cache.get(id)
 
-    suspend fun load(context: Context, app: InstalledApp): Drawable? {
+    suspend fun load(context: Context, app: InstalledApp): ImageBitmap? {
         cache.get(app.id)?.let { return it }
-        val drawable = withContext(Dispatchers.IO) { resolve(context, app) }
-        if (drawable != null) {
-            cache.put(app.id, drawable)
+        val drawable = withContext(Dispatchers.IO) { resolve(context, app) } ?: return null
+        val bitmap = withContext(Dispatchers.Default) {
+            drawable.toBitmap(width = ICON_BITMAP_SIZE_PX, height = ICON_BITMAP_SIZE_PX).asImageBitmap()
         }
-        return drawable
+        cache.put(app.id, bitmap)
+        return bitmap
     }
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
@@ -49,13 +54,13 @@ internal object AppIconLoader {
 }
 
 @Composable
-internal fun rememberAppIconDrawable(app: InstalledApp): Drawable? {
+internal fun rememberAppIconBitmap(app: InstalledApp): ImageBitmap? {
     val context = LocalContext.current.applicationContext
-    var drawable by remember(app.id) { mutableStateOf(AppIconLoader.cached(app.id)) }
+    var bitmap by remember(app.id) { mutableStateOf(AppIconLoader.cached(app.id)) }
     LaunchedEffect(app.id) {
-        if (drawable == null) {
-            drawable = AppIconLoader.load(context, app)
+        if (bitmap == null) {
+            bitmap = AppIconLoader.load(context, app)
         }
     }
-    return drawable
+    return bitmap
 }

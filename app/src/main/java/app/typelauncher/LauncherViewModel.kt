@@ -43,9 +43,11 @@ internal class LauncherViewModel(
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
+    private val appMetadataStore = AppMetadataStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     private var agendaVersion = 0
+    private val cachedMetadata: List<InstalledApp> = appMetadataStore.load()
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
@@ -53,17 +55,33 @@ internal class LauncherViewModel(
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
             appListSortOrder = dockSettingsStore.appListSortOrder,
-            isLoadingApps = true,
+            isLoadingApps = cachedMetadata.isEmpty(),
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
-        // TODO: persist a small InstalledApp metadata cache (id, name, package, optional
-        //   icon path) so the dock and last-known app list can render on the very first
-        //   frame without waiting for LauncherApps.getActivityList. Today the launcher
-        //   shows an empty/loading state on cold start until the IO load below completes.
+        if (cachedMetadata.isNotEmpty()) {
+            installedApps = cachedMetadata
+            _uiState.update { state ->
+                val downrankedIds = dockedAppStore.dockedAppIds
+                    .takeIf { state.isDockEnabled }
+                    .orEmpty()
+                state.copy(
+                    filteredApps = installedApps.filterByName(
+                        query = state.query,
+                        appLaunchStatsStore = appLaunchStatsStore,
+                        downrankedAppIds = downrankedIds,
+                        sortOrder = state.appListSortOrder,
+                    ).markDocked(),
+                    dockedApps = installedApps
+                        .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
+                        .markDocked(),
+                )
+            }
+            LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
+        }
         viewModelScope.launch {
             val initAgendaVersion = agendaVersion
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
@@ -99,6 +117,7 @@ internal class LauncherViewModel(
                     isLoadingApps = false,
                 )
             }
+            launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
         }
     }
