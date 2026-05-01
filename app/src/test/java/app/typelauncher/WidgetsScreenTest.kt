@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.ComponentName
 import android.os.Process
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -104,6 +105,30 @@ class WidgetsScreenTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock").assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Notes").assertIsDisplayed()
+    }
+
+    @Test
+    fun widgetPicker_showsLoadingIndicatorBeforeWidgetsResolve() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = emptyList(),
+                    isAddingWidget = true,
+                    isLoadingAvailableWidgets = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_LOADING_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(WIDGET_PICKER_LIST_TAG).assertDoesNotExist()
     }
 
     private fun fakeWidgetProvider(appName: String, label: String): WidgetProvider =

@@ -113,14 +113,33 @@ internal class LauncherViewModel(
     }
 
     fun showWidgetPicker() {
-        // TODO: loadAvailableWidgets enumerates installed widget providers on the
-        //   calling thread. Move to viewModelScope/Dispatchers.IO and surface a loading
-        //   state in the picker.
-        showWidgetPicker(loadAvailableWidgets())
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Widgets,
+                isAddingWidget = true,
+                isLoadingAvailableWidgets = true,
+                availableWidgets = emptyList(),
+            )
+        }
+        logState("showWidgetPicker loading")
+        viewModelScope.launch {
+            val providers = withContext(ioDispatcher) { loadAvailableWidgets() }
+            _uiState.update { state ->
+                if (!state.isAddingWidget) {
+                    state
+                } else {
+                    state.copy(
+                        availableWidgets = providers,
+                        isLoadingAvailableWidgets = false,
+                    )
+                }
+            }
+            logState("showWidgetPicker loaded")
+        }
     }
 
     fun hideWidgetPicker() {
-        _uiState.update { it.copy(isAddingWidget = false) }
+        _uiState.update { it.copy(isAddingWidget = false, isLoadingAvailableWidgets = false) }
         logState("hideWidgetPicker")
     }
 
@@ -208,6 +227,7 @@ internal class LauncherViewModel(
             it.copy(
                 screen = LauncherScreen.Widgets,
                 isAddingWidget = false,
+                isLoadingAvailableWidgets = false,
                 widgetIds = widgetStore.widgetIds,
             )
         }
@@ -423,6 +443,7 @@ internal class LauncherViewModel(
             it.copy(
                 screen = LauncherScreen.Widgets,
                 isAddingWidget = true,
+                isLoadingAvailableWidgets = false,
                 availableWidgets = availableWidgets,
             )
         }
