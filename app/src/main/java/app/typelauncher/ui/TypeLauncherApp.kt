@@ -27,7 +27,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
@@ -300,7 +299,7 @@ private fun SwipeNavigationBox(
                             val delta = change.positionChange()
                             rawDragX += delta.x
                             rawDragY += delta.y
-                            velocityTracker.addPointerInputChange(change)
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
                             if (!claimed &&
                                 abs(rawDragX) > touchSlopPx &&
                                 abs(rawDragX) > abs(rawDragY)
