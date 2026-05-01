@@ -5,12 +5,12 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
@@ -221,7 +221,8 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
         assertEquals(listOf("Work Calendar"), composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
-        composeRule.onNodeWithText("app.typelauncher.fake8").assertIsDisplayed()
+        composeRule.onNodeWithText("app.typelauncher.fake8").assertDoesNotExist()
+        assertTrue(composeRule.activity.viewModel.uiState.value.filteredApps.single().name.startsWith("Work"))
     }
 
     private fun assertVisibleApps(vararg names: String) {

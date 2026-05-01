@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -279,7 +280,7 @@ private fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
-            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
             .testTag(HOME_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -429,6 +430,13 @@ private fun AppRow(
     onLaunchApp: (InstalledApp) -> Unit,
 ) {
     val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val iconModifier = if (app.isWorkApp) {
+        Modifier
+            .size(40.dp)
+            .testTag("$WORK_APP_BADGE_TAG:${app.name}")
+    } else {
+        Modifier.size(40.dp)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -439,22 +447,11 @@ private fun AppRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AppIcon(app = app)
-        Column(Modifier.weight(1f)) {
-            Text(app.name, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = if (app.isWorkApp) stringResource(R.string.work_app_badge_description) else app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (app.isWorkApp) {
-            Icon(
-                Icons.Filled.Badge,
-                contentDescription = stringResource(R.string.work_app_badge_description),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
+        AppIcon(
+            app = app,
+            modifier = iconModifier,
+        )
+        Text(app.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -500,25 +497,43 @@ private fun AppIcon(app: InstalledApp, modifier: Modifier = Modifier.size(40.dp)
     val bitmap = remember(app.id, app.icon) {
         app.icon?.toBitmap(width = 96, height = 96)?.asImageBitmap()
     }
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
-            )
-        } else {
-            Icon(
-                Icons.Filled.Search,
-                contentDescription = null,
-                modifier = Modifier.padding(8.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                Icon(
+                    Icons.Filled.Search,
+                    contentDescription = null,
+                    modifier = Modifier.padding(8.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        if (app.isWorkApp) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(18.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+            ) {
+                Icon(
+                    Icons.Filled.Badge,
+                    contentDescription = null,
+                    modifier = Modifier.padding(3.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
         }
     }
 }
@@ -534,7 +549,7 @@ private fun AgendaScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
-            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
             .testTag(AGENDA_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -1106,6 +1121,7 @@ internal const val SEARCH_FIELD_TAG = "search_field"
 internal const val APPS_CARD_TAG = "apps_card"
 internal const val APPS_LIST_TAG = "apps_list"
 internal const val APP_ROW_TAG = "app_row"
+internal const val WORK_APP_BADGE_TAG = "work_app_badge"
 internal const val DOCK_CARD_TAG = "dock_card"
 internal const val DOCK_LIST_TAG = "dock_list"
 internal const val DOCK_HINT_TAG = "dock_hint"
