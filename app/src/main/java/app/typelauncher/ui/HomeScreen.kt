@@ -356,7 +356,8 @@ private fun IconOnlyAppButton(
     onResetRank: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    val containerColor = if (isActive) selectionHighlightColor() else Color.Transparent
+    val highlightColor = selectionHighlightColor()
+    val containerColor = if (isActive) highlightColor else Color.Transparent
     Box {
         Column(
             modifier = Modifier
@@ -409,8 +410,10 @@ private fun AppRow(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
 ) {
-    val rowColor = if (isActive) selectionHighlightColor() else Color.Transparent
-    val textColor = if (isActive) selectionHighlightOnColor() else MaterialTheme.colorScheme.onBackground
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val textColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
         Row(

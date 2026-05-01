@@ -38,7 +38,7 @@ This document records the current product and technical design decisions for Typ
 - Typing filters installed apps by case-insensitive substring match against the app label.
 - With an empty query, apps are sorted by descending recorded launch count, then alphabetically by display name. Docked apps are pushed below non-docked apps only while the dock is enabled.
 - Pressing the keyboard search action or Enter opens in-app settings when the query is blank, opens Android system settings when the query is `settings`, or launches the active first filtered app otherwise.
-- The active first filtered app is highlighted in both text-list and icon-list modes so the Enter/search launch target is visible.
+- The active first filtered app is highlighted in both text-list and icon-list modes so the Enter/search launch target is visible. In the text list the entire row is painted with a pale blue background (`#CFE2FF` light / `#274C7A` dark) using 8dp rounded corners. In the icon-only grid a pale blue rounded square (8dp corners, 8dp padding around the icon) is drawn behind the active icon. Both colors are fixed rather than derived from the Material dynamic color scheme because dynamic color produces tokens too close to the card surface to be reliably visible.
 - Enter key handling is designed around Android editor action variance: an Enter down event should be enough to launch, while repeat and matching up events should not double-launch.
 - A query equal to `settings`, ignoring case and surrounding whitespace, launches Android system settings instead of an installed app.
 - The search field trailing slot shows the settings gear when the query is empty, or the clear-search button when the query is non-empty; both controls are never shown together.
