@@ -50,11 +50,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Run Robolectric keyboard screenshot tests
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest"
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
 
-      - name: Upload keyboard screenshots
+      - name: Upload Roborazzi screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: keyboard-screenshot-unit
-          path: app/build/reports/robolectric-screenshots/
+          name: roborazzi-screenshots
+          path: app/src/test/snapshots/images/
