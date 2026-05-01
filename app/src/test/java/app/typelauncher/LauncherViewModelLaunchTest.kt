@@ -29,7 +29,7 @@ class LauncherViewModelLaunchTest {
 
     @Test
     fun launchAppSwallowsActivityNotFoundExceptionForStaleEntry() {
-        shadowOf(application).checkActivities = true
+        shadowOf(application).setCheckActivities(true)
         val staleApp = InstalledApp(
             name = "Uninstalled",
             packageName = "app.uninstalled",
