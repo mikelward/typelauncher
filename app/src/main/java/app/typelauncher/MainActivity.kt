@@ -837,11 +837,6 @@ private fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.settings_dock_enabled_title), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        stringResource(R.string.settings_dock_enabled_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
                 Switch(
                     checked = state.isDockEnabled,
