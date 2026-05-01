@@ -75,8 +75,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         LauncherDebugLog.event("onCreate afterSuper window=${window.debugSummary()}")
+        // Wraps onCreate → first pre-draw so Firebase Performance shows the
+        // launcher's own cold-start time alongside the SDK's auto-instrumented
+        // app_start trace. The auto trace covers Application.onCreate +
+        // Activity.onCreate + first draw, so this complements (rather than
+        // replaces) it by isolating the launcher work specifically.
+        val coldStartTrace = LauncherTelemetry.startTrace("launcher_cold_start")
+        coldStartTrace.setAttribute(
+            "saved_instance_state",
+            if (savedInstanceState == null) "absent" else "present",
+        )
         window.decorView.doOnPreDraw {
             LauncherDebugLog.event("MainActivity firstPreDraw window=${window.debugSummary()}")
+            coldStartTrace.stop()
         }
         appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
         appWidgetManager = AppWidgetManager.getInstance(this)
