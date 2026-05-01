@@ -141,6 +141,22 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun resetRankAction_resetsLaunchCountAndReordersApps() {
+        composeRule.activity.viewModel.setQuery("calculator")
+        composeRule.activity.viewModel.launchApp(composeRule.activity.viewModel.uiState.value.filteredApps.single())
+        composeRule.activity.viewModel.setQuery("calculator")
+        composeRule.activity.viewModel.launchApp(composeRule.activity.viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        assertEquals("Calculator", composeRule.activity.viewModel.uiState.value.filteredApps.first().name)
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(ALL_FAKE_APP_NAMES, composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
+    }
+
+    @Test
     fun appActionsMenuAppInfo_opensAndroidAppInfoForThatApp() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calendar")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").performTouchInput { longClick() }
@@ -165,6 +181,25 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
         composeRule.onNodeWithText("Undock").assertIsDisplayed()
+    }
+
+    @Test
+    fun dockLongPress_showsAppInfoUndockAndResetRankActions() {
+        composeRule.activity.viewModel.setQuery("calculator")
+        composeRule.activity.viewModel.launchApp(composeRule.activity.viewModel.uiState.value.filteredApps.single())
+        composeRule.activity.viewModel.toggleDock(
+            composeRule.activity.viewModel.uiState.value.filteredApps.first { it.name == "Calculator" },
+            maxDockedApps = 6,
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(ALL_FAKE_APP_NAMES, composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
     }
 
     @Test
