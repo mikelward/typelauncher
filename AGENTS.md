@@ -6,6 +6,12 @@ Android home screen launcher app (Kotlin, single `:app` module).
 
 - Keep `SPEC.md` up to date when changing product behavior, architecture, persistence, permissions, navigation, or testing strategy.
 
+## Git workflow
+
+- Always start work from the latest `origin/main`. Before the first commit on any feature branch, run `git fetch origin main` and rebase the working branch onto `origin/main` (`git rebase origin/main`). This applies even when the branch already exists — a stale branch must be brought current before new work is added.
+- If the rebase produces conflicts, resolve them rather than abandoning the rebase or branching from an older base.
+- Never push commits authored on top of an out-of-date base when a fast-forward rebase onto `origin/main` was possible.
+
 ## Cursor Cloud specific instructions
 
 ### Environment
