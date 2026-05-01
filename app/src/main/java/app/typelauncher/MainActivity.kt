@@ -120,6 +120,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
@@ -873,6 +875,7 @@ private fun HostedWidgetCard(
         return
     }
 
+    val density = LocalDensity.current
     AndroidView(
         factory = { context ->
             appWidgetHost.createView(context, widgetId, providerInfo).apply {
@@ -881,10 +884,13 @@ private fun HostedWidgetCard(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(providerInfo.minHeight.dp.coerceAtLeast(WIDGET_MIN_HEIGHT_DP.dp))
+            .height(widgetCardHeight(providerInfo.minHeight, density))
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
     )
 }
+
+internal fun widgetCardHeight(minHeightPx: Int, density: Density): Dp =
+    with(density) { minHeightPx.toDp() }.coerceAtLeast(WIDGET_MIN_HEIGHT_DP.dp)
 
 @Composable
 private fun AgendaScreen(
