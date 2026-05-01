@@ -30,6 +30,7 @@ import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -55,6 +56,12 @@ class MainActivityRobolectricScreenshotTest {
     val ruleChain: RuleChain = RuleChain
         .outerRule(SeedLauncherStateRule())
         .around(composeRule)
+
+    @Before
+    fun showLauncherHomeByDefault() {
+        composeRule.activity.viewModel.openHome()
+        composeRule.waitForIdle()
+    }
 
     @Test
     fun screenshot_home_rendersClothesCastMaterialCards() {
