@@ -53,6 +53,15 @@ tasks.register<Exec>("installAndRun") {
     commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher/.MainActivity")
 }
 
+tasks.withType<Test>().configureEach {
+    if (project.hasProperty("roborazzi.test.record")) {
+        jvmArgs("-Droborazzi.test.record=true")
+    }
+    if (project.hasProperty("roborazzi.test.verify")) {
+        jvmArgs("-Droborazzi.test.verify=true")
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -71,6 +80,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.espresso.core)

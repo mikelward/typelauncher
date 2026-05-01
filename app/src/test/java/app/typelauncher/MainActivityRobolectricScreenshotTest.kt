@@ -3,9 +3,9 @@ package app.typelauncher
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
+import android.app.role.RoleManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.app.role.RoleManager
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.getBoundsInRoot
@@ -29,6 +29,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
+import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -45,7 +46,6 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowToast
-import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -680,6 +680,9 @@ class MainActivityRobolectricScreenshotTest {
         fetchSemanticsNode().config[CarouselVirtualPageKey]
 
     private fun saveScreenshot(name: String) {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
         val root = composeRule.activity.window.decorView.rootView
         root.measure(
             android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
@@ -688,12 +691,7 @@ class MainActivityRobolectricScreenshotTest {
         root.layout(0, 0, 1080, 2400)
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
-        val file = File("build/reports/robolectric-screenshots/$name")
-        file.parentFile?.mkdirs()
-        file.outputStream().buffered().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-        }
-        assertTrue("screenshot is not empty", file.length() > 0L)
+        bitmap.captureRoboImage(filePath = "src/test/snapshots/images/$name")
     }
 
     private fun assertStandardLauncherFlags(intent: Intent) {
