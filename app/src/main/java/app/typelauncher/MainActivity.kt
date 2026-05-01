@@ -124,6 +124,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.LinkedHashSet
+import kotlin.math.abs
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 
@@ -248,14 +249,18 @@ private fun SwipeNavigationBox(
     content: @Composable (LauncherScreen) -> Unit,
 ) {
     val pagerState = rememberPagerState(
-        initialPage = screen.carouselPage,
-        pageCount = { LauncherScreen.carouselScreens.size },
+        initialPage = LauncherScreen.initialCarouselPage(screen),
+        pageCount = { LauncherScreen.carouselPageCount },
     )
     val settledPage = pagerState.settledPage
 
     LaunchedEffect(screen) {
-        if (pagerState.currentPage != screen.carouselPage) {
-            pagerState.animateScrollToPage(screen.carouselPage)
+        val targetPage = LauncherScreen.closestCarouselPage(
+            currentPage = pagerState.currentPage,
+            screen = screen,
+        )
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
         }
     }
     LaunchedEffect(settledPage) {
@@ -1014,8 +1019,30 @@ internal enum class LauncherScreen {
 
     companion object {
         val carouselScreens = entries.toList()
+        const val carouselPageCount = Int.MAX_VALUE
 
-        fun fromCarouselPage(page: Int): LauncherScreen = carouselScreens[page]
+        private val firstVirtualCarouselPage =
+            carouselPageCount / 2 - (carouselPageCount / 2 % carouselScreens.size)
+
+        fun initialCarouselPage(screen: LauncherScreen): Int =
+            firstVirtualCarouselPage + screen.carouselPage
+
+        fun closestCarouselPage(currentPage: Int, screen: LauncherScreen): Int {
+            val currentCarouselPage = Math.floorMod(currentPage, carouselScreens.size)
+            val forwardDelta = Math.floorMod(screen.carouselPage - currentCarouselPage, carouselScreens.size)
+            val backwardDelta = forwardDelta - carouselScreens.size
+            val delta = when {
+                forwardDelta == 0 -> 0
+                forwardDelta < abs(backwardDelta) -> forwardDelta
+                forwardDelta > abs(backwardDelta) -> backwardDelta
+                screen.carouselPage >= currentCarouselPage -> forwardDelta
+                else -> backwardDelta
+            }
+            return currentPage + delta
+        }
+
+        fun fromCarouselPage(page: Int): LauncherScreen =
+            carouselScreens[Math.floorMod(page, carouselScreens.size)]
     }
 }
 
