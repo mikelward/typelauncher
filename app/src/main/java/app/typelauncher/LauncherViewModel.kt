@@ -19,11 +19,16 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -31,32 +36,55 @@ import java.time.ZoneOffset
 internal class LauncherViewModel(
     private val app: Application,
     private val workPackages: Set<String>,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
-    private var installedApps: List<InstalledApp> = loadInstalledApps()
+    private var installedApps: List<InstalledApp> = emptyList()
     private val _uiState = MutableStateFlow(
         LauncherUiState(
-            filteredApps = installedApps.filterByName(
-                query = "",
-                appLaunchStatsStore = appLaunchStatsStore,
-                downrankedAppIds = dockedAppStore.dockedAppIds.takeIf { dockSettingsStore.isDockEnabled }.orEmpty(),
-            ).markDocked(),
-            dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").markDocked(),
             widgetIds = widgetStore.widgetIds,
-            agenda = loadAgendaState(),
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
+            isLoadingApps = true,
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+        // TODO: persist a small InstalledApp metadata cache (id, name, package, optional
+        //   icon path) so the dock and last-known app list can render on the very first
+        //   frame without waiting for LauncherApps.getActivityList. Today the launcher
+        //   shows an empty/loading state on cold start until the IO load below completes.
+        viewModelScope.launch {
+            val (loadedApps, loadedAgenda) = withContext(ioDispatcher) {
+                loadInstalledApps() to loadAgendaState()
+            }
+            installedApps = loadedApps
+            _uiState.update { state ->
+                val downrankedIds = dockedAppStore.dockedAppIds
+                    .takeIf { state.isDockEnabled }
+                    .orEmpty()
+                state.copy(
+                    filteredApps = installedApps.filterByName(
+                        query = state.query,
+                        appLaunchStatsStore = appLaunchStatsStore,
+                        downrankedAppIds = downrankedIds,
+                    ).markDocked(),
+                    dockedApps = installedApps
+                        .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
+                        .markDocked(),
+                    agenda = loadedAgenda,
+                    isLoadingApps = false,
+                )
+            }
+            LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
+        }
     }
 
     fun setQuery(query: String) {
@@ -69,6 +97,9 @@ internal class LauncherViewModel(
     }
 
     fun showAgenda() {
+        // TODO: loadAgendaState queries CalendarContract on the calling thread when the
+        //   permission is granted. Move this to viewModelScope/Dispatchers.IO so that
+        //   swiping to the agenda screen never blocks the main thread.
         _uiState.update { it.copy(screen = LauncherScreen.Agenda, agenda = loadAgendaState()) }
         logState("showAgenda")
     }
@@ -79,6 +110,9 @@ internal class LauncherViewModel(
     }
 
     fun showWidgetPicker() {
+        // TODO: loadAvailableWidgets enumerates installed widget providers on the
+        //   calling thread. Move to viewModelScope/Dispatchers.IO and surface a loading
+        //   state in the picker.
         showWidgetPicker(loadAvailableWidgets())
     }
 

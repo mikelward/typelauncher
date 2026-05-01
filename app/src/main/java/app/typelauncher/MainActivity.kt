@@ -68,13 +68,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
         LauncherDebugLog.event("onCreate savedInstanceState=${savedInstanceState.debugSummary()}")
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         LauncherDebugLog.event("onCreate afterSuper window=${window.debugSummary()}")
         window.decorView.doOnPreDraw {
             LauncherDebugLog.event("MainActivity firstPreDraw window=${window.debugSummary()}")
         }
-        appWidgetHost = AppWidgetHost(this, APP_WIDGET_HOST_ID)
+        appWidgetHost = AppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
         appWidgetManager = AppWidgetManager.getInstance(this)
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         viewModel = ViewModelProvider(
@@ -120,8 +120,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         LauncherDebugLog.activityCallback(this, "MainActivity.onStart")
-        appWidgetHost.startListening()
-        LauncherDebugLog.event("AppWidgetHost.startListening")
+        try {
+            appWidgetHost.startListening()
+            LauncherDebugLog.event("AppWidgetHost.startListening")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("AppWidgetHost.startListening failed", exception)
+        }
     }
 
     override fun onResume() {
@@ -142,14 +146,27 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onStop")
-        appWidgetHost.stopListening()
-        LauncherDebugLog.event("AppWidgetHost.stopListening")
+        stopListeningSafely()
         super.onStop()
     }
 
     override fun onDestroy() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onDestroy")
+        // onStop normally already stopped listening, but make sure we never leak the
+        // host's IPC binding if we get here without an onStop (e.g. process killed in
+        // foreground and then re-attached). stopListening is idempotent.
+        stopListeningSafely()
         super.onDestroy()
+    }
+
+    private fun stopListeningSafely() {
+        if (!::appWidgetHost.isInitialized) return
+        try {
+            appWidgetHost.stopListening()
+            LauncherDebugLog.event("AppWidgetHost.stopListening")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("AppWidgetHost.stopListening failed", exception)
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

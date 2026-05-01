@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -106,6 +107,7 @@ internal fun HomeScreen(
         )
         AppsCard(
             apps = state.filteredApps,
+            isLoading = state.isLoadingApps,
             dockLimit = Int.MAX_VALUE,
             isIconOnly = state.isAppListIconOnly,
             iconSizeDp = dockIconSizeDp,
@@ -238,6 +240,7 @@ private fun DockCard(
 @Composable
 private fun AppsCard(
     apps: List<InstalledApp>,
+    isLoading: Boolean = false,
     dockLimit: Int,
     isIconOnly: Boolean,
     iconSizeDp: Int,
@@ -248,7 +251,17 @@ private fun AppsCard(
     onResetRank: (InstalledApp) -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
-        if (apps.isEmpty()) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                    .testTag(APPS_LOADING_TAG),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (apps.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Search,
                 title = stringResource(R.string.home_empty_title),

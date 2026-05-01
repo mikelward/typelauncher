@@ -14,7 +14,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -27,9 +26,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -49,24 +45,12 @@ internal fun TypeLauncherApp(
     onRequestCalendarPermission: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(state) {
         LauncherDebugLog.event("TypeLauncherApp state ${state.debugSummary()}")
     }
-    DisposableEffect(lifecycleOwner, viewModel) {
-        LauncherDebugLog.event("TypeLauncherApp lifecycle observer attached")
-        val observer = LifecycleEventObserver { _, event ->
-            LauncherDebugLog.event("TypeLauncherApp lifecycle event=$event")
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshPermissionDrivenUi()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            LauncherDebugLog.event("TypeLauncherApp lifecycle observer disposed")
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    // ON_RESUME refresh is handled by MainActivity.onResume; we don't add a Compose
+    // observer for the same event because it would refresh permission-driven UI twice
+    // per resume.
 
     TypeLauncherApp(
         state = state,
