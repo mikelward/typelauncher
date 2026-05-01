@@ -3,9 +3,8 @@ package app.typelauncher
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.app.role.RoleManager
+import com.github.takahirom.roborazzi.captureRoboImage
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.getBoundsInRoot
@@ -45,7 +44,6 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowToast
-import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -77,7 +75,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Installed apps").assertDoesNotExist()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
-        saveScreenshot("compose_home_material_cards_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_home_material_cards_robolectric.png")
     }
 
     @Test
@@ -95,7 +93,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Show calendar events").assertDoesNotExist()
         composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertDoesNotExist()
 
-        saveScreenshot("compose_agenda_permission_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_agenda_permission_robolectric.png")
     }
 
     @Test
@@ -180,7 +178,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Add widget").assertIsDisplayed()
 
-        saveScreenshot("compose_widgets_add_card_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_widgets_add_card_robolectric.png")
     }
 
     @Test
@@ -208,7 +206,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").assertIsDisplayed()
-        saveScreenshot("compose_widget_remove_menu_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_widget_remove_menu_robolectric.png")
         composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").performClick()
         composeRule.waitForIdle()
 
@@ -258,7 +256,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertIsSelected()
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calendar").assertIsNotSelected()
-        saveScreenshot("compose_home_icon_only_active_app_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_home_icon_only_active_app_robolectric.png")
     }
 
     @Test
@@ -295,7 +293,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Show dock").assertIsDisplayed()
         composeRule.onNodeWithText("Dock icons visible: 4").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
-        saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_settings_default_launcher_button_robolectric.png")
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
@@ -339,7 +337,7 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(dockIconBounds.right - dockIconBounds.left, appIconBounds.right - appIconBounds.left)
         assertEquals(dockIconBounds.bottom - dockIconBounds.top, appIconBounds.bottom - appIconBounds.top)
 
-        saveScreenshot("compose_home_icon_only_app_list_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_home_icon_only_app_list_robolectric.png")
     }
 
     @Test
@@ -364,7 +362,7 @@ class MainActivityRobolectricScreenshotTest {
             "disabled dock preview gives dock space to the app list",
             disabledPreviewHeight > enabledPreviewHeight,
         )
-        saveScreenshot("compose_settings_preview_dock_disabled_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_settings_preview_dock_disabled_robolectric.png")
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
@@ -391,7 +389,7 @@ class MainActivityRobolectricScreenshotTest {
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
         assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 
-        saveScreenshot("compose_settings_dock_preview_robolectric.png")
+        captureRoboImage("src/test/snapshots/images/compose_settings_dock_preview_robolectric.png")
     }
 
     @Test
@@ -642,23 +640,6 @@ class MainActivityRobolectricScreenshotTest {
 
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
         fetchSemanticsNode().config[CarouselVirtualPageKey]
-
-    private fun saveScreenshot(name: String) {
-        val root = composeRule.activity.window.decorView.rootView
-        root.measure(
-            android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
-            android.view.View.MeasureSpec.makeMeasureSpec(2400, android.view.View.MeasureSpec.EXACTLY),
-        )
-        root.layout(0, 0, 1080, 2400)
-        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
-        root.draw(Canvas(bitmap))
-        val file = File("build/reports/robolectric-screenshots/$name")
-        file.parentFile?.mkdirs()
-        file.outputStream().buffered().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-        }
-        assertTrue("screenshot is not empty", file.length() > 0L)
-    }
 
     private fun assertStandardLauncherFlags(intent: Intent) {
         val launcherFlags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
