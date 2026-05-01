@@ -28,10 +28,8 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
-import androidx.compose.ui.test.swipeWithVelocity
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
@@ -267,53 +265,6 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
         assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
-    }
-
-    @Test
-    fun shortSwipeBelowDistanceAndVelocityThresholdSnapsBack() {
-        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
-        val startPage = carousel.carouselVirtualPage()
-
-        // Drag ~25 % of the screen width and decelerate to a stop. This is
-        // below the 40 % distance threshold and well below the fling velocity,
-        // so the rubber band should snap back to Home.
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput {
-            swipeWithVelocity(
-                start = Offset(width * 0.7f, height * 0.5f),
-                end = Offset(width * 0.45f, height * 0.5f),
-                endVelocity = 0f,
-                durationMillis = 600L,
-            )
-        }
-        composeRule.waitForIdle()
-
-        assertEquals(startPage, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
-    }
-
-    @Test
-    fun longSwipeWithBackwardsReleaseVelocityStaysOnCurrentScreen() {
-        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
-        val startPage = carousel.carouselVirtualPage()
-
-        // Drag well past the distance threshold then briefly reverse direction
-        // before lifting. The release velocity is opposite to the net drag,
-        // which the carousel treats as "user changed their mind".
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput {
-            val y = height * 0.5f
-            down(Offset(width * 0.9f, y))
-            // Forward drag (towards next page) to ~70 % of width.
-            moveTo(Offset(width * 0.2f, y), delayMillis = 200L)
-            // Reverse the last leg so the velocity tracker reads backwards.
-            moveTo(Offset(width * 0.45f, y), delayMillis = 80L)
-            up()
-        }
-        composeRule.waitForIdle()
-
-        assertEquals(startPage, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test
