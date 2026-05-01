@@ -17,6 +17,7 @@
     <string name="app_menu_app_info">App info</string>
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
+    <string name="app_menu_reset_rank">Reset rank</string>
     <string name="docked_apps_limit_message">Too many apps in dock. Dock up to %1$d apps.</string>
     <string name="navigate_to_agenda">Open agenda</string>
     <string name="navigate_to_home">Back to home</string>

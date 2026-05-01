@@ -194,6 +194,7 @@ private fun TypeLauncherApp(
         onLaunchApp = viewModel::launchApp,
         onOpenAppInfo = viewModel::openAppInfo,
         onToggleDock = viewModel::toggleDock,
+        onResetRank = viewModel::resetRank,
         onShowAgenda = viewModel::showAgenda,
         onShowHome = viewModel::showHome,
         onRequestCalendarPermission = onRequestCalendarPermission,
@@ -209,6 +210,7 @@ private fun TypeLauncherApp(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
     onShowAgenda: () -> Unit,
     onShowHome: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
@@ -231,6 +233,7 @@ private fun TypeLauncherApp(
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
                 )
                 LauncherScreen.Agenda -> AgendaScreen(
                     agenda = state.agenda,
@@ -284,6 +287,7 @@ private fun HomeScreen(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val dockCapacity = ((configuration.screenWidthDp - 32) / DOCK_APP_ICON_SIZE_DP).coerceAtLeast(MIN_DOCKED_APPS)
@@ -309,10 +313,14 @@ private fun HomeScreen(
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
         )
         DockCard(
             dockedApps = state.dockedApps,
             onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
         )
     }
 }
@@ -376,6 +384,9 @@ private fun SearchCard(
 private fun DockCard(
     dockedApps: List<InstalledApp>,
     onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
 ) {
     SectionCard(Modifier.testTag(DOCK_CARD_TAG)) {
         if (dockedApps.isEmpty()) {
@@ -399,6 +410,9 @@ private fun DockCard(
                     DockedAppButton(
                         app = app,
                         onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
                     )
                 }
             }
@@ -414,6 +428,7 @@ private fun AppsCard(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
         if (apps.isEmpty()) {
@@ -437,6 +452,7 @@ private fun AppsCard(
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
                     )
                 }
             }
@@ -452,6 +468,7 @@ private fun AppRow(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
 ) {
     val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     var menuExpanded by remember { mutableStateOf(false) }
@@ -484,6 +501,7 @@ private fun AppRow(
             onDismiss = { menuExpanded = false },
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
         )
     }
 }
@@ -496,6 +514,7 @@ private fun AppActionsMenu(
     onDismiss: () -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         DropdownMenuItem(
@@ -514,6 +533,14 @@ private fun AppActionsMenu(
                 onToggleDock(app, dockCapacity)
             },
         )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_reset_rank)) },
+            modifier = Modifier.testTag("$RESET_RANK_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismiss()
+                onResetRank(app)
+            },
+        )
     }
 }
 
@@ -521,16 +548,14 @@ private fun AppActionsMenu(
 private fun DockedAppButton(
     app: InstalledApp,
     onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Box {
         Column(
             modifier = Modifier
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    role = Role.Button,
-                    onClick = { onLaunchApp(app) },
-                )
                 .semantics { contentDescription = app.name }
                 .padding(4.dp)
                 .testTag("$DOCK_APP_TAG:${app.name}"),
@@ -541,15 +566,26 @@ private fun DockedAppButton(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable(
+                .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
+                    role = Role.Button,
                     onClick = { onLaunchApp(app) },
+                    onLongClick = { menuExpanded = true },
                 )
                 .semantics {
                     role = Role.Button
                     contentDescription = app.name
                 },
+        )
+        AppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            dockCapacity = Int.MAX_VALUE,
+            onDismiss = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
         )
     }
 }
@@ -814,6 +850,11 @@ internal class LauncherViewModel(
                 Toast.LENGTH_SHORT,
             ).show()
         }
+        refreshLists()
+    }
+
+    fun resetRank(app: InstalledApp) {
+        appLaunchStatsStore.resetLaunchCount(app.id)
         refreshLists()
     }
 
@@ -1100,6 +1141,12 @@ internal class AppLaunchStatsStore(context: Context) {
             .apply()
     }
 
+    fun resetLaunchCount(appId: String) {
+        sharedPreferences.edit()
+            .remove(appId.toLaunchCountKey())
+            .apply()
+    }
+
     private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
 
     private companion object {
@@ -1198,6 +1245,7 @@ internal const val APP_ICON_TAG = "app_icon"
 internal const val WORK_APP_BADGE_TAG = "work_app_badge"
 internal const val APP_INFO_ACTION_TAG = "app_info_action"
 internal const val TOGGLE_DOCK_ACTION_TAG = "toggle_dock_action"
+internal const val RESET_RANK_ACTION_TAG = "reset_rank_action"
 internal const val DOCK_CARD_TAG = "dock_card"
 internal const val DOCK_LIST_TAG = "dock_list"
 internal const val DOCK_HINT_TAG = "dock_hint"
@@ -1223,6 +1271,7 @@ private fun HomeEmptyPreview() {
             onLaunchApp = {},
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
+            onResetRank = {},
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1245,6 +1294,7 @@ private fun HomeRunningLargeFontPreview() {
             onLaunchApp = {},
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
+            onResetRank = {},
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1264,6 +1314,7 @@ private fun AgendaPermissionDarkPreview() {
             onLaunchApp = {},
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
+            onResetRank = {},
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1283,6 +1334,7 @@ private fun AgendaEmptyRtlPreview() {
             onLaunchApp = {},
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
+            onResetRank = {},
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1310,6 +1362,7 @@ private fun AgendaEventsPreview() {
             onLaunchApp = {},
             onOpenAppInfo = {},
             onToggleDock = { _, _ -> },
+            onResetRank = {},
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
