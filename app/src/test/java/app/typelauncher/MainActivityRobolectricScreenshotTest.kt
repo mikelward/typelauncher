@@ -220,7 +220,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun firstVisibleAppRow_isSelectedAsActiveLaunchTarget() {
+    fun firstVisibleAppInTextList_isSelectedAsActiveLaunchTarget() {
         composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertIsSelected()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsNotSelected()
 
@@ -229,6 +229,24 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsSelected()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").assertIsNotSelected()
+    }
+
+    @Test
+    fun firstVisibleAppInIconList_isSelectedAsActiveLaunchTarget() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertIsNotSelected()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calendar").assertIsNotSelected()
+        saveScreenshot("compose_home_icon_only_active_app_robolectric.png")
     }
 
     @Test

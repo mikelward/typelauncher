@@ -36,7 +36,7 @@ This document records the current product and technical design decisions for Typ
 - Typing filters installed apps by case-insensitive substring match against the app label.
 - With an empty query, apps are sorted by descending recorded launch count, then alphabetically by display name.
 - Pressing the keyboard search action or Enter launches the active first filtered app.
-- The active first filtered app is highlighted with the Material selected-row container color so the Enter/search launch target is visible.
+- The active first filtered app is highlighted in both text-list and icon-list modes so the Enter/search launch target is visible.
 - Enter key handling is designed around Android editor action variance: an Enter down event should be enough to launch, while repeat and matching up events should not double-launch.
 - A query equal to `settings`, ignoring case and surrounding whitespace, launches Android system settings instead of an installed app.
 - The search field trailing slot shows the settings gear when the query is empty, or the clear-search button when the query is non-empty; both controls are never shown together.
