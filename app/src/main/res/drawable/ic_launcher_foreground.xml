@@ -7,7 +7,7 @@
     <!-- Pill above the T -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M38,22 H70 A4,4 0 0 1 74,26 A4,4 0 0 1 70,30 H38 A4,4 0 0 1 34,26 A4,4 0 0 1 38,22 Z" />
+        android:pathData="M38,25 H70 A4,4 0 0 1 74,29 A4,4 0 0 1 70,33 H38 A4,4 0 0 1 34,29 A4,4 0 0 1 38,25 Z" />
     <!-- Letter T -->
     <path
         android:fillColor="#FF000000"
