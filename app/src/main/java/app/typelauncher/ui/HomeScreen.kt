@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -354,16 +356,16 @@ private fun IconOnlyAppButton(
     onResetRank: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    val containerColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val containerColor = if (isActive) selectionHighlightColor() else Color.Transparent
     Box {
         Column(
             modifier = Modifier
-                .background(containerColor, MaterialTheme.shapes.medium)
+                .background(containerColor, RoundedCornerShape(8.dp))
                 .semantics {
                     contentDescription = app.name
                     selected = isActive
                 }
-                .padding(4.dp)
+                .padding(8.dp)
                 .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -407,14 +409,14 @@ private fun AppRow(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
 ) {
-    val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-    val textColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onBackground
+    val rowColor = if (isActive) selectionHighlightColor() else Color.Transparent
+    val textColor = if (isActive) selectionHighlightOnColor() else MaterialTheme.colorScheme.onBackground
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(rowColor, MaterialTheme.shapes.medium)
+                .background(rowColor, RoundedCornerShape(8.dp))
                 .semantics { selected = isActive }
                 .combinedClickable(
                     onClick = { onLaunchApp(app) },
@@ -807,6 +809,14 @@ private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp, testTa
         }
     }
 }
+
+@Composable
+private fun selectionHighlightColor(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF274C7A) else Color(0xFFCFE2FF)
+
+@Composable
+private fun selectionHighlightOnColor(): Color =
+    if (isSystemInDarkTheme()) Color(0xFFE6EEFA) else Color(0xFF0B2A5B)
 
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
