@@ -9,7 +9,7 @@
     <string name="dock_apps_hint">Long press apps to dock</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Calendar agenda events</string>
-    <string name="agenda_permission_message">Allow calendar access to show your agenda on this -1 screen.</string>
+    <string name="agenda_permission_message">Allow calendar access to show your agenda.</string>
     <string name="agenda_permission_button">Allow calendar</string>
     <string name="agenda_empty_state">No all-day or upcoming events right now.</string>
     <string name="agenda_all_day_label">All day</string>

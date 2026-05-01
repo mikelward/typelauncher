@@ -74,6 +74,8 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(AGENDA_PERMISSION_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Allow calendar access to show your agenda.").assertIsDisplayed()
+        composeRule.onNodeWithText("Allow calendar access to show your agenda on this -1 screen.").assertDoesNotExist()
         composeRule.onNodeWithText("Allow calendar").assertIsDisplayed()
         composeRule.onNodeWithText("Agenda").assertDoesNotExist()
         composeRule.onNodeWithText("Swipe right to return home").assertDoesNotExist()
