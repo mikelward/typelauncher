@@ -104,6 +104,15 @@ This document records the current product and technical design decisions for Typ
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.
 
+## Versioning and distribution
+
+- `versionCode` is derived at configure time from `git rev-list --count HEAD` so it monotonically increases per commit and is reproducible (same commit always produces the same code). When the git command is unavailable (for example, in source-only archives) it falls back to `1`.
+- `versionName` is `"<base>.<commitCount>+<shortSha>"` (for example, `1.0.50+5e6eb54`), where the base prefix is held in a single `baseVersionName` constant in `app/build.gradle.kts`. The `+` separator follows the SemVer "build metadata" convention so the short commit SHA is always discoverable from a built APK.
+- CI must check the repository out with full history (`fetch-depth: 0` for `actions/checkout`) for the commit count to be correct; shallow clones produce a stuck count of `1`.
+- Internal testing builds are distributed through Firebase App Distribution from CI rather than from gradle. The `build` job's last step uses `wzieba/Firebase-Distribution-Github-Action@v1` to upload the debug APK (`app/build/outputs/apk/debug/app-debug.apk`) to the `testers` group. Distributing the debug APK avoids configuring a release signing keystore at this stage; debug-signed builds remain installable for internal testers.
+- The upload step is gated on `github.event_name == 'push'`, the ref being `refs/heads/main`, and the `FIREBASE_APP_ID` and `FIREBASE_SERVICE_ACCOUNT_JSON` secrets being non-empty. This keeps feature-branch and fork CI runs from spamming testers and lets a fresh checkout still pass without Firebase configuration.
+- Release notes default to the head commit message followed by the run number and full SHA. The first ~60 characters land in the tester device's push notification, so the commit subject should stay informative.
+
 ## Testing strategy
 
 - JVM tests under `app/src/test` cover logic and Robolectric-backed Compose behavior.
