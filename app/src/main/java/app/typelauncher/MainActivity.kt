@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
                 workPackages = intent?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)?.toSet().orEmpty(),
             ),
         )[LauncherViewModel::class.java]
+        handleLaunchIntent(intent)
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         LauncherDebugLog.event("setContent begin")
         setContent {
@@ -110,6 +111,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         LauncherDebugLog.activityCallback(this, "MainActivity.onNewIntent", intent)
+        handleLaunchIntent(intent)
     }
 
     override fun onRestart() {
@@ -280,6 +282,14 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         viewModel.removeWidget(appWidgetId)
         deletePendingWidget(appWidgetId)
+    }
+
+    internal fun handleLaunchIntent(intent: Intent?) {
+        when (intent.launcherEntryPoint()) {
+            LauncherEntryPoint.HomeScreen -> viewModel.openHome()
+            LauncherEntryPoint.AppIcon -> viewModel.openSettings()
+            LauncherEntryPoint.Other -> Unit
+        }
     }
 }
 

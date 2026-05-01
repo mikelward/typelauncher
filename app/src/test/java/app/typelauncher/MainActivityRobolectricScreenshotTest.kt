@@ -276,6 +276,19 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun settingsButtonOpensSettingsAndDoneReturnsHome() {
+        composeRule.activity.viewModel.showAgenda()
+        composeRule.waitForIdle()
+
+        composeRule.activity.viewModel.closeSettings()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.activity.viewModel.showAgenda()
+        composeRule.waitForIdle()
+
+        composeRule.activity.viewModel.showHome()
+        composeRule.waitForIdle()
+
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -291,6 +304,31 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun appIconLaunchOpensSettingsAndDoneReturnsLauncherHome() {
+        composeRule.activity.viewModel.showAgenda()
+        composeRule.waitForIdle()
+
+        composeRule.runOnUiThread {
+            composeRule.activity.handleLaunchIntent(
+                Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_LAUNCHER)
+                    .setPackage(RuntimeEnvironment.getApplication().packageName),
+            )
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(true, composeRule.activity.viewModel.uiState.value.isSettingsOpen)
+
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(false, composeRule.activity.viewModel.uiState.value.isSettingsOpen)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test

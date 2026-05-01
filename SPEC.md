@@ -26,7 +26,7 @@ This document records the current product and technical design decisions for Typ
 - The app has three carousel screens, `Home`, `Widgets`, and `Agenda`, plus a settings page opened from Home.
 - Horizontal swipes move between screens through a Compose `HorizontalPager`; swiping right-to-left from `Home` opens the +1 `Widgets` screen, then the `Agenda` screen.
 - Pager navigation uses an effectively infinite carousel so swiping left or right always wraps across `Home`, `Widgets`, and `Agenda`; user swipes are handled as discrete gestures, not free-scrolling pager flings, so each gesture can advance exactly one screen at most.
-- Settings is an in-app page outside the carousel, opened by the gear icon in the empty search field and closed with a Done button.
+- Settings is an in-app page outside the carousel, opened by the gear icon in the empty search field or by launching Type Launcher from another launcher's app icon. The Done button closes settings and returns to the `Home` launcher view.
 - `LauncherScreenSwitcher` is a legacy/custom `ViewAnimator` swipe helper and is not part of the current Compose runtime path.
 - Swipe handling was introduced because child lists can otherwise consume gestures before launcher-level navigation sees them.
 

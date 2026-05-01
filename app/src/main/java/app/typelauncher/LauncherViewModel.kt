@@ -191,8 +191,13 @@ internal class LauncherViewModel(
         logState("openSettings")
     }
 
+    fun openHome() {
+        _uiState.update { it.copy(screen = LauncherScreen.Home, isSettingsOpen = false, isAddingWidget = false) }
+        logState("openHome")
+    }
+
     fun closeSettings() {
-        _uiState.update { it.copy(isSettingsOpen = false) }
+        _uiState.update { it.copy(screen = LauncherScreen.Home, isSettingsOpen = false) }
         logState("closeSettings")
     }
 
