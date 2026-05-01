@@ -352,7 +352,8 @@ class MainActivityRobolectricScreenshotTest {
         val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
         assertEquals("android.app.role.action.REQUEST_ROLE", startedIntent.action)
         assertEquals(RoleManager.ROLE_HOME, startedIntent.getStringExtra("android.intent.extra.ROLE_NAME"))
-        assertStandardLauncherFlags(startedIntent)
+        assertTrue((startedIntent.flags and Intent.FLAG_ACTIVITY_NEW_TASK) != 0)
+        assertEquals(0, startedIntent.flags and Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
     }
 
     @Test
