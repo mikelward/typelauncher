@@ -31,6 +31,7 @@ import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -46,6 +47,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowToast
+import java.time.LocalDate
+import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -100,7 +103,10 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun screenshot_agenda_events_rendersGoogleCalendarStyleRows() {
-        composeRule.activity.viewModel.showAgendaEventsForTest(SAMPLE_AGENDA_EVENTS)
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val tomorrow = today.plusDays(1)
+        composeRule.activity.viewModel.showAgendaEventsForTest(todayAgendaSample())
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
@@ -110,15 +116,21 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("9:30 AM").assertIsDisplayed()
         composeRule.onNodeWithText("Design review").assertIsDisplayed()
         composeRule.onNodeWithText("1:00 PM").assertIsDisplayed()
+        composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$today").assertIsDisplayed()
+        composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$tomorrow").assertIsDisplayed()
+        composeRule.onNodeWithText("Today").assertIsDisplayed()
+        composeRule.onNodeWithText("Tomorrow").assertIsDisplayed()
 
         saveScreenshot("compose_agenda_events_robolectric.png")
     }
 
     @Test
     fun tappingAgendaEventRow_opensCalendarEventViaIntent() {
-        composeRule.activity.viewModel.showAgendaEventsForTest(SAMPLE_AGENDA_EVENTS)
+        val sample = todayAgendaSample()
+        composeRule.activity.viewModel.showAgendaEventsForTest(sample)
         composeRule.waitForIdle()
 
+        val designReview = sample.first { it.eventId == 42L }
         composeRule.onNodeWithTag("$AGENDA_EVENT_ROW_TAG:42").performClick()
         composeRule.waitForIdle()
 
@@ -132,14 +144,51 @@ class MainActivityRobolectricScreenshotTest {
             startedIntent.data,
         )
         assertEquals(
-            1_700_000_000_000L,
+            designReview.beginMillis,
             startedIntent.getLongExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, 0L),
         )
         assertEquals(
-            1_700_003_600_000L,
+            designReview.endMillis,
             startedIntent.getLongExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, 0L),
         )
         assertStandardLauncherFlags(startedIntent)
+    }
+
+    @Test
+    fun receivingHomeLauncherIntent_returnsToAppListFromOtherScreens() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.showAgenda()
+        composeRule.waitForIdle()
+        assertEquals(LauncherScreen.Agenda, viewModel.uiState.value.screen)
+
+        composeRule.activity.runOnUiThread {
+            composeRule.activity.handleLauncherIntent(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+            )
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun receivingLauncherIntent_closesSettingsAndReturnsHome() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.openSettings()
+        composeRule.waitForIdle()
+        assertTrue(viewModel.uiState.value.isSettingsOpen)
+
+        composeRule.activity.runOnUiThread {
+            composeRule.activity.handleLauncherIntent(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
+            )
+        }
+        composeRule.waitForIdle()
+
+        assertFalse(viewModel.uiState.value.isSettingsOpen)
+        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -808,12 +857,15 @@ class MainActivityRobolectricScreenshotTest {
         }
     }
 
-    private companion object {
-        val SAMPLE_AGENDA_EVENTS = listOf(
+    private fun todayAgendaSample(): List<AgendaEvent> {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val tomorrow = today.plusDays(1)
+        return listOf(
             AgendaEvent(
                 title = "Standup",
-                beginMillis = 1_700_000_000_000L,
-                endMillis = 1_700_003_600_000L,
+                beginMillis = today.atTime(9, 30).atZone(zone).toInstant().toEpochMilli(),
+                endMillis = today.atTime(10, 0).atZone(zone).toInstant().toEpochMilli(),
                 isAllDay = false,
                 displayTime = "9:30 AM",
                 eventId = 1L,
@@ -821,15 +873,26 @@ class MainActivityRobolectricScreenshotTest {
             ),
             AgendaEvent(
                 title = "Design review",
-                beginMillis = 1_700_000_000_000L,
-                endMillis = 1_700_003_600_000L,
+                beginMillis = today.atTime(13, 0).atZone(zone).toInstant().toEpochMilli(),
+                endMillis = today.atTime(14, 0).atZone(zone).toInstant().toEpochMilli(),
                 isAllDay = false,
                 displayTime = "1:00 PM",
                 eventId = 42L,
                 calendarColor = 0xFFD50000.toInt(),
             ),
+            AgendaEvent(
+                title = "Workout",
+                beginMillis = tomorrow.atTime(7, 0).atZone(zone).toInstant().toEpochMilli(),
+                endMillis = tomorrow.atTime(8, 0).atZone(zone).toInstant().toEpochMilli(),
+                isAllDay = false,
+                displayTime = "7:00 AM",
+                eventId = 7L,
+                calendarColor = 0xFF7CB342.toInt(),
+            ),
         )
+    }
 
+    private companion object {
         val ALL_FAKE_APP_NAMES = listOf(
             "Browser",
             "Calculator",

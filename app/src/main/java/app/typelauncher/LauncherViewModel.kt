@@ -151,6 +151,18 @@ internal class LauncherViewModel(
         logState("showHome")
     }
 
+    fun returnToLauncherHome() {
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Home,
+                isSettingsOpen = false,
+                isAddingWidget = false,
+                isLoadingAvailableWidgets = false,
+            )
+        }
+        logState("returnToLauncherHome")
+    }
+
     fun refreshPermissionDrivenUi() {
         LauncherDebugLog.event("refreshPermissionDrivenUi screen=${_uiState.value.screen}")
         if (_uiState.value.screen == LauncherScreen.Agenda) {
@@ -520,15 +532,7 @@ private fun AgendaEvent.formatTime(context: Context): String {
     if (isAllDay) {
         return context.getString(R.string.agenda_all_day_label)
     }
-    val zone = ZoneId.systemDefault()
-    val eventDay = Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate()
-    val today = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone).toLocalDate()
-    val flags = if (eventDay == today) {
-        DateUtils.FORMAT_SHOW_TIME
-    } else {
-        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
-    }
-    return DateUtils.formatDateRange(context, beginMillis, endMillis, flags).toString()
+    return DateUtils.formatDateRange(context, beginMillis, endMillis, DateUtils.FORMAT_SHOW_TIME).toString()
 }
 
 private fun AppWidgetProviderInfo.toWidgetProvider(context: Context): WidgetProvider {
