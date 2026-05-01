@@ -7,9 +7,9 @@
     <!-- Pill above the T -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M44,22 H64 A4,4 0 0 1 68,26 A4,4 0 0 1 64,30 H44 A4,4 0 0 1 40,26 A4,4 0 0 1 44,22 Z" />
+        android:pathData="M38,22 H70 A4,4 0 0 1 74,26 A4,4 0 0 1 70,30 H38 A4,4 0 0 1 34,26 A4,4 0 0 1 38,22 Z" />
     <!-- Letter T -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M28,40 H80 V50 H59 V84 H49 V50 H28 Z" />
+        android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
 </vector>
