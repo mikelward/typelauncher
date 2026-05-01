@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -175,13 +174,14 @@ private fun AgendaEventRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Visible,
-            modifier = Modifier.widthIn(min = 72.dp),
+            modifier = Modifier.width(72.dp),
         )
         Box(
             modifier = Modifier
                 .width(4.dp)
                 .heightIn(min = 28.dp)
-                .background(stripeColor, RoundedCornerShape(2.dp)),
+                .background(stripeColor, RoundedCornerShape(2.dp))
+                .testTag("$AGENDA_EVENT_STRIPE_TAG:${event.eventId}"),
         )
         Text(
             text = event.title,
@@ -198,11 +198,11 @@ private val TIME_RANGE_DASH_REGEX = Regex("\\s*[\u2013\u2014-]\\s*")
 internal fun formatTimeForRow(rawTime: String): String {
     // For a start/end range, force the whitespace inside each time half to be
     // non-breaking. The only remaining wrap opportunities are the regular
-    // spaces flanking the en-dash, so a narrow row breaks at the dash
-    // ("12:00\u00A0PM\n\u2013 1:00\u00A0PM") instead of mid-time
-    // ("12:00-13:0\n0"). Wide rows still fit on one line. Single-time strings
-    // ("9:30 AM", "All day") pass through unchanged so tests and accessibility
-    // tooling see the natural text.
+    // spaces flanking the en-dash, so the fixed-width time column breaks at
+    // the dash ("12:00\u00A0PM\n\u2013 1:00\u00A0PM") instead of mid-time
+    // ("12:00-13:0\n0"). Single-time strings ("9:30 AM", "All day") pass
+    // through unchanged so tests and accessibility tooling see the natural
+    // text.
     val match = TIME_RANGE_DASH_REGEX.find(rawTime) ?: return rawTime
     val before = rawTime.substring(0, match.range.first).replace(' ', '\u00A0')
     val after = rawTime.substring(match.range.last + 1).replace(' ', '\u00A0')
