@@ -309,6 +309,7 @@ private fun IconOnlyAppGrid(
         items(apps, key = { app -> app.id }) { app ->
             IconOnlyAppButton(
                 app = app,
+                isActive = app == apps.first(),
                 dockLimit = dockLimit,
                 iconSizeDp = iconSizeDp,
                 onLaunchApp = onLaunchApp,
@@ -323,6 +324,7 @@ private fun IconOnlyAppGrid(
 @Composable
 private fun IconOnlyAppButton(
     app: InstalledApp,
+    isActive: Boolean,
     dockLimit: Int,
     iconSizeDp: Int,
     onLaunchApp: (InstalledApp) -> Unit,
@@ -331,10 +333,15 @@ private fun IconOnlyAppButton(
     onResetRank: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val containerColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     Box {
         Column(
             modifier = Modifier
-                .semantics { contentDescription = app.name }
+                .background(containerColor, MaterialTheme.shapes.medium)
+                .semantics {
+                    contentDescription = app.name
+                    selected = isActive
+                }
                 .padding(4.dp)
                 .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -354,6 +361,7 @@ private fun IconOnlyAppButton(
                 .semantics {
                     role = Role.Button
                     contentDescription = app.name
+                    selected = isActive
                 },
         )
         AppActionsMenu(
