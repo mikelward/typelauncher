@@ -457,10 +457,18 @@ internal class LauncherViewModel(
             "launchApp package=${app.packageName} component=${component?.flattenToShortString()} " +
                 "work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
         )
-        if (app.launchWithLauncherApps && component != null) {
-            this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
-        } else {
-            startActivity(app.launchIntent.asLauncherTaskIntent())
+        try {
+            if (app.launchWithLauncherApps && component != null) {
+                this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
+            } else {
+                startActivity(app.launchIntent.asLauncherTaskIntent())
+            }
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("launchApp activity not found package=${app.packageName}", exception)
+            return
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.warning("launchApp security exception package=${app.packageName}", exception)
+            return
         }
         appLaunchStatsStore.recordLaunch(app.id)
         // Close the recents panel and notification bar as we leave Home — when
