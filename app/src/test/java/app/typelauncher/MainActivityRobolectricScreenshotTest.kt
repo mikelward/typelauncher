@@ -129,6 +129,19 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun fastAppListFlingAdvancesOnlyOneScreen() {
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val startPage = carousel.carouselVirtualPage()
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
+        composeRule.waitForIdle()
+
+        assertEquals(startPage + 1, carousel.carouselVirtualPage())
+        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
         composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")
