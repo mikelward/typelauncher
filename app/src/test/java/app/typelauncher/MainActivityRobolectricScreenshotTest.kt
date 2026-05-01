@@ -80,8 +80,20 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun swipingRightFromHomeShowsAgendaAndSwipingLeftReturnsHome() {
+    fun swipingWrapsAroundBetweenHomeAndAgenda() {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
         assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
