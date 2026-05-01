@@ -10,6 +10,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performClick
@@ -193,6 +195,18 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
         composeRule.waitForIdle()
         assertVisibleApps("Calculator", "Calendar", "Camera", "Work Calendar")
+    }
+
+    @Test
+    fun firstVisibleAppRow_isSelectedAsActiveLaunchTarget() {
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsNotSelected()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").assertIsNotSelected()
     }
 
     @Test

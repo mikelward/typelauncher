@@ -112,6 +112,7 @@ import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.text.KeyboardActions
@@ -624,12 +625,14 @@ private fun AppRow(
     onResetRank: (InstalledApp) -> Unit,
 ) {
     val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val textColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onBackground
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(rowColor, MaterialTheme.shapes.medium)
+                .semantics { selected = isActive }
                 .combinedClickable(
                     onClick = { onLaunchApp(app) },
                     onLongClick = { menuExpanded = true },
@@ -644,7 +647,7 @@ private fun AppRow(
                 app.name,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = textColor,
             )
         }
         AppActionsMenu(
@@ -1553,6 +1556,9 @@ internal object AgendaEventOrganizer {
 
 private val lightScheme = lightColorScheme(
     primary = Color(0xFF1E6FFF),
+    secondary = Color(0xFF2F5FAD),
+    secondaryContainer = Color(0xFFD8E2FF),
+    onSecondaryContainer = Color(0xFF001A41),
     background = Color(0xFFF7F8FA),
     onBackground = Color(0xFF1B1C1F),
 )
@@ -1560,6 +1566,9 @@ private val lightScheme = lightColorScheme(
 private val darkScheme = darkColorScheme(
     primary = Color(0xFF8AB4FF),
     onPrimary = Color(0xFF002E6E),
+    secondary = Color(0xFFADC6FF),
+    secondaryContainer = Color(0xFF174682),
+    onSecondaryContainer = Color(0xFFD8E2FF),
     background = Color(0xFF101114),
     onBackground = Color(0xFFE3E3E6),
 )
