@@ -1,6 +1,8 @@
 package app.typelauncher
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -120,5 +122,44 @@ class LauncherQueryMatchTest {
         assertTrue("Surfshark".matchesLauncherQuery("SURF"))
         assertTrue("Surfshark".matchesLauncherQuery("sUrF"))
         assertTrue("mySA".matchesLauncherQuery("SA"))
+    }
+
+    @Test
+    fun prefixTierWinsOverAnchoredAndSubstring() {
+        assertEquals(LauncherMatchTier.Prefix, "Gmail".launcherMatchTier("g"))
+        assertEquals(LauncherMatchTier.Prefix, "Gmail".launcherMatchTier("gma"))
+        assertEquals(LauncherMatchTier.Prefix, "google mail".launcherMatchTier("goog"))
+        assertEquals(LauncherMatchTier.Prefix, "Surfshark".launcherMatchTier("surf"))
+    }
+
+    @Test
+    fun anchoredTierMatchesWhenNotAPrefix() {
+        assertEquals(LauncherMatchTier.Anchored, "Apple TV".launcherMatchTier("atv"))
+        assertEquals(LauncherMatchTier.Anchored, "BofA".launcherMatchTier("ba"))
+        assertEquals(LauncherMatchTier.Anchored, "Google Mail".launcherMatchTier("m"))
+    }
+
+    @Test
+    fun substringTierMatchesWhenAnchorRulesReject() {
+        assertEquals(LauncherMatchTier.Substring, "Gmail".launcherMatchTier("mail"))
+        assertEquals(LauncherMatchTier.Substring, "1password".launcherMatchTier("pass"))
+        assertEquals(LauncherMatchTier.Substring, "Air France".launcherMatchTier("fa"))
+    }
+
+    @Test
+    fun substringTierIsCaseInsensitive() {
+        assertEquals(LauncherMatchTier.Substring, "Gmail".launcherMatchTier("MAIL"))
+        assertEquals(LauncherMatchTier.Substring, "Gmail".launcherMatchTier("Mail"))
+    }
+
+    @Test
+    fun nonMatchingQueryReturnsNullTier() {
+        assertNull("Gmail".launcherMatchTier("xyz"))
+        assertNull("Surfshark".launcherMatchTier("zzz"))
+    }
+
+    @Test
+    fun emptyQueryFallsIntoPrefixTier() {
+        assertEquals(LauncherMatchTier.Prefix, "Gmail".launcherMatchTier(""))
     }
 }

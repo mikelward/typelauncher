@@ -48,19 +48,36 @@ internal fun List<InstalledApp>.filterByName(
             )
         }
     } else {
-        filter { app -> app.name.matchesLauncherQuery(query) }
+        mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
+            .sortedBy { (_, tier) -> tier.ordinal }
+            .map { (app, _) -> app }
     }
 
 internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
     filter { app -> app.id in dockedAppIds }
         .let { dockedApps ->
             if (query.isEmpty()) {
-                dockedApps
+                dockedApps.sortedBy { app -> dockedAppIds.indexOf(app.id) }
             } else {
-                dockedApps.filter { app -> app.name.matchesLauncherQuery(query) }
+                dockedApps
+                    .mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
+                    .sortedWith(
+                        compareBy<Pair<InstalledApp, LauncherMatchTier>> { (_, tier) -> tier.ordinal }
+                            .thenBy { (app, _) -> dockedAppIds.indexOf(app.id) },
+                    )
+                    .map { (app, _) -> app }
             }
         }
-        .sortedBy { app -> dockedAppIds.indexOf(app.id) }
+
+internal enum class LauncherMatchTier { Prefix, Anchored, Substring }
+
+internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
+    if (query.isEmpty()) return LauncherMatchTier.Prefix
+    if (startsWith(query, ignoreCase = true)) return LauncherMatchTier.Prefix
+    if (matchesLauncherQuery(query)) return LauncherMatchTier.Anchored
+    if (contains(query, ignoreCase = true)) return LauncherMatchTier.Substring
+    return null
+}
 
 internal fun String.matchesLauncherQuery(query: String): Boolean {
     if (query.isEmpty()) return true
