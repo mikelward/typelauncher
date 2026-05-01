@@ -34,8 +34,6 @@
     <string name="widgets_picker_no_matches_body">Try a shorter app name or clear the filter.</string>
     <string name="widgets_picker_filter_hint">Filter by app name</string>
     <string name="widgets_picker_filter_clear_description">Clear filter</string>
-    <string name="widgets_picker_preview_provider">Preview</string>
-    <string name="widgets_picker_hide_preview">Hide</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Very small, will be padded</string>
     <string name="widgets_preview_unavailable">Preview unavailable</string>
