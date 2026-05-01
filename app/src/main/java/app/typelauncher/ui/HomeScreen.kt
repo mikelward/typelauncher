@@ -366,7 +366,7 @@ private fun IconOnlyAppButton(
                     contentDescription = app.name
                     selected = isActive
                 }
-                .padding(8.dp)
+                .padding(4.dp)
                 .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
