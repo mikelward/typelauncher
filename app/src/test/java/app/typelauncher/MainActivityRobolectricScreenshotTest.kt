@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -104,6 +105,23 @@ class MainActivityRobolectricScreenshotTest {
 
         assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun fastCarouselFlingAdvancesOnlyOneScreen() {
+        val homeBounds = composeRule.onNodeWithTag(HOME_SCREEN_TAG).getBoundsInRoot()
+
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput {
+            swipe(
+                start = Offset(homeBounds.right - 1f, homeBounds.center.y),
+                end = Offset(homeBounds.left + 1f, homeBounds.center.y),
+                durationMillis = 1,
+            )
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test

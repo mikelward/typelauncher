@@ -48,6 +48,8 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -272,6 +274,10 @@ private fun SwipeNavigationBox(
 
     HorizontalPager(
         state = pagerState,
+        flingBehavior = PagerDefaults.flingBehavior(
+            state = pagerState,
+            pagerSnapDistance = PagerSnapDistance.atMost(1),
+        ),
         modifier = Modifier.fillMaxSize(),
     ) { page ->
         content(LauncherScreen.fromCarouselPage(page))
