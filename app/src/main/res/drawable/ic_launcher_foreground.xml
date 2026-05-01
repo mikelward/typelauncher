@@ -4,16 +4,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Hollow pill above the T, stylised as a search/filter bar -->
+    <!-- Hollow rectangle above the T, stylised as a search/filter bar -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="1.5"
-        android:pathData="M38,25 H70 A4,4 0 0 1 74,29 A4,4 0 0 1 70,33 H38 A4,4 0 0 1 34,29 A4,4 0 0 1 38,25 Z" />
-    <!-- Caret inside the pill -->
+        android:pathData="M34,27 H74 V35 H34 Z" />
+    <!-- Caret inside the rectangle -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M39,27.5 H40 V30.5 H39 Z" />
+        android:pathData="M39,29.5 H40 V32.5 H39 Z" />
     <!-- Letter T -->
     <path
         android:fillColor="#FF000000"
