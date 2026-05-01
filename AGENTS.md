@@ -11,7 +11,6 @@ Android home screen launcher app (Kotlin, single `:app` module).
 - Always start work from the latest `origin/main`. Before the first commit on any feature branch, run `git fetch origin main` and rebase the working branch onto `origin/main` (`git rebase origin/main`). This applies even when the branch already exists — a stale branch must be brought current before new work is added.
 - If the rebase produces conflicts, resolve them rather than abandoning the rebase or branching from an older base.
 - Never push commits authored on top of an out-of-date base when a fast-forward rebase onto `origin/main` was possible.
-- After every merge (including merges performed via `git merge`, rebase merges, or PR merges), report the total session cost so far, calculated as if all token usage were billed as extra usage at standard API rates.
 
 ## Cursor Cloud specific instructions
 
