@@ -66,9 +66,20 @@ internal class LauncherViewModel(
         //   shows an empty/loading state on cold start until the IO load below completes.
         viewModelScope.launch {
             val initAgendaVersion = agendaVersion
+            val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
             val (loadedApps, loadedAgenda) = withContext(ioDispatcher) {
-                loadInstalledApps() to loadAgendaState()
+                val apps = traceBlock("installed_apps_load") { trace ->
+                    loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+                }
+                val agenda = traceBlock("agenda_initial_load") { trace ->
+                    loadAgendaState().also {
+                        trace.setAttribute("state", it::class.simpleName ?: "unknown")
+                    }
+                }
+                apps to agenda
             }
+            initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
+            initialLoadTrace.stop()
             installedApps = loadedApps
             _uiState.update { state ->
                 val downrankedIds = dockedAppStore.dockedAppIds

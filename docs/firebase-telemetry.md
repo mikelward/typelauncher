@@ -1,0 +1,84 @@
+# Firebase Crashlytics + Performance Monitoring
+
+The launcher reports crashes and performance traces to Firebase. Both SDKs
+identify installs by an anonymous Firebase Installation ID — there is no Google
+sign-in or user-visible login. Devices without Google Play Services (e.g.
+GrapheneOS, LineageOS without GApps) skip telemetry silently.
+
+## What is captured
+
+- **Crashlytics**: uncaught exceptions, ANRs (when the system reports them),
+  and the most recent log lines from `LauncherDebugLog` as breadcrumbs. The
+  `LauncherDebugLog.warning` call also forwards its `Throwable` (when present)
+  to `recordException`.
+- **Performance Monitoring**: the SDK auto-instruments `app_start` (cold/warm/
+  hot) and screen rendering. The launcher adds these custom traces:
+  - `launcher_cold_start` — `MainActivity.onCreate` through first pre-draw,
+    attribute `saved_instance_state=present|absent`.
+  - `launcher_initial_load` — the `viewModelScope` IO load that populates the
+    app list and agenda on cold start, metric `app_count`.
+  - `installed_apps_load` — the `LauncherApps`/`PackageManager` query, metric
+    `app_count`.
+  - `agenda_initial_load` — the `CalendarContract` query, attribute `state` =
+    `Events` / `Empty` / `PermissionRequired`.
+
+`LauncherTelemetry.kt` wraps both SDKs. Every entry point checks whether a
+`FirebaseApp` is initialized in the current process and no-ops if not, so the
+production code paths are unconditional and safe to call from Robolectric
+tests, forks, and de-Googled devices.
+
+## Build wiring
+
+Firebase is gated on the presence of `app/google-services.json`:
+
+- **File present** → `app/build.gradle.kts` applies the
+  `com.google.gms.google-services` and
+  `com.google.firebase.crashlytics` plugins, the SDKs auto-initialize via the
+  manifest-merged `FirebaseInitProvider`, and telemetry flows.
+- **File absent** → the plugins are skipped, the SDKs find no
+  `FirebaseApp` at runtime, and `LauncherTelemetry` stays in its no-op path.
+  Forks, the Cursor Cloud sandbox, and Robolectric tests build cleanly.
+
+The `firebase-bom`, `firebase-crashlytics`, and `firebase-perf` dependencies
+are always pulled so the wrapper compiles either way; only the gradle plugins
+(which inject the project config and upload symbols) are conditional.
+
+`app/google-services.json` is gitignored. The Firebase project ID it carries
+is not strictly secret — Firebase apps are protected by the Android signing
+key, not the contents of this file — but the maintainer's Firebase project is
+private, and gating via existence makes the conditional build behavior easy to
+reason about.
+
+## Populating it in CI
+
+CI materializes the file from a GitHub Actions secret named
+`GOOGLE_SERVICES_JSON`. Set the secret's value to the **raw JSON** downloaded
+from the Firebase console (Project settings → General → Your apps →
+`google-services.json`):
+
+```text
+{
+  "project_info": { ... },
+  "client": [ ... ],
+  ...
+}
+```
+
+The `Materialize google-services.json` step in
+`.github/workflows/android-ci.yml` writes it to `app/google-services.json`
+before `assembleDebug`. The step is gated on the secret being non-empty, so PR
+builds from forks (which can't see secrets) still pass — they just produce an
+APK without Firebase telemetry.
+
+## Local development
+
+To enable telemetry locally, drop the same `google-services.json` into `app/`.
+Day-to-day work does not need it; the build skips the Firebase plugins and the
+launcher runs identically minus the trace/crash reports.
+
+## Crashlytics symbol upload
+
+`isMinifyEnabled = false` for both build types today, so there are no
+ProGuard/R8 mappings to upload. If you later turn on minification, the
+`firebase-crashlytics` gradle plugin will start uploading mapping files
+automatically as part of `assembleRelease`.

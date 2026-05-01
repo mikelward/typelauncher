@@ -11,3 +11,7 @@ local.properties
 app/build
 *.keystore
 *.jks
+# Firebase per-project config; not strictly secret, but the Firebase project is
+# private to the maintainer. Forks and the sandbox build cleanly without it —
+# see docs/firebase-telemetry.md.
+app/google-services.json

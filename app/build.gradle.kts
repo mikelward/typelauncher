@@ -3,6 +3,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
 }
 
+// Firebase Crashlytics + Performance Monitoring need google-services.json to be
+// present at app/google-services.json. The file isn't checked in (it identifies
+// the Firebase project; the SDK still relies on the APK signature for trust),
+// so forks and the sandbox without one build cleanly without telemetry — the
+// plugins are skipped and LauncherTelemetry's wrapper no-ops at runtime when no
+// FirebaseApp is initialized. See docs/firebase-telemetry.md.
+val firebaseConfigFile = file("google-services.json")
+val hasFirebaseConfig = firebaseConfigFile.exists()
+if (hasFirebaseConfig) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+    apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
+}
+
 fun gitOutput(vararg args: String, fallback: String): String =
     try {
         val output = providers.exec {
@@ -111,6 +124,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.material)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.perf)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.robolectric)

@@ -25,6 +25,10 @@ internal object LauncherDebugLog {
         if (BuildConfig.DEBUG) {
             Log.d(LAUNCHER_DEBUG_TAG, message)
         }
+        // Mirror into Crashlytics so the most recent ~64 lines ride along on
+        // any future crash report, giving us the same context the bug-report
+        // helper would attach.
+        LauncherTelemetry.log(message)
     }
 
     fun warning(message: String, throwable: Throwable? = null) {
@@ -32,6 +36,8 @@ internal object LauncherDebugLog {
         if (BuildConfig.DEBUG) {
             Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
         }
+        LauncherTelemetry.log("WARN $message")
+        if (throwable != null) LauncherTelemetry.recordException(throwable)
     }
 
     fun activityCallback(activity: Activity, callback: String, intent: Intent? = activity.intent) {

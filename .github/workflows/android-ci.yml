@@ -39,6 +39,17 @@ jobs:
           printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
           echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
 
+      - name: Materialize google-services.json
+        # Drops the Firebase project config into app/google-services.json so the
+        # google-services + crashlytics gradle plugins activate (see
+        # app/build.gradle.kts) and Crashlytics + Performance Monitoring ship
+        # in the built APK. Skipped on forks / PRs without the secret — the
+        # build still finishes, just without telemetry.
+        if: env.GOOGLE_SERVICES_JSON != ''
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
+
       - name: Build debug APK
         env:
           DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
