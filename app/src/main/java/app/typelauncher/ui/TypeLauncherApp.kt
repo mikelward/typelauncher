@@ -50,14 +50,22 @@ internal fun TypeLauncherApp(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(state) {
+        LauncherDebugLog.event("TypeLauncherApp state ${state.debugSummary()}")
+    }
     DisposableEffect(lifecycleOwner, viewModel) {
+        LauncherDebugLog.event("TypeLauncherApp lifecycle observer attached")
         val observer = LifecycleEventObserver { _, event ->
+            LauncherDebugLog.event("TypeLauncherApp lifecycle event=$event")
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshPermissionDrivenUi()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            LauncherDebugLog.event("TypeLauncherApp lifecycle observer disposed")
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     TypeLauncherApp(
@@ -111,6 +119,9 @@ internal fun TypeLauncherApp(
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
+    LaunchedEffect(state.screen, state.isSettingsOpen) {
+        LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
+    }
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
@@ -190,11 +201,17 @@ private fun SwipeNavigationBox(
             currentPage = pagerState.currentPage,
             screen = screen,
         )
+        LauncherDebugLog.event(
+            "SwipeNavigationBox screen=$screen currentPage=${pagerState.currentPage} targetPage=$targetPage",
+        )
         if (pagerState.currentPage != targetPage) {
             pagerState.animateScrollToPage(targetPage)
         }
     }
     LaunchedEffect(settledPage) {
+        LauncherDebugLog.event(
+            "SwipeNavigationBox settledPage=$settledPage screen=${LauncherScreen.fromCarouselPage(settledPage)}",
+        )
         when (LauncherScreen.fromCarouselPage(settledPage)) {
             LauncherScreen.Agenda -> if (screen != LauncherScreen.Agenda) onShowAgenda()
             LauncherScreen.Widgets -> if (screen != LauncherScreen.Widgets) onShowWidgets()
@@ -228,6 +245,9 @@ private fun SwipeNavigationBox(
 
                     if (abs(dragAmountPx) >= swipeThresholdPx) {
                         val direction = if (dragAmountPx < 0f) 1 else -1
+                        LauncherDebugLog.event(
+                            "SwipeNavigationBox swipe dragAmountPx=$dragAmountPx fromPage=$dragStartPage direction=$direction",
+                        )
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(dragStartPage + direction)
                         }
