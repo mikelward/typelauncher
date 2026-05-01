@@ -173,6 +173,22 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun dockedAppsSortAsNegativeRankAtBottomOfUnfilteredList() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        composeRule.waitForIdle()
+
+        assertEquals(
+            listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar", "Calculator"),
+            viewModel.uiState.value.filteredApps.map { it.name },
+        )
+    }
+
+    @Test
     fun resetRankAction_resetsLaunchCountAndReordersApps() {
         composeRule.activity.viewModel.setQuery("calculator")
         composeRule.activity.viewModel.launchApp(composeRule.activity.viewModel.uiState.value.filteredApps.single())
@@ -231,7 +247,10 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").performClick()
         composeRule.waitForIdle()
 
-        assertEquals(ALL_FAKE_APP_NAMES, composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
+        assertEquals(
+            listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar", "Calculator"),
+            composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name },
+        )
     }
 
     @Test

@@ -787,7 +787,7 @@ internal class LauncherViewModel(
     private var installedApps: List<InstalledApp> = loadInstalledApps()
     private val _uiState = MutableStateFlow(
         LauncherUiState(
-            filteredApps = installedApps.filterByName("", appLaunchStatsStore).markDocked(),
+            filteredApps = installedApps.filterByName("", appLaunchStatsStore, dockedAppStore.dockedAppIds).markDocked(),
             dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, "").markDocked(),
             agenda = loadAgendaState(),
         ),
@@ -864,7 +864,7 @@ internal class LauncherViewModel(
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
             state.copy(
-                filteredApps = installedApps.filterByName(query, appLaunchStatsStore).markDocked(),
+                filteredApps = installedApps.filterByName(query, appLaunchStatsStore, dockedAppStore.dockedAppIds).markDocked(),
                 dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),
             )
         }
@@ -1081,10 +1081,16 @@ internal data class AgendaEvent(
     val displayTime: String = "",
 )
 
-internal fun List<InstalledApp>.filterByName(query: String, appLaunchStatsStore: AppLaunchStatsStore): List<InstalledApp> =
+internal fun List<InstalledApp>.filterByName(
+    query: String,
+    appLaunchStatsStore: AppLaunchStatsStore,
+    dockedAppIds: Collection<String>,
+): List<InstalledApp> =
     if (query.isEmpty()) {
         sortedWith(
-            compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
+            compareByDescending<InstalledApp> { app ->
+                if (app.id in dockedAppIds) DOCKED_APP_LIST_RANK else appLaunchStatsStore.launchCount(app.id)
+            }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
         )
     } else {
@@ -1288,6 +1294,7 @@ internal const val AGENDA_PERMISSION_TAG = "agenda_permission"
 internal const val AGENDA_EMPTY_TAG = "agenda_empty"
 internal const val AGENDA_EVENTS_TAG = "agenda_events"
 private const val SETTINGS_QUERY = "settings"
+private const val DOCKED_APP_LIST_RANK = -1
 private const val MIN_DOCKED_APPS = 1
 private const val DOCK_APP_ICON_SIZE_DP = 56
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
