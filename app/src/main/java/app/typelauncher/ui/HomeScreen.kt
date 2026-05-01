@@ -516,6 +516,7 @@ internal fun SettingsScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     onCloseSettings: () -> Unit,
+    onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
     onDockVisibleIconCountChanged: (Int) -> Unit,
@@ -554,6 +555,14 @@ internal fun SettingsScreen(
             ) {
                 Text(stringResource(R.string.settings_done_button))
             }
+        }
+        Button(
+            onClick = onRequestDefaultLauncher,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(DEFAULT_LAUNCHER_BUTTON_TAG),
+        ) {
+            Text(stringResource(R.string.settings_default_launcher_button))
         }
         SectionCard {
             Row(

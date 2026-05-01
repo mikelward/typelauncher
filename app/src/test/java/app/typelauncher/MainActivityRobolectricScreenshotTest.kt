@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.app.role.RoleManager
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.getBoundsInRoot
@@ -285,12 +286,26 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOff()
         composeRule.onNodeWithText("Show dock").assertIsDisplayed()
         composeRule.onNodeWithText("Dock icons visible: 4").assertIsDisplayed()
+        composeRule.onNodeWithText("Set default launcher").assertIsDisplayed()
+        saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun defaultLauncherButtonStartsHomeRoleRequest() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals(RoleManager.ACTION_REQUEST_ROLE, startedIntent.action)
+        assertEquals(RoleManager.ROLE_HOME, startedIntent.getStringExtra(RoleManager.EXTRA_ROLE_NAME))
+        assertStandardLauncherFlags(startedIntent)
     }
 
     @Test
