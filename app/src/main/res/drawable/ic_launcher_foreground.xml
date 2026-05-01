@@ -4,18 +4,45 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Hollow pill above the T, stylised as a search/filter bar -->
+    <!-- Light blue selection highlight behind T, like a selected app icon -->
+    <path
+        android:fillColor="#CFE2FF"
+        android:pathData="M27,33 H41 A4,4 0 0 1 45,37 V51 A4,4 0 0 1 41,55 H27 A4,4 0 0 1 23,51 V37 A4,4 0 0 1 27,33 Z" />
+    <!-- Letter T inside the selection box -->
+    <path
+        android:fillColor="#0B2A5B"
+        android:pathData="M26,36 H42 V39 H26 Z M31,36 H37 V52 H31 Z" />
+    <!-- Letter Y -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
+        android:strokeColor="#0B2A5B"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M50,35 L55,46 L60,35 M55,46 L55,53" />
+    <!-- Letter P -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0B2A5B"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M63,35 L63,53 M63,35 L70,35 C76,35 76,44 70,44 L63,44" />
+    <!-- Letter E -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0B2A5B"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M78,35 L78,53 M78,35 L88,35 M78,44 L85,44 M78,53 L88,53" />
+    <!-- Pill / search bar, moved down -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0B2A5B"
         android:strokeWidth="1.5"
-        android:pathData="M38,25 H70 A4,4 0 0 1 74,29 A4,4 0 0 1 70,33 H38 A4,4 0 0 1 34,29 A4,4 0 0 1 38,25 Z" />
-    <!-- Caret inside the pill -->
+        android:pathData="M38,63 H70 A4,4 0 0 1 74,67 A4,4 0 0 1 70,71 H38 A4,4 0 0 1 34,67 A4,4 0 0 1 38,63 Z" />
+    <!-- Caret inside pill -->
     <path
-        android:fillColor="#FF000000"
-        android:pathData="M39,27.5 H40 V30.5 H39 Z" />
-    <!-- Letter T -->
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
+        android:fillColor="#0B2A5B"
+        android:pathData="M39,65.5 H40 V68.5 H39 Z" />
 </vector>
