@@ -28,7 +28,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -37,20 +36,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -80,7 +78,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -91,7 +88,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -128,7 +124,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.LinkedHashSet
-import kotlin.math.abs
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 
@@ -222,8 +217,8 @@ private fun TypeLauncherApp(
             screen = state.screen,
             onShowAgenda = onShowAgenda,
             onShowHome = onShowHome,
-        ) {
-            when (state.screen) {
+        ) { pageScreen ->
+            when (pageScreen) {
                 LauncherScreen.Home -> HomeScreen(
                     state = state,
                     innerPadding = innerPadding,
@@ -250,30 +245,31 @@ private fun SwipeNavigationBox(
     screen: LauncherScreen,
     onShowAgenda: () -> Unit,
     onShowHome: () -> Unit,
-    content: @Composable () -> Unit,
+    content: @Composable (LauncherScreen) -> Unit,
 ) {
-    var dragAmount by remember { mutableFloatStateOf(0f) }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(screen) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragAmount = 0f },
-                    onHorizontalDrag = { _, dragDelta -> dragAmount += dragDelta },
-                    onDragEnd = {
-                        if (abs(dragAmount) >= SWIPE_THRESHOLD_PX) {
-                            if (dragAmount < 0 && screen == LauncherScreen.Home) {
-                                onShowAgenda()
-                            } else if (dragAmount > 0 && screen == LauncherScreen.Agenda) {
-                                onShowHome()
-                            }
-                        }
-                    },
-                    onDragCancel = { dragAmount = 0f },
-                )
-            },
-    ) {
-        content()
+    val pagerState = rememberPagerState(
+        initialPage = screen.carouselPage,
+        pageCount = { LauncherScreen.carouselScreens.size },
+    )
+    val settledPage = pagerState.settledPage
+
+    LaunchedEffect(screen) {
+        if (pagerState.currentPage != screen.carouselPage) {
+            pagerState.animateScrollToPage(screen.carouselPage)
+        }
+    }
+    LaunchedEffect(settledPage) {
+        when (LauncherScreen.fromCarouselPage(settledPage)) {
+            LauncherScreen.Agenda -> if (screen != LauncherScreen.Agenda) onShowAgenda()
+            LauncherScreen.Home -> if (screen != LauncherScreen.Home) onShowHome()
+        }
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize(),
+    ) { page ->
+        content(LauncherScreen.fromCarouselPage(page))
     }
 }
 
@@ -1009,8 +1005,18 @@ internal data class LauncherUiState(
 )
 
 internal enum class LauncherScreen {
-    Home,
     Agenda,
+    Home,
+    ;
+
+    val carouselPage: Int
+        get() = carouselScreens.indexOf(this)
+
+    companion object {
+        val carouselScreens = entries.toList()
+
+        fun fromCarouselPage(page: Int): LauncherScreen = carouselScreens[page]
+    }
 }
 
 internal sealed interface AgendaUiState {
@@ -1257,7 +1263,6 @@ internal const val AGENDA_EVENTS_TAG = "agenda_events"
 private const val SETTINGS_QUERY = "settings"
 private const val MIN_DOCKED_APPS = 1
 private const val DOCK_APP_ICON_SIZE_DP = 56
-private const val SWIPE_THRESHOLD_PX = 120f
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
 
 @Preview(name = "Home empty")

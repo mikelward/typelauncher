@@ -17,6 +17,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -75,6 +77,21 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertDoesNotExist()
 
         saveScreenshot("compose_agenda_permission_robolectric.png")
+    }
+
+    @Test
+    fun swipingRightFromHomeShowsAgendaAndSwipingLeftReturnsHome() {
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test
