@@ -13,8 +13,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.longClick
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -141,9 +143,8 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun appActionsMenuAppInfo_opensAndroidAppInfoForThatApp() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calendar")
-        composeRule.activity.viewModel.openAppInfo(
-            composeRule.activity.viewModel.uiState.value.filteredApps.first { it.name == "Calendar" },
-        )
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calendar").performClick()
         composeRule.waitForIdle()
 
         val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
@@ -154,15 +155,16 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun dockingApp_addsItToDockAndOffersUndock() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
-        composeRule.activity.viewModel.toggleDock(
-            composeRule.activity.viewModel.uiState.value.filteredApps.first { it.name == "Calculator" },
-            maxDockedApps = 6,
-        )
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Calculator").performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         assertTrue(composeRule.activity.viewModel.uiState.value.dockedApps.single().isDocked)
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithText("Undock").assertIsDisplayed()
     }
 
     @Test
