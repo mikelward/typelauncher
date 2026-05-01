@@ -1,7 +1,6 @@
 package app.typelauncher
 
 import android.content.Intent
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.UserHandle
 import android.provider.Settings
@@ -10,7 +9,6 @@ internal data class InstalledApp(
     val name: String,
     val packageName: String,
     val launchIntent: Intent,
-    val icon: Drawable?,
     val user: UserHandle,
     val isWorkApp: Boolean,
     val launchWithLauncherApps: Boolean,
