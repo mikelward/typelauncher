@@ -180,7 +180,7 @@ private fun WidgetPickerCard(
             // TODO: also filter individual widget labels within an app group, not just the app group names.
             val filteredGroups = availableWidgets
                 .groupBy { provider -> provider.appName }
-                .filterKeys { appName -> appName.contains(filterQuery.trim(), ignoreCase = true) }
+                .filterKeys { appName -> appName.matchesLauncherQuery(filterQuery.trim()) }
             if (filteredGroups.isEmpty()) {
                 EmptyState(
                     icon = Icons.Filled.Search,

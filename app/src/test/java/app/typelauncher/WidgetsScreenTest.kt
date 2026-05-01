@@ -107,6 +107,47 @@ class WidgetsScreenTest {
     }
 
     @Test
+    fun widgetPicker_filtersAppGroupsWithLauncherFuzzyMatch() {
+        // Same anchored fuzzy rules as the app list: capital letters anchor mid-name,
+        // and lowercase interior letters do not. See LauncherQueryMatchTest.
+        val bofa = fakeWidgetProvider(appName = "BofA", label = "Balance")
+        val onePassword = fakeWidgetProvider(appName = "1password", label = "Vault")
+        val googleMail = fakeWidgetProvider(appName = "Google Mail", label = "Inbox")
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(bofa, onePassword, googleMail),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextInput("ba")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:BofA").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:1password").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Google Mail").assertDoesNotExist()
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("m")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Google Mail").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:1password").assertDoesNotExist()
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("ass")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("No matching apps").assertIsDisplayed()
+    }
+
+    @Test
     fun widgetPicker_showsLoadingIndicatorBeforeWidgetsResolve() {
         composeRule.setContent {
             TypeLauncherTheme {

@@ -78,6 +78,7 @@ This document records the current product and technical design decisions for Typ
 - The widgets screen is the launcher's +1 screen between the app list and agenda.
 - The top of the widgets screen is a full-width add card with a large plus button that opens the in-app add-widget page.
 - The add-widget page groups available home-screen widget providers in collapsed per-app rows, expands providers on demand, and only renders generated/static/placeholder previews after a provider row is expanded.
+- The add-widget page has a filter field above the provider list that narrows the visible app groups by name using the same anchored fuzzy matcher as the installed-app list (`String.matchesLauncherQuery`), so typing behavior in the widget picker stays in sync with the launcher's app filter.
 - Selected app widget IDs are persisted in `SharedPreferences` under the `widgets` store and rendered through `AppWidgetHost` when provider info is available.
 - The MVP optimizes for full-width 4x1-style widgets by giving hosted widgets the whole page width and using the provider minimum height, reported in pixels, converted to Compose density-independent height with a launcher floor.
 - Long-pressing a widget opens a compact action menu with a Remove item; removing a widget deletes the host ID and updates the persisted widget list.
