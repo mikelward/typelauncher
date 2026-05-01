@@ -5,13 +5,9 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -21,7 +17,6 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -54,9 +49,12 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
-        composeRule.onNodeWithText("Dock").assertIsDisplayed()
-        composeRule.onNodeWithText("Installed apps").assertIsDisplayed()
         composeRule.onNodeWithText("Calculator").assertIsDisplayed()
+        composeRule.onNodeWithText("Agenda").assertDoesNotExist()
+        composeRule.onNodeWithText("Find an app").assertDoesNotExist()
+        composeRule.onNodeWithText("Dock").assertDoesNotExist()
+        composeRule.onNodeWithText("Installed apps").assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
         saveScreenshot("compose_home_material_cards_robolectric.png")
     }
@@ -69,6 +67,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(AGENDA_PERMISSION_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Allow calendar").assertIsDisplayed()
+        composeRule.onNodeWithText("Agenda").assertDoesNotExist()
+        composeRule.onNodeWithText("Swipe right to return home").assertDoesNotExist()
+        composeRule.onNodeWithText("Show calendar events").assertDoesNotExist()
         composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertDoesNotExist()
 
         saveScreenshot("compose_agenda_permission_robolectric.png")
@@ -162,6 +163,15 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(DOCK_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         assertTrue(composeRule.activity.viewModel.uiState.value.dockedApps.single().isDocked)
+    }
+
+    @Test
+    fun dockCard_staysAtBottomAfterAppList() {
+        composeRule.waitForIdle()
+
+        val appsBottom = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot().bottom
+        val dockTop = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().top
+        assertTrue("dock is below the apps list", dockTop > appsBottom)
     }
 
     @Test

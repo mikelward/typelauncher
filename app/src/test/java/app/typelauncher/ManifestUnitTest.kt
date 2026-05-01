@@ -40,7 +40,6 @@ class ManifestUnitTest {
         assertTrue(source.contains("setContent"))
         assertTrue(source.contains("MaterialTheme"))
         assertTrue(source.contains("Scaffold"))
-        assertTrue(source.contains("TopAppBar"))
         assertTrue(source.contains("Card"))
         assertTrue(source.contains("OutlinedTextField"))
         assertTrue(source.contains("collectAsStateWithLifecycle"))
