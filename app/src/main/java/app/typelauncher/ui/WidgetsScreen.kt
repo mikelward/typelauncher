@@ -523,16 +523,24 @@ private fun HostedWidgetCard(
             factory = { context ->
                 appWidgetHost.createView(context, widgetId, providerInfo).apply {
                     setAppWidget(widgetId, providerInfo)
-                    setOnLongClickListener {
-                        menuExpanded = true
-                        true
+                    if (this is LauncherAppWidgetHostView) {
+                        setOnWidgetLongPressListener { menuExpanded = true }
+                    } else {
+                        setOnLongClickListener {
+                            menuExpanded = true
+                            true
+                        }
                     }
                 }
             },
             update = { view ->
-                view.setOnLongClickListener {
-                    menuExpanded = true
-                    true
+                if (view is LauncherAppWidgetHostView) {
+                    view.setOnWidgetLongPressListener { menuExpanded = true }
+                } else {
+                    view.setOnLongClickListener {
+                        menuExpanded = true
+                        true
+                    }
                 }
             },
             modifier = Modifier.fillMaxSize(),

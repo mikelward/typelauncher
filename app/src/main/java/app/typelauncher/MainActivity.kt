@@ -1,7 +1,6 @@
 package app.typelauncher
 
 import android.Manifest
-import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
@@ -23,7 +22,7 @@ private const val APP_WIDGET_HOST_ID = 1024
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
         private set
-    private lateinit var appWidgetHost: AppWidgetHost
+    private lateinit var appWidgetHost: LauncherAppWidgetHost
     private lateinit var appWidgetManager: AppWidgetManager
 
     private val requestCalendarPermissionLauncher =
@@ -74,7 +73,7 @@ class MainActivity : ComponentActivity() {
         window.decorView.doOnPreDraw {
             LauncherDebugLog.event("MainActivity firstPreDraw window=${window.debugSummary()}")
         }
-        appWidgetHost = AppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
+        appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
         appWidgetManager = AppWidgetManager.getInstance(this)
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         viewModel = ViewModelProvider(
