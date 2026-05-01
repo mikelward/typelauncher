@@ -326,7 +326,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        val enabledPreviewHeight = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot().height
+        val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val enabledPreviewHeight = enabledPreviewBounds.bottom - enabledPreviewBounds.top
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performClick()
         composeRule.waitForIdle()
@@ -334,7 +335,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).assertIsOff()
         assertEquals(false, viewModel.uiState.value.isDockEnabled)
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
-        val disabledPreviewHeight = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot().height
+        val disabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val disabledPreviewHeight = disabledPreviewBounds.bottom - disabledPreviewBounds.top
         assertTrue(
             "disabled dock preview gives dock space to the app list",
             disabledPreviewHeight > enabledPreviewHeight,
