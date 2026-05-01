@@ -49,17 +49,27 @@ internal class LauncherViewModel(
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
+    init {
+        LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+    }
+
     fun setQuery(query: String) {
         _uiState.update { state -> state.copy(query = query) }
         refreshLists()
+        LauncherDebugLog.event(
+            "setQuery length=${query.length} filtered=${_uiState.value.filteredApps.size} " +
+                "docked=${_uiState.value.dockedApps.size}",
+        )
     }
 
     fun showAgenda() {
         _uiState.update { it.copy(screen = LauncherScreen.Agenda, agenda = loadAgendaState()) }
+        logState("showAgenda")
     }
 
     fun showWidgets() {
         _uiState.update { it.copy(screen = LauncherScreen.Widgets) }
+        logState("showWidgets")
     }
 
     fun showWidgetPicker() {
@@ -68,13 +78,16 @@ internal class LauncherViewModel(
 
     fun hideWidgetPicker() {
         _uiState.update { it.copy(isAddingWidget = false) }
+        logState("hideWidgetPicker")
     }
 
     fun showHome() {
         _uiState.update { it.copy(screen = LauncherScreen.Home) }
+        logState("showHome")
     }
 
     fun refreshPermissionDrivenUi() {
+        LauncherDebugLog.event("refreshPermissionDrivenUi screen=${_uiState.value.screen}")
         if (_uiState.value.screen == LauncherScreen.Agenda) {
             refreshAgenda()
         }
@@ -82,11 +95,14 @@ internal class LauncherViewModel(
 
     fun refreshAgenda() {
         _uiState.update { it.copy(agenda = loadAgendaState()) }
+        logState("refreshAgenda")
     }
 
     fun launchActiveApp() {
         val query = _uiState.value.query
+        LauncherDebugLog.event("launchActiveApp queryLength=${query.length} filtered=${_uiState.value.filteredApps.size}")
         if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
+            LauncherDebugLog.event("launchActiveApp opening system settings")
             startActivity(Intent(Settings.ACTION_SETTINGS).asLauncherTaskIntent())
             setQuery("")
             return
@@ -96,6 +112,10 @@ internal class LauncherViewModel(
 
     fun launchApp(app: InstalledApp) {
         val component = app.launchIntent.component
+        LauncherDebugLog.event(
+            "launchApp package=${app.packageName} component=${component?.flattenToShortString()} " +
+                "work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
+        )
         if (app.launchWithLauncherApps && component != null) {
             this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
         } else {
@@ -106,24 +126,33 @@ internal class LauncherViewModel(
     }
 
     fun openAppInfo(app: InstalledApp) {
+        LauncherDebugLog.event("openAppInfo package=${app.packageName}")
         startActivity(app.appInfoIntent)
     }
 
-    fun toggleDock(app: InstalledApp, @Suppress("UNUSED_PARAMETER") maxDockedApps: Int) {
+    fun toggleDock(app: InstalledApp, maxDockedApps: Int) {
+        LauncherDebugLog.event(
+            "toggleDock package=${app.packageName} docked=${app.isDocked} " +
+                "currentDocked=${dockedAppStore.dockedAppIds.size} max=$maxDockedApps",
+        )
         if (app.isDocked) {
             dockedAppStore.undock(app.id)
         } else {
             dockedAppStore.dock(app.id)
         }
         refreshLists()
+        logState("toggleDock")
     }
 
     fun resetRank(app: InstalledApp) {
+        LauncherDebugLog.event("resetRank package=${app.packageName}")
         appLaunchStatsStore.resetLaunchCount(app.id)
         refreshLists()
+        logState("resetRank")
     }
 
     fun addWidget(appWidgetId: Int) {
+        LauncherDebugLog.event("addWidget appWidgetId=$appWidgetId")
         widgetStore.add(appWidgetId)
         _uiState.update {
             it.copy(
@@ -132,6 +161,7 @@ internal class LauncherViewModel(
                 widgetIds = widgetStore.widgetIds,
             )
         }
+        logState("addWidget")
     }
 
     internal fun refreshAvailableWidgetsForTest() {
@@ -143,27 +173,33 @@ internal class LauncherViewModel(
     }
 
     fun removeWidget(appWidgetId: Int) {
+        LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         widgetStore.remove(appWidgetId)
         _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
+        logState("removeWidget")
     }
 
     fun openSettings() {
         _uiState.update { it.copy(isSettingsOpen = true) }
+        logState("openSettings")
     }
 
     fun closeSettings() {
         _uiState.update { it.copy(isSettingsOpen = false) }
+        logState("closeSettings")
     }
 
     fun setDockEnabled(isEnabled: Boolean) {
         dockSettingsStore.isDockEnabled = isEnabled
         _uiState.update { it.copy(isDockEnabled = isEnabled) }
+        logState("setDockEnabled")
     }
 
     fun setDockVisibleIconCount(count: Int) {
         val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
         dockSettingsStore.dockIconCount = clampedCount
         _uiState.update { it.copy(dockIconCount = clampedCount) }
+        logState("setDockVisibleIconCount requested=$count")
     }
 
     private fun refreshLists() {
@@ -177,14 +213,18 @@ internal class LauncherViewModel(
     }
 
     private fun startActivity(intent: Intent) {
+        LauncherDebugLog.event("startActivity intent=${intent.debugSummary()}")
         app.startActivity(intent.asLauncherTaskIntent())
     }
 
     private fun loadAgendaState(): AgendaUiState {
-        if (!hasCalendarPermission()) {
+        val hasPermission = hasCalendarPermission()
+        LauncherDebugLog.event("loadAgendaState hasPermission=$hasPermission")
+        if (!hasPermission) {
             return AgendaUiState.PermissionRequired
         }
         val events = loadAgendaEvents()
+        LauncherDebugLog.event("loadAgendaState events=${events.size}")
         return if (events.isEmpty()) AgendaUiState.Empty else AgendaUiState.Events(events)
     }
 
@@ -233,7 +273,8 @@ internal class LauncherViewModel(
                     )
                 }
             }
-        } catch (_: SecurityException) {
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.warning("loadAgendaEvents security exception", exception)
             return emptyList()
         }
 
@@ -248,13 +289,18 @@ internal class LauncherViewModel(
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
-        return app.getSystemService<LauncherApps>()
+        LauncherDebugLog.event("loadInstalledApps begin")
+        val launcherApps = app.getSystemService<LauncherApps>()
+        val profileApps = launcherApps
             ?.profiles
             .orEmpty()
+            .also { profiles -> LauncherDebugLog.event("loadInstalledApps profiles=${profiles.size}") }
             .flatMap { user ->
-                app.getSystemService<LauncherApps>()
+                val activities = launcherApps
                     ?.getActivityList(null, user)
                     .orEmpty()
+                LauncherDebugLog.event("loadInstalledApps profile=${user.hashCode()} activities=${activities.size}")
+                activities
                     .map { activity ->
                         InstalledApp(
                             name = activity.label.toString(),
@@ -267,8 +313,11 @@ internal class LauncherViewModel(
                         )
                     }
             }
+        return profileApps
             .ifEmpty {
-                app.packageManager.queryIntentActivities(launcherIntent, 0)
+                val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
+                LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=${resolveInfos.size}")
+                resolveInfos
                     .map { resolveInfo ->
                         val activityInfo = resolveInfo.activityInfo
                         InstalledApp(
@@ -286,6 +335,7 @@ internal class LauncherViewModel(
             }
             .distinctBy { launcherApp -> launcherApp.name.lowercase() to launcherApp.isWorkApp }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
+            .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
 
     private fun loadAvailableWidgets(): List<WidgetProvider> =
@@ -297,6 +347,7 @@ internal class LauncherViewModel(
                 compareBy<WidgetProvider> { provider -> provider.appName.lowercase() }
                     .thenBy { provider -> provider.label.lowercase() },
             )
+            .also { providers -> LauncherDebugLog.event("loadAvailableWidgets providers=${providers.size}") }
 
     private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
         _uiState.update {
@@ -306,6 +357,7 @@ internal class LauncherViewModel(
                 availableWidgets = availableWidgets,
             )
         }
+        logState("showWidgetPicker")
     }
 
     private fun List<InstalledApp>.markDocked(): List<InstalledApp> =
@@ -324,6 +376,10 @@ internal class LauncherViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
                     LauncherViewModel(app, workPackages) as T
             }
+    }
+
+    private fun logState(reason: String) {
+        LauncherDebugLog.event("$reason ${_uiState.value.debugSummary()}")
     }
 }
 

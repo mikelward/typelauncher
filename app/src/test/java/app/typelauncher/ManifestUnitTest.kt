@@ -50,6 +50,10 @@ class ManifestUnitTest {
         assertTrue(viewModelSource.contains("ViewModel"))
         assertTrue(themeSource.contains("dynamicLightColorScheme"))
         assertTrue(viewModelSource.contains("AgendaEventOrganizer.forNow"))
+        assertTrue(mainActivitySource.contains("onWindowFocusChanged"))
+        assertTrue(mainActivitySource.contains("onTrimMemory"))
+        assertTrue(typeLauncherAppSource.contains("LauncherDebugLog.event"))
+        assertTrue(viewModelSource.contains("loadInstalledApps complete"))
     }
 
     private fun parseManifest() = DocumentBuilderFactory.newInstance()
