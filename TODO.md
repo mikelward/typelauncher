@@ -2,6 +2,7 @@
 
 - Extend the widget picker filter to also match individual widget labels (and possibly description) within an app group, not just the app group names. Today (`WidgetsScreen.kt`'s `WidgetPickerCard`) only filters by `WidgetProvider.appName`.
 - Consider extracting a shared filter input composable so the widget picker filter and the home `SearchCard` share styling and clear-button behavior instead of duplicating the `OutlinedTextField` setup.
+- Default the active-app selection highlight to the Material 3 system theme color (likely `secondaryContainer`/`primaryContainer`, plus the matching `on*` color) instead of the hard-coded pale blue currently used in `AppRow` and `IconOnlyAppButton` (`HomeScreen.kt`). Picked the fixed color because dynamic color was making the M3 token blend into the card surface; revisit once we decide how the launcher should track wallpaper-derived dynamic colors so the highlight stays visible without overriding the theme.
 - Decide whether empty-query Enter/Search should continue opening Type Launcher settings or do something else.
 - Design keyboard access for launching docked apps.
 - Handle work profile apps separately from personal profile apps, including launch behavior and UI labeling.
