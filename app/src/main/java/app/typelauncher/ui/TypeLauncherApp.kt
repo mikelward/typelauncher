@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
@@ -34,8 +36,27 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.sign
 
-private const val CAROUSEL_SWIPE_THRESHOLD_DP = 48
+// Drag must clear this many pixels of horizontal movement before the carousel
+// claims the gesture from child handlers and starts rubber-banding the page.
+private const val CAROUSEL_TOUCH_SLOP_DP = 8
+
+// Fraction of page width the user must drag (raw, before rubber-band damping)
+// to commit a screen change on release. Combined with the rubber-band easing,
+// this is a meaningful tug — much harder to trigger accidentally than the old
+// flat 48dp threshold.
+private const val CAROUSEL_COMMIT_DISTANCE_RATIO = 0.4f
+
+// Release velocity (in dp/s) above which a fling commits even if the raw drag
+// distance is below the commit ratio. Lets a quick flick still advance a page.
+private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
+
+// If at release the velocity is in the opposite direction of the net drag and
+// faster than this, treat the gesture as cancelled — the user pulled and then
+// pulled back, so they don't want to commit.
+private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
+
 private const val NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP = 96
 private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
 
@@ -202,8 +223,15 @@ private fun SwipeNavigationBox(
         pageCount = { LauncherScreen.carouselPageCount },
     )
     val settledPage = pagerState.settledPage
-    val swipeThresholdPx = with(LocalDensity.current) { CAROUSEL_SWIPE_THRESHOLD_DP.dp.toPx() }
-    val notificationShadeThresholdPx = with(LocalDensity.current) {
+    val density = LocalDensity.current
+    val touchSlopPx = with(density) { CAROUSEL_TOUCH_SLOP_DP.dp.toPx() }
+    val flingCommitVelocityPxPerSec = with(density) {
+        CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
+    }
+    val backwardVelocityCancelPxPerSec = with(density) {
+        CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC.dp.toPx()
+    }
+    val notificationShadeThresholdPx = with(density) {
         NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP.dp.toPx()
     }
     val coroutineScope = rememberCoroutineScope()
@@ -250,29 +278,85 @@ private fun SwipeNavigationBox(
             .semantics {
                 carouselVirtualPage = pagerState.settledPage
             }
-            .pointerInput(pagerState, swipeThresholdPx) {
+            .pointerInput(
+                pagerState,
+                touchSlopPx,
+                flingCommitVelocityPxPerSec,
+                backwardVelocityCancelPxPerSec,
+            ) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    val dragStartPage = pagerState.settledPage
-                    var dragAmountPx = 0f
+                    val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
+                    val commitDistancePx = pageWidthPx * CAROUSEL_COMMIT_DISTANCE_RATIO
+                    val dragStartPage = pagerState.currentPage
+                    var rawDragX = 0f
+                    var rawDragY = 0f
+                    var displayDeltaPx = 0f
+                    var claimed = false
+                    val velocityTracker = VelocityTracker()
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         event.changes.forEach { change ->
-                            dragAmountPx += change.positionChange().x
-                            if (abs(dragAmountPx) >= swipeThresholdPx) {
+                            val delta = change.positionChange()
+                            rawDragX += delta.x
+                            rawDragY += delta.y
+                            velocityTracker.addPointerInputChange(change)
+                            if (!claimed &&
+                                abs(rawDragX) > touchSlopPx &&
+                                abs(rawDragX) > abs(rawDragY)
+                            ) {
+                                claimed = true
+                            }
+                            if (claimed) {
+                                val newDisplay = rubberBand(rawDragX, pageWidthPx)
+                                    .coerceIn(-pageWidthPx, pageWidthPx)
+                                val moveBy = newDisplay - displayDeltaPx
+                                displayDeltaPx = newDisplay
+                                if (moveBy != 0f) {
+                                    // dispatchRawDelta uses scroll-axis sign, which is
+                                    // opposite of finger drag (drag finger left → next
+                                    // page → positive scroll delta), so flip the sign.
+                                    pagerState.dispatchRawDelta(-moveBy)
+                                }
                                 change.consume()
                             }
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (abs(dragAmountPx) >= swipeThresholdPx) {
-                        val direction = if (dragAmountPx < 0f) 1 else -1
-                        LauncherDebugLog.event(
-                            "SwipeNavigationBox swipe dragAmountPx=$dragAmountPx fromPage=$dragStartPage direction=$direction",
-                        )
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(dragStartPage + direction)
-                        }
+                    if (!claimed) {
+                        return@awaitEachGesture
+                    }
+
+                    val releaseVelocity = velocityTracker.calculateVelocity().x
+                    val dragDirection = when {
+                        rawDragX < 0f -> 1
+                        rawDragX > 0f -> -1
+                        else -> 0
+                    }
+                    // Finger and pager move in opposite directions: dragging finger
+                    // left (rawDragX < 0) advances the pager forward, so a forward
+                    // intent corresponds to releaseVelocity also being negative.
+                    // "Backwards at release" → velocity sign opposite of rawDragX sign.
+                    val velocityOpposesDrag = dragDirection != 0 &&
+                        abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
+                        sign(releaseVelocity) == -sign(rawDragX)
+                    val distanceCommits = abs(rawDragX) >= commitDistancePx
+                    val flingCommits = dragDirection != 0 &&
+                        abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
+                        sign(releaseVelocity) == sign(rawDragX)
+                    val committed = dragDirection != 0 &&
+                        !velocityOpposesDrag &&
+                        (distanceCommits || flingCommits)
+
+                    LauncherDebugLog.event(
+                        "SwipeNavigationBox release rawDragX=$rawDragX velocityX=$releaseVelocity " +
+                            "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
+                            "velocityOpposes=$velocityOpposesDrag committed=$committed",
+                    )
+
+                    val targetPage = if (committed) dragStartPage + dragDirection else dragStartPage
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(targetPage)
                     }
                 }
             }
@@ -303,4 +387,18 @@ private fun SwipeNavigationBox(
             Box(modifier = Modifier.fillMaxSize())
         }
     }
+}
+
+/**
+ * Maps a raw drag distance to a damped display offset that asymptotes at the
+ * page width. The returned magnitude is always less than `pageWidth`, so a
+ * single drag can never push the pager past one page boundary even if the user
+ * keeps dragging — they have to release and start a new gesture.
+ *
+ * Shape: at |x| = pageWidth, output ≈ 0.5 · pageWidth; at |x| = 2·pageWidth,
+ * output ≈ 0.67 · pageWidth; output → pageWidth as |x| → ∞.
+ */
+internal fun rubberBand(rawDragPx: Float, pageWidthPx: Float): Float {
+    if (pageWidthPx <= 0f) return 0f
+    return rawDragPx * pageWidthPx / (pageWidthPx + abs(rawDragPx))
 }
