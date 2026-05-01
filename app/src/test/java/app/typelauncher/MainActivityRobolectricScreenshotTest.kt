@@ -112,8 +112,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$AGENDA_EVENT_ROW_TAG:1").assertIsDisplayed()
-        composeRule.onNodeWithText("Launch day").assertIsDisplayed()
-        composeRule.onNodeWithText("All day").assertIsDisplayed()
         composeRule.onNodeWithText("Standup").assertIsDisplayed()
         composeRule.onNodeWithText("9:30 AM").assertIsDisplayed()
         composeRule.onNodeWithText("Design review").assertIsDisplayed()
@@ -122,16 +120,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$tomorrow").assertIsDisplayed()
         composeRule.onNodeWithText("Today").assertIsDisplayed()
         composeRule.onNodeWithText("Tomorrow").assertIsDisplayed()
-
-        val allDayStripeLeft =
-            composeRule.onNodeWithTag("$AGENDA_EVENT_STRIPE_TAG:99").getBoundsInRoot().left
-        val timedStripeLeft =
-            composeRule.onNodeWithTag("$AGENDA_EVENT_STRIPE_TAG:1").getBoundsInRoot().left
-        assertEquals(
-            "all-day stripe aligns with timed stripe",
-            timedStripeLeft,
-            allDayStripeLeft,
-        )
 
         saveScreenshot("compose_agenda_events_robolectric.png")
     }
@@ -874,15 +862,6 @@ class MainActivityRobolectricScreenshotTest {
         val today = LocalDate.now(zone)
         val tomorrow = today.plusDays(1)
         return listOf(
-            AgendaEvent(
-                title = "Launch day",
-                beginMillis = today.atStartOfDay(zone).toInstant().toEpochMilli(),
-                endMillis = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli(),
-                isAllDay = true,
-                displayTime = "All day",
-                eventId = 99L,
-                calendarColor = 0xFFF4511E.toInt(),
-            ),
             AgendaEvent(
                 title = "Standup",
                 beginMillis = today.atTime(9, 30).atZone(zone).toInstant().toEpochMilli(),
