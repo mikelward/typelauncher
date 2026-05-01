@@ -320,18 +320,25 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsDockToggleHidesDockOnHomeButKeepsSettingsPreview() {
+    fun settingsDockToggleHidesDockOnHomeAndPreviewExpandsAppList() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        val enabledPreviewHeight = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot().height
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).assertIsOff()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         assertEquals(false, viewModel.uiState.value.isDockEnabled)
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        val disabledPreviewHeight = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot().height
+        assertTrue(
+            "disabled dock preview gives dock space to the app list",
+            disabledPreviewHeight > enabledPreviewHeight,
+        )
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
@@ -434,6 +441,23 @@ class MainActivityRobolectricScreenshotTest {
 
         assertEquals(
             listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar", "Calculator"),
+            viewModel.uiState.value.filteredApps.map { it.name },
+        )
+    }
+
+    @Test
+    fun disabledDockKeepsDockedAppsInNaturalOpenCountOrder() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        viewModel.setDockEnabled(false)
+        composeRule.waitForIdle()
+
+        assertEquals(
+            listOf("Calculator", "Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
             viewModel.uiState.value.filteredApps.map { it.name },
         )
     }
