@@ -102,7 +102,13 @@ internal class LauncherViewModel(
     fun launchActiveApp() {
         val query = _uiState.value.query
         LauncherDebugLog.event("launchActiveApp queryLength=${query.length} filtered=${_uiState.value.filteredApps.size}")
-        if (query.trim().equals(SETTINGS_QUERY, ignoreCase = true)) {
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isEmpty()) {
+            LauncherDebugLog.event("launchActiveApp opening launcher settings")
+            openSettings()
+            return
+        }
+        if (trimmedQuery.equals(SETTINGS_QUERY, ignoreCase = true)) {
             LauncherDebugLog.event("launchActiveApp opening system settings")
             startActivity(Intent(Settings.ACTION_SETTINGS).asLauncherTaskIntent())
             setQuery("")

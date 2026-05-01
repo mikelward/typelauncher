@@ -5,6 +5,8 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.view.KeyEvent as AndroidKeyEvent
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -17,6 +19,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performKeyPress
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -367,6 +370,26 @@ class MainActivityRobolectricScreenshotTest {
         val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
         assertEquals(android.provider.Settings.ACTION_SETTINGS, startedIntent.action)
         assertStandardLauncherFlags(startedIntent)
+    }
+
+    @Test
+    fun emptySearchAction_opensLauncherSettings() {
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performImeAction()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(null, shadowOf(composeRule.activity).nextStartedActivity)
+    }
+
+    @Test
+    fun emptySearchEnterKey_opensLauncherSettings() {
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performKeyPress(
+            KeyEvent(AndroidKeyEvent(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_ENTER)),
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(null, shadowOf(composeRule.activity).nextStartedActivity)
     }
 
     @Test
