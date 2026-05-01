@@ -104,8 +104,7 @@ internal class LauncherViewModel(
             }
         }
 
-        // Phase 2: full app list scan + agenda. Cache update (Phase 3) runs in the same IO block
-        // so the coroutine structure matches origin/main: one withContext(IO) then isLoadingApps=false.
+        // Phase 2: full app list scan + agenda.
         viewModelScope.launch {
             val initAgendaVersion = agendaVersion
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
@@ -118,7 +117,6 @@ internal class LauncherViewModel(
                         trace.setAttribute("state", it::class.simpleName ?: "unknown")
                     }
                 }
-                updateAppCache(apps)
                 apps to agenda
             }
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
@@ -143,6 +141,15 @@ internal class LauncherViewModel(
                 )
             }
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
+            // Phase 3: persist top apps for next cold-start preload. Runs after isLoadingApps=false
+            // so it never blocks the initial UI becoming visible.
+            viewModelScope.launch(ioDispatcher) {
+                try {
+                    updateAppCache(loadedApps)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {}
+            }
         }
     }
 
