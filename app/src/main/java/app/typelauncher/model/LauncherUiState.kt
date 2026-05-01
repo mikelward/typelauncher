@@ -28,6 +28,7 @@ internal data class LauncherUiState(
     val widgetIds: List<Int> = emptyList(),
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
+    val isLoadingAvailableWidgets: Boolean = false,
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,

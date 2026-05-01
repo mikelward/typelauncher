@@ -28,11 +28,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -72,6 +75,7 @@ internal fun WidgetsScreen(
     widgetIds: List<Int>,
     availableWidgets: List<WidgetProvider>,
     isAddingWidget: Boolean,
+    isLoadingAvailableWidgets: Boolean = false,
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
@@ -96,6 +100,7 @@ internal fun WidgetsScreen(
             item {
                 WidgetPickerCard(
                     availableWidgets = availableWidgets,
+                    isLoading = isLoadingAvailableWidgets,
                     appWidgetManager = appWidgetManager,
                     onDismissWidgetPicker = onDismissWidgetPicker,
                     onSelectWidget = onSelectWidget,
@@ -116,6 +121,7 @@ internal fun WidgetsScreen(
 @Composable
 private fun WidgetPickerCard(
     availableWidgets: List<WidgetProvider>,
+    isLoading: Boolean,
     appWidgetManager: AppWidgetManager?,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
@@ -142,7 +148,23 @@ private fun WidgetPickerCard(
                 Text(stringResource(R.string.widgets_picker_done))
             }
         }
-        if (availableWidgets.isEmpty()) {
+        if (isLoading) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                    .testTag(WIDGET_PICKER_LOADING_TAG),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                Text(
+                    stringResource(R.string.widgets_picker_loading),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else if (availableWidgets.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Widgets,
                 title = stringResource(R.string.widgets_picker_empty_title),
@@ -260,10 +282,14 @@ private fun WidgetAppSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                WidgetAppIcon(providers.firstOrNull()?.appIcon)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(
                         text = appName,
                         style = MaterialTheme.typography.titleSmall,
@@ -275,14 +301,14 @@ private fun WidgetAppSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Text(
-                    text = if (isExpanded) {
-                        stringResource(R.string.widgets_picker_hide_app)
+                Icon(
+                    imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (isExpanded) {
+                        stringResource(R.string.widgets_picker_collapse_app)
                     } else {
-                        stringResource(R.string.widgets_picker_show_app)
+                        stringResource(R.string.widgets_picker_expand_app)
                     },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -417,6 +443,30 @@ private fun WidgetPreview(
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun WidgetAppIcon(appIcon: Drawable?) {
+    Box(
+        modifier = Modifier.size(36.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (appIcon != null) {
+            Image(
+                bitmap = appIcon.toBitmap().asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
+        } else {
+            Icon(
+                Icons.Filled.Widgets,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }

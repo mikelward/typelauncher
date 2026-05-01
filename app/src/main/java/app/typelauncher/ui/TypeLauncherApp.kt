@@ -154,6 +154,7 @@ internal fun TypeLauncherApp(
                         widgetIds = state.widgetIds,
                         availableWidgets = state.availableWidgets,
                         isAddingWidget = state.isAddingWidget,
+                        isLoadingAvailableWidgets = state.isLoadingAvailableWidgets,
                         appWidgetHost = appWidgetHost,
                         appWidgetManager = appWidgetManager,
                         innerPadding = innerPadding,

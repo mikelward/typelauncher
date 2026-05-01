@@ -22,6 +22,9 @@
     <string name="widgets_add_button_description">Add widget</string>
     <string name="widgets_picker_title">Add widget</string>
     <string name="widgets_picker_subtitle">Choose a widget for the home screen</string>
+    <string name="widgets_picker_loading">Loading widgets…</string>
+    <string name="widgets_picker_expand_app">Expand</string>
+    <string name="widgets_picker_collapse_app">Collapse</string>
     <string name="widgets_picker_done">Done</string>
     <string name="widgets_picker_empty_title">No widgets available</string>
     <string name="widgets_picker_empty_body">Install apps with widgets to add them here.</string>
@@ -29,8 +32,6 @@
     <string name="widgets_picker_no_matches_body">Try a shorter app name or clear the filter.</string>
     <string name="widgets_picker_filter_hint">Filter by app name</string>
     <string name="widgets_picker_filter_clear_description">Clear filter</string>
-    <string name="widgets_picker_show_app">Show</string>
-    <string name="widgets_picker_hide_app">Hide</string>
     <string name="widgets_picker_preview_provider">Preview</string>
     <string name="widgets_picker_hide_preview">Hide</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
