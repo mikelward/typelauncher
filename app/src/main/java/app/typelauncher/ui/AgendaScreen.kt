@@ -1,28 +1,33 @@
 package app.typelauncher
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -30,6 +35,7 @@ internal fun AgendaScreen(
     agenda: AgendaUiState,
     innerPadding: PaddingValues,
     onRequestCalendarPermission: () -> Unit,
+    onOpenAgendaEvent: (AgendaEvent) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -43,7 +49,11 @@ internal fun AgendaScreen(
         when (agenda) {
             AgendaUiState.PermissionRequired -> PermissionCard(onRequestCalendarPermission)
             AgendaUiState.Empty -> EmptyAgendaCard()
-            is AgendaUiState.Events -> AgendaEventsCard(agenda.events, Modifier.weight(1f))
+            is AgendaUiState.Events -> AgendaEventsCard(
+                events = agenda.events,
+                onOpenAgendaEvent = onOpenAgendaEvent,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -80,26 +90,55 @@ private fun EmptyAgendaCard() {
 }
 
 @Composable
-private fun AgendaEventsCard(events: List<AgendaEvent>, modifier: Modifier = Modifier) {
+private fun AgendaEventsCard(
+    events: List<AgendaEvent>,
+    onOpenAgendaEvent: (AgendaEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     SectionCard(modifier.testTag(AGENDA_EVENTS_TAG)) {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(events) { event ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Column {
-                        Text(event.title, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            event.displayTime,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                AgendaEventRow(event = event, onOpenAgendaEvent = onOpenAgendaEvent)
             }
         }
+    }
+}
+
+@Composable
+private fun AgendaEventRow(
+    event: AgendaEvent,
+    onOpenAgendaEvent: (AgendaEvent) -> Unit,
+) {
+    val stripeColor = event.calendarColor
+        ?.let { Color(it) }
+        ?: MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenAgendaEvent(event) }
+            .testTag("$AGENDA_EVENT_ROW_TAG:${event.eventId}")
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = event.displayTime,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(72.dp),
+        )
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .heightIn(min = 28.dp)
+                .background(stripeColor, RoundedCornerShape(2.dp)),
+        )
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
     }
 }

@@ -5,6 +5,7 @@ import android.app.Application
 import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
@@ -163,6 +164,19 @@ internal class LauncherViewModel(
         logState("refreshAgenda")
     }
 
+    fun openAgendaEvent(event: AgendaEvent) {
+        LauncherDebugLog.event("openAgendaEvent eventId=${event.eventId} begin=${event.beginMillis}")
+        val eventUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
+        val intent = Intent(Intent.ACTION_VIEW, eventUri)
+            .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.beginMillis)
+            .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.endMillis)
+        try {
+            startActivity(intent)
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("openAgendaEvent no activity for event uri", exception)
+        }
+    }
+
     fun launchActiveApp() {
         val query = _uiState.value.query
         LauncherDebugLog.event("launchActiveApp queryLength=${query.length} filtered=${_uiState.value.filteredApps.size}")
@@ -238,6 +252,17 @@ internal class LauncherViewModel(
 
     internal fun refreshAvailableWidgetsForTest() {
         _uiState.update { it.copy(availableWidgets = loadAvailableWidgets()) }
+    }
+
+    internal fun showAgendaEventsForTest(events: List<AgendaEvent>) {
+        agendaVersion++
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Agenda,
+                agenda = if (events.isEmpty()) AgendaUiState.Empty else AgendaUiState.Events(events),
+            )
+        }
+        logState("showAgendaEventsForTest")
     }
 
     internal fun showWidgetPickerForTest(availableWidgets: List<WidgetProvider>) {
@@ -343,10 +368,12 @@ internal class LauncherViewModel(
         }.build()
         val events = mutableListOf<AgendaEvent>()
         val projection = arrayOf(
+            CalendarContract.Instances.EVENT_ID,
             CalendarContract.Instances.TITLE,
             CalendarContract.Instances.BEGIN,
             CalendarContract.Instances.END,
             CalendarContract.Instances.ALL_DAY,
+            CalendarContract.Instances.DISPLAY_COLOR,
         )
 
         try {
@@ -357,10 +384,12 @@ internal class LauncherViewModel(
                 null,
                 "${CalendarContract.Instances.BEGIN} ASC",
             )?.use { cursor ->
+                val eventIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_ID)
                 val titleIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.TITLE)
                 val beginIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.BEGIN)
                 val endIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.END)
                 val allDayIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.ALL_DAY)
+                val colorIndex = cursor.getColumnIndex(CalendarContract.Instances.DISPLAY_COLOR)
                 while (cursor.moveToNext()) {
                     events += AgendaEvent(
                         title = cursor.getString(titleIndex)?.takeIf { it.isNotBlank() }
@@ -369,6 +398,10 @@ internal class LauncherViewModel(
                         endMillis = cursor.getLong(endIndex),
                         isAllDay = cursor.getInt(allDayIndex) == 1,
                         displayTime = "",
+                        eventId = cursor.getLong(eventIdIndex),
+                        calendarColor = colorIndex
+                            .takeIf { it >= 0 && !cursor.isNull(it) }
+                            ?.let(cursor::getInt),
                     )
                 }
             }

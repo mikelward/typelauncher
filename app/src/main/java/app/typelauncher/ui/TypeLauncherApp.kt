@@ -78,6 +78,7 @@ internal fun TypeLauncherApp(
         onSelectWidget = onSelectWidget,
         onRemoveWidget = onRemoveWidget,
         onRequestCalendarPermission = onRequestCalendarPermission,
+        onOpenAgendaEvent = viewModel::openAgendaEvent,
     )
 }
 
@@ -108,6 +109,7 @@ internal fun TypeLauncherApp(
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
+    onOpenAgendaEvent: (AgendaEvent) -> Unit,
 ) {
     LaunchedEffect(state.screen, state.isSettingsOpen, state.isAppListIconOnly) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
@@ -167,6 +169,7 @@ internal fun TypeLauncherApp(
                         agenda = state.agenda,
                         innerPadding = innerPadding,
                         onRequestCalendarPermission = onRequestCalendarPermission,
+                        onOpenAgendaEvent = onOpenAgendaEvent,
                     )
                 }
             }
