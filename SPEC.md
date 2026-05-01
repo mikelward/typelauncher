@@ -65,7 +65,7 @@ This document records the current product and technical design decisions for Typ
 - The widgets screen is the launcher's +1 screen between the app list and agenda.
 - The top of the widgets screen is a full-width add card with a large plus button that opens Android's widget picker.
 - Selected app widget IDs are persisted in `SharedPreferences` under the `widgets` store and rendered through `AppWidgetHost` when provider info is available.
-- The MVP optimizes for full-width 4x1-style widgets by giving hosted widgets the whole page width and using the provider minimum height with a launcher floor.
+- The MVP optimizes for full-width 4x1-style widgets by giving hosted widgets the whole page width and using the provider minimum height, reported in pixels, converted to Compose density-independent height with a launcher floor.
 
 ## Agenda behavior
 
