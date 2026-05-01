@@ -370,7 +370,12 @@ private fun IconOnlyAppButton(
                 .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AppIcon(app = app, size = iconSizeDp.dp, testTag = APP_ICON_ONLY_ICON_TAG)
+            AppIcon(
+                app = app,
+                size = iconSizeDp.dp,
+                testTag = APP_ICON_ONLY_ICON_TAG,
+                backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
+            )
         }
         Box(
             modifier = Modifier
@@ -430,7 +435,11 @@ private fun AppRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AppIcon(app = app, size = 40.dp)
+            AppIcon(
+                app = app,
+                size = 40.dp,
+                backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
+            )
             Text(
                 app.name,
                 modifier = Modifier.weight(1f),
@@ -763,7 +772,12 @@ private fun SettingsPreview(
 }
 
 @Composable
-private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp, testTag: String = APP_ICON_TAG) {
+private fun AppIcon(
+    app: InstalledApp,
+    size: androidx.compose.ui.unit.Dp,
+    testTag: String = APP_ICON_TAG,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+) {
     val bitmap = remember(app.id, app.icon) {
         app.icon?.toBitmap(width = 96, height = 96)?.asImageBitmap()
     }
@@ -775,7 +789,7 @@ private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp, testTa
         Surface(
             modifier = Modifier.fillMaxSize(),
             shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = backgroundColor,
         ) {
             if (bitmap != null) {
                 Image(
