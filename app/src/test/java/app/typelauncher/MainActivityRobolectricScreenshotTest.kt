@@ -843,7 +843,7 @@ class MainActivityRobolectricScreenshotTest {
             object : Statement() {
                 override fun evaluate() {
                     val application = RuntimeEnvironment.getApplication()
-                    listOf("docked_apps", "dock_settings", "app_launch_stats", "widgets").forEach { preferenceName ->
+                    listOf("docked_apps", "dock_settings", "app_launch_stats", "widgets", "app_metadata").forEach { preferenceName ->
                         application
                             .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)
                             .edit()

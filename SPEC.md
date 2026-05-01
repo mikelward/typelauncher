@@ -58,7 +58,8 @@ This document records the current product and technical design decisions for Typ
 
 - Installed launcher apps are loaded through `LauncherApps` across available profiles when possible.
 - If `LauncherApps` returns no activities, the app falls back to `PackageManager.queryIntentActivities` for `ACTION_MAIN` plus `CATEGORY_LAUNCHER`.
-- The cold-start load resolves only labels (not icons) so the app list can render as soon as `LauncherApps.getActivityList` returns. App icons are fetched lazily by `AppIconLoader` (an in-memory `LruCache` keyed by `userHandle.hashCode():componentName`) when each row enters the viewport — rows show the placeholder surface until the drawable arrives. The cache size is capped at 256 entries.
+- The cold-start load resolves only labels (not icons) so the app list can render as soon as `LauncherApps.getActivityList` returns. App icons are fetched lazily by `AppIconLoader` (an in-memory `LruCache<String, ImageBitmap>` keyed by `userHandle.hashCode():componentName`) when each row enters the viewport — rows show the placeholder surface until the bitmap arrives. The cache size is capped at 256 entries. The `Drawable` resolve runs on `Dispatchers.IO`, the `toBitmap` conversion runs on `Dispatchers.Default`, and only the resulting `ImageBitmap` is read on the composition thread.
+- `AppMetadataStore` persists a JSON snapshot of personal-profile installed apps (display name, package, component, work flag, `LauncherApps`-vs-`PackageManager` launch flag) under the `app_metadata` `SharedPreferences`. The view model reads it synchronously during initialization so the dock and last-known app list paint on the very first frame after the second-or-later launch; the fresh `LauncherApps` load runs immediately after and replaces the snapshot once it returns. Work-profile apps are intentionally excluded because reconstructing their `UserHandle` outside a live `LauncherApps` query is not generally possible; they re-appear after the fresh load completes.
 - Work apps are identified when their `UserHandle` differs from the personal profile or when tests inject package names through `TEST_WORK_PACKAGES_EXTRA`.
 - Work apps show a badge on their icons.
 - Apps are currently de-duplicated by lowercased display name plus work-profile status. This means multiple personal apps with the same display name are intentionally collapsed until disambiguation is designed.
@@ -105,6 +106,7 @@ This document records the current product and technical design decisions for Typ
 - Dock membership is stored in `SharedPreferences` as newline-separated app IDs.
 - Dock visibility, dock icon size, the app-list icon-only preference, and the app-list sort order are stored in `SharedPreferences`.
 - Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID.
+- A snapshot of personal-profile installed apps for fast cold-start render is stored as JSON in the `app_metadata` `SharedPreferences`.
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.
 

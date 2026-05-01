@@ -60,7 +60,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -78,7 +77,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -806,10 +804,7 @@ private fun AppIcon(
     testTag: String = APP_ICON_TAG,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
-    val drawable = rememberAppIconDrawable(app)
-    val bitmap = remember(drawable) {
-        drawable?.toBitmap(width = 96, height = 96)?.asImageBitmap()
-    }
+    val bitmap = rememberAppIconBitmap(app)
     Box(
         modifier = Modifier
             .size(size)
