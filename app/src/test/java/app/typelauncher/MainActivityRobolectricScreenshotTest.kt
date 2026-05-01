@@ -79,8 +79,11 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
+        composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")
         composeRule.waitForIdle()
+        composeRule.onNodeWithText("Type an app name").assertDoesNotExist()
+        composeRule.onNodeWithText("settings").assertIsDisplayed()
         assertVisibleApps("Settings")
 
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextClearance()
