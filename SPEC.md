@@ -23,7 +23,7 @@ This document records the current product and technical design decisions for Typ
 
 - The app currently has two screens: `Home` and `Agenda`.
 - Horizontal swipes move between screens through a Compose `HorizontalPager`; the agenda is the launcher's left-of-home, or "-1", screen.
-- Pager navigation uses an effectively infinite carousel so swiping left or right always wraps between `Home` and `Agenda`; each gesture can advance at most one screen, regardless of fling velocity.
+- Pager navigation uses an effectively infinite carousel so swiping left or right always wraps between `Home` and `Agenda`; user swipes are handled as discrete gestures, not free-scrolling pager flings, so each gesture can advance exactly one screen at most.
 - `LauncherScreenSwitcher` is a legacy/custom `ViewAnimator` swipe helper and is not part of the current Compose runtime path.
 - Swipe handling was introduced because child lists can otherwise consume gestures before launcher-level navigation sees them.
 

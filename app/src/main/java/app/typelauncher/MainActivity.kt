@@ -28,6 +28,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -48,8 +49,6 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerDefaults
-import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -82,6 +81,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,9 +90,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -122,6 +124,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -129,6 +132,7 @@ import java.util.LinkedHashSet
 import kotlin.math.abs
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
+private const val CAROUSEL_SWIPE_THRESHOLD_DP = 48
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
@@ -255,6 +259,8 @@ private fun SwipeNavigationBox(
         pageCount = { LauncherScreen.carouselPageCount },
     )
     val settledPage = pagerState.settledPage
+    val swipeThresholdPx = with(LocalDensity.current) { CAROUSEL_SWIPE_THRESHOLD_DP.dp.toPx() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(screen) {
         val targetPage = LauncherScreen.closestCarouselPage(
@@ -274,11 +280,33 @@ private fun SwipeNavigationBox(
 
     HorizontalPager(
         state = pagerState,
-        flingBehavior = PagerDefaults.flingBehavior(
-            state = pagerState,
-            pagerSnapDistance = PagerSnapDistance.atMost(1),
-        ),
-        modifier = Modifier.fillMaxSize(),
+        userScrollEnabled = false,
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(pagerState, swipeThresholdPx) {
+                var dragAmountPx = 0f
+                var dragStartPage = pagerState.settledPage
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        dragAmountPx = 0f
+                        dragStartPage = pagerState.settledPage
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        dragAmountPx += dragAmount
+                    },
+                    onDragEnd = {
+                        if (abs(dragAmountPx) >= swipeThresholdPx) {
+                            val direction = if (dragAmountPx < 0f) 1 else -1
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(dragStartPage + direction)
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        dragAmountPx = 0f
+                    },
+                )
+            },
     ) { page ->
         content(LauncherScreen.fromCarouselPage(page))
     }

@@ -113,6 +113,12 @@ class MainActivityRobolectricScreenshotTest {
 
         assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test
