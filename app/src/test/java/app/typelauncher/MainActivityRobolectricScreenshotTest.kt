@@ -173,7 +173,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.activity.viewModel.showWidgets()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).performClick()
+        composeRule.activity.viewModel.showWidgetPicker()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
