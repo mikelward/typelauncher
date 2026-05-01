@@ -364,7 +364,8 @@ private fun SearchCard(
                 }
             },
             singleLine = true,
-            label = { Text(stringResource(R.string.app_search_hint)) },
+            placeholder = { Text(stringResource(R.string.app_search_hint)) },
+            textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
                 keyboardType = KeyboardType.Text,
