@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -44,6 +45,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -647,6 +649,7 @@ internal fun SettingsScreen(
 @Composable
 private fun SettingsOverflowMenu() {
     var expanded by remember { mutableStateOf(false) }
+    var aboutVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     Box {
@@ -673,8 +676,45 @@ private fun SettingsOverflowMenu() {
                     scope.launch { BugReport.share(activity) }
                 },
             )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_about_action)) },
+                modifier = Modifier.testTag(SETTINGS_ABOUT_ACTION_TAG),
+                onClick = {
+                    expanded = false
+                    aboutVisible = true
+                },
+            )
         }
     }
+    if (aboutVisible) {
+        AboutDialog(onDismiss = { aboutVisible = false })
+    }
+}
+
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(SETTINGS_ABOUT_DIALOG_TAG),
+        title = { Text(stringResource(R.string.settings_about_dialog_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.settings_about_version_value,
+                    BuildConfig.VERSION_NAME,
+                    BuildConfig.VERSION_CODE,
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(SETTINGS_ABOUT_DIALOG_DISMISS_TAG),
+            ) {
+                Text(stringResource(R.string.settings_about_dialog_dismiss))
+            }
+        },
+    )
 }
 
 @Composable

@@ -305,16 +305,39 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsOverflowMenuExposesReportBugAction() {
+    fun settingsOverflowMenuExposesReportBugAndAboutActions() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).assertDoesNotExist()
 
         composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Report bug").assertIsDisplayed()
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("About").assertIsDisplayed()
         saveScreenshot("compose_settings_overflow_menu_robolectric.png")
+    }
+
+    @Test
+    fun aboutMenuItemShowsVersionAndVersionCodeAndDismisses() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_DIALOG_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("About Type Launcher").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Version ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+        ).assertIsDisplayed()
+        saveScreenshot("compose_settings_about_dialog_robolectric.png")
+
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_DIALOG_DISMISS_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_DIALOG_TAG).assertDoesNotExist()
     }
 
     @Test

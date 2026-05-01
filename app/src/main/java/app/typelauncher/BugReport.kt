@@ -17,7 +17,10 @@ import android.view.PixelCopy
 import android.view.View
 import android.view.Window
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -73,19 +76,35 @@ internal object BugReport {
     }
 
     private suspend fun captureAndPersistScreenshot(activity: Activity): Uri? {
-        val bitmap = runCatching { captureWindow(activity) }.getOrNull() ?: return null
-        return runCatching {
-            val dir = File(activity.cacheDir, SCREENSHOT_DIR_NAME).apply { mkdirs() }
-            // Keep only the freshest screenshot so the cache doesn't grow unbounded.
-            dir.listFiles()?.forEach { it.delete() }
-            val file = File(dir, "screenshot-${System.currentTimeMillis()}.png")
-            FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
-            FileProvider.getUriForFile(
-                activity,
-                activity.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
-                file,
-            )
-        }.getOrNull()
+        val bitmap = try {
+            captureWindow(activity)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            LauncherDebugLog.warning("BugReport.captureWindow failed", t)
+            null
+        } ?: return null
+        // Compressing a full-window PNG and pruning previous files would block the main
+        // thread long enough to jank the share-sheet open, so persist on Dispatchers.IO.
+        return withContext(Dispatchers.IO) {
+            try {
+                val dir = File(activity.cacheDir, SCREENSHOT_DIR_NAME).apply { mkdirs() }
+                // Keep only the freshest screenshot so the cache doesn't grow unbounded.
+                dir.listFiles()?.forEach { it.delete() }
+                val file = File(dir, "screenshot-${System.currentTimeMillis()}.png")
+                FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
+                FileProvider.getUriForFile(
+                    activity,
+                    activity.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
+                    file,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                LauncherDebugLog.warning("BugReport.persistScreenshot failed", t)
+                null
+            }
+        }
     }
 
     private suspend fun captureWindow(activity: Activity): Bitmap? {

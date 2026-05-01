@@ -57,5 +57,9 @@
     <string name="settings_dock_preview_label">Preview</string>
     <string name="settings_overflow_button_description">More settings actions</string>
     <string name="settings_report_bug_action">Report bug</string>
+    <string name="settings_about_action">About</string>
+    <string name="settings_about_dialog_title">About Type Launcher</string>
+    <string name="settings_about_version_value">Version %1$s (build %2$d)</string>
+    <string name="settings_about_dialog_dismiss">OK</string>
     <string name="bug_report_chooser_title">Share bug report</string>
 </resources>

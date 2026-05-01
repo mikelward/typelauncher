@@ -15,6 +15,9 @@ android {
         applicationId = "app.typelauncher"
         minSdk = 34
         targetSdk = 36
+        // TODO: derive versionCode from `git rev-list --count HEAD` so it monotonically
+        //   increases per commit and stays reproducible (same commit -> same number),
+        //   matching the ClothesCast app/build.gradle.kts approach.
         versionCode = 1
         versionName = "1.0"
 
