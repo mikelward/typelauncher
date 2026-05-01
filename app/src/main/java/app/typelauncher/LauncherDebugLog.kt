@@ -105,4 +105,4 @@ internal fun LauncherUiState.debugSummary(): String =
         "addingWidget=$isAddingWidget availableWidgets=${availableWidgets.size} " +
         "agenda=${agenda::class.simpleName} dockEnabled=$isDockEnabled " +
         "appListIconOnly=$isAppListIconOnly dockIconCount=$dockIconCount " +
-        "loadingApps=$isLoadingApps"
+        "sortOrder=$appListSortOrder loadingApps=$isLoadingApps"

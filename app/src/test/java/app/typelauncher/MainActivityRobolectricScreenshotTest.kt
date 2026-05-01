@@ -379,6 +379,32 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appListSortOrderToggleSortsAlphabeticallyAndPersistsRanks() {
+        val viewModel = composeRule.activity.viewModel
+        val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
+        viewModel.launchApp(calculator)
+        viewModel.launchApp(calculator)
+        composeRule.waitForIdle()
+
+        assertEquals(AppListSortOrder.Usage, viewModel.uiState.value.appListSortOrder)
+        assertEquals("Calculator", viewModel.uiState.value.filteredApps.first().name)
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG).assertIsOff()
+        composeRule.onNodeWithTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG).assertIsOn()
+        assertEquals(AppListSortOrder.Alphabetical, viewModel.uiState.value.appListSortOrder)
+
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val orderedNames = viewModel.uiState.value.filteredApps.map { it.name }
+        assertEquals(orderedNames.sortedWith(String.CASE_INSENSITIVE_ORDER), orderedNames)
+    }
+
+    @Test
     fun settingsDockToggleHidesDockOnHomeAndPreviewExpandsAppList() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)

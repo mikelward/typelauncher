@@ -36,7 +36,7 @@ This document records the current product and technical design decisions for Typ
 
 - The search field is focused on launch and requests the software keyboard.
 - Typing filters installed apps by case-insensitive substring match against the app label.
-- With an empty query, apps are sorted by descending recorded launch count, then alphabetically by display name. Docked apps are pushed below non-docked apps only while the dock is enabled.
+- With an empty query, apps are sorted by descending recorded launch count, then alphabetically by display name. A settings toggle switches the empty-query order to alphabetical by display name. In both modes, docked apps are pushed below non-docked apps only while the dock is enabled.
 - Pressing the keyboard search action or Enter opens in-app settings when the query is blank, opens Android system settings when the query is `settings`, or launches the active first filtered app otherwise.
 - The active first filtered app is highlighted in both text-list and icon-list modes so the Enter/search launch target is visible. In the text list the entire row is painted with a pale blue background (`#CFE2FF` light / `#274C7A` dark) using 8dp rounded corners. In the icon-only grid a pale blue rounded square (8dp corners, 8dp padding around the icon) is drawn behind the active icon. Both colors are fixed rather than derived from the Material dynamic color scheme because dynamic color produces tokens too close to the card surface to be reliably visible.
 - Enter key handling is designed around Android editor action variance: an Enter down event should be enough to launch, while repeat and matching up events should not double-launch.
@@ -47,6 +47,7 @@ This document records the current product and technical design decisions for Typ
 - App info opens Android's application details screen for the selected package.
 - Reset rank clears that app's stored launch count.
 - A settings toggle can switch the installed app list from text rows to an icon-only grid. It is off by default, and icon-only apps use the same icon size and visual treatment as the dock.
+- A settings toggle switches the app list sort order between by-usage (default) and alphabetical.
 - The UI intentionally omits section headers such as "Installed apps", "Dock", and "Agenda" to keep the launcher compact and action-oriented.
 
 ## Installed apps and profiles
@@ -91,7 +92,7 @@ This document records the current product and technical design decisions for Typ
 ## Persistence
 
 - Dock membership is stored in `SharedPreferences` as newline-separated app IDs.
-- Dock visibility, dock icon size, and the app-list icon-only preference are stored in `SharedPreferences`.
+- Dock visibility, dock icon size, the app-list icon-only preference, and the app-list sort order are stored in `SharedPreferences`.
 - Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID.
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.

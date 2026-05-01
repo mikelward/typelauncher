@@ -51,6 +51,7 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
+            appListSortOrder = dockSettingsStore.appListSortOrder,
             isLoadingApps = true,
         ),
     )
@@ -77,6 +78,7 @@ internal class LauncherViewModel(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         downrankedAppIds = downrankedIds,
+                        sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
                         .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
@@ -260,6 +262,13 @@ internal class LauncherViewModel(
         logState("setAppListIconOnly")
     }
 
+    fun setAppListSortOrder(sortOrder: AppListSortOrder) {
+        dockSettingsStore.appListSortOrder = sortOrder
+        _uiState.update { it.copy(appListSortOrder = sortOrder) }
+        refreshLists()
+        logState("setAppListSortOrder")
+    }
+
     fun setDockVisibleIconCount(count: Int) {
         val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
         dockSettingsStore.dockIconCount = clampedCount
@@ -275,6 +284,7 @@ internal class LauncherViewModel(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
                     downrankedAppIds = dockedAppStore.dockedAppIds.takeIf { state.isDockEnabled }.orEmpty(),
+                    sortOrder = state.appListSortOrder,
                 ).markDocked(),
                 dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),
             )

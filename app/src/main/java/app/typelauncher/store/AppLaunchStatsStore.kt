@@ -32,14 +32,21 @@ internal fun List<InstalledApp>.filterByName(
     query: String,
     appLaunchStatsStore: AppLaunchStatsStore,
     downrankedAppIds: Collection<String>,
+    sortOrder: AppListSortOrder = AppListSortOrder.Usage,
 ): List<InstalledApp> =
     if (query.isEmpty()) {
-        sortedWith(
-            compareByDescending<InstalledApp> { app ->
-                if (app.id in downrankedAppIds) DOCKED_APP_LIST_RANK else appLaunchStatsStore.launchCount(app.id)
-            }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
-        )
+        when (sortOrder) {
+            AppListSortOrder.Usage -> sortedWith(
+                compareByDescending<InstalledApp> { app ->
+                    if (app.id in downrankedAppIds) DOCKED_APP_LIST_RANK else appLaunchStatsStore.launchCount(app.id)
+                }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+            )
+            AppListSortOrder.Alphabetical -> sortedWith(
+                compareBy<InstalledApp> { app -> if (app.id in downrankedAppIds) 1 else 0 }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+            )
+        }
     } else {
         filter { app -> app.name.contains(query, ignoreCase = true) }
     }
