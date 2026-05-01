@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.Manifest
 import android.app.Application
+import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
@@ -198,6 +199,17 @@ internal class LauncherViewModel(
     fun closeSettings() {
         _uiState.update { it.copy(isSettingsOpen = false) }
         logState("closeSettings")
+    }
+
+    fun requestDefaultLauncher() {
+        LauncherDebugLog.event("requestDefaultLauncher")
+        val roleManager = app.getSystemService<RoleManager>()
+        val intent = if (roleManager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) {
+            roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
+        } else {
+            Intent(Settings.ACTION_HOME_SETTINGS)
+        }
+        startActivity(intent)
     }
 
     fun setDockEnabled(isEnabled: Boolean) {
