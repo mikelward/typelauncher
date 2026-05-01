@@ -113,6 +113,9 @@ private fun WidgetPickerCard(
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
+        var expandedAppName by remember { mutableStateOf<String?>(null) }
+        var expandedProviderId by remember { mutableStateOf<String?>(null) }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -143,10 +146,20 @@ private fun WidgetPickerCard(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 availableWidgets.groupBy { provider -> provider.appName }.forEach { (appName, providers) ->
+                    val isAppExpanded = expandedAppName == appName
                     WidgetAppSection(
                         appName = appName,
                         providers = providers,
+                        isExpanded = isAppExpanded,
+                        expandedProviderId = if (isAppExpanded) expandedProviderId else null,
                         appWidgetManager = appWidgetManager,
+                        onToggleExpanded = {
+                            expandedAppName = if (isAppExpanded) null else appName
+                            expandedProviderId = null
+                        },
+                        onToggleProvider = { provider ->
+                            expandedProviderId = if (expandedProviderId == provider.id) null else provider.id
+                        },
                         onSelectWidget = onSelectWidget,
                     )
                 }
@@ -159,24 +172,64 @@ private fun WidgetPickerCard(
 private fun WidgetAppSection(
     appName: String,
     providers: List<WidgetProvider>,
+    isExpanded: Boolean,
+    expandedProviderId: String?,
     appWidgetManager: AppWidgetManager?,
+    onToggleExpanded: () -> Unit,
+    onToggleProvider: (WidgetProvider) -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     Column(
-        modifier = Modifier.testTag("$WIDGET_APP_HEADER_TAG:$appName"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = appName,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        providers.forEach { provider ->
-            WidgetProviderRow(
-                provider = provider,
-                appWidgetManager = appWidgetManager,
-                onSelectWidget = onSelectWidget,
-            )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggleExpanded)
+                .semantics { role = Role.Button }
+                .testTag("$WIDGET_APP_ROW_TAG:$appName"),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = appName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = widgetProviderCountLabel(providers.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = if (isExpanded) {
+                        stringResource(R.string.widgets_picker_hide_app)
+                    } else {
+                        stringResource(R.string.widgets_picker_show_app)
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        if (isExpanded) {
+            providers.forEach { provider ->
+                WidgetProviderRow(
+                    provider = provider,
+                    isExpanded = expandedProviderId == provider.id,
+                    appWidgetManager = appWidgetManager,
+                    onToggleExpanded = { onToggleProvider(provider) },
+                    onSelectWidget = onSelectWidget,
+                )
+            }
         }
     }
 }
@@ -184,13 +237,15 @@ private fun WidgetAppSection(
 @Composable
 private fun WidgetProviderRow(
     provider: WidgetProvider,
+    isExpanded: Boolean,
     appWidgetManager: AppWidgetManager?,
+    onToggleExpanded: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelectWidget(provider) }
+            .clickable(onClick = onToggleExpanded)
             .semantics { role = Role.Button }
             .testTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -199,20 +254,15 @@ private fun WidgetProviderRow(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            WidgetPreview(
-                provider = provider,
-                appWidgetManager = appWidgetManager,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp)
-                    .testTag("$WIDGET_PREVIEW_TAG:${provider.id}"),
-            )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 WidgetIcon(provider)
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(provider.label, style = MaterialTheme.typography.titleSmall)
                     Text(
                         stringResource(
@@ -223,6 +273,28 @@ private fun WidgetProviderRow(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                Text(
+                    text = if (isExpanded) {
+                        stringResource(R.string.widgets_picker_hide_preview)
+                    } else {
+                        stringResource(R.string.widgets_picker_preview_provider)
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (isExpanded) {
+                WidgetPreview(
+                    provider = provider,
+                    appWidgetManager = appWidgetManager,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(WIDGET_PROVIDER_PREVIEW_HEIGHT_DP.dp)
+                        .testTag("$WIDGET_PREVIEW_TAG:${provider.id}"),
+                )
+                Button(onClick = { onSelectWidget(provider) }) {
+                    Text(stringResource(R.string.widgets_add_button_description))
                 }
             }
         }
@@ -239,6 +311,7 @@ private fun WidgetPreview(
     val preview = remember(provider, appWidgetManager) {
         provider.preview(appWidgetManager, context)
     }
+    var generatedInflationFailed by remember(preview.generated) { mutableStateOf(false) }
 
     Surface(
         modifier = modifier,
@@ -246,10 +319,15 @@ private fun WidgetPreview(
         color = MaterialTheme.colorScheme.surface,
     ) {
         when {
-            preview.generated != null -> AndroidView(
+            preview.generated != null && !generatedInflationFailed -> AndroidView(
                 factory = { viewContext ->
-                    preview.generated.apply(viewContext, FrameLayout(viewContext)).also { view ->
-                        view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    try {
+                        preview.generated.apply(viewContext, FrameLayout(viewContext)).also { view ->
+                            view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        }
+                    } catch (_: RuntimeException) {
+                        generatedInflationFailed = true
+                        FrameLayout(viewContext)
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
@@ -443,12 +521,19 @@ private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context:
     } else {
         null
     }
-    return WidgetPreviewValue(generated = generated, image = generated?.let { null } ?: previewImage)
+    return WidgetPreviewValue(generated = generated, image = previewImage)
 }
 
 private fun WidgetProvider.icon(): Drawable? = icon ?: appIcon
 
+private fun widgetProviderCountLabel(providerCount: Int): String =
+    if (providerCount == 1) {
+        "1 widget"
+    } else {
+        "$providerCount widgets"
+    }
+
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
 private const val WIDGET_MIN_HEIGHT_DP = 96
 private const val WIDGET_PROVIDER_PREVIEW_HEIGHT_DP = 120
-private const val GENERATED_WIDGET_PREVIEW_MIN_API = 36
+private const val GENERATED_WIDGET_PREVIEW_MIN_API = 35

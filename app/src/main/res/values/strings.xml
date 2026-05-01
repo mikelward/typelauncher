@@ -26,6 +26,10 @@
     <string name="widgets_picker_done">Done</string>
     <string name="widgets_picker_empty_title">No widgets available</string>
     <string name="widgets_picker_empty_body">Install apps with widgets to add them here.</string>
+    <string name="widgets_picker_show_app">Show</string>
+    <string name="widgets_picker_hide_app">Hide</string>
+    <string name="widgets_picker_preview_provider">Preview</string>
+    <string name="widgets_picker_hide_preview">Hide</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_preview_unavailable">Preview unavailable</string>
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>

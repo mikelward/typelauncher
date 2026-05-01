@@ -64,13 +64,7 @@ internal class LauncherViewModel(
     }
 
     fun showWidgetPicker() {
-        _uiState.update {
-            it.copy(
-                screen = LauncherScreen.Widgets,
-                isAddingWidget = true,
-                availableWidgets = loadAvailableWidgets(),
-            )
-        }
+        showWidgetPicker(loadAvailableWidgets())
     }
 
     fun hideWidgetPicker() {
@@ -147,6 +141,10 @@ internal class LauncherViewModel(
 
     internal fun refreshAvailableWidgetsForTest() {
         _uiState.update { it.copy(availableWidgets = loadAvailableWidgets()) }
+    }
+
+    internal fun showWidgetPickerForTest(availableWidgets: List<WidgetProvider>) {
+        showWidgetPicker(availableWidgets)
     }
 
     fun removeWidget(appWidgetId: Int) {
@@ -305,6 +303,16 @@ internal class LauncherViewModel(
                     .thenBy { provider -> provider.label.lowercase() },
             )
 
+    private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Widgets,
+                isAddingWidget = true,
+                availableWidgets = availableWidgets,
+            )
+        }
+    }
+
     private fun List<InstalledApp>.markDocked(): List<InstalledApp> =
         map { launcherApp ->
             val storedApp = installedApps.firstOrNull { installedApp -> installedApp.id == launcherApp.id } ?: launcherApp
@@ -371,4 +379,3 @@ private fun estimateCellSpan(sizeDp: Int): Int =
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
 private const val WIDGET_CELL_ESTIMATE_DP = 56
-private const val GENERATED_WIDGET_PREVIEW_MIN_API = 36
