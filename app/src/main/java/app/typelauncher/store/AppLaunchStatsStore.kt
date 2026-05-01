@@ -57,17 +57,17 @@ internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, q
     filter { app -> app.id in dockedAppIds }
         .let { dockedApps ->
             if (query.isEmpty()) {
-                dockedApps.sortedBy { app -> dockedAppIds.indexOf(app.id) }
-            } else {
                 dockedApps
-                    .mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
-                    .sortedWith(
-                        compareBy<Pair<InstalledApp, LauncherMatchTier>> { (_, tier) -> tier.ordinal }
-                            .thenBy { (app, _) -> dockedAppIds.indexOf(app.id) },
-                    )
-                    .map { (app, _) -> app }
+            } else {
+                // Dock keeps the user's manual insertion order even under a
+                // query — substring vs. prefix vs. anchored ranking only
+                // applies to the main app list. Reordering docked icons while
+                // typing would shuffle a row whose positions the user has
+                // explicitly arranged.
+                dockedApps.filter { app -> app.name.launcherMatchTier(query) != null }
             }
         }
+        .sortedBy { app -> dockedAppIds.indexOf(app.id) }
 
 internal enum class LauncherMatchTier { Prefix, Anchored, Substring }
 

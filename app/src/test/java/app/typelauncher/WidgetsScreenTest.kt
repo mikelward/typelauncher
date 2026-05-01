@@ -107,9 +107,9 @@ class WidgetsScreenTest {
     }
 
     @Test
-    fun widgetPicker_filtersAppGroupsWithLauncherFuzzyMatch() {
-        // Same anchored fuzzy rules as the app list: capital letters anchor mid-name,
-        // and lowercase interior letters do not. See LauncherQueryMatchTest.
+    fun widgetPicker_filtersAppGroupsWithLauncherTieredMatch() {
+        // Three-tier matcher: prefix → anchored fuzzy → substring. See
+        // LauncherQueryMatchTest.
         val bofa = fakeWidgetProvider(appName = "BofA", label = "Balance")
         val onePassword = fakeWidgetProvider(appName = "1password", label = "Vault")
         val googleMail = fakeWidgetProvider(appName = "Google Mail", label = "Inbox")
@@ -131,18 +131,33 @@ class WidgetsScreenTest {
             }
         }
 
+        // "ba" anchors at B for BofA (anchored tier); 1password and Google Mail
+        // have no anchor or substring match and stay hidden.
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextInput("ba")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:BofA").assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:1password").assertDoesNotExist()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Google Mail").assertDoesNotExist()
 
+        // "m" anchors at the capital M in "Google Mail"; "1password" has no 'm'
+        // anywhere so it doesn't substring-match either.
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("m")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Google Mail").assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:1password").assertDoesNotExist()
 
+        // "ass" doesn't anchor against any of the three (the 'a' inside
+        // "1password" / "BofA" is mid-word lowercase or unreachable), but
+        // "1password" contains the literal substring, so the picker now shows
+        // it via the substring tier instead of "No matching apps".
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("ass")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:1password").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:BofA").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Google Mail").assertDoesNotExist()
+
+        // A query with no tier match anywhere still shows the empty state.
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("zzz")
         composeRule.waitForIdle()
         composeRule.onNodeWithText("No matching apps").assertIsDisplayed()
     }
