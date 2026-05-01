@@ -804,7 +804,7 @@ private fun AppIcon(
     testTag: String = APP_ICON_TAG,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
-    val bitmap = rememberAppIconBitmap(app)
+    val bitmap = rememberAppIconBitmap(app, size)
     Box(
         modifier = Modifier
             .size(size)
