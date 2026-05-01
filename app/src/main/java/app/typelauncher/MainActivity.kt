@@ -74,8 +74,8 @@ class MainActivity : ComponentActivity() {
         window.decorView.doOnPreDraw {
             LauncherDebugLog.event("MainActivity firstPreDraw window=${window.debugSummary()}")
         }
-        appWidgetHost = AppWidgetHost(this, APP_WIDGET_HOST_ID)
-        appWidgetManager = AppWidgetManager.getInstance(this)
+        appWidgetHost = AppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
+        appWidgetManager = AppWidgetManager.getInstance(applicationContext)
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         viewModel = ViewModelProvider(
             this,
@@ -149,6 +149,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onDestroy")
+        try {
+            appWidgetHost.stopListening()
+            LauncherDebugLog.event("AppWidgetHost.stopListening (onDestroy)")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("AppWidgetHost.stopListening failed", exception)
+        }
         super.onDestroy()
     }
 
