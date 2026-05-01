@@ -2,7 +2,6 @@ package app.typelauncher
 
 import android.Manifest
 import android.app.Application
-import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ActivityNotFoundException
@@ -296,14 +295,6 @@ internal class LauncherViewModel(
     fun closeSettings() {
         _uiState.update { it.copy(isSettingsOpen = false) }
         logState("closeSettings")
-    }
-
-    fun requestDefaultLauncher() {
-        LauncherDebugLog.event("requestDefaultLauncher")
-        val roleManager = app.getSystemService<RoleManager>()
-        val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_HOME)
-            ?: Intent(Settings.ACTION_HOME_SETTINGS)
-        app.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun setDockEnabled(isEnabled: Boolean) {

@@ -44,6 +44,7 @@ internal fun TypeLauncherApp(
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
+    onRequestDefaultLauncher: () -> Unit,
     onSwipeDown: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -65,7 +66,7 @@ internal fun TypeLauncherApp(
         onResetRank = viewModel::resetRank,
         onOpenSettings = viewModel::openSettings,
         onCloseSettings = viewModel::closeSettings,
-        onRequestDefaultLauncher = viewModel::requestDefaultLauncher,
+        onRequestDefaultLauncher = onRequestDefaultLauncher,
         onDockEnabledChanged = viewModel::setDockEnabled,
         onAppListIconOnlyChanged = viewModel::setAppListIconOnly,
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,

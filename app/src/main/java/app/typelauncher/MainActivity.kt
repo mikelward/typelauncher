@@ -1,18 +1,21 @@
 package app.typelauncher
 
 import android.Manifest
+import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.provider.Settings
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.ViewModelProvider
 
@@ -25,6 +28,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var appWidgetHost: LauncherAppWidgetHost
     private lateinit var appWidgetManager: AppWidgetManager
 
+    private val requestDefaultLauncherLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
     private val requestCalendarPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             LauncherDebugLog.event("requestCalendarPermission result granted=$it")
@@ -99,6 +104,7 @@ class MainActivity : ComponentActivity() {
                     onRequestCalendarPermission = {
                         requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                     },
+                    onRequestDefaultLauncher = ::requestDefaultLauncher,
                     onSwipeDown = ::expandNotificationShade,
                 )
             }
@@ -304,6 +310,13 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         viewModel.removeWidget(appWidgetId)
         deletePendingWidget(appWidgetId)
+    }
+
+    private fun requestDefaultLauncher() {
+        LauncherDebugLog.event("requestDefaultLauncher")
+        val intent = getSystemService<RoleManager>()?.createRequestRoleIntent(RoleManager.ROLE_HOME)
+            ?: Intent(Settings.ACTION_HOME_SETTINGS)
+        requestDefaultLauncherLauncher.launch(intent)
     }
 
     private fun expandNotificationShade() {
