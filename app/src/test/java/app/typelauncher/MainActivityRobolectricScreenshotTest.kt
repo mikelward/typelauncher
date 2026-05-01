@@ -166,6 +166,17 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appRows_alignWithDockIcons() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        composeRule.waitForIdle()
+
+        val appIconLeft = composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").getBoundsInRoot().left
+        val dockIconLeft = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot().left
+        assertEquals(appIconLeft, dockIconLeft)
+    }
+
+    @Test
     fun dockCard_staysAtBottomAfterAppList() {
         composeRule.waitForIdle()
 
@@ -222,7 +233,14 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
         assertEquals(listOf("Work Calendar"), composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
         composeRule.onNodeWithText("app.typelauncher.fake8").assertDoesNotExist()
-        assertTrue(composeRule.activity.viewModel.uiState.value.filteredApps.single().name.startsWith("Work"))
+        composeRule.onNodeWithTag("$APP_ICON_TAG:Work Calendar", useUnmergedTree = true).assertExists()
+
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.single(), maxDockedApps = 6)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertIsDisplayed()
+        assertTrue(viewModel.uiState.value.dockedApps.single().name.startsWith("Work"))
     }
 
     private fun assertVisibleApps(vararg names: String) {

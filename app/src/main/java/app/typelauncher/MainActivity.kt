@@ -97,8 +97,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -430,27 +430,17 @@ private fun AppRow(
     onLaunchApp: (InstalledApp) -> Unit,
 ) {
     val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-    val iconModifier = if (app.isWorkApp) {
-        Modifier
-            .size(40.dp)
-            .testTag("$WORK_APP_BADGE_TAG:${app.name}")
-    } else {
-        Modifier.size(40.dp)
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(rowColor, MaterialTheme.shapes.medium)
             .clickable { onLaunchApp(app) }
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 4.dp, vertical = 8.dp)
             .testTag("$APP_ROW_TAG:${app.name}"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AppIcon(
-            app = app,
-            modifier = iconModifier,
-        )
+        AppIcon(app = app, size = 40.dp)
         Text(app.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
     }
 }
@@ -474,7 +464,7 @@ private fun DockedAppButton(
                 .testTag("$DOCK_APP_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AppIcon(app = app, modifier = Modifier.size(56.dp))
+            AppIcon(app = app, size = 56.dp)
         }
         Box(
             modifier = Modifier
@@ -493,11 +483,15 @@ private fun DockedAppButton(
 }
 
 @Composable
-private fun AppIcon(app: InstalledApp, modifier: Modifier = Modifier.size(40.dp)) {
+private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp) {
     val bitmap = remember(app.id, app.icon) {
         app.icon?.toBitmap(width = 96, height = 96)?.asImageBitmap()
     }
-    Box(modifier = modifier) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .testTag("$APP_ICON_TAG:${app.name}"),
+    ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             shape = MaterialTheme.shapes.medium,
@@ -523,7 +517,8 @@ private fun AppIcon(app: InstalledApp, modifier: Modifier = Modifier.size(40.dp)
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(18.dp),
+                    .size(18.dp)
+                    .testTag("$WORK_APP_BADGE_TAG:${app.name}"),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
             ) {
@@ -873,7 +868,13 @@ internal class LauncherViewModel(
     }
 
     private fun List<InstalledApp>.markDocked(): List<InstalledApp> =
-        map { launcherApp -> launcherApp.copy(isDocked = dockedAppStore.contains(launcherApp.id)) }
+        map { launcherApp ->
+            val storedApp = installedApps.firstOrNull { installedApp -> installedApp.id == launcherApp.id } ?: launcherApp
+            launcherApp.copy(
+                isDocked = dockedAppStore.contains(launcherApp.id),
+                isWorkApp = storedApp.isWorkApp,
+            )
+        }
 
     companion object {
         fun factory(app: Application, workPackages: Set<String>): ViewModelProvider.Factory =
@@ -1121,6 +1122,7 @@ internal const val SEARCH_FIELD_TAG = "search_field"
 internal const val APPS_CARD_TAG = "apps_card"
 internal const val APPS_LIST_TAG = "apps_list"
 internal const val APP_ROW_TAG = "app_row"
+internal const val APP_ICON_TAG = "app_icon"
 internal const val WORK_APP_BADGE_TAG = "work_app_badge"
 internal const val DOCK_CARD_TAG = "dock_card"
 internal const val DOCK_LIST_TAG = "dock_list"
