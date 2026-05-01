@@ -100,6 +100,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.role
@@ -132,7 +134,10 @@ import java.util.LinkedHashSet
 import kotlin.math.abs
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
+internal const val CAROUSEL_TAG = "carousel"
 private const val CAROUSEL_SWIPE_THRESHOLD_DP = 48
+internal val CarouselVirtualPageKey = SemanticsPropertyKey<Int>("CarouselVirtualPage")
+private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
@@ -283,6 +288,10 @@ private fun SwipeNavigationBox(
         userScrollEnabled = false,
         modifier = Modifier
             .fillMaxSize()
+            .testTag(CAROUSEL_TAG)
+            .semantics {
+                carouselVirtualPage = pagerState.settledPage
+            }
             .pointerInput(pagerState, swipeThresholdPx) {
                 var dragAmountPx = 0f
                 var dragStartPage = pagerState.settledPage

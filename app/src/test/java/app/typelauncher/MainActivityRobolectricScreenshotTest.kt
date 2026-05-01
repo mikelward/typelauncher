@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
@@ -108,15 +109,21 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun fastCarouselFlingAdvancesOnlyOneScreen() {
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val startPage = carousel.carouselVirtualPage()
+
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 
+        val afterFirstSwipePage = carousel.carouselVirtualPage()
+        assertEquals(startPage + 1, afterFirstSwipePage)
         assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 
+        assertEquals(afterFirstSwipePage + 1, carousel.carouselVirtualPage())
         assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
@@ -353,6 +360,9 @@ class MainActivityRobolectricScreenshotTest {
             composeRule.onNodeWithTag("$APP_ROW_TAG:$name").assertExists()
         }
     }
+
+    private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
+        fetchSemanticsNode().config[CarouselVirtualPageKey]
 
     private fun saveScreenshot(name: String) {
         val root = composeRule.activity.window.decorView.rootView
