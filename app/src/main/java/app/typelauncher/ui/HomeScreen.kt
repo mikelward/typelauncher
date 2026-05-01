@@ -593,11 +593,17 @@ internal fun SettingsScreen(
         }
         Button(
             onClick = onRequestDefaultLauncher,
+            enabled = !state.isDefaultLauncher,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(DEFAULT_LAUNCHER_BUTTON_TAG),
         ) {
-            Text(stringResource(R.string.settings_default_launcher_button))
+            Text(
+                stringResource(
+                    if (state.isDefaultLauncher) R.string.settings_already_default_launcher_button
+                    else R.string.settings_default_launcher_button,
+                ),
+            )
         }
         SectionCard {
             Row(

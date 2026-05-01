@@ -13,6 +13,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsDisplayed
@@ -46,6 +48,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowRoleManager
 import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
 import java.time.ZoneId
@@ -445,6 +448,21 @@ class MainActivityRobolectricScreenshotTest {
         val startedIntent = shadowOf(composeRule.activity).nextStartedActivityForResult.intent
         assertEquals("android.app.role.action.REQUEST_ROLE", startedIntent.action)
         assertEquals(RoleManager.ROLE_HOME, startedIntent.getStringExtra("android.intent.extra.ROLE_NAME"))
+    }
+
+    @Test
+    fun defaultLauncherButtonIsDisabledWhenAlreadyDefaultLauncher() {
+        val roleManager = composeRule.activity.getSystemService(RoleManager::class.java)
+        (shadowOf(roleManager) as ShadowRoleManager).addHeldRole(RoleManager.ROLE_HOME)
+        composeRule.activity.viewModel.refreshPermissionDrivenUi()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsNotEnabled()
+        composeRule.onNodeWithText("Already default launcher").assertIsDisplayed()
+        saveScreenshot("compose_settings_already_default_launcher_robolectric.png")
     }
 
     @Test

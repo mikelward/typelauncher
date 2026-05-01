@@ -36,6 +36,7 @@ internal data class LauncherUiState(
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
     val isLoadingApps: Boolean = false,
+    val isDefaultLauncher: Boolean = false,
 )
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
