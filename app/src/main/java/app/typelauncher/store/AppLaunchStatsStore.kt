@@ -48,7 +48,7 @@ internal fun List<InstalledApp>.filterByName(
             )
         }
     } else {
-        filter { app -> app.name.contains(query, ignoreCase = true) }
+        filter { app -> app.name.matchesLauncherQuery(query) }
     }
 
 internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
@@ -57,9 +57,39 @@ internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, q
             if (query.isEmpty()) {
                 dockedApps
             } else {
-                dockedApps.filter { app -> app.name.contains(query, ignoreCase = true) }
+                dockedApps.filter { app -> app.name.matchesLauncherQuery(query) }
             }
         }
         .sortedBy { app -> dockedAppIds.indexOf(app.id) }
+
+internal fun String.matchesLauncherQuery(query: String): Boolean {
+    if (query.isEmpty()) return true
+    val firstQueryChar = query[0]
+    for (anchor in indices) {
+        if (!isWordBoundary(anchor)) continue
+        if (!this[anchor].equalsIgnoreCase(firstQueryChar)) continue
+        if (containsSubsequenceFrom(query, queryStart = 1, nameStart = anchor + 1)) return true
+    }
+    return false
+}
+
+private fun String.isWordBoundary(index: Int): Boolean {
+    if (index == 0) return true
+    return this[index].isUpperCase()
+}
+
+private fun String.containsSubsequenceFrom(query: String, queryStart: Int, nameStart: Int): Boolean {
+    var nameIndex = nameStart
+    var queryIndex = queryStart
+    while (queryIndex < query.length) {
+        if (nameIndex >= length) return false
+        if (this[nameIndex].equalsIgnoreCase(query[queryIndex])) queryIndex++
+        nameIndex++
+    }
+    return true
+}
+
+private fun Char.equalsIgnoreCase(other: Char): Boolean =
+    this == other || lowercaseChar() == other.lowercaseChar()
 
 private const val DOCKED_APP_LIST_RANK = -1
