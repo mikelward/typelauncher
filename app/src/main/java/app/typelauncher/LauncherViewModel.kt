@@ -115,7 +115,7 @@ internal class LauncherViewModel(
         startActivity(app.appInfoIntent)
     }
 
-    fun toggleDock(app: InstalledApp, @Suppress("UNUSED_PARAMETER") dockLimit: Int) {
+    fun toggleDock(app: InstalledApp, @Suppress("UNUSED_PARAMETER") maxDockedApps: Int) {
         if (app.isDocked) {
             dockedAppStore.undock(app.id)
         } else {

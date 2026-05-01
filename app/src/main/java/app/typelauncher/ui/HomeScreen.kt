@@ -392,7 +392,7 @@ private fun DockedAppButton(
         AppActionsMenu(
             expanded = menuExpanded,
             app = app,
-            dockCapacity = Int.MAX_VALUE,
+            dockLimit = Int.MAX_VALUE,
             onDismiss = { menuExpanded = false },
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,

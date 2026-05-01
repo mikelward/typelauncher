@@ -15,16 +15,12 @@ internal class DockedAppStore(context: Context) {
 
     fun contains(appId: String): Boolean = appId in dockedIds
 
-    fun dock(appId: String, maxDockedApps: Int): Boolean {
+    fun dock(appId: String) {
         if (appId in dockedIds) {
-            return true
-        }
-        if (dockedIds.size >= maxDockedApps) {
-            return false
+            return
         }
         dockedIds.add(appId)
         save()
-        return true
     }
 
     fun undock(appId: String) {
@@ -72,13 +68,14 @@ internal class DockSettingsStore(context: Context) {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
-        const val KEY_DOCK_ICON_SIZE_DP = "dock_icon_size_dp"
     }
 }
 
 private fun android.content.SharedPreferences.deriveDockIconCountFromLegacySize(): Int {
-    val legacySize = getInt(KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)
+    val legacySize = getInt(LEGACY_KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)
         .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
     return dockSlotCountForIconSize(DEFAULT_DOCK_SCREEN_WIDTH_DP, legacySize)
         .coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
 }
+
+private const val LEGACY_KEY_DOCK_ICON_SIZE_DP = "dock_icon_size_dp"
