@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
@@ -16,7 +17,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -202,6 +207,16 @@ private fun SwipeNavigationBox(
         NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP.dp.toPx()
     }
     val coroutineScope = rememberCoroutineScope()
+    // Hold off on composing carousel pages other than the visible one until the
+    // first frame has rendered. The visible page is what triggers the soft
+    // keyboard via Home's focusRequester, and any extra layout work on the same
+    // frame (e.g. the agenda's calendar query) delays that show by hundreds of
+    // ms on cold start.
+    var offscreenPagesReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        offscreenPagesReady = true
+    }
 
     LaunchedEffect(screen) {
         val targetPage = LauncherScreen.closestCarouselPage(
@@ -281,6 +296,11 @@ private fun SwipeNavigationBox(
                 }
             },
     ) { page ->
-        content(LauncherScreen.fromCarouselPage(page))
+        val pageScreen = LauncherScreen.fromCarouselPage(page)
+        if (pageScreen == screen || offscreenPagesReady) {
+            content(pageScreen)
+        } else {
+            Box(modifier = Modifier.fillMaxSize())
+        }
     }
 }
