@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 private const val CAROUSEL_SWIPE_THRESHOLD_DP = 48
+private const val NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP = 96
 private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
 
 @Composable
@@ -43,6 +44,7 @@ internal fun TypeLauncherApp(
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
+    onSwipeDown: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state) {
@@ -79,6 +81,7 @@ internal fun TypeLauncherApp(
         onRemoveWidget = onRemoveWidget,
         onRequestCalendarPermission = onRequestCalendarPermission,
         onOpenAgendaEvent = viewModel::openAgendaEvent,
+        onSwipeDown = onSwipeDown,
     )
 }
 
@@ -110,6 +113,7 @@ internal fun TypeLauncherApp(
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
+    onSwipeDown: () -> Unit = {},
 ) {
     LaunchedEffect(state.screen, state.isSettingsOpen, state.isAppListIconOnly) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
@@ -138,6 +142,7 @@ internal fun TypeLauncherApp(
                 onShowAgenda = onShowAgenda,
                 onShowWidgets = onShowWidgets,
                 onShowHome = onShowHome,
+                onSwipeDown = onSwipeDown,
             ) { pageScreen ->
                 when (pageScreen) {
                     LauncherScreen.Home -> HomeScreen(
@@ -183,6 +188,7 @@ private fun SwipeNavigationBox(
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
+    onSwipeDown: () -> Unit,
     content: @Composable (LauncherScreen) -> Unit,
 ) {
     val pagerState = rememberPagerState(
@@ -191,6 +197,9 @@ private fun SwipeNavigationBox(
     )
     val settledPage = pagerState.settledPage
     val swipeThresholdPx = with(LocalDensity.current) { CAROUSEL_SWIPE_THRESHOLD_DP.dp.toPx() }
+    val notificationShadeThresholdPx = with(LocalDensity.current) {
+        NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP.dp.toPx()
+    }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(screen) {
@@ -248,6 +257,25 @@ private fun SwipeNavigationBox(
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(dragStartPage + direction)
                         }
+                    }
+                }
+            }
+            .pointerInput(notificationShadeThresholdPx, onSwipeDown) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+                    var verticalDragPx = 0f
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Final)
+                        event.changes.forEach { change ->
+                            verticalDragPx += change.positionChange().y
+                        }
+                    } while (event.changes.any { it.pressed })
+
+                    if (verticalDragPx >= notificationShadeThresholdPx) {
+                        LauncherDebugLog.event(
+                            "SwipeNavigationBox swipe down verticalDragPx=$verticalDragPx",
+                        )
+                        onSwipeDown()
                     }
                 }
             },

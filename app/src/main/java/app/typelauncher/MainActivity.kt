@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
                     onRequestCalendarPermission = {
                         requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                     },
+                    onSwipeDown = ::expandNotificationShade,
                 )
             }
         }
@@ -303,6 +304,10 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         viewModel.removeWidget(appWidgetId)
         deletePendingWidget(appWidgetId)
+    }
+
+    private fun expandNotificationShade() {
+        NotificationShade.expand(this)
     }
 }
 
