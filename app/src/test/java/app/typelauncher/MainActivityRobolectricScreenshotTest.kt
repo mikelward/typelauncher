@@ -320,6 +320,25 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun iconOnlyAppGridKeepsDockIconSizeAtMaximumVisibleDockCount() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        viewModel.setDockVisibleIconCount(MAX_DOCK_ICON_COUNT)
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val appIconBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_ICON_TAG:Calculator").getBoundsInRoot()
+        val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
+        assertEquals(dockIconBounds.right - dockIconBounds.left, appIconBounds.right - appIconBounds.left)
+        assertEquals(dockIconBounds.bottom - dockIconBounds.top, appIconBounds.bottom - appIconBounds.top)
+
+        saveScreenshot("compose_home_icon_only_max_dock_count_robolectric.png")
+    }
+
+    @Test
     fun settingsDockToggleHidesDockOnHomeAndPreviewExpandsAppList() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)

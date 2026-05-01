@@ -299,11 +299,12 @@ private fun IconOnlyAppGrid(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
 ) {
+    val minCellSizeDp = iconSizeDp + APP_ICON_CONTAINER_HORIZONTAL_PADDING_DP
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(iconSizeDp.dp),
+        columns = GridCells.Adaptive(minCellSizeDp.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = iconSizeDp.dp)
+            .heightIn(min = minCellSizeDp.dp)
             .testTag(APPS_LIST_TAG),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -344,7 +345,7 @@ private fun IconOnlyAppButton(
                     contentDescription = app.name
                     selected = isActive
                 }
-                .padding(4.dp)
+                .padding(APP_ICON_CONTAINER_PADDING_DP.dp)
                 .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -478,7 +479,7 @@ private fun DockedAppButton(
         Column(
             modifier = Modifier
                 .semantics { contentDescription = app.name }
-                .padding(4.dp)
+                .padding(APP_ICON_CONTAINER_PADDING_DP.dp)
                 .testTag("$DOCK_APP_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -711,3 +712,5 @@ private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp, testTa
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_SPACING_DP = 16
+private const val APP_ICON_CONTAINER_PADDING_DP = 4
+private const val APP_ICON_CONTAINER_HORIZONTAL_PADDING_DP = APP_ICON_CONTAINER_PADDING_DP * 2
