@@ -81,7 +81,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun swipingWrapsAroundBetweenHomeAndAgenda() {
+    fun swipingMovesFromHomeToWidgetsToAgendaAndWrapsAround() {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
@@ -91,10 +91,22 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
+        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
         assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
         assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
@@ -117,15 +129,15 @@ class MainActivityRobolectricScreenshotTest {
 
         val afterFirstSwipePage = carousel.carouselVirtualPage()
         assertEquals(startPage + 1, afterFirstSwipePage)
-        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
 
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 
         assertEquals(afterFirstSwipePage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -137,8 +149,35 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun screenshot_widgets_showsAddWidgetCard() {
+        composeRule.activity.viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Add widget").assertIsDisplayed()
+
+        saveScreenshot("compose_widgets_add_card_robolectric.png")
+    }
+
+    @Test
+    fun tappingAddWidgetCard_launchesWidgetPicker() {
+        composeRule.activity.viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_PICK, startedIntent.action)
+        assertTrue(
+            startedIntent.hasExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID),
+        )
     }
 
     @Test

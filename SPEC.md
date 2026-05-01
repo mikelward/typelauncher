@@ -21,9 +21,9 @@ This document records the current product and technical design decisions for Typ
 
 ## Navigation
 
-- The app currently has two screens: `Home` and `Agenda`.
-- Horizontal swipes move between screens through a Compose `HorizontalPager`; the agenda is the launcher's left-of-home, or "-1", screen.
-- Pager navigation uses an effectively infinite carousel so swiping left or right always wraps between `Home` and `Agenda`; user swipes are handled as discrete gestures, not free-scrolling pager flings, so each gesture can advance exactly one screen at most.
+- The app currently has three screens: `Home`, `Widgets`, and `Agenda`.
+- Horizontal swipes move between screens through a Compose `HorizontalPager`; swiping right-to-left from `Home` opens the +1 `Widgets` screen, then the `Agenda` screen.
+- Pager navigation uses an effectively infinite carousel so swiping left or right always wraps across `Home`, `Widgets`, and `Agenda`; user swipes are handled as discrete gestures, not free-scrolling pager flings, so each gesture can advance exactly one screen at most.
 - `LauncherScreenSwitcher` is a legacy/custom `ViewAnimator` swipe helper and is not part of the current Compose runtime path.
 - Swipe handling was introduced because child lists can otherwise consume gestures before launcher-level navigation sees them.
 
@@ -60,6 +60,13 @@ This document records the current product and technical design decisions for Typ
 - This feature was renamed from "pinned apps" to "dock"; new UI, tests, strings, and docs should use dock terminology.
 - The dock is pinned after the app list and represented as a horizontal icon row rather than a second text list.
 
+## Widget behavior
+
+- The widgets screen is the launcher's +1 screen between the app list and agenda.
+- The top of the widgets screen is a full-width add card with a large plus button that opens Android's widget picker.
+- Selected app widget IDs are persisted in `SharedPreferences` under the `widgets` store and rendered through `AppWidgetHost` when provider info is available.
+- The MVP optimizes for full-width 4x1-style widgets by giving hosted widgets the whole page width and using the provider minimum height with a launcher floor.
+
 ## Agenda behavior
 
 - The agenda screen requires `READ_CALENDAR`.
@@ -82,7 +89,7 @@ This document records the current product and technical design decisions for Typ
 - Robolectric Compose tests also write screenshot artifacts for key UI states.
 - Instrumented tests under `app/src/androidTest` are reserved for emulator or device validation.
 - Cursor Cloud is not expected to run connected Android tests because nested virtualization/KVM is unavailable.
-- UI behavior changes should update screenshot coverage for the changed state.
+- UI behavior changes should update screenshot coverage for the changed state; the widget add card is covered by Robolectric Compose screenshot output.
 - Screenshot coverage moved from fake/static keyboard images, to emulator-backed checks, to Robolectric Compose screenshots that seed realistic launcher rows for repeatable local/cloud feedback.
 - Tests are expected to assert visible product decisions, such as header removal, dock placement, row/icon alignment, work badges, and carousel wrap behavior, not just implementation details.
 
