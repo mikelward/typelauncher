@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.Manifest
 import android.app.Application
+import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ActivityNotFoundException
@@ -164,6 +165,8 @@ internal class LauncherViewModel(
 
     fun refreshPermissionDrivenUi() {
         LauncherDebugLog.event("refreshPermissionDrivenUi screen=${_uiState.value.screen}")
+        val isDefaultLauncher = app.getSystemService<RoleManager>()?.isRoleHeld(RoleManager.ROLE_HOME) ?: false
+        _uiState.update { it.copy(isDefaultLauncher = isDefaultLauncher) }
         if (_uiState.value.screen == LauncherScreen.Agenda) {
             refreshAgenda()
         }
