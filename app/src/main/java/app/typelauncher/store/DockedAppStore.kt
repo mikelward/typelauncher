@@ -64,10 +64,19 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    var isAppListIconOnly: Boolean
+        get() = sharedPreferences.getBoolean(KEY_APP_LIST_ICON_ONLY, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_APP_LIST_ICON_ONLY, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
+        const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTouchInput
@@ -259,6 +260,8 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
+        composeRule.onNodeWithText("Icon-only app list").assertIsDisplayed()
+        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOff()
         composeRule.onNodeWithText("Show dock").assertIsDisplayed()
         composeRule.onNodeWithText("Dock icons visible: 4").assertIsDisplayed()
 
@@ -267,6 +270,32 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun appListIconOnlySettingShowsDockStyleIconsWithoutNames() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOn()
+        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertIsDisplayed()
+
+        val appIconBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_ICON_TAG:Calculator").getBoundsInRoot()
+        val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
+        assertEquals(dockIconBounds.right - dockIconBounds.left, appIconBounds.right - appIconBounds.left)
+        assertEquals(dockIconBounds.bottom - dockIconBounds.top, appIconBounds.bottom - appIconBounds.top)
+
+        saveScreenshot("compose_home_icon_only_app_list_robolectric.png")
     }
 
     @Test
@@ -298,13 +327,13 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        val defaultIconBounds = composeRule.onNodeWithTag("$APP_ICON_TAG:Calculator").getBoundsInRoot()
+        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
         viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Dock icons visible: 6").assertIsDisplayed()
-        val largerIconBounds = composeRule.onNodeWithTag("$APP_ICON_TAG:Calculator").getBoundsInRoot()
+        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
         assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 

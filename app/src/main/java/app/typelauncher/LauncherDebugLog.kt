@@ -70,4 +70,5 @@ internal fun LauncherUiState.debugSummary(): String =
     "screen=$screen settingsOpen=$isSettingsOpen queryLength=${query.length} " +
         "filtered=${filteredApps.size} docked=${dockedApps.size} widgets=${widgetIds.size} " +
         "addingWidget=$isAddingWidget availableWidgets=${availableWidgets.size} " +
-        "agenda=${agenda::class.simpleName} dockEnabled=$isDockEnabled dockIconCount=$dockIconCount"
+        "agenda=${agenda::class.simpleName} dockEnabled=$isDockEnabled " +
+        "appListIconOnly=$isAppListIconOnly dockIconCount=$dockIconCount"

@@ -80,6 +80,7 @@ internal fun TypeLauncherApp(
         onOpenSettings = viewModel::openSettings,
         onCloseSettings = viewModel::closeSettings,
         onDockEnabledChanged = viewModel::setDockEnabled,
+        onAppListIconOnlyChanged = viewModel::setAppListIconOnly,
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
@@ -107,6 +108,7 @@ internal fun TypeLauncherApp(
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
+    onAppListIconOnlyChanged: (Boolean) -> Unit,
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
@@ -119,7 +121,7 @@ internal fun TypeLauncherApp(
     onRemoveWidget: (Int) -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
-    LaunchedEffect(state.screen, state.isSettingsOpen) {
+    LaunchedEffect(state.screen, state.isSettingsOpen, state.isAppListIconOnly) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
     }
     Scaffold(
@@ -131,6 +133,7 @@ internal fun TypeLauncherApp(
                 innerPadding = innerPadding,
                 onCloseSettings = onCloseSettings,
                 onDockEnabledChanged = onDockEnabledChanged,
+                onAppListIconOnlyChanged = onAppListIconOnlyChanged,
                 onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,

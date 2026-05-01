@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -103,6 +106,8 @@ internal fun HomeScreen(
         AppsCard(
             apps = state.filteredApps,
             dockLimit = Int.MAX_VALUE,
+            isIconOnly = state.isAppListIconOnly,
+            iconSizeDp = dockIconSizeDp,
             modifier = Modifier.weight(1f),
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
@@ -232,6 +237,8 @@ private fun DockCard(
 private fun AppsCard(
     apps: List<InstalledApp>,
     dockLimit: Int,
+    isIconOnly: Boolean,
+    iconSizeDp: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -247,24 +254,117 @@ private fun AppsCard(
                 modifier = Modifier.fillMaxWidth(),
             )
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(APPS_LIST_TAG),
-            ) {
-                items(apps, key = { app -> app.id }) { app ->
-                    AppRow(
-                        app = app,
-                        isActive = app == apps.first(),
-                        dockLimit = dockLimit,
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onResetRank = onResetRank,
-                    )
+            if (isIconOnly) {
+                IconOnlyAppGrid(
+                    apps = apps,
+                    dockLimit = dockLimit,
+                    iconSizeDp = iconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(APPS_LIST_TAG),
+                ) {
+                    items(apps, key = { app -> app.id }) { app ->
+                        AppRow(
+                            app = app,
+                            isActive = app == apps.first(),
+                            dockLimit = dockLimit,
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onResetRank = onResetRank,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun IconOnlyAppGrid(
+    apps: List<InstalledApp>,
+    dockLimit: Int,
+    iconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(iconSizeDp.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = iconSizeDp.dp)
+            .testTag(APPS_LIST_TAG),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(apps, key = { app -> app.id }) { app ->
+            IconOnlyAppButton(
+                app = app,
+                dockLimit = dockLimit,
+                iconSizeDp = iconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconOnlyAppButton(
+    app: InstalledApp,
+    dockLimit: Int,
+    iconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        Column(
+            modifier = Modifier
+                .semantics { contentDescription = app.name }
+                .padding(4.dp)
+                .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppIcon(app = app, size = iconSizeDp.dp, testTag = APP_ICON_ONLY_ICON_TAG)
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { onLaunchApp(app) },
+                    onLongClick = { menuExpanded = true },
+                )
+                .semantics {
+                    role = Role.Button
+                    contentDescription = app.name
+                },
+        )
+        AppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            dockLimit = dockLimit,
+            onDismiss = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+        )
     }
 }
 
@@ -372,7 +472,7 @@ private fun DockedAppButton(
                 .testTag("$DOCK_APP_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AppIcon(app = app, size = dockIconSizeDp.dp)
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_APP_ICON_TAG)
         }
         Box(
             modifier = Modifier
@@ -407,6 +507,7 @@ internal fun SettingsScreen(
     innerPadding: PaddingValues,
     onCloseSettings: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
+    onAppListIconOnlyChanged: (Boolean) -> Unit,
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -459,6 +560,20 @@ internal fun SettingsScreen(
                     modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
                 )
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_app_list_icon_only_title), style = MaterialTheme.typography.titleMedium)
+                }
+                Switch(
+                    checked = state.isAppListIconOnly,
+                    onCheckedChange = onAppListIconOnlyChanged,
+                    modifier = Modifier.testTag(APP_LIST_ICON_ONLY_SWITCH_TAG),
+                )
+            }
             Text(
                 text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
                 style = MaterialTheme.typography.titleMedium,
@@ -493,14 +608,14 @@ internal fun SettingsScreen(
 }
 
 @Composable
-private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp) {
+private fun AppIcon(app: InstalledApp, size: androidx.compose.ui.unit.Dp, testTag: String = APP_ICON_TAG) {
     val bitmap = remember(app.id, app.icon) {
         app.icon?.toBitmap(width = 96, height = 96)?.asImageBitmap()
     }
     Box(
         modifier = Modifier
             .size(size)
-            .testTag("$APP_ICON_TAG:${app.name}"),
+            .testTag("$testTag:${app.name}"),
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),

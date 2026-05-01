@@ -44,6 +44,7 @@ internal class LauncherViewModel(
             widgetIds = widgetStore.widgetIds,
             agenda = loadAgendaState(),
             isDockEnabled = dockSettingsStore.isDockEnabled,
+            isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
         ),
     )
@@ -193,6 +194,12 @@ internal class LauncherViewModel(
         dockSettingsStore.isDockEnabled = isEnabled
         _uiState.update { it.copy(isDockEnabled = isEnabled) }
         logState("setDockEnabled")
+    }
+
+    fun setAppListIconOnly(isIconOnly: Boolean) {
+        dockSettingsStore.isAppListIconOnly = isIconOnly
+        _uiState.update { it.copy(isAppListIconOnly = isIconOnly) }
+        logState("setAppListIconOnly")
     }
 
     fun setDockVisibleIconCount(count: Int) {
