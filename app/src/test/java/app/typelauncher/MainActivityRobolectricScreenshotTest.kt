@@ -11,8 +11,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -203,6 +204,77 @@ class MainActivityRobolectricScreenshotTest {
 
         assertEquals(ALL_FAKE_APP_NAMES, composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptySearchShowsSettingsButtonAndNonEmptySearchShowsOnlyClearButton() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Clear search text").assertDoesNotExist()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Clear search text").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsButtonOpensSettingsAndDoneReturnsHome() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Settings").assertIsDisplayed()
+        composeRule.onNodeWithText("Show dock").assertIsDisplayed()
+        composeRule.onNodeWithText("Dock icon size: 56 dp").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun settingsDockToggleHidesDockOnHomeButKeepsSettingsPreview() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).assertIsOff()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
+        assertEquals(false, viewModel.uiState.value.isDockEnabled)
+
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun changingDockIconSizeUpdatesLiveSettingsPreview() {
+        val viewModel = composeRule.activity.viewModel
+        val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
+        viewModel.toggleDock(calculator, maxDockedApps = 6)
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val defaultIconBounds = composeRule.onNodeWithTag("$APP_ICON_TAG:Calculator").getBoundsInRoot()
+        val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
+        viewModel.setDockIconSizeDp(MAX_DOCK_APP_ICON_SIZE_DP)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Dock icon size: 80 dp").assertIsDisplayed()
+        val largerIconBounds = composeRule.onNodeWithTag("$APP_ICON_TAG:Calculator").getBoundsInRoot()
+        val largerIconSize = largerIconBounds.right - largerIconBounds.left
+        assertTrue("preview icon grows after changing dock icon size", largerIconSize > defaultIconSize)
+
+        saveScreenshot("compose_settings_dock_preview_robolectric.png")
     }
 
     @Test
@@ -443,7 +515,7 @@ class MainActivityRobolectricScreenshotTest {
             object : Statement() {
                 override fun evaluate() {
                     val application = RuntimeEnvironment.getApplication()
-                    listOf("docked_apps", "app_launch_stats").forEach { preferenceName ->
+                    listOf("docked_apps", "dock_settings", "app_launch_stats").forEach { preferenceName ->
                         application
                             .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)
                             .edit()

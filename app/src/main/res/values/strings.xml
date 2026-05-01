@@ -2,6 +2,7 @@
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name</string>
     <string name="app_search_clear_button_description">Clear search text</string>
+    <string name="settings_open_button_description">Open settings</string>
     <string name="work_app_badge_description">Work app</string>
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
@@ -35,4 +36,10 @@
     <string name="agenda_permission_title">Show calendar events</string>
     <string name="navigate_home_description">Return to launcher search</string>
     <string name="app_actions_description">App actions</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_done_button">Done</string>
+    <string name="settings_dock_enabled_title">Show dock</string>
+    <string name="settings_dock_enabled_body">Turn the launcher dock on or off.</string>
+    <string name="settings_dock_icon_size_label">Dock icon size: %1$d dp</string>
+    <string name="settings_dock_preview_label">Preview</string>
 </resources>
