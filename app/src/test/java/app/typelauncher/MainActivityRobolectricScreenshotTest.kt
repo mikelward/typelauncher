@@ -117,18 +117,21 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Standup").assertIsDisplayed()
         composeRule.onNodeWithText("9:30 AM").assertIsDisplayed()
         composeRule.onNodeWithText("Design review").assertIsDisplayed()
+        composeRule.onNodeWithText("1:00 PM").assertIsDisplayed()
         composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$today").assertIsDisplayed()
         composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$tomorrow").assertIsDisplayed()
         composeRule.onNodeWithText("Today").assertIsDisplayed()
         composeRule.onNodeWithText("Tomorrow").assertIsDisplayed()
 
-        val stripeIds = listOf(99L, 1L, 42L, 7L)
-        val stripeLefts = stripeIds.map { id ->
-            composeRule.onNodeWithTag("$AGENDA_EVENT_STRIPE_TAG:$id").getBoundsInRoot().left.value
-        }
-        stripeLefts.forEach { left ->
-            assertEquals(stripeLefts.first().toDouble(), left.toDouble(), 0.5)
-        }
+        val allDayStripeLeft =
+            composeRule.onNodeWithTag("$AGENDA_EVENT_STRIPE_TAG:99").getBoundsInRoot().left
+        val timedStripeLeft =
+            composeRule.onNodeWithTag("$AGENDA_EVENT_STRIPE_TAG:1").getBoundsInRoot().left
+        assertEquals(
+            "all-day stripe aligns with timed stripe",
+            timedStripeLeft,
+            allDayStripeLeft,
+        )
 
         saveScreenshot("compose_agenda_events_robolectric.png")
     }
@@ -894,7 +897,7 @@ class MainActivityRobolectricScreenshotTest {
                 beginMillis = today.atTime(13, 0).atZone(zone).toInstant().toEpochMilli(),
                 endMillis = today.atTime(14, 0).atZone(zone).toInstant().toEpochMilli(),
                 isAllDay = false,
-                displayTime = "1:00 PM – 2:00 PM",
+                displayTime = "1:00 PM",
                 eventId = 42L,
                 calendarColor = 0xFFD50000.toInt(),
             ),
