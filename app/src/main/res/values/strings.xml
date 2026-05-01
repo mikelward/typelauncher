@@ -39,7 +39,6 @@
     <string name="settings_title">Settings</string>
     <string name="settings_done_button">Done</string>
     <string name="settings_dock_enabled_title">Show dock</string>
-    <string name="settings_dock_enabled_body">Turn the launcher dock on or off.</string>
     <string name="settings_dock_icon_size_label">Dock icon size: %1$d dp</string>
     <string name="settings_dock_preview_label">Preview</string>
 </resources>
