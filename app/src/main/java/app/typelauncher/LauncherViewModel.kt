@@ -204,11 +204,8 @@ internal class LauncherViewModel(
     fun requestDefaultLauncher() {
         LauncherDebugLog.event("requestDefaultLauncher")
         val roleManager = app.getSystemService<RoleManager>()
-        val intent = if (roleManager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) {
-            roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
-        } else {
-            Intent(Settings.ACTION_HOME_SETTINGS)
-        }
+        val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_HOME)
+            ?: Intent(Settings.ACTION_HOME_SETTINGS)
         startActivity(intent)
     }
 

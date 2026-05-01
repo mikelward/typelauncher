@@ -286,7 +286,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOff()
         composeRule.onNodeWithText("Show dock").assertIsDisplayed()
         composeRule.onNodeWithText("Dock icons visible: 4").assertIsDisplayed()
-        composeRule.onNodeWithText("Set default launcher").assertIsDisplayed()
+        composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
@@ -303,8 +303,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
-        assertEquals(RoleManager.ACTION_REQUEST_ROLE, startedIntent.action)
-        assertEquals(RoleManager.ROLE_HOME, startedIntent.getStringExtra(RoleManager.EXTRA_ROLE_NAME))
+        assertEquals("android.app.role.action.REQUEST_ROLE", startedIntent.action)
+        assertEquals(RoleManager.ROLE_HOME, startedIntent.getStringExtra("android.intent.extra.ROLE_NAME"))
         assertStandardLauncherFlags(startedIntent)
     }
 
