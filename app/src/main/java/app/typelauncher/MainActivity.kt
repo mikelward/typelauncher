@@ -52,21 +52,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -74,9 +68,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -86,7 +77,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -197,15 +187,12 @@ private fun TypeLauncherApp(
         onClearQuery = { viewModel.setQuery("") },
         onLaunchActiveApp = viewModel::launchActiveApp,
         onLaunchApp = viewModel::launchApp,
-        onOpenAppInfo = viewModel::openAppInfo,
-        onToggleDock = viewModel::toggleDock,
         onShowAgenda = viewModel::showAgenda,
         onShowHome = viewModel::showHome,
         onRequestCalendarPermission = onRequestCalendarPermission,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TypeLauncherApp(
     state: LauncherUiState,
@@ -213,38 +200,12 @@ private fun TypeLauncherApp(
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
     onShowAgenda: () -> Unit,
     onShowHome: () -> Unit,
     onRequestCalendarPermission: () -> Unit,
 ) {
-    val title = if (state.screen == LauncherScreen.Home) stringResource(R.string.app_name) else stringResource(R.string.agenda_title)
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    if (state.screen == LauncherScreen.Agenda) {
-                        IconButton(onClick = onShowHome) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.navigate_home_description))
-                        }
-                    }
-                },
-                actions = {
-                    if (state.screen == LauncherScreen.Home) {
-                        TextButton(onClick = onShowAgenda) {
-                            Text(stringResource(R.string.agenda_title))
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
-            )
-        },
     ) { innerPadding ->
         SwipeNavigationBox(
             screen = state.screen,
@@ -259,8 +220,6 @@ private fun TypeLauncherApp(
                     onClearQuery = onClearQuery,
                     onLaunchActiveApp = onLaunchActiveApp,
                     onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
                 )
                 LauncherScreen.Agenda -> AgendaScreen(
                     agenda = state.agenda,
@@ -312,8 +271,6 @@ private fun HomeScreen(
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val dockCapacity = ((configuration.screenWidthDp - 32) / DOCK_APP_ICON_SIZE_DP).coerceAtLeast(MIN_DOCKED_APPS)
@@ -332,20 +289,14 @@ private fun HomeScreen(
             onClearQuery = onClearQuery,
             onLaunchActiveApp = onLaunchActiveApp,
         )
-        DockCard(
-            dockedApps = state.dockedApps,
-            dockCapacity = dockCapacity,
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-        )
         AppsCard(
             apps = state.filteredApps,
-            dockCapacity = dockCapacity,
             modifier = Modifier.weight(1f),
             onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
+        )
+        DockCard(
+            dockedApps = state.dockedApps,
+            onLaunchApp = onLaunchApp,
         )
     }
 }
@@ -365,10 +316,6 @@ private fun SearchCard(
         keyboard?.show()
     }
     SectionCard {
-        Text(
-            text = stringResource(R.string.home_search_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChanged,
@@ -412,24 +359,9 @@ private fun SearchCard(
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
-    dockCapacity: Int,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
 ) {
     SectionCard(Modifier.testTag(DOCK_CARD_TAG)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.PushPin, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(stringResource(R.string.dock_title), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(R.string.dock_subtitle, dockCapacity),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
         if (dockedApps.isEmpty()) {
             Text(
                 text = stringResource(R.string.dock_apps_hint),
@@ -450,10 +382,7 @@ private fun DockCard(
                 dockedApps.forEach { app ->
                     DockedAppButton(
                         app = app,
-                        dockCapacity = dockCapacity,
                         onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
                     )
                 }
             }
@@ -464,14 +393,10 @@ private fun DockCard(
 @Composable
 private fun AppsCard(
     apps: List<InstalledApp>,
-    dockCapacity: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
-        Text(stringResource(R.string.installed_apps_list_label), style = MaterialTheme.typography.titleMedium)
         if (apps.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Search,
@@ -489,10 +414,7 @@ private fun AppsCard(
                     AppRow(
                         app = app,
                         isActive = app == apps.first(),
-                        dockCapacity = dockCapacity,
                         onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
                     )
                 }
             }
@@ -504,12 +426,8 @@ private fun AppsCard(
 private fun AppRow(
     app: InstalledApp,
     isActive: Boolean,
-    dockCapacity: Int,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     val rowColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     Row(
         modifier = Modifier
@@ -537,31 +455,14 @@ private fun AppRow(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-        Box {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.app_actions_description, app.name))
-            }
-            AppActionsMenu(
-                expanded = menuExpanded,
-                app = app,
-                dockCapacity = dockCapacity,
-                onDismiss = { menuExpanded = false },
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-            )
-        }
     }
 }
 
 @Composable
 private fun DockedAppButton(
     app: InstalledApp,
-    dockCapacity: Int,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     Box {
         Column(
             modifier = Modifier
@@ -576,12 +477,7 @@ private fun DockedAppButton(
                 .testTag("$DOCK_APP_TAG:${app.name}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AppIcon(app = app, modifier = Modifier.size(48.dp))
-            Text(
-                text = app.name,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-            )
+            AppIcon(app = app, modifier = Modifier.size(56.dp))
         }
         Box(
             modifier = Modifier
@@ -595,51 +491,6 @@ private fun DockedAppButton(
                     role = Role.Button
                     contentDescription = app.name
                 },
-        )
-        IconButton(
-            onClick = { menuExpanded = true },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(36.dp),
-        ) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.app_actions_description, app.name))
-        }
-        AppActionsMenu(
-            expanded = menuExpanded,
-            app = app,
-            dockCapacity = dockCapacity,
-            onDismiss = { menuExpanded = false },
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-        )
-    }
-}
-
-@Composable
-private fun AppActionsMenu(
-    expanded: Boolean,
-    app: InstalledApp,
-    dockCapacity: Int,
-    onDismiss: () -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_app_info)) },
-            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.name}"),
-            onClick = {
-                onDismiss()
-                onOpenAppInfo(app)
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
-            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.name}"),
-            onClick = {
-                onDismiss()
-                onToggleDock(app, dockCapacity)
-            },
         )
     }
 }
@@ -687,11 +538,6 @@ private fun AgendaScreen(
             .testTag(AGENDA_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            stringResource(R.string.agenda_swipe_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         when (agenda) {
             AgendaUiState.PermissionRequired -> PermissionCard(onRequestCalendarPermission)
             AgendaUiState.Empty -> EmptyAgendaCard()
@@ -709,7 +555,6 @@ private fun PermissionCard(onRequestCalendarPermission: () -> Unit) {
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
         ),
     ) {
-        Text(stringResource(R.string.agenda_permission_title), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.agenda_permission_message), style = MaterialTheme.typography.bodyMedium)
         Button(
             onClick = onRequestCalendarPermission,
@@ -735,7 +580,6 @@ private fun EmptyAgendaCard() {
 @Composable
 private fun AgendaEventsCard(events: List<AgendaEvent>, modifier: Modifier = Modifier) {
     SectionCard(modifier.testTag(AGENDA_EVENTS_TAG)) {
-        Text(stringResource(R.string.agenda_events_list_label), style = MaterialTheme.typography.titleMedium)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(events) { event ->
                 Row(
@@ -1269,9 +1113,6 @@ internal const val DOCK_APP_TAG = "dock_app"
 internal const val AGENDA_PERMISSION_TAG = "agenda_permission"
 internal const val AGENDA_EMPTY_TAG = "agenda_empty"
 internal const val AGENDA_EVENTS_TAG = "agenda_events"
-internal const val APP_INFO_ACTION_TAG = "app_info_action"
-internal const val TOGGLE_DOCK_ACTION_TAG = "toggle_dock_action"
-
 private const val SETTINGS_QUERY = "settings"
 private const val MIN_DOCKED_APPS = 1
 private const val DOCK_APP_ICON_SIZE_DP = 56
@@ -1288,8 +1129,6 @@ private fun HomeEmptyPreview() {
             onClearQuery = {},
             onLaunchActiveApp = {},
             onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1310,8 +1149,6 @@ private fun HomeRunningLargeFontPreview() {
             onClearQuery = {},
             onLaunchActiveApp = {},
             onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1329,8 +1166,6 @@ private fun AgendaPermissionDarkPreview() {
             onClearQuery = {},
             onLaunchActiveApp = {},
             onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1348,8 +1183,6 @@ private fun AgendaEmptyRtlPreview() {
             onClearQuery = {},
             onLaunchActiveApp = {},
             onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
@@ -1375,8 +1208,6 @@ private fun AgendaEventsPreview() {
             onClearQuery = {},
             onLaunchActiveApp = {},
             onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
             onShowAgenda = {},
             onShowHome = {},
             onRequestCalendarPermission = {},
