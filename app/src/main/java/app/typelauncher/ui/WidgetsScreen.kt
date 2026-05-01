@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -149,15 +148,13 @@ private fun WidgetPickerCard(
             }
         }
         if (isLoading) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 24.dp)
                     .testTag(WIDGET_PICKER_LOADING_TAG),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
+                contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 Text(
                     stringResource(R.string.widgets_picker_loading),
                     style = MaterialTheme.typography.bodyMedium,
