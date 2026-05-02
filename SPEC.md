@@ -149,5 +149,5 @@ This document records the current product and technical design decisions for Typ
 - Work-profile support is intentionally visible but lightweight: work apps are included in the same launcher surface, marked with badges, and launched through profile-aware `LauncherApps` when possible.
 - Agenda was added as a launcher-adjacent "-1" screen backed by Android's calendar provider, not as a separate navigation stack or remote service.
 - Compose Material 3 replaced the earlier View/XML UI so new UI work should extend the Compose path; retained XML files are historical artifacts unless code starts using them again.
-- The current visual direction is compact: headers were removed, app rows were tightened, dock icons were aligned with app rows, and badges remain visible in both list and dock contexts.
+- The current visual direction is compact: headers were removed, app rows were tightened, the dock and recents rows center their icons horizontally when they fit on one screen (so an underfilled dock looks balanced rather than stranded against the start edge), and badges remain visible in both list and dock contexts.
 - The navigation model changed from a finite two-screen switcher to a wrapping carousel so either swipe direction remains useful from either screen.
