@@ -1383,7 +1383,12 @@ class MainActivityRobolectricScreenshotTest {
         // Fake apps don't declare appCategory or APP_* intents and aren't in
         // the curated overrides asset, so they all land in the Other folder.
         composeRule.onNodeWithTag("$FOLDER_TILE_TAG:${AppCategory.Other.name}").assertIsDisplayed()
-        composeRule.onNodeWithTag("$FOLDER_TILE_ICON_TAG:${AppCategory.Other.name}").assertIsDisplayed()
+        // The icon tile lives inside a `combinedClickable` parent that merges
+        // descendant semantics, so the icon's testTag is only addressable in
+        // the unmerged tree.
+        composeRule
+            .onNodeWithTag("$FOLDER_TILE_ICON_TAG:${AppCategory.Other.name}", useUnmergedTree = true)
+            .assertExists()
         composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
 
         saveScreenshot("compose_home_folders_text_rows_robolectric.png")
@@ -1401,7 +1406,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(FOLDERS_GRID_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(FOLDERS_LIST_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag("$FOLDER_TILE_TAG:${AppCategory.Other.name}").assertIsDisplayed()
-        composeRule.onNodeWithTag("$FOLDER_TILE_ICON_TAG:${AppCategory.Other.name}").assertIsDisplayed()
+        composeRule
+            .onNodeWithTag("$FOLDER_TILE_ICON_TAG:${AppCategory.Other.name}", useUnmergedTree = true)
+            .assertExists()
 
         saveScreenshot("compose_home_folders_icon_grid_robolectric.png")
     }
