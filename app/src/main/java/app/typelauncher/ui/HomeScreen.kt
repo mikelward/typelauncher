@@ -666,7 +666,16 @@ private fun ScrollableIconRow(
                     val placeable = measurable.measure(
                         childConstraints.copy(minWidth = viewportPx),
                     )
-                    contentOverflowsViewport = placeable.width > viewportPx
+                    // Allow a 1.dp slop before declaring overflow: each child
+                    // does its own dp→px rounding for padding/spacing, and on
+                    // non-integer densities those errors can compound into a
+                    // 1–2 px row width above the viewport even when the icons
+                    // visibly fit. Without this, `pinToEndKey` rows (recents,
+                    // notifications) auto-scroll to that 1 px maxValue, lift
+                    // `scrollState.value` above 0, and show the start chevron
+                    // for content the user has no way to actually scroll.
+                    val overflowSlopPx = 1.dp.roundToPx()
+                    contentOverflowsViewport = placeable.width - viewportPx > overflowSlopPx
                     layout(placeable.width, placeable.height) {
                         placeable.place(0, 0)
                     }
