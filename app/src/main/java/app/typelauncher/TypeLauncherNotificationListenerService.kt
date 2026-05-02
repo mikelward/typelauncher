@@ -80,13 +80,14 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
 
     private fun refreshSnapshot() {
         val packages = try {
-            // Reduce to one entry per package, keeping the most recent postTime
-            // across that package's user-visible notifications. The map value is
-            // what drives the bar's ordering — newest postTime on the right.
+            // Reduce to one entry per (packageName, user) pair, keeping the
+            // most recent postTime. Keying by both ensures personal and work
+            // profile entries are tracked independently so each profile's icon
+            // appears and disappears from the bar on its own notifications.
             activeNotifications
                 ?.asSequence()
                 ?.filter { isUserVisible(it) }
-                ?.groupingBy { it.packageName }
+                ?.groupingBy { it.packageName to it.user }
                 ?.fold(0L) { acc, sbn -> maxOf(acc, sbn.postTime) }
                 ?: emptyMap()
         } catch (exception: SecurityException) {

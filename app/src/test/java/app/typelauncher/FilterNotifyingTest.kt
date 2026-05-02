@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import android.os.UserHandle
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,13 +12,16 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class FilterNotifyingTest {
-    private fun fakeApp(name: String, packageName: String): InstalledApp =
+    private val personalUser: UserHandle = Process.myUserHandle()
+    private val workUser: UserHandle = UserHandle.of(10)
+
+    private fun fakeApp(name: String, packageName: String, user: UserHandle = personalUser): InstalledApp =
         InstalledApp(
             name = name,
             packageName = packageName,
             launchIntent = Intent(),
-            user = Process.myUserHandle(),
-            isWorkApp = false,
+            user = user,
+            isWorkApp = user != personalUser,
             launchWithLauncherApps = false,
         )
 
@@ -29,14 +33,17 @@ class FilterNotifyingTest {
     }
 
     @Test
-    fun returnsOnlyAppsWhosePackagesAreInTheNotifyingMap() {
+    fun returnsOnlyAppsWhosePackageAndUserAreInTheNotifyingMap() {
         val mail = fakeApp("Mail", "com.example.mail")
         val chat = fakeApp("Chat", "com.example.chat")
         val games = fakeApp("Games", "com.example.games")
         val apps = listOf(mail, chat, games)
 
         val result = apps.filterNotifying(
-            mapOf("com.example.mail" to 100L, "com.example.games" to 200L),
+            mapOf(
+                ("com.example.mail" to personalUser) to 100L,
+                ("com.example.games" to personalUser) to 200L,
+            ),
         )
 
         // Oldest first; newest (Games at 200) lands on the right edge of the row.
@@ -52,9 +59,9 @@ class FilterNotifyingTest {
 
         val result = apps.filterNotifying(
             mapOf(
-                "com.example.older" to 100L,
-                "com.example.middle" to 200L,
-                "com.example.newest" to 300L,
+                ("com.example.older" to personalUser) to 100L,
+                ("com.example.middle" to personalUser) to 200L,
+                ("com.example.newest" to personalUser) to 300L,
             ),
         )
 
@@ -70,12 +77,25 @@ class FilterNotifyingTest {
 
         val result = apps.filterNotifying(
             mapOf(
-                "com.example.z" to 100L,
-                "com.example.a" to 100L,
-                "com.example.m" to 100L,
+                ("com.example.z" to personalUser) to 100L,
+                ("com.example.a" to personalUser) to 100L,
+                ("com.example.m" to personalUser) to 100L,
             ),
         )
 
         assertEquals(listOf(apple, mango, zebra), result)
+    }
+
+    @Test
+    fun workProfileEntryDoesNotMatchPersonalAppForSamePackage() {
+        val personalApp = fakeApp("Mail", "com.example.mail", user = personalUser)
+        val workApp = fakeApp("Mail", "com.example.mail", user = workUser)
+
+        // Only work profile has a notification.
+        val result = listOf(personalApp, workApp).filterNotifying(
+            mapOf(("com.example.mail" to workUser) to 100L),
+        )
+
+        assertEquals(listOf(workApp), result)
     }
 }
