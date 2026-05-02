@@ -7,6 +7,8 @@
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Long press apps to dock</string>
+    <string name="dock_recents_empty_hint">No recent apps yet</string>
+    <string name="dock_recents_description">Recent apps</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Calendar agenda events</string>
     <string name="agenda_permission_message">Allow calendar access to show your agenda.</string>

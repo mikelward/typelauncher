@@ -8,9 +8,24 @@ internal class AppLaunchStatsStore(context: Context) {
     fun launchCount(appId: String): Int =
         sharedPreferences.getInt(appId.toLaunchCountKey(), 0)
 
+    /**
+     * Most-recently-launched app IDs, newest first, capped at [MAX_RECENT_APP_IDS].
+     * Updated by [recordLaunch]. Used to back the dock's drag-up "recents" panel,
+     * which is the launcher's best-effort substitute for the system task switcher
+     * — third-party launchers can't read system recents, so this only includes
+     * apps the user launched from Type Launcher.
+     */
+    val recentAppIds: List<String>
+        get() = sharedPreferences.getString(KEY_RECENT_APP_IDS, "").orEmpty()
+            .split(RECENT_APP_ID_SEPARATOR)
+            .filter { id -> id.isNotBlank() }
+
     fun recordLaunch(appId: String) {
+        val updatedRecents = (listOf(appId) + recentAppIds.filterNot { id -> id == appId })
+            .take(MAX_RECENT_APP_IDS)
         sharedPreferences.edit()
             .putInt(appId.toLaunchCountKey(), launchCount(appId) + 1)
+            .putString(KEY_RECENT_APP_IDS, updatedRecents.joinToString(RECENT_APP_ID_SEPARATOR))
             .apply()
     }
 
@@ -25,6 +40,9 @@ internal class AppLaunchStatsStore(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "app_launch_stats"
         const val KEY_LAUNCH_COUNT_PREFIX = "launch_count:"
+        const val KEY_RECENT_APP_IDS = "recent_app_ids"
+        const val RECENT_APP_ID_SEPARATOR = "\n"
+        const val MAX_RECENT_APP_IDS = 16
     }
 }
 
@@ -56,6 +74,21 @@ internal fun List<InstalledApp>.filterByName(
             .sortedBy { (_, tier) -> tier.ordinal }
             .map { (app, _) -> app }
     }
+}
+
+/**
+ * Returns recently-launched apps sorted by [recentAppIds] order (most recent
+ * first) and filtered down to apps that still exist in this list. Apps that no
+ * longer appear in the installed-app set drop out silently. The query field is
+ * intentionally not consulted: the recents row is meant as a launcher's
+ * substitute for the system task switcher and a query already filters the main
+ * apps list, so re-filtering recents would either hide apps the user just
+ * opened or duplicate the typed-search behaviour.
+ */
+internal fun List<InstalledApp>.filterRecent(recentAppIds: List<String>): List<InstalledApp> {
+    if (recentAppIds.isEmpty()) return emptyList()
+    val byId = associateBy { app -> app.id }
+    return recentAppIds.mapNotNull { id -> byId[id] }
 }
 
 internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =

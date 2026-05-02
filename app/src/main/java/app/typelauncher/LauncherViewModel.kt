@@ -93,6 +93,7 @@ internal class LauncherViewModel(
                     dockedApps = installedApps
                         .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
                         .markDocked(),
+                    recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
                 )
             }
             LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
@@ -121,6 +122,7 @@ internal class LauncherViewModel(
                     dockedApps = installedApps
                         .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
                         .markDocked(),
+                    recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
                     isLoadingApps = false,
                     isFreshAppLoadComplete = true,
                 )
@@ -157,14 +159,20 @@ internal class LauncherViewModel(
     }
 
     fun showAgenda() {
-        _uiState.update { it.copy(screen = LauncherScreen.Agenda) }
+        _uiState.update { it.copy(screen = LauncherScreen.Agenda, isRecentsOpen = false) }
         logState("showAgenda")
         loadAgendaAsync(reason = "showAgenda", traceName = "agenda_load")
     }
 
     fun showWidgets() {
-        _uiState.update { it.copy(screen = LauncherScreen.Widgets) }
+        _uiState.update { it.copy(screen = LauncherScreen.Widgets, isRecentsOpen = false) }
         logState("showWidgets")
+    }
+
+    fun setRecentsOpen(isOpen: Boolean) {
+        if (_uiState.value.isRecentsOpen == isOpen) return
+        _uiState.update { it.copy(isRecentsOpen = isOpen) }
+        logState("setRecentsOpen=$isOpen")
     }
 
     fun showWidgetPicker() {
@@ -210,6 +218,7 @@ internal class LauncherViewModel(
                 isSettingsOpen = false,
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
+                isRecentsOpen = false,
             )
         }
         logState("returnToLauncherHome")
@@ -348,6 +357,9 @@ internal class LauncherViewModel(
             startActivity(app.launchIntent.asLauncherTaskIntent())
         }
         appLaunchStatsStore.recordLaunch(app.id)
+        // Close the recents panel as we leave Home — when the user comes back
+        // it should be tucked away again, not still expanded.
+        _uiState.update { it.copy(isRecentsOpen = false) }
         setQuery("")
     }
 
@@ -421,7 +433,7 @@ internal class LauncherViewModel(
     }
 
     fun openSettings() {
-        _uiState.update { it.copy(isSettingsOpen = true) }
+        _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false) }
         logState("openSettings")
     }
 
@@ -468,6 +480,7 @@ internal class LauncherViewModel(
                     sortOrder = state.appListSortOrder,
                 ).markDocked(),
                 dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),
+                recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
             )
         }
     }
