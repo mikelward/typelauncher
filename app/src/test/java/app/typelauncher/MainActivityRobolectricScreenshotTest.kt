@@ -1384,6 +1384,22 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun dockOverflow_placesEndChevronAtCardPaddingEdge() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
+        val chevronBounds = composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).getBoundsInRoot()
+        assertTrue(
+            "end chevron should sit past the scroll row edge (row=${dockListBounds.right}, chevron=${chevronBounds.right})",
+            chevronBounds.right > dockListBounds.right,
+        )
+    }
+
+    @Test
     fun dockWithoutOverflow_hidesScrollChevrons() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
