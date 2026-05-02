@@ -190,7 +190,9 @@ class WidgetsScreenTest {
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Tiny").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Very small, will be padded").assertIsDisplayed()
+        composeRule.onNodeWithText("Very small, will be padded")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
