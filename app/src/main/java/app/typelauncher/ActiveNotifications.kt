@@ -1,7 +1,6 @@
 package app.typelauncher
 
 import android.content.Context
-import android.os.UserHandle
 import androidx.core.app.NotificationManagerCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,12 +13,12 @@ import kotlinx.coroutines.flow.asStateFlow
  * Android settings). The launcher's notification bar reads this to decide
  * which apps to surface above the dock and to order them by recency.
  *
- * The map key is the `(packageName, user)` pair from the
- * `StatusBarNotification` — keying by both is required because the same
- * package can be installed in the personal and work profiles simultaneously,
- * and each profile's notifications must be tracked independently so that
- * dismissing one profile's icon doesn't affect the other's bar entry. The
- * map value is the most-recent `StatusBarNotification.postTime` (ms since
+ * The map key is `"${user.hashCode()}:$packageName"` — encoding both the
+ * profile and the package name is required because the same package can be
+ * installed in the personal and work profiles simultaneously, and each
+ * profile's notifications must be tracked independently so that dismissing
+ * one profile's icon doesn't affect the other's bar entry. The map value is
+ * the most-recent `StatusBarNotification.postTime` (ms since
  * epoch) seen across that profile+package's user-visible notifications, so
  * the bar can place the freshest entry on the right (next to the keyboard)
  * — same convention as the recents row.
@@ -30,10 +29,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * service callbacks, read from any dispatcher.
  */
 internal object ActiveNotifications {
-    private val _packages = MutableStateFlow<Map<Pair<String, UserHandle>, Long>>(emptyMap())
-    val packages: StateFlow<Map<Pair<String, UserHandle>, Long>> = _packages.asStateFlow()
+    private val _packages = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val packages: StateFlow<Map<String, Long>> = _packages.asStateFlow()
 
-    fun update(packages: Map<Pair<String, UserHandle>, Long>) {
+    fun update(packages: Map<String, Long>) {
         _packages.value = packages
     }
 

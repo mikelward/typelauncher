@@ -14,7 +14,6 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Process
-import android.os.UserHandle
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -732,7 +731,7 @@ internal class LauncherViewModel(
     private fun visibleInstalledApps(): List<InstalledApp> =
         installedApps.filterNot { app -> hiddenAppStore.contains(app.id) }
 
-    private fun refreshNotifyingApps(packages: Map<Pair<String, UserHandle>, Long>) {
+    private fun refreshNotifyingApps(packages: Map<String, Long>) {
         _uiState.update { state ->
             state.copy(
                 notifyingApps = visibleInstalledApps()

@@ -80,14 +80,14 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
 
     private fun refreshSnapshot() {
         val packages = try {
-            // Reduce to one entry per (packageName, user) pair, keeping the
-            // most recent postTime. Keying by both ensures personal and work
-            // profile entries are tracked independently so each profile's icon
-            // appears and disappears from the bar on its own notifications.
+            // Reduce to one entry per (user, packageName) pair, keeping the
+            // most recent postTime. Encoding both in the key ensures personal
+            // and work profile entries are tracked independently so each
+            // profile's icon appears and disappears on its own notifications.
             activeNotifications
                 ?.asSequence()
                 ?.filter { isUserVisible(it) }
-                ?.groupingBy { it.packageName to it.user }
+                ?.groupingBy { "${it.user.hashCode()}:${it.packageName}" }
                 ?.fold(0L) { acc, sbn -> maxOf(acc, sbn.postTime) }
                 ?: emptyMap()
         } catch (exception: SecurityException) {
