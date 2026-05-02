@@ -450,7 +450,11 @@ private fun SwipeNavigationBox(
                 backwardVelocityCancelPxPerSec,
             ) {
                 awaitEachGesture {
-                    val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    // Use Main pass so child scrollable bars (dock, recents, notification
+                    // bar) get first crack at horizontal gestures. A child that claims its
+                    // scroll marks changes as consumed; the carousel then skips them,
+                    // giving the bar scroll priority over page navigation.
+                    val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     val commitDistancePx = pageWidthPx * CAROUSEL_COMMIT_DISTANCE_RATIO
                     val dragStartPage = pagerState.currentPage
@@ -465,13 +469,20 @@ private fun SwipeNavigationBox(
                     // for gestures that finish in a single frame.
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val event = awaitPointerEvent(PointerEventPass.Main)
                         event.changes.forEach { change ->
                             val delta = change.positionChange()
-                            rawDragX += delta.x
-                            rawDragY += delta.y
+                            // Skip changes already consumed by a child (e.g. a scrollable
+                            // bar). Velocity is tracked unconditionally so a fling that
+                            // starts in an exhausted bar and continues onto open space
+                            // still reads an accurate speed.
+                            if (!change.isConsumed) {
+                                rawDragX += delta.x
+                                rawDragY += delta.y
+                            }
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             if (!claimed &&
+                                !change.isConsumed &&
                                 abs(rawDragX) > touchSlopPx &&
                                 abs(rawDragX) > abs(rawDragY)
                             ) {

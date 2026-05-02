@@ -672,7 +672,11 @@ private fun ScrollableIconRow(
         val viewportPx = constraints.maxWidth
         Row(
             modifier = rowModifier
-                .horizontalScroll(scrollState)
+                // Only enable scrolling when content actually overflows the
+                // viewport. With scroll disabled on a non-overflowing row the
+                // gesture falls through to the carousel, preserving sideways
+                // page navigation from dock/recents bars that fit on screen.
+                .horizontalScroll(scrollState, enabled = contentOverflowsViewport)
                 .layout { measurable, childConstraints ->
                     val placeable = measurable.measure(
                         childConstraints.copy(minWidth = viewportPx),
