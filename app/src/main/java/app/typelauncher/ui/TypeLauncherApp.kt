@@ -186,6 +186,17 @@ internal fun TypeLauncherApp(
         appsReady = state.isFreshAppLoadComplete,
         onHomeReady = onHomeReady,
     )
+    // Cold-start one-frame holdback for the home body (apps grid, notification
+    // bar, dock, recents). Hoisted here so it survives HomeScreen unmount /
+    // remount cycles (Settings open/close, returning from carousel screens):
+    // the holdback is a cold-start optimisation, not something we want to
+    // re-trigger on routine navigation. TypeLauncherApp itself only unmounts
+    // on configuration change, where re-deferring is the right call anyway.
+    var homeBodyReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        homeBodyReady = true
+    }
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
@@ -224,6 +235,7 @@ internal fun TypeLauncherApp(
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
                         innerPadding = innerPadding,
+                        bodyReady = homeBodyReady,
                         onQueryChanged = onQueryChanged,
                         onClearQuery = onClearQuery,
                         onLaunchActiveApp = onLaunchActiveApp,
