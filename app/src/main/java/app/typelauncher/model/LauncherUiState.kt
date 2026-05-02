@@ -43,6 +43,10 @@ internal data class LauncherUiState(
     // (the deferred agenda load) waits on this flag instead of `isLoadingApps`
     // so it doesn't race the fresh app load.
     val isFreshAppLoadComplete: Boolean = false,
+    // Latched true the first time the UI signals "home ready" via
+    // `LauncherViewModel.onHomeReady`. Gates cold-start IO that the agenda load
+    // and `AppWidgetHost.startListening` would otherwise contend with.
+    val isHomeReady: Boolean = false,
     val isDefaultLauncher: Boolean = false,
 )
 

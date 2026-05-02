@@ -158,6 +158,24 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun homeReadySignalPublishesIsHomeReadyOnceAppListLoadsAndImeTimeoutElapses() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            viewModel.uiState.value.isHomeReady
+        }
+        assertTrue(
+            "isHomeReady gates MainActivity's deferred AppWidgetHost.startListening",
+            viewModel.uiState.value.isHomeReady,
+        )
+
+        // Idempotent: a second call must not unset the published flag or
+        // otherwise disturb the contract that downstream consumers rely on.
+        composeRule.activity.runOnUiThread { viewModel.onHomeReady() }
+        composeRule.waitForIdle()
+        assertTrue(viewModel.uiState.value.isHomeReady)
+    }
+
+    @Test
     fun receivingHomeLauncherIntent_returnsToAppListFromOtherScreens() {
         val viewModel = composeRule.activity.viewModel
         viewModel.showAgenda()

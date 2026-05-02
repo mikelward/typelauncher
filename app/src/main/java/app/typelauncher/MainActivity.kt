@@ -17,7 +17,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 private const val APP_WIDGET_HOST_ID = 1024
@@ -69,6 +74,13 @@ class MainActivity : ComponentActivity() {
         }
     private var pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
+    // True until the ViewModel has reported `isHomeReady` for the first time.
+    // While set, `onStart` skips `AppWidgetHost.startListening` so the cold-
+    // start AppWidgetService Binder IPC doesn't contend with the apps load and
+    // the IME show. Once home-ready fires we listen immediately (if started)
+    // and on every subsequent `onStart` cycle.
+    private var deferStartListening = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
         LauncherDebugLog.event("onCreate savedInstanceState=${savedInstanceState.debugSummary()}")
@@ -100,6 +112,7 @@ class MainActivity : ComponentActivity() {
             ),
         )[LauncherViewModel::class.java]
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
+        observeHomeReady()
         LauncherDebugLog.event("setContent begin")
         setContent {
             LauncherDebugLog.event("setContent composing TypeLauncherTheme")
@@ -144,11 +157,10 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         LauncherDebugLog.activityCallback(this, "MainActivity.onStart")
-        try {
-            appWidgetHost.startListening()
-            LauncherDebugLog.event("AppWidgetHost.startListening")
-        } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("AppWidgetHost.startListening failed", exception)
+        if (deferStartListening) {
+            LauncherDebugLog.event("AppWidgetHost.startListening deferred until home ready")
+        } else {
+            startListeningSafely()
         }
     }
 
@@ -193,6 +205,34 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("AppWidgetHost.stopListening")
         } catch (exception: RuntimeException) {
             LauncherDebugLog.warning("AppWidgetHost.stopListening failed", exception)
+        }
+    }
+
+    private fun startListeningSafely() {
+        if (!::appWidgetHost.isInitialized) return
+        try {
+            appWidgetHost.startListening()
+            LauncherDebugLog.event("AppWidgetHost.startListening")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("AppWidgetHost.startListening failed", exception)
+        }
+    }
+
+    private fun observeHomeReady() {
+        lifecycleScope.launch {
+            viewModel.uiState.map { it.isHomeReady }.first { ready -> ready }
+            deferStartListening = false
+            // If we're already started, we previously skipped startListening in
+            // onStart — kick it off now. If we're not started, the next onStart
+            // will pick it up.
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                LauncherDebugLog.event("home ready: starting deferred AppWidgetHost listener")
+                startListeningSafely()
+            } else {
+                LauncherDebugLog.event(
+                    "home ready before STARTED; AppWidgetHost listener will start on next onStart",
+                )
+            }
         }
     }
 

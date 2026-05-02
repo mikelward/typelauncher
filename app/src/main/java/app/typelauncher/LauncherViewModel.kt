@@ -132,14 +132,19 @@ internal class LauncherViewModel(
 
     /**
      * Called by the UI once the Home screen has fully drawn its app list and
-     * the soft keyboard is in place (or a fallback timeout has elapsed). Loads
-     * the agenda for the first time on the IO dispatcher. Idempotent.
+     * the soft keyboard is in place (or a fallback timeout has elapsed).
+     * Publishes `isHomeReady` for downstream consumers (e.g. MainActivity's
+     * deferred `AppWidgetHost.startListening`) and triggers the deferred first
+     * agenda load on the IO dispatcher. Idempotent.
      */
     fun onHomeReady() {
-        if (initialAgendaTriggered) return
-        initialAgendaTriggered = true
-        LauncherDebugLog.event("onHomeReady triggering deferred agenda load")
-        loadAgendaAsync(reason = "homeReady", traceName = "agenda_initial_load")
+        if (_uiState.value.isHomeReady) return
+        _uiState.update { it.copy(isHomeReady = true) }
+        LauncherDebugLog.event("onHomeReady published; starting deferred agenda load")
+        if (!initialAgendaTriggered) {
+            initialAgendaTriggered = true
+            loadAgendaAsync(reason = "homeReady", traceName = "agenda_initial_load")
+        }
     }
 
     fun setQuery(query: String) {
