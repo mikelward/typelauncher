@@ -77,13 +77,19 @@ internal fun List<InstalledApp>.filterByName(
             )
         }
     } else {
+        val dockedFirstByPair = compareByDescending<Pair<InstalledApp, LauncherMatchTier>> { (app, _) -> app.id in dockedSet }
+        val withinTier = when (sortOrder) {
+            AppListSortOrder.Usage -> dockedFirstByPair
+                .thenByDescending { (app, _) -> appLaunchStatsStore.launchCount(app.id) }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
+            AppListSortOrder.Alphabetical -> dockedFirstByPair
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
+        }
         candidates
             .mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
             .sortedWith(
                 compareBy<Pair<InstalledApp, LauncherMatchTier>> { (_, tier) -> tier.ordinal }
-                    .thenByDescending { (app, _) -> app.id in dockedSet }
-                    .thenByDescending { (app, _) -> appLaunchStatsStore.launchCount(app.id) }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name },
+                    .then(withinTier),
             )
             .map { (app, _) -> app }
     }
