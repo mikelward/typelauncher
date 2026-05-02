@@ -93,7 +93,7 @@ internal class LauncherViewModel(
                         sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
-                        .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
+                        .filterDocked(dockedAppStore.dockedAppIds)
                         .markDocked(),
                     recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
                 )
@@ -122,7 +122,7 @@ internal class LauncherViewModel(
                         sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
-                        .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
+                        .filterDocked(dockedAppStore.dockedAppIds)
                         .markDocked(),
                     recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
                     isLoadingApps = false,
@@ -334,16 +334,17 @@ internal class LauncherViewModel(
             return
         }
         // Docked apps are excluded from filteredApps while the dock is
-        // enabled, so fall back to launching the first matching dock entry
-        // when no non-docked match exists. Otherwise a query that only
-        // resolves to docked apps would leave Enter doing nothing despite a
-        // visible matching dock icon. The fallback is gated on the dock
-        // being enabled because dockedApps is still populated when the dock
-        // UI is hidden — without the gate, a no-match query under a hidden
-        // dock could surprise-launch an invisible entry.
+        // enabled, so fall back to launching the first dock entry that
+        // matches the query when no non-docked match exists. The dock row
+        // itself is no longer filtered by typed search, so the fallback
+        // re-runs the matcher here rather than reading state.dockedApps —
+        // otherwise we would launch the first pinned app regardless of the
+        // query. The fallback is gated on the dock being enabled because
+        // dockedApps is still populated when the dock UI is hidden.
         val state = _uiState.value
         val target = state.filteredApps.firstOrNull()
-            ?: state.dockedApps.firstOrNull()?.takeIf { state.isDockEnabled }
+            ?: state.dockedApps.firstOrNull { app -> app.name.launcherMatchTier(trimmedQuery) != null }
+                ?.takeIf { state.isDockEnabled }
         target?.let(::launchApp)
     }
 
@@ -501,7 +502,7 @@ internal class LauncherViewModel(
                     excludedAppIds = dockedAppStore.dockedAppIds.takeIf { state.isDockEnabled }.orEmpty(),
                     sortOrder = state.appListSortOrder,
                 ).markDocked(),
-                dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),
+                dockedApps = installedApps.filterDocked(dockedAppStore.dockedAppIds).markDocked(),
                 recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
             )
         }
