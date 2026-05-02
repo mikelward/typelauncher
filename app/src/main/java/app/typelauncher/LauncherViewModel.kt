@@ -519,14 +519,17 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Cancels every user-visible active notification for [app]'s package. Backs
-     * the "Dismiss" action on the notification bar — once the system clears
-     * those notifications the listener fires a refresh and the package drops
-     * out of the bar. No-op if the listener service isn't bound.
+     * Cancels every user-visible active notification for [app]'s package under
+     * its profile. Backs the "Dismiss" action on the notification bar — once
+     * the system clears those notifications the listener fires a refresh and
+     * the package drops out of the bar. The package + user pair scopes the
+     * cancel to the selected profile so dismissing the personal icon doesn't
+     * also clear notifications for the work-profile copy of the same package
+     * (and vice versa). No-op if the listener service isn't bound.
      */
     fun dismissNotificationsFor(app: InstalledApp) {
-        LauncherDebugLog.event("dismissNotificationsFor package=${app.packageName}")
-        NotificationDismisser.dismissNotificationsFor(app.packageName)
+        LauncherDebugLog.event("dismissNotificationsFor package=${app.packageName} work=${app.isWorkApp}")
+        NotificationDismisser.dismissNotificationsFor(app.packageName, app.user)
     }
 
     /**
