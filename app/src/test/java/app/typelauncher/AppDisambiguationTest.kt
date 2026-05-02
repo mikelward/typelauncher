@@ -189,6 +189,37 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun capitalOneSameNameTwoWordPairOnlyUkVariantGetsBadge() {
+        // Real-world case: both apps ship with the literal display name
+        // "Capital One", grouped under brand "capitalone" via the
+        // com.ie / com.konylabs eTLD prefixes. The two-word name means the
+        // suffix is "One" rather than empty, but the suffixes are identical
+        // for both apps so the user can't tell them apart — the IE/UK
+        // package tail ending in "uk" gets the UK badge, the Kony tail gets
+        // no badge.
+        val apps = listOf(
+            personalApp("Capital One", "com.konylabs.capitalone"),
+            personalApp("Capital One", "com.ie.capitalone.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun differingNonCountrySuffixesStillDoNotProduceBadges() {
+        // "Capital One Premium" vs "Capital One Business" share brand and
+        // first word but the suffixes differ and neither is a country code,
+        // so the group is rejected — the user can already tell them apart
+        // from the display name alone.
+        val apps = listOf(
+            personalApp("Capital One Premium", "com.konylabs.capitalone"),
+            personalApp("Capital One Business", "com.ie.capitalone.uk"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
     fun nonIsoRegionalMarkersAreNotMatched() {
         // We deliberately don't include "EMEA" / "APAC" / "ANZ" / "ROW" in
         // the regional-marker list — keeping the set to ISO 3166-1 alpha-2
