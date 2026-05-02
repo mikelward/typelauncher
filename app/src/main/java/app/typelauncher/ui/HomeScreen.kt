@@ -136,24 +136,6 @@ internal fun HomeScreen(
         // holdback is a cold-start optimisation, not a per-mount one. See the
         // comment on `homeBodyReady` in TypeLauncherApp for the why.
         if (bodyReady) {
-            // Notification bar sits between the search bar and the app list so
-            // it appears directly under the user's typing area when summoned.
-            // The app list below shrinks (it has weight 1f) to make room.
-            // Gated on the "Show notifications" setting: with the toggle off,
-            // the bar never renders and the swipe-down handler skips its stage.
-            NotificationBarCard(
-                notifyingApps = state.notifyingApps,
-                isVisible = state.isNotificationsEnabled && state.isNotificationBarOpen,
-                hasNotificationAccess = state.hasNotificationAccess,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
-                onRequestNotificationAccess = onRequestNotificationAccess,
-                onDismiss = { onSetNotificationBarOpen(false) },
-            )
             AppsCard(
                 apps = state.filteredApps,
                 isLoading = state.isLoadingApps,
@@ -167,6 +149,25 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
+            )
+            // Notification bar sits between the app list and the dock so a
+            // single pull-down brings it into view without displacing the dock
+            // or the keyboard. The list above shrinks (it has weight 1f) to
+            // make room. Gated on the "Show notifications" setting: with the
+            // toggle off, the bar never renders and the swipe-down handler
+            // skips its stage.
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = state.isNotificationsEnabled && state.isNotificationBarOpen,
+                hasNotificationAccess = state.hasNotificationAccess,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onHideApp = onHideApp,
+                onRequestNotificationAccess = onRequestNotificationAccess,
+                onDismiss = { onSetNotificationBarOpen(false) },
             )
             if (state.isDockEnabled) {
                 DockCard(
@@ -1515,11 +1516,23 @@ private fun SettingsPreview(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
     ) {
-        // Mirror Home: notification bar sits between the search bar (which the
-        // preview omits) and the app list, and only renders when "Show
-        // notifications" is on. Forced access-granted so toggling the setting
-        // shows the inline bar at its natural height rather than the taller
-        // permission CTA, even before the user has granted listener access.
+        AppsCard(
+            apps = state.filteredApps,
+            dockLimit = Int.MAX_VALUE,
+            isIconOnly = state.isAppListIconOnly,
+            iconSizeDp = dockIconSizeDp,
+            highlightFirst = state.query.isNotBlank(),
+            modifier = Modifier.height(appListHeight),
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+            onHideApp = onHideApp,
+        )
+        // Mirror Home: notification bar sits between the app list and the
+        // dock, and only renders when "Show notifications" is on. Forced
+        // access-granted so toggling the setting shows the inline bar at its
+        // natural height rather than the taller permission CTA.
         if (state.isNotificationsEnabled) {
             NotificationBarCard(
                 notifyingApps = state.notifyingApps,
@@ -1536,19 +1549,6 @@ private fun SettingsPreview(
                 onDismiss = {},
             )
         }
-        AppsCard(
-            apps = state.filteredApps,
-            dockLimit = Int.MAX_VALUE,
-            isIconOnly = state.isAppListIconOnly,
-            iconSizeDp = dockIconSizeDp,
-            highlightFirst = state.query.isNotBlank(),
-            modifier = Modifier.height(appListHeight),
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
-        )
         if (state.isDockEnabled) {
             DockCard(
                 dockedApps = state.dockedApps,
