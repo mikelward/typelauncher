@@ -72,6 +72,7 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
             isNotificationsEnabled = dockSettingsStore.isNotificationsEnabled,
+            isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
         ),
@@ -615,6 +616,12 @@ internal class LauncherViewModel(
         if (isEnabled && !_uiState.value.hasNotificationAccess) {
             openNotificationAccessSettings()
         }
+    }
+
+    fun setKeyboardAutoShown(isAutoShown: Boolean) {
+        dockSettingsStore.isKeyboardAutoShown = isAutoShown
+        _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
+        logState("setKeyboardAutoShown=$isAutoShown")
     }
 
     fun setDockVisibleIconCount(count: Int) {

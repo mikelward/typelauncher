@@ -1240,6 +1240,29 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun keyboardAutoShowToggle_inSettings_persistsAndUpdatesWindowSoftInput() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().assertIsOn()
+        assertEquals(true, viewModel.uiState.value.isKeyboardAutoShown)
+
+        composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().assertIsOff()
+        assertEquals(false, viewModel.uiState.value.isKeyboardAutoShown)
+        // MainActivity observes the preference and switches the window
+        // softInputMode flag; with the toggle off the activity hides the IME
+        // instead of the manifest's stateAlwaysVisible default.
+        val flag = composeRule.activity.window.attributes.softInputMode and
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE
+        assertEquals(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN, flag)
+    }
+
+    @Test
     fun dockOverflow_showsEndChevronHint() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->

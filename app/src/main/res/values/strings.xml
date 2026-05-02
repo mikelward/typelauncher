@@ -77,6 +77,7 @@
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_show_recents_title">Show recents</string>
     <string name="settings_show_notifications_title">Show notifications</string>
+    <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
     <string name="settings_dock_icon_count_label">Icons per bar: %1$d</string>
     <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>
     <string name="settings_dock_preview_label">Preview</string>

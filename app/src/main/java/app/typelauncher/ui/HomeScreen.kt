@@ -127,6 +127,7 @@ internal fun HomeScreen(
     ) {
         SearchCard(
             query = state.query,
+            autoShowKeyboard = state.isKeyboardAutoShown,
             onQueryChanged = onQueryChanged,
             onClearQuery = onClearQuery,
             onOpenSettings = onOpenSettings,
@@ -206,6 +207,7 @@ internal fun HomeScreen(
 @Composable
 private fun SearchCard(
     query: String,
+    autoShowKeyboard: Boolean,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -214,9 +216,16 @@ private fun SearchCard(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboard?.show()
+    // The auto-focus / show pair is the launcher's "type immediately on Home"
+    // behavior. Gating both on the user setting is what actually keeps the IME
+    // down — a focused TextField on its own would re-trigger the soft keyboard
+    // via the manifest's stateAlwaysVisible. MainActivity also overrides the
+    // window softInputMode in concert with this flag.
+    LaunchedEffect(autoShowKeyboard) {
+        if (autoShowKeyboard) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
     }
     SectionCard {
         OutlinedTextField(
@@ -1060,6 +1069,7 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
     onNotificationsEnabledChanged: (Boolean) -> Unit = {},
+    onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1210,6 +1220,23 @@ internal fun SettingsScreen(
                     checked = state.isRecentsAlwaysShown,
                     onCheckedChange = onRecentsAlwaysShownChanged,
                     modifier = Modifier.testTag(SHOW_RECENTS_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_keyboard_auto_show_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isKeyboardAutoShown,
+                    onCheckedChange = onKeyboardAutoShownChanged,
+                    modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
                 )
             }
         }

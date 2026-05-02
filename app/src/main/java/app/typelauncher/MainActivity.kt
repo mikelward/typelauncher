@@ -10,6 +10,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,6 +21,7 @@ import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -112,6 +114,12 @@ class MainActivity : ComponentActivity() {
             ),
         )[LauncherViewModel::class.java]
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
+        // Apply the persisted keyboard-auto-show preference before setContent
+        // so the cold-start IME state matches the setting on the very first
+        // frame; without this the manifest's stateAlwaysVisible would briefly
+        // raise the keyboard before the toggle could undo it.
+        applyKeyboardAutoShownPreference(viewModel.uiState.value.isKeyboardAutoShown)
+        observeKeyboardAutoShownPreference()
         observeHomeReady()
         LauncherDebugLog.event("setContent begin")
         setContent {
@@ -216,6 +224,30 @@ class MainActivity : ComponentActivity() {
         } catch (exception: RuntimeException) {
             LauncherDebugLog.warning("AppWidgetHost.startListening failed", exception)
         }
+    }
+
+    private fun observeKeyboardAutoShownPreference() {
+        lifecycleScope.launch {
+            viewModel.uiState
+                .map { it.isKeyboardAutoShown }
+                .distinctUntilChanged()
+                .collect(::applyKeyboardAutoShownPreference)
+        }
+    }
+
+    private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
+        // The manifest declares stateAlwaysVisible so the launcher boots into
+        // the typing state by default. When the user opts out we override with
+        // stateHidden — adjustResize stays so the IME insets math is unchanged
+        // when the keyboard is later raised by tapping the search field.
+        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+            if (autoShown) {
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+            } else {
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
+            }
+        window.setSoftInputMode(mode)
+        LauncherDebugLog.event("applyKeyboardAutoShownPreference autoShown=$autoShown mode=0x${mode.toString(16)}")
     }
 
     private fun observeHomeReady() {
