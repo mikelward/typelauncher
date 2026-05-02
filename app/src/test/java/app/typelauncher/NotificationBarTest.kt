@@ -139,6 +139,8 @@ class NotificationBarTest {
         // Each app gets a badge dot — presence indicator, no count.
         composeRule.onNodeWithTag("$NOTIFICATION_BAR_BADGE_TAG:Mail").assertIsDisplayed()
         composeRule.onNodeWithTag("$NOTIFICATION_BAR_BADGE_TAG:Chat").assertIsDisplayed()
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
     }
 
     @Test
