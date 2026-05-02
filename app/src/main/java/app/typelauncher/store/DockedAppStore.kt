@@ -29,6 +29,18 @@ internal class DockedAppStore(context: Context) {
         }
     }
 
+    fun reorder(fromIndex: Int, toIndex: Int) {
+        val current = dockedIds.toList()
+        if (fromIndex !in current.indices) return
+        val clampedTo = toIndex.coerceIn(0, current.lastIndex)
+        if (fromIndex == clampedTo) return
+        val moved = current[fromIndex]
+        val withoutMoved = current.subList(0, fromIndex) + current.subList(fromIndex + 1, current.size)
+        val rebuilt = withoutMoved.subList(0, clampedTo) + moved + withoutMoved.subList(clampedTo, withoutMoved.size)
+        dockedIds = LinkedHashSet(rebuilt)
+        save()
+    }
+
     private fun save() {
         sharedPreferences.edit()
             .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
