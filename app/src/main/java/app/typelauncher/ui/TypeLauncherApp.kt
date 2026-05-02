@@ -7,7 +7,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
@@ -145,7 +145,13 @@ internal fun TypeLauncherApp(
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
     }
     Scaffold(
-        contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
+        // Use imeAnimationTarget rather than ime so the layout snaps to the
+        // keyboard's final position the moment the IME is requested, instead of
+        // sliding up alongside the keyboard animation. Tap targets stay put
+        // from the first frame after open.
+        contentWindowInsets = WindowInsets.statusBars
+            .union(WindowInsets.navigationBars)
+            .union(WindowInsets.imeAnimationTarget),
     ) { innerPadding ->
         if (state.isSettingsOpen) {
             SettingsScreen(
