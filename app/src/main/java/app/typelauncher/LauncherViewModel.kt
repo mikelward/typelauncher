@@ -220,11 +220,15 @@ internal class LauncherViewModel(
      * the launcher is about to be backgrounded so the IO is not on a user-visible path.
      */
     fun persistIconSnapshot() {
-        val priorityIds = priorityIconAppIds()
-        if (priorityIds.isEmpty()) {
-            LauncherDebugLog.event("persistIconSnapshot skipped: no priority apps")
+        if (installedApps.isEmpty()) {
+            // The fresh LauncherApps load hasn't completed yet, so an empty priority
+            // set here would mean "we don't know what's installed", not "nothing is
+            // worth keeping". Leave the on-disk snapshot alone rather than wiping the
+            // previous session's icons.
+            LauncherDebugLog.event("persistIconSnapshot skipped: fresh load incomplete")
             return
         }
+        val priorityIds = priorityIconAppIds()
         val snapshots = AppIconLoader.cacheSnapshot()
             .filterKeys { key -> key.id in priorityIds }
             .map { (key, bitmap) ->
@@ -233,6 +237,9 @@ internal class LauncherViewModel(
         LauncherDebugLog.event(
             "persistIconSnapshot priority=${priorityIds.size} snapshots=${snapshots.size}",
         )
+        // An empty snapshots list still goes through to IconSnapshotStore.save so its
+        // prune contract runs and orphan files left behind by undocking + resetting
+        // launch counts get cleaned up.
         viewModelScope.launch(ioDispatcher) { iconSnapshotStore.save(snapshots) }
     }
 
