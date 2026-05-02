@@ -171,6 +171,9 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onStop")
         stopListeningSafely()
+        if (::viewModel.isInitialized) {
+            viewModel.persistIconSnapshot()
+        }
         super.onStop()
     }
 

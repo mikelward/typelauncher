@@ -44,6 +44,7 @@ internal class LauncherViewModel(
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val appMetadataStore = AppMetadataStore(app)
+    private val iconSnapshotStore = IconSnapshotStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     private var agendaVersion = 0
@@ -62,6 +63,15 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+        // Restore previously-rasterised icons synchronously before setContent runs so the
+        // first composed frame can pull from AppIconLoader's in-memory cache instead of
+        // showing the placeholder surface while LauncherApps + drawable.toBitmap finish.
+        val restoredIconCount = iconSnapshotStore.load()
+            .onEach { snapshot -> AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap) }
+            .size
+        if (restoredIconCount > 0) {
+            LauncherDebugLog.event("LauncherViewModel restored icon snapshot count=$restoredIconCount")
+        }
         if (cachedMetadata.isNotEmpty()) {
             installedApps = cachedMetadata
             _uiState.update { state ->
@@ -200,6 +210,43 @@ internal class LauncherViewModel(
         if (_uiState.value.screen == LauncherScreen.Agenda) {
             refreshAgenda()
         }
+    }
+
+    /**
+     * Persists currently-cached icon bitmaps for the dock and the top-N most-launched
+     * apps so the next cold start can restore them ahead of the first frame. Called from
+     * `MainActivity.onStop` because by then the user has typically scrolled the app list
+     * and dock enough that the priority icons are warm in `AppIconLoader`'s cache, and
+     * the launcher is about to be backgrounded so the IO is not on a user-visible path.
+     */
+    fun persistIconSnapshot() {
+        val priorityIds = priorityIconAppIds()
+        if (priorityIds.isEmpty()) {
+            LauncherDebugLog.event("persistIconSnapshot skipped: no priority apps")
+            return
+        }
+        val snapshots = AppIconLoader.cacheSnapshot()
+            .filterKeys { key -> key.id in priorityIds }
+            .map { (key, bitmap) ->
+                IconSnapshotStore.Snapshot(id = key.id, sizePx = key.sizePx, bitmap = bitmap)
+            }
+        LauncherDebugLog.event(
+            "persistIconSnapshot priority=${priorityIds.size} snapshots=${snapshots.size}",
+        )
+        viewModelScope.launch(ioDispatcher) { iconSnapshotStore.save(snapshots) }
+    }
+
+    private fun priorityIconAppIds(): Set<String> {
+        val docked = dockedAppStore.dockedAppIds.toSet()
+        val topByLaunches = installedApps
+            .asSequence()
+            .map { app -> app.id to appLaunchStatsStore.launchCount(app.id) }
+            .filter { (_, count) -> count > 0 }
+            .sortedByDescending { (_, count) -> count }
+            .take(SNAPSHOT_TOP_LAUNCH_COUNT)
+            .map { (id, _) -> id }
+            .toSet()
+        return docked + topByLaunches
     }
 
     fun refreshAgenda() {
@@ -589,3 +636,9 @@ private fun estimateCellSpan(sizeDp: Int): Int =
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
 private const val WIDGET_CELL_ESTIMATE_DP = 56
+
+// How many of the most-launched apps to include in the icon snapshot beyond the dock.
+// Sized to cover the visible app rows on a typical phone screen (~12 text rows or ~24
+// icon-only grid cells) plus a margin so quick scrolls also paint without flashing,
+// while keeping cold-start file IO bounded.
+private const val SNAPSHOT_TOP_LAUNCH_COUNT = 24
