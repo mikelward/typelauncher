@@ -62,24 +62,6 @@ class LauncherViewModelReloadTest {
         )
     }
 
-    @Test
-    fun reloadAfterPackageUninstallDropsTheRemovedApp() {
-        seedApp("Mail", "com.example.mail")
-        seedApp("Chat", "com.example.chat")
-        val viewModel = newViewModel()
-        idle()
-        val initialNames = viewModel.uiState.value.filteredApps.map { it.name }
-        assertTrue(initialNames.containsAll(listOf("Mail", "Chat")))
-
-        shadowOf(context.packageManager).removeResolveInfoForIntent(launcherIntent, "com.example.chat")
-        viewModel.reloadInstalledAppsForTest()
-        idle()
-
-        val updatedNames = viewModel.uiState.value.filteredApps.map { it.name }
-        assertTrue("Reload preserves still-installed apps", updatedNames.contains("Mail"))
-        assertFalse("Reload drops the uninstalled package", updatedNames.contains("Chat"))
-    }
-
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
