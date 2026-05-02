@@ -2,7 +2,6 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
