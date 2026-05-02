@@ -60,6 +60,21 @@ jobs:
       - name: Run unit tests
         run: ./gradlew test
 
+      - name: Upload unit test reports
+        # Always upload so a failed test run leaves the JUnit XMLs and HTML
+        # reports for inspection. Without this, diagnosing a CI-only test
+        # failure means re-running locally — and "fix it blindly" loops
+        # waste an iteration each time.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
       - name: Run lint
         run: ./gradlew lint
 
@@ -218,3 +233,17 @@ jobs:
         with:
           name: roborazzi-screenshots
           path: app/src/test/snapshots/images/
+
+      - name: Upload screenshot test reports
+        # JUnit XMLs and HTML reports for the screenshot suite — uploaded
+        # even on failure so a CI-only crash leaves diagnostic output
+        # behind. Pairs with the same step in the build job.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
