@@ -2,6 +2,9 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
@@ -9,6 +12,7 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -124,6 +128,61 @@ class SwipeDownNotificationShadeTest {
 
         assertEquals(1, swipeDownCount)
         assertEquals(false, notificationBarOpened)
+    }
+
+    @Test
+    fun swipingDownOnHomeWithNotificationBarClosed_hidesKeyboard() {
+        var hideCalled = false
+        val fakeKeyboard = object : SoftwareKeyboardController {
+            override fun show() {}
+            override fun hide() { hideCalled = true }
+        }
+        composeRule.setContent {
+            CompositionLocalProvider(LocalSoftwareKeyboardController provides fakeKeyboard) {
+                TypeLauncherTheme {
+                    TypeLauncherApp(
+                        state = LauncherUiState(
+                            filteredApps = emptyList(),
+                            isNotificationsEnabled = true,
+                        ),
+                        onQueryChanged = {},
+                        onClearQuery = {},
+                        onLaunchActiveApp = {},
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onHideApp = {},
+                        onUnhideApp = {},
+                        onOpenSettings = {},
+                        onCloseSettings = {},
+                        onRequestDefaultLauncher = {},
+                        onDockEnabledChanged = {},
+                        onAppListIconOnlyChanged = {},
+                        onDockVisibleIconCountChanged = {},
+                        onAppListSortOrderChanged = {},
+                        onShowAgenda = {},
+                        onShowWidgets = {},
+                        onShowHome = {},
+                        onSetNotificationBarOpen = {},
+                        appWidgetHost = null,
+                        appWidgetManager = null,
+                        onAddWidget = {},
+                        onDismissWidgetPicker = {},
+                        onSelectWidget = {},
+                        onRemoveWidget = {},
+                        onRequestCalendarPermission = {},
+                        onOpenAgendaEvent = {},
+                        onSwipeDown = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertTrue("keyboard hide was called when notification bar opened", hideCalled)
     }
 
     @Test
