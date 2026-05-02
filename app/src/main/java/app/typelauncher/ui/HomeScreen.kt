@@ -18,6 +18,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -464,10 +466,16 @@ private fun ScrollableIconRow(
             scrollState.scrollTo(scrollState.maxValue)
         }
     }
-    Box(modifier = Modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        // Stretch the row to at least the available width so the centered
+        // arrangement has space to distribute when the icons fit on one screen.
+        // When they overflow the Row grows past this minimum and scrolls.
+        val rowMinWidth = maxWidth
         Row(
-            modifier = rowModifier.horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = rowModifier
+                .horizontalScroll(scrollState)
+                .widthIn(min = rowMinWidth),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             content = content,
         )
         if (scrollState.value > 0) {
