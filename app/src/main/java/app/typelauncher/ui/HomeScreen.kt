@@ -1250,12 +1250,11 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
             modifier = Modifier.testTag(SETTINGS_OVERFLOW_MENU_TAG),
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_report_bug_action)) },
-                modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
+                text = { Text(stringResource(R.string.settings_about_action)) },
+                modifier = Modifier.testTag(SETTINGS_ABOUT_ACTION_TAG),
                 onClick = {
                     expanded = false
-                    val activity = context.findActivity() ?: return@DropdownMenuItem
-                    scope.launch { BugReport.share(activity) }
+                    aboutVisible = true
                 },
             )
             DropdownMenuItem(
@@ -1267,11 +1266,12 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_about_action)) },
-                modifier = Modifier.testTag(SETTINGS_ABOUT_ACTION_TAG),
+                text = { Text(stringResource(R.string.settings_report_bug_action)) },
+                modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
                 onClick = {
                     expanded = false
-                    aboutVisible = true
+                    val activity = context.findActivity() ?: return@DropdownMenuItem
+                    scope.launch { BugReport.share(activity) }
                 },
             )
         }
