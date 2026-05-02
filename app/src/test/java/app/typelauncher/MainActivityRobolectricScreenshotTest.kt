@@ -1393,6 +1393,26 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appsListOverflow_placesBottomChevronAtCardPaddingEdge() {
+        addFakeLauncherApps((1..60).map { index -> "Overflow App %02d".format(index) })
+        composeRule.activity.viewModel.reloadInstalledAppsForTest()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
+
+        val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).getBoundsInRoot()
+        assertTrue(
+            "bottom chevron should sit past the scroll list edge (list=${appsListBounds.bottom}, chevron=${chevronBounds.bottom})",
+            chevronBounds.bottom > appsListBounds.bottom,
+        )
+        saveScreenshot("compose_apps_list_bottom_overflow_chevron_robolectric.png")
+    }
+
+    @Test
     fun dockWithoutOverflow_hidesScrollChevrons() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
@@ -1575,6 +1595,23 @@ class MainActivityRobolectricScreenshotTest {
             targetCellHeight = 1,
             previewImage = null,
         )
+
+    private fun addFakeLauncherApps(labels: List<String>) {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val packageManager = shadowOf(ApplicationProvider.getApplicationContext<android.content.Context>().packageManager)
+        labels.forEachIndexed { index, label ->
+            val packageName = "app.typelauncher.overflow$index"
+            val resolveInfo = ResolveInfo().apply {
+                nonLocalizedLabel = label
+                activityInfo = ActivityInfo().apply {
+                    this.packageName = packageName
+                    name = "$packageName.LaunchActivity"
+                }
+            }
+            @Suppress("DEPRECATION")
+            packageManager.addResolveInfoForIntent(launcherIntent, resolveInfo)
+        }
+    }
 
     private class SeedLauncherStateRule : TestRule {
         override fun apply(base: Statement, description: Description): Statement =

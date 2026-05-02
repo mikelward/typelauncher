@@ -746,7 +746,7 @@ private fun ScrollableIconRow(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterStart,
-                edgeOffset = -HorizontalScrollChevronEdgeOffset,
+                xEdgeOffset = -HorizontalScrollChevronEdgeOffset,
                 testTag = startChevronTestTag,
             )
         }
@@ -755,7 +755,7 @@ private fun ScrollableIconRow(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterEnd,
-                edgeOffset = HorizontalScrollChevronEdgeOffset,
+                xEdgeOffset = HorizontalScrollChevronEdgeOffset,
                 testTag = endChevronTestTag,
             )
         }
@@ -784,6 +784,7 @@ private fun AppListOverflowChevronBox(
                 icon = Icons.Filled.KeyboardArrowUp,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.TopCenter,
+                yEdgeOffset = -VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
             )
         }
@@ -792,6 +793,7 @@ private fun AppListOverflowChevronBox(
                 icon = Icons.Filled.KeyboardArrowDown,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.BottomCenter,
+                yEdgeOffset = VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
             )
         }
@@ -847,7 +849,8 @@ private fun BoxScope.OverflowScrollChevron(
     contentDescription: String,
     alignment: Alignment,
     testTag: String,
-    edgeOffset: Dp = 0.dp,
+    xEdgeOffset: Dp = 0.dp,
+    yEdgeOffset: Dp = 0.dp,
 ) {
     Icon(
         imageVector = icon,
@@ -855,7 +858,7 @@ private fun BoxScope.OverflowScrollChevron(
         tint = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .align(alignment)
-            .offset(x = edgeOffset)
+            .offset(x = xEdgeOffset, y = yEdgeOffset)
             .background(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 shape = CircleShape,
@@ -866,6 +869,7 @@ private fun BoxScope.OverflowScrollChevron(
 }
 
 private val HorizontalScrollChevronEdgeOffset = 12.dp
+private val VerticalScrollChevronEdgeOffset = 12.dp
 
 @Composable
 private fun AppsCard(
