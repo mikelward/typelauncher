@@ -1255,11 +1255,12 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().assertIsOff()
         assertEquals(false, viewModel.uiState.value.isKeyboardAutoShown)
         // MainActivity observes the preference and switches the window
-        // softInputMode flag; with the toggle off the activity hides the IME
-        // instead of the manifest's stateAlwaysVisible default.
+        // softInputMode flag; with the toggle off the activity asks for
+        // stateAlwaysHidden so returning to Home from another app keeps the
+        // IME down (plain stateHidden would only fire on forward navigation).
         val flag = composeRule.activity.window.attributes.softInputMode and
             android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE
-        assertEquals(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN, flag)
+        assertEquals(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN, flag)
     }
 
     @Test
