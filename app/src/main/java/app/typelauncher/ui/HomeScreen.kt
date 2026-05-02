@@ -216,6 +216,7 @@ internal fun HomeScreen(
                 DockCard(
                     dockedApps = state.dockedApps,
                     dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = state.dockIconCount,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
@@ -320,6 +321,7 @@ private fun SearchCard(
 private fun DockCard(
     dockedApps: List<InstalledApp>,
     dockIconSizeDp: Int,
+    dockIconCount: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -345,7 +347,9 @@ private fun DockCard(
                     onHideApp = onHideApp,
                 )
             }
-            DockAddButton(dockIconSizeDp = dockIconSizeDp)
+            if (dockedApps.size < dockIconCount) {
+                DockAddButton(dockIconSizeDp = dockIconSizeDp)
+            }
         }
     }
 }
@@ -1376,15 +1380,17 @@ private fun DockAddButton(dockIconSizeDp: Int) {
     val hint = stringResource(R.string.dock_add_button_hint)
     val description = stringResource(R.string.dock_add_button_description)
     Box(
-        modifier = Modifier
-            .padding(4.dp)
-            .testTag(DOCK_ADD_BUTTON_TAG)
-            .semantics { contentDescription = description },
+        modifier = Modifier.padding(4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
             modifier = Modifier
                 .size(dockIconSizeDp.dp)
+                .testTag(DOCK_ADD_BUTTON_TAG)
+                .semantics {
+                    contentDescription = description
+                    role = Role.Button
+                }
                 .clickable { Toast.makeText(context, hint, Toast.LENGTH_LONG).show() },
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1939,6 +1945,7 @@ private fun SettingsPreview(
             DockCard(
                 dockedApps = state.dockedApps,
                 dockIconSizeDp = dockIconSizeDp,
+                dockIconCount = state.dockIconCount,
                 modifier = Modifier.height(previewHeight),
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,

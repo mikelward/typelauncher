@@ -533,8 +533,13 @@ class MainActivityRobolectricScreenshotTest {
 
         val appIconBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_ICON_TAG:Browser").getBoundsInRoot()
         val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
-        assertEquals(dockIconBounds.right - dockIconBounds.left, appIconBounds.right - appIconBounds.left)
-        assertEquals(dockIconBounds.bottom - dockIconBounds.top, appIconBounds.bottom - appIconBounds.top)
+        // Allow 1dp tolerance for sub-pixel rounding on non-integer densities.
+        assertTrue(
+            kotlin.math.abs(((dockIconBounds.right - dockIconBounds.left) - (appIconBounds.right - appIconBounds.left)).value) <= 1f,
+        )
+        assertTrue(
+            kotlin.math.abs(((dockIconBounds.bottom - dockIconBounds.top) - (appIconBounds.bottom - appIconBounds.top)).value) <= 1f,
+        )
 
         saveScreenshot("compose_home_icon_only_app_list_robolectric.png")
     }
@@ -982,13 +987,17 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
+        // The dock row contains the app icon and the "+" add button; centering
+        // is measured across the whole content block (left of first item to
+        // right of last item), not just around the single app icon.
         val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
         val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot()
+        val addButtonBounds = composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).getBoundsInRoot()
         val leftGap = dockIconBounds.left - dockListBounds.left
-        val rightGap = dockListBounds.right - dockIconBounds.right
+        val rightGap = dockListBounds.right - addButtonBounds.right
         // Allow a 1dp tolerance for sub-pixel rounding when the row width is odd.
         assertTrue(
-            "single docked icon should be centered (leftGap=$leftGap, rightGap=$rightGap)",
+            "dock content block should be centered (leftGap=$leftGap, rightGap=$rightGap)",
             kotlin.math.abs((leftGap - rightGap).value) <= 1f,
         )
     }
