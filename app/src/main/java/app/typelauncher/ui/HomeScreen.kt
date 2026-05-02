@@ -374,6 +374,8 @@ private fun RecentsRow(
         startChevronTestTag = DOCK_RECENTS_SCROLL_START_CHEVRON_TAG,
         endChevronTestTag = DOCK_RECENTS_SCROLL_END_CHEVRON_TAG,
         chevronContentDescription = stringResource(R.string.dock_recents_scroll_more_hint),
+        // Keep the freshest recent app (rightmost) visible after every launch.
+        pinToEndKey = recentApps.map { it.id },
     ) {
         recentApps.forEach { app ->
             RecentAppButton(
@@ -440,6 +442,12 @@ private fun RecentAppButton(
  * overlays start/end chevrons on whichever edge has more content scrolled past.
  * The chevron uses an auto-mirrored icon and start/end alignment so it points
  * the right direction under RTL.
+ *
+ * When [pinToEndKey] is non-null, the row scrolls to its end whenever the key
+ * (or the row's own measured `maxValue`) changes. The recents row uses this so
+ * the most-recently-launched app — which sits at the right edge — stays
+ * visible when the recents list overflows the row width; the dock leaves it
+ * null and stays anchored at the start.
  */
 @Composable
 private fun ScrollableIconRow(
@@ -447,9 +455,15 @@ private fun ScrollableIconRow(
     endChevronTestTag: String,
     chevronContentDescription: String,
     rowModifier: Modifier = Modifier,
+    pinToEndKey: Any? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    if (pinToEndKey != null) {
+        LaunchedEffect(pinToEndKey, scrollState.maxValue) {
+            scrollState.scrollTo(scrollState.maxValue)
+        }
+    }
     Box(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = rowModifier.horizontalScroll(scrollState),
