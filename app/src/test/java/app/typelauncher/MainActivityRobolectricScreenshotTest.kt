@@ -308,6 +308,13 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 
+        assertEquals(startPage, carousel.carouselVirtualPage())
+        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
+        composeRule.waitForIdle()
+
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
         assertEquals(LauncherScreen.Widgets, viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
