@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
@@ -47,7 +48,7 @@ class IconSnapshotStoreTest {
         val loaded = IconSnapshotStore(context).load().single()
         assertEquals(original.id, loaded.id)
         assertEquals(original.sizePx, loaded.sizePx)
-        val androidBitmap = loaded.bitmap.let { it as androidx.compose.ui.graphics.AndroidImageBitmap }.bitmap
+        val androidBitmap = loaded.bitmap.asAndroidBitmap()
         assertEquals(8, androidBitmap.width)
         assertEquals(8, androidBitmap.height)
         // Spot-check a center pixel matches the source colour. Robolectric's Bitmap shadow
