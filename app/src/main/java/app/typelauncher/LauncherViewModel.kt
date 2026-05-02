@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Process
 import android.provider.CalendarContract
 import android.provider.Settings
@@ -367,6 +368,20 @@ internal class LauncherViewModel(
     fun openAppInfo(app: InstalledApp) {
         LauncherDebugLog.event("openAppInfo package=${app.packageName}")
         startActivity(app.appInfoIntent)
+    }
+
+    /**
+     * Opens Android's app-info screen for Type Launcher itself, used by the settings
+     * overflow "App info" action. From there the user can tap "Storage & cache" →
+     * "Clear storage" to wipe launch counts, the metadata snapshot, persisted icon
+     * snapshots, and any other on-disk state — the system clear-data flow drops the
+     * process too, so the next launch is a true cold start.
+     */
+    fun openLauncherAppInfo() {
+        LauncherDebugLog.event("openLauncherAppInfo package=${app.packageName}")
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.parse("package:${app.packageName}"))
+        startActivity(intent)
     }
 
     fun toggleDock(app: InstalledApp, maxDockedApps: Int) {

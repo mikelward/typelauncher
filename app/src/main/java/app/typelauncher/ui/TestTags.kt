@@ -59,6 +59,7 @@ internal const val APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG = "app_list_sort_alphab
 internal const val SETTINGS_OVERFLOW_BUTTON_TAG = "settings_overflow_button"
 internal const val SETTINGS_OVERFLOW_MENU_TAG = "settings_overflow_menu"
 internal const val SETTINGS_REPORT_BUG_ACTION_TAG = "settings_report_bug_action"
+internal const val SETTINGS_APP_INFO_ACTION_TAG = "settings_app_info_action"
 internal const val SETTINGS_ABOUT_ACTION_TAG = "settings_about_action"
 internal const val SETTINGS_ABOUT_DIALOG_TAG = "settings_about_dialog"
 internal const val SETTINGS_ABOUT_DIALOG_DISMISS_TAG = "settings_about_dialog_dismiss"

@@ -748,6 +748,7 @@ internal fun SettingsScreen(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onOpenLauncherAppInfo: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val slotCountRange = dockSlotCountRange(configuration.screenWidthDp)
@@ -773,7 +774,7 @@ internal fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            SettingsOverflowMenu()
+            SettingsOverflowMenu(onOpenLauncherAppInfo = onOpenLauncherAppInfo)
             Button(
                 onClick = onCloseSettings,
                 modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
@@ -896,7 +897,7 @@ internal fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsOverflowMenu() {
+private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -923,6 +924,14 @@ private fun SettingsOverflowMenu() {
                     expanded = false
                     val activity = context.findActivity() ?: return@DropdownMenuItem
                     scope.launch { BugReport.share(activity) }
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_info_action)) },
+                modifier = Modifier.testTag(SETTINGS_APP_INFO_ACTION_TAG),
+                onClick = {
+                    expanded = false
+                    onOpenLauncherAppInfo()
                 },
             )
             DropdownMenuItem(
