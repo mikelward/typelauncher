@@ -116,9 +116,13 @@ internal fun HomeScreen(
     onOpenSettings: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
+    onOpenFolder: (AppCategory) -> Unit = {},
+    onCloseFolder: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
+    val showFolderGrid = state.areFoldersEnabled && state.query.isBlank() && state.openFolder == null
+    val openFolder = state.openFolder.takeIf { state.areFoldersEnabled && state.query.isBlank() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -141,20 +145,48 @@ internal fun HomeScreen(
         // holdback is a cold-start optimisation, not a per-mount one. See the
         // comment on `homeBodyReady` in TypeLauncherApp for the why.
         if (bodyReady) {
-            AppsCard(
-                apps = state.filteredApps,
-                isLoading = state.isLoadingApps,
-                dockLimit = Int.MAX_VALUE,
-                isIconOnly = state.isAppListIconOnly,
-                iconSizeDp = dockIconSizeDp,
-                highlightFirst = state.query.isNotBlank(),
-                modifier = Modifier.weight(1f),
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
-            )
+            when {
+                showFolderGrid -> FoldersCard(
+                    apps = state.filteredApps,
+                    isLoading = state.isLoadingApps,
+                    modifier = Modifier.weight(1f),
+                    onOpenFolder = onOpenFolder,
+                )
+                openFolder != null -> AppsCard(
+                    apps = state.filteredApps.filter { it.category == openFolder },
+                    isLoading = state.isLoadingApps,
+                    dockLimit = Int.MAX_VALUE,
+                    isIconOnly = state.isAppListIconOnly,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = false,
+                    modifier = Modifier.weight(1f),
+                    header = {
+                        FolderHeader(
+                            category = openFolder,
+                            onCloseFolder = onCloseFolder,
+                        )
+                    },
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onHideApp = onHideApp,
+                )
+                else -> AppsCard(
+                    apps = state.filteredApps,
+                    isLoading = state.isLoadingApps,
+                    dockLimit = Int.MAX_VALUE,
+                    isIconOnly = state.isAppListIconOnly,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = state.query.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onHideApp = onHideApp,
+                )
+            }
             // Notification bar sits between the app list and the dock so a
             // single pull-down brings it into view without displacing the dock
             // or the keyboard. The list above shrinks (it has weight 1f) to
@@ -724,6 +756,7 @@ private fun AppsCard(
     iconSizeDp: Int,
     highlightFirst: Boolean,
     modifier: Modifier = Modifier,
+    header: (@Composable () -> Unit)? = null,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -731,6 +764,7 @@ private fun AppsCard(
     onHideApp: (InstalledApp) -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
+        header?.invoke()
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -782,6 +816,140 @@ private fun AppsCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FoldersCard(
+    apps: List<InstalledApp>,
+    isLoading: Boolean,
+    modifier: Modifier = Modifier,
+    onOpenFolder: (AppCategory) -> Unit,
+) {
+    SectionCard(modifier.testTag(FOLDERS_CARD_TAG)) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                    .testTag(APPS_LOADING_TAG),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+            return@SectionCard
+        }
+        // Drop empty categories so "Other" only renders if anything actually
+        // landed there. Enum order keeps the tile layout stable across launches.
+        val grouped = apps.groupBy { it.category }
+        val visibleCategories = AppCategory.entries.mapNotNull { category ->
+            grouped[category]?.size?.takeIf { it > 0 }?.let { count -> category to count }
+        }
+        if (visibleCategories.isEmpty()) {
+            EmptyState(
+                icon = Icons.Filled.Search,
+                title = stringResource(R.string.home_empty_title),
+                body = stringResource(R.string.home_empty_body),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            return@SectionCard
+        }
+        val gridDescription = stringResource(R.string.folders_card_label)
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(120.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = gridDescription }
+                .testTag(FOLDERS_GRID_TAG),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            itemsIndexed(visibleCategories, key = { _, pair -> pair.first.name }) { _, (category, count) ->
+                FolderTile(category = category, count = count, onClick = { onOpenFolder(category) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderTile(
+    category: AppCategory,
+    count: Int,
+    onClick: () -> Unit,
+) {
+    val name = stringResource(category.displayNameRes)
+    val countLabel = if (count == 1) {
+        stringResource(R.string.folder_app_count_one)
+    } else {
+        stringResource(R.string.folder_app_count, count)
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("$FOLDER_TILE_TAG:${category.name}")
+            .semantics {
+                role = Role.Button
+                contentDescription = "$name, $countLabel"
+            }
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = null,
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = countLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FolderHeader(
+    category: AppCategory,
+    onCloseFolder: () -> Unit,
+) {
+    val name = stringResource(category.displayNameRes)
+    val rowDescription = stringResource(R.string.folder_open_label, name)
+    val closeDescription = stringResource(R.string.folder_close_button_description)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp)
+            .semantics { contentDescription = rowDescription }
+            .testTag(FOLDER_OPEN_HEADER_TAG),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        IconButton(
+            onClick = onCloseFolder,
+            modifier = Modifier.testTag(FOLDER_CLOSE_BUTTON_TAG),
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = closeDescription,
+            )
+        }
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -1132,6 +1300,7 @@ internal fun SettingsScreen(
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
     onNotificationsEnabledChanged: (Boolean) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
+    onFoldersEnabledChanged: (Boolean) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1299,6 +1468,23 @@ internal fun SettingsScreen(
                     checked = state.isKeyboardAutoShown,
                     onCheckedChange = onKeyboardAutoShownChanged,
                     modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_folders_enabled_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.areFoldersEnabled,
+                    onCheckedChange = onFoldersEnabledChanged,
+                    modifier = Modifier.testTag(SHOW_FOLDERS_SWITCH_TAG),
                 )
             }
         }

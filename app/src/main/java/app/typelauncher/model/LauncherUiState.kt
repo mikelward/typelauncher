@@ -74,6 +74,13 @@ internal data class LauncherUiState(
     // `MainActivity` overrides the manifest's `stateAlwaysVisible` softInputMode
     // so the keyboard stays down until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
+    // When true, an empty search box renders auto-generated category folders
+    // instead of the flat app list. Typing into the search box closes any
+    // open folder and reverts to the flat three-tier match. Off by default.
+    val areFoldersEnabled: Boolean = false,
+    // The category folder the user has opened from the folder grid, if any.
+    // Cleared automatically when the search query becomes non-blank.
+    val openFolder: AppCategory? = null,
     val isLoadingApps: Boolean = false,
     // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
     // warm start `isLoadingApps` is `false` from process start because cached
