@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.content.Context
+import android.os.UserHandle
 
 internal class AppLaunchStatsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -166,11 +167,11 @@ internal fun List<InstalledApp>.filterHidden(hiddenAppIds: List<String>): List<I
  * recent postTime across the package's user-visible notifications as the
  * sort key.
  */
-internal fun List<InstalledApp>.filterNotifying(notifyingPackages: Map<String, Long>): List<InstalledApp> {
+internal fun List<InstalledApp>.filterNotifying(notifyingPackages: Map<Pair<String, UserHandle>, Long>): List<InstalledApp> {
     if (notifyingPackages.isEmpty()) return emptyList()
-    return filter { app -> app.packageName in notifyingPackages }
+    return filter { app -> (app.packageName to app.user) in notifyingPackages }
         .sortedWith(
-            compareBy<InstalledApp> { app -> notifyingPackages[app.packageName] ?: 0L }
+            compareBy<InstalledApp> { app -> notifyingPackages[app.packageName to app.user] ?: 0L }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
         )
 }
