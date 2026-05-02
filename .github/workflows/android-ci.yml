@@ -66,7 +66,9 @@ jobs:
       - name: Distribute via Firebase App Distribution
         # On push to main only — feature-branch CI runs would otherwise spam
         # testers with WIP builds. Skipped when secrets aren't set so the build
-        # still finishes on a fresh repo / fork.
+        # still finishes on a fresh repo / fork. Runs before the Play Store
+        # upload so a Play failure (e.g. quota, propagation) doesn't gate the
+        # faster Firebase channel testers actually rely on.
         if: |
           success() &&
           github.event_name == 'push' &&
@@ -92,6 +94,80 @@ jobs:
             ${{ github.event.head_commit.message }}
             ---
             Build: ${{ github.run_number }} · ${{ github.sha }}
+
+      - name: Materialize release keystore
+        # Decoded only when the Play Store upload is going to happen — i.e. on
+        # push to main with the release secrets present. Skipped on PRs / forks
+        # so they keep building cleanly. The release keystore is a separate
+        # upload key from the debug keystore; Play App Signing re-signs with
+        # its managed app-signing key. See docs/play-store-internal-track.md.
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          env.RELEASE_KEYSTORE_BASE64 != ''
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+          echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
+
+      - name: Build release AAB
+        # Only run when we're going to ship — release signing config is only
+        # attached when RELEASE_KEYSTORE_FILE is set (see app/build.gradle.kts),
+        # so an AAB built without it would be unsigned and Play would reject it.
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          env.RELEASE_KEYSTORE_FILE != '' &&
+          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: ./gradlew bundleRelease
+
+      - name: Compose Play Store release notes
+        # The upload-google-play action takes a directory of whatsnew-<locale>
+        # files. We synthesise an en-US file from the head commit message and
+        # build identifiers so testers see the same context they'd get from
+        # Firebase App Distribution. Play caps each locale at 500 chars.
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          env.RELEASE_KEYSTORE_FILE != '' &&
+          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/whatsnew"
+          {
+            printf '%s\n---\nBuild: %s · %s\n' \
+              "${COMMIT_MESSAGE}" \
+              "${{ github.run_number }}" \
+              "${{ github.sha }}"
+          } | head -c 500 > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
+          echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
+
+      - name: Upload to Play Store internal track
+        # Gated so it only runs on push to main with both the upload key and
+        # service account configured. See docs/play-store-internal-track.md
+        # for the Play Console / service-account setup the upload depends on.
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          env.RELEASE_KEYSTORE_FILE != '' &&
+          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.typelauncher
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: ${{ env.PLAY_WHATSNEW_DIR }}
 
   connected-tests:
     name: Keyboard screenshot unit tests
