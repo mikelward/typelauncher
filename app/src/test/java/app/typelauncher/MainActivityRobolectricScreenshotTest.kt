@@ -811,20 +811,50 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockedList_isFilteredBySameSearchQuery() {
+    fun dockedList_isNotFilteredBySearchQuery() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Browser" }, maxDockedApps = 6)
 
+        // Typing a query that only matches one of the docked apps must leave
+        // both icons visible — the dock is meant to be a stable, always-tappable
+        // row that the user pinned by hand, so reordering or hiding entries
+        // while typing would defeat the point. The recents row has the same
+        // unfiltered contract.
         viewModel.setQuery("cal")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertDoesNotExist()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
 
         viewModel.setQuery("browser")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
+
+        viewModel.setQuery("zzz-no-match")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
+    }
+
+    @Test
+    fun launchActiveApp_fallsBackToDockedMatchWhenMainListHasNone() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        composeRule.waitForIdle()
+
+        // "calc" only matches the docked Calculator; the main list is empty.
+        // Enter must still launch Calculator via the dock fallback even though
+        // the dock is no longer pre-filtered to expose the matching entry.
+        viewModel.setQuery("calc")
+        composeRule.waitForIdle()
+        assertEquals(emptyList<String>(), viewModel.uiState.value.filteredApps.map { it.name })
+
+        viewModel.launchActiveApp()
+        composeRule.waitForIdle()
+
+        val launched = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals("app.typelauncher.fake1", launched.component?.packageName)
     }
 
     @Test

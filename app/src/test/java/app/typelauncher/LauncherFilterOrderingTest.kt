@@ -117,6 +117,35 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
+    fun filterDockedReturnsAppsInPersistedInsertionOrderRegardlessOfList() {
+        val abc = installedApp("ABC")
+        val browser = installedApp("Browser")
+        val calculator = installedApp("Calculator")
+        // Installed-app list happens to be alphabetical, but the dock should
+        // sort by the persisted insertion order (browser pinned first), not
+        // the input order.
+        val installed = listOf(abc, browser, calculator)
+        val dockedIds = listOf(browser.id, calculator.id)
+
+        val docked = installed.filterDocked(dockedIds)
+
+        assertEquals(listOf("Browser", "Calculator"), docked.map { it.name })
+    }
+
+    @Test
+    fun filterDockedDropsIdsThatNoLongerExistInTheInstalledList() {
+        val browser = installedApp("Browser")
+        val calculator = installedApp("Calculator")
+        val installed = listOf(browser, calculator)
+
+        // "ghost" simulates an app that was uninstalled but is still in the
+        // persisted dock list; it must drop out silently.
+        val docked = installed.filterDocked(listOf(browser.id, "ghost", calculator.id))
+
+        assertEquals(listOf("Browser", "Calculator"), docked.map { it.name })
+    }
+
+    @Test
     fun filterByNameSurfacesSubstringMatchesBelowEverythingElse() {
         val apps = listOf(
             installedApp("Cool"),

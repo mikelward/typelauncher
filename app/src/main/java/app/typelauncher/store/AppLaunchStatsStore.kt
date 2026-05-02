@@ -91,20 +91,15 @@ internal fun List<InstalledApp>.filterRecent(recentAppIds: List<String>): List<I
     return recentAppIds.mapNotNull { id -> byId[id] }
 }
 
-internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
+/**
+ * Returns the docked apps in their persisted insertion order, regardless of the
+ * current search query. The dock is intentionally unfiltered by typed search:
+ * the main app list handles query matching, and re-filtering the dock would
+ * hide pinned apps the user expects to be a stable, always-tappable row. The
+ * recents row uses the same convention via [filterRecent].
+ */
+internal fun List<InstalledApp>.filterDocked(dockedAppIds: List<String>): List<InstalledApp> =
     filter { app -> app.id in dockedAppIds }
-        .let { dockedApps ->
-            if (query.isEmpty()) {
-                dockedApps
-            } else {
-                // Dock keeps the user's manual insertion order even under a
-                // query — substring vs. prefix vs. anchored ranking only
-                // applies to the main app list. Reordering docked icons while
-                // typing would shuffle a row whose positions the user has
-                // explicitly arranged.
-                dockedApps.filter { app -> app.name.launcherMatchTier(query) != null }
-            }
-        }
         .sortedBy { app -> dockedAppIds.indexOf(app.id) }
 
 internal enum class LauncherMatchTier { Prefix, Anchored, Substring }
