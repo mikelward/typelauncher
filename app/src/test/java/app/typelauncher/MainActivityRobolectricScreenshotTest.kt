@@ -1024,6 +1024,17 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun dockAddButton_showsFormattedDockingHintToast() {
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "Find an app in the list above,\nlong press then tap Dock",
+            ShadowToast.getTextOfLatestToast(),
+        )
+    }
+
+    @Test
     fun dockedList_isNotFilteredBySearchQuery() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
