@@ -70,14 +70,27 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
-        // Restore previously-rasterised icons synchronously before setContent runs so the
-        // first composed frame can pull from AppIconLoader's in-memory cache instead of
-        // showing the placeholder surface while LauncherApps + drawable.toBitmap finish.
-        val restoredIconCount = iconSnapshotStore.load()
-            .onEach { snapshot -> AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap) }
-            .size
-        if (restoredIconCount > 0) {
-            LauncherDebugLog.event("LauncherViewModel restored icon snapshot count=$restoredIconCount")
+        // Restore previously-rasterised icons on the IO dispatcher rather than the
+        // main thread: the file read + Bitmap allocation + copyPixelsFromBuffer per
+        // snapshot adds up to enough work to delay setContent → first frame → the
+        // LaunchedEffect in SearchCard that calls keyboard.show(). The first compose
+        // pass may miss on the cache for the very first frame (rows render with the
+        // placeholder surface), but rememberAppIconBitmap's LaunchedEffect re-checks
+        // the cache as soon as the snapshot restore lands, so the icons snap in
+        // within a frame or two.
+        viewModelScope.launch(ioDispatcher) {
+            traceBlock("icon_snapshot_restore") { trace ->
+                val snapshots = iconSnapshotStore.load()
+                for (snapshot in snapshots) {
+                    AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap)
+                }
+                trace.incrementMetric("snapshot_count", snapshots.size.toLong())
+                if (snapshots.isNotEmpty()) {
+                    LauncherDebugLog.event(
+                        "LauncherViewModel restored icon snapshot count=${snapshots.size}",
+                    )
+                }
+            }
         }
         if (cachedMetadata.isNotEmpty()) {
             installedApps = cachedMetadata
