@@ -97,6 +97,46 @@ class AppLaunchStatsStoreRecentsTest {
         assertEquals(emptyList<InstalledApp>(), apps.filterRecent(emptyList()))
     }
 
+    @Test
+    fun removeRecentDropsTheEntryAndPreservesOthersAndLaunchCount() {
+        val store = AppLaunchStatsStore(context)
+        store.recordLaunch("a")
+        store.recordLaunch("b")
+        store.recordLaunch("a")
+        // Calling order leaves "a" launchCount=2 and "b" launchCount=1; recents
+        // is "a" then "b" (most-recent-first).
+        assertEquals(2, store.launchCount("a"))
+        assertEquals(1, store.launchCount("b"))
+
+        store.removeRecent("a")
+
+        // "a" is gone from recents but its launch count is untouched — the
+        // distinguishing behaviour from Reset rank.
+        assertEquals(listOf("b"), store.recentAppIds)
+        assertEquals(2, store.launchCount("a"))
+        assertEquals(1, store.launchCount("b"))
+    }
+
+    @Test
+    fun removeRecentIsNoopForUnknownAppId() {
+        val store = AppLaunchStatsStore(context)
+        store.recordLaunch("a")
+
+        store.removeRecent("missing")
+
+        assertEquals(listOf("a"), store.recentAppIds)
+    }
+
+    @Test
+    fun removeRecentSurvivesProcessRestart() {
+        AppLaunchStatsStore(context).recordLaunch("a")
+        AppLaunchStatsStore(context).recordLaunch("b")
+        AppLaunchStatsStore(context).removeRecent("a")
+
+        val reloaded = AppLaunchStatsStore(context)
+        assertEquals(listOf("b"), reloaded.recentAppIds)
+    }
+
     private fun installedApp(name: String): InstalledApp {
         val packageName = "app.${name.lowercase().replace(' ', '.')}"
         val component = ComponentName(packageName, "$packageName.LaunchActivity")

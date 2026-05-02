@@ -504,6 +504,49 @@ internal class LauncherViewModel(
         logState("resetRank")
     }
 
+    /**
+     * Removes [app] from the recents bar without touching its launch count —
+     * "Dismiss" on the recents bar is the per-icon equivalent of swiping a
+     * notification away from the notification bar: the user is taking that one
+     * entry off the bar, not resetting the app's rank in the main list.
+     */
+    fun removeRecent(app: InstalledApp) {
+        LauncherDebugLog.event("removeRecent package=${app.packageName}")
+        appLaunchStatsStore.removeRecent(app.id)
+        refreshLists()
+        logState("removeRecent")
+    }
+
+    /**
+     * Cancels every user-visible active notification for [app]'s package. Backs
+     * the "Dismiss" action on the notification bar — once the system clears
+     * those notifications the listener fires a refresh and the package drops
+     * out of the bar. No-op if the listener service isn't bound.
+     */
+    fun dismissNotificationsFor(app: InstalledApp) {
+        LauncherDebugLog.event("dismissNotificationsFor package=${app.packageName}")
+        NotificationDismisser.dismissNotificationsFor(app.packageName)
+    }
+
+    /**
+     * Opens Android's per-app notification settings for [app]. Backs the
+     * notification bar's "Settings" action — the user's escape hatch for "I
+     * don't want this app to keep showing up in this bar." Falls back to the
+     * generic app-info screen if the OEM has no notification-settings activity
+     * registered for the package.
+     */
+    fun openNotificationSettingsFor(app: InstalledApp) {
+        LauncherDebugLog.event("openNotificationSettingsFor package=${app.packageName}")
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, app.packageName)
+        try {
+            startActivity(intent)
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("openNotificationSettingsFor missing activity, falling back to app info", exception)
+            startActivity(app.appInfoIntent)
+        }
+    }
+
     fun hideApp(app: InstalledApp) {
         LauncherDebugLog.event("hideApp package=${app.packageName} docked=${app.isDocked}")
         hiddenAppStore.hide(app.id)

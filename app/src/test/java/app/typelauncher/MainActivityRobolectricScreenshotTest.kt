@@ -1136,7 +1136,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun longPressRecentsApp_showsAppInfoDockAndResetRankActions() {
+    fun longPressRecentsApp_showsAppInfoDockAndDismissActions() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
@@ -1147,9 +1147,39 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").performTouchInput { longClick() }
         composeRule.waitForIdle()
 
+        // Recents items represent launch history, not list rank — Reset rank
+        // and Hide are off-context, replaced by Dismiss (drops the entry off
+        // the bar without touching launch counts).
         composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calculator").assertIsDisplayed()
         composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Calculator").assertIsDisplayed()
-        composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$DISMISS_RECENT_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$HIDE_APP_ACTION_TAG:Calculator").assertDoesNotExist()
+    }
+
+    @Test
+    fun dismissRecent_removesAppFromRecentsBarWithoutResettingRank() {
+        val viewModel = composeRule.activity.viewModel
+        // Launch Calculator twice so it has both a non-zero launch count and a
+        // recents entry — Dismiss should remove the recents entry but leave the
+        // count alone, which is what distinguishes it from Reset rank.
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$DISMISS_RECENT_ACTION_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertDoesNotExist()
+        // Calculator stays at the top of the main list because launch count is
+        // preserved — Dismiss is a recents-only operation.
+        assertEquals("Calculator", viewModel.uiState.value.filteredApps.first().name)
     }
 
     @Test
