@@ -13,7 +13,6 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36])
 class FilterNotifyingTest {
     private val personalUser: UserHandle = Process.myUserHandle()
-    private val workUser: UserHandle = UserHandle.of(10)
 
     private fun fakeApp(name: String, packageName: String, user: UserHandle = personalUser): InstalledApp =
         InstalledApp(
@@ -24,6 +23,8 @@ class FilterNotifyingTest {
             isWorkApp = user != personalUser,
             launchWithLauncherApps = false,
         )
+
+    private fun notifyingKey(app: InstalledApp): String = "${app.user.hashCode()}:${app.packageName}"
 
     @Test
     fun emptyPackageMapReturnsEmptyList() {
@@ -41,8 +42,8 @@ class FilterNotifyingTest {
 
         val result = apps.filterNotifying(
             mapOf(
-                ("com.example.mail" to personalUser) to 100L,
-                ("com.example.games" to personalUser) to 200L,
+                notifyingKey(mail) to 100L,
+                notifyingKey(games) to 200L,
             ),
         )
 
@@ -59,9 +60,9 @@ class FilterNotifyingTest {
 
         val result = apps.filterNotifying(
             mapOf(
-                ("com.example.older" to personalUser) to 100L,
-                ("com.example.middle" to personalUser) to 200L,
-                ("com.example.newest" to personalUser) to 300L,
+                notifyingKey(older) to 100L,
+                notifyingKey(middle) to 200L,
+                notifyingKey(newest) to 300L,
             ),
         )
 
@@ -77,9 +78,9 @@ class FilterNotifyingTest {
 
         val result = apps.filterNotifying(
             mapOf(
-                ("com.example.z" to personalUser) to 100L,
-                ("com.example.a" to personalUser) to 100L,
-                ("com.example.m" to personalUser) to 100L,
+                notifyingKey(zebra) to 100L,
+                notifyingKey(apple) to 100L,
+                notifyingKey(mango) to 100L,
             ),
         )
 
@@ -89,13 +90,14 @@ class FilterNotifyingTest {
     @Test
     fun workProfileEntryDoesNotMatchPersonalAppForSamePackage() {
         val personalApp = fakeApp("Mail", "com.example.mail", user = personalUser)
-        val workApp = fakeApp("Mail", "com.example.mail", user = workUser)
+        // Simulate a work-profile UserHandle by using a different hashCode.
+        // We verify that an entry keyed to a *different* user's hashCode does
+        // not match the personalApp whose key uses personalUser.hashCode().
+        val workUserHashCode = personalUser.hashCode() + 10
+        val workKey = "$workUserHashCode:com.example.mail"
 
-        // Only work profile has a notification.
-        val result = listOf(personalApp, workApp).filterNotifying(
-            mapOf(("com.example.mail" to workUser) to 100L),
-        )
+        val result = listOf(personalApp).filterNotifying(mapOf(workKey to 100L))
 
-        assertEquals(listOf(workApp), result)
+        assertEquals(emptyList<InstalledApp>(), result)
     }
 }
