@@ -587,6 +587,7 @@ private fun HostedWidgetCard(
             WidgetActionsMenu(
                 expanded = menuExpanded,
                 widgetId = widgetId,
+                showResize = false,
                 onDismiss = { menuExpanded = false },
                 onRemoveWidget = onRemoveWidget,
                 onStartResize = {},
@@ -694,19 +695,22 @@ private fun WidgetResizeHandle(
 private fun WidgetActionsMenu(
     expanded: Boolean,
     widgetId: Int,
+    showResize: Boolean = true,
     onDismiss: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onStartResize: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.widget_menu_resize)) },
-            modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
-            onClick = {
-                onDismiss()
-                onStartResize()
-            },
-        )
+        if (showResize) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.widget_menu_resize)) },
+                modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
+                onClick = {
+                    onDismiss()
+                    onStartResize()
+                },
+            )
+        }
         DropdownMenuItem(
             text = { Text(stringResource(R.string.widget_menu_remove)) },
             modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
