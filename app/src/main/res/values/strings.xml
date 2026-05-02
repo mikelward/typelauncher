@@ -11,6 +11,12 @@
     <string name="dock_recents_description">Recent apps</string>
     <string name="dock_scroll_more_hint">Scroll for more dock apps</string>
     <string name="dock_recents_scroll_more_hint">Scroll for more recent apps</string>
+    <string name="notification_listener_service_label">Type Launcher notifications</string>
+    <string name="notification_bar_description">Apps with notifications</string>
+    <string name="notification_bar_empty_hint">No new notifications</string>
+    <string name="notification_bar_permission_hint">Allow notification access to see apps with notifications.</string>
+    <string name="notification_bar_permission_button">Allow notification access</string>
+    <string name="notification_bar_badge_description">Has unread notification</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Calendar agenda events</string>
     <string name="agenda_permission_message">Allow calendar access to show your agenda.</string>
