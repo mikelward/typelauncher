@@ -71,6 +71,7 @@ internal class LauncherViewModel(
             dockIconCount = dockSettingsStore.dockIconCount,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
+            isNotificationsEnabled = dockSettingsStore.isNotificationsEnabled,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
         ),
@@ -586,6 +587,26 @@ internal class LauncherViewModel(
         dockSettingsStore.isRecentsAlwaysShown = isAlwaysShown
         _uiState.update { it.copy(isRecentsAlwaysShown = isAlwaysShown) }
         logState("setRecentsAlwaysShown")
+    }
+
+    /**
+     * Persists the user's "Show notifications" preference. When the user is
+     * enabling the bar and listener access has not yet been granted, opens
+     * Android's notification listener settings so they can grant in one tap
+     * — the bar would otherwise be empty even with the toggle on.
+     */
+    fun setNotificationsEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isNotificationsEnabled = isEnabled
+        _uiState.update {
+            it.copy(
+                isNotificationsEnabled = isEnabled,
+                isNotificationBarOpen = it.isNotificationBarOpen && isEnabled,
+            )
+        }
+        logState("setNotificationsEnabled=$isEnabled")
+        if (isEnabled && !_uiState.value.hasNotificationAccess) {
+            openNotificationAccessSettings()
+        }
     }
 
     fun setDockVisibleIconCount(count: Int) {

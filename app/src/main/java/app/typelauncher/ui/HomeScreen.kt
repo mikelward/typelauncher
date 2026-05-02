@@ -138,9 +138,11 @@ internal fun HomeScreen(
             // Notification bar sits between the search bar and the app list so
             // it appears directly under the user's typing area when summoned.
             // The app list below shrinks (it has weight 1f) to make room.
+            // Gated on the "Show notifications" setting: with the toggle off,
+            // the bar never renders and the swipe-down handler skips its stage.
             NotificationBarCard(
                 notifyingApps = state.notifyingApps,
-                isVisible = state.isNotificationBarOpen,
+                isVisible = state.isNotificationsEnabled && state.isNotificationBarOpen,
                 hasNotificationAccess = state.hasNotificationAccess,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
@@ -1054,6 +1056,7 @@ internal fun SettingsScreen(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
+    onNotificationsEnabledChanged: (Boolean) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1113,6 +1116,23 @@ internal fun SettingsScreen(
             )
         }
         SectionCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_notifications_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isNotificationsEnabled,
+                    onCheckedChange = onNotificationsEnabledChanged,
+                    modifier = Modifier.testTag(SHOW_NOTIFICATIONS_SWITCH_TAG),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1392,15 +1412,15 @@ private fun SettingsPreview(
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
-    // user can see the size impact of enabling each bar: the always-on
-    // notification bar plus every additional bottom card (dock, recents) each
-    // eats one bar of vertical space out of the apps card.
+    // user can see the size impact of enabling each bar: the notification bar
+    // (when "Show notifications" is on) plus every additional bottom card
+    // (dock, recents) each eats one bar of vertical space out of the apps card.
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
     val bottomCardCount =
         (if (state.isDockEnabled) 1 else 0) + (if (state.isRecentsAlwaysShown) 1 else 0)
-    val fixedBarCount = 1 + bottomCardCount
+    val fixedBarCount = (if (state.isNotificationsEnabled) 1 else 0) + bottomCardCount
     val appListHeight =
         totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
     Column(
@@ -1408,23 +1428,26 @@ private fun SettingsPreview(
         verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
     ) {
         // Mirror Home: notification bar sits between the search bar (which the
-        // preview omits) and the app list. Forced visible with access granted so
-        // the preview shows the inline bar at its natural height instead of the
-        // taller permission CTA.
-        NotificationBarCard(
-            notifyingApps = state.notifyingApps,
-            isVisible = true,
-            hasNotificationAccess = true,
-            dockIconSizeDp = dockIconSizeDp,
-            modifier = Modifier.height(previewHeight),
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
-            onRequestNotificationAccess = {},
-            onDismiss = {},
-        )
+        // preview omits) and the app list, and only renders when "Show
+        // notifications" is on. Forced access-granted so toggling the setting
+        // shows the inline bar at its natural height rather than the taller
+        // permission CTA, even before the user has granted listener access.
+        if (state.isNotificationsEnabled) {
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = true,
+                hasNotificationAccess = true,
+                dockIconSizeDp = dockIconSizeDp,
+                modifier = Modifier.height(previewHeight),
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onHideApp = onHideApp,
+                onRequestNotificationAccess = {},
+                onDismiss = {},
+            )
+        }
         AppsCard(
             apps = state.filteredApps,
             dockLimit = Int.MAX_VALUE,

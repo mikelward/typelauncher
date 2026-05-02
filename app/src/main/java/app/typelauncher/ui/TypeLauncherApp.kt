@@ -118,6 +118,7 @@ internal fun TypeLauncherApp(
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onRecentsAlwaysShownChanged = viewModel::setRecentsAlwaysShown,
+        onNotificationsEnabledChanged = viewModel::setNotificationsEnabled,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
@@ -158,6 +159,7 @@ internal fun TypeLauncherApp(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
+    onNotificationsEnabledChanged: (Boolean) -> Unit = {},
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
@@ -211,6 +213,7 @@ internal fun TypeLauncherApp(
                 onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                 onAppListSortOrderChanged = onAppListSortOrderChanged,
                 onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
+                onNotificationsEnabledChanged = onNotificationsEnabledChanged,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
@@ -223,6 +226,7 @@ internal fun TypeLauncherApp(
             SwipeNavigationBox(
                 screen = state.screen,
                 isNotificationBarOpen = state.isNotificationBarOpen,
+                isNotificationsEnabled = state.isNotificationsEnabled,
                 isRecentsOpen = state.isRecentsOpen,
                 onShowAgenda = onShowAgenda,
                 onShowWidgets = onShowWidgets,
@@ -304,6 +308,7 @@ private fun HomeReadySignal(
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
     isNotificationBarOpen: Boolean,
+    isNotificationsEnabled: Boolean,
     isRecentsOpen: Boolean,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
@@ -317,19 +322,26 @@ private fun SwipeNavigationBox(
     // they're triggerable from anywhere on Home that doesn't have a more
     // specific consumer (margins, dock surface, recents/notification bars,
     // and — at their top/bottom edges — the apps list itself). Down opens the
-    // notification bar then the system shade; up opens the recents bar.
+    // notification bar then the system shade; up opens the recents bar. With
+    // the "Show notifications" setting off, the bar stage is skipped — the
+    // first pull-down expands the system shade directly, matching how the
+    // Widgets and Agenda screens behave.
     // We capture the latest values via rememberUpdatedState so the dispatch
     // lambdas keep stable identities and don't re-key the pointerInput
     // mid-gesture.
     val currentScreen by rememberUpdatedState(screen)
     val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
+    val currentNotificationsEnabled by rememberUpdatedState(isNotificationsEnabled)
     val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val swipeDownDispatch = remember<() -> Unit> {
         {
-            if (currentScreen == LauncherScreen.Home && !currentBarOpen) {
+            if (currentScreen == LauncherScreen.Home &&
+                currentNotificationsEnabled &&
+                !currentBarOpen
+            ) {
                 currentSetBarOpen(true)
             } else {
                 currentOnSwipeDown()

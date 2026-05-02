@@ -28,7 +28,10 @@ class SwipeDownNotificationShadeTest {
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = emptyList()),
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationsEnabled = true,
+                    ),
                     onQueryChanged = {},
                     onClearQuery = {},
                     onLaunchActiveApp = {},
@@ -67,6 +70,60 @@ class SwipeDownNotificationShadeTest {
 
         assertEquals(0, swipeDownCount)
         assertEquals(true, notificationBarOpened)
+    }
+
+    @Test
+    fun swipingDownOnHomeWithNotificationsDisabled_invokesOnSwipeDownCallback() {
+        // With "Show notifications" off the bar stage is skipped, so the very
+        // first pull-down on Home expands the system shade (matching the
+        // Widgets/Agenda screens' single-stage behaviour).
+        var swipeDownCount = 0
+        var notificationBarOpened = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationsEnabled = false,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, swipeDownCount)
+        assertEquals(false, notificationBarOpened)
     }
 
     @Test

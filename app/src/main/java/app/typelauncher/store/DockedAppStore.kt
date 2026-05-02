@@ -96,6 +96,21 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Opt-in toggle for the in-app notification bar (Settings → "Show
+     * notifications"). Off by default. Distinct from the system notification
+     * listener grant tracked by `ActiveNotifications.hasListenerAccess`: this
+     * is the user's UI-level preference for the bar; the listener grant is
+     * what makes the data flow work.
+     */
+    var isNotificationsEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_NOTIFICATIONS_ENABLED, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -103,6 +118,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_RECENTS_ALWAYS_SHOWN = "recents_always_shown"
+        const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
     }
 }
 
