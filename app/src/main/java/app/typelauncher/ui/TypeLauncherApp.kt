@@ -158,7 +158,11 @@ internal fun TypeLauncherApp(
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
     }
     HomeReadySignal(
-        isLoadingApps = state.isLoadingApps,
+        // Gate on the fresh load, not the spinner: on a warm start with cached
+        // metadata, `isLoadingApps` is `false` while `installed_apps_load` is
+        // still running on IO. Firing here would race the fresh app load —
+        // exactly what this signal exists to prevent.
+        appsReady = state.isFreshAppLoadComplete,
         onHomeReady = onHomeReady,
     )
     Scaffold(
@@ -226,8 +230,8 @@ internal fun TypeLauncherApp(
 }
 
 /**
- * Fires `onHomeReady` exactly once, after the Home app list has finished
- * loading and either the soft keyboard is visible or
+ * Fires `onHomeReady` exactly once, after the fresh `LauncherApps` query has
+ * returned (`appsReady`) and either the soft keyboard is visible or
  * [HOME_READY_IME_TIMEOUT_MS] has elapsed since the apps loaded. The downstream
  * signal kicks off the deferred initial agenda load so it doesn't contend with
  * the cold-start app list IO or the keyboard show.
@@ -235,13 +239,13 @@ internal fun TypeLauncherApp(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeReadySignal(
-    isLoadingApps: Boolean,
+    appsReady: Boolean,
     onHomeReady: () -> Unit,
 ) {
     val imeVisible = WindowInsets.isImeVisible
     var fired by remember { mutableStateOf(false) }
-    LaunchedEffect(isLoadingApps, imeVisible, fired) {
-        if (fired || isLoadingApps) return@LaunchedEffect
+    LaunchedEffect(appsReady, imeVisible, fired) {
+        if (fired || !appsReady) return@LaunchedEffect
         if (!imeVisible) {
             // Wait for the IME — but don't wait forever (hardware keyboards,
             // Robolectric, IME-disabled tests).

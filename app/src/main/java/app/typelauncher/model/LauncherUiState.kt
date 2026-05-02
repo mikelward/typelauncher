@@ -36,6 +36,13 @@ internal data class LauncherUiState(
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
     val isLoadingApps: Boolean = false,
+    // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
+    // warm start `isLoadingApps` is `false` from process start because cached
+    // metadata is rendered immediately, but the fresh `LauncherApps` query is
+    // still running on `Dispatchers.IO` in the background. Other startup IO
+    // (the deferred agenda load) waits on this flag instead of `isLoadingApps`
+    // so it doesn't race the fresh app load.
+    val isFreshAppLoadComplete: Boolean = false,
     val isDefaultLauncher: Boolean = false,
 )
 
