@@ -3,10 +3,12 @@ package app.typelauncher
 import android.content.Intent
 import android.os.Process
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -88,6 +90,19 @@ class AppsListChevronTest {
     }
 
     @Test
+    fun appsListOverflow_textRows_placesBottomChevronAtCardPaddingEdge() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).getBoundsInRoot()
+        assertTrue(
+            "bottom chevron should sit past the scroll list edge (list=${appsListBounds.bottom}, chevron=${chevronBounds.bottom})",
+            chevronBounds.bottom > appsListBounds.bottom,
+        )
+    }
+
+    @Test
     fun appsListWithoutOverflow_textRows_hidesBothChevrons() {
         val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
         renderHome(LauncherUiState(filteredApps = apps))
@@ -116,5 +131,21 @@ class AppsListChevronTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_textRows_placesTopChevronAtCardPaddingEdgeAfterScrollingDown() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).getBoundsInRoot()
+        assertTrue(
+            "top chevron should sit past the scroll list edge (list=${appsListBounds.top}, chevron=${chevronBounds.top})",
+            chevronBounds.top < appsListBounds.top,
+        )
     }
 }
