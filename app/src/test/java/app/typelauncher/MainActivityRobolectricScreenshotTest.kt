@@ -327,6 +327,26 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_widgetPicker_expandedAppShowsInlineProviderPreviews() {
+        val month = fakeWidgetProvider(appName = "Calendar", label = "Calendar month view")
+        val schedule = fakeWidgetProvider(appName = "Calendar", label = "Calendar schedule")
+        composeRule.activity.viewModel.showWidgetPickerForTest(listOf(month, schedule))
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Calendar month view").assertIsDisplayed()
+        composeRule.onNodeWithText("Calendar schedule").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${month.id}", useUnmergedTree = true)
+            .assertExists()
+        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${schedule.id}", useUnmergedTree = true)
+            .assertExists()
+
+        saveScreenshot("compose_widget_picker_inline_previews_robolectric.png")
+    }
+
+    @Test
     fun widgetLongPress_showsRemoveActionAndRemovesWidget() {
         composeRule.activity.viewModel.addWidget(42)
         composeRule.waitForIdle()
