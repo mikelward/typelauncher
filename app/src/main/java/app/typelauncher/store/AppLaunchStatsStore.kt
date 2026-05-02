@@ -50,28 +50,41 @@ internal fun List<InstalledApp>.filterByName(
     query: String,
     appLaunchStatsStore: AppLaunchStatsStore,
     excludedAppIds: Collection<String>,
+    dockedAppIds: Collection<String> = emptyList(),
     sortOrder: AppListSortOrder = AppListSortOrder.Usage,
 ): List<InstalledApp> {
-    // Callers pass the docked app ids while the dock is enabled and an empty
-    // collection while it's disabled — docked apps don't belong in the main
-    // list when they're already rendered in the dock row, but they have to
-    // reappear here when the dock UI is hidden or no other surface would show
-    // them.
+    // Callers pass the docked app ids in `excludedAppIds` while the dock is
+    // enabled and an empty collection while it's disabled — docked apps don't
+    // belong in the main list when they're already rendered in the dock row,
+    // but they have to reappear here when the dock UI is hidden or no other
+    // surface would show them. `dockedAppIds` is the full docked set regardless
+    // of dock visibility; when the dock is hidden the docked apps surface here
+    // and float to the top of their bucket so the user's pinned apps stay
+    // reachable instead of getting buried under usage-ranked entries.
     val candidates = if (excludedAppIds.isEmpty()) this else filterNot { app -> app.id in excludedAppIds }
+    val dockedSet = dockedAppIds.toSet()
+    val dockedFirst = compareByDescending<InstalledApp> { app -> app.id in dockedSet }
     return if (query.isEmpty()) {
         when (sortOrder) {
             AppListSortOrder.Usage -> candidates.sortedWith(
-                compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
+                dockedFirst
+                    .thenByDescending { app -> appLaunchStatsStore.launchCount(app.id) }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
             AppListSortOrder.Alphabetical -> candidates.sortedWith(
-                compareBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+                dockedFirst
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
         }
     } else {
         candidates
             .mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
-            .sortedBy { (_, tier) -> tier.ordinal }
+            .sortedWith(
+                compareBy<Pair<InstalledApp, LauncherMatchTier>> { (_, tier) -> tier.ordinal }
+                    .thenByDescending { (app, _) -> app.id in dockedSet }
+                    .thenByDescending { (app, _) -> appLaunchStatsStore.launchCount(app.id) }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name },
+            )
             .map { (app, _) -> app }
     }
 }
