@@ -414,6 +414,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_TITLE_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("App list").assertIsDisplayed()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Pull down").assertIsDisplayed()
         composeRule.onNodeWithText("Show dock").assertExists()
         composeRule.onNodeWithText("Icons per row: 4").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
@@ -1275,6 +1276,34 @@ class MainActivityRobolectricScreenshotTest {
         // screen (the preview claims a fixed four-bar budget), so we only
         // assert the node has been composed.
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertExists()
+    }
+
+    @Test
+    fun pullDownDropdown_inSettings_persistsAndUpdatesPreview() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Pull down").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
+        assertEquals(NotificationPullDownBehavior.System, viewModel.uiState.value.notificationPullDownBehavior)
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_OPTION_LAUNCHER_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(NotificationPullDownBehavior.Launcher, viewModel.uiState.value.notificationPullDownBehavior)
+        composeRule.onNodeWithText("Launcher").assertIsDisplayed()
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).performScrollTo().assertExists()
+
+        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_OPTION_NONE_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(NotificationPullDownBehavior.None, viewModel.uiState.value.notificationPullDownBehavior)
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).assertDoesNotExist()
     }
 
     @Test

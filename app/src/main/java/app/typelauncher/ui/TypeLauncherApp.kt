@@ -63,10 +63,10 @@ private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 
 // Drag distance the user must travel vertically before either pull gesture
 // commits — same value for both directions so a pull-up and a pull-down feel
-// equally deliberate. Pull-down on Home opens the notification bar (or, when
-// the bar is already up, the system shade); pull-up on Home opens the recents
-// bar. The threshold matches the carousel's horizontal commit so all three
-// directions share the same "this was a real intentional drag" budget.
+// equally deliberate. Pull-down on Home follows the Settings-selected action;
+// pull-up on Home opens the recents bar. The threshold matches the carousel's
+// horizontal commit so all three directions share the same "this was a real
+// intentional drag" budget.
 private const val VERTICAL_PULL_THRESHOLD_DP = 96
 
 // Once the app list has loaded, wait this long for the soft keyboard to come
@@ -123,7 +123,7 @@ internal fun TypeLauncherApp(
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onRecentsAlwaysShownChanged = viewModel::setRecentsAlwaysShown,
-        onNotificationsEnabledChanged = viewModel::setNotificationsEnabled,
+        onNotificationPullDownBehaviorChanged = viewModel::setNotificationPullDownBehavior,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onFoldersEnabledChanged = viewModel::setFoldersEnabled,
         onOpenFolder = viewModel::openFolder,
@@ -174,7 +174,7 @@ internal fun TypeLauncherApp(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
-    onNotificationsEnabledChanged: (Boolean) -> Unit = {},
+    onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onFoldersEnabledChanged: (Boolean) -> Unit = {},
     onOpenFolder: (AppCategory) -> Unit = {},
@@ -219,23 +219,6 @@ internal fun TypeLauncherApp(
         withFrameNanos { }
         homeBodyReady = true
     }
-    val imeVisible = WindowInsets.isImeVisible
-    var prevImeVisible by remember { mutableStateOf(imeVisible) }
-    LaunchedEffect(imeVisible) {
-        val wasVisible = prevImeVisible
-        prevImeVisible = imeVisible
-        if (!wasVisible && imeVisible && state.isNotificationBarOpen) {
-            onSetNotificationBarOpen(false)
-        } else if (wasVisible &&
-            !imeVisible &&
-            state.screen == LauncherScreen.Home &&
-            !state.isSettingsOpen &&
-            state.isNotificationsEnabled &&
-            !state.isNotificationBarOpen
-        ) {
-            onSetNotificationBarOpen(true)
-        }
-    }
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
@@ -250,7 +233,7 @@ internal fun TypeLauncherApp(
                 onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                 onAppListSortOrderChanged = onAppListSortOrderChanged,
                 onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
-                onNotificationsEnabledChanged = onNotificationsEnabledChanged,
+                onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
                 onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                 onFoldersEnabledChanged = onFoldersEnabledChanged,
                 onLaunchApp = onLaunchApp,
@@ -265,7 +248,7 @@ internal fun TypeLauncherApp(
             SwipeNavigationBox(
                 screen = state.screen,
                 isNotificationBarOpen = state.isNotificationBarOpen,
-                isNotificationsEnabled = state.isNotificationsEnabled,
+                notificationPullDownBehavior = state.notificationPullDownBehavior,
                 isRecentsOpen = state.isRecentsOpen,
                 onShowAgenda = onShowAgenda,
                 onShowWidgets = onShowWidgets,
@@ -355,7 +338,7 @@ private fun HomeReadySignal(
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
     isNotificationBarOpen: Boolean,
-    isNotificationsEnabled: Boolean,
+    notificationPullDownBehavior: NotificationPullDownBehavior,
     isRecentsOpen: Boolean,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
@@ -368,17 +351,16 @@ private fun SwipeNavigationBox(
     // Both pull gestures dispatch from this single carousel-level handler so
     // they're triggerable from anywhere on Home that doesn't have a more
     // specific consumer (margins, dock surface, recents/notification bars,
-    // and — at their top/bottom edges — the apps list itself). Down opens the
-    // notification bar then the system shade; up opens the recents bar. With
-    // the "Show notifications" setting off, the bar stage is skipped — the
-    // first pull-down expands the system shade directly, matching how the
-    // Widgets and Agenda screens behave.
+    // and — at their top/bottom edges — the apps list itself). Pull-down uses
+    // the Settings-selected action: do nothing, expand the system shade, or
+    // open the launcher notification bar as a first stage. Pull-up opens the
+    // recents bar.
     // We capture the latest values via rememberUpdatedState so the dispatch
     // lambdas keep stable identities and don't re-key the pointerInput
     // mid-gesture.
     val currentScreen by rememberUpdatedState(screen)
     val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
-    val currentNotificationsEnabled by rememberUpdatedState(isNotificationsEnabled)
+    val currentNotificationPullDownBehavior by rememberUpdatedState(notificationPullDownBehavior)
     val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
@@ -387,12 +369,19 @@ private fun SwipeNavigationBox(
     val currentKeyboard by rememberUpdatedState(keyboard)
     val swipeDownDispatch = remember<() -> Unit> {
         {
-            if (currentScreen == LauncherScreen.Home &&
-                currentNotificationsEnabled &&
-                !currentBarOpen
-            ) {
-                currentKeyboard?.hide()
-                currentSetBarOpen(true)
+            if (currentScreen == LauncherScreen.Home) {
+                when (currentNotificationPullDownBehavior) {
+                    NotificationPullDownBehavior.None -> Unit
+                    NotificationPullDownBehavior.System -> currentOnSwipeDown()
+                    NotificationPullDownBehavior.Launcher -> {
+                        if (currentBarOpen) {
+                            currentOnSwipeDown()
+                        } else {
+                            currentKeyboard?.hide()
+                            currentSetBarOpen(true)
+                        }
+                    }
+                }
             } else {
                 currentOnSwipeDown()
             }

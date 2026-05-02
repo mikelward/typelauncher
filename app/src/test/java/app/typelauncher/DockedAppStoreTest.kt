@@ -17,6 +17,8 @@ class DockedAppStoreTest {
     fun clearPrefs() {
         context.getSharedPreferences("docked_apps", android.content.Context.MODE_PRIVATE)
             .edit().clear().commit()
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
     }
 
     @Test
@@ -79,5 +81,33 @@ class DockedAppStoreTest {
 
         val reloaded = DockedAppStore(context)
         assertEquals(listOf("c", "a", "b"), reloaded.dockedAppIds)
+    }
+
+    @Test
+    fun notificationPullDownBehaviorDefaultsToSystem() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(NotificationPullDownBehavior.System, store.notificationPullDownBehavior)
+    }
+
+    @Test
+    fun notificationPullDownBehaviorMigratesLegacyEnabledToLauncher() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("notifications_enabled", true)
+            .commit()
+
+        val store = DockSettingsStore(context)
+
+        assertEquals(NotificationPullDownBehavior.Launcher, store.notificationPullDownBehavior)
+    }
+
+    @Test
+    fun notificationPullDownBehaviorPersistsExplicitSelection() {
+        DockSettingsStore(context).notificationPullDownBehavior = NotificationPullDownBehavior.None
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(NotificationPullDownBehavior.None, reloaded.notificationPullDownBehavior)
     }
 }

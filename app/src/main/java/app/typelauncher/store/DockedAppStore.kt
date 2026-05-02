@@ -117,17 +117,22 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Opt-in toggle for the in-app notification bar (Settings → "Show
-     * notifications"). Off by default. Distinct from the system notification
-     * listener grant tracked by `ActiveNotifications.hasListenerAccess`: this
-     * is the user's UI-level preference for the bar; the listener grant is
-     * what makes the data flow work.
+     * Home pull-down behavior. Legacy `notifications_enabled=true` maps to
+     * [NotificationPullDownBehavior.Launcher]; otherwise the default is
+     * [NotificationPullDownBehavior.System] so the pull-down still opens the
+     * Android notification shade unless the user explicitly chooses "None".
      */
-    var isNotificationsEnabled: Boolean
-        get() = sharedPreferences.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)
+    var notificationPullDownBehavior: NotificationPullDownBehavior
+        get() = sharedPreferences.getString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, null)
+            ?.let { name -> runCatching { NotificationPullDownBehavior.valueOf(name) }.getOrNull() }
+            ?: if (sharedPreferences.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)) {
+                NotificationPullDownBehavior.Launcher
+            } else {
+                NotificationPullDownBehavior.System
+            }
         set(value) {
             sharedPreferences.edit()
-                .putBoolean(KEY_NOTIFICATIONS_ENABLED, value)
+                .putString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, value.name)
                 .apply()
         }
 
@@ -170,6 +175,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_RECENTS_ALWAYS_SHOWN = "recents_always_shown"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
+        const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_FOLDERS_ENABLED = "folders_enabled"
     }

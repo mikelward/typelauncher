@@ -203,12 +203,12 @@ internal fun HomeScreen(
             // Notification bar sits between the app list and the dock so a
             // single pull-down brings it into view without displacing the dock
             // or the keyboard. The list above shrinks (it has weight 1f) to
-            // make room. Gated on the "Show notifications" setting: with the
-            // toggle off, the bar never renders and the swipe-down handler
-            // skips its stage.
+            // make room. Gated on the "Pull down" setting's Launcher mode:
+            // other modes never render the in-app notification bar.
             NotificationBarCard(
                 notifyingApps = state.notifyingApps,
-                isVisible = state.isNotificationsEnabled && state.isNotificationBarOpen,
+                isVisible = state.notificationPullDownBehavior == NotificationPullDownBehavior.Launcher &&
+                    state.isNotificationBarOpen,
                 hasNotificationAccess = state.hasNotificationAccess,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
@@ -1485,7 +1485,7 @@ internal fun SettingsScreen(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
-    onNotificationsEnabledChanged: (Boolean) -> Unit = {},
+    onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onFoldersEnabledChanged: (Boolean) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
@@ -1599,14 +1599,13 @@ internal fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        stringResource(R.string.settings_show_notifications_title),
+                        stringResource(R.string.settings_pull_down_title),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 }
-                Switch(
-                    checked = state.isNotificationsEnabled,
-                    onCheckedChange = onNotificationsEnabledChanged,
-                    modifier = Modifier.testTag(SHOW_NOTIFICATIONS_SWITCH_TAG),
+                NotificationPullDownBehaviorDropdown(
+                    selected = state.notificationPullDownBehavior,
+                    onBehaviorChanged = onNotificationPullDownBehaviorChanged,
                 )
             }
             Row(
@@ -1801,6 +1800,57 @@ private fun AppListSortOrderDropdown(
 }
 
 @Composable
+private fun NotificationPullDownBehaviorDropdown(
+    selected: NotificationPullDownBehavior,
+    onBehaviorChanged: (NotificationPullDownBehavior) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = selected.labelRes()
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_DROPDOWN_MENU_TAG),
+        ) {
+            NotificationPullDownBehavior.entries.forEach { behavior ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(behavior.labelRes())) },
+                    modifier = Modifier.testTag(behavior.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onBehaviorChanged(behavior)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun NotificationPullDownBehavior.labelRes(): Int =
+    when (this) {
+        NotificationPullDownBehavior.None -> R.string.settings_pull_down_option_none
+        NotificationPullDownBehavior.System -> R.string.settings_pull_down_option_system
+        NotificationPullDownBehavior.Launcher -> R.string.settings_pull_down_option_launcher
+    }
+
+private fun NotificationPullDownBehavior.optionTag(): String =
+    when (this) {
+        NotificationPullDownBehavior.None -> PULL_DOWN_BEHAVIOR_OPTION_NONE_TAG
+        NotificationPullDownBehavior.System -> PULL_DOWN_BEHAVIOR_OPTION_SYSTEM_TAG
+        NotificationPullDownBehavior.Launcher -> PULL_DOWN_BEHAVIOR_OPTION_LAUNCHER_TAG
+    }
+
+@Composable
 private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
@@ -1965,14 +2015,15 @@ private fun SettingsPreview(
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
     // user can see the size impact of enabling each bar: the notification bar
-    // (when "Show notifications" is on) plus every additional bottom card
-    // (dock, recents) each eats one bar of vertical space out of the apps card.
+    // (when Pull down is Launcher) plus every additional bottom card (dock,
+    // recents) each eats one bar of vertical space out of the apps card.
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
     val bottomCardCount =
         (if (state.isDockEnabled) 1 else 0) + (if (state.isRecentsAlwaysShown) 1 else 0)
-    val fixedBarCount = (if (state.isNotificationsEnabled) 1 else 0) + bottomCardCount
+    val showNotificationBarPreview = state.notificationPullDownBehavior == NotificationPullDownBehavior.Launcher
+    val fixedBarCount = (if (showNotificationBarPreview) 1 else 0) + bottomCardCount
     val appListHeight =
         totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
     Column(
@@ -1993,10 +2044,10 @@ private fun SettingsPreview(
             onHideApp = onHideApp,
         )
         // Mirror Home: notification bar sits between the app list and the
-        // dock, and only renders when "Show notifications" is on. Forced
+        // dock, and only renders when Pull down is Launcher. Forced
         // access-granted so toggling the setting shows the inline bar at its
         // natural height rather than the taller permission CTA.
-        if (state.isNotificationsEnabled) {
+        if (showNotificationBarPreview) {
             NotificationBarCard(
                 notifyingApps = state.notifyingApps,
                 isVisible = true,
