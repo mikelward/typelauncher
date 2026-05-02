@@ -31,10 +31,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -43,6 +46,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
@@ -735,6 +740,42 @@ private fun ScrollableIconRow(
     }
 }
 
+/**
+ * Wraps a vertically scrollable apps list (the `LazyColumn` text rows or the
+ * `LazyVerticalGrid` icon-only grid) and overlays top/bottom chevrons on
+ * whichever edge has more content scrolled past, mirroring the dock and
+ * notification-bar overflow treatment so a long list is discoverable as
+ * scrollable instead of relying on the user guessing.
+ */
+@Composable
+private fun AppListOverflowChevronBox(
+    canScrollUp: Boolean,
+    canScrollDown: Boolean,
+    chevronContentDescription: String,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        content()
+        if (canScrollUp) {
+            OverflowScrollChevron(
+                icon = Icons.Filled.KeyboardArrowUp,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.TopCenter,
+                testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+            )
+        }
+        if (canScrollDown) {
+            OverflowScrollChevron(
+                icon = Icons.Filled.KeyboardArrowDown,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.BottomCenter,
+                testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
+            )
+        }
+    }
+}
+
 @Composable
 private fun BoxScope.OverflowScrollChevron(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -793,35 +834,52 @@ private fun AppsCard(
                 modifier = Modifier.fillMaxWidth(),
             )
         } else {
+            val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
             if (isIconOnly) {
-                IconOnlyAppGrid(
-                    apps = apps,
-                    dockLimit = dockLimit,
-                    iconSizeDp = iconSizeDp,
-                    highlightFirst = highlightFirst,
-                    onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
-                    onResetRank = onResetRank,
-                    onHideApp = onHideApp,
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(APPS_LIST_TAG),
+                val gridState = rememberLazyGridState()
+                AppListOverflowChevronBox(
+                    canScrollUp = gridState.canScrollBackward,
+                    canScrollDown = gridState.canScrollForward,
+                    chevronContentDescription = chevronDescription,
                 ) {
-                    itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
-                        AppRow(
-                            app = app,
-                            isActive = highlightFirst && index == 0,
-                            dockLimit = dockLimit,
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onToggleDock = onToggleDock,
-                            onResetRank = onResetRank,
-                            onHideApp = onHideApp,
-                        )
+                    IconOnlyAppGrid(
+                        apps = apps,
+                        dockLimit = dockLimit,
+                        iconSizeDp = iconSizeDp,
+                        highlightFirst = highlightFirst,
+                        state = gridState,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
+                        onHideApp = onHideApp,
+                    )
+                }
+            } else {
+                val listState = rememberLazyListState()
+                AppListOverflowChevronBox(
+                    canScrollUp = listState.canScrollBackward,
+                    canScrollDown = listState.canScrollForward,
+                    chevronContentDescription = chevronDescription,
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(APPS_LIST_TAG),
+                    ) {
+                        itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
+                            AppRow(
+                                app = app,
+                                isActive = highlightFirst && index == 0,
+                                dockLimit = dockLimit,
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onToggleDock = onToggleDock,
+                                onResetRank = onResetRank,
+                                onHideApp = onHideApp,
+                            )
+                        }
                     }
                 }
             }
@@ -1046,6 +1104,7 @@ private fun IconOnlyAppGrid(
     dockLimit: Int,
     iconSizeDp: Int,
     highlightFirst: Boolean,
+    state: LazyGridState,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1054,6 +1113,7 @@ private fun IconOnlyAppGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(iconSizeDp.dp),
+        state = state,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = iconSizeDp.dp)

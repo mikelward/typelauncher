@@ -13,6 +13,7 @@
     <string name="dock_recents_description">Recent apps</string>
     <string name="dock_scroll_more_hint">Scroll for more dock apps</string>
     <string name="dock_recents_scroll_more_hint">Scroll for more recent apps</string>
+    <string name="apps_list_scroll_more_hint">Scroll for more apps</string>
     <string name="notification_listener_service_label">Type Launcher notifications</string>
     <string name="notification_bar_description">Apps with notifications</string>
     <string name="notification_bar_empty_hint">No new notifications</string>
