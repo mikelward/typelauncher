@@ -25,6 +25,7 @@
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
     <string name="app_menu_reset_rank">Reset rank</string>
+    <string name="app_menu_hide">Hide</string>
     <string name="widgets_add_button_description">Add widget</string>
     <string name="widgets_picker_title">Add widget</string>
     <string name="widgets_picker_subtitle">Choose a widget for the home screen</string>
@@ -75,5 +76,10 @@
     <string name="settings_about_dialog_title">About Type Launcher</string>
     <string name="settings_about_version_value">Version %1$s (build %2$d)</string>
     <string name="settings_about_dialog_dismiss">OK</string>
+    <string name="settings_manage_hidden_apps_button">Manage hidden apps</string>
+    <string name="settings_hidden_apps_dialog_title">Hidden apps</string>
+    <string name="settings_hidden_apps_dialog_empty">No hidden apps. Long-press an app and choose Hide to add one here.</string>
+    <string name="settings_hidden_apps_dialog_dismiss">Done</string>
+    <string name="settings_hidden_apps_unhide_description">Unhide %1$s</string>
     <string name="bug_report_chooser_title">Share bug report</string>
 </resources>

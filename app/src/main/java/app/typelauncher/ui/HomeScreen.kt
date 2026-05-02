@@ -109,6 +109,7 @@ internal fun HomeScreen(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit = {},
 ) {
@@ -142,6 +143,7 @@ internal fun HomeScreen(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
         if (state.isDockEnabled) {
             DockCard(
@@ -152,6 +154,7 @@ internal fun HomeScreen(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onHideApp = onHideApp,
                 onSetRecentsOpen = onSetRecentsOpen,
             )
         }
@@ -167,6 +170,7 @@ internal fun HomeScreen(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
     }
 }
@@ -245,6 +249,7 @@ private fun DockCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit = {},
 ) {
     val density = LocalDensity.current
@@ -303,6 +308,7 @@ private fun DockCard(
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
+                        onHideApp = onHideApp,
                     )
                 }
             }
@@ -328,6 +334,7 @@ private fun RecentsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -342,6 +349,7 @@ private fun RecentsCard(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onHideApp = onHideApp,
             )
         }
     }
@@ -355,6 +363,7 @@ private fun RecentsRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -387,6 +396,7 @@ private fun RecentsRow(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onHideApp = onHideApp,
             )
         }
     }
@@ -400,6 +410,7 @@ private fun RecentAppButton(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
@@ -435,6 +446,7 @@ private fun RecentAppButton(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
     }
 }
@@ -532,6 +544,7 @@ private fun AppsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
         if (isLoading) {
@@ -562,6 +575,7 @@ private fun AppsCard(
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
                     onResetRank = onResetRank,
+                    onHideApp = onHideApp,
                 )
             } else {
                 LazyColumn(
@@ -578,6 +592,7 @@ private fun AppsCard(
                             onOpenAppInfo = onOpenAppInfo,
                             onToggleDock = onToggleDock,
                             onResetRank = onResetRank,
+                            onHideApp = onHideApp,
                         )
                     }
                 }
@@ -596,6 +611,7 @@ private fun IconOnlyAppGrid(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(iconSizeDp.dp),
@@ -616,6 +632,7 @@ private fun IconOnlyAppGrid(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onHideApp = onHideApp,
             )
         }
     }
@@ -631,6 +648,7 @@ private fun IconOnlyAppButton(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val highlightColor = selectionHighlightColor()
@@ -678,6 +696,7 @@ private fun IconOnlyAppButton(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
     }
 }
@@ -691,6 +710,7 @@ private fun AppRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     val highlightColor = selectionHighlightColor()
     val highlightOnColor = selectionHighlightOnColor()
@@ -732,6 +752,7 @@ private fun AppRow(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
     }
 }
@@ -745,6 +766,7 @@ private fun AppActionsMenu(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         DropdownMenuItem(
@@ -771,6 +793,14 @@ private fun AppActionsMenu(
                 onResetRank(app)
             },
         )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_hide)) },
+            modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismiss()
+                onHideApp(app)
+            },
+        )
     }
 }
 
@@ -782,6 +812,7 @@ private fun DockedAppButton(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
@@ -817,6 +848,7 @@ private fun DockedAppButton(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
     }
 }
@@ -836,12 +868,15 @@ internal fun SettingsScreen(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val slotCountRange = dockSlotCountRange(configuration.screenWidthDp)
     val dockIconCount = state.dockIconCount.coerceIn(slotCountRange)
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
+    var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -968,6 +1003,14 @@ internal fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Button(
+            onClick = { hiddenAppsDialogVisible = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG),
+        ) {
+            Text(stringResource(R.string.settings_manage_hidden_apps_button))
+        }
         Text(
             text = stringResource(R.string.settings_dock_preview_label),
             style = MaterialTheme.typography.titleMedium,
@@ -980,6 +1023,14 @@ internal fun SettingsScreen(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
+        )
+    }
+    if (hiddenAppsDialogVisible) {
+        HiddenAppsDialog(
+            hiddenApps = state.hiddenApps,
+            onUnhideApp = onUnhideApp,
+            onDismiss = { hiddenAppsDialogVisible = false },
         )
     }
 }
@@ -1038,6 +1089,79 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
 }
 
 @Composable
+private fun HiddenAppsDialog(
+    hiddenApps: List<InstalledApp>,
+    onUnhideApp: (InstalledApp) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG),
+        title = { Text(stringResource(R.string.settings_hidden_apps_dialog_title)) },
+        text = {
+            if (hiddenApps.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.settings_hidden_apps_dialog_empty),
+                    modifier = Modifier.testTag(SETTINGS_HIDDEN_APPS_EMPTY_TAG),
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .testTag(SETTINGS_HIDDEN_APPS_LIST_TAG),
+                ) {
+                    itemsIndexed(hiddenApps, key = { _, app -> app.id }) { _, app ->
+                        HiddenAppRow(app = app, onUnhideApp = onUnhideApp)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(SETTINGS_HIDDEN_APPS_DIALOG_DISMISS_TAG),
+            ) {
+                Text(stringResource(R.string.settings_hidden_apps_dialog_dismiss))
+            }
+        },
+    )
+}
+
+@Composable
+private fun HiddenAppRow(
+    app: InstalledApp,
+    onUnhideApp: (InstalledApp) -> Unit,
+) {
+    val unhideDescription = stringResource(R.string.settings_hidden_apps_unhide_description, app.name)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:${app.name}"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AppIcon(app = app, size = 32.dp)
+        Text(
+            text = app.name,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        IconButton(
+            onClick = { onUnhideApp(app) },
+            modifier = Modifier.testTag("$SETTINGS_HIDDEN_APPS_UNHIDE_TAG:${app.name}"),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Clear,
+                contentDescription = unhideDescription,
+            )
+        }
+    }
+}
+
+@Composable
 private fun AboutDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1071,6 +1195,7 @@ private fun SettingsPreview(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // Apps preview shrinks to one row whenever any bottom card (dock or recents)
@@ -1093,6 +1218,7 @@ private fun SettingsPreview(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
         if (state.isDockEnabled) {
             DockCard(
@@ -1103,6 +1229,7 @@ private fun SettingsPreview(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onHideApp = onHideApp,
             )
         }
         // Mirror Home: recents lives in its own card below the dock so the
@@ -1117,6 +1244,7 @@ private fun SettingsPreview(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onHideApp = onHideApp,
         )
     }
 }

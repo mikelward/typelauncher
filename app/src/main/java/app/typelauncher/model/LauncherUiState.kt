@@ -25,6 +25,10 @@ internal data class LauncherUiState(
     val query: String = "",
     val filteredApps: List<InstalledApp> = emptyList(),
     val dockedApps: List<InstalledApp> = emptyList(),
+    // Apps the user has hidden via the long-press menu. They are excluded from
+    // every launcher surface (search results, dock, recents) and only resurface
+    // in the Settings "Manage hidden apps" dialog so the user can unhide them.
+    val hiddenApps: List<InstalledApp> = emptyList(),
     // Drag-up-from-the-dock "recents" list. Most-recently-launched first. Only
     // includes apps the user launched from Type Launcher — third-party launchers
     // can't read the system task switcher, so this is a best-effort substitute.

@@ -100,6 +100,8 @@ internal fun TypeLauncherApp(
         onOpenAppInfo = viewModel::openAppInfo,
         onToggleDock = viewModel::toggleDock,
         onResetRank = viewModel::resetRank,
+        onHideApp = viewModel::hideApp,
+        onUnhideApp = viewModel::unhideApp,
         onOpenSettings = viewModel::openSettings,
         onCloseSettings = viewModel::closeSettings,
         onOpenLauncherAppInfo = viewModel::openLauncherAppInfo,
@@ -136,6 +138,8 @@ internal fun TypeLauncherApp(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onUnhideApp: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
     onOpenLauncherAppInfo: () -> Unit = {},
@@ -189,6 +193,8 @@ internal fun TypeLauncherApp(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onHideApp = onHideApp,
+                onUnhideApp = onUnhideApp,
                 onOpenLauncherAppInfo = onOpenLauncherAppInfo,
             )
         } else {
@@ -210,6 +216,7 @@ internal fun TypeLauncherApp(
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
+                        onHideApp = onHideApp,
                         onOpenSettings = onOpenSettings,
                         onSetRecentsOpen = onSetRecentsOpen,
                     )

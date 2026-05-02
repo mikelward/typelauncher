@@ -123,6 +123,16 @@ internal fun List<InstalledApp>.filterDocked(dockedAppIds: List<String>): List<I
     filter { app -> app.id in dockedAppIds }
         .sortedBy { app -> dockedAppIds.indexOf(app.id) }
 
+/**
+ * Returns the apps whose IDs appear in [hiddenAppIds], in the persisted insertion
+ * order. Backs the Settings "Manage hidden apps" dialog so the user can review
+ * and unhide previously hidden apps. Hidden IDs that no longer match an installed
+ * app drop out silently.
+ */
+internal fun List<InstalledApp>.filterHidden(hiddenAppIds: List<String>): List<InstalledApp> =
+    filter { app -> app.id in hiddenAppIds }
+        .sortedBy { app -> hiddenAppIds.indexOf(app.id) }
+
 internal enum class LauncherMatchTier { Prefix, Anchored, Substring }
 
 internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
