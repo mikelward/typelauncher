@@ -415,7 +415,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("App list").assertIsDisplayed()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Show dock").assertExists()
-        composeRule.onNodeWithText("Icons per bar: 4").assertIsDisplayed()
+        composeRule.onNodeWithText("Icons per row: 4").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
 
@@ -629,7 +629,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Icons per bar: 6").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Icons per row: 6").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).performScrollTo()
         val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
