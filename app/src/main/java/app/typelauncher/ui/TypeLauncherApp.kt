@@ -256,7 +256,7 @@ internal fun TypeLauncherApp(
                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                 onSetRecentsOpen = onSetRecentsOpen,
                 onSwipeDown = onSwipeDown,
-            ) { pageScreen ->
+            ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd ->
                 when (pageScreen) {
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
@@ -279,6 +279,8 @@ internal fun TypeLauncherApp(
                         onRequestNotificationAccess = onRequestNotificationAccess,
                         onOpenFolder = onOpenFolder,
                         onCloseFolder = onCloseFolder,
+                        onHorizontalBarPullPastStart = onHorizontalBarPullPastStart,
+                        onHorizontalBarPullPastEnd = onHorizontalBarPullPastEnd,
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
@@ -346,7 +348,7 @@ private fun SwipeNavigationBox(
     onSetNotificationBarOpen: (Boolean) -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit,
     onSwipeDown: () -> Unit,
-    content: @Composable (LauncherScreen) -> Unit,
+    content: @Composable (LauncherScreen, onHorizontalBarPullPastStart: () -> Unit, onHorizontalBarPullPastEnd: () -> Unit) -> Unit,
 ) {
     // Both pull gestures dispatch from this single carousel-level handler so
     // they're triggerable from anywhere on Home that doesn't have a more
@@ -419,6 +421,15 @@ private fun SwipeNavigationBox(
         VERTICAL_PULL_THRESHOLD_DP.dp.toPx()
     }
     val coroutineScope = rememberCoroutineScope()
+    val navigateCarouselBy = remember(pagerState, coroutineScope) {
+        { pageDelta: Int ->
+            val targetPage = (pagerState.settledPage + pageDelta)
+                .coerceIn(0, LauncherScreen.carouselPageCount - 1)
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(targetPage)
+            }
+        }
+    }
     // Hold off on composing carousel pages other than the visible one until the
     // first frame has rendered. The visible page is what triggers the soft
     // keyboard via Home's focusRequester, and any extra layout work on the same
@@ -580,7 +591,11 @@ private fun SwipeNavigationBox(
     ) { page ->
         val pageScreen = LauncherScreen.fromCarouselPage(page)
         if (pageScreen == screen || offscreenPagesReady) {
-            content(pageScreen)
+            content(
+                pageScreen,
+                { navigateCarouselBy(-1) },
+                { navigateCarouselBy(1) },
+            )
         } else {
             Box(modifier = Modifier.fillMaxSize())
         }

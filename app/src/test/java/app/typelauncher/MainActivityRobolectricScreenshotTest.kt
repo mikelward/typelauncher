@@ -296,6 +296,24 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun swipingDockPastEndAdvancesCarousel() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val startPage = carousel.carouselVirtualPage()
+
+        composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
+        composeRule.waitForIdle()
+
+        assertEquals(startPage + 1, carousel.carouselVirtualPage())
+        assertEquals(LauncherScreen.Widgets, viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun screenshot_widgets_showsAddWidgetCard() {
         composeRule.activity.viewModel.showWidgets()
         composeRule.waitForIdle()

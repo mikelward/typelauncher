@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
 import org.junit.Assert.assertEquals
@@ -230,5 +231,56 @@ class SwipeUpRecentsTest {
 
         assertEquals("recents swipe should not navigate the carousel", 0, widgetsCount)
         composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun swipingPastRecentsEnd_navigatesCarousel() {
+        var widgetsCount = 0
+        val recentApps = (1..8).map { i -> fakeApp(name = "App%02d".format(i)) }
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        recentApps = recentApps,
+                        isRecentsAlwaysShown = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = { widgetsCount += 1 },
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertEquals("recents end pull should advance the carousel", 1, widgetsCount)
     }
 }

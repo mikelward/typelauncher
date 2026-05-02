@@ -115,6 +115,8 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private const val HORIZONTAL_BAR_EDGE_PULL_THRESHOLD_DP = 96
+
 @Composable
 internal fun HomeScreen(
     state: LauncherUiState,
@@ -137,6 +139,8 @@ internal fun HomeScreen(
     onRequestNotificationAccess: () -> Unit = {},
     onOpenFolder: (AppCategory) -> Unit = {},
     onCloseFolder: () -> Unit = {},
+    onHorizontalBarPullPastStart: () -> Unit = {},
+    onHorizontalBarPullPastEnd: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -228,6 +232,8 @@ internal fun HomeScreen(
                 onOpenNotificationSettings = onOpenNotificationSettings,
                 onRequestNotificationAccess = onRequestNotificationAccess,
                 onDismiss = { onSetNotificationBarOpen(false) },
+                onPullPastStart = onHorizontalBarPullPastStart,
+                onPullPastEnd = onHorizontalBarPullPastEnd,
             )
             if (state.isDockEnabled) {
                 DockCard(
@@ -239,6 +245,8 @@ internal fun HomeScreen(
                     onToggleDock = onToggleDock,
                     onResetRank = onResetRank,
                     onHideApp = onHideApp,
+                    onPullPastStart = onHorizontalBarPullPastStart,
+                    onPullPastEnd = onHorizontalBarPullPastEnd,
                 )
             }
             // Recents lives in its own card below the dock so it can render
@@ -253,6 +261,8 @@ internal fun HomeScreen(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onDismissRecent = onDismissRecent,
+                onPullPastStart = onHorizontalBarPullPastStart,
+                onPullPastEnd = onHorizontalBarPullPastEnd,
             )
         } else {
             // Reserve the remaining vertical space so SearchCard stays pinned
@@ -345,6 +355,8 @@ private fun DockCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onPullPastStart: () -> Unit,
+    onPullPastEnd: () -> Unit,
 ) {
     SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
         ScrollableIconRow(
@@ -352,6 +364,8 @@ private fun DockCard(
             startChevronTestTag = DOCK_SCROLL_START_CHEVRON_TAG,
             endChevronTestTag = DOCK_SCROLL_END_CHEVRON_TAG,
             chevronContentDescription = stringResource(R.string.dock_scroll_more_hint),
+            onPullPastStart = onPullPastStart,
+            onPullPastEnd = onPullPastEnd,
         ) {
             dockedApps.forEach { app ->
                 DockedAppButton(
@@ -389,6 +403,8 @@ private fun RecentsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
+    onPullPastStart: () -> Unit,
+    onPullPastEnd: () -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -403,6 +419,8 @@ private fun RecentsCard(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onDismissRecent = onDismissRecent,
+                onPullPastStart = onPullPastStart,
+                onPullPastEnd = onPullPastEnd,
             )
         }
     }
@@ -420,6 +438,8 @@ private fun NotificationBarCard(
     onOpenNotificationSettings: (InstalledApp) -> Unit,
     onRequestNotificationAccess: () -> Unit,
     onDismiss: () -> Unit,
+    onPullPastStart: () -> Unit,
+    onPullPastEnd: () -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -452,6 +472,8 @@ private fun NotificationBarCard(
                     },
                     onDismissNotifications = onDismissNotifications,
                     onOpenNotificationSettings = onOpenNotificationSettings,
+                    onPullPastStart = onPullPastStart,
+                    onPullPastEnd = onPullPastEnd,
                 )
             }
         }
@@ -488,6 +510,8 @@ private fun NotificationBarRow(
     onLaunchApp: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
     onOpenNotificationSettings: (InstalledApp) -> Unit,
+    onPullPastStart: () -> Unit,
+    onPullPastEnd: () -> Unit,
 ) {
     val description = stringResource(R.string.notification_bar_description)
     ScrollableIconRow(
@@ -501,6 +525,8 @@ private fun NotificationBarRow(
         // end whenever the list contents change so the freshest entry stays
         // visible without the user having to swipe.
         pinToEndKey = notifyingApps.map { it.id },
+        onPullPastStart = onPullPastStart,
+        onPullPastEnd = onPullPastEnd,
     ) {
         notifyingApps.forEach { app ->
             NotifyingAppButton(
@@ -580,6 +606,8 @@ private fun RecentsRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
+    onPullPastStart: () -> Unit,
+    onPullPastEnd: () -> Unit,
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -603,6 +631,8 @@ private fun RecentsRow(
         chevronContentDescription = stringResource(R.string.dock_recents_scroll_more_hint),
         // Keep the freshest recent app (rightmost) visible after every launch.
         pinToEndKey = recentApps.map { it.id },
+        onPullPastStart = onPullPastStart,
+        onPullPastEnd = onPullPastEnd,
     ) {
         recentApps.forEach { app ->
             RecentAppButton(
@@ -682,11 +712,20 @@ private fun ScrollableIconRow(
     chevronContentDescription: String,
     rowModifier: Modifier = Modifier,
     pinToEndKey: Any? = null,
+    onPullPastStart: () -> Unit = {},
+    onPullPastEnd: () -> Unit = {},
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
+    val edgePullConnection = rememberHorizontalBarEdgePullConnection(
+        canScrollBackward = { scrollState.value > overflowSlopPx },
+        canScrollForward = { scrollState.value < scrollState.maxValue - overflowSlopPx },
+        thresholdPx = with(LocalDensity.current) { HORIZONTAL_BAR_EDGE_PULL_THRESHOLD_DP.dp.toPx() },
+        onPullPastStart = onPullPastStart,
+        onPullPastEnd = onPullPastEnd,
+    )
     if (pinToEndKey != null) {
         LaunchedEffect(pinToEndKey, scrollState.maxValue, hasMeasuredContent, overflowSlopPx) {
             if (hasMeasuredContent) {
@@ -719,6 +758,7 @@ private fun ScrollableIconRow(
         val viewportPx = constraints.maxWidth
         Row(
             modifier = rowModifier
+                .nestedScroll(edgePullConnection)
                 .horizontalScroll(scrollState)
                 .layout { measurable, childConstraints ->
                     val placeable = measurable.measure(
@@ -758,6 +798,58 @@ private fun ScrollableIconRow(
                 xEdgeOffset = HorizontalScrollChevronEdgeOffset,
                 testTag = endChevronTestTag,
             )
+        }
+    }
+}
+
+@Composable
+private fun rememberHorizontalBarEdgePullConnection(
+    canScrollBackward: () -> Boolean,
+    canScrollForward: () -> Boolean,
+    thresholdPx: Float,
+    onPullPastStart: () -> Unit,
+    onPullPastEnd: () -> Unit,
+): NestedScrollConnection {
+    val currentOnPullPastStart by rememberUpdatedState(onPullPastStart)
+    val currentOnPullPastEnd by rememberUpdatedState(onPullPastEnd)
+    return remember(canScrollBackward, canScrollForward, thresholdPx) {
+        object : NestedScrollConnection {
+            private var edgeDragPx = 0f
+            private var didDispatch = false
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || didDispatch) return Offset.Zero
+                val availableX = available.x
+                val edgeDelta = when {
+                    availableX > 0f && !canScrollBackward() -> availableX
+                    availableX < 0f && !canScrollForward() -> availableX
+                    else -> 0f
+                }
+                edgeDragPx = if (edgeDelta > 0f) {
+                    (edgeDragPx + edgeDelta).coerceAtLeast(0f)
+                } else if (edgeDelta < 0f) {
+                    (edgeDragPx + edgeDelta).coerceAtMost(0f)
+                } else {
+                    0f
+                }
+                when {
+                    edgeDragPx >= thresholdPx -> {
+                        didDispatch = true
+                        currentOnPullPastStart()
+                    }
+                    edgeDragPx <= -thresholdPx -> {
+                        didDispatch = true
+                        currentOnPullPastEnd()
+                    }
+                }
+                return Offset(x = edgeDelta, y = 0f)
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                edgeDragPx = 0f
+                didDispatch = false
+                return Velocity.Zero
+            }
         }
     }
 }
@@ -2147,6 +2239,8 @@ private fun SettingsPreview(
                 onOpenNotificationSettings = {},
                 onRequestNotificationAccess = {},
                 onDismiss = {},
+                onPullPastStart = {},
+                onPullPastEnd = {},
             )
         }
         if (state.isDockEnabled) {
@@ -2160,6 +2254,8 @@ private fun SettingsPreview(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
+                onPullPastStart = {},
+                onPullPastEnd = {},
             )
         }
         // Mirror Home: recents lives in its own card below the dock so the
@@ -2174,6 +2270,8 @@ private fun SettingsPreview(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onDismissRecent = {},
+            onPullPastStart = {},
+            onPullPastEnd = {},
         )
     }
 }
