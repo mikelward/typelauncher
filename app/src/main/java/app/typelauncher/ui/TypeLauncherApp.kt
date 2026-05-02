@@ -102,6 +102,7 @@ internal fun TypeLauncherApp(
         onResetRank = viewModel::resetRank,
         onOpenSettings = viewModel::openSettings,
         onCloseSettings = viewModel::closeSettings,
+        onOpenLauncherAppInfo = viewModel::openLauncherAppInfo,
         onRequestDefaultLauncher = onRequestDefaultLauncher,
         onDockEnabledChanged = viewModel::setDockEnabled,
         onAppListIconOnlyChanged = viewModel::setAppListIconOnly,
@@ -135,6 +136,7 @@ internal fun TypeLauncherApp(
     onResetRank: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
+    onOpenLauncherAppInfo: () -> Unit = {},
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
@@ -182,6 +184,7 @@ internal fun TypeLauncherApp(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onOpenLauncherAppInfo = onOpenLauncherAppInfo,
             )
         } else {
             SwipeNavigationBox(

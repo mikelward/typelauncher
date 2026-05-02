@@ -422,9 +422,10 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsOverflowMenuExposesReportBugAndAboutActions() {
+    fun settingsOverflowMenuExposesReportBugAppInfoAndAboutActions() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SETTINGS_APP_INFO_ACTION_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).assertDoesNotExist()
 
         composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
@@ -432,9 +433,26 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Report bug").assertIsDisplayed()
+        composeRule.onNodeWithTag(SETTINGS_APP_INFO_ACTION_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("App info").assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("About").assertIsDisplayed()
         saveScreenshot("compose_settings_overflow_menu_robolectric.png")
+    }
+
+    @Test
+    fun settingsOverflowAppInfoAction_opensAndroidAppInfoForLauncherPackage() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_APP_INFO_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, startedIntent.action)
+        assertEquals(
+            android.net.Uri.parse("package:${composeRule.activity.packageName}"),
+            startedIntent.data,
+        )
     }
 
     @Test
