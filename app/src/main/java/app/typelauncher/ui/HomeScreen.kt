@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
@@ -1122,6 +1123,51 @@ internal fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_app_list_layout_title), style = MaterialTheme.typography.titleMedium)
+                }
+                AppListLayoutDropdown(
+                    isIconOnly = state.isAppListIconOnly,
+                    onIconOnlyChanged = onAppListIconOnlyChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_app_list_sort_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                AppListSortOrderDropdown(
+                    selected = state.appListSortOrder,
+                    onSortOrderChanged = onAppListSortOrderChanged,
+                )
+            }
+            Text(
+                text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Slider(
+                value = dockIconCount.toFloat(),
+                onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
+                valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
+                steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),
+                modifier = Modifier.testTag(DOCK_ICON_COUNT_SLIDER_TAG),
+            )
+            Text(
+                text = stringResource(R.string.settings_dock_icon_size_value, dockIconSizeDp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         stringResource(R.string.settings_show_notifications_title),
                         style = MaterialTheme.typography.titleMedium,
@@ -1153,41 +1199,6 @@ internal fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_app_list_icon_only_title), style = MaterialTheme.typography.titleMedium)
-                }
-                Switch(
-                    checked = state.isAppListIconOnly,
-                    onCheckedChange = onAppListIconOnlyChanged,
-                    modifier = Modifier.testTag(APP_LIST_ICON_ONLY_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_app_list_sort_alphabetical_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.appListSortOrder == AppListSortOrder.Alphabetical,
-                    onCheckedChange = { isAlphabetical ->
-                        onAppListSortOrderChanged(
-                            if (isAlphabetical) AppListSortOrder.Alphabetical else AppListSortOrder.Usage,
-                        )
-                    },
-                    modifier = Modifier.testTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         stringResource(R.string.settings_show_recents_title),
                         style = MaterialTheme.typography.titleMedium,
@@ -1199,22 +1210,6 @@ internal fun SettingsScreen(
                     modifier = Modifier.testTag(SHOW_RECENTS_SWITCH_TAG),
                 )
             }
-            Text(
-                text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Slider(
-                value = dockIconCount.toFloat(),
-                onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
-                valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
-                steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),
-                modifier = Modifier.testTag(DOCK_ICON_COUNT_SLIDER_TAG),
-            )
-            Text(
-                text = stringResource(R.string.settings_dock_icon_size_value, dockIconSizeDp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         Button(
             onClick = { hiddenAppsDialogVisible = true },
@@ -1245,6 +1240,99 @@ internal fun SettingsScreen(
             onUnhideApp = onUnhideApp,
             onDismiss = { hiddenAppsDialogVisible = false },
         )
+    }
+}
+
+@Composable
+private fun AppListLayoutDropdown(
+    isIconOnly: Boolean,
+    onIconOnlyChanged: (Boolean) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = if (isIconOnly) {
+        R.string.settings_app_list_layout_option_icons
+    } else {
+        R.string.settings_app_list_layout_option_text
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(APP_LIST_LAYOUT_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(APP_LIST_LAYOUT_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_list_layout_option_text)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_TEXT_TAG),
+                onClick = {
+                    expanded = false
+                    onIconOnlyChanged(false)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_list_layout_option_icons)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG),
+                onClick = {
+                    expanded = false
+                    onIconOnlyChanged(true)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppListSortOrderDropdown(
+    selected: AppListSortOrder,
+    onSortOrderChanged: (AppListSortOrder) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = when (selected) {
+        AppListSortOrder.Usage -> R.string.settings_app_list_sort_option_usage
+        AppListSortOrder.Alphabetical -> R.string.settings_app_list_sort_option_name
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(APP_LIST_SORT_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(APP_LIST_SORT_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_list_sort_option_usage)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_USAGE_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.Usage)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_list_sort_option_name)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.Alphabetical)
+                },
+            )
+        }
     }
 }
 

@@ -364,7 +364,9 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun firstVisibleAppInIconList_isSelectedAsActiveLaunchTarget() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -410,10 +412,10 @@ class MainActivityRobolectricScreenshotTest {
         // Match the page title by tag — onNodeWithText("Settings") would also
         // match the "Settings" app row in the apps preview.
         composeRule.onNodeWithTag(SETTINGS_TITLE_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("Icon-only app list").assertIsDisplayed()
-        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOff()
-        composeRule.onNodeWithText("Show dock").assertIsDisplayed()
-        composeRule.onNodeWithText("Dock icons visible: 4").assertIsDisplayed()
+        composeRule.onNodeWithText("App list").assertIsDisplayed()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Show dock").assertExists()
+        composeRule.onNodeWithText("Icons per bar: 4").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
 
@@ -511,10 +513,11 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOn()
         assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
@@ -537,7 +540,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun appListSortOrderToggleSortsAlphabeticallyAndPersistsRanks() {
+    fun appListSortOrderDropdownSortsAlphabeticallyAndPersistsRanks() {
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.launchApp(calculator)
@@ -548,11 +551,11 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals("Calculator", viewModel.uiState.value.filteredApps.first().name)
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG).assertIsOff()
-        composeRule.onNodeWithTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_SORT_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_SORT_OPTION_NAME_TAG).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG).assertIsOn()
         assertEquals(AppListSortOrder.Alphabetical, viewModel.uiState.value.appListSortOrder)
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
@@ -626,7 +629,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Dock icons visible: 6").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Icons per bar: 6").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).performScrollTo()
         val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
@@ -1222,13 +1225,13 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertIsOff()
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).performScrollTo().assertIsOff()
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
 
-        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertIsOn()
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).performScrollTo().assertIsOn()
         // The preview now mirrors the home layout: dock above, recents below.
         // The recents card may sit below the settings viewport on the test
         // screen (the preview claims a fixed four-bar budget), so we only
