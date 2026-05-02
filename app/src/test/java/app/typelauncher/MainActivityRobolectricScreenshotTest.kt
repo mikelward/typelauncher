@@ -1054,7 +1054,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun recentsOverflow_showsEndChevronHint() {
+    fun recentsOverflow_showsStartChevronHint() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.launchApp(app)
@@ -1063,8 +1063,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
+        // Recents auto-scrolls to the end so the freshest app stays visible
+        // on the right; older apps sit off-screen to the left, so the start
+        // chevron points the way to them and the end chevron is gone.
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
     }
 
     @Test
