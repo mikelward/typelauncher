@@ -36,6 +36,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -67,9 +68,15 @@ class MainActivityRobolectricScreenshotTest {
 
     @Before
     fun awaitInitialAppLoad() {
+        ShadowToast.reset()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             !composeRule.activity.viewModel.uiState.value.isLoadingApps
         }
+    }
+
+    @After
+    fun resetToastState() {
+        ShadowToast.reset()
     }
 
     @Test
