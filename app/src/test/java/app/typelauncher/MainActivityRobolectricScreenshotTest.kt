@@ -1371,18 +1371,39 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun screenshot_home_foldersEnabled_rendersFolderGrid() {
+    fun screenshot_home_foldersEnabled_textMode_rendersFolderRows() {
+        // Default app-list layout is "Text", so the folder list should render
+        // as text rows (LazyColumn with FolderRow items), mirroring AppRow.
+        composeRule.activity.viewModel.setFoldersEnabled(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(FOLDERS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(FOLDERS_LIST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(FOLDERS_GRID_TAG).assertDoesNotExist()
+        // Fake apps don't declare appCategory or APP_* intents and aren't in
+        // the curated overrides asset, so they all land in the Other folder.
+        composeRule.onNodeWithTag("$FOLDER_TILE_TAG:${AppCategory.Other.name}").assertIsDisplayed()
+        composeRule.onNodeWithTag("$FOLDER_TILE_ICON_TAG:${AppCategory.Other.name}").assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
+
+        saveScreenshot("compose_home_folders_text_rows_robolectric.png")
+    }
+
+    @Test
+    fun screenshot_home_foldersEnabled_iconMode_rendersFolderGrid() {
+        // Icons mode swaps the folder list for an icon grid (mirrors the
+        // existing icon-only app grid).
+        composeRule.activity.viewModel.setAppListIconOnly(true)
         composeRule.activity.viewModel.setFoldersEnabled(true)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(FOLDERS_CARD_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(FOLDERS_GRID_TAG).assertIsDisplayed()
-        // Fake apps don't declare appCategory or APP_* intents and aren't in
-        // the curated overrides asset, so they all land in the Other folder.
+        composeRule.onNodeWithTag(FOLDERS_LIST_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag("$FOLDER_TILE_TAG:${AppCategory.Other.name}").assertIsDisplayed()
-        composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag("$FOLDER_TILE_ICON_TAG:${AppCategory.Other.name}").assertIsDisplayed()
 
-        saveScreenshot("compose_home_folders_grid_robolectric.png")
+        saveScreenshot("compose_home_folders_icon_grid_robolectric.png")
     }
 
     @Test

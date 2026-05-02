@@ -149,6 +149,8 @@ internal fun HomeScreen(
                 showFolderGrid -> FoldersCard(
                     apps = state.filteredApps,
                     isLoading = state.isLoadingApps,
+                    isIconOnly = state.isAppListIconOnly,
+                    iconSizeDp = dockIconSizeDp,
                     modifier = Modifier.weight(1f),
                     onOpenFolder = onOpenFolder,
                 )
@@ -823,6 +825,8 @@ private fun AppsCard(
 private fun FoldersCard(
     apps: List<InstalledApp>,
     isLoading: Boolean,
+    isIconOnly: Boolean,
+    iconSizeDp: Int,
     modifier: Modifier = Modifier,
     onOpenFolder: (AppCategory) -> Unit,
 ) {
@@ -854,66 +858,141 @@ private fun FoldersCard(
             )
             return@SectionCard
         }
-        val gridDescription = stringResource(R.string.folders_card_label)
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(120.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = gridDescription }
-                .testTag(FOLDERS_GRID_TAG),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            itemsIndexed(visibleCategories, key = { _, pair -> pair.first.name }) { _, (category, count) ->
-                FolderTile(category = category, count = count, onClick = { onOpenFolder(category) })
+        val cardDescription = stringResource(R.string.folders_card_label)
+        if (isIconOnly) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(iconSizeDp.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = iconSizeDp.dp)
+                    .semantics { contentDescription = cardDescription }
+                    .testTag(FOLDERS_GRID_TAG),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                itemsIndexed(visibleCategories, key = { _, pair -> pair.first.name }) { _, (category, count) ->
+                    FolderIconTile(
+                        category = category,
+                        count = count,
+                        iconSizeDp = iconSizeDp,
+                        onClick = { onOpenFolder(category) },
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = cardDescription }
+                    .testTag(FOLDERS_LIST_TAG),
+            ) {
+                itemsIndexed(visibleCategories, key = { _, pair -> pair.first.name }) { _, (category, count) ->
+                    FolderRow(
+                        category = category,
+                        count = count,
+                        onClick = { onOpenFolder(category) },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FolderTile(
+private fun FolderRow(
     category: AppCategory,
     count: Int,
     onClick: () -> Unit,
 ) {
     val name = stringResource(category.displayNameRes)
-    val countLabel = if (count == 1) {
-        stringResource(R.string.folder_app_count_one)
-    } else {
-        stringResource(R.string.folder_app_count, count)
-    }
-    Surface(
+    val countLabel = stringResource(R.string.folder_app_count, count)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("$FOLDER_TILE_TAG:${category.name}")
-            .semantics {
-                role = Role.Button
-                contentDescription = "$name, $countLabel"
-            }
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 role = Role.Button,
                 onClick = onClick,
                 onLongClick = null,
-            ),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            )
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .semantics {
+                role = Role.Button
+                contentDescription = "$name, $countLabel"
+            }
+            .testTag("$FOLDER_TILE_TAG:${category.name}"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
+        FolderIconBox(category = category, sizeDp = 40)
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
                 text = countLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FolderIconTile(
+    category: AppCategory,
+    count: Int,
+    iconSizeDp: Int,
+    onClick: () -> Unit,
+) {
+    val name = stringResource(category.displayNameRes)
+    val countLabel = stringResource(R.string.folder_app_count, count)
+    Column(
+        modifier = Modifier
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = null,
+            )
+            .padding(4.dp)
+            .semantics {
+                role = Role.Button
+                contentDescription = "$name, $countLabel"
+            }
+            .testTag("$FOLDER_TILE_TAG:${category.name}"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        FolderIconBox(category = category, sizeDp = iconSizeDp)
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun FolderIconBox(category: AppCategory, sizeDp: Int) {
+    Surface(
+        modifier = Modifier
+            .size(sizeDp.dp)
+            .testTag("$FOLDER_TILE_ICON_TAG:${category.name}"),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = category.icon(),
+                contentDescription = null,
+                modifier = Modifier.size((sizeDp * 0.55f).dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
