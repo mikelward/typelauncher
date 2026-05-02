@@ -83,7 +83,10 @@
     <string name="settings_app_list_sort_option_name">Name</string>
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_show_recents_title">Show recents</string>
-    <string name="settings_show_notifications_title">Show notifications</string>
+    <string name="settings_pull_down_title">Pull down</string>
+    <string name="settings_pull_down_option_none">None</string>
+    <string name="settings_pull_down_option_system">System</string>
+    <string name="settings_pull_down_option_launcher">Launcher</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
     <string name="settings_dock_icon_count_label">Icons per row: %1$d</string>
     <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>

@@ -35,7 +35,7 @@ class SwipeDownNotificationShadeTest {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = emptyList(),
-                        isNotificationsEnabled = true,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -78,10 +78,9 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun swipingDownOnHomeWithNotificationsDisabled_invokesOnSwipeDownCallback() {
-        // With "Show notifications" off the bar stage is skipped, so the very
-        // first pull-down on Home expands the system shade (matching the
-        // Widgets/Agenda screens' single-stage behaviour).
+    fun swipingDownOnHomeWithSystemBehavior_invokesOnSwipeDownCallback() {
+        // With "System" selected, the very first pull-down on Home expands the
+        // system shade instead of opening the launcher notification bar.
         var swipeDownCount = 0
         var notificationBarOpened = false
         composeRule.setContent {
@@ -89,7 +88,7 @@ class SwipeDownNotificationShadeTest {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = emptyList(),
-                        isNotificationsEnabled = false,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.System,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -132,6 +131,57 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
+    fun swipingDownOnHomeWithNoneBehavior_doesNothing() {
+        var swipeDownCount = 0
+        var notificationBarOpened = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        notificationPullDownBehavior = NotificationPullDownBehavior.None,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(0, swipeDownCount)
+        assertEquals(false, notificationBarOpened)
+    }
+
+    @Test
     fun swipingDownOnHomeWithNotificationBarClosed_hidesKeyboard() {
         var hideCalled = false
         val fakeKeyboard = object : SoftwareKeyboardController {
@@ -144,7 +194,7 @@ class SwipeDownNotificationShadeTest {
                     TypeLauncherApp(
                         state = LauncherUiState(
                             filteredApps = emptyList(),
-                            isNotificationsEnabled = true,
+                            notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
                         ),
                         onQueryChanged = {},
                         onClearQuery = {},
@@ -192,7 +242,11 @@ class SwipeDownNotificationShadeTest {
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = emptyList(), isNotificationBarOpen = true),
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationBarOpen = true,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                    ),
                     onQueryChanged = {},
                     onClearQuery = {},
                     onLaunchActiveApp = {},
