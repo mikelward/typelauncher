@@ -333,13 +333,18 @@ internal class LauncherViewModel(
     }
 
     fun setQuery(query: String) {
+        // Query-only refresh: dock / recents / hidden / notifying lists don't
+        // depend on the query, and rebuilding them on every keystroke produces
+        // fresh list references that recompose unrelated UI for nothing. The
+        // worst case is backspace, which grows the result set back toward the
+        // full app list and made the lag user-visible.
         _uiState.update { state ->
             state.copy(
                 query = query,
                 openFolder = state.openFolder.takeIf { query.isBlank() },
             )
         }
-        refreshLists()
+        refreshFilteredApps()
         LauncherDebugLog.event(
             "setQuery length=${query.length} filtered=${_uiState.value.filteredApps.size} " +
                 "docked=${_uiState.value.dockedApps.size}",
@@ -878,6 +883,22 @@ internal class LauncherViewModel(
         }
     }
 
+    private fun refreshFilteredApps() {
+        val query = _uiState.value.query.trim()
+        _uiState.update { state ->
+            val dockedIds = dockedAppStore.dockedAppIds
+            state.copy(
+                filteredApps = visibleInstalledApps().filterByName(
+                    query = query,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    excludedAppIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty(),
+                    dockedAppIds = dockedIds,
+                    sortOrder = state.appListSortOrder,
+                ).markVisibility(),
+            )
+        }
+    }
+
     private fun visibleInstalledApps(): List<InstalledApp> =
         installedApps.filterNot { app -> hiddenAppStore.contains(app.id) }
 
@@ -1070,12 +1091,15 @@ internal class LauncherViewModel(
     }
 
     private fun List<InstalledApp>.markVisibility(): List<InstalledApp> =
-        map { launcherApp ->
-            val storedApp = installedApps.firstOrNull { installedApp -> installedApp.id == launcherApp.id } ?: launcherApp
-            launcherApp.copy(
-                isDocked = dockedAppStore.contains(launcherApp.id),
-                isHidden = hiddenAppStore.contains(launcherApp.id),
-                isWorkApp = storedApp.isWorkApp,
+        // Inputs always come from `installedApps` (via visibleInstalledApps()
+        // and the filter helpers, none of which mutate elements), so each
+        // app's `isWorkApp` is already authoritative — don't re-lookup.
+        // The previous `installedApps.firstOrNull { it.id == app.id }` made
+        // this O(n²) over the full installed-app list on every keystroke.
+        map { app ->
+            app.copy(
+                isDocked = dockedAppStore.contains(app.id),
+                isHidden = hiddenAppStore.contains(app.id),
             )
         }
 
