@@ -673,21 +673,29 @@ private fun ScrollableIconRow(
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    var hasMeasuredContent by remember { mutableStateOf(false) }
+    var overflowSlopPx by remember { mutableStateOf(0) }
     if (pinToEndKey != null) {
-        LaunchedEffect(pinToEndKey, scrollState.maxValue) {
-            scrollState.scrollTo(scrollState.maxValue)
+        LaunchedEffect(pinToEndKey, scrollState.maxValue, hasMeasuredContent, overflowSlopPx) {
+            if (hasMeasuredContent) {
+                val target = if (scrollState.maxValue > overflowSlopPx) scrollState.maxValue else 0
+                scrollState.scrollTo(target)
+            }
         }
     }
-    // Track overflow from the layout pass directly rather than from
-    // `scrollState.maxValue`, which defaults to Int.MAX_VALUE before the
-    // first layout pass and would otherwise make the end chevron flash on
-    // every initial composition.
-    var contentOverflowsViewport by remember { mutableStateOf(false) }
     val showEndChevron by remember(scrollState) {
-        derivedStateOf { contentOverflowsViewport && scrollState.value < scrollState.maxValue }
+        derivedStateOf {
+            hasMeasuredContent &&
+                scrollState.maxValue > overflowSlopPx &&
+                scrollState.value < scrollState.maxValue - overflowSlopPx
+        }
     }
     val showStartChevron by remember(scrollState) {
-        derivedStateOf { contentOverflowsViewport && scrollState.value > 0 }
+        derivedStateOf {
+            hasMeasuredContent &&
+                scrollState.maxValue > overflowSlopPx &&
+                scrollState.value > overflowSlopPx
+        }
     }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // Stretch the row to at least the viewport width so the centered
@@ -712,8 +720,8 @@ private fun ScrollableIconRow(
                     // notifications) auto-scroll to that 1 px maxValue, lift
                     // `scrollState.value` above 0, and show the start chevron
                     // for content the user has no way to actually scroll.
-                    val overflowSlopPx = 1.dp.roundToPx()
-                    contentOverflowsViewport = placeable.width - viewportPx > overflowSlopPx
+                    overflowSlopPx = 1.dp.roundToPx()
+                    hasMeasuredContent = true
                     layout(placeable.width, placeable.height) {
                         placeable.place(0, 0)
                     }
