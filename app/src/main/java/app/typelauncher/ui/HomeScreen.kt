@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -286,40 +287,20 @@ private fun DockCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            val scrollState = rememberScrollState()
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .horizontalScroll(scrollState)
-                        .testTag(DOCK_LIST_TAG),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    dockedApps.forEach { app ->
-                        DockedAppButton(
-                            app = app,
-                            dockIconSizeDp = dockIconSizeDp,
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onToggleDock = onToggleDock,
-                            onResetRank = onResetRank,
-                        )
-                    }
-                }
-                val moreAppsHint = stringResource(R.string.dock_scroll_more_hint)
-                if (scrollState.value > 0) {
-                    DockScrollChevron(
-                        icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = moreAppsHint,
-                        alignment = Alignment.CenterStart,
-                        testTag = DOCK_SCROLL_START_CHEVRON_TAG,
-                    )
-                }
-                if (scrollState.value < scrollState.maxValue) {
-                    DockScrollChevron(
-                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = moreAppsHint,
-                        alignment = Alignment.CenterEnd,
-                        testTag = DOCK_SCROLL_END_CHEVRON_TAG,
+            ScrollableIconRow(
+                rowModifier = Modifier.testTag(DOCK_LIST_TAG),
+                startChevronTestTag = DOCK_SCROLL_START_CHEVRON_TAG,
+                endChevronTestTag = DOCK_SCROLL_END_CHEVRON_TAG,
+                chevronContentDescription = stringResource(R.string.dock_scroll_more_hint),
+            ) {
+                dockedApps.forEach { app ->
+                    DockedAppButton(
+                        app = app,
+                        dockIconSizeDp = dockIconSizeDp,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
                     )
                 }
             }
@@ -386,13 +367,13 @@ private fun RecentsRow(
         return
     }
     val description = stringResource(R.string.dock_recents_description)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+    ScrollableIconRow(
+        rowModifier = Modifier
             .semantics { contentDescription = description }
             .testTag(DOCK_RECENTS_LIST_TAG),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        startChevronTestTag = DOCK_RECENTS_SCROLL_START_CHEVRON_TAG,
+        endChevronTestTag = DOCK_RECENTS_SCROLL_END_CHEVRON_TAG,
+        chevronContentDescription = stringResource(R.string.dock_recents_scroll_more_hint),
     ) {
         recentApps.forEach { app ->
             RecentAppButton(
@@ -454,8 +435,48 @@ private fun RecentAppButton(
     }
 }
 
+/**
+ * Wraps a horizontally scrollable row of icons (the dock or the recents row) and
+ * overlays start/end chevrons on whichever edge has more content scrolled past.
+ * The chevron uses an auto-mirrored icon and start/end alignment so it points
+ * the right direction under RTL.
+ */
 @Composable
-private fun BoxScope.DockScrollChevron(
+private fun ScrollableIconRow(
+    startChevronTestTag: String,
+    endChevronTestTag: String,
+    chevronContentDescription: String,
+    rowModifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = rowModifier.horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+        if (scrollState.value > 0) {
+            OverflowScrollChevron(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.CenterStart,
+                testTag = startChevronTestTag,
+            )
+        }
+        if (scrollState.value < scrollState.maxValue) {
+            OverflowScrollChevron(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.CenterEnd,
+                testTag = endChevronTestTag,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.OverflowScrollChevron(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
     alignment: Alignment,

@@ -1006,6 +1006,32 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun recentsOverflow_showsEndChevronHint() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.launchApp(app)
+        }
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun recentsWithoutOverflow_hidesScrollChevrons() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" })
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
+    }
+
+    @Test
     fun workAppBadge_isShownForWorkApps() {
         composeRule.activity.viewModel.setQuery("work")
         composeRule.waitForIdle()
