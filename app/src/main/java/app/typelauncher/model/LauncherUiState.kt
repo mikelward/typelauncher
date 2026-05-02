@@ -53,10 +53,10 @@ internal data class LauncherUiState(
     // Refreshed in `refreshPermissionDrivenUi` so flipping the toggle in
     // Android settings is picked up on the next resume.
     val hasNotificationAccess: Boolean = false,
-    // Settings → "Pull down" action. System preserves the previous default
-    // (pull down opens Android's shade); Launcher inserts the in-app
-    // notification bar as a first stage; None disables pull-down handling.
-    val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.System,
+    // Settings → "Pull down" action. Launcher inserts the in-app notification
+    // bar as a first stage; System opens Android's shade; None disables
+    // pull-down handling.
+    val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
     // When true, the recents card is permanently visible above the keyboard
     // (orthogonal to `isDockEnabled`), independent of the drag-up gesture. The
     // visible-recents predicate is `isRecentsAlwaysShown || isRecentsOpen`, so

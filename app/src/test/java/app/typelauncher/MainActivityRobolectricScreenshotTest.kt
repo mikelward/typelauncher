@@ -1325,14 +1325,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Pull down").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
-        assertEquals(NotificationPullDownBehavior.System, viewModel.uiState.value.notificationPullDownBehavior)
-        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).assertDoesNotExist()
-
-        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_OPTION_LAUNCHER_TAG).performClick()
-        composeRule.waitForIdle()
-
         assertEquals(NotificationPullDownBehavior.Launcher, viewModel.uiState.value.notificationPullDownBehavior)
         composeRule.onNodeWithText("Launcher").assertIsDisplayed()
         composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).performScrollTo().assertExists()

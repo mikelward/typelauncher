@@ -117,19 +117,14 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Home pull-down behavior. Legacy `notifications_enabled=true` maps to
-     * [NotificationPullDownBehavior.Launcher]; otherwise the default is
-     * [NotificationPullDownBehavior.System] so the pull-down still opens the
-     * Android notification shade unless the user explicitly chooses "None".
+     * Home pull-down behavior. Defaults to [NotificationPullDownBehavior.Launcher]
+     * for users without an explicit selection, including installs that only have
+     * the legacy `notifications_enabled` boolean.
      */
     var notificationPullDownBehavior: NotificationPullDownBehavior
         get() = sharedPreferences.getString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, null)
             ?.let { name -> runCatching { NotificationPullDownBehavior.valueOf(name) }.getOrNull() }
-            ?: if (sharedPreferences.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)) {
-                NotificationPullDownBehavior.Launcher
-            } else {
-                NotificationPullDownBehavior.System
-            }
+            ?: NotificationPullDownBehavior.Launcher
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, value.name)
