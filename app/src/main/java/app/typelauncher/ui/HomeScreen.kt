@@ -135,6 +135,22 @@ internal fun HomeScreen(
         // holdback is a cold-start optimisation, not a per-mount one. See the
         // comment on `homeBodyReady` in TypeLauncherApp for the why.
         if (bodyReady) {
+            // Notification bar sits between the search bar and the app list so
+            // it appears directly under the user's typing area when summoned.
+            // The app list below shrinks (it has weight 1f) to make room.
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = state.isNotificationBarOpen,
+                hasNotificationAccess = state.hasNotificationAccess,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onHideApp = onHideApp,
+                onRequestNotificationAccess = onRequestNotificationAccess,
+                onDismiss = { onSetNotificationBarOpen(false) },
+            )
             AppsCard(
                 apps = state.filteredApps,
                 isLoading = state.isLoadingApps,
@@ -148,22 +164,6 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
-            )
-            // Notification bar sits between the app list and the dock so a single
-            // pull-down brings it into view without displacing the dock or the
-            // keyboard. The list above shrinks (it has weight 1f) to make room.
-            NotificationBarCard(
-                notifyingApps = state.notifyingApps,
-                isVisible = state.isNotificationBarOpen,
-                hasNotificationAccess = state.hasNotificationAccess,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
-                onRequestNotificationAccess = onRequestNotificationAccess,
-                onDismiss = { onSetNotificationBarOpen(false) },
             )
             if (state.isDockEnabled) {
                 DockCard(
@@ -1392,19 +1392,39 @@ private fun SettingsPreview(
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
-    // user can see the size impact of enabling each bar: every additional bottom
-    // card (dock, recents) eats one bar of vertical space out of the apps card.
+    // user can see the size impact of enabling each bar: the always-on
+    // notification bar plus every additional bottom card (dock, recents) each
+    // eats one bar of vertical space out of the apps card.
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
     val bottomCardCount =
         (if (state.isDockEnabled) 1 else 0) + (if (state.isRecentsAlwaysShown) 1 else 0)
+    val fixedBarCount = 1 + bottomCardCount
     val appListHeight =
-        totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * bottomCardCount
+        totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
     ) {
+        // Mirror Home: notification bar sits between the search bar (which the
+        // preview omits) and the app list. Forced visible with access granted so
+        // the preview shows the inline bar at its natural height instead of the
+        // taller permission CTA.
+        NotificationBarCard(
+            notifyingApps = state.notifyingApps,
+            isVisible = true,
+            hasNotificationAccess = true,
+            dockIconSizeDp = dockIconSizeDp,
+            modifier = Modifier.height(previewHeight),
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+            onHideApp = onHideApp,
+            onRequestNotificationAccess = {},
+            onDismiss = {},
+        )
         AppsCard(
             apps = state.filteredApps,
             dockLimit = Int.MAX_VALUE,
