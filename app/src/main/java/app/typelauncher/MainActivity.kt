@@ -238,13 +238,19 @@ class MainActivity : ComponentActivity() {
     private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
         // The manifest declares stateAlwaysVisible so the launcher boots into
         // the typing state by default. When the user opts out we override with
-        // stateHidden — adjustResize stays so the IME insets math is unchanged
-        // when the keyboard is later raised by tapping the search field.
+        // stateAlwaysHidden — not stateHidden — because plain stateHidden only
+        // fires on forward navigation to the window, and returning to the
+        // launcher from another app (the dominant home-screen flow) isn't
+        // considered forward navigation, so the IME would still reappear if
+        // the search field had retained focus. stateAlwaysHidden enforces the
+        // opt-out every time the launcher regains focus. adjustResize stays so
+        // the IME insets math is unchanged when the keyboard is later raised
+        // by tapping the search field.
         val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
             if (autoShown) {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
             } else {
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
             }
         window.setSoftInputMode(mode)
         LauncherDebugLog.event("applyKeyboardAutoShownPreference autoShown=$autoShown mode=0x${mode.toString(16)}")
