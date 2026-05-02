@@ -24,14 +24,15 @@ class WidgetsScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun widgetPicker_autoLoadsPreviewOnProviderExpansion() {
-        val provider = fakeWidgetProvider(appName = "Clock", label = "Analog clock")
+    fun widgetPicker_autoLoadsProviderPreviewsWhenAppExpands() {
+        val month = fakeWidgetProvider(appName = "Calendar", label = "Calendar month view")
+        val schedule = fakeWidgetProvider(appName = "Calendar", label = "Calendar schedule")
 
         composeRule.setContent {
             TypeLauncherTheme {
                 WidgetsScreen(
                     widgetIds = emptyList(),
-                    availableWidgets = listOf(provider),
+                    availableWidgets = listOf(month, schedule),
                     isAddingWidget = true,
                     appWidgetHost = null,
                     appWidgetManager = null,
@@ -45,24 +46,25 @@ class WidgetsScreenTest {
         }
 
         composeRule.onNodeWithText("Add widget").assertIsDisplayed()
-        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock")
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}").assertDoesNotExist()
-        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${provider.id}").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${month.id}").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${schedule.id}").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${month.id}").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${schedule.id}").assertDoesNotExist()
 
-        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock").performClick()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}")
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${month.id}")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${provider.id}").assertDoesNotExist()
-
-        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${provider.id}").performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${provider.id}", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${schedule.id}")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${month.id}", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${schedule.id}", useUnmergedTree = true).assertExists()
     }
 
     @Test
