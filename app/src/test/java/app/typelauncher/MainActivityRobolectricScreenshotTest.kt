@@ -1,11 +1,13 @@
 package app.typelauncher
 
 import android.content.Intent
+import android.content.ComponentName
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.app.role.RoleManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.os.Process
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.getBoundsInRoot
@@ -1549,6 +1551,21 @@ class MainActivityRobolectricScreenshotTest {
         val appInfoFlags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         assertEquals(appInfoFlags, intent.flags and appInfoFlags)
     }
+
+    private fun fakeWidgetProvider(appName: String, label: String): WidgetProvider =
+        WidgetProvider(
+            appName = appName,
+            label = label,
+            componentName = ComponentName("app.typelauncher.fakewidget", "$label.Provider"),
+            profile = Process.myUserHandle(),
+            icon = null,
+            appIcon = null,
+            minWidth = 112,
+            minHeight = 56,
+            targetCellWidth = 2,
+            targetCellHeight = 1,
+            previewImage = null,
+        )
 
     private class SeedLauncherStateRule : TestRule {
         override fun apply(base: Statement, description: Description): Statement =
