@@ -100,6 +100,13 @@ internal class LauncherViewModel(
         }
     }
     private var launcherAppsCallbackRegistered = false
+    // Set when a `LauncherApps.Callback` event fires before the cold-start
+    // fresh load has published its result. We don't run a reload concurrently
+    // with cold-start (it could race the cold-start state update and lose),
+    // but we can't drop the event either — the cold-start `getActivityList`
+    // may have already returned pre-event data. The cold-start coroutine
+    // checks this flag after publishing and triggers a reload if set.
+    private var reloadPendingDuringColdStart = false
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
@@ -229,18 +236,23 @@ internal class LauncherViewModel(
             }
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
-            registerLauncherAppsCallback()
+            if (reloadPendingDuringColdStart) {
+                reloadPendingDuringColdStart = false
+                scheduleReload("coldStartCompletedWithPendingEvent")
+            }
         }
+        registerLauncherAppsCallback()
     }
 
     /**
-     * Registers the `LauncherApps.Callback` once the cold-start fresh load has
-     * published its result. Postponing registration avoids racing with the
-     * cold-start update — if a callback fires while the cold-start IO is in
-     * flight, the load already returns the post-event state from
-     * `LauncherApps.getActivityList`, so a separate reload would be redundant
-     * and could publish stale data after cold-start finishes. Idempotent so a
-     * test that calls it directly (or a future caller) can't double-register.
+     * Registers the `LauncherApps.Callback` so package install/uninstall/change
+     * events across any available profile trigger a reload. Called once at the
+     * end of `init`, so it's already armed by the time the cold-start IO runs;
+     * an event landing during cold-start is captured by
+     * `reloadPendingDuringColdStart` and replayed when cold-start publishes,
+     * preventing the race between the cold-start state update and a
+     * concurrent reload's update. Idempotent so a future double-call (or a
+     * test) can't double-register.
      */
     private fun registerLauncherAppsCallback() {
         if (launcherAppsCallbackRegistered) return
@@ -260,9 +272,17 @@ internal class LauncherViewModel(
      * is installed, uninstalled, replaced, or otherwise changed across any
      * available profile. Cancels any earlier in-flight reload so a burst of
      * events (e.g. an upgrade's PACKAGE_REMOVED + PACKAGE_ADDED) collapses to
-     * a single IO read against the latest system state.
+     * a single IO read against the latest system state. While the cold-start
+     * fresh load is still in flight, the request is deferred (via
+     * `reloadPendingDuringColdStart`) and replayed once cold-start publishes,
+     * so the reload's state update can't lose a race with cold-start's.
      */
     private fun scheduleReload(reason: String) {
+        if (!_uiState.value.isFreshAppLoadComplete) {
+            reloadPendingDuringColdStart = true
+            LauncherDebugLog.event("scheduleReload deferred until cold-start completes reason=$reason")
+            return
+        }
         LauncherDebugLog.event("scheduleReload reason=$reason")
         pendingReloadJob?.cancel()
         pendingReloadJob = viewModelScope.launch {
