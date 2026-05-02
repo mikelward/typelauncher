@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -107,6 +108,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -744,6 +746,7 @@ private fun ScrollableIconRow(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterStart,
+                edgeOffset = -HorizontalScrollChevronEdgeOffset,
                 testTag = startChevronTestTag,
             )
         }
@@ -752,6 +755,7 @@ private fun ScrollableIconRow(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterEnd,
+                edgeOffset = HorizontalScrollChevronEdgeOffset,
                 testTag = endChevronTestTag,
             )
         }
@@ -843,6 +847,7 @@ private fun BoxScope.OverflowScrollChevron(
     contentDescription: String,
     alignment: Alignment,
     testTag: String,
+    edgeOffset: Dp = 0.dp,
 ) {
     Icon(
         imageVector = icon,
@@ -850,6 +855,7 @@ private fun BoxScope.OverflowScrollChevron(
         tint = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .align(alignment)
+            .offset(x = edgeOffset)
             .background(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 shape = CircleShape,
@@ -858,6 +864,8 @@ private fun BoxScope.OverflowScrollChevron(
             .testTag(testTag),
     )
 }
+
+private val HorizontalScrollChevronEdgeOffset = 12.dp
 
 @Composable
 private fun AppsCard(
