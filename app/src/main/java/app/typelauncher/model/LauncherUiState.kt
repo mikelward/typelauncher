@@ -30,6 +30,11 @@ internal data class LauncherUiState(
     // can't read the system task switcher, so this is a best-effort substitute.
     val recentApps: List<InstalledApp> = emptyList(),
     val isRecentsOpen: Boolean = false,
+    // When true, the recents card is permanently visible above the keyboard
+    // (orthogonal to `isDockEnabled`), independent of the drag-up gesture. The
+    // visible-recents predicate is `isRecentsAlwaysShown || isRecentsOpen`, so
+    // the gesture still works when the setting is off.
+    val isRecentsAlwaysShown: Boolean = false,
     val widgetIds: List<Int> = emptyList(),
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,

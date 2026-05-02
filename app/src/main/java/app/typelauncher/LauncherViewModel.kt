@@ -61,6 +61,7 @@ internal class LauncherViewModel(
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
             appListSortOrder = dockSettingsStore.appListSortOrder,
+            isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
             isLoadingApps = cachedMetadata.isEmpty(),
         ),
     )
@@ -460,6 +461,12 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(appListSortOrder = sortOrder) }
         refreshLists()
         logState("setAppListSortOrder")
+    }
+
+    fun setRecentsAlwaysShown(isAlwaysShown: Boolean) {
+        dockSettingsStore.isRecentsAlwaysShown = isAlwaysShown
+        _uiState.update { it.copy(isRecentsAlwaysShown = isAlwaysShown) }
+        logState("setRecentsAlwaysShown")
     }
 
     fun setDockVisibleIconCount(count: Int) {

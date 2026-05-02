@@ -140,7 +140,6 @@ internal fun HomeScreen(
         if (state.isDockEnabled) {
             DockCard(
                 dockedApps = state.dockedApps,
-                recentApps = state.recentApps,
                 isRecentsOpen = state.isRecentsOpen,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
@@ -150,6 +149,19 @@ internal fun HomeScreen(
                 onSetRecentsOpen = onSetRecentsOpen,
             )
         }
+        // Recents lives in its own card below the dock so it can render
+        // independently of `isDockEnabled`. The drag-up gesture on the dock and
+        // the `Show recents` setting are orthogonal triggers — either is enough
+        // to make the card appear.
+        RecentsCard(
+            recentApps = state.recentApps,
+            isVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
+            dockIconSizeDp = dockIconSizeDp,
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+        )
     }
 }
 
@@ -220,7 +232,6 @@ private fun SearchCard(
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
-    recentApps: List<InstalledApp> = emptyList(),
     isRecentsOpen: Boolean = false,
     dockIconSizeDp: Int,
     modifier: Modifier = Modifier,
@@ -261,20 +272,6 @@ private fun DockCard(
                 }
             },
     ) {
-        AnimatedVisibility(
-            visible = isRecentsOpen,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            RecentsRow(
-                recentApps = recentApps,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-            )
-        }
         if (dockedApps.isEmpty()) {
             Text(
                 text = stringResource(R.string.dock_apps_hint),
@@ -303,6 +300,43 @@ private fun DockCard(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Recents card sits below the dock and above the keyboard. Visibility is
+ * controlled by either the persistent `Show recents` setting or the transient
+ * drag-up gesture on the dock; the two triggers are orthogonal — either alone
+ * surfaces the card. When the card is hidden the composable collapses to zero
+ * height (no dangling chrome), so swapping to the always-on setting just makes
+ * what would otherwise be a transient panel into a permanent home-screen row.
+ */
+@Composable
+private fun RecentsCard(
+    recentApps: List<InstalledApp>,
+    isVisible: Boolean,
+    dockIconSizeDp: Int,
+    modifier: Modifier = Modifier,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        SectionCard(modifier.testTag(DOCK_RECENTS_CARD_TAG)) {
+            RecentsRow(
+                recentApps = recentApps,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
         }
     }
 }
@@ -709,6 +743,7 @@ internal fun SettingsScreen(
     onAppListIconOnlyChanged: (Boolean) -> Unit,
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
+    onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -808,6 +843,23 @@ internal fun SettingsScreen(
                         )
                     },
                     modifier = Modifier.testTag(APP_LIST_SORT_ALPHABETICAL_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_recents_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isRecentsAlwaysShown,
+                    onCheckedChange = onRecentsAlwaysShownChanged,
+                    modifier = Modifier.testTag(SHOW_RECENTS_SWITCH_TAG),
                 )
             }
             Text(
@@ -924,7 +976,11 @@ private fun SettingsPreview(
     onResetRank: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
-    val appListHeight = if (state.isDockEnabled) previewHeight else previewHeight * 2 + SETTINGS_PREVIEW_SPACING_DP.dp
+    // Apps preview shrinks to one row whenever any bottom card (dock or recents)
+    // is visible, and expands to two rows plus spacing when both are hidden so
+    // the total preview footprint stays roughly constant.
+    val hasBottomCard = state.isDockEnabled || state.isRecentsAlwaysShown
+    val appListHeight = if (hasBottomCard) previewHeight else previewHeight * 2 + SETTINGS_PREVIEW_SPACING_DP.dp
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
@@ -952,6 +1008,19 @@ private fun SettingsPreview(
                 onResetRank = onResetRank,
             )
         }
+        // Mirror Home: recents lives in its own card below the dock so the
+        // preview reflects the orthogonal `Show recents` setting even when the
+        // dock is disabled.
+        RecentsCard(
+            recentApps = state.recentApps,
+            isVisible = state.isRecentsAlwaysShown,
+            dockIconSizeDp = dockIconSizeDp,
+            modifier = Modifier.height(previewHeight),
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+        )
     }
 }
 

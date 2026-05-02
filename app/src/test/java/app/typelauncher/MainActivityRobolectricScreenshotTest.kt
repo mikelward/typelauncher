@@ -913,6 +913,77 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun openRecentsPanel_renderRecentsCardBelowDock() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        val dockBottom = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().bottom
+        val recentsTop = composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).getBoundsInRoot().top
+        assertTrue("recents card sits below the dock card", recentsTop >= dockBottom)
+    }
+
+    @Test
+    fun showRecentsSetting_keepsRecentsCardVisibleWithoutDragGesture() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        assertFalse(viewModel.uiState.value.isRecentsOpen)
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
+
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+
+        // The setting alone is enough — no drag-up needed — and the card stays
+        // visible after launching another app (the panel's auto-close that
+        // applies to the gesture-driven mode doesn't override the setting).
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
+        viewModel.setQuery("browser")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun showRecentsSetting_isOrthogonalToDockToggle() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setRecentsAlwaysShown(true)
+        viewModel.setDockEnabled(false)
+        composeRule.waitForIdle()
+
+        // Dock is hidden, but the recents card still renders independently.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun showRecentsToggle_inSettings_revealsRecentsInPreview() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertIsOff()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertIsOn()
+        // The preview now mirrors the home layout: dock above, recents below.
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun workAppBadge_isShownForWorkApps() {
         composeRule.activity.viewModel.setQuery("work")
         composeRule.waitForIdle()

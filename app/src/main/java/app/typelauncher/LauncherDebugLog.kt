@@ -114,4 +114,5 @@ internal fun LauncherUiState.debugSummary(): String =
         "appListIconOnly=$isAppListIconOnly dockIconCount=$dockIconCount " +
         "sortOrder=$appListSortOrder loadingApps=$isLoadingApps " +
         "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady " +
-        "recents=${recentApps.size} recentsOpen=$isRecentsOpen"
+        "recents=${recentApps.size} recentsOpen=$isRecentsOpen " +
+        "recentsAlwaysShown=$isRecentsAlwaysShown"

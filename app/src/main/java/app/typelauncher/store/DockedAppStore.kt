@@ -82,12 +82,27 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * When true, the recents row is permanently visible above the keyboard
+     * (as its own card below the dock) without requiring the drag-up gesture.
+     * Orthogonal to [isDockEnabled] — recents can be on while the dock is off
+     * and vice versa.
+     */
+    var isRecentsAlwaysShown: Boolean
+        get() = sharedPreferences.getBoolean(KEY_RECENTS_ALWAYS_SHOWN, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_RECENTS_ALWAYS_SHOWN, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
+        const val KEY_RECENTS_ALWAYS_SHOWN = "recents_always_shown"
     }
 }
 
