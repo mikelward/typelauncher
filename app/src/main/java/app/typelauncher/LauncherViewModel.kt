@@ -47,6 +47,11 @@ internal class LauncherViewModel(
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     private var agendaVersion = 0
+    // Set the first time the UI signals that Home is fully drawn and the soft
+    // keyboard is up (or a fallback timeout has elapsed). Gates the deferred
+    // initial agenda load so the calendar query can't compete with the cold-
+    // start app list load on Dispatchers.IO.
+    private var initialAgendaTriggered = false
     private val cachedMetadata: List<InstalledApp> = appMetadataStore.load()
     private val _uiState = MutableStateFlow(
         LauncherUiState(
@@ -83,18 +88,11 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
         }
         viewModelScope.launch {
-            val initAgendaVersion = agendaVersion
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
-            val (loadedApps, loadedAgenda) = withContext(ioDispatcher) {
-                val apps = traceBlock("installed_apps_load") { trace ->
+            val loadedApps = withContext(ioDispatcher) {
+                traceBlock("installed_apps_load") { trace ->
                     loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
                 }
-                val agenda = traceBlock("agenda_initial_load") { trace ->
-                    loadAgendaState().also {
-                        trace.setAttribute("state", it::class.simpleName ?: "unknown")
-                    }
-                }
-                apps to agenda
             }
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
             initialLoadTrace.stop()
@@ -113,13 +111,24 @@ internal class LauncherViewModel(
                     dockedApps = installedApps
                         .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
                         .markDocked(),
-                    agenda = if (agendaVersion == initAgendaVersion) loadedAgenda else state.agenda,
                     isLoadingApps = false,
                 )
             }
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
         }
+    }
+
+    /**
+     * Called by the UI once the Home screen has fully drawn its app list and
+     * the soft keyboard is in place (or a fallback timeout has elapsed). Loads
+     * the agenda for the first time on the IO dispatcher. Idempotent.
+     */
+    fun onHomeReady() {
+        if (initialAgendaTriggered) return
+        initialAgendaTriggered = true
+        LauncherDebugLog.event("onHomeReady triggering deferred agenda load")
+        loadAgendaAsync(reason = "homeReady", traceName = "agenda_initial_load")
     }
 
     fun setQuery(query: String) {
@@ -132,12 +141,9 @@ internal class LauncherViewModel(
     }
 
     fun showAgenda() {
-        // TODO: loadAgendaState queries CalendarContract on the calling thread when the
-        //   permission is granted. Move this to viewModelScope/Dispatchers.IO so that
-        //   swiping to the agenda screen never blocks the main thread.
-        agendaVersion++
-        _uiState.update { it.copy(screen = LauncherScreen.Agenda, agenda = loadAgendaState()) }
+        _uiState.update { it.copy(screen = LauncherScreen.Agenda) }
         logState("showAgenda")
+        loadAgendaAsync(reason = "showAgenda", traceName = "agenda_load")
     }
 
     fun showWidgets() {
@@ -203,9 +209,29 @@ internal class LauncherViewModel(
     }
 
     fun refreshAgenda() {
-        agendaVersion++
-        _uiState.update { it.copy(agenda = loadAgendaState()) }
-        logState("refreshAgenda")
+        loadAgendaAsync(reason = "refreshAgenda", traceName = "agenda_load")
+    }
+
+    private fun loadAgendaAsync(reason: String, traceName: String) {
+        // Any explicit load short-circuits the deferred home-ready load: if the
+        // user already asked for the agenda (or a test seeded it), we don't
+        // also want the timeout to fire a second load that overwrites the
+        // result.
+        initialAgendaTriggered = true
+        val requestVersion = ++agendaVersion
+        viewModelScope.launch {
+            val newAgenda = withContext(ioDispatcher) {
+                traceBlock(traceName) { trace ->
+                    loadAgendaState().also {
+                        trace.setAttribute("state", it::class.simpleName ?: "unknown")
+                    }
+                }
+            }
+            if (agendaVersion == requestVersion) {
+                _uiState.update { it.copy(agenda = newAgenda) }
+            }
+            logState("$reason agenda load complete")
+        }
     }
 
     fun openAgendaEvent(event: AgendaEvent) {
@@ -299,6 +325,9 @@ internal class LauncherViewModel(
     }
 
     internal fun showAgendaEventsForTest(events: List<AgendaEvent>) {
+        // Block the deferred home-ready load so the timeout can't overwrite the
+        // seeded events with a real CalendarContract result.
+        initialAgendaTriggered = true
         agendaVersion++
         _uiState.update {
             it.copy(

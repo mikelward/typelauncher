@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
@@ -33,6 +34,7 @@ import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
@@ -57,6 +59,14 @@ private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
 private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 
 private const val NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP = 96
+
+// Once the app list has loaded, wait this long for the soft keyboard to come
+// up before signalling "home ready" anyway. Hardware keyboards, IME-disabled
+// test environments, and slow IME starts can all keep WindowInsets.isImeVisible
+// false indefinitely; we don't want to defer the agenda load forever in those
+// cases.
+private const val HOME_READY_IME_TIMEOUT_MS = 1500L
+
 private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
 
 @Composable
@@ -99,6 +109,7 @@ internal fun TypeLauncherApp(
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
+        onHomeReady = viewModel::onHomeReady,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
         onAddWidget = onAddWidget,
@@ -131,6 +142,7 @@ internal fun TypeLauncherApp(
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
+    onHomeReady: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     onAddWidget: () -> Unit,
@@ -144,6 +156,11 @@ internal fun TypeLauncherApp(
     LaunchedEffect(state.screen, state.isSettingsOpen, state.isAppListIconOnly) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
     }
+    HomeReadySignal(
+        isLoadingApps = state.isLoadingApps,
+        imeVisible = WindowInsets.isImeVisible,
+        onHomeReady = onHomeReady,
+    )
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
@@ -205,6 +222,32 @@ internal fun TypeLauncherApp(
                 }
             }
         }
+    }
+}
+
+/**
+ * Fires `onHomeReady` exactly once, after the Home app list has finished
+ * loading and either the soft keyboard is visible or
+ * [HOME_READY_IME_TIMEOUT_MS] has elapsed since the apps loaded. The downstream
+ * signal kicks off the deferred initial agenda load so it doesn't contend with
+ * the cold-start app list IO or the keyboard show.
+ */
+@Composable
+private fun HomeReadySignal(
+    isLoadingApps: Boolean,
+    imeVisible: Boolean,
+    onHomeReady: () -> Unit,
+) {
+    var fired by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoadingApps, imeVisible, fired) {
+        if (fired || isLoadingApps) return@LaunchedEffect
+        if (!imeVisible) {
+            // Wait for the IME — but don't wait forever (hardware keyboards,
+            // Robolectric, IME-disabled tests).
+            delay(HOME_READY_IME_TIMEOUT_MS)
+        }
+        fired = true
+        onHomeReady()
     }
 }
 
