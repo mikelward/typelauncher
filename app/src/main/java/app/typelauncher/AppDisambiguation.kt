@@ -119,12 +119,13 @@ private fun isCountryCodeSuffix(suffix: String): Boolean {
  * firstWord)` key with at least one other app in the input list AND where
  * either:
  *  - at least one member's suffix is a recognised country code, or
- *  - every member has an empty suffix (the Chase-vs-Chase case, where the
- *    display names are literally identical).
+ *  - every member shares the same suffix (the Chase-vs-Chase /
+ *    Capital-One-vs-Capital-One case, where the display names are literally
+ *    identical and the user has no other way to tell the apps apart).
  *
  * Apps that are unique, or that share a key only with peers whose suffixes
- * are ordinary English words ("Cloud" / "Music" / "Business" / "Premium"),
- * are absent from the result map.
+ * are ordinary English words ("Cloud" / "Music" / "Business" / "Premium")
+ * that differ between members, are absent from the result map.
  *
  * Within each accepted group, only members whose post-brand package tail
  * contains a country-code component receive a badge (e.g. Amex `…acctsvcs.us`
@@ -149,8 +150,8 @@ internal fun computeDisambiguators(apps: List<InstalledApp>): Map<String, String
         if (group.distinctBy { it.packageName }.size < 2) continue
         val suffixes = group.map { nameSuffix(it.name) }
         val anyCountryCode = suffixes.any { isCountryCodeSuffix(it) }
-        val allEmpty = suffixes.all { cleanedSuffix(it).isEmpty() }
-        if (!anyCountryCode && !allEmpty) continue
+        val allSameSuffix = suffixes.map { cleanedSuffix(it).lowercase() }.toSet().size == 1
+        if (!anyCountryCode && !allSameSuffix) continue
         val tails: List<Pair<InstalledApp, List<String>>> = group.map { app ->
             val components = app.packageName.split('.').filter { it.isNotEmpty() }
             // brandKey() returned `key.brand`, so it's guaranteed to appear; take
