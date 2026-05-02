@@ -113,4 +113,5 @@ internal fun LauncherUiState.debugSummary(): String =
         "agenda=${agenda::class.simpleName} dockEnabled=$isDockEnabled " +
         "appListIconOnly=$isAppListIconOnly dockIconCount=$dockIconCount " +
         "sortOrder=$appListSortOrder loadingApps=$isLoadingApps " +
-        "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady"
+        "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady " +
+        "recents=${recentApps.size} recentsOpen=$isRecentsOpen"

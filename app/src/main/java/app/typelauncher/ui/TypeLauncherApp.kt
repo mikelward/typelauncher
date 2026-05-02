@@ -111,6 +111,7 @@ internal fun TypeLauncherApp(
         onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
         onHomeReady = viewModel::onHomeReady,
+        onSetRecentsOpen = viewModel::setRecentsOpen,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
         onAddWidget = onAddWidget,
@@ -144,6 +145,7 @@ internal fun TypeLauncherApp(
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
     onHomeReady: () -> Unit = {},
+    onSetRecentsOpen: (Boolean) -> Unit = {},
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     onAddWidget: () -> Unit,
@@ -203,6 +205,7 @@ internal fun TypeLauncherApp(
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
                         onOpenSettings = onOpenSettings,
+                        onSetRecentsOpen = onSetRecentsOpen,
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,

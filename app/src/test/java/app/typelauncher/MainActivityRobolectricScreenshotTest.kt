@@ -821,6 +821,98 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun dockRecentsPanel_isHiddenByDefault() {
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_HINT_TAG).assertDoesNotExist()
+        assertFalse(composeRule.activity.viewModel.uiState.value.isRecentsOpen)
+    }
+
+    @Test
+    fun openRecentsPanel_showsLaunchedAppsMostRecentFirst() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calendar")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calendar" })
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").assertIsDisplayed()
+        // Calculator was launched after Calendar, so it sits to the left in the row.
+        val calculatorLeft = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").getBoundsInRoot().left
+        val calendarLeft = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").getBoundsInRoot().left
+        assertTrue("most-recent app appears first in the recents row", calculatorLeft < calendarLeft)
+    }
+
+    @Test
+    fun openRecentsPanel_withNoLaunchesYet_showsEmptyHint() {
+        composeRule.activity.viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_HINT_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("No recent apps yet").assertIsDisplayed()
+    }
+
+    @Test
+    fun tappingRecentsApp_launchesItAndClosesPanel() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        // Drain the launch intent that recorded the recents entry so the next
+        // assertion picks up the click intent, not the seeding one.
+        shadowOf(composeRule.activity).nextStartedActivity
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+
+        // Tapping a recents entry routes through launchApp, which clears
+        // recentsOpen so the panel doesn't reappear when the user returns home.
+        assertFalse(viewModel.uiState.value.isRecentsOpen)
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals("app.typelauncher.fake1", startedIntent.component?.packageName)
+        assertStandardLauncherFlags(startedIntent)
+    }
+
+    @Test
+    fun longPressRecentsApp_showsAppInfoDockAndResetRankActions() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").assertIsDisplayed()
+    }
+
+    @Test
+    fun openingSettings_closesRecentsPanel() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+        assertTrue(viewModel.uiState.value.isRecentsOpen)
+
+        viewModel.openSettings()
+        composeRule.waitForIdle()
+
+        assertFalse(viewModel.uiState.value.isRecentsOpen)
+    }
+
+    @Test
     fun workAppBadge_isShownForWorkApps() {
         composeRule.activity.viewModel.setQuery("work")
         composeRule.waitForIdle()

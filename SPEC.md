@@ -79,6 +79,7 @@ This document records the current product and technical design decisions for Typ
 - Docked app count is not capped by the visible icon count; extra docked apps remain available by scrolling the dock row.
 - This feature was renamed from "pinned apps" to "dock"; new UI, tests, strings, and docs should use dock terminology.
 - The dock is pinned after the app list and represented as a horizontal icon row rather than a second text list.
+- Dragging up on the dock (≥48dp vertical, with vertical movement exceeding horizontal) reveals an in-launcher "recents" row above the dock row that shows the most-recently-launched apps using the same icon size and visual treatment as the dock. Dragging back down on the dock collapses it; tapping a recent app launches it and closes the panel; opening Settings, switching screens, or returning home from a launcher-entry intent also closes it. The gesture is intentionally hidden — there is no visible affordance — so the threshold matches the carousel/notification-shade swipes, deliberate enough to avoid accidental triggers. This is a launcher-internal substitute for the system task switcher: third-party launchers cannot read system recents (`ActivityManager.getRecentTasks` only returns the calling package's tasks since API 21), so the recents list only contains apps the user opened *from* Type Launcher. Apps opened from notifications, other launchers, or directly from Android won't appear here. The recents list is intentionally unfiltered by the search query (the main app list handles typed search) and ignores `Reset rank`, which is a usage-count concept. Long-press on a recent app surfaces the same App info / Dock / Reset rank menu as the dock and the main app list.
 
 ## Widget behavior
 
@@ -113,7 +114,7 @@ This document records the current product and technical design decisions for Typ
 
 - Dock membership is stored in `SharedPreferences` as newline-separated app IDs.
 - Dock visibility, dock icon size, the app-list icon-only preference, and the app-list sort order are stored in `SharedPreferences`.
-- Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID.
+- Launch ranking is stored in `SharedPreferences` as integer launch counts keyed by app ID. Alongside the counts, the same `app_launch_stats` store keeps a single `recent_app_ids` key whose value is a newline-separated, most-recent-first list of the last 16 launched app IDs; this backs the dock's drag-up recents panel and is updated atomically with the count when an app is launched. `Reset rank` only clears the count, not the recents entry — a deliberate split, since recents is a session-style list, not a usage-rank one.
 - A snapshot of personal-profile installed apps for fast cold-start render is stored as JSON in the `app_metadata` `SharedPreferences`.
 - App IDs combine the user hash and launch component when available, falling back to package name.
 - No backend service, database, or network dependency is part of the current design.

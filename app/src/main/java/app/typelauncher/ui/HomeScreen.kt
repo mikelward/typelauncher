@@ -1,9 +1,16 @@
 package app.typelauncher
 
 import android.view.KeyEvent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,9 +68,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -78,6 +89,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -92,6 +104,7 @@ internal fun HomeScreen(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
+    onSetRecentsOpen: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -127,11 +140,14 @@ internal fun HomeScreen(
         if (state.isDockEnabled) {
             DockCard(
                 dockedApps = state.dockedApps,
+                recentApps = state.recentApps,
+                isRecentsOpen = state.isRecentsOpen,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onSetRecentsOpen = onSetRecentsOpen,
             )
         }
     }
@@ -204,14 +220,61 @@ private fun SearchCard(
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
+    recentApps: List<InstalledApp> = emptyList(),
+    isRecentsOpen: Boolean = false,
     dockIconSizeDp: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onSetRecentsOpen: (Boolean) -> Unit = {},
 ) {
-    SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
+    val density = LocalDensity.current
+    val dragThresholdPx = with(density) { DOCK_RECENTS_DRAG_THRESHOLD_DP.dp.toPx() }
+    SectionCard(
+        modifier
+            .testTag(DOCK_CARD_TAG)
+            .pointerInput(dragThresholdPx, isRecentsOpen, onSetRecentsOpen) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var rawDragX = 0f
+                    var rawDragY = 0f
+                    var fired = false
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { change ->
+                            val delta = change.positionChange()
+                            rawDragX += delta.x
+                            rawDragY += delta.y
+                            if (!fired && abs(rawDragY) > abs(rawDragX) && abs(rawDragY) >= dragThresholdPx) {
+                                if (rawDragY < 0f && !isRecentsOpen) {
+                                    onSetRecentsOpen(true)
+                                    fired = true
+                                } else if (rawDragY > 0f && isRecentsOpen) {
+                                    onSetRecentsOpen(false)
+                                    fired = true
+                                }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            },
+    ) {
+        AnimatedVisibility(
+            visible = isRecentsOpen,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            RecentsRow(
+                recentApps = recentApps,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
+        }
         if (dockedApps.isEmpty()) {
             Text(
                 text = stringResource(R.string.dock_apps_hint),
@@ -241,6 +304,96 @@ private fun DockCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RecentsRow(
+    recentApps: List<InstalledApp>,
+    dockIconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    if (recentApps.isEmpty()) {
+        Text(
+            text = stringResource(R.string.dock_recents_empty_hint),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .testTag(DOCK_RECENTS_HINT_TAG),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    val description = stringResource(R.string.dock_recents_description)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .semantics { contentDescription = description }
+            .testTag(DOCK_RECENTS_LIST_TAG),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        recentApps.forEach { app ->
+            RecentAppButton(
+                app = app,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentAppButton(
+    app: InstalledApp,
+    dockIconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        Column(
+            modifier = Modifier
+                .semantics { contentDescription = app.name }
+                .padding(4.dp)
+                .testTag("$DOCK_RECENTS_APP_TAG:${app.name}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_RECENTS_APP_ICON_TAG)
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { onLaunchApp(app) },
+                    onLongClick = { menuExpanded = true },
+                )
+                .semantics {
+                    role = Role.Button
+                    contentDescription = app.name
+                },
+        )
+        AppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            dockLimit = Int.MAX_VALUE,
+            onDismiss = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+        )
     }
 }
 
@@ -867,3 +1020,8 @@ private fun selectionHighlightOnColor(): Color =
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_SPACING_DP = 16
+// Vertical drag distance on the dock that toggles the recents panel. The
+// gesture is intentionally hidden (no visible affordance), so the threshold
+// matches the carousel/notification-shade swipes — a deliberate pull, not an
+// accidental finger slide.
+private const val DOCK_RECENTS_DRAG_THRESHOLD_DP = 48

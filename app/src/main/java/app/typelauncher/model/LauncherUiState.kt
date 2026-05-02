@@ -25,6 +25,11 @@ internal data class LauncherUiState(
     val query: String = "",
     val filteredApps: List<InstalledApp> = emptyList(),
     val dockedApps: List<InstalledApp> = emptyList(),
+    // Drag-up-from-the-dock "recents" list. Most-recently-launched first. Only
+    // includes apps the user launched from Type Launcher — third-party launchers
+    // can't read the system task switcher, so this is a best-effort substitute.
+    val recentApps: List<InstalledApp> = emptyList(),
+    val isRecentsOpen: Boolean = false,
     val widgetIds: List<Int> = emptyList(),
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
