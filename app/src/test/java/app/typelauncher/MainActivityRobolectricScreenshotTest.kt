@@ -1314,6 +1314,7 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(NotificationPullDownBehavior.Launcher, viewModel.uiState.value.notificationPullDownBehavior)
         composeRule.onNodeWithText("Launcher").assertIsDisplayed()
         composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).performScrollTo().assertExists()
+        saveScreenshot("compose_settings_pull_down_launcher_preview_robolectric.png")
 
         composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
