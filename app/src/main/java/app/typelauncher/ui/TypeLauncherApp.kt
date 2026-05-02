@@ -31,6 +31,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
@@ -336,12 +337,15 @@ private fun SwipeNavigationBox(
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
+    val keyboard = LocalSoftwareKeyboardController.current
+    val currentKeyboard by rememberUpdatedState(keyboard)
     val swipeDownDispatch = remember<() -> Unit> {
         {
             if (currentScreen == LauncherScreen.Home &&
                 currentNotificationsEnabled &&
                 !currentBarOpen
             ) {
+                currentKeyboard?.hide()
                 currentSetBarOpen(true)
             } else {
                 currentOnSwipeDown()
