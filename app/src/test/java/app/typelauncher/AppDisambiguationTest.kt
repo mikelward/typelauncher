@@ -158,13 +158,31 @@ class AppDisambiguationTest {
     }
 
     @Test
-    fun nonCountryCodePackageTailsProduceNoBadge() {
-        // "sig" and "intl" are not country codes; neither variant gets a badge.
+    fun nonCountryCodeNonRegionalPackageTailsProduceNoBadge() {
+        // "sig" and "premium" are neither country codes nor recognised
+        // regional markers; neither variant gets a badge even though the
+        // group is accepted by the all-same-suffix gate.
         val apps = listOf(
             personalApp("Chase", "com.chase.sig.android"),
-            personalApp("Chase", "com.chase.intl.android"),
+            personalApp("Chase", "com.chase.premium.android"),
         )
         assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun chaseSigAndIntlPairOnlyIntlVariantGetsBadge() {
+        // Real-world case: both apps ship as the literal display name
+        // "Chase". The `sig` tail isn't a country code or regional marker
+        // (it's a legacy Signature product name, not a region), so the US
+        // Chase stays unbadged. Chase International's `com.chase.intl`
+        // tail contains "intl", so it gets the "INTL" fallback badge.
+        val apps = listOf(
+            personalApp("Chase", "com.chase.sig.android"),
+            personalApp("Chase", "com.chase.intl"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("INTL", disambig[apps[1].id])
     }
 
     @Test
