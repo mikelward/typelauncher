@@ -160,7 +160,8 @@ internal class LauncherViewModel(
             installedApps = loadedApps
             if (!dockedAppStore.hasBeenPrefilled) {
                 if (dockedAppStore.dockedAppIds.isEmpty()) {
-                    prefillDock(loadedApps, dockedAppStore, _uiState.value.dockIconCount)
+                    // Reserve one slot for the always-visible "+" add button.
+                    prefillDock(loadedApps, dockedAppStore, (_uiState.value.dockIconCount - 1).coerceAtLeast(0))
                 }
                 dockedAppStore.markPrefilled()
             }

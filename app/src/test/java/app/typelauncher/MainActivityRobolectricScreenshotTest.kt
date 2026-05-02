@@ -1003,7 +1003,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun undockingDockedApp_restoresDockHintWhenEmpty() {
+    fun undockingDockedApp_showsAddButtonWhenEmpty() {
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
@@ -1011,8 +1011,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.toggleDock(viewModel.uiState.value.dockedApps.single(), maxDockedApps = 6)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(DOCK_HINT_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("Long press apps to dock").assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
     }
 
     @Test

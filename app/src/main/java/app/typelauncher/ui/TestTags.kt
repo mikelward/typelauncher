@@ -36,6 +36,7 @@ internal const val NOTIFICATION_SETTINGS_ACTION_TAG = "notification_settings_act
 internal const val DOCK_CARD_TAG = "dock_card"
 internal const val DOCK_LIST_TAG = "dock_list"
 internal const val DOCK_HINT_TAG = "dock_hint"
+internal const val DOCK_ADD_BUTTON_TAG = "dock_add_button"
 internal const val DOCK_APP_TAG = "dock_app"
 internal const val DOCK_APP_ICON_TAG = "dock_app_icon"
 internal const val DOCK_RECENTS_CARD_TAG = "dock_recents_card"

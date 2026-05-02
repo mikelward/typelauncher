@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.view.KeyEvent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -8,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -42,6 +44,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
@@ -325,35 +328,24 @@ private fun DockCard(
     onHideApp: (InstalledApp) -> Unit,
 ) {
     SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
-        if (dockedApps.isEmpty()) {
-            Text(
-                text = stringResource(R.string.dock_apps_hint),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-                    .testTag(DOCK_HINT_TAG),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            ScrollableIconRow(
-                rowModifier = Modifier.testTag(DOCK_LIST_TAG),
-                startChevronTestTag = DOCK_SCROLL_START_CHEVRON_TAG,
-                endChevronTestTag = DOCK_SCROLL_END_CHEVRON_TAG,
-                chevronContentDescription = stringResource(R.string.dock_scroll_more_hint),
-            ) {
-                dockedApps.forEach { app ->
-                    DockedAppButton(
-                        app = app,
-                        dockIconSizeDp = dockIconSizeDp,
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onResetRank = onResetRank,
-                        onHideApp = onHideApp,
-                    )
-                }
+        ScrollableIconRow(
+            rowModifier = Modifier.testTag(DOCK_LIST_TAG),
+            startChevronTestTag = DOCK_SCROLL_START_CHEVRON_TAG,
+            endChevronTestTag = DOCK_SCROLL_END_CHEVRON_TAG,
+            chevronContentDescription = stringResource(R.string.dock_scroll_more_hint),
+        ) {
+            dockedApps.forEach { app ->
+                DockedAppButton(
+                    app = app,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onHideApp = onHideApp,
+                )
             }
+            DockAddButton(dockIconSizeDp = dockIconSizeDp)
         }
     }
 }
@@ -1375,6 +1367,35 @@ private fun DockedAppButton(
             onResetRank = onResetRank,
             onHideApp = onHideApp,
         )
+    }
+}
+
+@Composable
+private fun DockAddButton(dockIconSizeDp: Int) {
+    val context = LocalContext.current
+    val hint = stringResource(R.string.dock_add_button_hint)
+    val description = stringResource(R.string.dock_add_button_description)
+    Box(
+        modifier = Modifier
+            .padding(4.dp)
+            .testTag(DOCK_ADD_BUTTON_TAG)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(dockIconSizeDp.dp)
+                .clickable { Toast.makeText(context, hint, Toast.LENGTH_LONG).show() },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = null,
+                modifier = Modifier.padding((dockIconSizeDp * 0.25f).dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
