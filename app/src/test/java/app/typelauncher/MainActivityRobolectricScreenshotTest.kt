@@ -707,23 +707,23 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun typedSearchRanksByLaunchCountWithinTier() {
         val viewModel = composeRule.activity.viewModel
-        // Boost Camera so it outranks Calculator/Calendar/Clock — all four are
-        // prefix matches for "c", so the within-tier tie-breaker decides the
-        // visible order. Without launch-count weighting the alphabetical
-        // fallback would surface Calculator first even though Camera is the
-        // app the user clearly reaches for.
-        repeat(3) { i ->
+        // Boost Camera so it outranks Calculator and Calendar in the Prefix
+        // tier under the "ca" query. Without launch-count weighting the
+        // alphabetical fallback would surface Calculator first even though
+        // Camera is the app the user clearly reaches for. Work Calendar
+        // (anchored at the inner C) lives below the entire Prefix tier.
+        repeat(3) {
             viewModel.setQuery("camera")
             viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
             // Drain the launch intent each iteration so the harness's intent
             // queue doesn't bleed across the assertion below.
             shadowOf(composeRule.activity).nextStartedActivity
         }
-        viewModel.setQuery("c")
+        viewModel.setQuery("ca")
         composeRule.waitForIdle()
 
         assertEquals(
-            listOf("Camera", "Calculator", "Calendar", "Clock"),
+            listOf("Camera", "Calculator", "Calendar", "Work Calendar"),
             viewModel.uiState.value.filteredApps.map { it.name },
         )
     }
@@ -759,25 +759,27 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun tappingRecentsApp_incrementsLaunchCountSoItRanksAheadOfUntappedApps() {
         val viewModel = composeRule.activity.viewModel
-        // Seed recents with Calendar so it shows up in the recents row, then
-        // re-launch it from there twice. Recent-row taps must increment the
-        // launch count just like main-list taps so frequently-reopened apps
-        // bubble up the empty-query list.
+        // Seed Browser and Calendar each with one main-list launch — they
+        // tie on launch count, so the empty-query sort falls through to the
+        // alphabetical tie-break and Browser leads. Calendar lands in the
+        // recents row.
+        viewModel.setQuery("browser")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         viewModel.setQuery("calendar")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calendar" })
         composeRule.waitForIdle()
-        shadowOf(composeRule.activity).nextStartedActivity
+        repeat(2) { shadowOf(composeRule.activity).nextStartedActivity }
+        assertEquals("Browser", viewModel.uiState.value.filteredApps.first().name)
+
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").performClick()
+        composeRule.waitForIdle()
 
-        repeat(2) {
-            composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").performClick()
-            composeRule.waitForIdle()
-            shadowOf(composeRule.activity).nextStartedActivity
-            viewModel.setRecentsOpen(true)
-            composeRule.waitForIdle()
-        }
-
+        // After the recents tap Calendar's launch count is 2 vs Browser's 1,
+        // so Calendar leapfrogs Browser in the empty-query list. The pre-tap
+        // assertion above pins down the baseline, so this only passes if the
+        // recents-row tap actually routed through `recordLaunch`.
         assertEquals("Calendar", viewModel.uiState.value.filteredApps.first().name)
     }
 
@@ -791,15 +793,15 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.setDockEnabled(false)
         composeRule.waitForIdle()
 
-        viewModel.setQuery("c")
+        viewModel.setQuery("ca")
         composeRule.waitForIdle()
 
         // Camera is docked and the dock UI is hidden, so it floats to the top
-        // of the Prefix tier ahead of Calculator/Calendar/Clock — the user's
+        // of the Prefix tier ahead of Calculator and Calendar — the user's
         // pinned app stays reachable even though the row is sharing the main
-        // list.
+        // list. Work Calendar still lives in its anchored tier below.
         assertEquals(
-            listOf("Camera", "Calculator", "Calendar", "Clock"),
+            listOf("Camera", "Calculator", "Calendar", "Work Calendar"),
             viewModel.uiState.value.filteredApps.map { it.name },
         )
     }
