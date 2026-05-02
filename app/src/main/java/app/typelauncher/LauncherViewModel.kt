@@ -80,14 +80,14 @@ internal class LauncherViewModel(
         if (cachedMetadata.isNotEmpty()) {
             installedApps = cachedMetadata
             _uiState.update { state ->
-                val downrankedIds = dockedAppStore.dockedAppIds
+                val activeDockedIds = dockedAppStore.dockedAppIds
                     .takeIf { state.isDockEnabled }
                     .orEmpty()
                 state.copy(
                     filteredApps = installedApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
-                        downrankedAppIds = downrankedIds,
+                        excludedAppIds = activeDockedIds,
                         sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
@@ -108,14 +108,14 @@ internal class LauncherViewModel(
             initialLoadTrace.stop()
             installedApps = loadedApps
             _uiState.update { state ->
-                val downrankedIds = dockedAppStore.dockedAppIds
+                val activeDockedIds = dockedAppStore.dockedAppIds
                     .takeIf { state.isDockEnabled }
                     .orEmpty()
                 state.copy(
                     filteredApps = installedApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
-                        downrankedAppIds = downrankedIds,
+                        excludedAppIds = activeDockedIds,
                         sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
@@ -317,7 +317,18 @@ internal class LauncherViewModel(
             setQuery("")
             return
         }
-        _uiState.value.filteredApps.firstOrNull()?.let(::launchApp)
+        // Docked apps are excluded from filteredApps while the dock is
+        // enabled, so fall back to launching the first matching dock entry
+        // when no non-docked match exists. Otherwise a query that only
+        // resolves to docked apps would leave Enter doing nothing despite a
+        // visible matching dock icon. The fallback is gated on the dock
+        // being enabled because dockedApps is still populated when the dock
+        // UI is hidden — without the gate, a no-match query under a hidden
+        // dock could surprise-launch an invisible entry.
+        val state = _uiState.value
+        val target = state.filteredApps.firstOrNull()
+            ?: state.dockedApps.firstOrNull()?.takeIf { state.isDockEnabled }
+        target?.let(::launchApp)
     }
 
     fun launchApp(app: InstalledApp) {
@@ -448,7 +459,7 @@ internal class LauncherViewModel(
                 filteredApps = installedApps.filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
-                    downrankedAppIds = dockedAppStore.dockedAppIds.takeIf { state.isDockEnabled }.orEmpty(),
+                    excludedAppIds = dockedAppStore.dockedAppIds.takeIf { state.isDockEnabled }.orEmpty(),
                     sortOrder = state.appListSortOrder,
                 ).markDocked(),
                 dockedApps = installedApps.filterDockedByName(dockedAppStore.dockedAppIds, query).markDocked(),

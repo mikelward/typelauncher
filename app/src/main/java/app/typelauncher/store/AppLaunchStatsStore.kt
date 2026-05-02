@@ -31,27 +31,32 @@ internal class AppLaunchStatsStore(context: Context) {
 internal fun List<InstalledApp>.filterByName(
     query: String,
     appLaunchStatsStore: AppLaunchStatsStore,
-    downrankedAppIds: Collection<String>,
+    excludedAppIds: Collection<String>,
     sortOrder: AppListSortOrder = AppListSortOrder.Usage,
-): List<InstalledApp> =
-    if (query.isEmpty()) {
+): List<InstalledApp> {
+    // Callers pass the docked app ids while the dock is enabled and an empty
+    // collection while it's disabled — docked apps don't belong in the main
+    // list when they're already rendered in the dock row, but they have to
+    // reappear here when the dock UI is hidden or no other surface would show
+    // them.
+    val candidates = if (excludedAppIds.isEmpty()) this else filterNot { app -> app.id in excludedAppIds }
+    return if (query.isEmpty()) {
         when (sortOrder) {
-            AppListSortOrder.Usage -> sortedWith(
-                compareByDescending<InstalledApp> { app ->
-                    if (app.id in downrankedAppIds) DOCKED_APP_LIST_RANK else appLaunchStatsStore.launchCount(app.id)
-                }
+            AppListSortOrder.Usage -> candidates.sortedWith(
+                compareByDescending<InstalledApp> { app -> appLaunchStatsStore.launchCount(app.id) }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
-            AppListSortOrder.Alphabetical -> sortedWith(
-                compareBy<InstalledApp> { app -> if (app.id in downrankedAppIds) 1 else 0 }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+            AppListSortOrder.Alphabetical -> candidates.sortedWith(
+                compareBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
         }
     } else {
-        mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
+        candidates
+            .mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
             .sortedBy { (_, tier) -> tier.ordinal }
             .map { (app, _) -> app }
     }
+}
 
 internal fun List<InstalledApp>.filterDockedByName(dockedAppIds: List<String>, query: String): List<InstalledApp> =
     filter { app -> app.id in dockedAppIds }
@@ -121,5 +126,3 @@ private fun String.matchesQueryFrom(query: String, queryStart: Int, nameStart: I
 
 private fun Char.equalsIgnoreCase(other: Char): Boolean =
     this == other || lowercaseChar() == other.lowercaseChar()
-
-private const val DOCKED_APP_LIST_RANK = -1

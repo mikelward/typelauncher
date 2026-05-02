@@ -41,7 +41,7 @@ class LauncherFilterOrderingTest {
         val filtered = apps.filterByName(
             query = "mail",
             appLaunchStatsStore = store,
-            downrankedAppIds = emptySet(),
+            excludedAppIds = emptySet(),
         )
 
         assertEquals(listOf("Mail", "iMail", "Gmail"), filtered.map { it.name })
@@ -58,10 +58,62 @@ class LauncherFilterOrderingTest {
         val filtered = apps.filterByName(
             query = "g",
             appLaunchStatsStore = store,
-            downrankedAppIds = emptySet(),
+            excludedAppIds = emptySet(),
         )
 
         assertEquals(listOf("Gallery", "Gmail", "Google Maps"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameExcludesDockedAppsFromTypedSearchResults() {
+        val docked = installedApp("ABC")
+        // Real app feeds filterByName an alphabetical list (loadInstalledApps
+        // sorts that way); mirror that here so the stable within-tier ordering
+        // assertion is meaningful.
+        val apps = listOf(docked, installedApp("Calculator"), installedApp("Camera"))
+
+        val filtered = apps.filterByName(
+            query = "c",
+            appLaunchStatsStore = store,
+            excludedAppIds = listOf(docked.id),
+        )
+
+        // ABC is docked and would otherwise anchor-match "c"; with the dock
+        // active it is excluded from search results so the launch target is a
+        // non-docked match.
+        assertEquals(listOf("Calculator", "Camera"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameExcludesDockedAppsFromEmptyQueryListWhileDockEnabled() {
+        val docked = installedApp("ABC")
+        val apps = listOf(docked, installedApp("Camera"), installedApp("Calculator"))
+
+        val filtered = apps.filterByName(
+            query = "",
+            appLaunchStatsStore = store,
+            excludedAppIds = listOf(docked.id),
+        )
+
+        // Docked apps live in the dock row when the dock is enabled, so the
+        // main list never contains them in either query mode.
+        assertEquals(listOf("Calculator", "Camera"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameIncludesDockedAppsWhenDockDisabled() {
+        val docked = installedApp("ABC")
+        val apps = listOf(docked, installedApp("Camera"), installedApp("Calculator"))
+
+        val filtered = apps.filterByName(
+            query = "",
+            appLaunchStatsStore = store,
+            // Caller passes an empty exclusion set when the dock UI is hidden
+            // so docked apps reappear in the main list.
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("ABC", "Calculator", "Camera"), filtered.map { it.name })
     }
 
     @Test
@@ -76,7 +128,7 @@ class LauncherFilterOrderingTest {
         val filtered = apps.filterByName(
             query = "oo",
             appLaunchStatsStore = store,
-            downrankedAppIds = emptySet(),
+            excludedAppIds = emptySet(),
         )
 
         // None start with "oo" or anchor-match it; the first three contain it

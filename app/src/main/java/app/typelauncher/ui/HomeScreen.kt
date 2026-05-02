@@ -21,9 +21,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -117,6 +117,7 @@ internal fun HomeScreen(
             dockLimit = Int.MAX_VALUE,
             isIconOnly = state.isAppListIconOnly,
             iconSizeDp = dockIconSizeDp,
+            highlightFirst = state.query.isNotBlank(),
             modifier = Modifier.weight(1f),
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
@@ -250,6 +251,7 @@ private fun AppsCard(
     dockLimit: Int,
     isIconOnly: Boolean,
     iconSizeDp: Int,
+    highlightFirst: Boolean,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -280,6 +282,7 @@ private fun AppsCard(
                     apps = apps,
                     dockLimit = dockLimit,
                     iconSizeDp = iconSizeDp,
+                    highlightFirst = highlightFirst,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
@@ -291,10 +294,10 @@ private fun AppsCard(
                         .fillMaxWidth()
                         .testTag(APPS_LIST_TAG),
                 ) {
-                    items(apps, key = { app -> app.id }) { app ->
+                    itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
                         AppRow(
                             app = app,
-                            isActive = app == apps.first(),
+                            isActive = highlightFirst && index == 0,
                             dockLimit = dockLimit,
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
@@ -313,6 +316,7 @@ private fun IconOnlyAppGrid(
     apps: List<InstalledApp>,
     dockLimit: Int,
     iconSizeDp: Int,
+    highlightFirst: Boolean,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -327,10 +331,10 @@ private fun IconOnlyAppGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(apps, key = { app -> app.id }) { app ->
+        itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
             IconOnlyAppButton(
                 app = app,
-                isActive = app == apps.first(),
+                isActive = highlightFirst && index == 0,
                 dockLimit = dockLimit,
                 iconSizeDp = iconSizeDp,
                 onLaunchApp = onLaunchApp,
@@ -777,6 +781,7 @@ private fun SettingsPreview(
             dockLimit = Int.MAX_VALUE,
             isIconOnly = state.isAppListIconOnly,
             iconSizeDp = dockIconSizeDp,
+            highlightFirst = state.query.isNotBlank(),
             modifier = Modifier.height(appListHeight),
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
