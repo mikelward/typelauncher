@@ -166,6 +166,27 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
+    fun filterByNameUnderAlphabeticalSortIgnoresLaunchCountWithinTier() {
+        val gallery = installedApp("Gallery")
+        val gmail = installedApp("Gmail")
+        val googleMaps = installedApp("Google Maps")
+        // Gmail has been opened many times, but the user has explicitly
+        // opted into alphabetical sort, so the typed-query path must respect
+        // the preference and not re-order by launch count.
+        repeat(5) { store.recordLaunch(gmail.id) }
+        store.recordLaunch(googleMaps.id)
+
+        val filtered = listOf(gallery, gmail, googleMaps).filterByName(
+            query = "g",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            sortOrder = AppListSortOrder.Alphabetical,
+        )
+
+        assertEquals(listOf("Gallery", "Gmail", "Google Maps"), filtered.map { it.name })
+    }
+
+    @Test
     fun filterByNameRanksDockedAppsFirstWithinTierWhenDockHidden() {
         val calculator = installedApp("Calculator")
         val camera = installedApp("Camera")
