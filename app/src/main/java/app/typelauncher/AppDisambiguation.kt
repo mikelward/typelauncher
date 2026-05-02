@@ -23,10 +23,12 @@ private val ETLD_PREFIXES: List<List<String>> = listOf(
 // "cd" (DR Congo) are deliberately omitted because they collide with common
 // English abbreviations — "Google TV" / "Foo CD" should not be treated as
 // regional variants of "Google" / "Foo". Non-ISO regional markers (EMEA,
-// APAC, INTL, etc.) are deliberately excluded too — keeping the set to a
-// closed standard avoids false-classifying real brands like ANZ-the-bank as
-// regional variants. Re-add specific markers if real apps in the wild are
-// observed using them.
+// APAC, ANZ, etc.) are deliberately excluded — keeping the suffix-recognition
+// set to a closed standard avoids false-classifying real brands like
+// ANZ-the-bank as regional variants. The single non-ISO marker we *do*
+// accept ("intl") lives in REGIONAL_MARKERS below and only fires after the
+// suffix gate has already accepted a group via all-same-suffix, so it can't
+// expand the set of groups that get treated as regional families.
 private val COUNTRY_CODES: Set<String> = buildSet {
     addAll(
         listOf(
@@ -64,6 +66,17 @@ private val COUNTRY_CODES: Set<String> = buildSet {
     )
     add("uk")
 }
+
+// Non-ISO regional markers used as a fallback by the tail picker when no
+// country code is present. Kept as a separate set from COUNTRY_CODES so they
+// only influence the badge text after the suffix gate has already accepted
+// a group via all-same-suffix; they are *not* recognised as suffixes (which
+// would risk treating "ANZ Bank" as a regional variant of "Bank"). The
+// canonical case is Chase / Chase International — `com.chase.sig.android`
+// and `com.chase.intl` ship with the literal display name "Chase", so the
+// gate accepts them, and we want the international app to render with an
+// "INTL" badge so the user can tell the two apart in the icon grid.
+private val REGIONAL_MARKERS: Set<String> = setOf("intl")
 
 /**
  * The "brand" component of an Android package name — the first component after
@@ -127,11 +140,15 @@ private fun isCountryCodeSuffix(suffix: String): Boolean {
  * are ordinary English words ("Cloud" / "Music" / "Business" / "Premium")
  * that differ between members, are absent from the result map.
  *
- * Within each accepted group, only members whose post-brand package tail
- * contains a country-code component receive a badge (e.g. Amex `…acctsvcs.us`
- * / `…acctsvcs.uk` / `…acctsvcs.au` → "US" / "UK" / "AU"). Members whose
- * tail has no country code are left unbadged — non-regional suffixes like
- * "sig" or "intl" do not produce a badge.
+ * Within each accepted group, members whose post-brand package tail contains
+ * a country-code component receive that code as a badge (e.g. Amex
+ * `…acctsvcs.us` / `…acctsvcs.uk` / `…acctsvcs.au` → "US" / "UK" / "AU").
+ * If no country code is present, the picker falls back to a small set of
+ * non-ISO regional markers — currently just "intl" — so that Chase
+ * International (`com.chase.intl`) renders with an "INTL" badge alongside
+ * its plain Chase (`com.chase.sig.android`) sibling. Members whose tail
+ * contains neither are left unbadged: non-regional components like "sig"
+ * do not produce a badge.
  *
  * Returned map is keyed by `InstalledApp.id`.
  */
@@ -184,5 +201,9 @@ private fun longestCommonPrefixLength(lists: List<List<String>>): Int {
     return minLen
 }
 
-private fun pickDisambiguator(remainingTail: List<String>): String =
-    remainingTail.firstOrNull { it.lowercase() in COUNTRY_CODES }?.uppercase() ?: ""
+private fun pickDisambiguator(remainingTail: List<String>): String {
+    val countryCode = remainingTail.firstOrNull { it.lowercase() in COUNTRY_CODES }
+    if (countryCode != null) return countryCode.uppercase()
+    val regional = remainingTail.firstOrNull { it.lowercase() in REGIONAL_MARKERS }
+    return regional?.uppercase().orEmpty()
+}
