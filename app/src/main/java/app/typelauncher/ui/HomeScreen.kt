@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
@@ -283,20 +286,40 @@ private fun DockCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            Row(
-                modifier = Modifier
-                    .horizontalScroll(rememberScrollState())
-                    .testTag(DOCK_LIST_TAG),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                dockedApps.forEach { app ->
-                    DockedAppButton(
-                        app = app,
-                        dockIconSizeDp = dockIconSizeDp,
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onResetRank = onResetRank,
+            val scrollState = rememberScrollState()
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(scrollState)
+                        .testTag(DOCK_LIST_TAG),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    dockedApps.forEach { app ->
+                        DockedAppButton(
+                            app = app,
+                            dockIconSizeDp = dockIconSizeDp,
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onResetRank = onResetRank,
+                        )
+                    }
+                }
+                val moreAppsHint = stringResource(R.string.dock_scroll_more_hint)
+                if (scrollState.value > 0) {
+                    DockScrollChevron(
+                        icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = moreAppsHint,
+                        alignment = Alignment.CenterStart,
+                        testTag = DOCK_SCROLL_START_CHEVRON_TAG,
+                    )
+                }
+                if (scrollState.value < scrollState.maxValue) {
+                    DockScrollChevron(
+                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = moreAppsHint,
+                        alignment = Alignment.CenterEnd,
+                        testTag = DOCK_SCROLL_END_CHEVRON_TAG,
                     )
                 }
             }
@@ -429,6 +452,28 @@ private fun RecentAppButton(
             onResetRank = onResetRank,
         )
     }
+}
+
+@Composable
+private fun BoxScope.DockScrollChevron(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    alignment: Alignment,
+    testTag: String,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        tint = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .align(alignment)
+            .background(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                shape = CircleShape,
+            )
+            .padding(2.dp)
+            .testTag(testTag),
+    )
 }
 
 @Composable
