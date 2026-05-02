@@ -66,6 +66,21 @@ android {
                 keyPassword = providers.environmentVariable("DEBUG_KEY_PASSWORD").orNull
             }
         }
+        // CI materializes a release keystore from a secret for the Play Store
+        // internal-track upload (see docs/play-store-internal-track.md). The
+        // keystore is the upload key; Play App Signing re-signs with its
+        // managed app-signing key before delivery to devices. Local builds
+        // without RELEASE_KEYSTORE_FILE set produce an unsigned release AAB,
+        // which is fine for inspection and means forks build cleanly.
+        create("release") {
+            val keystorePath = providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull
+            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+            }
+        }
     }
 
     buildTypes {
@@ -78,6 +93,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Only attach the release signingConfig when CI has populated it;
+            // otherwise an unset storeFile makes bundleRelease fail locally
+            // for anyone without the secrets.
+            if (!providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
