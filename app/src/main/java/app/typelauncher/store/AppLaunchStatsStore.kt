@@ -100,7 +100,11 @@ internal fun List<InstalledApp>.filterByName(
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
         }
         candidates
-            .mapNotNull { app -> app.name.launcherMatchTier(query)?.let { tier -> app to tier } }
+            // Match against `displayName` so the disambiguator suffix (e.g.
+            // "(US)" / "(UK)") is searchable when a brand has multiple regional
+            // installs. When no disambiguator is set, displayName falls back
+            // to name and behaviour is unchanged.
+            .mapNotNull { app -> app.displayName.launcherMatchTier(query)?.let { tier -> app to tier } }
             .sortedWith(
                 compareBy<Pair<InstalledApp, LauncherMatchTier>> { (_, tier) -> tier.ordinal }
                     .then(withinTier),

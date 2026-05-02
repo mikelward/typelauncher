@@ -15,9 +15,24 @@ internal data class InstalledApp(
     val isDocked: Boolean = false,
     val isHidden: Boolean = false,
     val category: AppCategory = AppCategory.Other,
+    val disambiguator: String? = null,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
+
+    // Display label that appends a parenthesised disambiguator (e.g. "Chase
+    // (US)") when this app shares an icon-level identity with peers; falls
+    // back to the raw `name` when no disambiguator was assigned. Skips the
+    // suffix if the disambiguator already appears as a whitespace-separated
+    // token in the name — "Amex UK" with a "UK" badge stays "Amex UK"
+    // rather than becoming the redundant "Amex UK (UK)".
+    val displayName: String
+        get() {
+            val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return name
+            val nameTokens = name.split(Regex("\\s+"))
+            if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return name
+            return "$name ($tag)"
+        }
 
     // FLAG_ACTIVITY_CLEAR_TASK: if Settings is already running on a different page
     // (e.g. Bluetooth), NEW_TASK alone reuses that task and shows the page on top

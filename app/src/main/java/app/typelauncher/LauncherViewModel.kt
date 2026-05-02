@@ -123,7 +123,7 @@ internal class LauncherViewModel(
             iconSnapshotRestoreComplete = true
         }
         if (cachedMetadata.isNotEmpty()) {
-            installedApps = cachedMetadata
+            installedApps = cachedMetadata.applyDisambiguators()
             _uiState.update { state ->
                 val dockedIds = dockedAppStore.dockedAppIds
                 val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
@@ -877,12 +877,23 @@ internal class LauncherViewModel(
                         )
                     }
             }
-            .distinctBy { launcherApp -> launcherApp.name.lowercase() to launcherApp.isWorkApp }
+            // Keying dedup on `id` (userHandle.hashCode():componentName) lets distinct
+            // apps that happen to share a display name survive — e.g. Chase US
+            // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
+            // and the disambiguator pass below tags them with regional badges.
+            .distinctBy { launcherApp -> launcherApp.id }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
         val categories = inferCategories(app, collected, manifestCategories)
         return collected
             .map { installed -> installed.copy(category = categories[installed.id] ?: AppCategory.Other) }
+            .applyDisambiguators()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
+    }
+
+    private fun List<InstalledApp>.applyDisambiguators(): List<InstalledApp> {
+        val labels = computeDisambiguators(this)
+        if (labels.isEmpty()) return this
+        return map { app -> labels[app.id]?.let { app.copy(disambiguator = it) } ?: app }
     }
 
     private fun loadAvailableWidgets(): List<WidgetProvider> =
