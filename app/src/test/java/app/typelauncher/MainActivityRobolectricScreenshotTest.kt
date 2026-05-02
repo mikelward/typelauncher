@@ -877,17 +877,20 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun appRows_alignWithDockIcons() {
+    fun dockRow_centersIconsWhenTheyFitOnOneScreen() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
-        // Calculator is docked, so it isn't in the app row list anymore. Pick
-        // any other (non-docked) app to verify the column alignment between
-        // app rows and dock icons.
-        val appIconLeft = composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").getBoundsInRoot().left
-        val dockIconLeft = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot().left
-        assertEquals(appIconLeft, dockIconLeft)
+        val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
+        val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot()
+        val leftGap = dockIconBounds.left - dockListBounds.left
+        val rightGap = dockListBounds.right - dockIconBounds.right
+        // Allow a 1dp tolerance for sub-pixel rounding when the row width is odd.
+        assertTrue(
+            "single docked icon should be centered (leftGap=$leftGap, rightGap=$rightGap)",
+            kotlin.math.abs((leftGap - rightGap).value) <= 1f,
+        )
     }
 
     @Test
