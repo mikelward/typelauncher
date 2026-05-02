@@ -112,6 +112,7 @@ internal class LauncherViewModel(
                         .filterDockedByName(dockedAppStore.dockedAppIds, state.query)
                         .markDocked(),
                     isLoadingApps = false,
+                    isFreshAppLoadComplete = true,
                 )
             }
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
