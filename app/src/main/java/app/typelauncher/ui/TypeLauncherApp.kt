@@ -60,7 +60,13 @@ private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
 // pulled back, so they don't want to commit.
 private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 
-private const val NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP = 96
+// Drag distance the user must travel vertically before either pull gesture
+// commits — same value for both directions so a pull-up and a pull-down feel
+// equally deliberate. Pull-down on Home opens the notification bar (or, when
+// the bar is already up, the system shade); pull-up on Home opens the recents
+// bar. The threshold matches the carousel's horizontal commit so all three
+// directions share the same "this was a real intentional drag" budget.
+private const val VERTICAL_PULL_THRESHOLD_DP = 96
 
 // Once the app list has loaded, wait this long for the soft keyboard to come
 // up before signalling "home ready" anyway. Hardware keyboards, IME-disabled
@@ -206,10 +212,12 @@ internal fun TypeLauncherApp(
             SwipeNavigationBox(
                 screen = state.screen,
                 isNotificationBarOpen = state.isNotificationBarOpen,
+                isRecentsOpen = state.isRecentsOpen,
                 onShowAgenda = onShowAgenda,
                 onShowWidgets = onShowWidgets,
                 onShowHome = onShowHome,
                 onSetNotificationBarOpen = onSetNotificationBarOpen,
+                onSetRecentsOpen = onSetRecentsOpen,
                 onSwipeDown = onSwipeDown,
             ) { pageScreen ->
                 when (pageScreen) {
@@ -225,7 +233,6 @@ internal fun TypeLauncherApp(
                         onResetRank = onResetRank,
                         onHideApp = onHideApp,
                         onOpenSettings = onOpenSettings,
-                        onSetRecentsOpen = onSetRecentsOpen,
                         onSetNotificationBarOpen = onSetNotificationBarOpen,
                         onRequestNotificationAccess = onRequestNotificationAccess,
                     )
@@ -285,22 +292,28 @@ private fun HomeReadySignal(
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
     isNotificationBarOpen: Boolean,
+    isRecentsOpen: Boolean,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit,
+    onSetRecentsOpen: (Boolean) -> Unit,
     onSwipeDown: () -> Unit,
     content: @Composable (LauncherScreen) -> Unit,
 ) {
-    // First swipe-down on Home opens the in-app notification bar; a second
-    // swipe-down (while the bar is already visible) hands off to the system
-    // shade. On Widgets/Agenda the bar doesn't exist, so swipe-down expands the
-    // shade directly. We capture the latest values via rememberUpdatedState so
-    // the dispatch lambda's identity stays stable across recompositions and
-    // doesn't re-key the pointerInput mid-gesture.
+    // Both pull gestures dispatch from this single carousel-level handler so
+    // they're triggerable from anywhere on Home that doesn't have a more
+    // specific consumer (margins, dock surface, recents/notification bars,
+    // and — at their top/bottom edges — the apps list itself). Down opens the
+    // notification bar then the system shade; up opens the recents bar.
+    // We capture the latest values via rememberUpdatedState so the dispatch
+    // lambdas keep stable identities and don't re-key the pointerInput
+    // mid-gesture.
     val currentScreen by rememberUpdatedState(screen)
     val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
+    val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
+    val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val swipeDownDispatch = remember<() -> Unit> {
         {
@@ -308,6 +321,16 @@ private fun SwipeNavigationBox(
                 currentSetBarOpen(true)
             } else {
                 currentOnSwipeDown()
+            }
+        }
+    }
+    val swipeUpDispatch = remember<() -> Unit> {
+        {
+            // Pull-up only does anything on Home — the recents bar lives on
+            // Home, and there's no second-stage hand-off (the system has no
+            // pull-up gesture we'd want to defer to).
+            if (currentScreen == LauncherScreen.Home && !currentRecentsOpen) {
+                currentSetRecentsOpen(true)
             }
         }
     }
@@ -324,8 +347,8 @@ private fun SwipeNavigationBox(
     val backwardVelocityCancelPxPerSec = with(density) {
         CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC.dp.toPx()
     }
-    val notificationShadeThresholdPx = with(density) {
-        NOTIFICATION_SHADE_SWIPE_THRESHOLD_DP.dp.toPx()
+    val verticalPullThresholdPx = with(density) {
+        VERTICAL_PULL_THRESHOLD_DP.dp.toPx()
     }
     val coroutineScope = rememberCoroutineScope()
     // Hold off on composing carousel pages other than the visible one until the
@@ -458,7 +481,7 @@ private fun SwipeNavigationBox(
                     }
                 }
             }
-            .pointerInput(notificationShadeThresholdPx, swipeDownDispatch) {
+            .pointerInput(verticalPullThresholdPx, swipeDownDispatch, swipeUpDispatch) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     var verticalDragPx = 0f
@@ -469,11 +492,19 @@ private fun SwipeNavigationBox(
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (verticalDragPx >= notificationShadeThresholdPx) {
-                        LauncherDebugLog.event(
-                            "SwipeNavigationBox swipe down verticalDragPx=$verticalDragPx",
-                        )
-                        swipeDownDispatch()
+                    when {
+                        verticalDragPx >= verticalPullThresholdPx -> {
+                            LauncherDebugLog.event(
+                                "SwipeNavigationBox swipe down verticalDragPx=$verticalDragPx",
+                            )
+                            swipeDownDispatch()
+                        }
+                        verticalDragPx <= -verticalPullThresholdPx -> {
+                            LauncherDebugLog.event(
+                                "SwipeNavigationBox swipe up verticalDragPx=$verticalDragPx",
+                            )
+                            swipeUpDispatch()
+                        }
                     }
                 }
             },

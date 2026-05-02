@@ -9,8 +9,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,9 +72,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
@@ -96,7 +91,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -112,7 +106,6 @@ internal fun HomeScreen(
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
-    onSetRecentsOpen: (Boolean) -> Unit = {},
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
 ) {
@@ -167,14 +160,12 @@ internal fun HomeScreen(
         if (state.isDockEnabled) {
             DockCard(
                 dockedApps = state.dockedApps,
-                isRecentsOpen = state.isRecentsOpen,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
-                onSetRecentsOpen = onSetRecentsOpen,
             )
         }
         // Recents lives in its own card below the dock so it can render
@@ -261,7 +252,6 @@ private fun SearchCard(
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
-    isRecentsOpen: Boolean = false,
     dockIconSizeDp: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
@@ -269,39 +259,8 @@ private fun DockCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
-    onSetRecentsOpen: (Boolean) -> Unit = {},
 ) {
-    val density = LocalDensity.current
-    val dragThresholdPx = with(density) { DOCK_RECENTS_DRAG_THRESHOLD_DP.dp.toPx() }
-    SectionCard(
-        modifier
-            .testTag(DOCK_CARD_TAG)
-            .pointerInput(dragThresholdPx, isRecentsOpen, onSetRecentsOpen) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    var rawDragX = 0f
-                    var rawDragY = 0f
-                    var fired = false
-                    do {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        event.changes.forEach { change ->
-                            val delta = change.positionChange()
-                            rawDragX += delta.x
-                            rawDragY += delta.y
-                            if (!fired && abs(rawDragY) > abs(rawDragX) && abs(rawDragY) >= dragThresholdPx) {
-                                if (rawDragY < 0f && !isRecentsOpen) {
-                                    onSetRecentsOpen(true)
-                                    fired = true
-                                } else if (rawDragY > 0f && isRecentsOpen) {
-                                    onSetRecentsOpen(false)
-                                    fired = true
-                                }
-                            }
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
-            },
-    ) {
+    SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
         if (dockedApps.isEmpty()) {
             Text(
                 text = stringResource(R.string.dock_apps_hint),
@@ -1525,11 +1484,6 @@ private fun selectionHighlightOnColor(): Color =
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_SPACING_DP = 16
-// Vertical drag distance on the dock that toggles the recents panel. The
-// gesture is intentionally hidden (no visible affordance), so the threshold
-// matches the carousel/notification-shade swipes — a deliberate pull, not an
-// accidental finger slide.
-private const val DOCK_RECENTS_DRAG_THRESHOLD_DP = 48
 
 // Notification badge dot — sized to read as "presence" rather than a count or
 // number badge, matching Android's standard notification dot. Sits in the
