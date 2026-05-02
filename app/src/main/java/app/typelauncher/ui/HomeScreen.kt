@@ -1380,13 +1380,14 @@ private fun DockAddButton(dockIconSizeDp: Int) {
     val hint = stringResource(R.string.dock_add_button_hint)
     val description = stringResource(R.string.dock_add_button_description)
     Box(
-        modifier = Modifier.padding(4.dp),
+        modifier = Modifier
+            .padding(4.dp)
+            .testTag(DOCK_ADD_BUTTON_TAG),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
             modifier = Modifier
                 .size(dockIconSizeDp.dp)
-                .testTag(DOCK_ADD_BUTTON_TAG)
                 .semantics {
                     contentDescription = description
                     role = Role.Button
