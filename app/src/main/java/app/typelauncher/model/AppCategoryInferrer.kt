@@ -21,12 +21,24 @@ internal const val CATEGORY_OVERRIDES_ASSET = "category_overrides.txt"
  *
  * Three-pass strategy, highest-precedence first:
  *   1. [ApplicationInfo.category] (declared by the app developer in their
- *      manifest, available since API 26). When the app declares one, use it.
+ *      manifest, available since API 26). The caller-supplied
+ *      [manifestCategories] is consulted first so work-profile apps (which
+ *      the launcher's owner-profile [PackageManager] can't see) still get
+ *      pass-1 coverage — `loadInstalledApps` populates the map from
+ *      `LauncherActivityInfo.applicationInfo` per profile. For packages not
+ *      in the map, fall back to `PackageManager.getApplicationInfo` so
+ *      callers without a [LauncherApps] handle still get owner-profile
+ *      coverage.
  *   2. Android's `Intent.CATEGORY_APP_*` launcher categories: query the
  *      package manager once per category and slot the resolved packages.
+ *      Owner-profile only — `PackageManager.queryIntentActivities` doesn't
+ *      see other users, and `LauncherApps` has no equivalent per-profile
+ *      query for arbitrary launcher categories. Work-profile apps that miss
+ *      pass 1 won't be caught here; they fall through to pass 3 or `Other`.
  *   3. A curated overrides map shipped as `assets/category_overrides.txt`,
  *      for categories Android has no built-in slot for (Finance, banking,
  *      regional payment apps, ...) and apps that miss the manifest signal.
+ *      Profile-agnostic — keyed on package name only.
  *
  * Anything still unmapped lands in [AppCategory.Other]. The result is keyed
  * by [InstalledApp.id] so personal/work duplicates of the same package don't
@@ -35,6 +47,7 @@ internal const val CATEGORY_OVERRIDES_ASSET = "category_overrides.txt"
 internal fun inferCategories(
     context: Context,
     apps: List<InstalledApp>,
+    manifestCategories: Map<String, Int> = emptyMap(),
 ): Map<String, AppCategory> {
     if (apps.isEmpty()) return emptyMap()
     val packageManager = context.packageManager
@@ -42,10 +55,11 @@ internal fun inferCategories(
 
     for (packageName in apps.map { it.packageName }.toSet()) {
         if (packageName in packageCategories) continue
-        val manifestCategory = runCatching {
-            packageManager.getApplicationInfo(packageName, 0).category
-        }.getOrDefault(ApplicationInfo.CATEGORY_UNDEFINED)
-        appCategoryFromManifest(manifestCategory)?.let { packageCategories[packageName] = it }
+        val rawCategory = manifestCategories[packageName]
+            ?: runCatching {
+                packageManager.getApplicationInfo(packageName, 0).category
+            }.getOrDefault(ApplicationInfo.CATEGORY_UNDEFINED)
+        appCategoryFromManifest(rawCategory)?.let { packageCategories[packageName] = it }
     }
 
     for ((intentCategory, appCategory) in APP_INTENT_CATEGORIES) {

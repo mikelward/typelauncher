@@ -828,6 +828,11 @@ internal class LauncherViewModel(
         val personalUser = Process.myUserHandle()
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
+        // Capture the manifest `appCategory` int alongside each app so the
+        // inferrer can categorise work-profile apps too — `PackageManager` on
+        // the launcher's owner profile can't see them, but `LauncherActivityInfo`
+        // exposes the per-profile `ApplicationInfo` directly.
+        val manifestCategories = HashMap<String, Int>()
         val profileApps = launcherApps
             ?.profiles
             .orEmpty()
@@ -839,6 +844,7 @@ internal class LauncherViewModel(
                 LauncherDebugLog.event("loadInstalledApps profile=${user.hashCode()} activities=${activities.size}")
                 activities
                     .map { activity ->
+                        manifestCategories[activity.applicationInfo.packageName] = activity.applicationInfo.category
                         InstalledApp(
                             name = activity.label.toString(),
                             packageName = activity.applicationInfo.packageName,
@@ -856,6 +862,9 @@ internal class LauncherViewModel(
                 resolveInfos
                     .map { resolveInfo ->
                         val activityInfo = resolveInfo.activityInfo
+                        activityInfo.applicationInfo?.let { appInfo ->
+                            manifestCategories[appInfo.packageName] = appInfo.category
+                        }
                         InstalledApp(
                             name = resolveInfo.loadLabel(app.packageManager).toString(),
                             packageName = activityInfo.packageName,
@@ -870,7 +879,7 @@ internal class LauncherViewModel(
             }
             .distinctBy { launcherApp -> launcherApp.name.lowercase() to launcherApp.isWorkApp }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
-        val categories = inferCategories(app, collected)
+        val categories = inferCategories(app, collected, manifestCategories)
         return collected
             .map { installed -> installed.copy(category = categories[installed.id] ?: AppCategory.Other) }
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
