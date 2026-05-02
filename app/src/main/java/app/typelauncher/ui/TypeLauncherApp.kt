@@ -139,6 +139,7 @@ internal fun TypeLauncherApp(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TypeLauncherApp(
     state: LauncherUiState,
@@ -199,6 +200,21 @@ internal fun TypeLauncherApp(
     LaunchedEffect(Unit) {
         withFrameNanos { }
         homeBodyReady = true
+    }
+    val imeVisible = WindowInsets.isImeVisible
+    var prevImeVisible by remember { mutableStateOf(imeVisible) }
+    LaunchedEffect(imeVisible) {
+        val wasVisible = prevImeVisible
+        prevImeVisible = imeVisible
+        if (wasVisible &&
+            !imeVisible &&
+            state.screen == LauncherScreen.Home &&
+            !state.isSettingsOpen &&
+            state.isNotificationsEnabled &&
+            !state.isNotificationBarOpen
+        ) {
+            onSetNotificationBarOpen(true)
+        }
     }
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
