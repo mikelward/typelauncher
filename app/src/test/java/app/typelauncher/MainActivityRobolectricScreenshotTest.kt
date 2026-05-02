@@ -592,7 +592,11 @@ class MainActivityRobolectricScreenshotTest {
         )
         saveScreenshot("compose_settings_preview_dock_disabled_robolectric.png")
 
-        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        // Done button lives in the header at the top of the page, but we
+        // scrolled down to the apps card earlier — bring it back into view
+        // before clicking, otherwise the click misses and we never return
+        // to home.
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
@@ -607,17 +611,24 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        // Scroll the dock icon into view before measuring its width — the
+        // Scroll the dock card into view before measuring the icon — the
         // preview's four-bar budget pushes the dock card below the viewport
         // on the test screen and boundsInRoot would otherwise return clipped
         // zero-width bounds (Compose's localBoundingBoxOf clips by default).
-        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").performScrollTo().getBoundsInRoot()
+        // We have to scroll the dock CARD (an ancestor of the vertical
+        // settings scroll), not the icon directly, because the icon sits
+        // inside ScrollableIconRow's horizontalScroll — performScrollTo on
+        // the icon would target the inner horizontal scroller, leaving the
+        // outer page where it was.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).performScrollTo()
+        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
         viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Dock icons visible: 6").performScrollTo().assertIsDisplayed()
-        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").performScrollTo().getBoundsInRoot()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).performScrollTo()
+        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
         assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 

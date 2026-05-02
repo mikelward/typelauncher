@@ -266,7 +266,7 @@ jobs:
       - name: Print failing test details
         if: failure()
         run: |
-          shopt -s nullglob
+          shopt -s nullglob globstar
           for xml in app/build/test-results/**/TEST-*.xml; do
             if grep -q "<\(failure\|error\)" "$xml"; then
               echo "::group::$xml"
