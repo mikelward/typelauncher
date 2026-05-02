@@ -14,6 +14,14 @@ val hasFirebaseConfig = firebaseConfigFile.exists()
 if (hasFirebaseConfig) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
+    // google-services.json only registers the debug client (app.typelauncher.debug).
+    // Disable the release variant's processing task so bundleRelease doesn't fail
+    // when the file is present but has no matching release client.
+    afterEvaluate {
+        tasks.matching { it.name == "processReleaseGoogleServices" }.configureEach {
+            enabled = false
+        }
+    }
 }
 
 fun gitOutput(vararg args: String, fallback: String): String =
