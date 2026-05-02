@@ -36,6 +36,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -1059,6 +1060,7 @@ internal fun SettingsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
+            .verticalScroll(rememberScrollState())
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
             .testTag(SETTINGS_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1070,7 +1072,9 @@ internal fun SettingsScreen(
         ) {
             Text(
                 text = stringResource(R.string.settings_title),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(SETTINGS_TITLE_TAG),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -1375,11 +1379,16 @@ private fun SettingsPreview(
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
-    // Apps preview shrinks to one row whenever any bottom card (dock or recents)
-    // is visible, and expands to two rows plus spacing when both are hidden so
-    // the total preview footprint stays roughly constant.
-    val hasBottomCard = state.isDockEnabled || state.isRecentsAlwaysShown
-    val appListHeight = if (hasBottomCard) previewHeight else previewHeight * 2 + SETTINGS_PREVIEW_SPACING_DP.dp
+    // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
+    // user can see the size impact of enabling each bar: every additional bottom
+    // card (dock, recents) eats one bar of vertical space out of the apps card.
+    val totalPreviewHeight =
+        previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
+            SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
+    val bottomCardCount =
+        (if (state.isDockEnabled) 1 else 0) + (if (state.isRecentsAlwaysShown) 1 else 0)
+    val appListHeight =
+        totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * bottomCardCount
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
@@ -1483,6 +1492,7 @@ private fun selectionHighlightOnColor(): Color =
 
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
+private const val SETTINGS_PREVIEW_BAR_COUNT = 3
 private const val SETTINGS_PREVIEW_SPACING_DP = 16
 
 // Notification badge dot — sized to read as "presence" rather than a count or
