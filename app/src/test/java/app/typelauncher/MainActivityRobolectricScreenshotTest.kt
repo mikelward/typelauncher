@@ -1502,6 +1502,13 @@ class MainActivityRobolectricScreenshotTest {
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             val packageManager = shadowOf(ApplicationProvider.getApplicationContext<android.content.Context>().packageManager)
             ALL_FAKE_APP_NAMES.forEachIndexed { index, label ->
+                // The real Type Launcher activity from the manifest already
+                // surfaces with this label via `queryIntentActivities`, so a
+                // fake "Type Launcher" entry would now show up alongside it
+                // (dedup keys on `InstalledApp.id`, not on lowercased name).
+                // Skip the fake seed and let the real activity stand in for
+                // it — keeps the expected-result list unchanged.
+                if (label == "Type Launcher") return@forEachIndexed
                 val packageName = "app.typelauncher.fake$index"
                 val resolveInfo = ResolveInfo().apply {
                     nonLocalizedLabel = label

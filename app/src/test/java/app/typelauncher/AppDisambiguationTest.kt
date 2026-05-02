@@ -136,6 +136,31 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun displayNameStripsParensWhenCheckingForRedundantSuffix() {
+        // A label that already includes a parenthesised country marker
+        // ("Bank (US)") shouldn't render as "Bank (US) (US)" — the token
+        // comparison normalises surrounding punctuation before checking.
+        val app = personalApp("Bank (US)", "com.bigbank.us")
+            .copy(disambiguator = "US")
+        assertEquals("Bank (US)", app.displayName)
+    }
+
+    @Test
+    fun samePackagePersonalWorkPairIsNotDisambiguated() {
+        // Personal Gmail and a work-profile clone of the same Gmail share
+        // the same package — the work-profile badge already disambiguates
+        // them and the package-tail picker would just produce identical
+        // labels for both, so we skip the group entirely.
+        val personal = personalApp("Gmail", "com.google.android.gm")
+        val work = personalApp("Gmail", "com.google.android.gm")
+            // Different `id` because UserHandle differs. We can't easily
+            // construct a foreign UserHandle in a unit test, so simulate
+            // the ID divergence via a different launchIntent component.
+            .let { it.copy(launchIntent = Intent.makeMainActivity(ComponentName(it.packageName, "${it.packageName}.WorkActivity"))) }
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(listOf(personal, work)))
+    }
+
+    @Test
     fun nonIsoRegionalMarkersAreNotMatched() {
         // We deliberately don't include "EMEA" / "APAC" / "ANZ" / "ROW" in
         // the regional-marker list — keeping the set to ISO 3166-1 alpha-2
