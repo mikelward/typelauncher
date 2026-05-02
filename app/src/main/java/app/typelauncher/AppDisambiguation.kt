@@ -10,6 +10,9 @@ package app.typelauncher
 private val ETLD_PREFIXES: List<List<String>> = listOf(
     "co.uk", "com.au", "co.jp", "co.kr", "co.nz", "com.br", "com.mx", "com.cn",
     "com.tr", "com.sg", "com.hk", "com.tw",
+    // com.ie — reverse-DNS of ie.com (used by some Irish/UK apps, e.g. com.ie.capitalone.uk)
+    // com.konylabs — Kony/Temenos mobile-platform prefix; the brand follows it
+    "com.ie", "com.konylabs",
     "com", "org", "net", "io", "app", "dev", "co",
     "de", "fr", "jp", "ru", "uk", "us",
 ).map { it.split('.') }
@@ -115,10 +118,7 @@ private fun isCountryCodeSuffix(suffix: String): Boolean {
  * Compute a short disambiguator label for each app that shares a `(brand,
  * firstWord)` key with at least one other app in the input list AND where
  * either:
- *  - at least one member's suffix is a recognised country code (so a single
- *    "Bank UK" entry pulls "Bank" and "Bank Premium" into the group too —
- *    once we've seen a regional tag, we tag every member of the group so the
- *    user can tell them apart at a glance), or
+ *  - at least one member's suffix is a recognised country code, or
  *  - every member has an empty suffix (the Chase-vs-Chase case, where the
  *    display names are literally identical).
  *
@@ -126,12 +126,11 @@ private fun isCountryCodeSuffix(suffix: String): Boolean {
  * are ordinary English words ("Cloud" / "Music" / "Business" / "Premium"),
  * are absent from the result map.
  *
- * Within each accepted group we drop the longest component-aligned dot-prefix
- * shared by all members' post-brand tails, then pick a label per app from
- * what remains. The picker prefers ISO country-code components (so Amex
- * `…acctsvcs.us` / `…acctsvcs.uk` / `…acctsvcs.au` render as "US" / "UK" /
- * "AU"); otherwise it falls back to the first remaining component truncated,
- * then to characters of the display name that are unique versus its peers.
+ * Within each accepted group, only members whose post-brand package tail
+ * contains a country-code component receive a badge (e.g. Amex `…acctsvcs.us`
+ * / `…acctsvcs.uk` / `…acctsvcs.au` → "US" / "UK" / "AU"). Members whose
+ * tail has no country code are left unbadged — non-regional suffixes like
+ * "sig" or "intl" do not produce a badge.
  *
  * Returned map is keyed by `InstalledApp.id`.
  */
@@ -166,9 +165,9 @@ internal fun computeDisambiguators(apps: List<InstalledApp>): Map<String, String
         }
         val commonPrefixLen = longestCommonPrefixLength(tails.map { it.second })
         val trimmed = tails.map { (app, tail) -> app to tail.drop(commonPrefixLen) }
-        val peerNames = group.map { it.name }
         for ((app, remaining) in trimmed) {
-            result[app.id] = pickDisambiguator(remaining, app.name, peerNames)
+            val badge = pickDisambiguator(remaining)
+            if (badge.isNotEmpty()) result[app.id] = badge
         }
     }
     return result
@@ -184,34 +183,5 @@ private fun longestCommonPrefixLength(lists: List<List<String>>): Int {
     return minLen
 }
 
-private fun pickDisambiguator(
-    remainingTail: List<String>,
-    appName: String,
-    peerNames: List<String>,
-): String {
-    remainingTail.firstOrNull { it.lowercase() in COUNTRY_CODES }?.let {
-        return it.uppercase()
-    }
-    remainingTail.firstOrNull { it.length in 2..3 }?.let {
-        return it.uppercase()
-    }
-    remainingTail.firstOrNull()?.let {
-        return it.take(2).uppercase()
-    }
-    val unique = uniqueNameChars(appName, peerNames.filter { it != appName })
-    if (unique.isNotEmpty()) return unique.take(2).uppercase()
-    return appName.replace(Regex("\\W+"), "").take(2).uppercase().ifEmpty { "?" }
-}
-
-private fun uniqueNameChars(name: String, peers: List<String>): String {
-    if (peers.isEmpty()) return ""
-    val builder = StringBuilder()
-    for (i in name.indices) {
-        val c = name[i]
-        if (peers.all { p -> i >= p.length || p[i] != c }) {
-            builder.append(c)
-            if (builder.length >= 2) break
-        }
-    }
-    return builder.toString()
-}
+private fun pickDisambiguator(remainingTail: List<String>): String =
+    remainingTail.firstOrNull { it.lowercase() in COUNTRY_CODES }?.uppercase() ?: ""
