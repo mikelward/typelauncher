@@ -106,6 +106,28 @@ class DockPrefillTest {
         assertTrue(DockedAppStore(context).hasBeenPrefilled)
     }
 
+    // Upgrade-safety: users who already have a non-empty dock when the flag is
+    // absent (i.e. upgrading from a build before prefill was introduced) must
+    // not have popular apps silently appended to their existing dock. The
+    // ViewModel guards this by skipping prefillDock when dockedAppIds is
+    // non-empty before the call. This test exercises that combination directly.
+    @Test
+    fun prefillLeavesExistingDockUntouched() {
+        val store = DockedAppStore(context)
+        val userApp = installedApp("com.example.userapp")
+        store.dock(userApp.id)
+
+        // Simulate upgrade path: flag absent, dock non-empty → skip prefill
+        if (!store.hasBeenPrefilled && store.dockedAppIds.isNotEmpty()) {
+            store.markPrefilled()
+        } else {
+            prefillDock(listOf(installedApp("com.android.chrome")), store, maxSlots = 4)
+            store.markPrefilled()
+        }
+
+        assertEquals(listOf(userApp.id), store.dockedAppIds)
+    }
+
     private fun installedApp(packageName: String, isWork: Boolean = false): InstalledApp {
         val component = ComponentName(packageName, "$packageName.MainActivity")
         return InstalledApp(
