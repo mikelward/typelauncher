@@ -37,6 +37,10 @@ class SwipeScrollPriorityTest {
     fun swipingLeftOnOverflowingDock_doesNotNavigateCarousel() {
         // Enough apps to overflow the dock row width on a 411dp screen.
         val dockedApps = (0 until 20).map { fakeApp(it) }
+        // Track both Widgets and Agenda: a left-swipe from Home advances to
+        // Widgets first (not Agenda), so checking only onShowAgenda would
+        // silently pass even if the carousel did navigate one page.
+        var widgetsShown = false
         var agendaShown = false
         composeRule.setContent {
             TypeLauncherTheme {
@@ -63,7 +67,7 @@ class SwipeScrollPriorityTest {
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = { agendaShown = true },
-                    onShowWidgets = {},
+                    onShowWidgets = { widgetsShown = true },
                     onShowHome = {},
                     appWidgetHost = null,
                     appWidgetManager = null,
@@ -82,7 +86,11 @@ class SwipeScrollPriorityTest {
         composeRule.waitForIdle()
 
         assertFalse(
-            "Expected dock scroll to consume the gesture, not carousel navigation",
+            "Expected dock scroll to consume the gesture, not carousel navigation to Widgets",
+            widgetsShown,
+        )
+        assertFalse(
+            "Expected dock scroll to consume the gesture, not carousel navigation to Agenda",
             agendaShown,
         )
     }
@@ -90,6 +98,7 @@ class SwipeScrollPriorityTest {
     @Test
     fun swipingLeftOnOverflowingRecentsBar_doesNotNavigateCarousel() {
         val recentApps = (0 until 20).map { fakeApp(it) }
+        var widgetsShown = false
         var agendaShown = false
         composeRule.setContent {
             TypeLauncherTheme {
@@ -116,7 +125,7 @@ class SwipeScrollPriorityTest {
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = { agendaShown = true },
-                    onShowWidgets = {},
+                    onShowWidgets = { widgetsShown = true },
                     onShowHome = {},
                     appWidgetHost = null,
                     appWidgetManager = null,
@@ -135,7 +144,11 @@ class SwipeScrollPriorityTest {
         composeRule.waitForIdle()
 
         assertFalse(
-            "Expected recents bar scroll to consume the gesture, not carousel navigation",
+            "Expected recents bar scroll to consume the gesture, not carousel navigation to Widgets",
+            widgetsShown,
+        )
+        assertFalse(
+            "Expected recents bar scroll to consume the gesture, not carousel navigation to Agenda",
             agendaShown,
         )
     }
@@ -143,6 +156,7 @@ class SwipeScrollPriorityTest {
     @Test
     fun swipingLeftOnOverflowingNotificationBar_doesNotNavigateCarousel() {
         val notifyingApps = (0 until 20).map { fakeApp(it) }
+        var widgetsShown = false
         var agendaShown = false
         composeRule.setContent {
             TypeLauncherTheme {
@@ -171,7 +185,7 @@ class SwipeScrollPriorityTest {
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = { agendaShown = true },
-                    onShowWidgets = {},
+                    onShowWidgets = { widgetsShown = true },
                     onShowHome = {},
                     appWidgetHost = null,
                     appWidgetManager = null,
@@ -190,7 +204,11 @@ class SwipeScrollPriorityTest {
         composeRule.waitForIdle()
 
         assertFalse(
-            "Expected notification bar scroll to consume the gesture, not carousel navigation",
+            "Expected notification bar scroll to consume the gesture, not carousel navigation to Widgets",
+            widgetsShown,
+        )
+        assertFalse(
+            "Expected notification bar scroll to consume the gesture, not carousel navigation to Agenda",
             agendaShown,
         )
     }
