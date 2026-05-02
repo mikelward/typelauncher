@@ -62,18 +62,34 @@ jobs:
 
       - name: Print failing test details
         # When `gradlew test` fails the JUnit XML still contains the failure
-        # messages and stack traces. Dump them to the job log so we don't have
-        # to download the artifact zip to know which test broke.
+        # messages and stack traces. Dump them to the job log AND, on a PR
+        # build, post them as a PR comment so the same data is reachable
+        # without needing to sign in to view the job log or unzip the
+        # artifact.
         if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          JOB_NAME: ${{ github.job }}
         run: |
-          shopt -s nullglob
+          shopt -s nullglob globstar
+          summary=""
           for xml in app/build/test-results/**/TEST-*.xml; do
             if grep -q "<\(failure\|error\)" "$xml"; then
               echo "::group::$xml"
               cat "$xml"
               echo "::endgroup::"
+              summary+=$'\n\n'"### \`$xml\`"$'\n```xml\n'"$(cat "$xml")"$'\n```'
             fi
           done
+          if [ -n "$PR_NUMBER" ] && [ -n "$summary" ]; then
+            body=$'<!-- ci-failure -->'$'\n'"**${JOB_NAME} failed.** Failing test reports:"$'\n'"$summary"
+            curl -sS -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -d "$(jq -n --arg body "$body" '{body:$body}')" > /dev/null
+          fi
 
       - name: Upload unit test reports
         # Always upload so a failed test run leaves the JUnit XMLs and HTML
