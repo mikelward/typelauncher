@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.os.UserHandle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
@@ -40,19 +41,24 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
     }
 
     /**
-     * Cancels every user-visible active notification for [packageName]. The bar
-     * uses this to back its "Dismiss" action — it removes the notifications the
-     * user can actually see (matches what the system shade would show), so the
-     * package drops out of [ActiveNotifications] and the bar updates.
-     * Ongoing/foreground-service notifications and group summaries are skipped
-     * for the same reason they're hidden in the bar (they're system bookkeeping,
-     * not user-visible content).
+     * Cancels every user-visible active notification for [packageName] under
+     * [user]. The bar uses this to back its "Dismiss" action — it removes the
+     * notifications the user can actually see (matches what the system shade
+     * would show), so the package drops out of [ActiveNotifications] and the
+     * bar updates. Ongoing/foreground-service notifications and group summaries
+     * are skipped for the same reason they're hidden in the bar (they're
+     * system bookkeeping, not user-visible content).
+     *
+     * The [user] filter is required because the same package can be installed
+     * in both the personal and work profiles, and the bar can surface both
+     * — long-pressing the personal icon must not cancel work-profile
+     * notifications (and vice versa).
      */
-    fun dismissNotificationsFor(packageName: String) {
+    fun dismissNotificationsFor(packageName: String, user: UserHandle) {
         val keys = try {
             activeNotifications
                 ?.asSequence()
-                ?.filter { it.packageName == packageName && isUserVisible(it) }
+                ?.filter { it.packageName == packageName && it.user == user && isUserVisible(it) }
                 ?.map { it.key }
                 ?.toList()
                 .orEmpty()
@@ -125,7 +131,7 @@ internal object NotificationDismisser {
         if (service === listener) service = null
     }
 
-    fun dismissNotificationsFor(packageName: String) {
-        service?.dismissNotificationsFor(packageName)
+    fun dismissNotificationsFor(packageName: String, user: UserHandle) {
+        service?.dismissNotificationsFor(packageName, user)
     }
 }
