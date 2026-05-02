@@ -73,6 +73,7 @@ internal class LauncherViewModel(
             isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
             isNotificationsEnabled = dockSettingsStore.isNotificationsEnabled,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
+            areFoldersEnabled = dockSettingsStore.areFoldersEnabled,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
         ),
@@ -204,7 +205,12 @@ internal class LauncherViewModel(
     }
 
     fun setQuery(query: String) {
-        _uiState.update { state -> state.copy(query = query) }
+        _uiState.update { state ->
+            state.copy(
+                query = query,
+                openFolder = state.openFolder.takeIf { query.isBlank() },
+            )
+        }
         refreshLists()
         LauncherDebugLog.event(
             "setQuery length=${query.length} filtered=${_uiState.value.filteredApps.size} " +
@@ -644,6 +650,28 @@ internal class LauncherViewModel(
         logState("setRecentsAlwaysShown")
     }
 
+    fun setFoldersEnabled(isEnabled: Boolean) {
+        dockSettingsStore.areFoldersEnabled = isEnabled
+        _uiState.update {
+            it.copy(
+                areFoldersEnabled = isEnabled,
+                openFolder = it.openFolder.takeIf { _ -> isEnabled },
+            )
+        }
+        logState("setFoldersEnabled=$isEnabled")
+    }
+
+    fun openFolder(category: AppCategory) {
+        _uiState.update { it.copy(openFolder = category) }
+        logState("openFolder=$category")
+    }
+
+    fun closeFolder() {
+        if (_uiState.value.openFolder == null) return
+        _uiState.update { it.copy(openFolder = null) }
+        logState("closeFolder")
+    }
+
     /**
      * Persists the user's "Show notifications" preference. When the user is
      * enabling the bar and listener access has not yet been granted, opens
@@ -821,7 +849,7 @@ internal class LauncherViewModel(
                         )
                     }
             }
-        return profileApps
+        val collected = profileApps
             .ifEmpty {
                 val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
                 LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=${resolveInfos.size}")
@@ -842,6 +870,9 @@ internal class LauncherViewModel(
             }
             .distinctBy { launcherApp -> launcherApp.name.lowercase() to launcherApp.isWorkApp }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
+        val categories = inferCategories(app, collected)
+        return collected
+            .map { installed -> installed.copy(category = categories[installed.id] ?: AppCategory.Other) }
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
 

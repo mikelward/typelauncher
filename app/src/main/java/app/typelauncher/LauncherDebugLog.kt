@@ -115,4 +115,5 @@ internal fun LauncherUiState.debugSummary(): String =
         "sortOrder=$appListSortOrder loadingApps=$isLoadingApps " +
         "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady " +
         "recents=${recentApps.size} recentsOpen=$isRecentsOpen " +
-        "recentsAlwaysShown=$isRecentsAlwaysShown hidden=${hiddenApps.size}"
+        "recentsAlwaysShown=$isRecentsAlwaysShown hidden=${hiddenApps.size} " +
+        "foldersEnabled=$areFoldersEnabled openFolder=$openFolder"

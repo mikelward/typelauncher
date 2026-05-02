@@ -140,6 +140,20 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Opt-in toggle for the auto-generated category folders (Settings → "Show
+     * folders"). Off by default. When on and the search box is empty, the home
+     * screen renders folder tiles instead of the flat app list; typing into the
+     * search box reverts to the flat list and closes any open folder.
+     */
+    var areFoldersEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_FOLDERS_ENABLED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_FOLDERS_ENABLED, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -149,6 +163,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_RECENTS_ALWAYS_SHOWN = "recents_always_shown"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
+        const val KEY_FOLDERS_ENABLED = "folders_enabled"
     }
 }
 

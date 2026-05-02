@@ -1,0 +1,157 @@
+# Curated package -> AppCategory overrides for apps that don't declare an
+# appCategory in their manifest and don't register an Intent.CATEGORY_APP_*
+# launcher intent. The inferrer applies this map as a third pass after the
+# manifest signal and the APP_* probe.
+#
+# Format:
+#   - One entry per line: "packageName=CategoryName"
+#   - CategoryName must match an AppCategory enum constant (case-sensitive)
+#   - Lines starting with # are comments. Blank lines are ignored.
+#   - Whitespace around '=' is trimmed.
+#
+# When adding entries, prefer apps that:
+#   - Are widely installed (top of their category in their region)
+#   - Have a category Android lacks a built-in slot for (Finance, Banking, ...)
+#   - Have a stable, well-known package name
+#
+# Apps that already declare appCategory or register an APP_* intent do NOT
+# need to be listed here; the earlier passes catch them.
+
+# --- Finance: Payments / wallets / P2P ---
+com.paypal.android.p2pmobile=Finance
+com.venmo=Finance
+com.squareup.cash=Finance
+com.zellepay.zelle=Finance
+com.google.android.apps.walletnfcrel=Finance
+com.samsung.android.spay=Finance
+com.squareup=Finance
+com.stripe.android.dashboard=Finance
+com.wise=Finance
+com.transferwise.android=Finance
+com.remitly.androidapp=Finance
+com.westernunion.android.mtapp=Finance
+com.xoom.android.app=Finance
+com.afterpaymobile=Finance
+com.klarna.mobile=Finance
+
+# --- Finance: US banks ---
+com.infonow.bofa=Finance
+com.chase.sig.android=Finance
+com.wf.wellsfargomobile=Finance
+com.citi.citimobile=Finance
+com.konylabs.capitalone=Finance
+com.usbank.mobilebanking=Finance
+com.tdbank=Finance
+com.pnc.ecommerce.mobile=Finance
+com.truist.mobile=Finance
+com.discoverfinancial.mobile=Finance
+com.americanexpress.android.acctsvcs.us=Finance
+com.allyfinancial.mobilebanking=Finance
+com.huntington.m=Finance
+com.regions.mobbanking=Finance
+com.fifththird.mb=Finance
+com.kpa.mobile=Finance
+com.synchronyfinancial.plccmobile=Finance
+
+# --- Finance: US brokerage / investing ---
+com.schwab.mobile=Finance
+com.fidelity.android=Finance
+com.etrade.mobilepro.activity=Finance
+com.tdameritrade.mobile3=Finance
+com.robinhood.android=Finance
+com.webull.global=Finance
+com.vanguard.mvc=Finance
+com.merrilledge.mobileapp=Finance
+com.public.android=Finance
+com.acorns.android=Finance
+com.stash.app.android=Finance
+
+# --- Finance: UK banks / fintech ---
+com.htsu.hsbcpersonalbanking=Finance
+com.grppl.android.shell.CMBlloydsTSB73=Finance
+com.rbs.mobile.android.natwest=Finance
+com.barclays.android.barclaysmobilebanking=Finance
+uk.co.santander.santanderUK=Finance
+co.uk.getmondo=Finance
+com.starlingbank.android=Finance
+com.revolut.revolut=Finance
+com.grppl.android.shell.halifax=Finance
+uk.co.tsb.mobilebanking=Finance
+com.nbs.android=Finance
+com.firstdirect.bankingonthego=Finance
+com.virginmoney.uk.mobile.android=Finance
+com.metrobankonline.mobile.android.production=Finance
+com.cooperativebank.bank=Finance
+com.rbs.mobile.android.rbs=Finance
+
+# --- Finance: AU banks / fintech ---
+com.commbank.netbank=Finance
+org.westpac.bank=Finance
+com.anz.android.gomoney=Finance
+au.com.nab.mobile=Finance
+au.com.bendigobank.mobile=Finance
+au.ing.mobile.android.banking=Finance
+com.macquarie.banking=Finance
+au.com.bankwest.mobilebanking=Finance
+au.com.suncorp.SuncorpBank=Finance
+com.stgeorge.bank=Finance
+com.banksa.bank=Finance
+com.ubank.internetbanking=Finance
+au.com.up.money=Finance
+au.com.judo=Finance
+
+# --- Finance: EU banks / fintech ---
+com.ing.mobile=Finance
+de.number26.android=Finance
+net.bnpparibas=Finance
+com.societegenerale.mobile.lappli=Finance
+fr.creditagricole.androidapp=Finance
+de.db.pbc.mibanking.dbpb=Finance
+de.commerzbanking.mobil=Finance
+com.starfinanz.smob.android.sfinanzstatus=Finance
+de.postbank.finanzassistent=Finance
+com.dkbcodefactory.banking=Finance
+com.bbva.bbvacontigo=Finance
+com.caixabank.banca=Finance
+es.bancosantander.apps=Finance
+it.unicredit=Finance
+com.latuabancaperandroid=Finance
+com.kbc.mobile.android.phone.kbc=Finance
+com.bnpparibasfortis.easybanking=Finance
+nl.rabobank.android=Finance
+nl.abnamro.bzbportalapp=Finance
+com.snsbank.mobielbankieren=Finance
+fi.danskebank.mobilebank=Finance
+fi.op.android.opmobile=Finance
+no.dnb.spareit=Finance
+no.dnb.dnbnaring=Finance
+se.swedbank.mobil=Finance
+se.handelsbanken.android.app=Finance
+se.seb.privatkund=Finance
+
+# --- Finance: Crypto exchanges / wallets ---
+com.coinbase.android=Finance
+com.binance.dev=Finance
+co.mona.android=Finance
+com.kraken.invest.app=Finance
+com.gemini.android.app=Finance
+com.kucoin.android=Finance
+com.bitstamp.android=Finance
+com.bitfinex.bfxapp=Finance
+io.metamask=Finance
+com.wallet.crypto.trustapp=Finance
+app.phantom=Finance
+com.ledger.live=Finance
+com.exodusmovement.exodus=Finance
+io.crypto.bitpay.wallet=Finance
+
+# --- Finance: Personal finance / accounting ---
+com.mint=Finance
+com.intuit.mint=Finance
+com.intuit.mobile.turbotaxonline=Finance
+com.intuit.qbm=Finance
+com.creditkarma.mobile=Finance
+com.experian.mobile=Finance
+com.expensify.expensifymobile=Finance
+ynab.io=Finance
+com.youneedabudget.evergreen.app=Finance

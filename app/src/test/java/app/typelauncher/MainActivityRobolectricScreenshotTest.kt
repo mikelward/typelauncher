@@ -1370,6 +1370,54 @@ class MainActivityRobolectricScreenshotTest {
         }
     }
 
+    @Test
+    fun screenshot_home_foldersEnabled_rendersFolderGrid() {
+        composeRule.activity.viewModel.setFoldersEnabled(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(FOLDERS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(FOLDERS_GRID_TAG).assertIsDisplayed()
+        // Fake apps don't declare appCategory or APP_* intents and aren't in
+        // the curated overrides asset, so they all land in the Other folder.
+        composeRule.onNodeWithTag("$FOLDER_TILE_TAG:${AppCategory.Other.name}").assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
+
+        saveScreenshot("compose_home_folders_grid_robolectric.png")
+    }
+
+    @Test
+    fun screenshot_home_foldersEnabled_openFolderShowsBackHeaderAndApps() {
+        composeRule.activity.viewModel.setFoldersEnabled(true)
+        composeRule.activity.viewModel.openFolder(AppCategory.Other)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(FOLDER_OPEN_HEADER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(FOLDER_CLOSE_BUTTON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(FOLDERS_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithText("Calculator").assertIsDisplayed()
+
+        saveScreenshot("compose_home_folder_open_robolectric.png")
+    }
+
+    @Test
+    fun typingIntoSearchClosesOpenFolderAndShowsFlatResults() {
+        composeRule.activity.viewModel.setFoldersEnabled(true)
+        composeRule.activity.viewModel.openFolder(AppCategory.Other)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("Cal")
+        composeRule.waitForIdle()
+
+        // Once the query goes non-blank, both the folder header and the folder
+        // grid should be gone — the existing flat AppsCard takes over.
+        composeRule.onNodeWithTag(FOLDERS_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(FOLDER_OPEN_HEADER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Calculator").assertIsDisplayed()
+        composeRule.onNodeWithText("Settings").assertDoesNotExist()
+    }
+
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
         fetchSemanticsNode().config[CarouselVirtualPageKey]
 
