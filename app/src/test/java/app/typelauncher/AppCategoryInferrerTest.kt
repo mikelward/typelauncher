@@ -174,6 +174,42 @@ class AppCategoryInferrerTest {
     }
 
     @Test
+    fun callerSuppliedManifestCategoriesWinsOverPackageManagerLookup() {
+        // Simulates the work-profile case: the package isn't installed on the
+        // launcher's owner profile (PackageManager.getApplicationInfo throws
+        // NameNotFoundException), but the caller has a per-profile manifest
+        // category from LauncherActivityInfo.applicationInfo. The inferrer
+        // must use the caller's value rather than fall through to Other.
+        val apps = listOf(installedApp("com.example.workgame"))
+
+        val result = inferCategories(
+            context = context,
+            apps = apps,
+            manifestCategories = mapOf("com.example.workgame" to ApplicationInfo.CATEGORY_GAME),
+        )
+
+        assertEquals(AppCategory.Games, result[apps[0].id])
+    }
+
+    @Test
+    fun callerSuppliedManifestCategoryOverridesPackageManagerLookup() {
+        // If the caller supplies a manifest category, it takes precedence over
+        // whatever the owner-profile PackageManager would return (defensive in
+        // case the same package is installed on both profiles with different
+        // declared categories — unusual but possible across profile policies).
+        installPackage("com.example.dual", category = ApplicationInfo.CATEGORY_PRODUCTIVITY)
+
+        val apps = listOf(installedApp("com.example.dual"))
+        val result = inferCategories(
+            context = context,
+            apps = apps,
+            manifestCategories = mapOf("com.example.dual" to ApplicationInfo.CATEGORY_GAME),
+        )
+
+        assertEquals(AppCategory.Games, result[apps[0].id])
+    }
+
+    @Test
     fun parseCategoryOverridesIgnoresCommentsAndBlankLinesAndUnknownCategories() {
         val parsed = parseCategoryOverrides(
             """
