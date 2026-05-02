@@ -37,8 +37,10 @@ internal object AppIconLoader {
     // steady-state usage.
     private const val CACHE_STATS_LOG_INTERVAL = 50
 
-    private val cache = object : LruCache<String, ImageBitmap>(CACHE_BYTE_BUDGET) {
-        override fun sizeOf(key: String, value: ImageBitmap): Int =
+    internal data class CacheKey(val id: String, val sizePx: Int)
+
+    private val cache = object : LruCache<CacheKey, ImageBitmap>(CACHE_BYTE_BUDGET) {
+        override fun sizeOf(key: CacheKey, value: ImageBitmap): Int =
             (value.width * value.height * ARGB_8888_BYTES_PER_PIXEL).coerceAtLeast(1)
     }
 
@@ -46,13 +48,13 @@ internal object AppIconLoader {
     private val cacheMisses = AtomicInteger()
 
     fun cached(id: String, sizePx: Int): ImageBitmap? {
-        val result = cache.get(cacheKey(id, sizePx))
+        val result = cache.get(CacheKey(id, sizePx))
         recordCacheLookup(hit = result != null)
         return result
     }
 
     suspend fun load(context: Context, app: InstalledApp, sizePx: Int): ImageBitmap? {
-        val key = cacheKey(app.id, sizePx)
+        val key = CacheKey(app.id, sizePx)
         cache.get(key)?.let { return it }
         return traceBlock("app_icon_load") { trace ->
             val resolveStart = SystemClock.elapsedRealtime()
@@ -73,6 +75,12 @@ internal object AppIconLoader {
         }
     }
 
+    fun put(id: String, sizePx: Int, bitmap: ImageBitmap) {
+        cache.put(CacheKey(id, sizePx), bitmap)
+    }
+
+    fun cacheSnapshot(): Map<CacheKey, ImageBitmap> = cache.snapshot()
+
     private fun recordCacheLookup(hit: Boolean) {
         val hits: Int
         val misses: Int
@@ -88,8 +96,6 @@ internal object AppIconLoader {
             LauncherDebugLog.event("AppIconLoader cache hits=$hits misses=$misses total=$total")
         }
     }
-
-    private fun cacheKey(id: String, sizePx: Int): String = "$id:$sizePx"
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
         val component = app.launchIntent.component ?: return null
