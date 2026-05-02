@@ -1359,6 +1359,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
+        saveScreenshot("compose_dock_overflow_chevron_robolectric.png")
     }
 
     @Test
