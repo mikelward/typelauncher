@@ -54,6 +54,13 @@ internal class LauncherViewModel(
     // initial agenda load so the calendar query can't compete with the cold-
     // start app list load on Dispatchers.IO.
     private var initialAgendaTriggered = false
+    // Flips `true` when the deferred icon-snapshot restore coroutine finishes
+    // populating `AppIconLoader`. Until then, `persistIconSnapshot` must skip
+    // saving — `AppIconLoader.cacheSnapshot()` cannot represent the on-disk
+    // state yet, so calling `IconSnapshotStore.save` would prune previously
+    // persisted icons and regress the next cold-start first frame. Read and
+    // written from the Main dispatcher only.
+    private var iconSnapshotRestoreComplete = false
     private val cachedMetadata: List<InstalledApp> = appMetadataStore.load()
     private val _uiState = MutableStateFlow(
         LauncherUiState(
@@ -70,27 +77,34 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
-        // Restore previously-rasterised icons on the IO dispatcher rather than the
-        // main thread: the file read + Bitmap allocation + copyPixelsFromBuffer per
-        // snapshot adds up to enough work to delay setContent → first frame → the
-        // LaunchedEffect in SearchCard that calls keyboard.show(). The first compose
-        // pass may miss on the cache for the very first frame (rows render with the
-        // placeholder surface), but rememberAppIconBitmap's LaunchedEffect re-checks
-        // the cache as soon as the snapshot restore lands, so the icons snap in
-        // within a frame or two.
-        viewModelScope.launch(ioDispatcher) {
-            traceBlock("icon_snapshot_restore") { trace ->
-                val snapshots = iconSnapshotStore.load()
-                for (snapshot in snapshots) {
-                    AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap)
-                }
-                trace.incrementMetric("snapshot_count", snapshots.size.toLong())
-                if (snapshots.isNotEmpty()) {
-                    LauncherDebugLog.event(
-                        "LauncherViewModel restored icon snapshot count=${snapshots.size}",
-                    )
+        // Restore previously-rasterised icons off the main thread: the file read +
+        // Bitmap allocation + copyPixelsFromBuffer per snapshot adds up to enough work
+        // to delay setContent → first frame → the LaunchedEffect in SearchCard that
+        // calls keyboard.show(). The first compose pass may miss on the cache for the
+        // very first frame (rows render with the placeholder surface), but
+        // rememberAppIconBitmap's LaunchedEffect re-checks the cache as soon as the
+        // restore lands, so the icons snap in within a frame or two.
+        //
+        // Launching on the default Main dispatcher and switching to ioDispatcher via
+        // withContext (rather than launch(ioDispatcher) { ... }) matches the fresh-
+        // load coroutine below, so Robolectric's `composeRule.waitForIdle()` drains
+        // it deterministically through the main looper.
+        viewModelScope.launch {
+            withContext(ioDispatcher) {
+                traceBlock("icon_snapshot_restore") { trace ->
+                    val snapshots = iconSnapshotStore.load()
+                    for (snapshot in snapshots) {
+                        AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap)
+                    }
+                    trace.incrementMetric("snapshot_count", snapshots.size.toLong())
+                    if (snapshots.isNotEmpty()) {
+                        LauncherDebugLog.event(
+                            "LauncherViewModel restored icon snapshot count=${snapshots.size}",
+                        )
+                    }
                 }
             }
+            iconSnapshotRestoreComplete = true
         }
         if (cachedMetadata.isNotEmpty()) {
             installedApps = cachedMetadata
@@ -262,6 +276,15 @@ internal class LauncherViewModel(
             // worth keeping". Leave the on-disk snapshot alone rather than wiping the
             // previous session's icons.
             LauncherDebugLog.event("persistIconSnapshot skipped: fresh load incomplete")
+            return
+        }
+        if (!iconSnapshotRestoreComplete) {
+            // The deferred restore hasn't populated AppIconLoader yet, so
+            // cacheSnapshot() can't represent any previously persisted icons:
+            // calling IconSnapshotStore.save with that partial set would prune
+            // them. Skip this save and let the next onStop after the restore
+            // refresh the on-disk snapshot.
+            LauncherDebugLog.event("persistIconSnapshot skipped: snapshot restore in flight")
             return
         }
         val priorityIds = priorityIconAppIds()
