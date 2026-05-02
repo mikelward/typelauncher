@@ -206,7 +206,9 @@ internal fun TypeLauncherApp(
     LaunchedEffect(imeVisible) {
         val wasVisible = prevImeVisible
         prevImeVisible = imeVisible
-        if (wasVisible &&
+        if (!wasVisible && imeVisible && state.isNotificationBarOpen) {
+            onSetNotificationBarOpen(false)
+        } else if (wasVisible &&
             !imeVisible &&
             state.screen == LauncherScreen.Home &&
             !state.isSettingsOpen &&
