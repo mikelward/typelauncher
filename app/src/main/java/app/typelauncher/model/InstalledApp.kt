@@ -29,7 +29,11 @@ internal data class InstalledApp(
     val displayName: String
         get() {
             val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return name
-            val nameTokens = name.split(Regex("\\s+"))
+            // Strip surrounding punctuation so a name like "Bank (US)" with a
+            // "US" disambiguator doesn't render as "Bank (US) (US)".
+            val nameTokens = name
+                .split(Regex("\\s+"))
+                .map { it.trim('(', ')', '[', ']', '-', '–', '—').trim() }
             if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return name
             return "$name ($tag)"
         }

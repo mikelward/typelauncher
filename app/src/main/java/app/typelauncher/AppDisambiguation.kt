@@ -141,6 +141,13 @@ internal fun computeDisambiguators(apps: List<InstalledApp>): Map<String, String
     val result = mutableMapOf<String, String>()
     for ((key, group) in groups) {
         if (key == null || group.size < 2) continue
+        // Same-package members of a group are the same install cloned across
+        // profiles (or one activity exposed under multiple components) — the
+        // work-profile badge already disambiguates the personal/work pair,
+        // and any package-tail label would be identical for every member, so
+        // the badge would just add noise. Skip unless we have at least two
+        // distinct packages to compare.
+        if (group.distinctBy { it.packageName }.size < 2) continue
         val suffixes = group.map { nameSuffix(it.name) }
         val anyCountryCode = suffixes.any { isCountryCodeSuffix(it) }
         val allEmpty = suffixes.all { cleanedSuffix(it).isEmpty() }
