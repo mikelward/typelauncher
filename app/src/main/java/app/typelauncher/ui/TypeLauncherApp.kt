@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imeAnimationTarget
@@ -111,6 +112,7 @@ internal fun TypeLauncherApp(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TypeLauncherApp(
     state: LauncherUiState,
