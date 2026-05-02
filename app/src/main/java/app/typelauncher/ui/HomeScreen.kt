@@ -107,6 +107,7 @@ internal fun HomeScreen(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onReorderDock: (Int, Int) -> Unit = { _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,

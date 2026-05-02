@@ -489,6 +489,14 @@ internal class LauncherViewModel(
         logState("toggleDock")
     }
 
+    fun reorderDockedApps(fromIndex: Int, toIndex: Int) {
+        if (fromIndex == toIndex) return
+        LauncherDebugLog.event("reorderDockedApps from=$fromIndex to=$toIndex")
+        dockedAppStore.reorder(fromIndex, toIndex)
+        refreshLists()
+        logState("reorderDockedApps")
+    }
+
     fun resetRank(app: InstalledApp) {
         LauncherDebugLog.event("resetRank package=${app.packageName}")
         appLaunchStatsStore.resetLaunchCount(app.id)
