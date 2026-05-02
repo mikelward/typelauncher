@@ -89,10 +89,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -511,9 +514,9 @@ private fun NotifyingAppButton(
     Box {
         Column(
             modifier = Modifier
-                .semantics { contentDescription = app.name }
+                .semantics { contentDescription = app.displayName }
                 .padding(4.dp)
-                .testTag("$NOTIFICATION_BAR_APP_TAG:${app.name}"),
+                .testTag("$NOTIFICATION_BAR_APP_TAG:${app.displayName}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box {
@@ -527,7 +530,7 @@ private fun NotifyingAppButton(
                             shape = CircleShape,
                         )
                         .semantics { contentDescription = badgeDescription }
-                        .testTag("$NOTIFICATION_BAR_BADGE_TAG:${app.name}"),
+                        .testTag("$NOTIFICATION_BAR_BADGE_TAG:${app.displayName}"),
                 )
             }
         }
@@ -543,7 +546,7 @@ private fun NotifyingAppButton(
                 )
                 .semantics {
                     role = Role.Button
-                    contentDescription = app.name
+                    contentDescription = app.displayName
                 },
         )
         NotifyingAppActionsMenu(
@@ -614,9 +617,9 @@ private fun RecentAppButton(
     Box {
         Column(
             modifier = Modifier
-                .semantics { contentDescription = app.name }
+                .semantics { contentDescription = app.displayName }
                 .padding(4.dp)
-                .testTag("$DOCK_RECENTS_APP_TAG:${app.name}"),
+                .testTag("$DOCK_RECENTS_APP_TAG:${app.displayName}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_RECENTS_APP_ICON_TAG)
@@ -633,7 +636,7 @@ private fun RecentAppButton(
                 )
                 .semantics {
                     role = Role.Button
-                    contentDescription = app.name
+                    contentDescription = app.displayName
                 },
         )
         RecentAppActionsMenu(
@@ -1089,11 +1092,11 @@ private fun IconOnlyAppButton(
             modifier = Modifier
                 .background(containerColor, RoundedCornerShape(8.dp))
                 .semantics {
-                    contentDescription = app.name
+                    contentDescription = app.displayName
                     selected = isActive
                 }
                 .padding(4.dp)
-                .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.name}"),
+                .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.displayName}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AppIcon(
@@ -1115,7 +1118,7 @@ private fun IconOnlyAppButton(
                 )
                 .semantics {
                     role = Role.Button
-                    contentDescription = app.name
+                    contentDescription = app.displayName
                     selected = isActive
                 },
         )
@@ -1159,7 +1162,7 @@ private fun AppRow(
                     onLongClick = { menuExpanded = true },
                 )
                 .padding(horizontal = 4.dp, vertical = 8.dp)
-                .testTag("$APP_ROW_TAG:${app.name}"),
+                .testTag("$APP_ROW_TAG:${app.displayName}"),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1169,7 +1172,7 @@ private fun AppRow(
                 backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
             )
             Text(
-                app.name,
+                app.displayName,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium,
                 color = textColor,
@@ -1202,7 +1205,7 @@ private fun AppActionsMenu(
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_app_info)) },
-            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
                 onOpenAppInfo(app)
@@ -1210,7 +1213,7 @@ private fun AppActionsMenu(
         )
         DropdownMenuItem(
             text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
-            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
                 onToggleDock(app, dockLimit)
@@ -1218,7 +1221,7 @@ private fun AppActionsMenu(
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_reset_rank)) },
-            modifier = Modifier.testTag("$RESET_RANK_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$RESET_RANK_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
                 onResetRank(app)
@@ -1226,7 +1229,7 @@ private fun AppActionsMenu(
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_hide)) },
-            modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
                 onHideApp(app)
@@ -1255,7 +1258,7 @@ private fun RecentAppActionsMenu(
     DropdownMenu(expanded = expanded, onDismissRequest = onDismissMenu) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_app_info)) },
-            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
                 onOpenAppInfo(app)
@@ -1263,7 +1266,7 @@ private fun RecentAppActionsMenu(
         )
         DropdownMenuItem(
             text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
-            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
                 onToggleDock(app, Int.MAX_VALUE)
@@ -1271,7 +1274,7 @@ private fun RecentAppActionsMenu(
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_dismiss)) },
-            modifier = Modifier.testTag("$DISMISS_RECENT_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$DISMISS_RECENT_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
                 onDismissRecent(app)
@@ -1300,7 +1303,7 @@ private fun NotifyingAppActionsMenu(
     DropdownMenu(expanded = expanded, onDismissRequest = onDismissMenu) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_dismiss)) },
-            modifier = Modifier.testTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
                 onDismissNotifications(app)
@@ -1308,7 +1311,7 @@ private fun NotifyingAppActionsMenu(
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_settings)) },
-            modifier = Modifier.testTag("$NOTIFICATION_SETTINGS_ACTION_TAG:${app.name}"),
+            modifier = Modifier.testTag("$NOTIFICATION_SETTINGS_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
                 onOpenNotificationSettings(app)
@@ -1331,9 +1334,9 @@ private fun DockedAppButton(
     Box {
         Column(
             modifier = Modifier
-                .semantics { contentDescription = app.name }
+                .semantics { contentDescription = app.displayName }
                 .padding(4.dp)
-                .testTag("$DOCK_APP_TAG:${app.name}"),
+                .testTag("$DOCK_APP_TAG:${app.displayName}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_APP_ICON_TAG)
@@ -1350,7 +1353,7 @@ private fun DockedAppButton(
                 )
                 .semantics {
                     role = Role.Button
-                    contentDescription = app.name
+                    contentDescription = app.displayName
                 },
         )
         AppActionsMenu(
@@ -1790,25 +1793,25 @@ private fun HiddenAppRow(
     app: InstalledApp,
     onUnhideApp: (InstalledApp) -> Unit,
 ) {
-    val unhideDescription = stringResource(R.string.settings_hidden_apps_unhide_description, app.name)
+    val unhideDescription = stringResource(R.string.settings_hidden_apps_unhide_description, app.displayName)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .testTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:${app.name}"),
+            .testTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:${app.displayName}"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         AppIcon(app = app, size = 32.dp)
         Text(
-            text = app.name,
+            text = app.displayName,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
         IconButton(
             onClick = { onUnhideApp(app) },
-            modifier = Modifier.testTag("$SETTINGS_HIDDEN_APPS_UNHIDE_TAG:${app.name}"),
+            modifier = Modifier.testTag("$SETTINGS_HIDDEN_APPS_UNHIDE_TAG:${app.displayName}"),
         ) {
             Icon(
                 imageVector = Icons.Filled.Clear,
@@ -1941,7 +1944,7 @@ private fun AppIcon(
     Box(
         modifier = Modifier
             .size(size)
-            .testTag("$testTag:${app.name}"),
+            .testTag("$testTag:${app.displayName}"),
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -1962,7 +1965,7 @@ private fun AppIcon(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(18.dp)
-                    .testTag("$WORK_APP_BADGE_TAG:${app.name}"),
+                    .testTag("$WORK_APP_BADGE_TAG:${app.displayName}"),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
             ) {
@@ -1971,6 +1974,28 @@ private fun AppIcon(
                     contentDescription = null,
                     modifier = Modifier.padding(3.dp),
                     tint = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+        }
+        app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
+            // Top-start corner is the only one not already used by the
+            // notification dot (top-end) or the work-profile badge
+            // (bottom-end). Sized as a wide pill so 3-4 character regional
+            // codes ("EMEA", "APAC") still fit at the smallest icon size.
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
+                shape = MaterialTheme.shapes.extraSmall,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+            ) {
+                Text(
+                    text = label,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
                 )
             }
         }
