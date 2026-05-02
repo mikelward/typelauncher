@@ -406,7 +406,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("Settings").assertIsDisplayed()
+        // Match the page title by tag — onNodeWithText("Settings") would also
+        // match the "Settings" app row in the apps preview.
+        composeRule.onNodeWithTag(SETTINGS_TITLE_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Icon-only app list").assertIsDisplayed()
         composeRule.onNodeWithTag(APP_LIST_ICON_ONLY_SWITCH_TAG).assertIsOff()
         composeRule.onNodeWithText("Show dock").assertIsDisplayed()
@@ -568,7 +570,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val enabledPreviewHeight = enabledPreviewBounds.bottom - enabledPreviewBounds.top
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
+        // Settings now scrolls and the preview claims a fixed three-bar budget,
+        // so the dock card may sit below the viewport on the test screen.
+        // assertExists checks the node is composed without requiring it to be
+        // in the visible viewport.
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertExists()
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -1206,7 +1212,10 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertIsOn()
         // The preview now mirrors the home layout: dock above, recents below.
-        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+        // The recents card may sit below the settings viewport on the test
+        // screen (the preview claims a fixed three-bar budget), so we only
+        // assert the node has been composed.
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertExists()
     }
 
     @Test
