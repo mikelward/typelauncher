@@ -45,6 +45,7 @@ Android home screen launcher app (Kotlin, single `:app` module).
 - Code changes must include or update relevant unit tests.
 - UI changes must include or update screenshot tests that cover the changed UI state.
 - Run the relevant tests before submitting changes and report any environment limitations clearly.
+- **Don't invent Compose Test imports.** Several `SemanticsNodeInteraction` API points (`assertExists`, `assertDoesNotExist`, `assertIsDisplayed`) are member functions, *not* extensions, so writing `import androidx.compose.ui.test.assertDoesNotExist` produces an "Unresolved reference" compile error even though the call site `composeRule.onNodeWithTag(...).assertDoesNotExist()` works fine without an import. Rule: when adding a Compose test API call, only add the import if a sibling test in this repo already imports it (`grep "import androidx.compose.ui.test.<name>" app/src/test`); otherwise call it as a method and let Kotlin resolve it. This sandbox can't always run `./gradlew test` (Google Maven is blocked), so this class of bug ships if the rule isn't followed by inspection.
 
 ### Emulator and connected tests
 
