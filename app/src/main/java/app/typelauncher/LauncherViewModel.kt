@@ -159,7 +159,9 @@ internal class LauncherViewModel(
             initialLoadTrace.stop()
             installedApps = loadedApps
             if (!dockedAppStore.hasBeenPrefilled) {
-                prefillDock(loadedApps, dockedAppStore, _uiState.value.dockIconCount)
+                if (dockedAppStore.dockedAppIds.isEmpty()) {
+                    prefillDock(loadedApps, dockedAppStore, _uiState.value.dockIconCount)
+                }
                 dockedAppStore.markPrefilled()
             }
             _uiState.update { state ->
