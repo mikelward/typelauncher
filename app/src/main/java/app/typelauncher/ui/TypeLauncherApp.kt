@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
@@ -158,7 +159,6 @@ internal fun TypeLauncherApp(
     }
     HomeReadySignal(
         isLoadingApps = state.isLoadingApps,
-        imeVisible = WindowInsets.isImeVisible,
         onHomeReady = onHomeReady,
     )
     Scaffold(
@@ -232,12 +232,13 @@ internal fun TypeLauncherApp(
  * signal kicks off the deferred initial agenda load so it doesn't contend with
  * the cold-start app list IO or the keyboard show.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeReadySignal(
     isLoadingApps: Boolean,
-    imeVisible: Boolean,
     onHomeReady: () -> Unit,
 ) {
+    val imeVisible = WindowInsets.isImeVisible
     var fired by remember { mutableStateOf(false) }
     LaunchedEffect(isLoadingApps, imeVisible, fired) {
         if (fired || isLoadingApps) return@LaunchedEffect
