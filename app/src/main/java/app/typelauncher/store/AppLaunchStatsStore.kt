@@ -133,6 +133,30 @@ internal fun List<InstalledApp>.filterHidden(hiddenAppIds: List<String>): List<I
     filter { app -> app.id in hiddenAppIds }
         .sortedBy { app -> hiddenAppIds.indexOf(app.id) }
 
+/**
+ * Returns the installed apps whose package currently has at least one active
+ * user-visible notification, ordered oldest-first / newest-last so the bar
+ * displays the freshest entry on the right edge — closest to the keyboard /
+ * typing area, matching the recents row convention. When the same package has
+ * both a personal-profile and a work-profile entry, both surface here — the
+ * listener service reports the package, and the launcher lets the user pick
+ * which profile to launch. Display-name then provides a stable tiebreak when
+ * two packages share the same postTime.
+ *
+ * The bar shows one icon per app even if the app has multiple notifications
+ * (the dot is a presence signal, not a count); the launcher takes the most
+ * recent postTime across the package's user-visible notifications as the
+ * sort key.
+ */
+internal fun List<InstalledApp>.filterNotifying(notifyingPackages: Map<String, Long>): List<InstalledApp> {
+    if (notifyingPackages.isEmpty()) return emptyList()
+    return filter { app -> app.packageName in notifyingPackages }
+        .sortedWith(
+            compareBy<InstalledApp> { app -> notifyingPackages[app.packageName] ?: 0L }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
+        )
+}
+
 internal enum class LauncherMatchTier { Prefix, Anchored, Substring }
 
 internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {

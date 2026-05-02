@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -116,6 +117,8 @@ internal fun TypeLauncherApp(
         onShowHome = viewModel::showHome,
         onHomeReady = viewModel::onHomeReady,
         onSetRecentsOpen = viewModel::setRecentsOpen,
+        onSetNotificationBarOpen = viewModel::setNotificationBarOpen,
+        onRequestNotificationAccess = viewModel::openNotificationAccessSettings,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
         onAddWidget = onAddWidget,
@@ -154,6 +157,8 @@ internal fun TypeLauncherApp(
     onShowHome: () -> Unit,
     onHomeReady: () -> Unit = {},
     onSetRecentsOpen: (Boolean) -> Unit = {},
+    onSetNotificationBarOpen: (Boolean) -> Unit = {},
+    onRequestNotificationAccess: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     onAddWidget: () -> Unit,
@@ -200,9 +205,11 @@ internal fun TypeLauncherApp(
         } else {
             SwipeNavigationBox(
                 screen = state.screen,
+                isNotificationBarOpen = state.isNotificationBarOpen,
                 onShowAgenda = onShowAgenda,
                 onShowWidgets = onShowWidgets,
                 onShowHome = onShowHome,
+                onSetNotificationBarOpen = onSetNotificationBarOpen,
                 onSwipeDown = onSwipeDown,
             ) { pageScreen ->
                 when (pageScreen) {
@@ -219,6 +226,8 @@ internal fun TypeLauncherApp(
                         onHideApp = onHideApp,
                         onOpenSettings = onOpenSettings,
                         onSetRecentsOpen = onSetRecentsOpen,
+                        onSetNotificationBarOpen = onSetNotificationBarOpen,
+                        onRequestNotificationAccess = onRequestNotificationAccess,
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
@@ -275,12 +284,33 @@ private fun HomeReadySignal(
 @Composable
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
+    isNotificationBarOpen: Boolean,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
+    onSetNotificationBarOpen: (Boolean) -> Unit,
     onSwipeDown: () -> Unit,
     content: @Composable (LauncherScreen) -> Unit,
 ) {
+    // First swipe-down on Home opens the in-app notification bar; a second
+    // swipe-down (while the bar is already visible) hands off to the system
+    // shade. On Widgets/Agenda the bar doesn't exist, so swipe-down expands the
+    // shade directly. We capture the latest values via rememberUpdatedState so
+    // the dispatch lambda's identity stays stable across recompositions and
+    // doesn't re-key the pointerInput mid-gesture.
+    val currentScreen by rememberUpdatedState(screen)
+    val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
+    val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
+    val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
+    val swipeDownDispatch = remember<() -> Unit> {
+        {
+            if (currentScreen == LauncherScreen.Home && !currentBarOpen) {
+                currentSetBarOpen(true)
+            } else {
+                currentOnSwipeDown()
+            }
+        }
+    }
     val pagerState = rememberPagerState(
         initialPage = LauncherScreen.initialCarouselPage(screen),
         pageCount = { LauncherScreen.carouselPageCount },
@@ -428,7 +458,7 @@ private fun SwipeNavigationBox(
                     }
                 }
             }
-            .pointerInput(notificationShadeThresholdPx, onSwipeDown) {
+            .pointerInput(notificationShadeThresholdPx, swipeDownDispatch) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     var verticalDragPx = 0f
@@ -443,7 +473,7 @@ private fun SwipeNavigationBox(
                         LauncherDebugLog.event(
                             "SwipeNavigationBox swipe down verticalDragPx=$verticalDragPx",
                         )
-                        onSwipeDown()
+                        swipeDownDispatch()
                     }
                 }
             },

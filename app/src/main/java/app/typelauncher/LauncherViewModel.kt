@@ -72,12 +72,24 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
             isLoadingApps = cachedMetadata.isEmpty(),
+            hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+        // Observe the notification listener's package set so the bar stays
+        // current as the system posts/dismisses notifications. Routed through
+        // a separate launch so the StateFlow's initial-value emission doesn't
+        // run inside the ViewModel constructor — that would invoke a member
+        // function (visibleInstalledApps / markVisibility) on a half-built
+        // instance under Dispatchers.Main.immediate.
+        viewModelScope.launch {
+            ActiveNotifications.packages.collect { packages ->
+                refreshNotifyingApps(packages)
+            }
+        }
         // Restore previously-rasterised icons off the main thread: the file read +
         // Bitmap allocation + copyPixelsFromBuffer per snapshot adds up to enough work
         // to delay setContent → first frame → the LaunchedEffect in SearchCard that
@@ -126,6 +138,9 @@ internal class LauncherViewModel(
                         .markVisibility(),
                     recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
                     hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
+                    notifyingApps = visibleApps
+                        .filterNotifying(ActiveNotifications.packages.value)
+                        .markVisibility(),
                 )
             }
             LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
@@ -157,6 +172,9 @@ internal class LauncherViewModel(
                         .markVisibility(),
                     recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
                     hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
+                    notifyingApps = visibleApps
+                        .filterNotifying(ActiveNotifications.packages.value)
+                        .markVisibility(),
                     isLoadingApps = false,
                     isFreshAppLoadComplete = true,
                 )
@@ -193,13 +211,17 @@ internal class LauncherViewModel(
     }
 
     fun showAgenda() {
-        _uiState.update { it.copy(screen = LauncherScreen.Agenda, isRecentsOpen = false) }
+        _uiState.update {
+            it.copy(screen = LauncherScreen.Agenda, isRecentsOpen = false, isNotificationBarOpen = false)
+        }
         logState("showAgenda")
         loadAgendaAsync(reason = "showAgenda", traceName = "agenda_load")
     }
 
     fun showWidgets() {
-        _uiState.update { it.copy(screen = LauncherScreen.Widgets, isRecentsOpen = false) }
+        _uiState.update {
+            it.copy(screen = LauncherScreen.Widgets, isRecentsOpen = false, isNotificationBarOpen = false)
+        }
         logState("showWidgets")
     }
 
@@ -207,6 +229,12 @@ internal class LauncherViewModel(
         if (_uiState.value.isRecentsOpen == isOpen) return
         _uiState.update { it.copy(isRecentsOpen = isOpen) }
         logState("setRecentsOpen=$isOpen")
+    }
+
+    fun setNotificationBarOpen(isOpen: Boolean) {
+        if (_uiState.value.isNotificationBarOpen == isOpen) return
+        _uiState.update { it.copy(isNotificationBarOpen = isOpen) }
+        logState("setNotificationBarOpen=$isOpen")
     }
 
     fun showWidgetPicker() {
@@ -253,6 +281,7 @@ internal class LauncherViewModel(
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
+                isNotificationBarOpen = false,
             )
         }
         logState("returnToLauncherHome")
@@ -261,10 +290,27 @@ internal class LauncherViewModel(
     fun refreshPermissionDrivenUi() {
         LauncherDebugLog.event("refreshPermissionDrivenUi screen=${_uiState.value.screen}")
         val isDefaultLauncher = app.getSystemService<RoleManager>()?.isRoleHeld(RoleManager.ROLE_HOME) ?: false
-        _uiState.update { it.copy(isDefaultLauncher = isDefaultLauncher) }
+        val hasNotificationAccess = ActiveNotifications.hasListenerAccess(app)
+        _uiState.update {
+            it.copy(
+                isDefaultLauncher = isDefaultLauncher,
+                hasNotificationAccess = hasNotificationAccess,
+            )
+        }
         if (_uiState.value.screen == LauncherScreen.Agenda) {
             refreshAgenda()
         }
+    }
+
+    /**
+     * Opens Android's "Notification access" settings page so the user can enable
+     * the launcher's listener service. Without that grant, the notification bar
+     * has no source of truth — the system never binds the listener — so the bar
+     * exposes this as the empty-state CTA.
+     */
+    fun openNotificationAccessSettings() {
+        LauncherDebugLog.event("openNotificationAccessSettings")
+        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).asLauncherTaskIntent())
     }
 
     /**
@@ -401,9 +447,10 @@ internal class LauncherViewModel(
             startActivity(app.launchIntent.asLauncherTaskIntent())
         }
         appLaunchStatsStore.recordLaunch(app.id)
-        // Close the recents panel as we leave Home — when the user comes back
-        // it should be tucked away again, not still expanded.
-        _uiState.update { it.copy(isRecentsOpen = false) }
+        // Close the recents panel and notification bar as we leave Home — when
+        // the user comes back they should be tucked away again, not still
+        // expanded from before.
+        _uiState.update { it.copy(isRecentsOpen = false, isNotificationBarOpen = false) }
         setQuery("")
     }
 
@@ -505,7 +552,7 @@ internal class LauncherViewModel(
     }
 
     fun openSettings() {
-        _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false) }
+        _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false, isNotificationBarOpen = false) }
         logState("openSettings")
     }
 
@@ -563,12 +610,25 @@ internal class LauncherViewModel(
                 dockedApps = visibleApps.filterDocked(dockedAppStore.dockedAppIds).markVisibility(),
                 recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
                 hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
+                notifyingApps = visibleApps
+                    .filterNotifying(ActiveNotifications.packages.value)
+                    .markVisibility(),
             )
         }
     }
 
     private fun visibleInstalledApps(): List<InstalledApp> =
         installedApps.filterNot { app -> hiddenAppStore.contains(app.id) }
+
+    private fun refreshNotifyingApps(packages: Map<String, Long>) {
+        _uiState.update { state ->
+            state.copy(
+                notifyingApps = visibleInstalledApps()
+                    .filterNotifying(packages)
+                    .markVisibility(),
+            )
+        }
+    }
 
     private fun startActivity(intent: Intent) {
         LauncherDebugLog.event("startActivity intent=${intent.debugSummary()}")
