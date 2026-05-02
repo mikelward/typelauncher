@@ -76,13 +76,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
@@ -102,6 +107,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -184,6 +190,8 @@ internal fun HomeScreen(
                     onToggleDock = onToggleDock,
                     onResetRank = onResetRank,
                     onHideApp = onHideApp,
+                    onPullDownPastStart = { onSetNotificationBarOpen(true) },
+                    onPullUpPastEnd = { onSetNotificationBarOpen(false) },
                 )
                 else -> AppsCard(
                     apps = state.filteredApps,
@@ -198,6 +206,8 @@ internal fun HomeScreen(
                     onToggleDock = onToggleDock,
                     onResetRank = onResetRank,
                     onHideApp = onHideApp,
+                    onPullDownPastStart = { onSetNotificationBarOpen(true) },
+                    onPullUpPastEnd = { onSetNotificationBarOpen(false) },
                 )
             }
             // Notification bar sits between the app list and the dock so a
@@ -785,6 +795,49 @@ private fun AppListOverflowChevronBox(
 }
 
 @Composable
+private fun rememberAppListEdgePullConnection(
+    canScrollBackward: () -> Boolean,
+    canScrollForward: () -> Boolean,
+    thresholdPx: Float,
+    onPullDownPastStart: () -> Unit,
+    onPullUpPastEnd: () -> Unit,
+): NestedScrollConnection {
+    val currentOnPullDownPastStart by rememberUpdatedState(onPullDownPastStart)
+    val currentOnPullUpPastEnd by rememberUpdatedState(onPullUpPastEnd)
+    return remember(canScrollBackward, canScrollForward, thresholdPx) {
+        object : NestedScrollConnection {
+            private var edgeDragPx = 0f
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                val availableY = available.y
+                edgeDragPx = when {
+                    availableY > 0f && !canScrollBackward() -> (edgeDragPx + availableY).coerceAtLeast(0f)
+                    availableY < 0f && !canScrollForward() -> (edgeDragPx + availableY).coerceAtMost(0f)
+                    else -> 0f
+                }
+                when {
+                    edgeDragPx >= thresholdPx -> {
+                        edgeDragPx = 0f
+                        currentOnPullDownPastStart()
+                    }
+                    edgeDragPx <= -thresholdPx -> {
+                        edgeDragPx = 0f
+                        currentOnPullUpPastEnd()
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                edgeDragPx = 0f
+                return Velocity.Zero
+            }
+        }
+    }
+}
+
+@Composable
 private fun BoxScope.OverflowScrollChevron(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
@@ -821,6 +874,8 @@ private fun AppsCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onPullDownPastStart: () -> Unit,
+    onPullUpPastEnd: () -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
         header?.invoke()
@@ -843,8 +898,16 @@ private fun AppsCard(
             )
         } else {
             val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
+            val edgePullThresholdPx = with(LocalDensity.current) { APP_LIST_EDGE_PULL_THRESHOLD_DP.dp.toPx() }
             if (isIconOnly) {
                 val gridState = rememberLazyGridState()
+                val edgePullConnection = rememberAppListEdgePullConnection(
+                    canScrollBackward = { gridState.canScrollBackward },
+                    canScrollForward = { gridState.canScrollForward },
+                    thresholdPx = edgePullThresholdPx,
+                    onPullDownPastStart = onPullDownPastStart,
+                    onPullUpPastEnd = onPullUpPastEnd,
+                )
                 AppListOverflowChevronBox(
                     canScrollUp = gridState.canScrollBackward,
                     canScrollDown = gridState.canScrollForward,
@@ -856,6 +919,7 @@ private fun AppsCard(
                         iconSizeDp = iconSizeDp,
                         highlightFirst = highlightFirst,
                         state = gridState,
+                        edgePullConnection = edgePullConnection,
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -865,6 +929,13 @@ private fun AppsCard(
                 }
             } else {
                 val listState = rememberLazyListState()
+                val edgePullConnection = rememberAppListEdgePullConnection(
+                    canScrollBackward = { listState.canScrollBackward },
+                    canScrollForward = { listState.canScrollForward },
+                    thresholdPx = edgePullThresholdPx,
+                    onPullDownPastStart = onPullDownPastStart,
+                    onPullUpPastEnd = onPullUpPastEnd,
+                )
                 AppListOverflowChevronBox(
                     canScrollUp = listState.canScrollBackward,
                     canScrollDown = listState.canScrollForward,
@@ -874,6 +945,7 @@ private fun AppsCard(
                         state = listState,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .nestedScroll(edgePullConnection)
                             .testTag(APPS_LIST_TAG),
                     ) {
                         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
@@ -1113,6 +1185,7 @@ private fun IconOnlyAppGrid(
     iconSizeDp: Int,
     highlightFirst: Boolean,
     state: LazyGridState,
+    edgePullConnection: NestedScrollConnection,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1125,6 +1198,7 @@ private fun IconOnlyAppGrid(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = iconSizeDp.dp)
+            .nestedScroll(edgePullConnection)
             .testTag(APPS_LIST_TAG),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -2042,6 +2116,8 @@ private fun SettingsPreview(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onHideApp = onHideApp,
+            onPullDownPastStart = {},
+            onPullUpPastEnd = {},
         )
         // Mirror Home: notification bar sits between the app list and the
         // dock, and only renders when Pull down is Launcher. Forced
@@ -2168,6 +2244,7 @@ private fun selectionHighlightOnColor(): Color =
     if (isSystemInDarkTheme()) Color(0xFFE6EEFA) else Color(0xFF0B2A5B)
 
 private const val MIN_DOCKED_APPS = 1
+private const val APP_LIST_EDGE_PULL_THRESHOLD_DP = 96
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_BAR_COUNT = 4
 private const val SETTINGS_PREVIEW_SPACING_DP = 16

@@ -391,9 +391,14 @@ private fun SwipeNavigationBox(
         {
             // Pull-up only does anything on Home — the recents bar lives on
             // Home, and there's no second-stage hand-off (the system has no
-            // pull-up gesture we'd want to defer to).
-            if (currentScreen == LauncherScreen.Home && !currentRecentsOpen) {
-                currentSetRecentsOpen(true)
+            // pull-up gesture we'd want to defer to). If the notification bar
+            // is visible, close it before treating the pull as a recents ask.
+            if (currentScreen == LauncherScreen.Home) {
+                if (currentBarOpen) {
+                    currentSetBarOpen(false)
+                } else if (!currentRecentsOpen) {
+                    currentSetRecentsOpen(true)
+                }
             }
         }
     }

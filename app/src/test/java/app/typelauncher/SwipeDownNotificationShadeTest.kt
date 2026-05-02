@@ -500,4 +500,125 @@ class SwipeDownNotificationShadeTest {
 
         assertEquals("vertical list drag should not navigate the carousel", 0, widgetsCount)
     }
+
+    @Test
+    fun pullingDownPastTopOfAppsList_opensNotificationBar() {
+        val apps = fakeScrollableApps()
+        var notificationBarOpened = false
+        var swipeDownCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = apps,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(0, swipeDownCount)
+        assertEquals(true, notificationBarOpened)
+    }
+
+    @Test
+    fun pushingUpPastBottomOfAppsList_hidesNotificationBar() {
+        val apps = fakeScrollableApps()
+        var notificationBarOpen = true
+        var recentsOpened = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = apps,
+                        isNotificationBarOpen = true,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpen = it },
+                    onSetRecentsOpen = { recentsOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        repeat(8) {
+            composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+            composeRule.waitForIdle()
+        }
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        assertEquals(false, notificationBarOpen)
+        assertEquals(false, recentsOpened)
+    }
+
+    private fun fakeScrollableApps(): List<InstalledApp> =
+        (0 until 40).map { index ->
+            InstalledApp(
+                name = "App %02d".format(index),
+                packageName = "app.typelauncher.fake$index",
+                launchIntent = Intent(),
+                user = Process.myUserHandle(),
+                isWorkApp = false,
+                launchWithLauncherApps = false,
+            )
+        }
 }
