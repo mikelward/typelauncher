@@ -14,6 +14,7 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Process
+import android.os.UserHandle
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -25,6 +26,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +65,41 @@ internal class LauncherViewModel(
     // written from the Main dispatcher only.
     private var iconSnapshotRestoreComplete = false
     private val cachedMetadata: List<InstalledApp> = appMetadataStore.load()
+    // Cached so register/unregister go through the same `LauncherApps`
+    // instance and we never silently miss the unregister because the service
+    // is null on a future `getSystemService` call.
+    private val launcherAppsService: LauncherApps? = app.getSystemService<LauncherApps>()
+    // Most recently scheduled reload of the installed-app list. Held so a
+    // burst of package events (e.g. an upgrade firing PACKAGE_REMOVED then
+    // PACKAGE_ADDED) doesn't pile up redundant IO; the latest cancels its
+    // predecessor.
+    private var pendingReloadJob: Job? = null
+    private val launcherAppsCallback = object : LauncherApps.Callback() {
+        override fun onPackageAdded(packageName: String, user: UserHandle) {
+            scheduleReload("packageAdded:$packageName")
+        }
+        override fun onPackageRemoved(packageName: String, user: UserHandle) {
+            scheduleReload("packageRemoved:$packageName")
+        }
+        override fun onPackageChanged(packageName: String, user: UserHandle) {
+            scheduleReload("packageChanged:$packageName")
+        }
+        override fun onPackagesAvailable(
+            packageNames: Array<out String>,
+            user: UserHandle,
+            replacing: Boolean,
+        ) {
+            scheduleReload("packagesAvailable:${packageNames.size}")
+        }
+        override fun onPackagesUnavailable(
+            packageNames: Array<out String>,
+            user: UserHandle,
+            replacing: Boolean,
+        ) {
+            scheduleReload("packagesUnavailable:${packageNames.size}")
+        }
+    }
+    private var launcherAppsCallbackRegistered = false
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
@@ -192,7 +229,70 @@ internal class LauncherViewModel(
             }
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
+            registerLauncherAppsCallback()
         }
+    }
+
+    /**
+     * Registers the `LauncherApps.Callback` once the cold-start fresh load has
+     * published its result. Postponing registration avoids racing with the
+     * cold-start update — if a callback fires while the cold-start IO is in
+     * flight, the load already returns the post-event state from
+     * `LauncherApps.getActivityList`, so a separate reload would be redundant
+     * and could publish stale data after cold-start finishes. Idempotent so a
+     * test that calls it directly (or a future caller) can't double-register.
+     */
+    private fun registerLauncherAppsCallback() {
+        if (launcherAppsCallbackRegistered) return
+        val service = launcherAppsService ?: return
+        try {
+            service.registerCallback(launcherAppsCallback)
+            launcherAppsCallbackRegistered = true
+            LauncherDebugLog.event("LauncherApps.registerCallback")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("LauncherApps.registerCallback failed", exception)
+        }
+    }
+
+    /**
+     * Re-reads the installed-app list from `LauncherApps` and republishes the
+     * derived UI state. Called from the `LauncherApps.Callback` when a package
+     * is installed, uninstalled, replaced, or otherwise changed across any
+     * available profile. Cancels any earlier in-flight reload so a burst of
+     * events (e.g. an upgrade's PACKAGE_REMOVED + PACKAGE_ADDED) collapses to
+     * a single IO read against the latest system state.
+     */
+    private fun scheduleReload(reason: String) {
+        LauncherDebugLog.event("scheduleReload reason=$reason")
+        pendingReloadJob?.cancel()
+        pendingReloadJob = viewModelScope.launch {
+            val loadedApps = withContext(ioDispatcher) {
+                traceBlock("installed_apps_reload") { trace ->
+                    loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+                }
+            }
+            installedApps = loadedApps
+            refreshLists()
+            launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+            LauncherDebugLog.event("scheduleReload complete reason=$reason apps=${loadedApps.size}")
+        }
+    }
+
+    override fun onCleared() {
+        if (launcherAppsCallbackRegistered) {
+            try {
+                launcherAppsService?.unregisterCallback(launcherAppsCallback)
+                LauncherDebugLog.event("LauncherApps.unregisterCallback")
+            } catch (exception: RuntimeException) {
+                LauncherDebugLog.warning("LauncherApps.unregisterCallback failed", exception)
+            }
+            launcherAppsCallbackRegistered = false
+        }
+        super.onCleared()
+    }
+
+    internal fun reloadInstalledAppsForTest() {
+        scheduleReload("test")
     }
 
     /**
