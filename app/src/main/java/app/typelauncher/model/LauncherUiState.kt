@@ -68,6 +68,12 @@ internal data class LauncherUiState(
     val isAppListIconOnly: Boolean = false,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
+    // When true (default), the search field auto-focuses on launch and
+    // `SearchCard` calls `keyboard.show()` so the user can start typing
+    // immediately. When false, the search field renders unfocused and
+    // `MainActivity` overrides the manifest's `stateAlwaysVisible` softInputMode
+    // so the keyboard stays down until the user taps the field.
+    val isKeyboardAutoShown: Boolean = true,
     val isLoadingApps: Boolean = false,
     // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
     // warm start `isLoadingApps` is `false` from process start because cached

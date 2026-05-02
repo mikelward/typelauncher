@@ -123,6 +123,23 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Controls whether the soft keyboard is auto-shown when Home is brought to
+     * the foreground. When `true` (default) the search field is focused and
+     * `keyboard.show()` runs on cold start, matching the original always-typing
+     * launcher behavior. When `false` the search field is not auto-focused and
+     * `MainActivity` overrides the manifest's `stateAlwaysVisible` softInputMode
+     * with `stateHidden` so the activity-level "always show" doesn't undo the
+     * preference.
+     */
+    var isKeyboardAutoShown: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KEYBOARD_AUTO_SHOWN, true)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KEYBOARD_AUTO_SHOWN, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -131,6 +148,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_RECENTS_ALWAYS_SHOWN = "recents_always_shown"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
+        const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
     }
 }
 
