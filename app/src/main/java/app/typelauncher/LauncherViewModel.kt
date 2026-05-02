@@ -596,6 +596,11 @@ internal class LauncherViewModel(
             return
         }
         appLaunchStatsStore.recordLaunch(app.id)
+        // recordLaunch mutates the recents store, so the recentApps surface
+        // and the launch-count tier in the main list both need to be
+        // recomputed. setQuery's keystroke-fast-path skips that, so trigger
+        // the full refresh here directly.
+        refreshLists()
         // Close the recents panel and notification bar as we leave Home — when
         // the user comes back they should be tucked away again, not still
         // expanded from before.
