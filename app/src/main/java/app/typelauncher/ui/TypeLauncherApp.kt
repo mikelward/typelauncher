@@ -219,15 +219,29 @@ internal fun TypeLauncherApp(
         withFrameNanos { }
         homeBodyReady = true
     }
+    // Drive the notification bar from the current IME state rather than from a
+    // wasVisible→!visible transition: the transition gate misses cold starts
+    // where the IME never rises (e.g. `isKeyboardAutoShown = false`, hardware
+    // keyboard, IME-disabled environments), leaving the bar permanently
+    // hidden. Re-keying on screen / settings / notifications-enabled also
+    // re-evaluates when the user returns to Home, closes Settings, or toggles
+    // Show notifications on, so the bar surfaces in those cases too.
+    // Reading `isNotificationBarOpen` inside the body without keying on it is
+    // intentional: if the user dismisses the bar with X, the effect does not
+    // re-run and the bar stays closed until the next IME / screen / settings
+    // change.
     val imeVisible = WindowInsets.isImeVisible
-    var prevImeVisible by remember { mutableStateOf(imeVisible) }
-    LaunchedEffect(imeVisible) {
-        val wasVisible = prevImeVisible
-        prevImeVisible = imeVisible
-        if (!wasVisible && imeVisible && state.isNotificationBarOpen) {
-            onSetNotificationBarOpen(false)
-        } else if (wasVisible &&
-            !imeVisible &&
+    LaunchedEffect(
+        imeVisible,
+        state.screen,
+        state.isSettingsOpen,
+        state.isNotificationsEnabled,
+    ) {
+        if (imeVisible) {
+            if (state.isNotificationBarOpen) {
+                onSetNotificationBarOpen(false)
+            }
+        } else if (
             state.screen == LauncherScreen.Home &&
             !state.isSettingsOpen &&
             state.isNotificationsEnabled &&

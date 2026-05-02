@@ -409,4 +409,108 @@ class NotificationBarTest {
         assertNotNull("Expected notification bar open call", notificationBarTarget)
         assertEquals(true, notificationBarTarget)
     }
+
+    @Test
+    fun coldStartOnHomeWithoutImeOpensNotificationBar() {
+        // Regression: the IME-state effect previously gated bar-open on a
+        // wasVisible→!visible transition, so cold starts where the IME never
+        // rises (`isKeyboardAutoShown = false`, hardware keyboards, IME-disabled
+        // test environments) left the bar permanently hidden. The effect now
+        // reacts to current IME state, so the bar should open on first
+        // composition when the IME isn't visible and notifications are on.
+        var notificationBarTarget: Boolean? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationsEnabled = true,
+                        isKeyboardAutoShown = false,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarTarget = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        composeRule.waitForIdle()
+
+        assertEquals(true, notificationBarTarget)
+    }
+
+    @Test
+    fun coldStartOnHomeWithNotificationsDisabled_doesNotOpenNotificationBar() {
+        // The auto-open path is gated on `isNotificationsEnabled`, so a cold
+        // start with the setting off must not call `onSetNotificationBarOpen`.
+        var notificationBarTarget: Boolean? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationsEnabled = false,
+                        isKeyboardAutoShown = false,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarTarget = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        composeRule.waitForIdle()
+
+        assertEquals(null, notificationBarTarget)
+    }
 }
