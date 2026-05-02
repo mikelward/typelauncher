@@ -84,10 +84,10 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun notificationPullDownBehaviorDefaultsToSystem() {
+    fun notificationPullDownBehaviorDefaultsToLauncher() {
         val store = DockSettingsStore(context)
 
-        assertEquals(NotificationPullDownBehavior.System, store.notificationPullDownBehavior)
+        assertEquals(NotificationPullDownBehavior.Launcher, store.notificationPullDownBehavior)
     }
 
     @Test
