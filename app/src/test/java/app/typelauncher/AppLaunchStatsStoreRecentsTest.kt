@@ -65,19 +65,21 @@ class AppLaunchStatsStoreRecentsTest {
     }
 
     @Test
-    fun filterRecentMapsIdsToInstalledAppsInRecentsOrder() {
+    fun filterRecentMapsIdsToInstalledAppsInDisplayOrder() {
         val mail = installedApp("Mail")
         val calendar = installedApp("Calendar")
         val browser = installedApp("Browser")
         val apps = listOf(mail, calendar, browser)
 
         // Use the apps' real ids so the round-trip matches what LauncherViewModel does.
+        // Storage order is most-recent-first: Browser was launched after Mail.
         val recentIds = listOf(browser.id, mail.id)
 
         val recent = apps.filterRecent(recentIds)
 
-        // Browser is most recent, Mail second; Calendar wasn't in the recent list.
-        assertEquals(listOf("Browser", "Mail"), recent.map { it.name })
+        // Display order is oldest-first / most-recent-last so the row renders
+        // the freshest app on the right; Calendar wasn't in the recent list.
+        assertEquals(listOf("Mail", "Browser"), recent.map { it.name })
     }
 
     @Test

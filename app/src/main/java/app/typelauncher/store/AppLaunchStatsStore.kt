@@ -77,18 +77,20 @@ internal fun List<InstalledApp>.filterByName(
 }
 
 /**
- * Returns recently-launched apps sorted by [recentAppIds] order (most recent
- * first) and filtered down to apps that still exist in this list. Apps that no
- * longer appear in the installed-app set drop out silently. The query field is
- * intentionally not consulted: the recents row is meant as a launcher's
- * substitute for the system task switcher and a query already filters the main
- * apps list, so re-filtering recents would either hide apps the user just
- * opened or duplicate the typed-search behaviour.
+ * Returns recently-launched apps in display order — oldest first, most recent
+ * last — so the recents row renders the freshest entry on the right (next to
+ * the keyboard / typing area). Storage in [AppLaunchStatsStore.recentAppIds] is
+ * still most-recent-first; the reversal happens here at the display boundary.
+ * Apps that no longer appear in the installed-app set drop out silently. The
+ * query field is intentionally not consulted: the recents row is meant as a
+ * launcher's substitute for the system task switcher and a query already
+ * filters the main apps list, so re-filtering recents would either hide apps
+ * the user just opened or duplicate the typed-search behaviour.
  */
 internal fun List<InstalledApp>.filterRecent(recentAppIds: List<String>): List<InstalledApp> {
     if (recentAppIds.isEmpty()) return emptyList()
     val byId = associateBy { app -> app.id }
-    return recentAppIds.mapNotNull { id -> byId[id] }
+    return recentAppIds.asReversed().mapNotNull { id -> byId[id] }
 }
 
 /**

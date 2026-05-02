@@ -878,7 +878,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun openRecentsPanel_showsLaunchedAppsMostRecentFirst() {
+    fun openRecentsPanel_showsLaunchedAppsMostRecentOnRight() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calendar")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calendar" })
@@ -892,10 +892,10 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").assertIsDisplayed()
-        // Calculator was launched after Calendar, so it sits to the left in the row.
+        // Calculator was launched after Calendar, so it sits to the right in the row.
         val calculatorLeft = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").getBoundsInRoot().left
         val calendarLeft = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").getBoundsInRoot().left
-        assertTrue("most-recent app appears first in the recents row", calculatorLeft < calendarLeft)
+        assertTrue("most-recent app appears on the right of the recents row", calculatorLeft > calendarLeft)
     }
 
     @Test
