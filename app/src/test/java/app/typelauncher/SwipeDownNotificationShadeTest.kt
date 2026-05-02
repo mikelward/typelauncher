@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.Intent
 import android.os.Process
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -386,5 +387,63 @@ class SwipeDownNotificationShadeTest {
             "Expected list scroll to consume the gesture, got $swipeDownCount swipe-down callbacks",
             swipeDownCount > 0,
         )
+    }
+
+    @Test
+    fun diagonalVerticalDragOnScrollableAppsList_doesNotNavigateCarousel() {
+        val apps = (0 until 40).map { index ->
+            InstalledApp(
+                name = "App %02d".format(index),
+                packageName = "app.typelauncher.fake$index",
+                launchIntent = Intent(),
+                user = Process.myUserHandle(),
+                isWorkApp = false,
+                launchWithLauncherApps = false,
+            )
+        }
+        var widgetsCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(filteredApps = apps),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = { widgetsCount += 1 },
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput {
+            down(center + Offset(x = 180f, y = 250f))
+            moveTo(center + Offset(x = -180f, y = -250f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals("vertical list drag should not navigate the carousel", 0, widgetsCount)
     }
 }

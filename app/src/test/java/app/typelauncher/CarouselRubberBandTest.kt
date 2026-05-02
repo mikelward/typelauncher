@@ -69,4 +69,23 @@ class CarouselRubberBandTest {
         assertTrue("display=$displayed should be > 0.27", displayed > 0.27f)
         assertTrue("display=$displayed should be < 0.30", displayed < 0.30f)
     }
+
+    @Test
+    fun carouselClaimsOnlyPredominantlyHorizontalAvailableDrag() {
+        assertTrue(shouldClaimCarouselDrag(availableDragX = 20f, totalDragY = 5f, touchSlopPx = 8f))
+        assertTrue(shouldClaimCarouselDrag(availableDragX = -20f, totalDragY = 5f, touchSlopPx = 8f))
+    }
+
+    @Test
+    fun carouselDoesNotClaimDiagonalDragWhoseTotalMovementIsVertical() {
+        // Regression: child LazyColumns can consume most of the Y delta before
+        // PointerEventPass.Final. The carousel must compare X against total Y,
+        // not only the unconsumed vertical remainder.
+        assertTrue(!shouldClaimCarouselDrag(availableDragX = 20f, totalDragY = 80f, touchSlopPx = 8f))
+    }
+
+    @Test
+    fun carouselDoesNotClaimUntilHorizontalDragClearsTouchSlop() {
+        assertTrue(!shouldClaimCarouselDrag(availableDragX = 8f, totalDragY = 0f, touchSlopPx = 8f))
+    }
 }

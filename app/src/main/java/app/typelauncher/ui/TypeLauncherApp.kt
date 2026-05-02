@@ -481,8 +481,8 @@ private fun SwipeNavigationBox(
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     val commitDistancePx = pageWidthPx * CAROUSEL_COMMIT_DISTANCE_RATIO
                     val dragStartPage = pagerState.currentPage
-                    var rawDragX = 0f
-                    var rawDragY = 0f
+                    var availableDragX = 0f
+                    var totalDragY = 0f
                     var displayDeltaPx = 0f
                     var claimed = false
                     val velocityTracker = VelocityTracker()
@@ -494,18 +494,16 @@ private fun SwipeNavigationBox(
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
-                            val delta = change.positionChange()
-                            rawDragX += delta.x
-                            rawDragY += delta.y
+                            val availableDelta = change.positionChange()
+                            val totalDelta = change.position - change.previousPosition
+                            availableDragX += availableDelta.x
+                            totalDragY += totalDelta.y
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            if (!claimed &&
-                                abs(rawDragX) > touchSlopPx &&
-                                abs(rawDragX) > abs(rawDragY)
-                            ) {
+                            if (!claimed && shouldClaimCarouselDrag(availableDragX, totalDragY, touchSlopPx)) {
                                 claimed = true
                             }
                             if (claimed) {
-                                val newDisplay = rubberBand(rawDragX, pageWidthPx)
+                                val newDisplay = rubberBand(availableDragX, pageWidthPx)
                                     .coerceIn(-pageWidthPx, pageWidthPx)
                                 val moveBy = newDisplay - displayDeltaPx
                                 displayDeltaPx = newDisplay
@@ -526,27 +524,28 @@ private fun SwipeNavigationBox(
 
                     val releaseVelocity = velocityTracker.calculateVelocity().x
                     val dragDirection = when {
-                        rawDragX < 0f -> 1
-                        rawDragX > 0f -> -1
+                        availableDragX < 0f -> 1
+                        availableDragX > 0f -> -1
                         else -> 0
                     }
                     // Finger and pager move in opposite directions: dragging finger
-                    // left (rawDragX < 0) advances the pager forward, so a forward
+                    // left (availableDragX < 0) advances the pager forward, so a forward
                     // intent corresponds to releaseVelocity also being negative.
-                    // "Backwards at release" → velocity sign opposite of rawDragX sign.
+                    // "Backwards at release" → velocity sign opposite of availableDragX sign.
                     val velocityOpposesDrag = dragDirection != 0 &&
                         abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
-                        sign(releaseVelocity) == -sign(rawDragX)
-                    val distanceCommits = abs(rawDragX) >= commitDistancePx
+                        sign(releaseVelocity) == -sign(availableDragX)
+                    val distanceCommits = abs(availableDragX) >= commitDistancePx
                     val flingCommits = dragDirection != 0 &&
                         abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
-                        sign(releaseVelocity) == sign(rawDragX)
+                        sign(releaseVelocity) == sign(availableDragX)
                     val committed = dragDirection != 0 &&
                         !velocityOpposesDrag &&
                         (distanceCommits || flingCommits)
 
                     LauncherDebugLog.event(
-                        "SwipeNavigationBox release rawDragX=$rawDragX velocityX=$releaseVelocity " +
+                        "SwipeNavigationBox release availableDragX=$availableDragX totalDragY=$totalDragY " +
+                            "velocityX=$releaseVelocity " +
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
                     )
@@ -607,3 +606,9 @@ internal fun rubberBand(rawDragPx: Float, pageWidthPx: Float): Float {
     if (pageWidthPx <= 0f) return 0f
     return rawDragPx * pageWidthPx / (pageWidthPx + abs(rawDragPx))
 }
+
+internal fun shouldClaimCarouselDrag(
+    availableDragX: Float,
+    totalDragY: Float,
+    touchSlopPx: Float,
+): Boolean = abs(availableDragX) > touchSlopPx && abs(availableDragX) > abs(totalDragY)
