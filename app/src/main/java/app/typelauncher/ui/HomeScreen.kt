@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -63,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +78,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -466,19 +467,41 @@ private fun ScrollableIconRow(
             scrollState.scrollTo(scrollState.maxValue)
         }
     }
+    // Track overflow from the layout pass directly rather than from
+    // `scrollState.maxValue`, which defaults to Int.MAX_VALUE before the
+    // first layout pass and would otherwise make the end chevron flash on
+    // every initial composition.
+    var contentOverflowsViewport by remember { mutableStateOf(false) }
+    val showEndChevron by remember(scrollState) {
+        derivedStateOf { contentOverflowsViewport && scrollState.value < scrollState.maxValue }
+    }
+    val showStartChevron by remember(scrollState) {
+        derivedStateOf { contentOverflowsViewport && scrollState.value > 0 }
+    }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        // Stretch the row to at least the available width so the centered
-        // arrangement has space to distribute when the icons fit on one screen.
-        // When they overflow the Row grows past this minimum and scrolls.
-        val rowMinWidth = maxWidth
+        // Stretch the row to at least the viewport width so the centered
+        // arrangement has space to distribute when the icons fit on one
+        // screen, but use the raw px from `BoxWithConstraints.constraints`
+        // (not `maxWidth.dp`) — the Dp round-trip can land 1 px above the
+        // viewport on non-integer densities and trip a spurious overflow
+        // chevron when the row content actually fits.
+        val viewportPx = constraints.maxWidth
         Row(
             modifier = rowModifier
                 .horizontalScroll(scrollState)
-                .widthIn(min = rowMinWidth),
+                .layout { measurable, childConstraints ->
+                    val placeable = measurable.measure(
+                        childConstraints.copy(minWidth = viewportPx),
+                    )
+                    contentOverflowsViewport = placeable.width > viewportPx
+                    layout(placeable.width, placeable.height) {
+                        placeable.place(0, 0)
+                    }
+                },
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             content = content,
         )
-        if (scrollState.value > 0) {
+        if (showStartChevron) {
             OverflowScrollChevron(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = chevronContentDescription,
@@ -486,7 +509,7 @@ private fun ScrollableIconRow(
                 testTag = startChevronTestTag,
             )
         }
-        if (scrollState.value < scrollState.maxValue) {
+        if (showEndChevron) {
             OverflowScrollChevron(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = chevronContentDescription,
