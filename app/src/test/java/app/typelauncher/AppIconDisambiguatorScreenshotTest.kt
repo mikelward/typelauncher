@@ -45,20 +45,13 @@ class AppIconDisambiguatorScreenshotTest {
     }
 
     @Test
-    fun bothChasesSurviveAndCarryDistinctBadges() {
-        // Both same-named "Chase" entries survive the dedup pass. Test tags
-        // include the disambiguated displayName so the two rows can be
-        // addressed individually: Chase UK picks up "UK" from its package
-        // tail; Chase US falls back to "SIG" (com.chase.sig.android) — not
-        // pretty, but distinct, and the user can tell them apart in the
-        // grid. The badge is rendered inside the AppIcon Surface; the
-        // testTag only resolves through the unmerged tree (matches the
-        // sibling pattern at MainActivityRobolectricScreenshotTest:1355).
+    fun bothChasesSurviveUkVariantGetsBadge() {
+        // Both same-named "Chase" entries survive the dedup pass. Only the UK
+        // variant (com.chase.uk.consumer) gets a "UK" badge — "sig" is not a
+        // country code so com.chase.sig.android is left unbadged.
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chase (UK)").assertIsDisplayed()
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Chase (SIG)").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Chase").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Chase (UK)", useUnmergedTree = true)
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Chase (SIG)", useUnmergedTree = true)
             .assertIsDisplayed()
 
         saveScreenshot("compose_disambiguator_chase_pair_robolectric.png")

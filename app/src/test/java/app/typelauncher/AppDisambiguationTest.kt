@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Process
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -54,18 +53,16 @@ class AppDisambiguationTest {
     }
 
     @Test
-    fun chaseSameNamePairUsesPackageTailWhereCountryAvailable() {
+    fun chaseSameNamePairOnlyCountryCodeMemberGetsBadge() {
         val apps = listOf(
             personalApp("Chase", "com.chase.sig.android"),
             personalApp("Chase", "com.chase.uk.consumer"),
         )
         val disambig = computeDisambiguators(apps)
-        // Two same-name entries — both must be in the result map and have
-        // distinct, non-empty labels.
-        assertEquals(2, disambig.size)
-        val labels = disambig.values.toSet()
-        assertEquals(2, labels.size)
-        assertTrue("UK must appear when one tail contains 'uk'", labels.contains("UK"))
+        // Only the UK tail contains a country code; "sig" is not a country
+        // code so the sig variant gets no badge.
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
     }
 
     @Test
@@ -161,6 +158,37 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun nonCountryCodePackageTailsProduceNoBadge() {
+        // "sig" and "intl" are not country codes; neither variant gets a badge.
+        val apps = listOf(
+            personalApp("Chase", "com.chase.sig.android"),
+            personalApp("Chase", "com.chase.intl.android"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun brandKeyHandlesKonyAndIeEtldPrefixes() {
+        assertEquals("capitalone", brandKey("com.konylabs.capitalone"))
+        assertEquals("capitalone", brandKey("com.ie.capitalone.uk"))
+    }
+
+    @Test
+    fun chaseKonyUsAndIeUkOnlyUkVariantGetsBadge() {
+        // Both packages resolve to brand "capitalone" after stripping their
+        // respective eTLD prefixes, grouping them together. The IE/UK package
+        // tail ends in "uk" so it receives the UK badge; the Kony package has
+        // an empty tail after the brand so it gets no badge.
+        val apps = listOf(
+            personalApp("Chase", "com.konylabs.capitalone"),
+            personalApp("Chase", "com.ie.capitalone.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
     fun nonIsoRegionalMarkersAreNotMatched() {
         // We deliberately don't include "EMEA" / "APAC" / "ANZ" / "ROW" in
         // the regional-marker list — keeping the set to ISO 3166-1 alpha-2
@@ -175,25 +203,17 @@ class AppDisambiguationTest {
     }
 
     @Test
-    fun oneCountryCodeDisambiguatesTheWholeGroup() {
-        // Once we observe a country-code suffix in the group, every member
-        // is tagged — even the ones whose suffix is just an empty string
-        // (the "default" / unbadged regional build) or some non-regional
-        // tier name like "Premium". The user has multiple peers with the
-        // same brand+first word installed; tagging only one of them would
-        // leave the others looking identical from the icon grid.
+    fun onlyMembersWithCountryCodeTailGetBadge() {
+        // "app" and "premium" are not country codes, so only the "uk" tail
+        // gets a badge; the other group members are left unbadged.
         val apps = listOf(
             personalApp("Bank", "com.bigbank.app"),
             personalApp("Bank UK", "com.bigbank.uk"),
             personalApp("Bank Premium", "com.bigbank.premium"),
         )
         val disambig = computeDisambiguators(apps)
-        assertEquals(3, disambig.size)
+        assertEquals(1, disambig.size)
         assertEquals("UK", disambig[apps[1].id])
-        // The other two get *some* non-empty distinguisher each (exact
-        // string depends on the package-tail picker).
-        assertTrue(disambig[apps[0].id]!!.isNotEmpty())
-        assertTrue(disambig[apps[2].id]!!.isNotEmpty())
     }
 
     @Test
