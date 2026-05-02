@@ -41,6 +41,13 @@ internal class DockedAppStore(context: Context) {
         save()
     }
 
+    val hasBeenPrefilled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_DOCK_PREFILLED, false)
+
+    fun markPrefilled() {
+        sharedPreferences.edit().putBoolean(KEY_DOCK_PREFILLED, true).apply()
+    }
+
     private fun save() {
         sharedPreferences.edit()
             .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
@@ -50,6 +57,7 @@ internal class DockedAppStore(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "docked_apps"
         const val KEY_DOCKED_APP_IDS = "docked_app_ids"
+        const val KEY_DOCK_PREFILLED = "dock_prefilled"
         const val DOCKED_APP_ID_SEPARATOR = "\n"
     }
 }
