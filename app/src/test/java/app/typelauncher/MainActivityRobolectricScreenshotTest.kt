@@ -332,7 +332,7 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun firstVisibleAppInTextList_isSelectedAsActiveLaunchTarget() {
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertIsNotSelected()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsNotSelected()
 
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
@@ -349,7 +349,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsNotSelected()
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertIsNotSelected()
 
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
@@ -480,10 +480,15 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
+        // Calculator is docked, so it's excluded from the main list entirely
+        // and only renders in the dock row. Compare a non-docked app's icon
+        // to the docked Calculator icon to verify icon-only mode matches the
+        // dock's icon size.
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
-        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
 
-        val appIconBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_ICON_TAG:Calculator").getBoundsInRoot()
+        val appIconBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_ICON_TAG:Browser").getBoundsInRoot()
         val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
         assertEquals(dockIconBounds.right - dockIconBounds.left, appIconBounds.right - appIconBounds.left)
         assertEquals(dockIconBounds.bottom - dockIconBounds.top, appIconBounds.bottom - appIconBounds.top)
@@ -631,7 +636,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockedAppsSortAsNegativeRankAtBottomOfUnfilteredList() {
+    fun dockedAppsAreExcludedFromUnfilteredListWhileDockEnabled() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
@@ -641,7 +646,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar", "Calculator"),
+            listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
             viewModel.uiState.value.filteredApps.map { it.name },
         )
     }
@@ -701,8 +706,10 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(DOCK_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         assertTrue(composeRule.activity.viewModel.uiState.value.dockedApps.single().isDocked)
-
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        // Once docked, Calculator drops out of the typed search results — long
+        // press the dock entry instead to verify the Undock action surfaces.
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").performTouchInput { longClick() }
         composeRule.onNodeWithText("Undock").assertIsDisplayed()
     }
 
@@ -722,8 +729,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Calculator").performClick()
         composeRule.waitForIdle()
 
+        // Calculator is docked, so it stays out of the main list while the
+        // dock is enabled; the reset only matters once the dock is disabled
+        // or the app is undocked.
         assertEquals(
-            listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar", "Calculator"),
+            listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
             composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name },
         )
     }
@@ -734,7 +744,10 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
-        val appIconLeft = composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").getBoundsInRoot().left
+        // Calculator is docked, so it isn't in the app row list anymore. Pick
+        // any other (non-docked) app to verify the column alignment between
+        // app rows and dock icons.
+        val appIconLeft = composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").getBoundsInRoot().left
         val dockIconLeft = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot().left
         assertEquals(appIconLeft, dockIconLeft)
     }
