@@ -453,6 +453,7 @@ class MainActivityRobolectricScreenshotTest {
             android.net.Uri.parse("package:${composeRule.activity.packageName}"),
             startedIntent.data,
         )
+        assertSettingsAppInfoFlags(startedIntent)
     }
 
     @Test
@@ -832,6 +833,7 @@ class MainActivityRobolectricScreenshotTest {
         val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
         assertEquals(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, startedIntent.action)
         assertEquals(android.net.Uri.parse("package:app.typelauncher.fake2"), startedIntent.data)
+        assertSettingsAppInfoFlags(startedIntent)
     }
 
     @Test
@@ -1305,6 +1307,11 @@ class MainActivityRobolectricScreenshotTest {
     private fun assertStandardLauncherFlags(intent: Intent) {
         val launcherFlags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         assertEquals(launcherFlags, intent.flags and launcherFlags)
+    }
+
+    private fun assertSettingsAppInfoFlags(intent: Intent) {
+        val appInfoFlags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        assertEquals(appInfoFlags, intent.flags and appInfoFlags)
     }
 
     private class SeedLauncherStateRule : TestRule {

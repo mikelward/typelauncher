@@ -470,6 +470,7 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("openLauncherAppInfo package=${app.packageName}")
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             .setData(Uri.parse("package:${app.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
         startActivity(intent)
     }
 
