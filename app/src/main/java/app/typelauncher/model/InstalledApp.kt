@@ -13,6 +13,7 @@ internal data class InstalledApp(
     val isWorkApp: Boolean,
     val launchWithLauncherApps: Boolean,
     val isDocked: Boolean = false,
+    val isHidden: Boolean = false,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"

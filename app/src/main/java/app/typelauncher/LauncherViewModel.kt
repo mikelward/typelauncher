@@ -41,6 +41,7 @@ internal class LauncherViewModel(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
+    private val hiddenAppStore = HiddenAppStore(app)
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
@@ -111,18 +112,20 @@ internal class LauncherViewModel(
             _uiState.update { state ->
                 val dockedIds = dockedAppStore.dockedAppIds
                 val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
+                val visibleApps = visibleInstalledApps()
                 state.copy(
-                    filteredApps = installedApps.filterByName(
+                    filteredApps = visibleApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = activeDockedIds,
                         dockedAppIds = dockedIds,
                         sortOrder = state.appListSortOrder,
-                    ).markDocked(),
-                    dockedApps = installedApps
+                    ).markVisibility(),
+                    dockedApps = visibleApps
                         .filterDocked(dockedAppStore.dockedAppIds)
-                        .markDocked(),
-                    recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
+                        .markVisibility(),
+                    recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
+                    hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                 )
             }
             LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
@@ -140,18 +143,20 @@ internal class LauncherViewModel(
             _uiState.update { state ->
                 val dockedIds = dockedAppStore.dockedAppIds
                 val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
+                val visibleApps = visibleInstalledApps()
                 state.copy(
-                    filteredApps = installedApps.filterByName(
+                    filteredApps = visibleApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = activeDockedIds,
                         dockedAppIds = dockedIds,
                         sortOrder = state.appListSortOrder,
-                    ).markDocked(),
-                    dockedApps = installedApps
+                    ).markVisibility(),
+                    dockedApps = visibleApps
                         .filterDocked(dockedAppStore.dockedAppIds)
-                        .markDocked(),
-                    recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
+                        .markVisibility(),
+                    recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
+                    hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                     isLoadingApps = false,
                     isFreshAppLoadComplete = true,
                 )
@@ -442,6 +447,20 @@ internal class LauncherViewModel(
         logState("resetRank")
     }
 
+    fun hideApp(app: InstalledApp) {
+        LauncherDebugLog.event("hideApp package=${app.packageName} docked=${app.isDocked}")
+        hiddenAppStore.hide(app.id)
+        refreshLists()
+        logState("hideApp")
+    }
+
+    fun unhideApp(app: InstalledApp) {
+        LauncherDebugLog.event("unhideApp package=${app.packageName}")
+        hiddenAppStore.unhide(app.id)
+        refreshLists()
+        logState("unhideApp")
+    }
+
     fun addWidget(appWidgetId: Int) {
         LauncherDebugLog.event("addWidget appWidgetId=$appWidgetId")
         widgetStore.add(appWidgetId)
@@ -532,19 +551,24 @@ internal class LauncherViewModel(
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
             val dockedIds = dockedAppStore.dockedAppIds
+            val visibleApps = visibleInstalledApps()
             state.copy(
-                filteredApps = installedApps.filterByName(
+                filteredApps = visibleApps.filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty(),
                     dockedAppIds = dockedIds,
                     sortOrder = state.appListSortOrder,
-                ).markDocked(),
-                dockedApps = installedApps.filterDocked(dockedAppStore.dockedAppIds).markDocked(),
-                recentApps = installedApps.filterRecent(appLaunchStatsStore.recentAppIds).markDocked(),
+                ).markVisibility(),
+                dockedApps = visibleApps.filterDocked(dockedAppStore.dockedAppIds).markVisibility(),
+                recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
+                hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
             )
         }
     }
+
+    private fun visibleInstalledApps(): List<InstalledApp> =
+        installedApps.filterNot { app -> hiddenAppStore.contains(app.id) }
 
     private fun startActivity(intent: Intent) {
         LauncherDebugLog.event("startActivity intent=${intent.debugSummary()}")
@@ -701,11 +725,12 @@ internal class LauncherViewModel(
         logState("showWidgetPicker")
     }
 
-    private fun List<InstalledApp>.markDocked(): List<InstalledApp> =
+    private fun List<InstalledApp>.markVisibility(): List<InstalledApp> =
         map { launcherApp ->
             val storedApp = installedApps.firstOrNull { installedApp -> installedApp.id == launcherApp.id } ?: launcherApp
             launcherApp.copy(
                 isDocked = dockedAppStore.contains(launcherApp.id),
+                isHidden = hiddenAppStore.contains(launcherApp.id),
                 isWorkApp = storedApp.isWorkApp,
             )
         }

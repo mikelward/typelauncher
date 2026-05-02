@@ -835,6 +835,77 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun hidingApp_removesItFromAppListAndAllOtherSurfaces() {
+        val viewModel = composeRule.activity.viewModel
+        // Pin Calculator to the dock and launch it once so it would appear in
+        // the dock and recents rows too — hide should sweep all three surfaces.
+        viewModel.toggleDock(
+            viewModel.uiState.value.filteredApps.first { it.name == "Calculator" },
+            maxDockedApps = 6,
+        )
+        viewModel.launchApp(viewModel.uiState.value.dockedApps.first { it.name == "Calculator" })
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$HIDE_APP_ACTION_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertDoesNotExist()
+        assertEquals(listOf("Calculator"), viewModel.uiState.value.hiddenApps.map { it.name })
+        assertFalse(viewModel.uiState.value.filteredApps.any { it.name == "Calculator" })
+        assertFalse(viewModel.uiState.value.dockedApps.any { it.name == "Calculator" })
+    }
+
+    @Test
+    fun manageHiddenAppsDialog_listsHiddenAppsAndUnhideRestoresThem() {
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calculator")
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$HIDE_APP_ACTION_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription("Clear search text").performClick()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:Calculator").assertIsDisplayed()
+        saveScreenshot("compose_settings_hidden_apps_dialog_robolectric.png")
+
+        composeRule.onNodeWithTag("$SETTINGS_HIDDEN_APPS_UNHIDE_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+
+        // Unhiding the only entry brings Calculator back to the app list and
+        // collapses the hidden list to the empty state.
+        assertEquals(emptyList<String>(), composeRule.activity.viewModel.uiState.value.hiddenApps.map { it.name })
+        composeRule.onNodeWithTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_EMPTY_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_DISMISS_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        assertTrue(
+            "unhide should restore Calculator to the main app list",
+            composeRule.activity.viewModel.uiState.value.filteredApps.any { it.name == "Calculator" },
+        )
+    }
+
+    @Test
+    fun manageHiddenAppsDialog_showsEmptyMessageWhenNothingIsHidden() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_EMPTY_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_LIST_TAG).assertDoesNotExist()
+    }
+
+    @Test
     fun dockingApp_addsItToDockAndOffersUndock() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
@@ -1241,7 +1312,14 @@ class MainActivityRobolectricScreenshotTest {
             object : Statement() {
                 override fun evaluate() {
                     val application = RuntimeEnvironment.getApplication()
-                    listOf("docked_apps", "dock_settings", "app_launch_stats", "widgets", "app_metadata").forEach { preferenceName ->
+                    listOf(
+                        "docked_apps",
+                        "dock_settings",
+                        "app_launch_stats",
+                        "widgets",
+                        "app_metadata",
+                        "hidden_apps",
+                    ).forEach { preferenceName ->
                         application
                             .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)
                             .edit()
