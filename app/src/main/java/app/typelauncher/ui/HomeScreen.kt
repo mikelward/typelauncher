@@ -68,7 +68,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -100,6 +99,7 @@ import kotlin.math.roundToInt
 internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
+    bodyReady: Boolean,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
@@ -130,16 +130,10 @@ internal fun HomeScreen(
             onOpenSettings = onOpenSettings,
             onLaunchActiveApp = onLaunchActiveApp,
         )
-        // Hold the apps/notification/dock/recents cards back for one frame on
-        // cold start so SearchCard composes and lays out alone. Its
-        // LaunchedEffect can then fire keyboard.show() before the main thread
-        // is busy measuring the apps grid, the dock row, and the recents row
-        // on the same frame.
-        var bodyReady by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            withFrameNanos { }
-            bodyReady = true
-        }
+        // `bodyReady` flips one frame after TypeLauncherApp first composes,
+        // and stays true for the lifetime of the activity composition: the
+        // holdback is a cold-start optimisation, not a per-mount one. See the
+        // comment on `homeBodyReady` in TypeLauncherApp for the why.
         if (bodyReady) {
             AppsCard(
                 apps = state.filteredApps,
