@@ -284,7 +284,7 @@ private fun SwipeNavigationBox(
                 backwardVelocityCancelPxPerSec,
             ) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     val commitDistancePx = pageWidthPx * CAROUSEL_COMMIT_DISTANCE_RATIO
                     val dragStartPage = pagerState.currentPage
@@ -293,6 +293,11 @@ private fun SwipeNavigationBox(
                     var displayDeltaPx = 0f
                     var claimed = false
                     val velocityTracker = VelocityTracker()
+                    // Seed the tracker with the DOWN sample so short flicks get
+                    // a representative velocity at release — without this, the
+                    // tracker only sees later MOVE samples and can read 0 px/s
+                    // for gestures that finish in a single frame.
+                    velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         event.changes.forEach { change ->
