@@ -35,6 +35,20 @@ internal class AppLaunchStatsStore(context: Context) {
             .apply()
     }
 
+    /**
+     * Drops [appId] from the recents list without touching its launch count —
+     * the recents bar's "Dismiss" action surfaces this so the user can take an
+     * app off that bar without affecting its rank in the main app list.
+     * No-op if the app isn't in the list.
+     */
+    fun removeRecent(appId: String) {
+        val current = recentAppIds
+        if (appId !in current) return
+        sharedPreferences.edit()
+            .putString(KEY_RECENT_APP_IDS, current.filterNot { it == appId }.joinToString(RECENT_APP_ID_SEPARATOR))
+            .apply()
+    }
+
     private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
 
     private companion object {

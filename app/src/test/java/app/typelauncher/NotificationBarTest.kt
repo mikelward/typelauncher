@@ -2,8 +2,10 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -235,6 +237,125 @@ class NotificationBarTest {
         composeRule.onNodeWithTag(NOTIFICATION_BAR_PERMISSION_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
         assertEquals(true, permissionRequested)
+    }
+
+    @Test
+    fun notificationBarLongPress_showsDismissAndSettingsActionsOnly() {
+        val mail = fakeApp(name = "Mail", packageName = "com.example.mail")
+        var dismissed: InstalledApp? = null
+        var settingsOpened: InstalledApp? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        notifyingApps = listOf(mail),
+                        isNotificationBarOpen = true,
+                        hasNotificationAccess = true,
+                        isNotificationsEnabled = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onDismissNotifications = { dismissed = it },
+                    onOpenNotificationSettings = { settingsOpened = it },
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("$NOTIFICATION_BAR_APP_TAG:Mail").performTouchInput { longClick() }
+        composeRule.waitForIdle()
+
+        // Notification-shaped actions only — no App info / Dock / Reset rank /
+        // Hide; those live on the main app list.
+        composeRule.onNodeWithTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:Mail").assertIsDisplayed()
+        composeRule.onNodeWithTag("$NOTIFICATION_SETTINGS_ACTION_TAG:Mail").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Mail").assertDoesNotExist()
+        composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Mail").assertDoesNotExist()
+        composeRule.onNodeWithTag("$RESET_RANK_ACTION_TAG:Mail").assertDoesNotExist()
+        composeRule.onNodeWithTag("$HIDE_APP_ACTION_TAG:Mail").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:Mail").performClick()
+        composeRule.waitForIdle()
+        assertEquals(mail, dismissed)
+        assertEquals(null, settingsOpened)
+    }
+
+    @Test
+    fun notificationBarSettingsAction_invokesOpenNotificationSettingsCallback() {
+        val mail = fakeApp(name = "Mail", packageName = "com.example.mail")
+        var settingsOpened: InstalledApp? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        notifyingApps = listOf(mail),
+                        isNotificationBarOpen = true,
+                        hasNotificationAccess = true,
+                        isNotificationsEnabled = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenNotificationSettings = { settingsOpened = it },
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("$NOTIFICATION_BAR_APP_TAG:Mail").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$NOTIFICATION_SETTINGS_ACTION_TAG:Mail").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(mail, settingsOpened)
     }
 
     @Test

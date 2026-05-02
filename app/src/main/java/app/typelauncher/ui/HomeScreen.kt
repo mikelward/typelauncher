@@ -110,6 +110,9 @@ internal fun HomeScreen(
     onReorderDock: (Int, Int) -> Unit = { _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+    onDismissNotifications: (InstalledApp) -> Unit,
+    onOpenNotificationSettings: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
@@ -164,10 +167,8 @@ internal fun HomeScreen(
                 hasNotificationAccess = state.hasNotificationAccess,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
+                onDismissNotifications = onDismissNotifications,
+                onOpenNotificationSettings = onOpenNotificationSettings,
                 onRequestNotificationAccess = onRequestNotificationAccess,
                 onDismiss = { onSetNotificationBarOpen(false) },
             )
@@ -193,8 +194,7 @@ internal fun HomeScreen(
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
+                onDismissRecent = onDismissRecent,
             )
         } else {
             // Reserve the remaining vertical space so SearchCard stays pinned
@@ -338,8 +338,7 @@ private fun RecentsCard(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -353,8 +352,7 @@ private fun RecentsCard(
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
+                onDismissRecent = onDismissRecent,
             )
         }
     }
@@ -368,10 +366,8 @@ private fun NotificationBarCard(
     dockIconSizeDp: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
+    onDismissNotifications: (InstalledApp) -> Unit,
+    onOpenNotificationSettings: (InstalledApp) -> Unit,
     onRequestNotificationAccess: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -404,10 +400,8 @@ private fun NotificationBarCard(
                         onDismiss()
                         onLaunchApp(app)
                     },
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
-                    onResetRank = onResetRank,
-                    onHideApp = onHideApp,
+                    onDismissNotifications = onDismissNotifications,
+                    onOpenNotificationSettings = onOpenNotificationSettings,
                 )
             }
         }
@@ -442,10 +436,8 @@ private fun NotificationBarRow(
     notifyingApps: List<InstalledApp>,
     dockIconSizeDp: Int,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
+    onDismissNotifications: (InstalledApp) -> Unit,
+    onOpenNotificationSettings: (InstalledApp) -> Unit,
 ) {
     val description = stringResource(R.string.notification_bar_description)
     ScrollableIconRow(
@@ -465,10 +457,8 @@ private fun NotificationBarRow(
                 app = app,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
+                onDismissNotifications = onDismissNotifications,
+                onOpenNotificationSettings = onOpenNotificationSettings,
             )
         }
     }
@@ -479,10 +469,8 @@ private fun NotifyingAppButton(
     app: InstalledApp,
     dockIconSizeDp: Int,
     onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
+    onDismissNotifications: (InstalledApp) -> Unit,
+    onOpenNotificationSettings: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val badgeDescription = stringResource(R.string.notification_bar_badge_description)
@@ -524,15 +512,12 @@ private fun NotifyingAppButton(
                     contentDescription = app.name
                 },
         )
-        AppActionsMenu(
+        NotifyingAppActionsMenu(
             expanded = menuExpanded,
             app = app,
-            dockLimit = Int.MAX_VALUE,
-            onDismiss = { menuExpanded = false },
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
+            onDismissMenu = { menuExpanded = false },
+            onDismissNotifications = onDismissNotifications,
+            onOpenNotificationSettings = onOpenNotificationSettings,
         )
     }
 }
@@ -544,8 +529,7 @@ private fun RecentsRow(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -577,8 +561,7 @@ private fun RecentsRow(
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
+                onDismissRecent = onDismissRecent,
             )
         }
     }
@@ -591,8 +574,7 @@ private fun RecentAppButton(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Box {
@@ -620,15 +602,13 @@ private fun RecentAppButton(
                     contentDescription = app.name
                 },
         )
-        AppActionsMenu(
+        RecentAppActionsMenu(
             expanded = menuExpanded,
             app = app,
-            dockLimit = Int.MAX_VALUE,
-            onDismiss = { menuExpanded = false },
+            onDismissMenu = { menuExpanded = false },
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
+            onDismissRecent = onDismissRecent,
         )
     }
 }
@@ -1003,6 +983,88 @@ private fun AppActionsMenu(
             onClick = {
                 onDismiss()
                 onHideApp(app)
+            },
+        )
+    }
+}
+
+/**
+ * Long-press menu for the recents row. The recents bar is launch history, not
+ * a curated list, so Reset rank (a usage-count concept) and Hide (which
+ * removes from every surface) don't belong here — Reset rank is orthogonal
+ * since recents isn't ranked, and Hide is incoherent on an icon you just
+ * launched. Dismiss is the per-icon equivalent of swiping a notification away
+ * — drops just this entry off the bar without touching launch counts.
+ */
+@Composable
+private fun RecentAppActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    onDismissMenu: () -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismissMenu) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_app_info)) },
+            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismissMenu()
+                onOpenAppInfo(app)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
+            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismissMenu()
+                onToggleDock(app, Int.MAX_VALUE)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_dismiss)) },
+            modifier = Modifier.testTag("$DISMISS_RECENT_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismissMenu()
+                onDismissRecent(app)
+            },
+        )
+    }
+}
+
+/**
+ * Long-press menu for the notification bar. The bar surfaces apps because the
+ * system has flagged them as actively notifying — so the right actions are
+ * notification-shaped, not app-shaped. Dismiss cancels the user-visible
+ * notifications for the package (which clears the icon from the bar);
+ * Settings opens Android's per-app notification settings so the user can
+ * mute or block the app at the source. App info / Dock / Reset rank / Hide
+ * are reachable from the main app list and would be off-context here.
+ */
+@Composable
+private fun NotifyingAppActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    onDismissMenu: () -> Unit,
+    onDismissNotifications: (InstalledApp) -> Unit,
+    onOpenNotificationSettings: (InstalledApp) -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismissMenu) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_dismiss)) },
+            modifier = Modifier.testTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismissMenu()
+                onDismissNotifications(app)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_settings)) },
+            modifier = Modifier.testTag("$NOTIFICATION_SETTINGS_ACTION_TAG:${app.name}"),
+            onClick = {
+                onDismissMenu()
+                onOpenNotificationSettings(app)
             },
         )
     }
@@ -1569,10 +1631,8 @@ private fun SettingsPreview(
                 dockIconSizeDp = dockIconSizeDp,
                 modifier = Modifier.height(previewHeight),
                 onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
+                onDismissNotifications = {},
+                onOpenNotificationSettings = {},
                 onRequestNotificationAccess = {},
                 onDismiss = {},
             )
@@ -1600,8 +1660,7 @@ private fun SettingsPreview(
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
+            onDismissRecent = {},
         )
     }
 }

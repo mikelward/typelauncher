@@ -21,12 +21,14 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
     override fun onListenerConnected() {
         super.onListenerConnected()
         LauncherDebugLog.event("NotificationListenerService.onListenerConnected")
+        NotificationDismisser.attach(this)
         refreshSnapshot()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         LauncherDebugLog.event("NotificationListenerService.onListenerDisconnected")
+        NotificationDismisser.detach(this)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -35,6 +37,39 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         refreshSnapshot()
+    }
+
+    /**
+     * Cancels every user-visible active notification for [packageName]. The bar
+     * uses this to back its "Dismiss" action — it removes the notifications the
+     * user can actually see (matches what the system shade would show), so the
+     * package drops out of [ActiveNotifications] and the bar updates.
+     * Ongoing/foreground-service notifications and group summaries are skipped
+     * for the same reason they're hidden in the bar (they're system bookkeeping,
+     * not user-visible content).
+     */
+    fun dismissNotificationsFor(packageName: String) {
+        val keys = try {
+            activeNotifications
+                ?.asSequence()
+                ?.filter { it.packageName == packageName && isUserVisible(it) }
+                ?.map { it.key }
+                ?.toList()
+                .orEmpty()
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.warning("NotificationListenerService.dismissNotificationsFor security", exception)
+            return
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("NotificationListenerService.dismissNotificationsFor runtime", exception)
+            return
+        }
+        for (key in keys) {
+            try {
+                cancelNotification(key)
+            } catch (exception: RuntimeException) {
+                LauncherDebugLog.warning("NotificationListenerService.cancelNotification failed key=$key", exception)
+            }
+        }
     }
 
     private fun refreshSnapshot() {
@@ -67,5 +102,30 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
         if (notification.isOngoing) return false
         if ((notification.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY) != 0) return false
         return true
+    }
+}
+
+/**
+ * Bridges the launcher UI to the live [TypeLauncherNotificationListenerService]
+ * instance the system has bound, so per-package dismiss can call back into the
+ * service without holding a reference from the ViewModel. Attached/detached
+ * from the listener's connect/disconnect callbacks; while no service is bound
+ * (notification access not granted, or the system unbound the listener mid-
+ * shutdown) dismiss is a no-op — there's nothing to cancel.
+ */
+internal object NotificationDismisser {
+    @Volatile
+    private var service: TypeLauncherNotificationListenerService? = null
+
+    fun attach(listener: TypeLauncherNotificationListenerService) {
+        service = listener
+    }
+
+    fun detach(listener: TypeLauncherNotificationListenerService) {
+        if (service === listener) service = null
+    }
+
+    fun dismissNotificationsFor(packageName: String) {
+        service?.dismissNotificationsFor(packageName)
     }
 }
