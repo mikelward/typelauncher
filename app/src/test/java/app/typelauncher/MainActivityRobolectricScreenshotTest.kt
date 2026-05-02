@@ -23,6 +23,7 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performKeyPress
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -568,20 +569,22 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        // Scroll the apps card into view before reading bounds — the settings
+        // page is now scrollable and the preview's four-bar budget pushes the
+        // bottom of the apps card below the viewport on the test screen, and
+        // boundsInRoot returns CLIPPED bounds (Compose's localBoundingBoxOf
+        // defaults clipBounds=true). Without performScrollTo both enabled and
+        // disabled measurements clip to the visible viewport portion.
+        val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).performScrollTo().getBoundsInRoot()
         val enabledPreviewHeight = enabledPreviewBounds.bottom - enabledPreviewBounds.top
-        // Settings now scrolls and the preview claims a fixed four-bar budget,
-        // so the dock card may sit below the viewport on the test screen.
-        // assertExists checks the node is composed without requiring it to be
-        // in the visible viewport.
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertExists()
-        composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performClick()
+        composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).assertIsOff()
         assertEquals(false, viewModel.uiState.value.isDockEnabled)
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
-        val disabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val disabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).performScrollTo().getBoundsInRoot()
         val disabledPreviewHeight = disabledPreviewBounds.bottom - disabledPreviewBounds.top
         assertTrue(
             "disabled dock preview gives dock space to the app list",
@@ -604,13 +607,17 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
+        // Scroll the dock icon into view before measuring its width — the
+        // preview's four-bar budget pushes the dock card below the viewport
+        // on the test screen and boundsInRoot would otherwise return clipped
+        // zero-width bounds (Compose's localBoundingBoxOf clips by default).
+        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").performScrollTo().getBoundsInRoot()
         val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
         viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Dock icons visible: 6").assertIsDisplayed()
-        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
+        composeRule.onNodeWithText("Dock icons visible: 6").performScrollTo().assertIsDisplayed()
+        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").performScrollTo().getBoundsInRoot()
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
         assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 
