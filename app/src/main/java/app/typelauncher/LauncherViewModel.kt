@@ -158,6 +158,10 @@ internal class LauncherViewModel(
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
             initialLoadTrace.stop()
             installedApps = loadedApps
+            if (!dockedAppStore.hasBeenPrefilled) {
+                prefillDock(loadedApps, dockedAppStore, _uiState.value.dockIconCount)
+                dockedAppStore.markPrefilled()
+            }
             _uiState.update { state ->
                 val dockedIds = dockedAppStore.dockedAppIds
                 val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
