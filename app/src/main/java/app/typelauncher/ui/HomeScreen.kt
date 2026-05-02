@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -67,6 +68,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -128,39 +130,65 @@ internal fun HomeScreen(
             onOpenSettings = onOpenSettings,
             onLaunchActiveApp = onLaunchActiveApp,
         )
-        AppsCard(
-            apps = state.filteredApps,
-            isLoading = state.isLoadingApps,
-            dockLimit = Int.MAX_VALUE,
-            isIconOnly = state.isAppListIconOnly,
-            iconSizeDp = dockIconSizeDp,
-            highlightFirst = state.query.isNotBlank(),
-            modifier = Modifier.weight(1f),
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
-        )
-        // Notification bar sits between the app list and the dock so a single
-        // pull-down brings it into view without displacing the dock or the
-        // keyboard. The list above shrinks (it has weight 1f) to make room.
-        NotificationBarCard(
-            notifyingApps = state.notifyingApps,
-            isVisible = state.isNotificationBarOpen,
-            hasNotificationAccess = state.hasNotificationAccess,
-            dockIconSizeDp = dockIconSizeDp,
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
-            onRequestNotificationAccess = onRequestNotificationAccess,
-            onDismiss = { onSetNotificationBarOpen(false) },
-        )
-        if (state.isDockEnabled) {
-            DockCard(
-                dockedApps = state.dockedApps,
+        // Hold the apps/notification/dock/recents cards back for one frame on
+        // cold start so SearchCard composes and lays out alone. Its
+        // LaunchedEffect can then fire keyboard.show() before the main thread
+        // is busy measuring the apps grid, the dock row, and the recents row
+        // on the same frame.
+        var bodyReady by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            bodyReady = true
+        }
+        if (bodyReady) {
+            AppsCard(
+                apps = state.filteredApps,
+                isLoading = state.isLoadingApps,
+                dockLimit = Int.MAX_VALUE,
+                isIconOnly = state.isAppListIconOnly,
+                iconSizeDp = dockIconSizeDp,
+                highlightFirst = state.query.isNotBlank(),
+                modifier = Modifier.weight(1f),
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onHideApp = onHideApp,
+            )
+            // Notification bar sits between the app list and the dock so a single
+            // pull-down brings it into view without displacing the dock or the
+            // keyboard. The list above shrinks (it has weight 1f) to make room.
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = state.isNotificationBarOpen,
+                hasNotificationAccess = state.hasNotificationAccess,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onHideApp = onHideApp,
+                onRequestNotificationAccess = onRequestNotificationAccess,
+                onDismiss = { onSetNotificationBarOpen(false) },
+            )
+            if (state.isDockEnabled) {
+                DockCard(
+                    dockedApps = state.dockedApps,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onHideApp = onHideApp,
+                )
+            }
+            // Recents lives in its own card below the dock so it can render
+            // independently of `isDockEnabled`. The drag-up gesture on the dock
+            // and the `Show recents` setting are orthogonal triggers — either
+            // is enough to make the card appear.
+            RecentsCard(
+                recentApps = state.recentApps,
+                isVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
                 dockIconSizeDp = dockIconSizeDp,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
@@ -168,21 +196,11 @@ internal fun HomeScreen(
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
             )
+        } else {
+            // Reserve the remaining vertical space so SearchCard stays pinned
+            // to the top of the screen during the one-frame holdback.
+            Spacer(modifier = Modifier.weight(1f))
         }
-        // Recents lives in its own card below the dock so it can render
-        // independently of `isDockEnabled`. The drag-up gesture on the dock and
-        // the `Show recents` setting are orthogonal triggers — either is enough
-        // to make the card appear.
-        RecentsCard(
-            recentApps = state.recentApps,
-            isVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
-            dockIconSizeDp = dockIconSizeDp,
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onHideApp = onHideApp,
-        )
     }
 }
 
