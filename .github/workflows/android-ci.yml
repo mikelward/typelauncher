@@ -96,11 +96,12 @@ jobs:
             Build: ${{ github.run_number }} · ${{ github.sha }}
 
       - name: Materialize release keystore
-        # Decoded only when the Play Store upload is going to happen — i.e. on
-        # push to main with the release secrets present. Skipped on PRs / forks
-        # so they keep building cleanly. The release keystore is a separate
-        # upload key from the debug keystore; Play App Signing re-signs with
-        # its managed app-signing key. See docs/play-store-internal-track.md.
+        # Decoded whenever the keystore secret is present, independent of the
+        # Play upload secrets. This lets the user populate the keystore secrets
+        # first and download the resulting signed AAB from CI artifacts to do
+        # the manual seed upload Play Console requires for new listings, then
+        # add PLAY_SERVICE_ACCOUNT_JSON later to enable the automated upload.
+        # See docs/play-store-internal-track.md.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
@@ -112,20 +113,35 @@ jobs:
           echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
 
       - name: Build release AAB
-        # Only run when we're going to ship — release signing config is only
-        # attached when RELEASE_KEYSTORE_FILE is set (see app/build.gradle.kts),
-        # so an AAB built without it would be unsigned and Play would reject it.
+        # Gated only on the keystore being present — a signed AAB is useful on
+        # its own (downloadable artifact for the seed upload, even before the
+        # Play service account is set up). Release signing config only attaches
+        # when RELEASE_KEYSTORE_FILE is set (see app/build.gradle.kts), so
+        # without the keystore Play would reject the AAB anyway.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
-          env.RELEASE_KEYSTORE_FILE != '' &&
-          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+          env.RELEASE_KEYSTORE_FILE != ''
         env:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: ./gradlew bundleRelease
+
+      - name: Upload signed AAB as workflow artifact
+        # Lets us download the signed AAB from the Actions UI for the one-time
+        # manual seed upload to Play Console. Useful indefinitely afterwards
+        # too if a release ever needs to be inspected or re-uploaded by hand.
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          env.RELEASE_KEYSTORE_FILE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
@@ -138,6 +154,11 @@ jobs:
           env.RELEASE_KEYSTORE_FILE != '' &&
           env.PLAY_SERVICE_ACCOUNT_JSON != ''
         env:
+          # PLAY_SERVICE_ACCOUNT_JSON has to be redeclared here because GitHub
+          # Actions step-level env doesn't propagate to neighbouring steps' if
+          # expressions — without this the gate above would always evaluate to
+          # empty and the step would silently skip.
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           mkdir -p "${RUNNER_TEMP}/whatsnew"

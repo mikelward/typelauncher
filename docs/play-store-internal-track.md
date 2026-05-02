@@ -34,7 +34,11 @@ Complete the required declarations under "App content" (privacy policy, target a
 
 ### 2. Seed the internal track with a manual upload
 
-The first AAB for any new app must be uploaded through the Play Console UI; the API can only create subsequent releases. Build one locally:
+The first AAB for any new app must be uploaded through the Play Console UI; the API can only create subsequent releases. There are two ways to get a signed AAB:
+
+**Option A — let CI build it (recommended).** Add the four release-keystore secrets from the table below (everything except `PLAY_SERVICE_ACCOUNT_JSON`) and push to main. The workflow will build a signed AAB and skip the upload step (because the service-account secret isn't set yet), but the `Build release AAB` step is decoupled from the Play upload — it always uploads the result as a workflow artifact called `app-release-aab` you can download from the Actions UI. Grab that AAB and upload it through Play Console.
+
+**Option B — build locally:**
 
 ```sh
 RELEASE_KEYSTORE_FILE=/path/to/release.keystore \
@@ -44,7 +48,9 @@ RELEASE_KEY_ALIAS=typelauncher \
 ./gradlew bundleRelease
 ```
 
-Upload `app/build/outputs/bundle/release/app-release.aab` via Play Console → Internal testing → Create new release. Accept Play App Signing when prompted (this is the managed key Play uses to re-sign all subsequent uploads).
+Either way, upload `app-release.aab` via Play Console → Internal testing → Create new release. Accept Play App Signing when prompted (this is the managed key Play uses to re-sign all subsequent uploads).
+
+Once the seed upload is done, finish the rest of this doc to add `PLAY_SERVICE_ACCOUNT_JSON` and let the next push to main upload automatically.
 
 ### 3. Add internal testers
 
