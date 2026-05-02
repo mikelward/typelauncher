@@ -141,6 +141,7 @@ internal fun TypeLauncherApp(
         onDismissWidgetPicker = onDismissWidgetPicker,
         onSelectWidget = onSelectWidget,
         onRemoveWidget = onRemoveWidget,
+        onResizeWidget = viewModel::resizeWidget,
         onRequestCalendarPermission = onRequestCalendarPermission,
         onOpenAgendaEvent = viewModel::openAgendaEvent,
         onSwipeDown = onSwipeDown,
@@ -191,6 +192,7 @@ internal fun TypeLauncherApp(
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
     onRequestCalendarPermission: () -> Unit,
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
     onSwipeDown: () -> Unit = {},
@@ -303,10 +305,12 @@ internal fun TypeLauncherApp(
                         appWidgetHost = appWidgetHost,
                         appWidgetManager = appWidgetManager,
                         innerPadding = innerPadding,
+                        widgetHeights = state.widgetHeights,
                         onAddWidget = onAddWidget,
                         onDismissWidgetPicker = onDismissWidgetPicker,
                         onSelectWidget = onSelectWidget,
                         onRemoveWidget = onRemoveWidget,
+                        onResizeWidget = onResizeWidget,
                     )
                     LauncherScreen.Agenda -> AgendaScreen(
                         agenda = state.agenda,

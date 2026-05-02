@@ -59,6 +59,7 @@ internal data class LauncherUiState(
     // the gesture still works when the setting is off.
     val isRecentsAlwaysShown: Boolean = false,
     val widgetIds: List<Int> = emptyList(),
+    val widgetHeights: Map<Int, Int> = emptyMap(),
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
     val isLoadingAvailableWidgets: Boolean = false,

@@ -66,6 +66,7 @@ internal class LauncherViewModel(
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
+            widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
@@ -586,9 +587,17 @@ internal class LauncherViewModel(
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 widgetIds = widgetStore.widgetIds,
+                widgetHeights = widgetStore.customHeights,
             )
         }
         logState("addWidget")
+    }
+
+    fun resizeWidget(appWidgetId: Int, heightDp: Int) {
+        LauncherDebugLog.event("resizeWidget appWidgetId=$appWidgetId heightDp=$heightDp")
+        widgetStore.setCustomHeight(appWidgetId, heightDp)
+        _uiState.update { it.copy(widgetHeights = widgetStore.customHeights) }
+        logState("resizeWidget")
     }
 
     internal fun refreshAvailableWidgetsForTest() {
@@ -616,7 +625,13 @@ internal class LauncherViewModel(
     fun removeWidget(appWidgetId: Int) {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         widgetStore.remove(appWidgetId)
-        _uiState.update { it.copy(screen = LauncherScreen.Widgets, widgetIds = widgetStore.widgetIds) }
+        _uiState.update {
+            it.copy(
+                screen = LauncherScreen.Widgets,
+                widgetIds = widgetStore.widgetIds,
+                widgetHeights = widgetStore.customHeights,
+            )
+        }
         logState("removeWidget")
     }
 

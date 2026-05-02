@@ -12,11 +12,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
@@ -45,6 +50,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,6 +72,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
 
@@ -78,10 +85,12 @@ internal fun WidgetsScreen(
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
+    widgetHeights: Map<Int, Int> = emptyMap(),
     onAddWidget: () -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
 ) {
     LazyColumn(
         modifier = Modifier
@@ -111,7 +120,9 @@ internal fun WidgetsScreen(
                 widgetId = widgetId,
                 appWidgetHost = appWidgetHost,
                 appWidgetManager = appWidgetManager,
+                customHeightDp = widgetHeights[widgetId],
                 onRemoveWidget = onRemoveWidget,
+                onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
             )
         }
     }
@@ -135,15 +146,11 @@ private fun WidgetPickerCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.widgets_picker_title), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(R.string.widgets_picker_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Button(onClick = onDismissWidgetPicker) {
+            Text(stringResource(R.string.widgets_picker_title), style = MaterialTheme.typography.titleMedium)
+            Button(
+                onClick = onDismissWidgetPicker,
+                modifier = Modifier.defaultMinSize(minWidth = 72.dp),
+            ) {
                 Text(stringResource(R.string.widgets_picker_done))
             }
         }
@@ -552,7 +559,9 @@ private fun HostedWidgetCard(
     widgetId: Int,
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
+    customHeightDp: Int?,
     onRemoveWidget: (Int) -> Unit,
+    onResizeWidget: (Int) -> Unit,
 ) {
     val providerInfo = remember(widgetId, appWidgetManager) {
         appWidgetManager?.getAppWidgetInfo(widgetId)
@@ -580,16 +589,24 @@ private fun HostedWidgetCard(
                 widgetId = widgetId,
                 onDismiss = { menuExpanded = false },
                 onRemoveWidget = onRemoveWidget,
+                onStartResize = {},
             )
         }
         return
     }
 
     val density = LocalDensity.current
+    val defaultHeightDp = widgetCardHeight(providerInfo.minHeight, providerInfo.targetCellHeightCompat, density)
+    var isResizing by remember { mutableStateOf(false) }
+    var resizeHeightDp by remember(customHeightDp, defaultHeightDp) {
+        mutableFloatStateOf((customHeightDp?.toFloat() ?: defaultHeightDp.value))
+    }
+    val effectiveHeightDp = if (isResizing) resizeHeightDp.dp else (customHeightDp?.dp ?: defaultHeightDp)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(widgetCardHeight(providerInfo.minHeight, density))
+            .height(effectiveHeightDp)
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
     ) {
         AndroidView(
@@ -608,10 +625,10 @@ private fun HostedWidgetCard(
             },
             update = { view ->
                 if (view is LauncherAppWidgetHostView) {
-                    view.setOnWidgetLongPressListener { menuExpanded = true }
+                    view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
                 } else {
                     view.setOnLongClickListener {
-                        menuExpanded = true
+                        if (!isResizing) menuExpanded = true
                         true
                     }
                 }
@@ -623,6 +640,52 @@ private fun HostedWidgetCard(
             widgetId = widgetId,
             onDismiss = { menuExpanded = false },
             onRemoveWidget = onRemoveWidget,
+            onStartResize = {
+                resizeHeightDp = effectiveHeightDp.value
+                isResizing = true
+            },
+        )
+        if (isResizing) {
+            WidgetResizeHandle(
+                onDrag = { deltaPx ->
+                    val deltaDp = with(density) { deltaPx.toDp().value }
+                    resizeHeightDp = (resizeHeightDp + deltaDp).coerceAtLeast(WIDGET_MIN_HEIGHT_DP.toFloat())
+                },
+                onDragEnd = {
+                    onResizeWidget(resizeHeightDp.roundToInt())
+                    isResizing = false
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WidgetResizeHandle(
+    onDrag: (deltaPx: Float) -> Unit,
+    onDragEnd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val resizeHandleDescription = stringResource(R.string.widget_resize_handle_description)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+            .draggable(
+                orientation = Orientation.Vertical,
+                state = rememberDraggableState { delta -> onDrag(delta) },
+                onDragStopped = { onDragEnd() },
+            )
+            .semantics { contentDescription = resizeHandleDescription }
+            .testTag(WIDGET_RESIZE_HANDLE_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Filled.DragHandle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -633,8 +696,17 @@ private fun WidgetActionsMenu(
     widgetId: Int,
     onDismiss: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onStartResize: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.widget_menu_resize)) },
+            modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
+            onClick = {
+                onDismiss()
+                onStartResize()
+            },
+        )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.widget_menu_remove)) },
             modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
@@ -646,8 +718,14 @@ private fun WidgetActionsMenu(
     }
 }
 
-internal fun widgetCardHeight(minHeightPx: Int, density: Density): Dp =
-    with(density) { minHeightPx.toDp() }.coerceAtLeast(WIDGET_MIN_HEIGHT_DP.dp)
+internal fun widgetCardHeight(minHeightPx: Int, targetCellHeight: Int, density: Density): Dp {
+    val fromMinHeight = with(density) { minHeightPx.toDp() }
+    val fromCells = (targetCellHeight * WIDGET_CELL_HEIGHT_DP).dp
+    return maxOf(fromMinHeight, fromCells, WIDGET_MIN_HEIGHT_DP.dp)
+}
+
+private val AppWidgetProviderInfo.targetCellHeightCompat: Int
+    get() = targetCellHeight.takeIf { it > 0 } ?: 1
 
 private data class WidgetPreviewValue(
     val generated: RemoteViews?,
@@ -682,5 +760,7 @@ private fun widgetProviderCountLabel(providerCount: Int): String =
 
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
 private const val WIDGET_MIN_HEIGHT_DP = 96
+private const val WIDGET_CELL_HEIGHT_DP = 80
+private const val WIDGET_RESIZE_HANDLE_HEIGHT_DP = 32
 private const val WIDGET_PROVIDER_PREVIEW_HEIGHT_DP = 120
 private const val GENERATED_WIDGET_PREVIEW_MIN_API = 35
