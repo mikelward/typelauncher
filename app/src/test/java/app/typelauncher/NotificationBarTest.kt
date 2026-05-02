@@ -98,6 +98,7 @@ class NotificationBarTest {
                         notifyingApps = notifying,
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
+                        isNotificationsEnabled = true,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -149,6 +150,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
+                        isNotificationsEnabled = true,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -195,6 +197,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = false,
+                        isNotificationsEnabled = true,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -241,7 +244,10 @@ class NotificationBarTest {
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = emptyList()),
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationsEnabled = true,
+                    ),
                     onQueryChanged = {},
                     onClearQuery = {},
                     onLaunchActiveApp = {},
