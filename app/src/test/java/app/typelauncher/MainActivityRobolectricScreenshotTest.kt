@@ -570,7 +570,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val enabledPreviewHeight = enabledPreviewBounds.bottom - enabledPreviewBounds.top
-        // Settings now scrolls and the preview claims a fixed three-bar budget,
+        // Settings now scrolls and the preview claims a fixed four-bar budget,
         // so the dock card may sit below the viewport on the test screen.
         // assertExists checks the node is composed without requiring it to be
         // in the visible viewport.
@@ -1213,7 +1213,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertIsOn()
         // The preview now mirrors the home layout: dock above, recents below.
         // The recents card may sit below the settings viewport on the test
-        // screen (the preview claims a fixed three-bar budget), so we only
+        // screen (the preview claims a fixed four-bar budget), so we only
         // assert the node has been composed.
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertExists()
     }

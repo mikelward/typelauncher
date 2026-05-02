@@ -1492,7 +1492,7 @@ private fun selectionHighlightOnColor(): Color =
 
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
-private const val SETTINGS_PREVIEW_BAR_COUNT = 3
+private const val SETTINGS_PREVIEW_BAR_COUNT = 4
 private const val SETTINGS_PREVIEW_SPACING_DP = 16
 
 // Notification badge dot — sized to read as "presence" rather than a count or

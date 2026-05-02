@@ -60,6 +60,21 @@ jobs:
       - name: Run unit tests
         run: ./gradlew test
 
+      - name: Print failing test details
+        # When `gradlew test` fails the JUnit XML still contains the failure
+        # messages and stack traces. Dump them to the job log so we don't have
+        # to download the artifact zip to know which test broke.
+        if: failure()
+        run: |
+          shopt -s nullglob
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+            fi
+          done
+
       - name: Upload unit test reports
         # Always upload so a failed test run leaves the JUnit XMLs and HTML
         # reports for inspection. Without this, diagnosing a CI-only test
@@ -226,6 +241,18 @@ jobs:
 
       - name: Run Robolectric keyboard screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Print failing test details
+        if: failure()
+        run: |
+          shopt -s nullglob
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+            fi
+          done
 
       - name: Upload Roborazzi screenshots
         if: always()
