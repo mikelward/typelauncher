@@ -311,7 +311,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Add widget").assertIsDisplayed()
-        composeRule.onNodeWithText("Choose a widget for the home screen").assertIsDisplayed()
+        composeRule.onNodeWithText("Choose a widget for the home screen").assertDoesNotExist()
         composeRule.onNodeWithText("Done").assertIsDisplayed()
         assertTrue(composeRule.activity.viewModel.uiState.value.isAddingWidget)
         composeRule.onNodeWithText("Done").performClick()
