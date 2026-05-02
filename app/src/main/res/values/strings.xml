@@ -62,6 +62,7 @@
     <string name="settings_app_list_icon_only_title">Icon-only app list</string>
     <string name="settings_app_list_sort_alphabetical_title">Sort apps alphabetically</string>
     <string name="settings_dock_enabled_title">Show dock</string>
+    <string name="settings_show_recents_title">Show recents</string>
     <string name="settings_dock_icon_count_label">Dock icons visible: %1$d</string>
     <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>
     <string name="settings_dock_preview_label">Preview</string>
