@@ -705,6 +705,106 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun typedSearchRanksByLaunchCountWithinTier() {
+        val viewModel = composeRule.activity.viewModel
+        // Boost Camera so it outranks Calculator/Calendar/Clock — all four are
+        // prefix matches for "c", so the within-tier tie-breaker decides the
+        // visible order. Without launch-count weighting the alphabetical
+        // fallback would surface Calculator first even though Camera is the
+        // app the user clearly reaches for.
+        repeat(3) { i ->
+            viewModel.setQuery("camera")
+            viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+            // Drain the launch intent each iteration so the harness's intent
+            // queue doesn't bleed across the assertion below.
+            shadowOf(composeRule.activity).nextStartedActivity
+        }
+        viewModel.setQuery("c")
+        composeRule.waitForIdle()
+
+        assertEquals(
+            listOf("Camera", "Calculator", "Calendar", "Clock"),
+            viewModel.uiState.value.filteredApps.map { it.name },
+        )
+    }
+
+    @Test
+    fun tappingDockedApp_incrementsLaunchCountSoItRanksAheadOfUntappedApps() {
+        val viewModel = composeRule.activity.viewModel
+        // Dock Calculator first so subsequent launches come from the dock row,
+        // not the main list.
+        viewModel.toggleDock(
+            viewModel.uiState.value.filteredApps.first { it.name == "Calculator" },
+            maxDockedApps = 6,
+        )
+        composeRule.waitForIdle()
+
+        repeat(2) {
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").performClick()
+            composeRule.waitForIdle()
+            shadowOf(composeRule.activity).nextStartedActivity
+        }
+
+        // Hide the dock so Calculator surfaces in the main list, then verify
+        // it outranks the alphabetically-earlier Browser thanks to the launch
+        // count picked up from dock taps.
+        viewModel.setDockEnabled(false)
+        composeRule.waitForIdle()
+        assertEquals(
+            listOf("Calculator", "Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
+            viewModel.uiState.value.filteredApps.map { it.name },
+        )
+    }
+
+    @Test
+    fun tappingRecentsApp_incrementsLaunchCountSoItRanksAheadOfUntappedApps() {
+        val viewModel = composeRule.activity.viewModel
+        // Seed recents with Calendar so it shows up in the recents row, then
+        // re-launch it from there twice. Recent-row taps must increment the
+        // launch count just like main-list taps so frequently-reopened apps
+        // bubble up the empty-query list.
+        viewModel.setQuery("calendar")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calendar" })
+        composeRule.waitForIdle()
+        shadowOf(composeRule.activity).nextStartedActivity
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        repeat(2) {
+            composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").performClick()
+            composeRule.waitForIdle()
+            shadowOf(composeRule.activity).nextStartedActivity
+            viewModel.setRecentsOpen(true)
+            composeRule.waitForIdle()
+        }
+
+        assertEquals("Calendar", viewModel.uiState.value.filteredApps.first().name)
+    }
+
+    @Test
+    fun typedSearchFloatsHiddenDockEntryToTopOfTier() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(
+            viewModel.uiState.value.filteredApps.first { it.name == "Camera" },
+            maxDockedApps = 6,
+        )
+        viewModel.setDockEnabled(false)
+        composeRule.waitForIdle()
+
+        viewModel.setQuery("c")
+        composeRule.waitForIdle()
+
+        // Camera is docked and the dock UI is hidden, so it floats to the top
+        // of the Prefix tier ahead of Calculator/Calendar/Clock — the user's
+        // pinned app stays reachable even though the row is sharing the main
+        // list.
+        assertEquals(
+            listOf("Camera", "Calculator", "Calendar", "Clock"),
+            viewModel.uiState.value.filteredApps.map { it.name },
+        )
+    }
+
+    @Test
     fun resetRankAction_resetsLaunchCountAndReordersApps() {
         composeRule.activity.viewModel.setQuery("calculator")
         composeRule.activity.viewModel.launchApp(composeRule.activity.viewModel.uiState.value.filteredApps.single())

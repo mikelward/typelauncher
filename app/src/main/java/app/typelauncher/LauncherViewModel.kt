@@ -82,14 +82,14 @@ internal class LauncherViewModel(
         if (cachedMetadata.isNotEmpty()) {
             installedApps = cachedMetadata
             _uiState.update { state ->
-                val activeDockedIds = dockedAppStore.dockedAppIds
-                    .takeIf { state.isDockEnabled }
-                    .orEmpty()
+                val dockedIds = dockedAppStore.dockedAppIds
+                val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
                 state.copy(
                     filteredApps = installedApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = activeDockedIds,
+                        dockedAppIds = dockedIds,
                         sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
@@ -111,14 +111,14 @@ internal class LauncherViewModel(
             initialLoadTrace.stop()
             installedApps = loadedApps
             _uiState.update { state ->
-                val activeDockedIds = dockedAppStore.dockedAppIds
-                    .takeIf { state.isDockEnabled }
-                    .orEmpty()
+                val dockedIds = dockedAppStore.dockedAppIds
+                val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
                 state.copy(
                     filteredApps = installedApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = activeDockedIds,
+                        dockedAppIds = dockedIds,
                         sortOrder = state.appListSortOrder,
                     ).markDocked(),
                     dockedApps = installedApps
@@ -495,11 +495,13 @@ internal class LauncherViewModel(
     private fun refreshLists() {
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
+            val dockedIds = dockedAppStore.dockedAppIds
             state.copy(
                 filteredApps = installedApps.filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
-                    excludedAppIds = dockedAppStore.dockedAppIds.takeIf { state.isDockEnabled }.orEmpty(),
+                    excludedAppIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty(),
+                    dockedAppIds = dockedIds,
                     sortOrder = state.appListSortOrder,
                 ).markDocked(),
                 dockedApps = installedApps.filterDocked(dockedAppStore.dockedAppIds).markDocked(),

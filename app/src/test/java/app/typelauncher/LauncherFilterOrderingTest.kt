@@ -146,6 +146,90 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
+    fun filterByNameSortsWithinTierByLaunchCountDescendingThenAlphabetical() {
+        val gallery = installedApp("Gallery")
+        val gmail = installedApp("Gmail")
+        val googleMaps = installedApp("Google Maps")
+        // Gmail has been launched the most, Google Maps once, Gallery never;
+        // all three are prefix matches for "g" so the tie-breaker is the
+        // launch count, then alphabetical for any remaining tie.
+        repeat(5) { store.recordLaunch(gmail.id) }
+        store.recordLaunch(googleMaps.id)
+
+        val filtered = listOf(gallery, gmail, googleMaps).filterByName(
+            query = "g",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("Gmail", "Google Maps", "Gallery"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameRanksDockedAppsFirstWithinTierWhenDockHidden() {
+        val calculator = installedApp("Calculator")
+        val camera = installedApp("Camera")
+        val clock = installedApp("Clock")
+        // All three are prefix matches for "c". Camera is docked but the dock
+        // is hidden (excludedAppIds is empty, dockedAppIds carries it through),
+        // so Camera floats to the top of its tier even though Calculator wins
+        // alphabetically.
+        val filtered = listOf(calculator, camera, clock).filterByName(
+            query = "c",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            dockedAppIds = listOf(camera.id),
+        )
+
+        assertEquals(listOf("Camera", "Calculator", "Clock"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameRanksDockedAppsFirstAcrossEachTierWhenDockHidden() {
+        // Mail = prefix, iMail = anchored, Gmail = substring. iMail and Gmail
+        // are docked; the dock is hidden so they should still come first
+        // within their respective tiers — but tiers still dominate, so Mail
+        // (prefix) precedes the docked Anchored/Substring entries.
+        val mail = installedApp("Mail")
+        val iMail = installedApp("iMail")
+        val gmail = installedApp("Gmail")
+        val mailerPrefix = installedApp("Mailer")
+        val mailroomPrefix = installedApp("Mailroom")
+
+        val filtered = listOf(mail, iMail, gmail, mailerPrefix, mailroomPrefix).filterByName(
+            query = "mail",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            dockedAppIds = listOf(mailroomPrefix.id, iMail.id, gmail.id),
+        )
+
+        // Within the Prefix tier the docked Mailroom outranks the
+        // alphabetically-earlier non-docked Mail/Mailer; the Anchored and
+        // Substring tiers each have a single (docked) entry.
+        assertEquals(listOf("Mailroom", "Mail", "Mailer", "iMail", "Gmail"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameRanksDockedAppsFirstInEmptyQueryUsageWhenDockHidden() {
+        val apple = installedApp("Apple")
+        val banana = installedApp("Banana")
+        val cherry = installedApp("Cherry")
+        // Apple has the most launches; Banana is docked with fewer launches.
+        // Dock is hidden, so Banana floats above Apple regardless of count.
+        repeat(5) { store.recordLaunch(apple.id) }
+        repeat(2) { store.recordLaunch(banana.id) }
+
+        val filtered = listOf(apple, banana, cherry).filterByName(
+            query = "",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            dockedAppIds = listOf(banana.id),
+        )
+
+        assertEquals(listOf("Banana", "Apple", "Cherry"), filtered.map { it.name })
+    }
+
+    @Test
     fun filterByNameSurfacesSubstringMatchesBelowEverythingElse() {
         val apps = listOf(
             installedApp("Cool"),
