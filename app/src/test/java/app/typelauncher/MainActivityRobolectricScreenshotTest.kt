@@ -943,6 +943,40 @@ class MainActivityRobolectricScreenshotTest {
         assertSettingsAppInfoFlags(startedIntent)
     }
 
+    // Regression: ACTION_APPLICATION_DETAILS_SETTINGS resolves the package URI
+    // against the current user only, so a work-profile app routed through the
+    // raw intent lands on the personal-profile copy (or 404s). The fix routes
+    // LauncherApps-loaded apps via LauncherApps.startAppDetailsActivity, which
+    // dispatches to the supplied UserHandle's profile.
+    @Test
+    @Config(shadows = [TrackingLauncherAppsShadow::class])
+    fun openAppInfo_workProfileApp_routesThroughLauncherAppsForCorrectProfile() {
+        TrackingLauncherAppsShadow.reset()
+        val workUser = android.os.UserHandle::class.java
+            .getMethod("of", Int::class.javaPrimitiveType)
+            .invoke(null, 10) as android.os.UserHandle
+        val workComponent = ComponentName("com.example.work", "com.example.work.MainActivity")
+        val workApp = InstalledApp(
+            name = "Work Mail",
+            packageName = workComponent.packageName,
+            launchIntent = Intent.makeMainActivity(workComponent),
+            user = workUser,
+            isWorkApp = true,
+            launchWithLauncherApps = true,
+        )
+
+        composeRule.activity.viewModel.openAppInfo(workApp)
+        composeRule.waitForIdle()
+
+        // No Settings intent should fire through the activity — LauncherApps
+        // received the call and routed it to the work-profile Settings instance.
+        assertEquals(null, shadowOf(composeRule.activity).nextStartedActivity)
+        assertEquals(1, TrackingLauncherAppsShadow.startedAppDetails.size)
+        val (component, user) = TrackingLauncherAppsShadow.startedAppDetails.single()
+        assertEquals(workComponent, component)
+        assertEquals(workUser, user)
+    }
+
     @Test
     fun hidingApp_removesItFromAppListAndAllOtherSurfaces() {
         val viewModel = composeRule.activity.viewModel
@@ -1780,5 +1814,33 @@ class MainActivityRobolectricScreenshotTest {
             "Type Launcher",
             "Work Calendar",
         )
+    }
+}
+
+// Custom shadow used by `openAppInfo_workProfileApp_routesThroughLauncherAppsForCorrectProfile`
+// to assert the (component, user) pair handed to LauncherApps. Robolectric's
+// stock `ShadowLauncherApps.startAppDetailsActivity` throws
+// UnsupportedOperationException, which lets the production code's fallback
+// fire and hides whether the LauncherApps path was taken at all.
+@org.robolectric.annotation.Implements(android.content.pm.LauncherApps::class)
+class TrackingLauncherAppsShadow : org.robolectric.shadows.ShadowLauncherApps() {
+    @org.robolectric.annotation.Implementation
+    public override fun startAppDetailsActivity(
+        component: android.content.ComponentName?,
+        user: android.os.UserHandle?,
+        sourceBounds: android.graphics.Rect?,
+        opts: android.os.Bundle?,
+    ) {
+        startedAppDetails.add(component to user)
+    }
+
+    companion object {
+        val startedAppDetails: MutableList<Pair<android.content.ComponentName?, android.os.UserHandle?>> =
+            java.util.Collections.synchronizedList(mutableListOf())
+
+        @JvmStatic
+        fun reset() {
+            startedAppDetails.clear()
+        }
     }
 }

@@ -610,7 +610,25 @@ internal class LauncherViewModel(
     }
 
     fun openAppInfo(app: InstalledApp) {
-        LauncherDebugLog.event("openAppInfo package=${app.packageName}")
+        LauncherDebugLog.event(
+            "openAppInfo package=${app.packageName} work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
+        )
+        // ACTION_APPLICATION_DETAILS_SETTINGS resolves the package against the
+        // current user only, so a work-profile app routed through it lands on the
+        // personal-profile copy (or 404s if there isn't one). LauncherApps is the
+        // only cross-profile API: it dispatches the same Settings screen against
+        // the supplied UserHandle so the work-profile copy actually opens.
+        val component = app.launchIntent.component
+        if (app.launchWithLauncherApps && component != null) {
+            try {
+                this.app.getSystemService<LauncherApps>()?.startAppDetailsActivity(component, app.user, null, null)
+                return
+            } catch (exception: ActivityNotFoundException) {
+                LauncherDebugLog.warning("openAppInfo activity not found package=${app.packageName}", exception)
+            } catch (exception: SecurityException) {
+                LauncherDebugLog.warning("openAppInfo security exception package=${app.packageName}", exception)
+            }
+        }
         startActivity(app.appInfoIntent)
     }
 
@@ -700,7 +718,7 @@ internal class LauncherViewModel(
             startActivity(intent)
         } catch (exception: ActivityNotFoundException) {
             LauncherDebugLog.warning("openNotificationSettingsFor missing activity, falling back to app info", exception)
-            startActivity(app.appInfoIntent)
+            openAppInfo(app)
         }
     }
 
