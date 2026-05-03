@@ -113,9 +113,15 @@ internal fun List<InstalledApp>.filterByName(
     excludedAppIds: Collection<String>,
     dockedAppIds: Collection<String> = emptyList(),
     sortOrder: AppListSortOrder = AppListSortOrder.Usage,
-    launchCounts: Map<String, Int> = when (sortOrder) {
+    // Reversed variants share the data ordering of their forward counterpart —
+    // the visual flip is applied later in the UI via `reverseLayout = true`,
+    // not by reversing the list here. That keeps the docked-first / tier-first
+    // contracts intact and means typed search still anchors the best match at
+    // index 0 (which renders at the visual bottom under reverseLayout).
+    launchCounts: Map<String, Int> = when (sortOrder.dataOrdering) {
         AppListSortOrder.Usage -> appLaunchStatsStore.launchCountsSnapshot()
         AppListSortOrder.Alphabetical -> emptyMap()
+        else -> emptyMap()
     },
 ): List<InstalledApp> {
     // Callers pass the docked app ids in `excludedAppIds` while the dock is
@@ -130,7 +136,7 @@ internal fun List<InstalledApp>.filterByName(
     val dockedSet = dockedAppIds.toSet()
     val dockedFirst = compareByDescending<InstalledApp> { app -> app.id in dockedSet }
     return if (query.isEmpty()) {
-        when (sortOrder) {
+        when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> candidates.sortedWith(
                 dockedFirst
                     .thenByDescending { app -> launchCounts[app.id] ?: 0 }
@@ -140,15 +146,17 @@ internal fun List<InstalledApp>.filterByName(
                 dockedFirst
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
+            else -> candidates
         }
     } else {
         val dockedFirstByPair = compareByDescending<Pair<InstalledApp, LauncherMatchTier>> { (app, _) -> app.id in dockedSet }
-        val withinTier = when (sortOrder) {
+        val withinTier = when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> dockedFirstByPair
                 .thenByDescending { (app, _) -> launchCounts[app.id] ?: 0 }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
             AppListSortOrder.Alphabetical -> dockedFirstByPair
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
+            else -> dockedFirstByPair
         }
         candidates
             // Match against `displayName` so the disambiguator suffix (e.g.

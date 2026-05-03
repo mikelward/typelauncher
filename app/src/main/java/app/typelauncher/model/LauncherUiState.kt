@@ -17,8 +17,28 @@ private const val DOCK_ITEM_SPACING_DP = 8
 
 internal enum class AppListSortOrder {
     Usage,
+    UsageReversed,
     Alphabetical,
+    AlphabeticalReversed,
 }
+
+/**
+ * The reversed variants render the apps list with `reverseLayout = true`, which
+ * draws item 0 at the visual bottom of the card and grows the list upwards.
+ * The persisted launch-count / alphabetical ordering is the same as the forward
+ * variant — only the visual presentation is flipped — so the "best" entry
+ * (most-used or alphabetically first) sits closest to the keyboard / typing
+ * area, and the list is naturally scrolled to that bottom edge on first paint.
+ */
+internal val AppListSortOrder.isReversed: Boolean
+    get() = this == AppListSortOrder.UsageReversed ||
+        this == AppListSortOrder.AlphabeticalReversed
+
+internal val AppListSortOrder.dataOrdering: AppListSortOrder
+    get() = when (this) {
+        AppListSortOrder.Usage, AppListSortOrder.UsageReversed -> AppListSortOrder.Usage
+        AppListSortOrder.Alphabetical, AppListSortOrder.AlphabeticalReversed -> AppListSortOrder.Alphabetical
+    }
 
 internal enum class NotificationPullDownBehavior {
     None,
