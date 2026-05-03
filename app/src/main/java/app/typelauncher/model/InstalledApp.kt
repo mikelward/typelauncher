@@ -38,6 +38,11 @@ internal data class InstalledApp(
             return "$name ($tag)"
         }
 
+    // Fallback used by `LauncherViewModel.openAppInfo` when no LauncherApps
+    // component is available; resolves the package URI against the current
+    // user only, so work-profile apps must go through `LauncherApps.
+    // startAppDetailsActivity(..., user, ...)` instead.
+    //
     // FLAG_ACTIVITY_CLEAR_TASK: if Settings is already running on a different page
     // (e.g. Bluetooth), NEW_TASK alone reuses that task and shows the page on top
     // instead of App Info. CLEAR_TASK resets the task so we always land on App Info.
