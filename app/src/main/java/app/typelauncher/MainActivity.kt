@@ -13,11 +13,11 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
@@ -90,7 +90,6 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
         LauncherDebugLog.event("onCreate savedInstanceState=${savedInstanceState.debugSummary()}")
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         LauncherDebugLog.event("onCreate afterSuper window=${window.debugSummary()}")
         // Wraps onCreate → first pre-draw so Firebase Performance shows the
         // launcher's own cold-start time alongside the SDK's auto-instrumented
@@ -123,17 +122,18 @@ class MainActivity : ComponentActivity() {
         // raise the keyboard before the toggle could undo it.
         applyKeyboardAutoShownPreference(viewModel.uiState.value.isKeyboardAutoShown)
         observeKeyboardAutoShownPreference()
+        // Apply edge-to-edge with system-bar styling that matches the persisted
+        // theme mode before setContent so the cold-start status/navigation bar
+        // icon contrast lines up with the very first frame, then keep it in
+        // sync as the user changes the setting at runtime.
+        applyEdgeToEdgeForThemeMode(viewModel.uiState.value.themeMode)
+        observeThemeModePreference()
         observeHomeReady()
         LauncherDebugLog.event("setContent begin")
         setContent {
             LauncherDebugLog.event("setContent composing TypeLauncherTheme")
-            val themeModeFlow = remember(viewModel) {
-                viewModel.uiState.map { it.themeMode }.distinctUntilChanged()
-            }
-            val themeMode by themeModeFlow.collectAsStateWithLifecycle(
-                initialValue = viewModel.uiState.value.themeMode,
-            )
-            TypeLauncherTheme(themeMode = themeMode) {
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            TypeLauncherTheme(themeMode = state.themeMode) {
                 TypeLauncherApp(
                     viewModel = viewModel,
                     appWidgetHost = appWidgetHost,
@@ -242,6 +242,42 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collect(::applyKeyboardAutoShownPreference)
         }
+    }
+
+    private fun observeThemeModePreference() {
+        lifecycleScope.launch {
+            viewModel.uiState
+                .map { it.themeMode }
+                .distinctUntilChanged()
+                .collect(::applyEdgeToEdgeForThemeMode)
+        }
+    }
+
+    /**
+     * (Re-)applies `enableEdgeToEdge` with explicit `SystemBarStyle`s derived
+     * from [mode], so the status / navigation bar icon contrast tracks the
+     * launcher-selected theme rather than only the device's night-mode flag.
+     * Without this the activity's bar styling is decided once in `onCreate` by
+     * `enableEdgeToEdge`'s default detector (which reads
+     * `Configuration.UI_MODE_NIGHT_MASK`); switching `Theme` to `Light` or
+     * `Dark` at runtime would otherwise leave bar icons mismatched against the
+     * new surface colors until the activity is recreated.
+     */
+    private fun applyEdgeToEdgeForThemeMode(mode: ThemeMode) {
+        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val isDark = when (mode) {
+            ThemeMode.System -> systemDark
+            ThemeMode.Light -> false
+            ThemeMode.Dark -> true
+        }
+        val style = if (isDark) {
+            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        }
+        enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        LauncherDebugLog.event("applyEdgeToEdgeForThemeMode mode=$mode isDark=$isDark")
     }
 
     private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
