@@ -7,15 +7,13 @@ internal class AppLaunchStatsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val lock = Any()
     private val launchCounts = mutableMapOf<String, Int>()
-    private var cachedRecentAppIds: List<String>? = null
-    private var isHydrated = false
+    private var cachedRecentAppIds: List<String> = emptyList()
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
         synchronized(lock) {
             when {
                 key == null -> {
                     launchCounts.clear()
                     cachedRecentAppIds = emptyList()
-                    isHydrated = true
                 }
                 key == KEY_RECENT_APP_IDS -> cachedRecentAppIds = parseRecentAppIds(preferences.getString(key, "").orEmpty())
                 key.startsWith(KEY_LAUNCH_COUNT_PREFIX) -> {
@@ -30,32 +28,21 @@ internal class AppLaunchStatsStore(context: Context) {
         }
     }
 
-    private fun ensureHydratedLocked() {
-        if (isHydrated) return
+    init {
         sharedPreferences.all.forEach { (key, value) ->
             if (key.startsWith(KEY_LAUNCH_COUNT_PREFIX) && value is Int) {
                 launchCounts[key.removePrefix(KEY_LAUNCH_COUNT_PREFIX)] = value
             }
         }
         cachedRecentAppIds = parseRecentAppIds(sharedPreferences.getString(KEY_RECENT_APP_IDS, "").orEmpty())
-        isHydrated = true
-    }
-
-    init {
         sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
     fun launchCount(appId: String): Int =
-        synchronized(lock) {
-            ensureHydratedLocked()
-            launchCounts[appId] ?: 0
-        }
+        synchronized(lock) { launchCounts[appId] ?: 0 }
 
     fun launchCountsSnapshot(): Map<String, Int> =
-        synchronized(lock) {
-            ensureHydratedLocked()
-            launchCounts.toMap()
-        }
+        synchronized(lock) { launchCounts.toMap() }
 
     /**
      * Most-recently-launched app IDs, newest first, capped at [MAX_RECENT_APP_IDS].
@@ -65,15 +52,11 @@ internal class AppLaunchStatsStore(context: Context) {
      * apps the user launched from Type Launcher.
      */
     val recentAppIds: List<String>
-        get() = synchronized(lock) {
-            ensureHydratedLocked()
-            cachedRecentAppIds.orEmpty()
-        }
+        get() = synchronized(lock) { cachedRecentAppIds }
 
     fun recordLaunch(appId: String) {
         val (updatedRecents, updatedLaunchCount) = synchronized(lock) {
-            ensureHydratedLocked()
-            val updatedRecents = (listOf(appId) + cachedRecentAppIds.orEmpty().filterNot { id -> id == appId })
+            val updatedRecents = (listOf(appId) + cachedRecentAppIds.filterNot { id -> id == appId })
                 .take(MAX_RECENT_APP_IDS)
             val updatedLaunchCount = (launchCounts[appId] ?: 0) + 1
             launchCounts[appId] = updatedLaunchCount
