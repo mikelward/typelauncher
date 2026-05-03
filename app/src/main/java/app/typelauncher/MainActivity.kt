@@ -89,7 +89,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
         LauncherDebugLog.event("onCreate savedInstanceState=${savedInstanceState.debugSummary()}")
-        super.onCreate(savedInstanceState)
+        androidTrace("launcher.super_onCreate") { super.onCreate(savedInstanceState) }
+        enableEdgeToEdge()
         LauncherDebugLog.event("onCreate afterSuper window=${window.debugSummary()}")
         // Wraps onCreate → first pre-draw so Firebase Performance shows the
         // launcher's own cold-start time alongside the SDK's auto-instrumented
@@ -105,16 +106,20 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("MainActivity firstPreDraw window=${window.debugSummary()}")
             coldStartTrace.stop()
         }
-        appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
-        appWidgetManager = AppWidgetManager.getInstance(this)
+        androidTrace("launcher.appwidget_init") {
+            appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
+            appWidgetManager = AppWidgetManager.getInstance(this)
+        }
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
-        viewModel = ViewModelProvider(
-            this,
-            LauncherViewModel.factory(
-                app = application,
-                workPackages = intent?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)?.toSet().orEmpty(),
-            ),
-        )[LauncherViewModel::class.java]
+        androidTrace("launcher.viewmodel_init") {
+            viewModel = ViewModelProvider(
+                this,
+                LauncherViewModel.factory(
+                    app = application,
+                    workPackages = intent?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)?.toSet().orEmpty(),
+                ),
+            )[LauncherViewModel::class.java]
+        }
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         // Apply the persisted keyboard-auto-show preference before setContent
         // so the cold-start IME state matches the setting on the very first
@@ -130,24 +135,26 @@ class MainActivity : ComponentActivity() {
         observeThemeModePreference()
         observeHomeReady()
         LauncherDebugLog.event("setContent begin")
-        setContent {
-            LauncherDebugLog.event("setContent composing TypeLauncherTheme")
-            val state by viewModel.uiState.collectAsStateWithLifecycle()
-            TypeLauncherTheme(themeMode = state.themeMode) {
-                TypeLauncherApp(
-                    viewModel = viewModel,
-                    appWidgetHost = appWidgetHost,
-                    appWidgetManager = appWidgetManager,
-                    onAddWidget = viewModel::showWidgetPicker,
-                    onDismissWidgetPicker = viewModel::hideWidgetPicker,
-                    onSelectWidget = ::bindWidget,
-                    onRemoveWidget = ::removeWidget,
-                    onRequestCalendarPermission = {
-                        requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-                    },
-                    onRequestDefaultLauncher = ::requestDefaultLauncher,
-                    onSwipeDown = ::expandNotificationShade,
-                )
+        androidTrace("launcher.set_content") {
+            setContent {
+                LauncherDebugLog.event("setContent composing TypeLauncherTheme")
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                TypeLauncherTheme(themeMode = state.themeMode) {
+                    TypeLauncherApp(
+                        viewModel = viewModel,
+                        appWidgetHost = appWidgetHost,
+                        appWidgetManager = appWidgetManager,
+                        onAddWidget = viewModel::showWidgetPicker,
+                        onDismissWidgetPicker = viewModel::hideWidgetPicker,
+                        onSelectWidget = ::bindWidget,
+                        onRemoveWidget = ::removeWidget,
+                        onRequestCalendarPermission = {
+                            requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                        },
+                        onRequestDefaultLauncher = ::requestDefaultLauncher,
+                        onSwipeDown = ::expandNotificationShade,
+                    )
+                }
             }
         }
         LauncherDebugLog.event("setContent returned")

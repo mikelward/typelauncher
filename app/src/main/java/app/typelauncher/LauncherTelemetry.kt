@@ -98,3 +98,12 @@ internal inline fun <T> traceBlock(name: String, block: (TraceHandle) -> T): T {
         trace.stop()
     }
 }
+
+internal inline fun <T> androidTrace(label: String, block: () -> T): T {
+    android.os.Trace.beginSection(label)
+    return try {
+        block()
+    } finally {
+        android.os.Trace.endSection()
+    }
+}
