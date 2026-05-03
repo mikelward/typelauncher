@@ -14,7 +14,6 @@ internal data class InstalledApp(
     val launchWithLauncherApps: Boolean,
     val isDocked: Boolean = false,
     val isHidden: Boolean = false,
-    val category: AppCategory = AppCategory.Other,
     val disambiguator: String? = null,
 ) {
     val id: String

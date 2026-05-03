@@ -116,4 +116,4 @@ internal fun LauncherUiState.debugSummary(): String =
         "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady " +
         "recents=${recentApps.size} recentsOpen=$isRecentsOpen " +
         "recentsAlwaysShown=$isRecentsAlwaysShown hidden=${hiddenApps.size} " +
-        "foldersEnabled=$areFoldersEnabled openFolder=$openFolder themeMode=$themeMode"
+        "themeMode=$themeMode"

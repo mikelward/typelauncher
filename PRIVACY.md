@@ -27,7 +27,7 @@ Type Launcher persists the following entirely on your device, in Android
 - Per-app launch counts and the most-recently-launched apps list (used to
   rank and show recents).
 - Dock and UI settings (icon size, sort order, pull-down behavior, keyboard
-  auto-show, folder mode, etc.).
+  auto-show, etc.).
 - A snapshot of the labels and metadata of installed apps, used to render the
   app list on the first frame after launch.
 - Cached app icon bitmaps, used to render icons on the first frame after

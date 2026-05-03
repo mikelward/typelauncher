@@ -38,10 +38,6 @@ internal class AppMetadataStore(context: Context) {
                             user = personal,
                             isWorkApp = obj.optBoolean(KEY_IS_WORK_APP, false),
                             launchWithLauncherApps = obj.optBoolean(KEY_LAUNCH_WITH_LAUNCHER_APPS, true),
-                            category = obj.takeIf { it.has(KEY_CATEGORY) }
-                                ?.getString(KEY_CATEGORY)
-                                ?.let { name -> runCatching { AppCategory.valueOf(name) }.getOrNull() }
-                                ?: AppCategory.Other,
                         ),
                     )
                 }
@@ -63,7 +59,6 @@ internal class AppMetadataStore(context: Context) {
                 put(KEY_COMPONENT, component.flattenToString())
                 put(KEY_IS_WORK_APP, app.isWorkApp)
                 put(KEY_LAUNCH_WITH_LAUNCHER_APPS, app.launchWithLauncherApps)
-                put(KEY_CATEGORY, app.category.name)
             }
             array.put(obj)
         }
@@ -82,6 +77,5 @@ internal class AppMetadataStore(context: Context) {
         const val KEY_COMPONENT = "component"
         const val KEY_IS_WORK_APP = "isWorkApp"
         const val KEY_LAUNCH_WITH_LAUNCHER_APPS = "launchWithLauncherApps"
-        const val KEY_CATEGORY = "category"
     }
 }
