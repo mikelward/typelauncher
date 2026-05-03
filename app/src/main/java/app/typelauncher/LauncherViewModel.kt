@@ -619,9 +619,10 @@ internal class LauncherViewModel(
         // only cross-profile API: it dispatches the same Settings screen against
         // the supplied UserHandle so the work-profile copy actually opens.
         val component = app.launchIntent.component
-        if (app.launchWithLauncherApps && component != null) {
+        val launcherApps = launcherAppsService
+        if (app.launchWithLauncherApps && component != null && launcherApps != null) {
             try {
-                this.app.getSystemService<LauncherApps>()?.startAppDetailsActivity(component, app.user, null, null)
+                launcherApps.startAppDetailsActivity(component, app.user, null, null)
                 return
             } catch (exception: ActivityNotFoundException) {
                 LauncherDebugLog.warning("openAppInfo activity not found package=${app.packageName}", exception)
