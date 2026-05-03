@@ -160,6 +160,20 @@ class AppLaunchStatsStoreRecentsTest {
         assertEquals(emptyMap<String, Int>(), store.launchCountsSnapshot())
     }
 
+    @Test
+    fun launchCountsAreHydratedWhenStoreIsCreated() {
+        context.getSharedPreferences("app_launch_stats", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putInt("launch_count:a", 3)
+            .putString("recent_app_ids", "a")
+            .commit()
+
+        val store = AppLaunchStatsStore(context)
+
+        assertEquals(3, store.launchCountsSnapshot()["a"])
+        assertEquals(listOf("a"), store.recentAppIds)
+    }
+
     private fun installedApp(name: String): InstalledApp {
         val packageName = "app.${name.lowercase().replace(' ', '.')}"
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
