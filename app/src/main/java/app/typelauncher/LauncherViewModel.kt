@@ -118,7 +118,6 @@ internal class LauncherViewModel(
             isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
             notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
-            areFoldersEnabled = dockSettingsStore.areFoldersEnabled,
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
@@ -339,12 +338,7 @@ internal class LauncherViewModel(
         // fresh list references that recompose unrelated UI for nothing. The
         // worst case is backspace, which grows the result set back toward the
         // full app list and made the lag user-visible.
-        _uiState.update { state ->
-            state.copy(
-                query = query,
-                openFolder = state.openFolder.takeIf { query.isBlank() },
-            )
-        }
+        _uiState.update { state -> state.copy(query = query) }
         refreshFilteredApps()
         LauncherDebugLog.event(
             "setQuery length=${query.length} filtered=${_uiState.value.filteredApps.size} " +
@@ -830,28 +824,6 @@ internal class LauncherViewModel(
         logState("setRecentsAlwaysShown")
     }
 
-    fun setFoldersEnabled(isEnabled: Boolean) {
-        dockSettingsStore.areFoldersEnabled = isEnabled
-        _uiState.update {
-            it.copy(
-                areFoldersEnabled = isEnabled,
-                openFolder = it.openFolder.takeIf { _ -> isEnabled },
-            )
-        }
-        logState("setFoldersEnabled=$isEnabled")
-    }
-
-    fun openFolder(category: AppCategory) {
-        _uiState.update { it.copy(openFolder = category) }
-        logState("openFolder=$category")
-    }
-
-    fun closeFolder() {
-        if (_uiState.value.openFolder == null) return
-        _uiState.update { it.copy(openFolder = null) }
-        logState("closeFolder")
-    }
-
     /**
      * Persists the user's Home pull-down behavior. Choosing the launcher's
      * notification bar prompts for notification listener access if needed; the
@@ -1030,11 +1002,6 @@ internal class LauncherViewModel(
         val personalUser = Process.myUserHandle()
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
-        // Capture the manifest `appCategory` int alongside each app so the
-        // inferrer can categorise work-profile apps too — `PackageManager` on
-        // the launcher's owner profile can't see them, but `LauncherActivityInfo`
-        // exposes the per-profile `ApplicationInfo` directly.
-        val manifestCategories = HashMap<String, Int>()
         val profileApps = launcherApps
             ?.profiles
             .orEmpty()
@@ -1046,7 +1013,6 @@ internal class LauncherViewModel(
                 LauncherDebugLog.event("loadInstalledApps profile=${user.hashCode()} activities=${activities.size}")
                 activities
                     .map { activity ->
-                        manifestCategories[activity.applicationInfo.packageName] = activity.applicationInfo.category
                         InstalledApp(
                             name = activity.label.toString(),
                             packageName = activity.applicationInfo.packageName,
@@ -1064,9 +1030,6 @@ internal class LauncherViewModel(
                 resolveInfos
                     .map { resolveInfo ->
                         val activityInfo = resolveInfo.activityInfo
-                        activityInfo.applicationInfo?.let { appInfo ->
-                            manifestCategories[appInfo.packageName] = appInfo.category
-                        }
                         InstalledApp(
                             name = resolveInfo.loadLabel(app.packageManager).toString(),
                             packageName = activityInfo.packageName,
@@ -1085,9 +1048,7 @@ internal class LauncherViewModel(
             // and the disambiguator pass below tags them with regional badges.
             .distinctBy { launcherApp -> launcherApp.id }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
-        val categories = inferCategories(app, collected, manifestCategories)
         return collected
-            .map { installed -> installed.copy(category = categories[installed.id] ?: AppCategory.Other) }
             .applyDisambiguators()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }

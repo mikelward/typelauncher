@@ -149,20 +149,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Opt-in toggle for the auto-generated category folders (Settings → "Show
-     * folders"). Off by default. When on and the search box is empty, the home
-     * screen renders folder tiles instead of the flat app list; typing into the
-     * search box reverts to the flat list and closes any open folder.
-     */
-    var areFoldersEnabled: Boolean
-        get() = sharedPreferences.getBoolean(KEY_FOLDERS_ENABLED, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_FOLDERS_ENABLED, value)
-                .apply()
-        }
-
-    /**
      * Settings → "Theme" mode. Defaults to [ThemeMode.System] so the launcher
      * follows the device's night-mode configuration; users can pin to
      * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
@@ -187,7 +173,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
-        const val KEY_FOLDERS_ENABLED = "folders_enabled"
         const val KEY_THEME_MODE = "theme_mode"
     }
 }
