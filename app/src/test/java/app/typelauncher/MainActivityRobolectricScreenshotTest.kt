@@ -528,12 +528,32 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText(
             "Version ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
         ).assertIsDisplayed()
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_PRIVACY_POLICY_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Privacy policy").assertIsDisplayed()
         saveScreenshot("compose_settings_about_dialog_robolectric.png")
 
         composeRule.onNodeWithTag(SETTINGS_ABOUT_DIALOG_DISMISS_TAG).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_ABOUT_DIALOG_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun aboutDialogPrivacyPolicyLinkOpensHostedPrivacyPolicyUrl() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_ABOUT_PRIVACY_POLICY_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals(Intent.ACTION_VIEW, startedIntent.action)
+        assertEquals(
+            android.net.Uri.parse("https://mikelward.github.io/typelauncher/PRIVACY"),
+            startedIntent.data,
+        )
     }
 
     @Test

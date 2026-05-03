@@ -1,5 +1,7 @@
 package app.typelauncher
 
+import android.content.Intent
+import android.net.Uri
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -2351,18 +2353,35 @@ private fun HiddenAppRow(
 
 @Composable
 private fun AboutDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val privacyPolicyUrl = stringResource(R.string.settings_about_privacy_policy_url)
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag(SETTINGS_ABOUT_DIALOG_TAG),
         title = { Text(stringResource(R.string.settings_about_dialog_title)) },
         text = {
-            Text(
-                stringResource(
-                    R.string.settings_about_version_value,
-                    BuildConfig.VERSION_NAME,
-                    BuildConfig.VERSION_CODE,
-                ),
-            )
+            Column {
+                Text(
+                    stringResource(
+                        R.string.settings_about_version_value,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.VERSION_CODE,
+                    ),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_about_privacy_policy),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .testTag(SETTINGS_ABOUT_PRIVACY_POLICY_TAG)
+                        .clickable {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(privacyPolicyUrl))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        },
+                )
+            }
         },
         confirmButton = {
             TextButton(
