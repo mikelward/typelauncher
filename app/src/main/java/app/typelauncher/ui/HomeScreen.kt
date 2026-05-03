@@ -112,6 +112,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -1788,6 +1789,17 @@ private fun DockedAppButton(
                 .semantics {
                     role = Role.Button
                     contentDescription = app.displayName
+                    // The pointerInput drag detector above only fires on
+                    // touch, so accessibility services / keyboard / switch
+                    // input would otherwise have no path to the long-press
+                    // menu. Re-expose it as a SemanticsAction so TalkBack's
+                    // "long press" gesture and equivalent non-touch entry
+                    // points still surface App info / Undock / Reset rank /
+                    // Hide on dock icons.
+                    onLongClick(label = null) {
+                        menuExpanded = true
+                        true
+                    }
                 },
         )
         AppActionsMenu(
