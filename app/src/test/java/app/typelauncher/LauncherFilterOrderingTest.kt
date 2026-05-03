@@ -166,6 +166,49 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
+    fun filterByNameReversedVariantsShareDataOrderingWithForwardVariants() {
+        // The reversed sort orders are a UI-only flip applied via
+        // `reverseLayout = true`; the underlying data ordering must match the
+        // forward variant so the typed-search active-first target stays at
+        // index 0 (which renders at the visual bottom under reverseLayout).
+        val gallery = installedApp("Gallery")
+        val gmail = installedApp("Gmail")
+        val googleMaps = installedApp("Google Maps")
+        repeat(5) { store.recordLaunch(gmail.id) }
+        store.recordLaunch(googleMaps.id)
+        val apps = listOf(gallery, gmail, googleMaps)
+
+        assertEquals(
+            apps.filterByName(
+                query = "",
+                appLaunchStatsStore = store,
+                excludedAppIds = emptySet(),
+                sortOrder = AppListSortOrder.Usage,
+            ).map { it.name },
+            apps.filterByName(
+                query = "",
+                appLaunchStatsStore = store,
+                excludedAppIds = emptySet(),
+                sortOrder = AppListSortOrder.UsageReversed,
+            ).map { it.name },
+        )
+        assertEquals(
+            apps.filterByName(
+                query = "",
+                appLaunchStatsStore = store,
+                excludedAppIds = emptySet(),
+                sortOrder = AppListSortOrder.Alphabetical,
+            ).map { it.name },
+            apps.filterByName(
+                query = "",
+                appLaunchStatsStore = store,
+                excludedAppIds = emptySet(),
+                sortOrder = AppListSortOrder.AlphabeticalReversed,
+            ).map { it.name },
+        )
+    }
+
+    @Test
     fun filterByNameUnderAlphabeticalSortIgnoresLaunchCountWithinTier() {
         val gallery = installedApp("Gallery")
         val gmail = installedApp("Gmail")

@@ -189,6 +189,7 @@ internal fun HomeScreen(
                 isIconOnly = state.isAppListIconOnly,
                 iconSizeDp = dockIconSizeDp,
                 highlightFirst = state.query.isNotBlank(),
+                reverseLayout = state.appListSortOrder.isReversed,
                 modifier = Modifier.weight(1f),
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
@@ -968,15 +969,15 @@ private fun AppListOverflowChevronBox(
 
 @Composable
 private fun rememberAppListEdgePullConnection(
-    canScrollBackward: () -> Boolean,
-    canScrollForward: () -> Boolean,
+    canScrollVisuallyUp: () -> Boolean,
+    canScrollVisuallyDown: () -> Boolean,
     thresholdPx: Float,
     onPullDownPastStart: () -> Unit,
     onPullUpPastEnd: () -> Unit,
 ): NestedScrollConnection {
     val currentOnPullDownPastStart by rememberUpdatedState(onPullDownPastStart)
     val currentOnPullUpPastEnd by rememberUpdatedState(onPullUpPastEnd)
-    return remember(canScrollBackward, canScrollForward, thresholdPx) {
+    return remember(canScrollVisuallyUp, canScrollVisuallyDown, thresholdPx) {
         object : NestedScrollConnection {
             private var edgeDragPx = 0f
 
@@ -984,8 +985,8 @@ private fun rememberAppListEdgePullConnection(
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
                 val availableY = available.y
                 edgeDragPx = when {
-                    availableY > 0f && !canScrollBackward() -> (edgeDragPx + availableY).coerceAtLeast(0f)
-                    availableY < 0f && !canScrollForward() -> (edgeDragPx + availableY).coerceAtMost(0f)
+                    availableY > 0f && !canScrollVisuallyUp() -> (edgeDragPx + availableY).coerceAtLeast(0f)
+                    availableY < 0f && !canScrollVisuallyDown() -> (edgeDragPx + availableY).coerceAtMost(0f)
                     else -> 0f
                 }
                 when {
@@ -1045,6 +1046,7 @@ private fun AppsCard(
     isIconOnly: Boolean,
     iconSizeDp: Int,
     highlightFirst: Boolean,
+    reverseLayout: Boolean = false,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1077,16 +1079,25 @@ private fun AppsCard(
             val edgePullThresholdPx = with(LocalDensity.current) { APP_LIST_EDGE_PULL_THRESHOLD_DP.dp.toPx() }
             if (isIconOnly) {
                 val gridState = rememberLazyGridState()
+                // In reverseLayout, the visual top is at the END of the data,
+                // so the chevron and edge-pull predicates that ask "can we
+                // scroll visually up / down" swap to canScrollForward /
+                // canScrollBackward respectively. Without this swap, an empty
+                // app list rendered with reverseLayout would advertise the
+                // wrong overflow chevron and route pull-down/pull-up to the
+                // wrong launcher gesture.
+                val canScrollUp = if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward
+                val canScrollDown = if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward
                 val edgePullConnection = rememberAppListEdgePullConnection(
-                    canScrollBackward = { gridState.canScrollBackward },
-                    canScrollForward = { gridState.canScrollForward },
+                    canScrollVisuallyUp = { canScrollUp },
+                    canScrollVisuallyDown = { canScrollDown },
                     thresholdPx = edgePullThresholdPx,
                     onPullDownPastStart = onPullDownPastStart,
                     onPullUpPastEnd = onPullUpPastEnd,
                 )
                 AppListOverflowChevronBox(
-                    canScrollUp = gridState.canScrollBackward,
-                    canScrollDown = gridState.canScrollForward,
+                    canScrollUp = canScrollUp,
+                    canScrollDown = canScrollDown,
                     chevronContentDescription = chevronDescription,
                 ) {
                     IconOnlyAppGrid(
@@ -1094,6 +1105,7 @@ private fun AppsCard(
                         dockLimit = dockLimit,
                         iconSizeDp = iconSizeDp,
                         highlightFirst = highlightFirst,
+                        reverseLayout = reverseLayout,
                         state = gridState,
                         edgePullConnection = edgePullConnection,
                         onLaunchApp = onLaunchApp,
@@ -1105,20 +1117,23 @@ private fun AppsCard(
                 }
             } else {
                 val listState = rememberLazyListState()
+                val canScrollUp = if (reverseLayout) listState.canScrollForward else listState.canScrollBackward
+                val canScrollDown = if (reverseLayout) listState.canScrollBackward else listState.canScrollForward
                 val edgePullConnection = rememberAppListEdgePullConnection(
-                    canScrollBackward = { listState.canScrollBackward },
-                    canScrollForward = { listState.canScrollForward },
+                    canScrollVisuallyUp = { canScrollUp },
+                    canScrollVisuallyDown = { canScrollDown },
                     thresholdPx = edgePullThresholdPx,
                     onPullDownPastStart = onPullDownPastStart,
                     onPullUpPastEnd = onPullUpPastEnd,
                 )
                 AppListOverflowChevronBox(
-                    canScrollUp = listState.canScrollBackward,
-                    canScrollDown = listState.canScrollForward,
+                    canScrollUp = canScrollUp,
+                    canScrollDown = canScrollDown,
                     chevronContentDescription = chevronDescription,
                 ) {
                     LazyColumn(
                         state = listState,
+                        reverseLayout = reverseLayout,
                         modifier = Modifier
                             .fillMaxWidth()
                             .nestedScroll(edgePullConnection)
@@ -1151,6 +1166,7 @@ private fun IconOnlyAppGrid(
     highlightFirst: Boolean,
     state: LazyGridState,
     edgePullConnection: NestedScrollConnection,
+    reverseLayout: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1160,6 +1176,7 @@ private fun IconOnlyAppGrid(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(iconSizeDp.dp),
         state = state,
+        reverseLayout = reverseLayout,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = iconSizeDp.dp)
@@ -1887,7 +1904,9 @@ private fun AppListSortOrderDropdown(
     var expanded by remember { mutableStateOf(false) }
     val selectedLabelRes = when (selected) {
         AppListSortOrder.Usage -> R.string.settings_app_list_sort_option_usage
+        AppListSortOrder.UsageReversed -> R.string.settings_app_list_sort_option_usage_reversed
         AppListSortOrder.Alphabetical -> R.string.settings_app_list_sort_option_name
+        AppListSortOrder.AlphabeticalReversed -> R.string.settings_app_list_sort_option_name_reversed
     }
     Box {
         TextButton(
@@ -1914,11 +1933,27 @@ private fun AppListSortOrderDropdown(
                 },
             )
             DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_list_sort_option_usage_reversed)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_USAGE_REVERSED_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.UsageReversed)
+                },
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.settings_app_list_sort_option_name)) },
                 modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_TAG),
                 onClick = {
                     expanded = false
                     onSortOrderChanged(AppListSortOrder.Alphabetical)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_app_list_sort_option_name_reversed)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_REVERSED_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.AlphabeticalReversed)
                 },
             )
         }
@@ -2236,6 +2271,7 @@ private fun SettingsPreview(
             isIconOnly = state.isAppListIconOnly,
             iconSizeDp = dockIconSizeDp,
             highlightFirst = state.query.isNotBlank(),
+            reverseLayout = state.appListSortOrder.isReversed,
             modifier = Modifier.height(appListHeight),
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,

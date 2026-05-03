@@ -79,8 +79,10 @@
     <string name="settings_app_list_layout_option_text">Text</string>
     <string name="settings_app_list_layout_option_icons">Icons</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>
-    <string name="settings_app_list_sort_option_usage">Usage</string>
-    <string name="settings_app_list_sort_option_name">Name</string>
+    <string name="settings_app_list_sort_option_usage">Usage ↓</string>
+    <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>
+    <string name="settings_app_list_sort_option_name">Name ↓</string>
+    <string name="settings_app_list_sort_option_name_reversed">Name ↑</string>
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_show_recents_title">Show recents</string>
     <string name="settings_pull_down_title">Pull down</string>

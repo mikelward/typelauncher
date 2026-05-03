@@ -646,6 +646,39 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appListSortOrderDropdownExposesReversedVariantsThatPreserveDataOrdering() {
+        val viewModel = composeRule.activity.viewModel
+        val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
+        viewModel.launchApp(calculator)
+        viewModel.launchApp(calculator)
+        composeRule.waitForIdle()
+        // The reversed variants are a visual flip applied via `reverseLayout =
+        // true` on the LazyColumn / LazyVerticalGrid; the underlying data
+        // ordering still has the most-launched app at index 0 so the
+        // Enter/search "active first filtered app" target stays consistent
+        // across forward and reversed sorts.
+        val usageOrderedNames = viewModel.uiState.value.filteredApps.map { it.name }
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_SORT_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_SORT_OPTION_USAGE_REVERSED_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(AppListSortOrder.UsageReversed, viewModel.uiState.value.appListSortOrder)
+        assertEquals(usageOrderedNames, viewModel.uiState.value.filteredApps.map { it.name })
+
+        composeRule.onNodeWithTag(APP_LIST_SORT_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_SORT_OPTION_NAME_REVERSED_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(AppListSortOrder.AlphabeticalReversed, viewModel.uiState.value.appListSortOrder)
+        val nameReversedNames = viewModel.uiState.value.filteredApps.map { it.name }
+        assertEquals(nameReversedNames.sortedWith(String.CASE_INSENSITIVE_ORDER), nameReversedNames)
+    }
+
+    @Test
     fun settingsDockToggleHidesDockOnHomeAndPreviewExpandsAppList() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
