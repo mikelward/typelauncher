@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.view.KeyEvent
@@ -2375,10 +2376,16 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     modifier = Modifier
                         .testTag(SETTINGS_ABOUT_PRIVACY_POLICY_TAG)
                         .clickable {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(privacyPolicyUrl))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                            )
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(privacyPolicyUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try {
+                                context.startActivity(intent)
+                            } catch (exception: ActivityNotFoundException) {
+                                LauncherDebugLog.warning(
+                                    "privacy policy link: no activity for $privacyPolicyUrl",
+                                    exception,
+                                )
+                            }
                         },
                 )
             }
