@@ -16,10 +16,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -124,7 +127,13 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("setContent begin")
         setContent {
             LauncherDebugLog.event("setContent composing TypeLauncherTheme")
-            TypeLauncherTheme {
+            val themeModeFlow = remember(viewModel) {
+                viewModel.uiState.map { it.themeMode }.distinctUntilChanged()
+            }
+            val themeMode by themeModeFlow.collectAsStateWithLifecycle(
+                initialValue = viewModel.uiState.value.themeMode,
+            )
+            TypeLauncherTheme(themeMode = themeMode) {
                 TypeLauncherApp(
                     viewModel = viewModel,
                     appWidgetHost = appWidgetHost,

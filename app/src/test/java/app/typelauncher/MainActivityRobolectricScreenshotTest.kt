@@ -1409,6 +1409,32 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun themeModeDropdown_inSettings_persistsSelection() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Theme").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(THEME_MODE_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
+        assertEquals(ThemeMode.System, viewModel.uiState.value.themeMode)
+
+        composeRule.onNodeWithTag(THEME_MODE_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(THEME_MODE_OPTION_DARK_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(ThemeMode.Dark, viewModel.uiState.value.themeMode)
+
+        composeRule.onNodeWithTag(THEME_MODE_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(THEME_MODE_OPTION_LIGHT_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(ThemeMode.Light, viewModel.uiState.value.themeMode)
+    }
+
+    @Test
     fun dockOverflow_showsEndChevronHint() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->

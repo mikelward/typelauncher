@@ -162,6 +162,21 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Settings → "Theme" mode. Defaults to [ThemeMode.System] so the launcher
+     * follows the device's night-mode configuration; users can pin to
+     * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
+     */
+    var themeMode: ThemeMode
+        get() = sharedPreferences.getString(KEY_THEME_MODE, null)
+            ?.let { name -> runCatching { ThemeMode.valueOf(name) }.getOrNull() }
+            ?: ThemeMode.System
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_THEME_MODE, value.name)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -173,6 +188,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_FOLDERS_ENABLED = "folders_enabled"
+        const val KEY_THEME_MODE = "theme_mode"
     }
 }
 

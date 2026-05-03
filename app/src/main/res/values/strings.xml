@@ -88,6 +88,10 @@
     <string name="settings_pull_down_option_system">System</string>
     <string name="settings_pull_down_option_launcher">Launcher</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_option_system">System</string>
+    <string name="settings_theme_option_light">Light</string>
+    <string name="settings_theme_option_dark">Dark</string>
     <string name="settings_dock_icon_count_label">Icons per row: %1$d</string>
     <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>
     <string name="settings_dock_preview_label">Preview</string>

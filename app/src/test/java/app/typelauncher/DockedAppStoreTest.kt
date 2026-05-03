@@ -110,4 +110,30 @@ class DockedAppStoreTest {
 
         assertEquals(NotificationPullDownBehavior.None, reloaded.notificationPullDownBehavior)
     }
+
+    @Test
+    fun themeModeDefaultsToSystem() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(ThemeMode.System, store.themeMode)
+    }
+
+    @Test
+    fun themeModePersistsExplicitSelection() {
+        DockSettingsStore(context).themeMode = ThemeMode.Dark
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(ThemeMode.Dark, reloaded.themeMode)
+    }
+
+    @Test
+    fun themeModeFallsBackToSystemForUnknownStoredValue() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("theme_mode", "Bogus")
+            .commit()
+
+        assertEquals(ThemeMode.System, DockSettingsStore(context).themeMode)
+    }
 }

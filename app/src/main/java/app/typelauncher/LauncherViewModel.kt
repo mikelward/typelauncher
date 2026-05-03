@@ -119,6 +119,7 @@ internal class LauncherViewModel(
             notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             areFoldersEnabled = dockSettingsStore.areFoldersEnabled,
+            themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
         ),
@@ -856,6 +857,12 @@ internal class LauncherViewModel(
         dockSettingsStore.isKeyboardAutoShown = isAutoShown
         _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
         logState("setKeyboardAutoShown=$isAutoShown")
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        dockSettingsStore.themeMode = mode
+        _uiState.update { it.copy(themeMode = mode) }
+        logState("setThemeMode=$mode")
     }
 
     fun setDockVisibleIconCount(count: Int) {
