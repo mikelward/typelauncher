@@ -1864,6 +1864,7 @@ internal fun SettingsScreen(
     onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onFoldersEnabledChanged: (Boolean) -> Unit = {},
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -2049,6 +2050,22 @@ internal fun SettingsScreen(
                     modifier = Modifier.testTag(SHOW_FOLDERS_SWITCH_TAG),
                 )
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_theme_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                ThemeModeDropdown(
+                    selected = state.themeMode,
+                    onThemeModeChanged = onThemeModeChanged,
+                )
+            }
         }
         Button(
             onClick = { hiddenAppsDialogVisible = true },
@@ -2224,6 +2241,57 @@ private fun NotificationPullDownBehavior.optionTag(): String =
         NotificationPullDownBehavior.None -> PULL_DOWN_BEHAVIOR_OPTION_NONE_TAG
         NotificationPullDownBehavior.System -> PULL_DOWN_BEHAVIOR_OPTION_SYSTEM_TAG
         NotificationPullDownBehavior.Launcher -> PULL_DOWN_BEHAVIOR_OPTION_LAUNCHER_TAG
+    }
+
+@Composable
+private fun ThemeModeDropdown(
+    selected: ThemeMode,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = selected.labelRes()
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(THEME_MODE_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(THEME_MODE_DROPDOWN_MENU_TAG),
+        ) {
+            ThemeMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(mode.labelRes())) },
+                    modifier = Modifier.testTag(mode.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onThemeModeChanged(mode)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun ThemeMode.labelRes(): Int =
+    when (this) {
+        ThemeMode.System -> R.string.settings_theme_option_system
+        ThemeMode.Light -> R.string.settings_theme_option_light
+        ThemeMode.Dark -> R.string.settings_theme_option_dark
+    }
+
+private fun ThemeMode.optionTag(): String =
+    when (this) {
+        ThemeMode.System -> THEME_MODE_OPTION_SYSTEM_TAG
+        ThemeMode.Light -> THEME_MODE_OPTION_LIGHT_TAG
+        ThemeMode.Dark -> THEME_MODE_OPTION_DARK_TAG
     }
 
 @Composable

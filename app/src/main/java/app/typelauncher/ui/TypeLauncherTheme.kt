@@ -14,10 +14,17 @@ import androidx.compose.ui.platform.LocalContext
 
 @Composable
 internal fun TypeLauncherTheme(
-    darkTheme: Boolean = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
+    themeMode: ThemeMode = ThemeMode.System,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    val systemDark = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES
+    val darkTheme = when (themeMode) {
+        ThemeMode.System -> systemDark
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
     val context = LocalContext.current
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme -> dynamicDarkColorScheme(context)

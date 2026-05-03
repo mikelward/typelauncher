@@ -26,6 +26,12 @@ internal enum class NotificationPullDownBehavior {
     Launcher,
 }
 
+internal enum class ThemeMode {
+    System,
+    Light,
+    Dark,
+}
+
 internal data class LauncherUiState(
     val screen: LauncherScreen = LauncherScreen.Home,
     val query: String = "",
@@ -83,6 +89,10 @@ internal data class LauncherUiState(
     // instead of the flat app list. Typing into the search box closes any
     // open folder and reverts to the flat three-tier match. Off by default.
     val areFoldersEnabled: Boolean = false,
+    // User-selected appearance mode. `System` (default) follows the device's
+    // night-mode setting; `Light` and `Dark` force the corresponding scheme
+    // regardless of the system. Applied by `TypeLauncherTheme`.
+    val themeMode: ThemeMode = ThemeMode.System,
     // The category folder the user has opened from the folder grid, if any.
     // Cleared automatically when the search query becomes non-blank.
     val openFolder: AppCategory? = null,
