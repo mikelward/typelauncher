@@ -92,7 +92,14 @@ internal fun TypeLauncherApp(
     onSwipeDown: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(state) {
+    LaunchedEffect(
+        state.screen,
+        state.isSettingsOpen,
+        state.isLoadingApps,
+        state.isFreshAppLoadComplete,
+        state.filteredApps.size,
+        state.dockedApps.size,
+    ) {
         LauncherDebugLog.event("TypeLauncherApp state ${state.debugSummary()}")
     }
     // ON_RESUME refresh is handled by MainActivity.onResume; we don't add a Compose

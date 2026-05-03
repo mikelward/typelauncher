@@ -340,10 +340,6 @@ internal class LauncherViewModel(
         // full app list and made the lag user-visible.
         _uiState.update { state -> state.copy(query = query) }
         refreshFilteredApps()
-        LauncherDebugLog.event(
-            "setQuery length=${query.length} filtered=${_uiState.value.filteredApps.size} " +
-                "docked=${_uiState.value.dockedApps.size}",
-        )
     }
 
     fun showAgenda() {
@@ -1089,10 +1085,13 @@ internal class LauncherViewModel(
         // The previous `installedApps.firstOrNull { it.id == app.id }` made
         // this O(n²) over the full installed-app list on every keystroke.
         map { app ->
-            app.copy(
-                isDocked = dockedAppStore.contains(app.id),
-                isHidden = hiddenAppStore.contains(app.id),
-            )
+            val isDocked = dockedAppStore.contains(app.id)
+            val isHidden = hiddenAppStore.contains(app.id)
+            if (app.isDocked == isDocked && app.isHidden == isHidden) {
+                app
+            } else {
+                app.copy(isDocked = isDocked, isHidden = isHidden)
+            }
         }
 
     companion object {

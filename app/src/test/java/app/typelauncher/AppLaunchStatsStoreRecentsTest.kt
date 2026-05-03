@@ -137,6 +137,29 @@ class AppLaunchStatsStoreRecentsTest {
         assertEquals(listOf("b"), reloaded.recentAppIds)
     }
 
+    @Test
+    fun launchCountUsesInMemoryCacheAndTracksExternalPreferenceChanges() {
+        val store = AppLaunchStatsStore(context)
+        store.recordLaunch("a")
+        store.recordLaunch("a")
+
+        assertEquals(2, store.launchCount("a"))
+        assertEquals(mapOf("a" to 2), store.launchCountsSnapshot())
+
+        context.getSharedPreferences("app_launch_stats", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putInt("launch_count:a", 7)
+            .commit()
+        assertEquals(7, store.launchCount("a"))
+
+        context.getSharedPreferences("app_launch_stats", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .remove("launch_count:a")
+            .commit()
+        assertEquals(0, store.launchCount("a"))
+        assertEquals(emptyMap<String, Int>(), store.launchCountsSnapshot())
+    }
+
     private fun installedApp(name: String): InstalledApp {
         val packageName = "app.${name.lowercase().replace(' ', '.')}"
         val component = ComponentName(packageName, "$packageName.LaunchActivity")

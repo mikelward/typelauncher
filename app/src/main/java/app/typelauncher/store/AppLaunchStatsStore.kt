@@ -1,12 +1,61 @@
 package app.typelauncher
 
 import android.content.Context
+import android.content.SharedPreferences
 
 internal class AppLaunchStatsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val lock = Any()
+    private val launchCounts = mutableMapOf<String, Int>()
+    private var cachedRecentAppIds: List<String>? = null
+    private var isHydrated = false
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
+        synchronized(lock) {
+            when {
+                key == null -> {
+                    launchCounts.clear()
+                    cachedRecentAppIds = emptyList()
+                    isHydrated = true
+                }
+                key == KEY_RECENT_APP_IDS -> cachedRecentAppIds = parseRecentAppIds(preferences.getString(key, "").orEmpty())
+                key.startsWith(KEY_LAUNCH_COUNT_PREFIX) -> {
+                    val appId = key.removePrefix(KEY_LAUNCH_COUNT_PREFIX)
+                    if (preferences.contains(key)) {
+                        launchCounts[appId] = preferences.getInt(key, 0)
+                    } else {
+                        launchCounts.remove(appId)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun ensureHydratedLocked() {
+        if (isHydrated) return
+        sharedPreferences.all.forEach { (key, value) ->
+            if (key.startsWith(KEY_LAUNCH_COUNT_PREFIX) && value is Int) {
+                launchCounts[key.removePrefix(KEY_LAUNCH_COUNT_PREFIX)] = value
+            }
+        }
+        cachedRecentAppIds = parseRecentAppIds(sharedPreferences.getString(KEY_RECENT_APP_IDS, "").orEmpty())
+        isHydrated = true
+    }
+
+    init {
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
 
     fun launchCount(appId: String): Int =
-        sharedPreferences.getInt(appId.toLaunchCountKey(), 0)
+        synchronized(lock) {
+            ensureHydratedLocked()
+            launchCounts[appId] ?: 0
+        }
+
+    fun launchCountsSnapshot(): Map<String, Int> =
+        synchronized(lock) {
+            ensureHydratedLocked()
+            launchCounts.toMap()
+        }
 
     /**
      * Most-recently-launched app IDs, newest first, capped at [MAX_RECENT_APP_IDS].
@@ -16,20 +65,29 @@ internal class AppLaunchStatsStore(context: Context) {
      * apps the user launched from Type Launcher.
      */
     val recentAppIds: List<String>
-        get() = sharedPreferences.getString(KEY_RECENT_APP_IDS, "").orEmpty()
-            .split(RECENT_APP_ID_SEPARATOR)
-            .filter { id -> id.isNotBlank() }
+        get() = synchronized(lock) {
+            ensureHydratedLocked()
+            cachedRecentAppIds.orEmpty()
+        }
 
     fun recordLaunch(appId: String) {
-        val updatedRecents = (listOf(appId) + recentAppIds.filterNot { id -> id == appId })
-            .take(MAX_RECENT_APP_IDS)
+        val (updatedRecents, updatedLaunchCount) = synchronized(lock) {
+            ensureHydratedLocked()
+            val updatedRecents = (listOf(appId) + cachedRecentAppIds.orEmpty().filterNot { id -> id == appId })
+                .take(MAX_RECENT_APP_IDS)
+            val updatedLaunchCount = (launchCounts[appId] ?: 0) + 1
+            launchCounts[appId] = updatedLaunchCount
+            cachedRecentAppIds = updatedRecents
+            updatedRecents to updatedLaunchCount
+        }
         sharedPreferences.edit()
-            .putInt(appId.toLaunchCountKey(), launchCount(appId) + 1)
+            .putInt(appId.toLaunchCountKey(), updatedLaunchCount)
             .putString(KEY_RECENT_APP_IDS, updatedRecents.joinToString(RECENT_APP_ID_SEPARATOR))
             .apply()
     }
 
     fun resetLaunchCount(appId: String) {
+        synchronized(lock) { launchCounts.remove(appId) }
         sharedPreferences.edit()
             .remove(appId.toLaunchCountKey())
             .apply()
@@ -44,12 +102,18 @@ internal class AppLaunchStatsStore(context: Context) {
     fun removeRecent(appId: String) {
         val current = recentAppIds
         if (appId !in current) return
+        val updated = current.filterNot { it == appId }
+        synchronized(lock) { cachedRecentAppIds = updated }
         sharedPreferences.edit()
-            .putString(KEY_RECENT_APP_IDS, current.filterNot { it == appId }.joinToString(RECENT_APP_ID_SEPARATOR))
+            .putString(KEY_RECENT_APP_IDS, updated.joinToString(RECENT_APP_ID_SEPARATOR))
             .apply()
     }
 
     private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"
+
+    private fun parseRecentAppIds(raw: String): List<String> =
+        raw.split(RECENT_APP_ID_SEPARATOR)
+            .filter { id -> id.isNotBlank() }
 
     private companion object {
         const val PREFERENCES_NAME = "app_launch_stats"
@@ -66,6 +130,10 @@ internal fun List<InstalledApp>.filterByName(
     excludedAppIds: Collection<String>,
     dockedAppIds: Collection<String> = emptyList(),
     sortOrder: AppListSortOrder = AppListSortOrder.Usage,
+    launchCounts: Map<String, Int> = when (sortOrder) {
+        AppListSortOrder.Usage -> appLaunchStatsStore.launchCountsSnapshot()
+        AppListSortOrder.Alphabetical -> emptyMap()
+    },
 ): List<InstalledApp> {
     // Callers pass the docked app ids in `excludedAppIds` while the dock is
     // enabled and an empty collection while it's disabled — docked apps don't
@@ -82,7 +150,7 @@ internal fun List<InstalledApp>.filterByName(
         when (sortOrder) {
             AppListSortOrder.Usage -> candidates.sortedWith(
                 dockedFirst
-                    .thenByDescending { app -> appLaunchStatsStore.launchCount(app.id) }
+                    .thenByDescending { app -> launchCounts[app.id] ?: 0 }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.name },
             )
             AppListSortOrder.Alphabetical -> candidates.sortedWith(
@@ -94,7 +162,7 @@ internal fun List<InstalledApp>.filterByName(
         val dockedFirstByPair = compareByDescending<Pair<InstalledApp, LauncherMatchTier>> { (app, _) -> app.id in dockedSet }
         val withinTier = when (sortOrder) {
             AppListSortOrder.Usage -> dockedFirstByPair
-                .thenByDescending { (app, _) -> appLaunchStatsStore.launchCount(app.id) }
+                .thenByDescending { (app, _) -> launchCounts[app.id] ?: 0 }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
             AppListSortOrder.Alphabetical -> dockedFirstByPair
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.name }
