@@ -152,52 +152,58 @@ internal class LauncherViewModel(
         // it deterministically through the main looper.
         viewModelScope.launch {
             withContext(ioDispatcher) {
-                traceBlock("icon_snapshot_restore") { trace ->
-                    val snapshots = iconSnapshotStore.load()
-                    for (snapshot in snapshots) {
-                        AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap)
-                    }
-                    trace.incrementMetric("snapshot_count", snapshots.size.toLong())
-                    if (snapshots.isNotEmpty()) {
-                        LauncherDebugLog.event(
-                            "LauncherViewModel restored icon snapshot count=${snapshots.size}",
-                        )
+                androidTrace("launcher.icon_snapshot_restore") {
+                    traceBlock("icon_snapshot_restore") { trace ->
+                        val snapshots = iconSnapshotStore.load()
+                        for (snapshot in snapshots) {
+                            AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap)
+                        }
+                        trace.incrementMetric("snapshot_count", snapshots.size.toLong())
+                        if (snapshots.isNotEmpty()) {
+                            LauncherDebugLog.event(
+                                "LauncherViewModel restored icon snapshot count=${snapshots.size}",
+                            )
+                        }
                     }
                 }
             }
             iconSnapshotRestoreComplete = true
         }
         if (cachedMetadata.isNotEmpty()) {
-            installedApps = cachedMetadata.applyDisambiguators()
-            _uiState.update { state ->
-                val dockedIds = dockedAppStore.dockedAppIds
-                val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
-                val visibleApps = visibleInstalledApps()
-                state.copy(
-                    filteredApps = visibleApps.filterByName(
-                        query = state.query,
-                        appLaunchStatsStore = appLaunchStatsStore,
-                        excludedAppIds = activeDockedIds,
-                        dockedAppIds = dockedIds,
-                        sortOrder = state.appListSortOrder,
-                    ).markVisibility(),
-                    dockedApps = visibleApps
-                        .filterDocked(dockedAppStore.dockedAppIds)
-                        .markVisibility(),
-                    recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
-                    hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
-                    notifyingApps = visibleApps
-                        .filterNotifying(ActiveNotifications.packages.value)
-                        .markVisibility(),
-                )
+            androidTrace("launcher.metadata_prefill") {
+                installedApps = cachedMetadata.applyDisambiguators()
+                _uiState.update { state ->
+                    val dockedIds = dockedAppStore.dockedAppIds
+                    val activeDockedIds = dockedIds.takeIf { state.isDockEnabled }.orEmpty()
+                    val visibleApps = visibleInstalledApps()
+                    state.copy(
+                        filteredApps = visibleApps.filterByName(
+                            query = state.query,
+                            appLaunchStatsStore = appLaunchStatsStore,
+                            excludedAppIds = activeDockedIds,
+                            dockedAppIds = dockedIds,
+                            sortOrder = state.appListSortOrder,
+                        ).markVisibility(),
+                        dockedApps = visibleApps
+                            .filterDocked(dockedAppStore.dockedAppIds)
+                            .markVisibility(),
+                        recentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility(),
+                        hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
+                        notifyingApps = visibleApps
+                            .filterNotifying(ActiveNotifications.packages.value)
+                            .markVisibility(),
+                    )
+                }
             }
             LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
         }
         viewModelScope.launch {
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
             val loadedApps = withContext(ioDispatcher) {
-                traceBlock("installed_apps_load") { trace ->
-                    loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+                androidTrace("launcher.apps_load") {
+                    traceBlock("installed_apps_load") { trace ->
+                        loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+                    }
                 }
             }
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
