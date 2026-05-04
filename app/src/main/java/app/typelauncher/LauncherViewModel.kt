@@ -6,16 +6,19 @@ import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Process
 import android.os.UserHandle
+import android.os.UserManager
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -102,6 +105,17 @@ internal class LauncherViewModel(
         }
     }
     private var launcherAppsCallbackRegistered = false
+    // Receiver for the system broadcasts the OS sends when the user toggles
+    // "Pause work apps" (quiet mode). Reuses the package-event reload path so
+    // the next `loadInstalledApps` repaints work icons in the dimmed/normal
+    // treatment without a process restart.
+    private val managedProfileReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.action ?: return
+            scheduleReload("managedProfile:$action")
+        }
+    }
+    private var managedProfileReceiverRegistered = false
     // Set when a `LauncherApps.Callback` event fires before the cold-start
     // fresh load has published its result. We don't run a reload concurrently
     // with cold-start (it could race the cold-start state update and lose),
@@ -251,6 +265,7 @@ internal class LauncherViewModel(
             }
         }
         registerLauncherAppsCallback()
+        registerManagedProfileReceiver()
     }
 
     /**
@@ -272,6 +287,31 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("LauncherApps.registerCallback")
         } catch (exception: RuntimeException) {
             LauncherDebugLog.warning("LauncherApps.registerCallback failed", exception)
+        }
+    }
+
+    /**
+     * Registers a runtime receiver for `ACTION_MANAGED_PROFILE_AVAILABLE` /
+     * `ACTION_MANAGED_PROFILE_UNAVAILABLE` so toggling "Pause work apps" in
+     * system settings reactively repaints work-profile icons in their
+     * dimmed/normal state. Reuses `scheduleReload` so quiet-mode flips share
+     * the same coalescing + cold-start deferral as package events.
+     * `RECEIVER_NOT_EXPORTED` is required on API 34+ for runtime receivers;
+     * both actions are protected system broadcasts only the OS can send, so
+     * not-exported is the correct flag. Idempotent.
+     */
+    private fun registerManagedProfileReceiver() {
+        if (managedProfileReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
+            addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
+        }
+        try {
+            app.registerReceiver(managedProfileReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            managedProfileReceiverRegistered = true
+            LauncherDebugLog.event("managedProfileReceiver registered")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("managedProfileReceiver register failed", exception)
         }
     }
 
@@ -317,11 +357,41 @@ internal class LauncherViewModel(
             }
             launcherAppsCallbackRegistered = false
         }
+        if (managedProfileReceiverRegistered) {
+            try {
+                app.unregisterReceiver(managedProfileReceiver)
+                LauncherDebugLog.event("managedProfileReceiver unregistered")
+            } catch (exception: RuntimeException) {
+                LauncherDebugLog.warning("managedProfileReceiver unregister failed", exception)
+            }
+            managedProfileReceiverRegistered = false
+        }
         super.onCleared()
     }
 
     internal fun reloadInstalledAppsForTest() {
         scheduleReload("test")
+    }
+
+    /**
+     * Test seam for the paused-work-profile rendering. Robolectric's
+     * `ShadowLauncherApps` does not surface a foreign profile that
+     * `ShadowUserManager.setQuietModeEnabled` can target, so the only way to
+     * exercise both the work badge (`isWorkApp`) and the dimmed-icon branch
+     * (`isQuietMode`) at once is to flip the two fields directly on an
+     * existing personal-profile entry and re-derive the public lists.
+     * Production code goes through the broadcast receiver -> `scheduleReload`
+     * -> `loadInstalledApps` path instead.
+     */
+    internal fun markAsPausedWorkAppForTest(packageName: String) {
+        installedApps = installedApps.map { app ->
+            if (app.packageName == packageName) {
+                app.copy(isWorkApp = true, isQuietMode = true)
+            } else {
+                app
+            }
+        }
+        refreshLists()
     }
 
     /**
@@ -1053,15 +1123,25 @@ internal class LauncherViewModel(
         val personalUser = Process.myUserHandle()
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
-        val profileApps = launcherApps
-            ?.profiles
-            .orEmpty()
+        val userManager = app.getSystemService<UserManager>()
+        val profiles = launcherApps?.profiles.orEmpty()
             .also { profiles -> LauncherDebugLog.event("loadInstalledApps profiles=${profiles.size}") }
+        // Resolve quiet mode once per profile rather than per activity. The
+        // personal profile is never in quiet mode, so skip the binder call for
+        // it. `isQuietModeEnabled` is documented since API 24 and requires no
+        // permission for any profile in the calling user's profile group.
+        val quietByUser: Map<UserHandle, Boolean> = profiles.associateWith { user ->
+            user != personalUser && (userManager?.isQuietModeEnabled(user) == true)
+        }
+        val profileApps = profiles
             .flatMap { user ->
                 val activities = launcherApps
                     ?.getActivityList(null, user)
                     .orEmpty()
-                LauncherDebugLog.event("loadInstalledApps profile=${user.hashCode()} activities=${activities.size}")
+                LauncherDebugLog.event(
+                    "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} " +
+                        "quiet=${quietByUser[user] == true}",
+                )
                 activities
                     .map { activity ->
                         InstalledApp(
@@ -1072,6 +1152,7 @@ internal class LauncherViewModel(
                             isWorkApp = user != personalUser || activity.applicationInfo.packageName in workPackages,
                             launchWithLauncherApps = true,
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
+                            isQuietMode = quietByUser[user] == true,
                         )
                     }
             }

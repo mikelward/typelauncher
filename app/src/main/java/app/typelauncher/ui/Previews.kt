@@ -244,4 +244,13 @@ private val previewApps = listOf(
         isWorkApp = true,
         launchWithLauncherApps = false,
     ),
+    InstalledApp(
+        name = "Paused Work Mail",
+        packageName = "app.preview.pausedworkmail",
+        launchIntent = Intent(),
+        user = Process.myUserHandle(),
+        isWorkApp = true,
+        launchWithLauncherApps = false,
+        isQuietMode = true,
+    ),
 )

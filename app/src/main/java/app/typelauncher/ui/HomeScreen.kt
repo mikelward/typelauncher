@@ -96,10 +96,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
@@ -2604,6 +2607,11 @@ private fun AppIcon(
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     val bitmap = rememberAppIconBitmap(app, size)
+    // Hoisted so toggling `isQuietMode` doesn't reallocate the underlying
+    // float[20] color matrix on every recomposition.
+    val grayscaleFilter = remember {
+        ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    }
     Box(
         modifier = Modifier
             .size(size)
@@ -2618,8 +2626,11 @@ private fun AppIcon(
                 Image(
                     bitmap = bitmap,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (app.isQuietMode) Modifier.alpha(0.38f) else Modifier),
                     contentScale = ContentScale.Fit,
+                    colorFilter = if (app.isQuietMode) grayscaleFilter else null,
                 )
             }
         }
@@ -2630,13 +2641,25 @@ private fun AppIcon(
                     .size(18.dp)
                     .testTag("$WORK_APP_BADGE_TAG:${app.displayName}"),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
+                // Drop the badge to a neutral outline tone when the work
+                // profile is paused so it reads as "off" alongside the
+                // desaturated icon, but stays visible — it's the only
+                // remaining "this is a work app" signal once colour is gone.
+                color = if (app.isQuietMode) {
+                    MaterialTheme.colorScheme.outline
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
             ) {
                 Icon(
                     Icons.Filled.Badge,
                     contentDescription = null,
                     modifier = Modifier.padding(3.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = if (app.isQuietMode) {
+                        MaterialTheme.colorScheme.surface
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    },
                 )
             }
         }

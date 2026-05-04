@@ -39,6 +39,19 @@ class LauncherViewModelReloadTest {
     }
 
     @Test
+    fun personalProfileAppsAreNotMarkedQuiet() {
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
+        // Personal-profile apps must never be marked as quiet because the
+        // personal profile cannot be paused. The dimmed-icon treatment in
+        // `AppIcon` is reserved for work-profile apps when their profile is
+        // in quiet mode.
+        assertFalse("Personal-profile app must not be marked quiet", mail.isQuietMode)
+    }
+
+    @Test
     fun reloadAfterPackageInstallSurfacesNewApp() {
         seedApp("Mail", "com.example.mail")
         val viewModel = newViewModel()
