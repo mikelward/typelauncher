@@ -122,6 +122,7 @@ internal data class LauncherUiState(
     // and `AppWidgetHost.startListening` would otherwise contend with.
     val isHomeReady: Boolean = false,
     val isDefaultLauncher: Boolean = false,
+    val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
 )
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {

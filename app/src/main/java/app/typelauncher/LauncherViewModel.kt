@@ -49,6 +49,7 @@ internal class LauncherViewModel(
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val appMetadataStore = AppMetadataStore(app)
     private val iconSnapshotStore = IconSnapshotStore(app)
+    private val playUpdateStore = PlayUpdateStore(app)
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     private var agendaVersion = 0
@@ -121,6 +122,7 @@ internal class LauncherViewModel(
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
+            playUpdate = PlayUpdateState.NotAvailable,
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -798,6 +800,47 @@ internal class LauncherViewModel(
     fun closeSettings() {
         _uiState.update { it.copy(isSettingsOpen = false) }
         logState("closeSettings")
+    }
+
+    fun setPlayUpdateAvailable(availableVersionCode: Int?) {
+        _uiState.update { state ->
+            state.copy(
+                playUpdate = PlayUpdateState.Available(
+                    versionCode = availableVersionCode,
+                    isDismissed = availableVersionCode != null &&
+                        availableVersionCode == playUpdateStore.dismissedVersionCode,
+                ),
+            )
+        }
+        logState("setPlayUpdateAvailable=$availableVersionCode")
+    }
+
+    fun setPlayUpdateUnavailable() {
+        _uiState.update { it.copy(playUpdate = PlayUpdateState.NotAvailable) }
+        logState("setPlayUpdateUnavailable")
+    }
+
+    fun dismissPlayUpdate() {
+        val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
+        playUpdateStore.dismissedVersionCode = update.versionCode ?: BuildConfig.VERSION_CODE + 1
+        _uiState.update { it.copy(playUpdate = update.copy(isDismissed = true)) }
+        logState("dismissPlayUpdate=${update.versionCode}")
+    }
+
+    fun openPlayStoreListing() {
+        LauncherDebugLog.event("openPlayStoreListing package=${app.packageName}")
+        val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${app.packageName}"))
+        try {
+            startActivity(marketIntent)
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("openPlayStoreListing market intent unavailable", exception)
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=${app.packageName}"),
+                ),
+            )
+        }
     }
 
     fun setDockEnabled(isEnabled: Boolean) {

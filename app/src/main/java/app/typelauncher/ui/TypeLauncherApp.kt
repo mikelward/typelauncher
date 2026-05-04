@@ -90,6 +90,7 @@ internal fun TypeLauncherApp(
     onRequestCalendarPermission: () -> Unit,
     onRequestDefaultLauncher: () -> Unit,
     onSwipeDown: () -> Unit,
+    onStartPlayUpdate: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -125,6 +126,8 @@ internal fun TypeLauncherApp(
         onOpenSettings = viewModel::openSettings,
         onCloseSettings = viewModel::closeSettings,
         onOpenLauncherAppInfo = viewModel::openLauncherAppInfo,
+        onOpenPlayUpdate = onStartPlayUpdate,
+        onDismissPlayUpdate = viewModel::dismissPlayUpdate,
         onRequestDefaultLauncher = onRequestDefaultLauncher,
         onDockEnabledChanged = viewModel::setDockEnabled,
         onAppListIconOnlyChanged = viewModel::setAppListIconOnly,
@@ -175,6 +178,8 @@ internal fun TypeLauncherApp(
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
     onOpenLauncherAppInfo: () -> Unit = {},
+    onOpenPlayUpdate: () -> Unit = {},
+    onDismissPlayUpdate: () -> Unit = {},
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
@@ -250,6 +255,8 @@ internal fun TypeLauncherApp(
                 onHideApp = onHideApp,
                 onUnhideApp = onUnhideApp,
                 onOpenLauncherAppInfo = onOpenLauncherAppInfo,
+                onOpenPlayUpdate = onOpenPlayUpdate,
+                onDismissPlayUpdate = onDismissPlayUpdate,
             )
         } else {
             SwipeNavigationBox(

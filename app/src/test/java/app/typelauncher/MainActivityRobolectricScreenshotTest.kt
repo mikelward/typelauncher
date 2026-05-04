@@ -452,6 +452,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun emptySearchShowsSettingsButtonAndNonEmptySearchShowsOnlyClearButton() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BADGE_TAG).assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Clear search text").assertDoesNotExist()
 
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
@@ -459,6 +460,30 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Clear search text").assertIsDisplayed()
+    }
+
+    @Test
+    fun availablePlayUpdateShowsSettingsBadgeAndBannerThenDismisses() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setPlayUpdateAvailable(123)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(PLAY_UPDATE_BADGE_TAG, useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("New version available").assertIsDisplayed()
+        composeRule.onNodeWithText("Tap to update from Google Play.").assertIsDisplayed()
+        saveScreenshot("compose_settings_play_update_banner_robolectric.png")
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_DISMISS_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertTrue((viewModel.uiState.value.playUpdate as PlayUpdateState.Available).isDismissed)
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BADGE_TAG, useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
