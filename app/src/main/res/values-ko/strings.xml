@@ -60,6 +60,7 @@
     <string name="widgets_preview_unavailable">미리보기를 사용할 수 없습니다</string>
     <string name="widgets_picker_unavailable">위젯 선택기를 사용할 수 없습니다</string>
     <string name="widgets_unavailable">위젯을 사용할 수 없습니다</string>
+    <string name="widgets_work_badge_description">업무용 프로필 위젯</string>
     <string name="widget_menu_resize">크기 조절</string>
     <string name="widget_menu_remove">삭제</string>
     <string name="widget_resize_handle_description">드래그하여 위젯 크기 조절</string>
