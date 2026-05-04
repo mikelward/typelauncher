@@ -15,6 +15,7 @@ internal data class InstalledApp(
     val iconCacheToken: String? = null,
     val isDocked: Boolean = false,
     val isHidden: Boolean = false,
+    val isQuietMode: Boolean = false,
     val disambiguator: String? = null,
 ) {
     val id: String

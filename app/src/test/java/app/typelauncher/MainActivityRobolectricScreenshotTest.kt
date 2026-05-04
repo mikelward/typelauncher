@@ -1703,6 +1703,30 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun workAppIcon_isDimmedWhenQuietModeEnabled() {
+        val viewModel = composeRule.activity.viewModel
+        // Drive the dimmed branch directly via the test seam — Robolectric's
+        // shadows can't simulate a real work profile in quiet mode for the
+        // launcher to read back through `UserManager.isQuietModeEnabled`. The
+        // production reactive path is exercised by the unit test for
+        // `personalProfileAppsAreNotMarkedQuiet` and by the broadcast-receiver
+        // wiring in `LauncherViewModel`.
+        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
+        viewModel.setQuery("work")
+        composeRule.waitForIdle()
+
+        val pausedApp = viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" }
+        assertTrue("Test seam marks the app as a work app", pausedApp.isWorkApp)
+        assertTrue("Test seam marks the app as quiet", pausedApp.isQuietMode)
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ICON_TAG:Work Calendar", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true).assertExists()
+
+        saveScreenshot("compose_home_work_app_quiet_mode_robolectric.png")
+    }
+
+    @Test
     fun workAppBadge_isShownForWorkApps() {
         composeRule.activity.viewModel.setQuery("work")
         composeRule.waitForIdle()
