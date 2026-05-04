@@ -1517,6 +1517,24 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_appListIconOnly_overflowingGrid() {
+        addFakeLauncherApps((1..60).map { index -> "Overflow App %02d".format(index) })
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setAppListIconOnly(true)
+        viewModel.reloadInstalledAppsForTest()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
+
+        saveScreenshot("compose_home_icon_only_overflowing_grid_robolectric.png")
+    }
+
+    @Test
     fun dockWithoutOverflow_hidesScrollChevrons() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
