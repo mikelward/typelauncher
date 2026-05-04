@@ -190,6 +190,7 @@ internal fun HomeScreen(
                 iconSizeDp = dockIconSizeDp,
                 highlightFirst = state.query.isNotBlank(),
                 reverseLayout = state.appListSortOrder.isReversed,
+                scrollResetKey = state.query,
                 modifier = Modifier.weight(1f),
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
@@ -1047,6 +1048,15 @@ private fun AppsCard(
     iconSizeDp: Int,
     highlightFirst: Boolean,
     reverseLayout: Boolean = false,
+    // Anything that should yank the list back to the natural top (item 0). The
+    // search query is the canonical caller: `rememberLazyListState` /
+    // `rememberLazyGridState` survives query changes, so without this reset a
+    // user who scrolled down to find a substring match and then typed another
+    // character would stay at the old offset — likely past the end of the new
+    // shorter result set, showing blank space. Launching an app clears the
+    // query too, so this also resets the scroll for the next time the user
+    // returns to Home.
+    scrollResetKey: Any? = null,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1079,6 +1089,7 @@ private fun AppsCard(
             val edgePullThresholdPx = with(LocalDensity.current) { APP_LIST_EDGE_PULL_THRESHOLD_DP.dp.toPx() }
             if (isIconOnly) {
                 val gridState = rememberLazyGridState()
+                LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
                 // In reverseLayout, the visual top is at the END of the data,
                 // so the chevron and edge-pull predicates that ask "can we
                 // scroll visually up / down" swap to canScrollForward /
@@ -1117,6 +1128,7 @@ private fun AppsCard(
                 }
             } else {
                 val listState = rememberLazyListState()
+                LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
                 val canScrollUp = if (reverseLayout) listState.canScrollForward else listState.canScrollBackward
                 val canScrollDown = if (reverseLayout) listState.canScrollBackward else listState.canScrollForward
                 val edgePullConnection = rememberAppListEdgePullConnection(
@@ -2272,6 +2284,7 @@ private fun SettingsPreview(
             iconSizeDp = dockIconSizeDp,
             highlightFirst = state.query.isNotBlank(),
             reverseLayout = state.appListSortOrder.isReversed,
+            scrollResetKey = state.query,
             modifier = Modifier.height(appListHeight),
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
