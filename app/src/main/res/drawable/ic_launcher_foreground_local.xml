@@ -18,15 +18,16 @@
     <path
         android:fillColor="#FF000000"
         android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
-    <!-- Local-build badge: yellow DEV bar at the bottom -->
+    <!-- Local-build badge: yellow DEV bar fills the bottom; corners are
+         cropped by the launcher's adaptive-icon mask (circle, squircle, etc). -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M0,92 H108 V108 H0 Z" />
     <group
-        android:scaleX="1.8"
-        android:scaleY="1.8"
-        android:translateX="0"
-        android:translateY="90">
-        <path
-            android:fillColor="#FFC107"
-            android:pathData="M2,0 H58 Q60,0 60,2 V8 Q60,10 58,10 H2 Q0,10 0,8 V2 Q0,0 2,0 Z" />
+        android:scaleX="1.5"
+        android:scaleY="1.5"
+        android:translateX="8.715"
+        android:translateY="92.5">
         <path
             android:fillColor="#1A1A1A"
             android:fillType="evenOdd"
