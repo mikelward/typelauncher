@@ -53,8 +53,10 @@ internal object AppIconLoader {
         return result
     }
 
+    fun cached(app: InstalledApp, sizePx: Int): ImageBitmap? = cached(app.iconCacheId, sizePx)
+
     suspend fun load(context: Context, app: InstalledApp, sizePx: Int): ImageBitmap? {
-        val key = CacheKey(app.id, sizePx)
+        val key = CacheKey(app.iconCacheId, sizePx)
         cache.get(key)?.let { return it }
         return traceBlock("app_icon_load") { trace ->
             val resolveStart = SystemClock.elapsedRealtime()
@@ -118,8 +120,9 @@ internal object AppIconLoader {
 internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
     val context = LocalContext.current.applicationContext
     val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
-    var bitmap by remember(app.id, sizePx) { mutableStateOf(AppIconLoader.cached(app.id, sizePx)) }
-    LaunchedEffect(app.id, sizePx) {
+    val cacheId = app.iconCacheId
+    var bitmap by remember(cacheId, sizePx) { mutableStateOf(AppIconLoader.cached(app, sizePx)) }
+    LaunchedEffect(cacheId, sizePx) {
         if (bitmap == null) {
             bitmap = AppIconLoader.load(context, app, sizePx)
         }

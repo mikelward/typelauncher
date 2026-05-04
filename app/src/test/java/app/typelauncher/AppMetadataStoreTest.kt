@@ -40,6 +40,14 @@ class AppMetadataStoreTest {
     }
 
     @Test
+    fun preservesIconCacheToken() {
+        val app = personalApp(name = "Browser", packageName = "app.browser")
+        AppMetadataStore(context).save(listOf(app))
+
+        assertEquals("1234", AppMetadataStore(context).load().single().iconCacheToken)
+    }
+
+    @Test
     fun preservesIsWorkAppFlagForPersonalProfileApps() {
         // Personal-profile apps tagged via TEST_WORK_PACKAGES_EXTRA still need to round-trip
         // their work badge across cold starts.
@@ -81,6 +89,7 @@ class AppMetadataStoreTest {
             user = Process.myUserHandle(),
             isWorkApp = false,
             launchWithLauncherApps = true,
+            iconCacheToken = "1234",
         )
     }
 }

@@ -10,6 +10,7 @@ import android.content.ComponentName
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -478,7 +479,7 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("persistIconSnapshot skipped: snapshot restore in flight")
             return
         }
-        val priorityIds = priorityIconAppIds()
+        val priorityIds = priorityIconCacheIds()
         val snapshots = AppIconLoader.cacheSnapshot()
             .filterKeys { key -> key.id in priorityIds }
             .map { (key, bitmap) ->
@@ -493,7 +494,7 @@ internal class LauncherViewModel(
         viewModelScope.launch(ioDispatcher) { iconSnapshotStore.save(snapshots) }
     }
 
-    private fun priorityIconAppIds(): Set<String> {
+    private fun priorityIconCacheIds(): Set<String> {
         val docked = dockedAppStore.dockedAppIds.toSet()
         val topByLaunches = installedApps
             .asSequence()
@@ -503,7 +504,12 @@ internal class LauncherViewModel(
             .take(SNAPSHOT_TOP_LAUNCH_COUNT)
             .map { (id, _) -> id }
             .toSet()
-        return docked + topByLaunches
+        val priorityIds = docked + topByLaunches
+        return installedApps
+            .asSequence()
+            .filter { app -> app.id in priorityIds }
+            .map { app -> app.iconCacheId }
+            .toSet()
     }
 
     fun refreshAgenda() {
@@ -1065,6 +1071,7 @@ internal class LauncherViewModel(
                             user = user,
                             isWorkApp = user != personalUser || activity.applicationInfo.packageName in workPackages,
                             launchWithLauncherApps = true,
+                            iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
                         )
                     }
             }
@@ -1084,6 +1091,7 @@ internal class LauncherViewModel(
                             user = personalUser,
                             isWorkApp = activityInfo.packageName in workPackages,
                             launchWithLauncherApps = false,
+                            iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
                         )
                     }
             }
@@ -1192,6 +1200,15 @@ private fun AppWidgetProviderInfo.toWidgetProvider(context: Context): WidgetProv
 
 private fun estimateCellSpan(sizeDp: Int): Int =
     ((sizeDp + WIDGET_CELL_ESTIMATE_DP - 1) / WIDGET_CELL_ESTIMATE_DP).coerceAtLeast(1)
+
+private fun ApplicationInfo.iconCacheToken(packageManager: PackageManager): String? {
+    val packageInfo = try {
+        packageManager.getPackageInfo(packageName, 0)
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    }
+    return packageInfo?.lastUpdateTime?.takeIf { time -> time > 0L }?.toString()
+}
 
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
