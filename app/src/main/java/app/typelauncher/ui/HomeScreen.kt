@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -923,9 +924,10 @@ private fun ScrollableIconRow(
                 alignment = Alignment.CenterStart,
                 xEdgeOffset = -HorizontalScrollChevronEdgeOffset,
                 testTag = startChevronTestTag,
-                tapTargetSize = HorizontalScrollChevronTapTargetSize,
+                tapTargetWidth = HorizontalScrollChevronEdgeOffset,
+                tapTargetHeight = HorizontalScrollChevronTapTargetSize,
+                iconRequiredSize = HorizontalScrollChevronTapTargetSize,
                 onClick = pageBack,
-                handlePointerInput = false,
             )
         }
         if (showEndChevron) {
@@ -935,9 +937,10 @@ private fun ScrollableIconRow(
                 alignment = Alignment.CenterEnd,
                 xEdgeOffset = HorizontalScrollChevronEdgeOffset,
                 testTag = endChevronTestTag,
-                tapTargetSize = HorizontalScrollChevronTapTargetSize,
+                tapTargetWidth = HorizontalScrollChevronEdgeOffset,
+                tapTargetHeight = HorizontalScrollChevronTapTargetSize,
+                iconRequiredSize = HorizontalScrollChevronTapTargetSize,
                 onClick = pageForward,
-                handlePointerInput = false,
             )
         }
     }
@@ -1026,7 +1029,7 @@ private fun AppListOverflowChevronBox(
                 alignment = Alignment.TopCenter,
                 yEdgeOffset = -VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
-                tapTargetSize = VerticalScrollChevronTapTargetSize,
+                tapTargetWidth = VerticalScrollChevronTapTargetSize,
                 onClick = onScrollPageUp,
             )
         }
@@ -1037,7 +1040,7 @@ private fun AppListOverflowChevronBox(
                 alignment = Alignment.BottomCenter,
                 yEdgeOffset = VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
-                tapTargetSize = VerticalScrollChevronTapTargetSize,
+                tapTargetWidth = VerticalScrollChevronTapTargetSize,
                 onClick = onScrollPageDown,
             )
         }
@@ -1052,24 +1055,32 @@ private fun BoxScope.OverflowScrollChevron(
     testTag: String,
     xEdgeOffset: Dp = 0.dp,
     yEdgeOffset: Dp = 0.dp,
-    tapTargetSize: Dp? = null,
+    tapTargetWidth: Dp? = null,
+    tapTargetHeight: Dp? = tapTargetWidth,
+    iconRequiredSize: Dp? = null,
     onClick: (() -> Unit)? = null,
-    handlePointerInput: Boolean = true,
 ) {
-    if (onClick != null && tapTargetSize != null) {
-        val tapModifier = if (handlePointerInput) {
-            Modifier.pointerInput(onClick) {
-                detectTapGestures(onTap = { onClick() })
-            }
-        } else {
-            Modifier
-        }
+    if (onClick != null && tapTargetWidth != null && tapTargetHeight != null) {
+        // The chevron's tap target must not overlap the sibling scrollable's
+        // hit area. Compose dispatches pointer events at any given position to
+        // the topmost overlapping sibling only, so a chevron Box sitting on
+        // top of the Row will swallow a swipe that started on it — even when
+        // the chevron's pointerInput never consumes the down. Sizing the Box
+        // to just the chevron's overhang area (e.g. 18 dp wide for horizontal
+        // chevrons positioned at xEdgeOffset = ±18.dp) keeps it fully outside
+        // the row, while `iconRequiredSize` lets the visible chevron icon
+        // overflow back over the row's edge so the affordance still looks
+        // anchored on the icon strip. Taps on the visible part of the icon
+        // that lands inside the row fall through to the row's own pointerInput
+        // (which already pages on first/last 32.dp taps).
         Box(
             modifier = Modifier
                 .align(alignment)
                 .offset(x = xEdgeOffset, y = yEdgeOffset)
-                .size(tapTargetSize)
-                .then(tapModifier)
+                .size(width = tapTargetWidth, height = tapTargetHeight)
+                .pointerInput(onClick) {
+                    detectTapGestures(onTap = { onClick() })
+                }
                 .semantics {
                     role = Role.Button
                     this.contentDescription = contentDescription
@@ -1084,6 +1095,11 @@ private fun BoxScope.OverflowScrollChevron(
             ChevronIcon(
                 icon = icon,
                 contentDescription = contentDescription,
+                modifier = if (iconRequiredSize != null) {
+                    Modifier.requiredSize(iconRequiredSize)
+                } else {
+                    Modifier
+                },
             )
         }
         return
