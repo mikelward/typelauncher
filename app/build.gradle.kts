@@ -50,8 +50,8 @@ val baseVersionName = "1.0"
 val isCiBuild: Boolean = providers.environmentVariable("CI")
     .map { value -> value.equals("true", ignoreCase = true) }
     .getOrElse(false)
-val launcherIconResource = if (isCiBuild) "@mipmap/ic_launcher" else "@mipmap/ic_launcher_local"
-val launcherRoundIconResource = if (isCiBuild) "@mipmap/ic_launcher_round" else "@mipmap/ic_launcher_round_local"
+val debugLauncherIconResource = if (isCiBuild) "@mipmap/ic_launcher" else "@mipmap/ic_launcher_local"
+val debugLauncherRoundIconResource = if (isCiBuild) "@mipmap/ic_launcher_round" else "@mipmap/ic_launcher_round_local"
 
 fun buildConfigString(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
@@ -78,8 +78,8 @@ android {
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
-        manifestPlaceholders["launcherIcon"] = launcherIconResource
-        manifestPlaceholders["launcherRoundIcon"] = launcherRoundIconResource
+        manifestPlaceholders["launcherIcon"] = "@mipmap/ic_launcher"
+        manifestPlaceholders["launcherRoundIcon"] = "@mipmap/ic_launcher_round"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -120,6 +120,8 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["launcherIcon"] = debugLauncherIconResource
+            manifestPlaceholders["launcherRoundIcon"] = debugLauncherRoundIconResource
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
         }
