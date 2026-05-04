@@ -43,8 +43,12 @@ internal val AppListSortOrder.dataOrdering: AppListSortOrder
 internal enum class NotificationPullDownBehavior {
     None,
     System,
-    Launcher,
+    BarBelow,
+    BarAbove,
 }
+
+internal val NotificationPullDownBehavior.showsLauncherNotificationBar: Boolean
+    get() = this == NotificationPullDownBehavior.BarBelow || this == NotificationPullDownBehavior.BarAbove
 
 internal enum class ThemeMode {
     System,
@@ -79,10 +83,10 @@ internal data class LauncherUiState(
     // Refreshed in `refreshPermissionDrivenUi` so flipping the toggle in
     // Android settings is picked up on the next resume.
     val hasNotificationAccess: Boolean = false,
-    // Settings → "Pull down" action. Launcher inserts the in-app notification
-    // bar as a first stage; System opens Android's shade; None disables
-    // pull-down handling.
-    val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+    // Settings → "Pull down" action. BarBelow / BarAbove insert the in-app
+    // notification bar as a first stage; System opens Android's shade; None
+    // disables pull-down handling.
+    val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
     // When true, the recents card is permanently visible above the keyboard
     // (orthogonal to `isDockEnabled`), independent of the drag-up gesture. The
     // visible-recents predicate is `isRecentsAlwaysShown || isRecentsOpen`, so

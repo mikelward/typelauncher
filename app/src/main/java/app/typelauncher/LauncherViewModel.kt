@@ -886,11 +886,11 @@ internal class LauncherViewModel(
             it.copy(
                 notificationPullDownBehavior = behavior,
                 isNotificationBarOpen =
-                    it.isNotificationBarOpen && behavior == NotificationPullDownBehavior.Launcher,
+                    it.isNotificationBarOpen && behavior.showsLauncherNotificationBar,
             )
         }
         logState("setNotificationPullDownBehavior=$behavior")
-        if (behavior == NotificationPullDownBehavior.Launcher && !_uiState.value.hasNotificationAccess) {
+        if (behavior.showsLauncherNotificationBar && !_uiState.value.hasNotificationAccess) {
             openNotificationAccessSettings()
         }
     }

@@ -35,7 +35,58 @@ class SwipeDownNotificationShadeTest {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = emptyList(),
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(0, swipeDownCount)
+        assertEquals(true, notificationBarOpened)
+    }
+
+    @Test
+    fun swipingDownOnHomeWithBarAbove_opensBarInsteadOfShade() {
+        var swipeDownCount = 0
+        var notificationBarOpened = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarAbove,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -194,7 +245,7 @@ class SwipeDownNotificationShadeTest {
                     TypeLauncherApp(
                         state = LauncherUiState(
                             filteredApps = emptyList(),
-                            notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                         ),
                         onQueryChanged = {},
                         onClearQuery = {},
@@ -245,7 +296,7 @@ class SwipeDownNotificationShadeTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -511,7 +562,7 @@ class SwipeDownNotificationShadeTest {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = apps,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -554,6 +605,58 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
+    fun pullingDownPastTopOfAppsListWithSystemBehavior_invokesOnSwipeDownCallback() {
+        val apps = fakeScrollableApps()
+        var notificationBarOpened = false
+        var swipeDownCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = apps,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.System,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, swipeDownCount)
+        assertEquals(false, notificationBarOpened)
+    }
+
+    @Test
     fun pushingUpPastBottomOfAppsList_hidesNotificationBar() {
         val apps = fakeScrollableApps()
         var notificationBarOpen = true
@@ -564,7 +667,7 @@ class SwipeDownNotificationShadeTest {
                     state = LauncherUiState(
                         filteredApps = apps,
                         isNotificationBarOpen = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
