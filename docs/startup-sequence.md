@@ -39,7 +39,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
     - bitmap rasterization runs on `Dispatchers.Default`;
     - the resulting `ImageBitmap` updates Compose state and is stored in the LRU cache.
 19. When the fresh installed-app load returns, the coroutine resumes on main, updates `installedApps`, may prefill the dock on first run, recomputes app surfaces, sets `isLoadingApps = false`, sets `isFreshAppLoadComplete = true`, and asynchronously saves the new metadata snapshot on `Dispatchers.IO`.
-20. `HomeReadySignal` waits until `isFreshAppLoadComplete` is true and either the IME is visible or 1500 ms have elapsed. This prevents agenda IO from competing with the fresh app load and keyboard show, while still allowing hardware-keyboard or IME-disabled environments to proceed.
+20. `HomeReadySignal` waits until `isFreshAppLoadComplete` is true. When keyboard auto-show is enabled, it then waits for either IME visibility or a 1500 ms fallback; when keyboard auto-show is disabled, it skips the IME wait because no keyboard show is expected. This prevents agenda IO from competing with the fresh app load and keyboard show, while still allowing hardware-keyboard, IME-disabled, and keyboard-opt-out environments to proceed.
 21. When home-ready fires, `LauncherViewModel.onHomeReady` sets `isHomeReady = true` and starts the deferred initial agenda load. The agenda load switches to `Dispatchers.IO`, checks calendar permission, queries `CalendarContract.Instances` if permitted, organizes events, and publishes only the newest agenda request.
 22. The same home-ready signal releases `MainActivity`'s deferred `AppWidgetHost.startListening`. `onStart` skips widget-host listening while cold start is in progress; after home-ready, the host starts immediately if the activity is already started, and future `onStart` calls start it normally.
 
@@ -48,7 +48,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 The code has useful traces, but it does not contain enough device-independent information for a precise timing estimate. The reliable timing boundaries are:
 
 - Home body and offscreen carousel pages are delayed by one display frame.
-- The initial agenda load and widget-host listening wait for fresh app load plus IME visibility, with a 1500 ms IME fallback.
+- The initial agenda load and widget-host listening wait for fresh app load; when keyboard auto-show is enabled, they also wait for IME visibility, with a 1500 ms fallback.
 - Runtime telemetry measures the real durations with `launcher_cold_start`, `launcher_initial_load`, `installed_apps_load`, `icon_snapshot_restore`, `agenda_initial_load`, and per-miss `app_icon_load` traces.
 
 Use those traces for actual timing. Static estimates would likely be misleading because `LauncherApps`, installed app count, icon cache state, storage speed, profile count, IME behavior, and device load all materially affect the result.

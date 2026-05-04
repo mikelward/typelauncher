@@ -70,10 +70,10 @@ private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 private const val VERTICAL_PULL_THRESHOLD_DP = 96
 
 // Once the app list has loaded, wait this long for the soft keyboard to come
-// up before signalling "home ready" anyway. Hardware keyboards, IME-disabled
-// test environments, and slow IME starts can all keep WindowInsets.isImeVisible
-// false indefinitely; we don't want to defer the agenda load forever in those
-// cases.
+// up before signalling "home ready" anyway, when keyboard auto-show is enabled.
+// Hardware keyboards, IME-disabled test environments, and slow IME starts can
+// all keep WindowInsets.isImeVisible false indefinitely; we don't want to defer
+// the agenda load forever in those cases.
 private const val HOME_READY_IME_TIMEOUT_MS = 1500L
 
 private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
@@ -209,6 +209,7 @@ internal fun TypeLauncherApp(
         // still running on IO. Firing here would race the fresh app load —
         // exactly what this signal exists to prevent.
         appsReady = state.isFreshAppLoadComplete,
+        waitForIme = state.isKeyboardAutoShown,
         onHomeReady = onHomeReady,
     )
     // Cold-start one-frame holdback for the home body (apps grid, notification
@@ -311,23 +312,25 @@ internal fun TypeLauncherApp(
 }
 
 /**
- * Fires `onHomeReady` exactly once, after the fresh `LauncherApps` query has
- * returned (`appsReady`) and either the soft keyboard is visible or
+ * Fires `onHomeReady` exactly once after the fresh `LauncherApps` query has
+ * returned (`appsReady`). When Home is configured to auto-show the keyboard,
+ * this also waits until the soft keyboard is visible or
  * [HOME_READY_IME_TIMEOUT_MS] has elapsed since the apps loaded. The downstream
  * signal kicks off the deferred initial agenda load so it doesn't contend with
- * the cold-start app list IO or the keyboard show.
+ * the cold-start app list IO or an expected keyboard show.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeReadySignal(
     appsReady: Boolean,
+    waitForIme: Boolean,
     onHomeReady: () -> Unit,
 ) {
     val imeVisible = WindowInsets.isImeVisible
     var fired by remember { mutableStateOf(false) }
-    LaunchedEffect(appsReady, imeVisible, fired) {
+    LaunchedEffect(appsReady, imeVisible, waitForIme, fired) {
         if (fired || !appsReady) return@LaunchedEffect
-        if (!imeVisible) {
+        if (waitForIme && !imeVisible) {
             // Wait for the IME — but don't wait forever (hardware keyboards,
             // Robolectric, IME-disabled tests).
             delay(HOME_READY_IME_TIMEOUT_MS)
