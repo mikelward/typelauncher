@@ -5,7 +5,9 @@ import android.os.Process
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
@@ -39,7 +41,10 @@ class AppsListScrollResetTest {
             launchWithLauncherApps = false,
         )
 
-    private fun renderHome(initialState: LauncherUiState): androidx.compose.runtime.MutableState<LauncherUiState> {
+    private fun renderHome(
+        initialState: LauncherUiState,
+        searchPlaceholderSuffix: String = "",
+    ): androidx.compose.runtime.MutableState<LauncherUiState> {
         val stateHolder = mutableStateOf(initialState)
         composeRule.setContent {
             val state by stateHolder
@@ -73,10 +78,21 @@ class AppsListScrollResetTest {
                     onRemoveWidget = {},
                     onRequestCalendarPermission = {},
                     onOpenAgendaEvent = {},
+                    searchPlaceholderSuffix = searchPlaceholderSuffix,
                 )
             }
         }
         return stateHolder
+    }
+
+    @Test
+    fun searchPlaceholder_appendsBuildSuffixWhenProvided() {
+        renderHome(
+            initialState = LauncherUiState(filteredApps = listOf(fakeApp("Calculator"))),
+            searchPlaceholderSuffix = " (abc1234)",
+        )
+
+        composeRule.onNodeWithText("Type an app name (abc1234)").assertIsDisplayed()
     }
 
     @Test

@@ -90,6 +90,7 @@ internal fun TypeLauncherApp(
     onRequestCalendarPermission: () -> Unit,
     onRequestDefaultLauncher: () -> Unit,
     onSwipeDown: () -> Unit,
+    searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(
@@ -150,6 +151,7 @@ internal fun TypeLauncherApp(
         onRequestCalendarPermission = onRequestCalendarPermission,
         onOpenAgendaEvent = viewModel::openAgendaEvent,
         onSwipeDown = onSwipeDown,
+        searchPlaceholderSuffix = searchPlaceholderSuffix,
     )
 }
 
@@ -199,6 +201,7 @@ internal fun TypeLauncherApp(
     onRequestCalendarPermission: () -> Unit,
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
     onSwipeDown: () -> Unit = {},
+    searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     LaunchedEffect(state.screen, state.isSettingsOpen, state.isAppListIconOnly) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
@@ -266,6 +269,7 @@ internal fun TypeLauncherApp(
                         state = state,
                         innerPadding = innerPadding,
                         bodyReady = homeBodyReady,
+                        searchPlaceholderSuffix = searchPlaceholderSuffix,
                         onQueryChanged = onQueryChanged,
                         onClearQuery = onClearQuery,
                         onLaunchActiveApp = onLaunchActiveApp,

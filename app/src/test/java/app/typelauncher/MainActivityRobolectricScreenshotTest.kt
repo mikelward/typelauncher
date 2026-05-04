@@ -63,10 +63,12 @@ import java.time.ZoneId
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
+    private val placeholderSuffixRule = TestSearchPlaceholderSuffixRule()
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @get:Rule
     val ruleChain: RuleChain = RuleChain
+        .outerRule(placeholderSuffixRule)
         .outerRule(SeedLauncherStateRule())
         .around(composeRule)
 
@@ -1735,6 +1737,25 @@ class MainActivityRobolectricScreenshotTest {
                 packageManager.addActivityIcon(componentName, ColorDrawable(OVERFLOW_ICON_COLORS[index % OVERFLOW_ICON_COLORS.size]))
             }
         }
+    }
+
+    private class TestSearchPlaceholderSuffixRule : TestRule {
+        override fun apply(base: Statement, description: Description): Statement =
+            object : Statement() {
+                override fun evaluate() {
+                    val previous = System.getProperty(TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY)
+                    System.setProperty(TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY, "")
+                    try {
+                        base.evaluate()
+                    } finally {
+                        if (previous == null) {
+                            System.clearProperty(TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY)
+                        } else {
+                            System.setProperty(TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY, previous)
+                        }
+                    }
+                }
+            }
     }
 
     private fun todayAgendaSample(): List<AgendaEvent> {

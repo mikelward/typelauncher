@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
+internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
+internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
 private const val APP_WIDGET_HOST_ID = 1024
 
 class MainActivity : ComponentActivity() {
@@ -153,12 +155,18 @@ class MainActivity : ComponentActivity() {
                         },
                         onRequestDefaultLauncher = ::requestDefaultLauncher,
                         onSwipeDown = ::expandNotificationShade,
+                        searchPlaceholderSuffix = searchPlaceholderSuffix(),
                     )
                 }
             }
         }
         LauncherDebugLog.event("setContent returned")
     }
+
+    private fun searchPlaceholderSuffix(): String =
+        System.getProperty(TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY)
+            ?: intent.getStringExtra(TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA)
+            ?: BuildConfig.SEARCH_PLACEHOLDER_SUFFIX
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
