@@ -487,6 +487,26 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun settingsShowsLocalBuildBannerWhenNoPlayUpdateIsAvailable() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertIsDisplayed()
+        val displayBranch = BuildConfig.LOCAL_BUILD_BRANCH.substringAfter('/')
+        composeRule.onNodeWithText(
+            "$displayBranch · ${BuildConfig.LOCAL_BUILD_SHA}",
+            substring = true,
+        ).assertIsDisplayed()
+        saveScreenshot("compose_settings_local_build_banner_robolectric.png")
+
+        composeRule.activity.viewModel.setPlayUpdateAvailable(123)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertDoesNotExist()
+    }
+
+    @Test
     fun settingsButtonOpensSettingsAndDoneReturnsHome() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
