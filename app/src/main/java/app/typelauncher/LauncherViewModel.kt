@@ -54,6 +54,11 @@ internal class LauncherViewModel(
     private val appMetadataStore = AppMetadataStore(app)
     private val iconSnapshotStore = IconSnapshotStore(app)
     private val playUpdateStore = PlayUpdateStore(app)
+    // Set when the user taps the Play update CTA. Suppresses the banner for the
+    // rest of this process; cleared on process restart, on a higher available
+    // version, or when Play reports no update is available.
+    private var sessionTappedPlayUpdate: Boolean = false
+    private var sessionTappedPlayUpdateVersionCode: Int? = null
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     private var agendaVersion = 0
@@ -879,12 +884,19 @@ internal class LauncherViewModel(
     }
 
     fun setPlayUpdateAvailable(availableVersionCode: Int?) {
+        if (sessionTappedPlayUpdate && availableVersionCode != sessionTappedPlayUpdateVersionCode) {
+            sessionTappedPlayUpdate = false
+            sessionTappedPlayUpdateVersionCode = null
+        }
+        val isPersistDismissed = availableVersionCode != null &&
+            availableVersionCode == playUpdateStore.dismissedVersionCode
+        val isSessionDismissed = sessionTappedPlayUpdate &&
+            availableVersionCode == sessionTappedPlayUpdateVersionCode
         _uiState.update { state ->
             state.copy(
                 playUpdate = PlayUpdateState.Available(
                     versionCode = availableVersionCode,
-                    isDismissed = availableVersionCode != null &&
-                        availableVersionCode == playUpdateStore.dismissedVersionCode,
+                    isDismissed = isPersistDismissed || isSessionDismissed,
                 ),
             )
         }
@@ -892,6 +904,8 @@ internal class LauncherViewModel(
     }
 
     fun setPlayUpdateUnavailable() {
+        sessionTappedPlayUpdate = false
+        sessionTappedPlayUpdateVersionCode = null
         _uiState.update { it.copy(playUpdate = PlayUpdateState.NotAvailable) }
         logState("setPlayUpdateUnavailable")
     }
@@ -901,6 +915,14 @@ internal class LauncherViewModel(
         playUpdateStore.dismissedVersionCode = update.versionCode ?: BuildConfig.VERSION_CODE + 1
         _uiState.update { it.copy(playUpdate = update.copy(isDismissed = true)) }
         logState("dismissPlayUpdate=${update.versionCode}")
+    }
+
+    fun markPlayUpdateTapped() {
+        val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
+        sessionTappedPlayUpdate = true
+        sessionTappedPlayUpdateVersionCode = update.versionCode
+        _uiState.update { it.copy(playUpdate = update.copy(isDismissed = true)) }
+        logState("markPlayUpdateTapped=${update.versionCode}")
     }
 
     fun openPlayStoreListing() {
