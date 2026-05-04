@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import org.junit.Assert.assertTrue
@@ -105,6 +106,14 @@ class AppsListChevronTest {
             "bottom chevron should sit on the apps card edge (card=${appsCardBounds.bottom}, chevron=${chevronBounds.bottom})",
             kotlin.math.abs((chevronBounds.bottom - appsCardBounds.bottom).value) <= 1f,
         )
+        assertTrue(
+            "bottom chevron tap target should stay compact",
+            (chevronBounds.bottom - chevronBounds.top).value <= 33f,
+        )
+        assertTrue(
+            "bottom chevron tap target should stay compact",
+            (chevronBounds.right - chevronBounds.left).value <= 33f,
+        )
     }
 
     @Test
@@ -132,10 +141,70 @@ class AppsListChevronTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_textRows_bottomChevronTapScrollsOnePage() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App01").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App20").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App40").assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_textRows_topChevronTapScrollsOnePageBackUp() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        val firstAppBoundsAtTop = composeRule.onNodeWithTag("$APP_ROW_TAG:App01").getBoundsInRoot()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val firstAppBoundsAfterReturn = composeRule.onNodeWithTag("$APP_ROW_TAG:App01").getBoundsInRoot()
+        assertTrue(
+            "top chevron tap should scroll back to the original top",
+            kotlin.math.abs((firstAppBoundsAfterReturn.top - firstAppBoundsAtTop.top).value) <= 1f,
+        )
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun appsListOverflow_iconGrid_bottomChevronTapScrollsOnePage() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true))
+
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:App01").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:App40").assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_reversedTextRows_topChevronTapScrollsOnePageVisuallyUp() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps, appListSortOrder = AppListSortOrder.UsageReversed))
+
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App01").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App20").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App40").assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -143,7 +212,7 @@ class AppsListChevronTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
 
         val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()

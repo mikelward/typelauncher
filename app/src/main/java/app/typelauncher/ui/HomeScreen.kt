@@ -17,6 +17,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +45,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -969,6 +971,8 @@ private fun AppListOverflowChevronBox(
     canScrollUp: Boolean,
     canScrollDown: Boolean,
     chevronContentDescription: String,
+    onScrollPageUp: () -> Unit,
+    onScrollPageDown: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -981,6 +985,8 @@ private fun AppListOverflowChevronBox(
                 alignment = Alignment.TopCenter,
                 yEdgeOffset = -VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+                tapTargetSize = VerticalScrollChevronTapTargetSize,
+                onClick = onScrollPageUp,
             )
         }
         if (canScrollDown) {
@@ -990,6 +996,8 @@ private fun AppListOverflowChevronBox(
                 alignment = Alignment.BottomCenter,
                 yEdgeOffset = VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
+                tapTargetSize = VerticalScrollChevronTapTargetSize,
+                onClick = onScrollPageDown,
             )
         }
     }
@@ -1046,25 +1054,58 @@ private fun BoxScope.OverflowScrollChevron(
     testTag: String,
     xEdgeOffset: Dp = 0.dp,
     yEdgeOffset: Dp = 0.dp,
+    tapTargetSize: Dp? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    if (onClick != null && tapTargetSize != null) {
+        Box(
+            modifier = Modifier
+                .align(alignment)
+                .offset(x = xEdgeOffset, y = yEdgeOffset)
+                .size(tapTargetSize)
+                .clickable(role = Role.Button, onClick = onClick)
+                .testTag(testTag),
+            contentAlignment = alignment,
+        ) {
+            ChevronIcon(
+                icon = icon,
+                contentDescription = contentDescription,
+            )
+        }
+        return
+    }
+    ChevronIcon(
+        icon = icon,
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .align(alignment)
+            .offset(x = xEdgeOffset, y = yEdgeOffset)
+            .testTag(testTag),
+    )
+}
+
+@Composable
+private fun ChevronIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
 ) {
     Icon(
         imageVector = icon,
         contentDescription = contentDescription,
         tint = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier
-            .align(alignment)
-            .offset(x = xEdgeOffset, y = yEdgeOffset)
+        modifier = modifier
             .background(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 shape = CircleShape,
             )
-            .padding(2.dp)
-            .testTag(testTag),
+            .padding(2.dp),
     )
 }
 
 private val HorizontalScrollChevronEdgeOffset = 18.dp
 private val VerticalScrollChevronEdgeOffset = 18.dp
+private val VerticalScrollChevronTapTargetSize = 32.dp
 
 @Composable
 private fun AppsCard(
@@ -1133,10 +1174,17 @@ private fun AppsCard(
                     onPullDownPastStart = onPullDownPastStart,
                     onPullUpPastEnd = onPullUpPastEnd,
                 )
+                val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
                     chevronContentDescription = chevronDescription,
+                    onScrollPageUp = {
+                        scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                    },
+                    onScrollPageDown = {
+                        scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                    },
                 ) {
                     IconOnlyAppGrid(
                         apps = apps,
@@ -1165,10 +1213,17 @@ private fun AppsCard(
                     onPullDownPastStart = onPullDownPastStart,
                     onPullUpPastEnd = onPullUpPastEnd,
                 )
+                val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
                     chevronContentDescription = chevronDescription,
+                    onScrollPageUp = {
+                        scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                    },
+                    onScrollPageDown = {
+                        scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                    },
                 ) {
                     LazyColumn(
                         state = listState,
@@ -1196,6 +1251,27 @@ private fun AppsCard(
         }
     }
 }
+
+private suspend fun LazyGridState.scrollOneVisualPage(up: Boolean, reverseLayout: Boolean) {
+    val direction = visualPageScrollDirection(up = up, reverseLayout = reverseLayout)
+    animateScrollBy(direction * layoutInfo.viewportSize.height.toFloat())
+}
+
+private suspend fun LazyListState.scrollOneVisualPage(
+    up: Boolean,
+    reverseLayout: Boolean,
+) {
+    val direction = visualPageScrollDirection(up = up, reverseLayout = reverseLayout)
+    animateScrollBy(direction * layoutInfo.viewportSize.height.toFloat())
+}
+
+private fun visualPageScrollDirection(up: Boolean, reverseLayout: Boolean): Float =
+    when {
+        up && reverseLayout -> 1f
+        up -> -1f
+        reverseLayout -> -1f
+        else -> 1f
+    }
 
 @Composable
 private fun IconOnlyAppGrid(
