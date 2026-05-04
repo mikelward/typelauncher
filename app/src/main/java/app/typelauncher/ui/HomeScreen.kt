@@ -166,8 +166,6 @@ internal fun HomeScreen(
     onRequestNotificationAccess: () -> Unit = {},
     onHorizontalBarPullPastStart: () -> Unit = {},
     onHorizontalBarPullPastEnd: () -> Unit = {},
-    onPullDownPastAppsListStart: () -> Unit = {},
-    onPullUpPastAppsListEnd: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -228,8 +226,6 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
-                onPullDownPastStart = onPullDownPastAppsListStart,
-                onPullUpPastEnd = onPullUpPastAppsListEnd,
             )
             if (!showNotificationBarAbove) {
                 NotificationBarCard(
@@ -1049,51 +1045,6 @@ private fun AppListOverflowChevronBox(
 }
 
 @Composable
-private fun rememberAppListEdgePullConnection(
-    canScrollVisuallyUp: () -> Boolean,
-    canScrollVisuallyDown: () -> Boolean,
-    thresholdPx: Float,
-    onPullDownPastStart: () -> Unit,
-    onPullUpPastEnd: () -> Unit,
-): NestedScrollConnection {
-    val currentOnPullDownPastStart by rememberUpdatedState(onPullDownPastStart)
-    val currentOnPullUpPastEnd by rememberUpdatedState(onPullUpPastEnd)
-    return remember(canScrollVisuallyUp, canScrollVisuallyDown, thresholdPx) {
-        object : NestedScrollConnection {
-            private var edgeDragPx = 0f
-            private var didDispatch = false
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput || didDispatch) return Offset.Zero
-                val availableY = available.y
-                edgeDragPx = when {
-                    availableY > 0f && !canScrollVisuallyUp() -> (edgeDragPx + availableY).coerceAtLeast(0f)
-                    availableY < 0f && !canScrollVisuallyDown() -> (edgeDragPx + availableY).coerceAtMost(0f)
-                    else -> 0f
-                }
-                when {
-                    edgeDragPx >= thresholdPx -> {
-                        didDispatch = true
-                        currentOnPullDownPastStart()
-                    }
-                    edgeDragPx <= -thresholdPx -> {
-                        didDispatch = true
-                        currentOnPullUpPastEnd()
-                    }
-                }
-                return Offset.Zero
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                edgeDragPx = 0f
-                didDispatch = false
-                return Velocity.Zero
-            }
-        }
-    }
-}
-
-@Composable
 private fun BoxScope.OverflowScrollChevron(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
@@ -1195,8 +1146,6 @@ private fun AppsCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
-    onPullDownPastStart: () -> Unit,
-    onPullUpPastEnd: () -> Unit,
 ) {
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
         if (isLoading) {
@@ -1218,26 +1167,15 @@ private fun AppsCard(
             )
         } else {
             val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
-            val edgePullThresholdPx = with(LocalDensity.current) { APP_LIST_EDGE_PULL_THRESHOLD_DP.dp.toPx() }
             if (isIconOnly) {
                 val gridState = rememberLazyGridState()
                 LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
                 // In reverseLayout, the visual top is at the END of the data,
-                // so the chevron and edge-pull predicates that ask "can we
-                // scroll visually up / down" swap to canScrollForward /
-                // canScrollBackward respectively. Without this swap, an empty
-                // app list rendered with reverseLayout would advertise the
-                // wrong overflow chevron and route pull-down/pull-up to the
-                // wrong launcher gesture.
+                // so the chevron predicate that asks "can we scroll visually
+                // up / down" swaps to canScrollForward / canScrollBackward
+                // respectively.
                 val canScrollUp = if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward
                 val canScrollDown = if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward
-                val edgePullConnection = rememberAppListEdgePullConnection(
-                    canScrollVisuallyUp = { canScrollUp },
-                    canScrollVisuallyDown = { canScrollDown },
-                    thresholdPx = edgePullThresholdPx,
-                    onPullDownPastStart = onPullDownPastStart,
-                    onPullUpPastEnd = onPullUpPastEnd,
-                )
                 val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
@@ -1258,7 +1196,6 @@ private fun AppsCard(
                         highlightFirst = highlightFirst,
                         reverseLayout = reverseLayout,
                         state = gridState,
-                        edgePullConnection = edgePullConnection,
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -1271,13 +1208,6 @@ private fun AppsCard(
                 LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
                 val canScrollUp = if (reverseLayout) listState.canScrollForward else listState.canScrollBackward
                 val canScrollDown = if (reverseLayout) listState.canScrollBackward else listState.canScrollForward
-                val edgePullConnection = rememberAppListEdgePullConnection(
-                    canScrollVisuallyUp = { canScrollUp },
-                    canScrollVisuallyDown = { canScrollDown },
-                    thresholdPx = edgePullThresholdPx,
-                    onPullDownPastStart = onPullDownPastStart,
-                    onPullUpPastEnd = onPullUpPastEnd,
-                )
                 val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
@@ -1296,7 +1226,6 @@ private fun AppsCard(
                         reverseLayout = reverseLayout,
                         modifier = Modifier
                             .fillMaxSize()
-                            .nestedScroll(edgePullConnection)
                             .testTag(APPS_LIST_TAG),
                     ) {
                         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
@@ -1346,7 +1275,6 @@ private fun IconOnlyAppGrid(
     iconSizeDp: Int,
     highlightFirst: Boolean,
     state: LazyGridState,
-    edgePullConnection: NestedScrollConnection,
     reverseLayout: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1361,7 +1289,6 @@ private fun IconOnlyAppGrid(
         modifier = Modifier
             .fillMaxSize()
             .heightIn(min = iconSizeDp.dp)
-            .nestedScroll(edgePullConnection)
             .testTag(APPS_LIST_TAG),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(
@@ -2600,8 +2527,6 @@ private fun SettingsPreview(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onHideApp = onHideApp,
-            onPullDownPastStart = {},
-            onPullUpPastEnd = {},
         )
         // Forced access-granted so toggling the setting shows the inline bar at
         // its natural height rather than the taller permission CTA.
@@ -2733,7 +2658,6 @@ private fun selectionHighlightOnColor(): Color =
     if (isSystemInDarkTheme()) Color(0xFFE6EEFA) else Color(0xFF0B2A5B)
 
 private const val MIN_DOCKED_APPS = 1
-private const val APP_LIST_EDGE_PULL_THRESHOLD_DP = 96
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_BAR_COUNT = 4
 private const val SETTINGS_PREVIEW_SPACING_DP = 16

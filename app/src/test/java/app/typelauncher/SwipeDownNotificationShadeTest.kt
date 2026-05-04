@@ -713,6 +713,70 @@ class SwipeDownNotificationShadeTest {
         assertEquals(false, recentsOpened)
     }
 
+    @Test
+    fun pullingDownOnShortNonScrollableAppsList_opensNotificationBar() {
+        // A handful of apps doesn't fill the apps card, so the LazyColumn has
+        // no scrolling room. The pull-down should still fire — "fully scrolled
+        // to the end" is trivially true when there's nothing to scroll.
+        val apps = (0 until 3).map { index ->
+            InstalledApp(
+                name = "App %02d".format(index),
+                packageName = "app.typelauncher.fake$index",
+                launchIntent = Intent(),
+                user = Process.myUserHandle(),
+                isWorkApp = false,
+                launchWithLauncherApps = false,
+            )
+        }
+        var notificationBarOpened = false
+        var swipeDownCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = apps,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(0, swipeDownCount)
+        assertEquals(true, notificationBarOpened)
+    }
+
     private fun fakeScrollableApps(): List<InstalledApp> =
         (0 until 40).map { index ->
             InstalledApp(
