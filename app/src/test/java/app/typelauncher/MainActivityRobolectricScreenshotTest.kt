@@ -7,6 +7,8 @@ import android.content.pm.ResolveInfo
 import android.app.role.RoleManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Process
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
@@ -1518,18 +1520,15 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun screenshot_appListIconOnly_overflowingGrid() {
-        addFakeLauncherApps((1..60).map { index -> "Overflow App %02d".format(index) })
         val viewModel = composeRule.activity.viewModel
-        viewModel.setAppListIconOnly(true)
-        viewModel.reloadInstalledAppsForTest()
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" }
-        }
         composeRule.waitForIdle()
 
+        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertTrue(viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" })
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertDoesNotExist()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
 
         saveScreenshot("compose_home_icon_only_overflowing_grid_robolectric.png")
     }
@@ -1679,6 +1678,14 @@ class MainActivityRobolectricScreenshotTest {
                             .commit()
                     }
                     seedFakeLauncherApps()
+                    if (description.methodName == "screenshot_appListIconOnly_overflowingGrid") {
+                        seedOverflowLauncherApps()
+                        application
+                            .getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("app_list_icon_only", true)
+                            .commit()
+                    }
                     base.evaluate()
                 }
             }
@@ -1695,15 +1702,37 @@ class MainActivityRobolectricScreenshotTest {
                 // it — keeps the expected-result list unchanged.
                 if (label == "Type Launcher") return@forEachIndexed
                 val packageName = "app.typelauncher.fake$index"
+                val componentName = ComponentName(packageName, "$packageName.LaunchActivity")
                 val resolveInfo = ResolveInfo().apply {
                     nonLocalizedLabel = label
                     activityInfo = ActivityInfo().apply {
                         this.packageName = packageName
-                        name = "$packageName.LaunchActivity"
+                        name = componentName.className
                     }
                 }
                 @Suppress("DEPRECATION")
                 packageManager.addResolveInfoForIntent(launcherIntent, resolveInfo)
+                packageManager.addActivityIcon(componentName, ColorDrawable(OVERFLOW_ICON_COLORS[index % OVERFLOW_ICON_COLORS.size]))
+            }
+        }
+
+        private fun seedOverflowLauncherApps() {
+            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val packageManager = shadowOf(ApplicationProvider.getApplicationContext<android.content.Context>().packageManager)
+            (1..60).forEach { index ->
+                val label = "Overflow App %02d".format(index)
+                val packageName = "app.typelauncher.overflow$index"
+                val componentName = ComponentName(packageName, "$packageName.LaunchActivity")
+                val resolveInfo = ResolveInfo().apply {
+                    nonLocalizedLabel = label
+                    activityInfo = ActivityInfo().apply {
+                        this.packageName = packageName
+                        name = componentName.className
+                    }
+                }
+                @Suppress("DEPRECATION")
+                packageManager.addResolveInfoForIntent(launcherIntent, resolveInfo)
+                packageManager.addActivityIcon(componentName, ColorDrawable(OVERFLOW_ICON_COLORS[index % OVERFLOW_ICON_COLORS.size]))
             }
         }
     }
@@ -1754,6 +1783,13 @@ class MainActivityRobolectricScreenshotTest {
             "Settings",
             "Type Launcher",
             "Work Calendar",
+        )
+
+        val OVERFLOW_ICON_COLORS = intArrayOf(
+            Color.rgb(0x1A, 0x73, 0xE8),
+            Color.rgb(0xD9, 0x30, 0x25),
+            Color.rgb(0x18, 0x80, 0x38),
+            Color.rgb(0xF9, 0xAB, 0x00),
         )
     }
 }
