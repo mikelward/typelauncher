@@ -47,6 +47,11 @@ val gitBranchName: String = providers.environmentVariable("GITHUB_REF_NAME")
 val isGitWorkingTreeDirty: Boolean =
     gitOutput("status", "--porcelain", fallback = "dirty").isNotEmpty()
 val baseVersionName = "1.0"
+val isCiBuild: Boolean = providers.environmentVariable("CI")
+    .map { value -> value.equals("true", ignoreCase = true) }
+    .getOrElse(false)
+val launcherIconResource = if (isCiBuild) "@mipmap/ic_launcher" else "@mipmap/ic_launcher_local"
+val launcherRoundIconResource = if (isCiBuild) "@mipmap/ic_launcher_round" else "@mipmap/ic_launcher_round_local"
 
 fun buildConfigString(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
@@ -73,6 +78,8 @@ android {
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
+        manifestPlaceholders["launcherIcon"] = launcherIconResource
+        manifestPlaceholders["launcherRoundIcon"] = launcherRoundIconResource
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
