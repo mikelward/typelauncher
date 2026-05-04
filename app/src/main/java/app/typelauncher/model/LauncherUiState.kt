@@ -72,8 +72,8 @@ internal data class LauncherUiState(
     val isRecentsOpen: Boolean = false,
     // Apps with at least one active user-visible notification, sourced from the
     // bound NotificationListenerService. Empty unless the user has granted
-    // notification access in Android settings. Rendered in the notification bar
-    // between the app list and the dock, when [isNotificationBarOpen] is true.
+    // notification access in Android settings. Rendered in the notification bar,
+    // when [isNotificationBarOpen] is true.
     val notifyingApps: List<InstalledApp> = emptyList(),
     // True once the user has pulled down on the home screen to reveal the
     // notification bar. A second pull-down expands the system shade. Reset on
