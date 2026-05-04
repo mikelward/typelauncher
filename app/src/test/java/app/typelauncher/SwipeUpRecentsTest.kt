@@ -5,9 +5,9 @@ import android.os.Process
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
-import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -182,7 +182,7 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingHorizontallyOnOverflowingRecents_scrollsRecentsInsteadOfCarousel() {
+    fun tappingRecentsChevron_scrollsRecentsInsteadOfCarousel() {
         var widgetsCount = 0
         val recentApps = (1..8).map { i -> fakeApp(name = "App%02d".format(i)) }
         composeRule.setContent {
@@ -226,10 +226,10 @@ class SwipeUpRecentsTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
 
-        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput { swipeRight() }
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
 
-        assertEquals("recents swipe should not navigate the carousel", 0, widgetsCount)
+        assertEquals("recents chevron should not navigate the carousel", 0, widgetsCount)
         composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
     }
 

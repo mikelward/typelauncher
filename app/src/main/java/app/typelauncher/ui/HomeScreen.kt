@@ -14,6 +14,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
@@ -131,6 +132,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 private const val HORIZONTAL_BAR_EDGE_PULL_THRESHOLD_DP = 96
@@ -771,9 +773,10 @@ private fun RecentAppButton(
 
 /**
  * Wraps a horizontally scrollable row of icons (the dock or the recents row) and
- * overlays start/end chevrons on whichever edge has more content scrolled past.
- * The chevron uses an auto-mirrored icon and start/end alignment so it points
- * the right direction under RTL.
+ * overlays start/end chevron buttons on whichever edge has more content
+ * scrolled past. Tapping either button advances by one visible row width. The
+ * chevron uses an auto-mirrored icon and start/end alignment so it points the
+ * right direction under RTL.
  *
  * When [pinToEndKey] is non-null, the row scrolls to its end whenever the key
  * (or the row's own measured `maxValue`) changes. The recents row uses this so
@@ -793,6 +796,7 @@ private fun ScrollableIconRow(
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
     val edgePullConnection = rememberHorizontalBarEdgePullConnection(
@@ -810,28 +814,30 @@ private fun ScrollableIconRow(
             }
         }
     }
-    val showEndChevron by remember(scrollState) {
-        derivedStateOf {
-            hasMeasuredContent &&
-                scrollState.maxValue > overflowSlopPx &&
-                scrollState.value < scrollState.maxValue - overflowSlopPx
-        }
-    }
-    val showStartChevron by remember(scrollState) {
-        derivedStateOf {
-            hasMeasuredContent &&
-                scrollState.maxValue > overflowSlopPx &&
-                scrollState.value > overflowSlopPx
-        }
-    }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         // Stretch the row to at least the viewport width so the centered
-        // arrangement has space to distribute when the icons fit on one
-        // screen, but use the raw px from `BoxWithConstraints.constraints`
-        // (not `maxWidth.dp`) — the Dp round-trip can land 1 px above the
-        // viewport on non-integer densities and trip a spurious overflow
-        // chevron when the row content actually fits.
+        // arrangement has space to distribute when the icons fit on one screen,
+        // while overflow rows reserve 48dp gutters so chevron taps do not share
+        // space with edge icons. Use the raw px from
+        // `BoxWithConstraints.constraints` (not `maxWidth.dp`) — the Dp
+        // round-trip can land 1 px above the viewport on non-integer densities
+        // and trip a spurious overflow chevron when the row content actually
+        // fits.
         val viewportPx = constraints.maxWidth
+        val showEndChevron by remember(scrollState, viewportPx) {
+            derivedStateOf {
+                hasMeasuredContent &&
+                    scrollState.maxValue > overflowSlopPx &&
+                    scrollState.value < scrollState.maxValue - overflowSlopPx
+            }
+        }
+        val showStartChevron by remember(scrollState, viewportPx) {
+            derivedStateOf {
+                hasMeasuredContent &&
+                    scrollState.maxValue > overflowSlopPx &&
+                    scrollState.value > overflowSlopPx
+            }
+        }
         Row(
             modifier = rowModifier
                 .nestedScroll(edgePullConnection)
@@ -862,8 +868,14 @@ private fun ScrollableIconRow(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterStart,
-                xEdgeOffset = -HorizontalScrollChevronEdgeOffset,
                 testTag = startChevronTestTag,
+                cardEdgeOffsetX = -OverflowScrollChevronTargetCardEdgeOffset,
+                onClick = {
+                    scope.launch {
+                        val target = (scrollState.value - viewportPx).coerceAtLeast(0)
+                        scrollState.animateScrollTo(target)
+                    }
+                },
             )
         }
         if (showEndChevron) {
@@ -871,8 +883,14 @@ private fun ScrollableIconRow(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterEnd,
-                xEdgeOffset = HorizontalScrollChevronEdgeOffset,
                 testTag = endChevronTestTag,
+                cardEdgeOffsetX = OverflowScrollChevronTargetCardEdgeOffset,
+                onClick = {
+                    scope.launch {
+                        val target = (scrollState.value + viewportPx).coerceAtMost(scrollState.maxValue)
+                        scrollState.animateScrollTo(target)
+                    }
+                },
             )
         }
     }
@@ -935,13 +953,16 @@ private fun rememberHorizontalBarEdgePullConnection(
  * `LazyVerticalGrid` icon-only grid) and overlays top/bottom chevrons on
  * whichever edge has more content scrolled past, mirroring the dock and
  * notification-bar overflow treatment so a long list is discoverable as
- * scrollable instead of relying on the user guessing.
+ * scrollable instead of relying on the user guessing. Tapping either chevron
+ * scrolls by one visible list page.
  */
 @Composable
 private fun AppListOverflowChevronBox(
     canScrollUp: Boolean,
     canScrollDown: Boolean,
     chevronContentDescription: String,
+    onScrollUp: () -> Unit,
+    onScrollDown: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -952,8 +973,9 @@ private fun AppListOverflowChevronBox(
                 icon = Icons.Filled.KeyboardArrowUp,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.TopCenter,
-                yEdgeOffset = -VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+                cardEdgeOffsetY = -OverflowScrollChevronTargetCardEdgeOffset,
+                onClick = onScrollUp,
             )
         }
         if (canScrollDown) {
@@ -961,8 +983,9 @@ private fun AppListOverflowChevronBox(
                 icon = Icons.Filled.KeyboardArrowDown,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.BottomCenter,
-                yEdgeOffset = VerticalScrollChevronEdgeOffset,
                 testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
+                cardEdgeOffsetY = OverflowScrollChevronTargetCardEdgeOffset,
+                onClick = onScrollDown,
             )
         }
     }
@@ -1017,27 +1040,46 @@ private fun BoxScope.OverflowScrollChevron(
     contentDescription: String,
     alignment: Alignment,
     testTag: String,
-    xEdgeOffset: Dp = 0.dp,
-    yEdgeOffset: Dp = 0.dp,
+    cardEdgeOffsetX: Dp = 0.dp,
+    cardEdgeOffsetY: Dp = 0.dp,
+    onClick: () -> Unit,
 ) {
-    Icon(
-        imageVector = icon,
-        contentDescription = contentDescription,
-        tint = MaterialTheme.colorScheme.onSurface,
+    Box(
         modifier = Modifier
             .align(alignment)
-            .offset(x = xEdgeOffset, y = yEdgeOffset)
-            .background(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                shape = CircleShape,
+            .offset(x = cardEdgeOffsetX, y = cardEdgeOffsetY)
+            .size(OverflowScrollChevronTouchTargetSize)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
             )
-            .padding(2.dp)
+            .semantics {
+                this.contentDescription = contentDescription
+                role = Role.Button
+            }
             .testTag(testTag),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .background(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = CircleShape,
+                )
+                .padding(2.dp),
+        )
+    }
 }
 
-private val HorizontalScrollChevronEdgeOffset = 12.dp
-private val VerticalScrollChevronEdgeOffset = 12.dp
+private val OverflowScrollChevronTouchTargetSize = 32.dp
+private val OverflowScrollChevronVisualSize = 28.dp
+private val OverflowScrollChevronTargetCardEdgeOffset =
+    16.dp + (OverflowScrollChevronTouchTargetSize - OverflowScrollChevronVisualSize)
 
 @Composable
 private fun AppsCard(
@@ -1087,6 +1129,7 @@ private fun AppsCard(
         } else {
             val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
             val edgePullThresholdPx = with(LocalDensity.current) { APP_LIST_EDGE_PULL_THRESHOLD_DP.dp.toPx() }
+            val scope = rememberCoroutineScope()
             if (isIconOnly) {
                 val gridState = rememberLazyGridState()
                 LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
@@ -1110,6 +1153,18 @@ private fun AppsCard(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
                     chevronContentDescription = chevronDescription,
+                    onScrollUp = {
+                        scope.launch {
+                            val page = gridState.layoutInfo.viewportSize.height.toFloat()
+                            gridState.animateScrollBy(if (reverseLayout) page else -page)
+                        }
+                    },
+                    onScrollDown = {
+                        scope.launch {
+                            val page = gridState.layoutInfo.viewportSize.height.toFloat()
+                            gridState.animateScrollBy(if (reverseLayout) -page else page)
+                        }
+                    },
                 ) {
                     IconOnlyAppGrid(
                         apps = apps,
@@ -1142,6 +1197,18 @@ private fun AppsCard(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
                     chevronContentDescription = chevronDescription,
+                    onScrollUp = {
+                        scope.launch {
+                            val page = listState.layoutInfo.viewportSize.height.toFloat()
+                            listState.animateScrollBy(if (reverseLayout) page else -page)
+                        }
+                    },
+                    onScrollDown = {
+                        scope.launch {
+                            val page = listState.layoutInfo.viewportSize.height.toFloat()
+                            listState.animateScrollBy(if (reverseLayout) -page else page)
+                        }
+                    },
                 ) {
                     LazyColumn(
                         state = listState,
@@ -1178,6 +1245,7 @@ private fun IconOnlyAppGrid(
     highlightFirst: Boolean,
     state: LazyGridState,
     edgePullConnection: NestedScrollConnection,
+    modifier: Modifier = Modifier,
     reverseLayout: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1189,7 +1257,7 @@ private fun IconOnlyAppGrid(
         columns = GridCells.Adaptive(iconSizeDp.dp),
         state = state,
         reverseLayout = reverseLayout,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = iconSizeDp.dp)
             .nestedScroll(edgePullConnection)

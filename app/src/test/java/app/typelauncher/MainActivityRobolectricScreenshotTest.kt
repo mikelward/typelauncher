@@ -308,13 +308,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 
-        assertEquals(startPage, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
-
-        composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
-        composeRule.waitForIdle()
-
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
         assertEquals(LauncherScreen.Widgets, viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
@@ -1488,12 +1481,28 @@ class MainActivityRobolectricScreenshotTest {
         }
         composeRule.waitForIdle()
 
-        val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
+        val dockCardBounds = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
         val chevronBounds = composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).getBoundsInRoot()
         assertTrue(
-            "end chevron should sit past the scroll row edge (row=${dockListBounds.right}, chevron=${chevronBounds.right})",
-            chevronBounds.right > dockListBounds.right,
+            "end chevron should sit at the dock card edge (card=${dockCardBounds.right}, chevron=$chevronBounds)",
+            chevronBounds.right <= dockCardBounds.right && chevronBounds.right.value > dockCardBounds.right.value - 16f,
         )
+    }
+
+    @Test
+    fun dockOverflow_endChevronTapScrollsOnePageAndShowsStartChevron() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
+        saveScreenshot("compose_dock_overflow_chevron_after_page_tap_robolectric.png")
     }
 
     @Test
@@ -1507,11 +1516,11 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
 
-        val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).getBoundsInRoot()
         assertTrue(
-            "bottom chevron should sit past the scroll list edge (list=${appsListBounds.bottom}, chevron=${chevronBounds.bottom})",
-            chevronBounds.bottom > appsListBounds.bottom,
+            "bottom chevron should sit at the apps card edge (card=${appsCardBounds.bottom}, chevron=$chevronBounds)",
+            chevronBounds.bottom <= appsCardBounds.bottom && chevronBounds.bottom.value > appsCardBounds.bottom.value - 16f,
         )
         saveScreenshot("compose_apps_list_bottom_overflow_chevron_robolectric.png")
     }

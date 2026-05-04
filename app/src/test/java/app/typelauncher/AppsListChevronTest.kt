@@ -6,8 +6,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -94,11 +98,16 @@ class AppsListChevronTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).getBoundsInRoot()
         assertTrue(
-            "bottom chevron should sit past the scroll list edge (list=${appsListBounds.bottom}, chevron=${chevronBounds.bottom})",
-            chevronBounds.bottom > appsListBounds.bottom,
+            "bottom chevron should sit at the card edge (card=${appsCardBounds.bottom}, chevron=${chevronBounds.bottom})",
+            chevronBounds.bottom <= appsCardBounds.bottom && chevronBounds.bottom > appsCardBounds.bottom - 16.dp,
+        )
+        assertTrue(
+            "bottom chevron should overlap only the list edge area (list=${appsListBounds.bottom}, chevron=${chevronBounds.top})",
+            chevronBounds.top > appsListBounds.bottom - 48.dp,
         )
     }
 
@@ -127,9 +136,24 @@ class AppsListChevronTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
 
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_textRows_bottomChevronClickScrollsOnePage() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App01").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App08").assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App01").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App08").assertDoesNotExist()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
     }
 
@@ -138,14 +162,19 @@ class AppsListChevronTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
 
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).getBoundsInRoot()
         assertTrue(
-            "top chevron should sit past the scroll list edge (list=${appsListBounds.top}, chevron=${chevronBounds.top})",
-            chevronBounds.top < appsListBounds.top,
+            "top chevron should sit at the card edge (card=${appsCardBounds.top}, chevron=${chevronBounds.top})",
+            chevronBounds.top >= appsCardBounds.top && chevronBounds.top < appsCardBounds.top + 16.dp,
+        )
+        assertTrue(
+            "top chevron should overlap only the list edge area (list=${appsListBounds.top}, chevron=${chevronBounds.bottom})",
+            chevronBounds.bottom < appsListBounds.top + 48.dp,
         )
     }
 }
