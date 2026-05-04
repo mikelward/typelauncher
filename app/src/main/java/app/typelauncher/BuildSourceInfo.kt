@@ -19,10 +19,16 @@ internal fun buildSourceInfoFromConfig(): BuildSourceInfo? =
     ).takeIf { it.isLocalBuild }
 
 internal fun BuildSourceInfo.displayText(nowMillis: Long = System.currentTimeMillis()): String {
-    val displayBranch = branch.substringAfter('/')
+    val displayBranch = displayBranch()
+    return "$displayBranch${displaySuffix(nowMillis)}"
+}
+
+internal fun BuildSourceInfo.displayBranch(): String = branch.substringAfter('/')
+
+internal fun BuildSourceInfo.displaySuffix(nowMillis: Long = System.currentTimeMillis()): String {
     val dirtySuffix = if (isDirty) " (dirty)" else ""
     val relativeTime = relativeAge(configuredAtMillis, nowMillis)
-    return "$displayBranch · $sha$dirtySuffix · $relativeTime"
+    return " · $sha$dirtySuffix · $relativeTime"
 }
 
 private fun relativeAge(startMillis: Long, nowMillis: Long): String {

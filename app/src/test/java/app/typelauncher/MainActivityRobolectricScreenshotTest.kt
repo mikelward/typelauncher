@@ -495,10 +495,14 @@ class MainActivityRobolectricScreenshotTest {
             composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertDoesNotExist()
             return
         }
-        composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertIsDisplayed()
         val displayBranch = BuildConfig.LOCAL_BUILD_BRANCH.substringAfter('/')
+        composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertIsDisplayed()
         composeRule.onNodeWithText(
-            "$displayBranch · ${BuildConfig.LOCAL_BUILD_SHA}",
+            displayBranch,
+            substring = true,
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            " · ${BuildConfig.LOCAL_BUILD_SHA}",
             substring = true,
         ).assertIsDisplayed()
         saveScreenshot("compose_settings_local_build_banner_robolectric.png")
