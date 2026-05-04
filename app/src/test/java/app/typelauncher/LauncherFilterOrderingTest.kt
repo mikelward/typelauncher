@@ -209,6 +209,59 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
+    fun filterByNameReversedVariantsShareTieredDataOrderingUnderTypedQuery() {
+        // Under a typed query the reversed variants must produce the same
+        // tiered (prefix → anchored → substring) ranking as their forward
+        // counterparts; the visual flip happens in the LazyColumn /
+        // LazyVerticalGrid via `reverseLayout = true`. If the data ordering
+        // diverged between forward and reversed sorts, the active-first
+        // launch target (highlighted at index 0, rendered at the visual
+        // bottom under reverseLayout) would land on the wrong app when the
+        // user pressed Enter.
+        val apps = listOf(
+            installedApp("iMail"),
+            installedApp("Gmail"),
+            installedApp("Mail"),
+            installedApp("Slack"),
+        )
+        // Bias usage so the within-tier sort actually has work to do.
+        val gmail = apps.first { it.name == "Gmail" }
+        repeat(3) { store.recordLaunch(gmail.id) }
+
+        val usageForward = apps.filterByName(
+            query = "mail",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            sortOrder = AppListSortOrder.Usage,
+        ).map { it.name }
+        val usageReversed = apps.filterByName(
+            query = "mail",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            sortOrder = AppListSortOrder.UsageReversed,
+        ).map { it.name }
+        // Anchor the assertion: Mail (prefix) → iMail (anchored) → Gmail
+        // (substring). Both variants must produce that exact list.
+        assertEquals(listOf("Mail", "iMail", "Gmail"), usageForward)
+        assertEquals(usageForward, usageReversed)
+
+        val nameForward = apps.filterByName(
+            query = "mail",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            sortOrder = AppListSortOrder.Alphabetical,
+        ).map { it.name }
+        val nameReversed = apps.filterByName(
+            query = "mail",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            sortOrder = AppListSortOrder.AlphabeticalReversed,
+        ).map { it.name }
+        assertEquals(listOf("Mail", "iMail", "Gmail"), nameForward)
+        assertEquals(nameForward, nameReversed)
+    }
+
+    @Test
     fun filterByNameUnderAlphabeticalSortIgnoresLaunchCountWithinTier() {
         val gallery = installedApp("Gallery")
         val gmail = installedApp("Gmail")
