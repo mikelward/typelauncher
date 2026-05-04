@@ -440,6 +440,44 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_appListIconOnly_reversedSort_anchorsTypedMatchToBottomRow() {
+        // Switch to icon-only layout and Usage ↑ sort, then type a query that
+        // produces fewer matches than fill the apps card. Under reverseLayout
+        // the top match (item 0) must render in the visual bottom row of the
+        // grid, anchored to the bottom edge of the card next to the keyboard,
+        // rather than floating at the top of the card with empty space below.
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_SORT_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_SORT_OPTION_USAGE_REVERSED_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
+        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val topMatchBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").getBoundsInRoot()
+        val rowMateBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calendar").getBoundsInRoot()
+        assertTrue(
+            "top match icon should sit nearest the bottom of the apps card (card.bottom=${appsCardBounds.bottom}, icon.bottom=${topMatchBounds.bottom})",
+            (appsCardBounds.bottom - topMatchBounds.bottom).value <= 24f,
+        )
+        assertTrue(
+            "top match should share the bottom row with the next match (top match.top=${topMatchBounds.top}, row mate.top=${rowMateBounds.top})",
+            kotlin.math.abs((topMatchBounds.top - rowMateBounds.top).value) <= 1f,
+        )
+
+        saveScreenshot("compose_home_icon_only_reversed_typed_match_bottom_row_robolectric.png")
+    }
+
+    @Test
     fun clearButton_clearsSearchFieldAndRestoresUnfilteredResults() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
         composeRule.onNodeWithContentDescription("Clear search text").performClick()
