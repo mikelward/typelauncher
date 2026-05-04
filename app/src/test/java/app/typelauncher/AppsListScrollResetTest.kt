@@ -9,8 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -100,7 +99,7 @@ class AppsListScrollResetTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         val stateHolder = renderHome(LauncherUiState(filteredApps = apps))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertExists()
 
@@ -121,7 +120,7 @@ class AppsListScrollResetTest {
         // simulate the resulting query transition from "a" back to "".
         val stateHolder = renderHome(LauncherUiState(query = "a", filteredApps = apps))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertExists()
 
@@ -136,7 +135,7 @@ class AppsListScrollResetTest {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         val stateHolder = renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true))
 
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertExists()
 
