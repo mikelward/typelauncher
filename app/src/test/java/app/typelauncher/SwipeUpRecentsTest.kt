@@ -320,6 +320,52 @@ class SwipeUpRecentsTest {
         assertTrue(oldestAfter.left < oldestBefore.left)
     }
 
+    // Regression for the chevron sitting mostly outside the row's bounds: a real
+    // user tap lands on the visible chevron icon (centered ~2.dp left of the row
+    // start), which the row's own pointerInput cannot see. The chevron itself
+    // must handle the tap.
+    @Test
+    fun recentsOverflow_tapDirectlyOnStartChevronPagesRow() {
+        val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                recentApps = recentApps,
+                isRecentsAlwaysShown = true,
+            ),
+        )
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+        val oldestBefore = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).performTouchInput {
+            down(Offset(width / 2f, height / 2f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        val oldestAfter = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
+        assertTrue(oldestAfter.left < oldestBefore.left)
+    }
+
+    @Test
+    fun dockOverflow_tapDirectlyOnEndChevronPagesRow() {
+        val dockedApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)).copy(isDocked = true) }
+        renderHome(LauncherUiState(filteredApps = emptyList(), dockedApps = dockedApps))
+
+        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
+        val firstBefore = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
+
+        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).performTouchInput {
+            down(Offset(width / 2f, height / 2f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        val firstAfter = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
+        assertTrue(firstAfter.left < firstBefore.left)
+    }
+
     @Test
     fun swipingHorizontallyOnOverflowingRecents_scrollsRecentsInsteadOfCarousel() {
         var widgetsCount = 0
