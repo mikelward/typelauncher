@@ -1835,6 +1835,43 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue(viewModel.uiState.value.dockedApps.single().name.startsWith("Work"))
     }
 
+    @Test
+    fun workAppBadge_scalesWithDockIconCount() {
+        val viewModel = composeRule.activity.viewModel
+        // Dock the work app so the badge renders inside the dock card, where
+        // its size tracks `dockIconCount` via `dockIconSizeForSlotCount`.
+        viewModel.setQuery("work")
+        composeRule.waitForIdle()
+        viewModel.toggleDock(
+            viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" },
+            maxDockedApps = MAX_DOCK_ICON_COUNT,
+        )
+        viewModel.setQuery("")
+        composeRule.waitForIdle()
+
+        // Fewer slots → wider icons → larger badge.
+        viewModel.setDockVisibleIconCount(MIN_DOCK_ICON_COUNT)
+        composeRule.waitForIdle()
+        val largeBadgeBounds = composeRule
+            .onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true)
+            .getBoundsInRoot()
+        val largeBadgeSize = largeBadgeBounds.right - largeBadgeBounds.left
+
+        // More slots → narrower icons → smaller badge.
+        viewModel.setDockVisibleIconCount(MAX_DOCK_ICON_COUNT)
+        composeRule.waitForIdle()
+        val smallBadgeBounds = composeRule
+            .onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true)
+            .getBoundsInRoot()
+        val smallBadgeSize = smallBadgeBounds.right - smallBadgeBounds.left
+
+        assertTrue(
+            "Badge at MIN dock icon count ($largeBadgeSize) should be larger " +
+                "than badge at MAX dock icon count ($smallBadgeSize)",
+            largeBadgeSize > smallBadgeSize,
+        )
+    }
+
     private fun assertVisibleApps(vararg names: String) {
         val actual = composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name }
         assertEquals(names.toList(), actual)
