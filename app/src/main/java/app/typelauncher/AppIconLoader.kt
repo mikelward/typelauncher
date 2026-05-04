@@ -5,6 +5,7 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
+import android.os.UserHandle
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -82,6 +83,32 @@ internal object AppIconLoader {
     }
 
     fun cacheSnapshot(): Map<CacheKey, ImageBitmap> = cache.snapshot()
+
+    /**
+     * Drops every cached bitmap that belongs to (`packageName`, `user`) so the next render
+     * forces a fresh `resolve` instead of returning a stale entry.
+     *
+     * Why this is necessary even though `iconCacheToken` already keys on the package's
+     * `lastUpdateTime`: the token is derived from the personal-profile `PackageManager`,
+     * which never observes a work-profile-only update (we have no `INTERACT_ACROSS_USERS`
+     * permission to read the work profile's `PackageInfo` directly). A stale unbadged
+     * work-app bitmap — e.g. one that landed in the cache during work-profile boot before
+     * the badge resource was ready — would therefore stay pinned under the same cache key
+     * forever. The `LauncherApps.Callback` package events are per-(packageName, user), so
+     * eviction at that boundary catches both the personal and work refresh paths cleanly.
+     */
+    fun evict(packageName: String, user: UserHandle) {
+        val userPrefix = "${user.hashCode()}:"
+        val componentPrefix = "$userPrefix$packageName/"
+        val packageOnly = "$userPrefix$packageName"
+        val packageWithToken = "$packageOnly@"
+        val toRemove = cache.snapshot().keys.filter { key ->
+            key.id.startsWith(componentPrefix) ||
+                key.id.startsWith(packageWithToken) ||
+                key.id == packageOnly
+        }
+        toRemove.forEach { cache.remove(it) }
+    }
 
     private fun recordCacheLookup(hit: Boolean) {
         val hits: Int

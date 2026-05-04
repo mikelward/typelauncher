@@ -86,12 +86,15 @@ internal class LauncherViewModel(
     private var pendingReloadJob: Job? = null
     private val launcherAppsCallback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String, user: UserHandle) {
+            AppIconLoader.evict(packageName, user)
             scheduleReload("packageAdded:$packageName")
         }
         override fun onPackageRemoved(packageName: String, user: UserHandle) {
+            AppIconLoader.evict(packageName, user)
             scheduleReload("packageRemoved:$packageName")
         }
         override fun onPackageChanged(packageName: String, user: UserHandle) {
+            AppIconLoader.evict(packageName, user)
             scheduleReload("packageChanged:$packageName")
         }
         override fun onPackagesAvailable(
@@ -99,6 +102,7 @@ internal class LauncherViewModel(
             user: UserHandle,
             replacing: Boolean,
         ) {
+            packageNames.forEach { AppIconLoader.evict(it, user) }
             scheduleReload("packagesAvailable:${packageNames.size}")
         }
         override fun onPackagesUnavailable(
@@ -106,6 +110,7 @@ internal class LauncherViewModel(
             user: UserHandle,
             replacing: Boolean,
         ) {
+            packageNames.forEach { AppIconLoader.evict(it, user) }
             scheduleReload("packagesUnavailable:${packageNames.size}")
         }
     }
