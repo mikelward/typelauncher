@@ -165,7 +165,7 @@ android {
 
 tasks.register<Exec>("installAndRun") {
     dependsOn("installDebug")
-    commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher.debug/.MainActivity")
+    commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher.debug/app.typelauncher.MainActivity")
 }
 
 tasks.withType<Test>().configureEach {
