@@ -101,6 +101,9 @@
     <string name="settings_theme_option_system">Système</string>
     <string name="settings_theme_option_light">Clair</string>
     <string name="settings_theme_option_dark">Sombre</string>
+    <string name="settings_work_icons_title">Afficher les icônes de travail</string>
+    <string name="settings_work_icons_option_always">Toujours</string>
+    <string name="settings_work_icons_option_when_work_on">Quand travail activé</string>
     <string name="settings_dock_icon_count_label">Icônes par rangée : %1$d</string>
     <string name="settings_dock_icon_size_value">Taille des icônes : %1$d dp</string>
     <string name="settings_dock_preview_label">Aperçu</string>

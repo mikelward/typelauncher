@@ -164,6 +164,24 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Settings → "Show work icons". Defaults to [WorkProfileVisibility.WhenWorkOn]
+     * so that pausing the work profile (Android quiet mode) hides every
+     * work-profile app from the launcher surfaces; users who want the
+     * historical "always show, desaturate when paused" behavior can opt in to
+     * [WorkProfileVisibility.Always]. Falls back to the default for
+     * unrecognised stored values (e.g. a future enum entry rolled back).
+     */
+    var workProfileVisibility: WorkProfileVisibility
+        get() = sharedPreferences.getString(KEY_WORK_PROFILE_VISIBILITY, null)
+            ?.let { name -> runCatching { WorkProfileVisibility.valueOf(name) }.getOrNull() }
+            ?: WorkProfileVisibility.WhenWorkOn
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_WORK_PROFILE_VISIBILITY, value.name)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -175,6 +193,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_WORK_PROFILE_VISIBILITY = "work_profile_visibility"
     }
 }
 

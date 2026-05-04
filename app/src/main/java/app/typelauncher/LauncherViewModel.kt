@@ -135,6 +135,7 @@ internal class LauncherViewModel(
             notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             themeMode = dockSettingsStore.themeMode,
+            workProfileVisibility = dockSettingsStore.workProfileVisibility,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
             playUpdate = PlayUpdateState.NotAvailable,
@@ -977,6 +978,26 @@ internal class LauncherViewModel(
         logState("setThemeMode=$mode")
     }
 
+    /**
+     * Persists Settings → "Show work icons" and re-derives every UI list
+     * through `visibleInstalledApps()` so paused work-profile apps appear or
+     * disappear immediately from the dock, app list, recents, and
+     * notification bar. The underlying `installedApps` list is left intact
+     * so flipping the setting back to `Always` doesn't require a fresh
+     * `LauncherApps` query.
+     */
+    fun setWorkProfileVisibility(value: WorkProfileVisibility) {
+        if (dockSettingsStore.workProfileVisibility == value &&
+            _uiState.value.workProfileVisibility == value
+        ) {
+            return
+        }
+        dockSettingsStore.workProfileVisibility = value
+        _uiState.update { it.copy(workProfileVisibility = value) }
+        logState("setWorkProfileVisibility=$value")
+        refreshLists()
+    }
+
     fun setDockVisibleIconCount(count: Int) {
         val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
         dockSettingsStore.dockIconCount = clampedCount
@@ -1023,8 +1044,23 @@ internal class LauncherViewModel(
         }
     }
 
-    private fun visibleInstalledApps(): List<InstalledApp> =
-        installedApps.filterNot { app -> hiddenAppStore.contains(app.id) }
+    private fun visibleInstalledApps(): List<InstalledApp> {
+        // Mirrors the hidden-apps filter immediately above: when the user
+        // selects "Show work icons = When work on", drop every work-profile
+        // app whose profile is currently in quiet mode so paused work icons
+        // disappear from every derived surface (search, dock, recents,
+        // notification bar) without per-surface plumbing. The full
+        // `installedApps` list is left intact so flipping the setting back to
+        // `Always` brings the entries back without re-querying LauncherApps.
+        // Personal-profile apps are never `isQuietMode = true` (the
+        // `loadInstalledApps` per-profile lookup excludes the personal user),
+        // so the predicate only ever drops work entries.
+        val hideQuietWorkApps =
+            dockSettingsStore.workProfileVisibility == WorkProfileVisibility.WhenWorkOn
+        return installedApps.filterNot { app ->
+            hiddenAppStore.contains(app.id) || (hideQuietWorkApps && app.isWorkApp && app.isQuietMode)
+        }
+    }
 
     private fun refreshNotifyingApps(packages: Map<String, Long>) {
         _uiState.update { state ->
@@ -1196,6 +1232,7 @@ internal class LauncherViewModel(
     private fun loadAvailableWidgets(): List<WidgetProvider> {
         val widgetManager = AppWidgetManager.getInstance(app)
         val personalUser = Process.myUserHandle()
+        val userManager = app.getSystemService<UserManager>()
         // Enumerate every available profile (personal + any work profiles) so
         // the picker surfaces work-profile widgets alongside personal ones.
         // `getInstalledProvidersForProfile` is the cross-profile counterpart to
@@ -1204,8 +1241,21 @@ internal class LauncherViewModel(
         // access to. Falling back to `Process.myUserHandle()` keeps the picker
         // populated when LauncherApps is unavailable (test / non-launcher
         // contexts).
-        val profiles = launcherAppsService?.profiles?.takeIf { it.isNotEmpty() }
+        val allProfiles = launcherAppsService?.profiles?.takeIf { it.isNotEmpty() }
             ?: listOf(personalUser)
+        // Mirror `loadInstalledApps`: when the user's "Show work icons"
+        // preference is "When work on", drop work-profile providers whose
+        // profile is currently in quiet mode so the picker hides them
+        // alongside the launcher icons.
+        val hideWhenPaused =
+            dockSettingsStore.workProfileVisibility == WorkProfileVisibility.WhenWorkOn
+        val profiles = if (hideWhenPaused) {
+            allProfiles.filterNot { profile ->
+                profile != personalUser && (userManager?.isQuietModeEnabled(profile) == true)
+            }
+        } else {
+            allProfiles
+        }
         return profiles
             .flatMap { profile ->
                 val providers = widgetManager.getInstalledProvidersForProfile(profile)

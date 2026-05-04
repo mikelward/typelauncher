@@ -56,6 +56,11 @@ internal enum class ThemeMode {
     Dark,
 }
 
+internal enum class WorkProfileVisibility {
+    Always,
+    WhenWorkOn,
+}
+
 internal data class LauncherUiState(
     val screen: LauncherScreen = LauncherScreen.Home,
     val query: String = "",
@@ -113,6 +118,13 @@ internal data class LauncherUiState(
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.
     val themeMode: ThemeMode = ThemeMode.System,
+    // Settings → "Show work icons". `WhenWorkOn` (default) hides every
+    // work-profile app from all launcher surfaces (search results, dock,
+    // recents, notification bar, widget picker) while the work profile is
+    // paused, so paused work icons disappear instead of rendering desaturated.
+    // `Always` preserves the historical behavior of keeping work icons visible
+    // and dimmed when the profile is paused.
+    val workProfileVisibility: WorkProfileVisibility = WorkProfileVisibility.WhenWorkOn,
     val isLoadingApps: Boolean = false,
     // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
     // warm start `isLoadingApps` is `false` from process start because cached

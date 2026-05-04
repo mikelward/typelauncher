@@ -1762,6 +1762,7 @@ internal fun SettingsScreen(
     onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
+    onWorkProfileVisibilityChanged: (WorkProfileVisibility) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1952,6 +1953,22 @@ internal fun SettingsScreen(
                 ThemeModeDropdown(
                     selected = state.themeMode,
                     onThemeModeChanged = onThemeModeChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_work_icons_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                WorkProfileVisibilityDropdown(
+                    selected = state.workProfileVisibility,
+                    onVisibilityChanged = onWorkProfileVisibilityChanged,
                 )
             }
         }
@@ -2310,6 +2327,55 @@ private fun ThemeMode.optionTag(): String =
         ThemeMode.System -> THEME_MODE_OPTION_SYSTEM_TAG
         ThemeMode.Light -> THEME_MODE_OPTION_LIGHT_TAG
         ThemeMode.Dark -> THEME_MODE_OPTION_DARK_TAG
+    }
+
+@Composable
+private fun WorkProfileVisibilityDropdown(
+    selected: WorkProfileVisibility,
+    onVisibilityChanged: (WorkProfileVisibility) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = selected.labelRes()
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(WORK_PROFILE_VISIBILITY_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(WORK_PROFILE_VISIBILITY_DROPDOWN_MENU_TAG),
+        ) {
+            WorkProfileVisibility.entries.forEach { visibility ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(visibility.labelRes())) },
+                    modifier = Modifier.testTag(visibility.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onVisibilityChanged(visibility)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun WorkProfileVisibility.labelRes(): Int =
+    when (this) {
+        WorkProfileVisibility.Always -> R.string.settings_work_icons_option_always
+        WorkProfileVisibility.WhenWorkOn -> R.string.settings_work_icons_option_when_work_on
+    }
+
+private fun WorkProfileVisibility.optionTag(): String =
+    when (this) {
+        WorkProfileVisibility.Always -> WORK_PROFILE_VISIBILITY_OPTION_ALWAYS_TAG
+        WorkProfileVisibility.WhenWorkOn -> WORK_PROFILE_VISIBILITY_OPTION_WHEN_WORK_ON_TAG
     }
 
 @Composable

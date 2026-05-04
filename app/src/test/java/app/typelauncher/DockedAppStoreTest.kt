@@ -148,4 +148,30 @@ class DockedAppStoreTest {
 
         assertEquals(ThemeMode.System, DockSettingsStore(context).themeMode)
     }
+
+    @Test
+    fun workProfileVisibilityDefaultsToWhenWorkOn() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(WorkProfileVisibility.WhenWorkOn, store.workProfileVisibility)
+    }
+
+    @Test
+    fun workProfileVisibilityPersistsExplicitSelection() {
+        DockSettingsStore(context).workProfileVisibility = WorkProfileVisibility.Always
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(WorkProfileVisibility.Always, reloaded.workProfileVisibility)
+    }
+
+    @Test
+    fun workProfileVisibilityFallsBackToWhenWorkOnForUnknownStoredValue() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("work_profile_visibility", "Bogus")
+            .commit()
+
+        assertEquals(WorkProfileVisibility.WhenWorkOn, DockSettingsStore(context).workProfileVisibility)
+    }
 }
