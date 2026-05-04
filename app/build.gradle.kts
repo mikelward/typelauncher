@@ -44,8 +44,18 @@ val gitShortSha: String = gitOutput("rev-parse", "--short", "HEAD", fallback = "
 val gitBranchName: String = providers.environmentVariable("GITHUB_REF_NAME")
     .orElse(gitOutput("rev-parse", "--abbrev-ref", "HEAD", fallback = "unknown"))
     .get()
+// `git status --porcelain` is empty for a clean tree, so we can't route this
+// through `gitOutput` — its empty-means-fallback semantics would map clean to
+// "dirty". Inline the exec and treat an exception as conservatively dirty.
 val isGitWorkingTreeDirty: Boolean =
-    gitOutput("status", "--porcelain", fallback = "dirty").isNotEmpty()
+    try {
+        providers.exec {
+            commandLine("git", "status", "--porcelain")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim().isNotEmpty()
+    } catch (_: Exception) {
+        true
+    }
 val baseVersionName = "1.0"
 val isCiBuild: Boolean = providers.environmentVariable("CI")
     .map { value -> value.equals("true", ignoreCase = true) }
