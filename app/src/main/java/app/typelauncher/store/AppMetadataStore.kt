@@ -38,6 +38,7 @@ internal class AppMetadataStore(context: Context) {
                             user = personal,
                             isWorkApp = obj.optBoolean(KEY_IS_WORK_APP, false),
                             launchWithLauncherApps = obj.optBoolean(KEY_LAUNCH_WITH_LAUNCHER_APPS, true),
+                            iconCacheToken = obj.optString(KEY_ICON_CACHE_TOKEN).takeIf { it.isNotEmpty() },
                         ),
                     )
                 }
@@ -59,6 +60,7 @@ internal class AppMetadataStore(context: Context) {
                 put(KEY_COMPONENT, component.flattenToString())
                 put(KEY_IS_WORK_APP, app.isWorkApp)
                 put(KEY_LAUNCH_WITH_LAUNCHER_APPS, app.launchWithLauncherApps)
+                app.iconCacheToken?.let { put(KEY_ICON_CACHE_TOKEN, it) }
             }
             array.put(obj)
         }
@@ -77,5 +79,6 @@ internal class AppMetadataStore(context: Context) {
         const val KEY_COMPONENT = "component"
         const val KEY_IS_WORK_APP = "isWorkApp"
         const val KEY_LAUNCH_WITH_LAUNCHER_APPS = "launchWithLauncherApps"
+        const val KEY_ICON_CACHE_TOKEN = "iconCacheToken"
     }
 }

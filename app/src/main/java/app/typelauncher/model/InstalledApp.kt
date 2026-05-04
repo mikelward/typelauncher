@@ -12,12 +12,16 @@ internal data class InstalledApp(
     val user: UserHandle,
     val isWorkApp: Boolean,
     val launchWithLauncherApps: Boolean,
+    val iconCacheToken: String? = null,
     val isDocked: Boolean = false,
     val isHidden: Boolean = false,
     val disambiguator: String? = null,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
+
+    val iconCacheId: String
+        get() = iconCacheToken?.let { token -> "$id@$token" } ?: id
 
     // Display label that appends a parenthesised disambiguator (e.g. "Chase
     // (US)") when this app shares an icon-level identity with peers; falls
