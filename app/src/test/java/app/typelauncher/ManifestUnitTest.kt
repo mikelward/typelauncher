@@ -42,12 +42,10 @@ class ManifestUnitTest {
         val buildFile = File("build.gradle.kts").readText()
 
         assertTrue(buildFile.contains("providers.environmentVariable(\"CI\")"))
-        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = \"@mipmap/ic_launcher\""))
-        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = \"@mipmap/ic_launcher_round\""))
-        assertTrue(buildFile.contains("debugLauncherIconResource = if (isCiBuild) \"@mipmap/ic_launcher\" else \"@mipmap/ic_launcher_local\""))
-        assertTrue(buildFile.contains("debugLauncherRoundIconResource = if (isCiBuild) \"@mipmap/ic_launcher_round\" else \"@mipmap/ic_launcher_round_local\""))
-        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = debugLauncherIconResource"))
-        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = debugLauncherRoundIconResource"))
+        assertTrue(buildFile.contains("launcherIconResource = if (isCiBuild) \"@mipmap/ic_launcher\" else \"@mipmap/ic_launcher_local\""))
+        assertTrue(buildFile.contains("launcherRoundIconResource = if (isCiBuild) \"@mipmap/ic_launcher_round\" else \"@mipmap/ic_launcher_round_local\""))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = launcherIconResource"))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = launcherRoundIconResource"))
     }
 
     @Test
@@ -64,16 +62,12 @@ class ManifestUnitTest {
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_foreground_local"))
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_monochrome_local"))
         assertTrue(localForeground.contains("Google Material Symbols \"construction\" icon"))
-        assertTrue(localForeground.contains("M72,54 A18,18 0,1 1,72,90 A18,18 0,1 1,72,54"))
-        assertTrue(localForeground.contains("android:scaleX=\"0.0375\""))
-        assertTrue(localForeground.contains("android:translateX=\"56\""))
-        assertTrue(localForeground.contains("android:translateY=\"90\""))
+        assertTrue(localForeground.contains("M83,66 A17,17 0,1 1,83,100 A17,17 0,1 1,83,66"))
+        assertTrue(localForeground.contains("android:scaleX=\"0.035416667\""))
         assertTrue(localForeground.contains("M756,-120 L537,-339l84,-84 219,219 -84,84"))
         assertTrue(localForeground.contains("#FFFFC107"))
-        assertTrue(localMonochrome.contains("Local-build monochrome badge"))
-        assertTrue(localMonochrome.contains("android:scaleX=\"0.0375\""))
-        assertTrue(localMonochrome.contains("android:translateX=\"58\""))
-        assertTrue(localMonochrome.contains("android:translateY=\"94\""))
+        assertTrue(localMonochrome.contains("Google Material Symbols \"construction\" icon"))
+        assertTrue(localMonochrome.contains("android:scaleX=\"0.035416667\""))
         assertTrue(localMonochrome.contains("M756,-120 L537,-339l84,-84 219,219 -84,84"))
         assertTrue(localMonochrome.contains("#FF000000"))
     }

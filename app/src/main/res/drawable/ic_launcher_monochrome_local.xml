@@ -18,12 +18,12 @@
     <path
         android:fillColor="#FF000000"
         android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
-    <!-- Local-build monochrome badge, kept inside the adaptive-icon safe zone. -->
+    <!-- Local-build monochrome badge: Google Material Symbols "construction" icon. -->
     <group
-        android:scaleX="0.0375"
-        android:scaleY="0.0375"
-        android:translateX="58"
-        android:translateY="94">
+        android:scaleX="0.035416667"
+        android:scaleY="0.035416667"
+        android:translateX="66"
+        android:translateY="101">
         <path
             android:fillColor="#FF000000"
             android:pathData="M756,-120 L537,-339l84,-84 219,219 -84,84ZM204,-120l-84,-84 276,-276 -68,-68 -28,28 -51,-51v82l-28,28 -121,-121 28,-28h82l-50,-50 142,-142q20,-20 43,-29t47,-9q24,0 47,9t43,29l-92,92 50,50 -28,28 68,68 90,-90q-4,-11 -6.5,-23t-2.5,-24q0,-59 40.5,-99.5T701,-841q15,0 28.5,3t27.5,9l-99,99 72,72 99,-99q7,14 9.5,27.5T841,-701q0,59 -40.5,99.5T701,-561q-12,0 -24,-2t-23,-7L204,-120Z" />
