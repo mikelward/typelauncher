@@ -121,10 +121,12 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
+            buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
         }
         release {
             isMinifyEnabled = false
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(""))
+            buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "true")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -184,6 +186,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.perf)
+    implementation(libs.play.app.update)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.robolectric)

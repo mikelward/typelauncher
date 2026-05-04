@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -64,6 +65,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -173,6 +175,7 @@ internal fun HomeScreen(
         SearchCard(
             query = state.query,
             autoShowKeyboard = state.isKeyboardAutoShown,
+            showPlayUpdateBadge = state.playUpdate.showBadge,
             placeholderSuffix = searchPlaceholderSuffix,
             onQueryChanged = onQueryChanged,
             onClearQuery = onClearQuery,
@@ -263,6 +266,7 @@ internal fun HomeScreen(
 private fun SearchCard(
     query: String,
     autoShowKeyboard: Boolean,
+    showPlayUpdateBadge: Boolean,
     placeholderSuffix: String,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
@@ -310,7 +314,25 @@ private fun SearchCard(
                         onClick = onOpenSettings,
                         modifier = Modifier.testTag(SETTINGS_BUTTON_TAG),
                     ) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_open_button_description))
+                        Box {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.settings_open_button_description),
+                            )
+                            if (showPlayUpdateBadge) {
+                                Text(
+                                    text = stringResource(R.string.play_update_badge_label),
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 10.dp, y = (-8).dp)
+                                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        .testTag(PLAY_UPDATE_BADGE_TAG),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -1656,6 +1678,8 @@ internal fun SettingsScreen(
     onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
+    onOpenPlayUpdate: () -> Unit,
+    onDismissPlayUpdate: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val slotCountRange = dockSlotCountRange(configuration.screenWidthDp)
@@ -1693,6 +1717,11 @@ internal fun SettingsScreen(
                 Text(stringResource(R.string.settings_done_button))
             }
         }
+        PlayUpdateBanner(
+            playUpdate = state.playUpdate,
+            onOpenPlayUpdate = onOpenPlayUpdate,
+            onDismissPlayUpdate = onDismissPlayUpdate,
+        )
         Button(
             onClick = onRequestDefaultLauncher,
             enabled = !state.isDefaultLauncher,
@@ -1863,6 +1892,62 @@ internal fun SettingsScreen(
             onUnhideApp = onUnhideApp,
             onDismiss = { hiddenAppsDialogVisible = false },
         )
+    }
+}
+
+@Composable
+private fun PlayUpdateBanner(
+    playUpdate: PlayUpdateState,
+    onOpenPlayUpdate: () -> Unit,
+    onDismissPlayUpdate: () -> Unit,
+) {
+    val update = playUpdate as? PlayUpdateState.Available ?: return
+    if (!update.shouldPrompt) return
+    SectionCard(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(PLAY_UPDATE_BANNER_TAG)
+            .semantics { role = Role.Button }
+            .clickable(onClick = onOpenPlayUpdate),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.play_update_banner_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.play_update_banner_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            TextButton(
+                onClick = onOpenPlayUpdate,
+                modifier = Modifier.testTag(PLAY_UPDATE_BANNER_UPDATE_TAG),
+            ) {
+                Text(stringResource(R.string.play_update_banner_update_button))
+            }
+            IconButton(
+                onClick = onDismissPlayUpdate,
+                modifier = Modifier
+                    .testTag(PLAY_UPDATE_BANNER_DISMISS_TAG)
+                    .zIndex(1f),
+            ) {
+                Icon(
+                    Icons.Filled.Clear,
+                    contentDescription = stringResource(R.string.play_update_banner_dismiss_description),
+                )
+            }
+        }
     }
 }
 

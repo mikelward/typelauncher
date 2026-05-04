@@ -33,12 +33,14 @@ internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAG
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
 private const val APP_WIDGET_HOST_ID = 1024
+private const val PLAY_UPDATE_REQUEST_CODE = 42
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
         private set
     private lateinit var appWidgetHost: LauncherAppWidgetHost
     private lateinit var appWidgetManager: AppWidgetManager
+    private lateinit var playUpdateChecker: PlayUpdateChecker
 
     private val requestDefaultLauncherLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
@@ -112,6 +114,7 @@ class MainActivity : ComponentActivity() {
             appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
             appWidgetManager = AppWidgetManager.getInstance(this)
         }
+        playUpdateChecker = PlayUpdateChecker(application)
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         androidTrace("launcher.viewmodel_init") {
             viewModel = ViewModelProvider(
@@ -136,6 +139,7 @@ class MainActivity : ComponentActivity() {
         applyEdgeToEdgeForThemeMode(viewModel.uiState.value.themeMode)
         observeThemeModePreference()
         observeHomeReady()
+        checkPlayUpdate()
         LauncherDebugLog.event("setContent begin")
         androidTrace("launcher.set_content") {
             setContent {
@@ -155,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onRequestDefaultLauncher = ::requestDefaultLauncher,
                         onSwipeDown = ::expandNotificationShade,
+                        onStartPlayUpdate = ::startPlayUpdate,
                         searchPlaceholderSuffix = searchPlaceholderSuffix(),
                     )
                 }
@@ -200,6 +205,21 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         LauncherDebugLog.activityCallback(this, "MainActivity.onResume")
         viewModel.refreshPermissionDrivenUi()
+        checkPlayUpdate()
+    }
+
+    private fun checkPlayUpdate() {
+        if (!::playUpdateChecker.isInitialized) return
+        playUpdateChecker.checkForUpdate(
+            onAvailable = viewModel::setPlayUpdateAvailable,
+            onUnavailable = viewModel::setPlayUpdateUnavailable,
+        )
+    }
+
+    private fun startPlayUpdate() {
+        if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(this, PLAY_UPDATE_REQUEST_CODE)) {
+            viewModel.openPlayStoreListing()
+        }
     }
 
     override fun onPostResume() {
