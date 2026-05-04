@@ -263,6 +263,9 @@ jobs:
       - name: Run Robolectric keyboard screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run launcher icon snapshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.LauncherIconScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
