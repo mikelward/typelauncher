@@ -1250,6 +1250,7 @@ private fun AppsCard(
                     onScrollPageDown = {
                         scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
                     },
+                    modifier = Modifier.weight(1f),
                 ) {
                     IconOnlyAppGrid(
                         apps = apps,
@@ -1289,12 +1290,13 @@ private fun AppsCard(
                     onScrollPageDown = {
                         scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
                     },
+                    modifier = Modifier.weight(1f),
                 ) {
                     LazyColumn(
                         state = listState,
                         reverseLayout = reverseLayout,
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .nestedScroll(edgePullConnection)
                             .testTag(APPS_LIST_TAG),
                     ) {
@@ -1358,12 +1360,15 @@ private fun IconOnlyAppGrid(
         state = state,
         reverseLayout = reverseLayout,
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .heightIn(min = iconSizeDp.dp)
             .nestedScroll(edgePullConnection)
             .testTag(APPS_LIST_TAG),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(
+            8.dp,
+            if (reverseLayout) Alignment.Bottom else Alignment.Top,
+        ),
     ) {
         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
             IconOnlyAppButton(

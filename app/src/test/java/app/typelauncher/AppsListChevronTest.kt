@@ -227,4 +227,58 @@ class AppsListChevronTest {
             kotlin.math.abs((chevronBounds.top - appsCardBounds.top).value) <= 1f,
         )
     }
+
+    @Test
+    fun appsListShortList_reversedTextRows_anchorsFirstResultToCardBottom() {
+        // A reversed sort puts the top match at index 0; it must render
+        // visually nearest the bottom of the card so the user can find and
+        // tap it next to the keyboard, even when there's plenty of empty
+        // space above (short list / single search match).
+        val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
+        renderHome(LauncherUiState(filteredApps = apps, appListSortOrder = AppListSortOrder.UsageReversed))
+
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val firstAppBounds = composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").getBoundsInRoot()
+        val secondAppBounds = composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").getBoundsInRoot()
+        assertTrue(
+            "top match should sit nearest the bottom of the card (card.bottom=${appsCardBounds.bottom}, row.bottom=${firstAppBounds.bottom})",
+            (appsCardBounds.bottom - firstAppBounds.bottom).value <= 24f,
+        )
+        assertTrue(
+            "top match should be below the second result under reversed sort (top=${firstAppBounds.top}, second.top=${secondAppBounds.top})",
+            firstAppBounds.top > secondAppBounds.top,
+        )
+    }
+
+    @Test
+    fun appsListShortList_reversedIconGrid_anchorsFirstResultToCardBottom() {
+        val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
+        renderHome(
+            LauncherUiState(
+                filteredApps = apps,
+                appListSortOrder = AppListSortOrder.AlphabeticalReversed,
+                isAppListIconOnly = true,
+            ),
+        )
+
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val firstAppBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").getBoundsInRoot()
+        assertTrue(
+            "top match should sit nearest the bottom of the card (card.bottom=${appsCardBounds.bottom}, icon.bottom=${firstAppBounds.bottom})",
+            (appsCardBounds.bottom - firstAppBounds.bottom).value <= 24f,
+        )
+    }
+
+    @Test
+    fun appsListShortList_forwardTextRows_anchorsFirstResultToCardTop() {
+        val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val firstAppBounds = composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").getBoundsInRoot()
+        assertTrue(
+            "forward sort should keep the first result at the top of the card (card.top=${appsCardBounds.top}, row.top=${firstAppBounds.top})",
+            (firstAppBounds.top - appsCardBounds.top).value <= 24f,
+        )
+    }
 }
