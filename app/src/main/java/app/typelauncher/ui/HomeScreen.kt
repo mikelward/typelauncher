@@ -2704,7 +2704,7 @@ private fun AppIcon(
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(18.dp)
+                    .size(size * WORK_BADGE_SIZE_FRACTION)
                     .testTag("$WORK_APP_BADGE_TAG:${app.displayName}"),
                 shape = CircleShape,
                 // Drop the badge to a neutral outline tone when the work
@@ -2720,7 +2720,7 @@ private fun AppIcon(
                 Icon(
                     Icons.Filled.Badge,
                     contentDescription = null,
-                    modifier = Modifier.padding(3.dp),
+                    modifier = Modifier.padding(size * WORK_BADGE_PADDING_FRACTION),
                     tint = if (app.isQuietMode) {
                         MaterialTheme.colorScheme.surface
                     } else {
@@ -2776,3 +2776,12 @@ private const val NOTIFICATION_BADGE_SIZE_DP = 12
 // Play update badge dot — same "presence" treatment as the notification dot,
 // scaled down for the smaller search-field gear icon.
 private const val PLAY_UPDATE_BADGE_SIZE_DP = 8
+
+// Work-profile badge — sized as a fraction of the icon edge so it stays
+// visually balanced across the full 40–80 dp dock-icon range driven by the
+// icons-per-row setting. The 18/56 ratio keeps the default 56.dp icon's badge
+// at 18.dp, matching the historical fixed size; the inner padding scales by
+// the same ratio so the icon glyph keeps its original proportion within the
+// circle.
+private const val WORK_BADGE_SIZE_FRACTION = 18f / 56f
+private const val WORK_BADGE_PADDING_FRACTION = 3f / 56f
