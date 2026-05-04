@@ -1838,8 +1838,13 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun workAppBadge_scalesWithDockIconCount() {
         val viewModel = composeRule.activity.viewModel
-        // Dock the work app so the badge renders inside the dock card, where
-        // its size tracks `dockIconCount` via `dockIconSizeForSlotCount`.
+        // Robolectric's `ShadowLauncherApps` doesn't surface a foreign
+        // profile, so use the same test seam as
+        // `workAppIcon_isDimmedWhenQuietModeEnabled` to mark the Work
+        // Calendar fixture as a real work app and opt into the `Always`
+        // visibility branch so the (paused) work entry stays in the dock.
+        viewModel.setWorkProfileVisibility(WorkProfileVisibility.Always)
+        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
         viewModel.setQuery("work")
         composeRule.waitForIdle()
         viewModel.toggleDock(
@@ -1857,7 +1862,7 @@ class MainActivityRobolectricScreenshotTest {
             .getBoundsInRoot()
         val largeBadgeSize = largeBadgeBounds.right - largeBadgeBounds.left
 
-        // More slots → narrower icons → smaller badge.
+        // More slots → narrower icons → badge bottoms out at the 18 dp floor.
         viewModel.setDockVisibleIconCount(MAX_DOCK_ICON_COUNT)
         composeRule.waitForIdle()
         val smallBadgeBounds = composeRule
@@ -1869,6 +1874,14 @@ class MainActivityRobolectricScreenshotTest {
             "Badge at MIN dock icon count ($largeBadgeSize) should be larger " +
                 "than badge at MAX dock icon count ($smallBadgeSize)",
             largeBadgeSize > smallBadgeSize,
+        )
+        // The badge must never shrink below the historical 18 dp size — the
+        // floor is what keeps it readable at small dock icons.
+        assertEquals(
+            "Badge at MAX dock icon count should match the 18 dp floor",
+            18f,
+            smallBadgeSize.value,
+            0.5f,
         )
     }
 
