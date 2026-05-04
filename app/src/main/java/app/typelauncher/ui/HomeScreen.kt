@@ -1839,8 +1839,9 @@ internal fun SettingsScreen(
                 Text(stringResource(R.string.settings_done_button))
             }
         }
-        PlayUpdateBanner(
+        SettingsBuildBannerSlot(
             playUpdate = state.playUpdate,
+            buildSourceInfo = rememberBuildSourceInfo(),
             onOpenPlayUpdate = onOpenPlayUpdate,
             onDismissPlayUpdate = onDismissPlayUpdate,
         )
@@ -2018,13 +2019,28 @@ internal fun SettingsScreen(
 }
 
 @Composable
-private fun PlayUpdateBanner(
+private fun SettingsBuildBannerSlot(
     playUpdate: PlayUpdateState,
+    buildSourceInfo: BuildSourceInfo?,
     onOpenPlayUpdate: () -> Unit,
     onDismissPlayUpdate: () -> Unit,
 ) {
-    val update = playUpdate as? PlayUpdateState.Available ?: return
-    if (!update.shouldPrompt) return
+    val update = playUpdate as? PlayUpdateState.Available
+    if (update?.shouldPrompt == true) {
+        PlayUpdateBanner(
+            onOpenPlayUpdate = onOpenPlayUpdate,
+            onDismissPlayUpdate = onDismissPlayUpdate,
+        )
+    } else if (buildSourceInfo != null) {
+        LocalBuildBanner(buildSourceInfo = buildSourceInfo)
+    }
+}
+
+@Composable
+private fun PlayUpdateBanner(
+    onOpenPlayUpdate: () -> Unit,
+    onDismissPlayUpdate: () -> Unit,
+) {
     SectionCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -2072,6 +2088,31 @@ private fun PlayUpdateBanner(
         }
     }
 }
+
+@Composable
+private fun LocalBuildBanner(buildSourceInfo: BuildSourceInfo) {
+    SectionCard(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(LOCAL_BUILD_BANNER_TAG),
+    ) {
+        Text(
+            text = buildSourceInfo.displayText(),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun rememberBuildSourceInfo(): BuildSourceInfo? =
+    remember {
+        buildSourceInfoFromConfig()
+    }
 
 @Composable
 private fun AppListLayoutDropdown(
