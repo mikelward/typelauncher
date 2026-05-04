@@ -525,6 +525,34 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun tappingPlayUpdateButtonHidesBannerForSession() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setPlayUpdateAvailable(123)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_UPDATE_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val tappedState = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertTrue("tapping Update should mark the banner dismissed for this session", tappedState.isDismissed)
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertDoesNotExist()
+        // Persisted dismissal stays untouched — that's what makes this a
+        // session-only suppression instead of the X dismiss flow.
+        assertEquals(0, PlayUpdateStore(composeRule.activity).dismissedVersionCode)
+
+        // Re-running the Play check (as `onResume` does) for the same version
+        // must keep the banner hidden so we don't immediately re-prompt the
+        // user after they returned from the Play Store / in-app update flow.
+        viewModel.setPlayUpdateAvailable(123)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertDoesNotExist()
+    }
+
+    @Test
     fun screenshot_settingsButton_playUpdateBadge_rendersAsCornerDotWithoutText() {
         composeRule.activity.viewModel.setPlayUpdateAvailable(123)
         composeRule.waitForIdle()

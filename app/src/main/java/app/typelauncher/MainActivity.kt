@@ -217,6 +217,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startPlayUpdate() {
+        viewModel.markPlayUpdateTapped()
         if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(this, PLAY_UPDATE_REQUEST_CODE)) {
             viewModel.openPlayStoreListing()
         }
