@@ -140,6 +140,7 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
+    searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
@@ -172,6 +173,7 @@ internal fun HomeScreen(
         SearchCard(
             query = state.query,
             autoShowKeyboard = state.isKeyboardAutoShown,
+            placeholderSuffix = searchPlaceholderSuffix,
             onQueryChanged = onQueryChanged,
             onClearQuery = onClearQuery,
             onOpenSettings = onOpenSettings,
@@ -261,6 +263,7 @@ internal fun HomeScreen(
 private fun SearchCard(
     query: String,
     autoShowKeyboard: Boolean,
+    placeholderSuffix: String,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -312,7 +315,9 @@ private fun SearchCard(
                 }
             },
             singleLine = true,
-            placeholder = { Text(stringResource(R.string.app_search_hint)) },
+            placeholder = {
+                Text(stringResource(R.string.app_search_hint, placeholderSuffix))
+            },
             textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,

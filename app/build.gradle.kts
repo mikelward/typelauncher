@@ -41,7 +41,23 @@ fun gitOutput(vararg args: String, fallback: String): String =
 val gitCommitCount: Int =
     gitOutput("rev-list", "--count", "HEAD", fallback = "1").toIntOrNull() ?: 1
 val gitShortSha: String = gitOutput("rev-parse", "--short", "HEAD", fallback = "unknown")
+val gitBranchName: String = providers.environmentVariable("GITHUB_REF_NAME")
+    .orElse(gitOutput("rev-parse", "--abbrev-ref", "HEAD", fallback = "unknown"))
+    .get()
+val isGitWorkingTreeDirty: Boolean =
+    gitOutput("status", "--porcelain", fallback = "dirty").isNotEmpty()
 val baseVersionName = "1.0"
+
+fun buildConfigString(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+// Debug builds identify their source in the search hint: dirty worktrees are
+// explicitly non-reproducible, main builds map to the monotonic versionCode,
+// and clean branch builds map back to their commit SHA.
+val debugSearchPlaceholderSuffix = when {
+    isGitWorkingTreeDirty -> " (dirty)"
+    gitBranchName == "main" -> " (v$gitCommitCount)"
+    else -> " ($gitShortSha)"
+}
 
 android {
     namespace = "app.typelauncher"
@@ -97,9 +113,11 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
         }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(""))
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
