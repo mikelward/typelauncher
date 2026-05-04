@@ -270,7 +270,7 @@ internal fun TypeLauncherApp(
                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                 onSetRecentsOpen = onSetRecentsOpen,
                 onSwipeDown = onSwipeDown,
-            ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd ->
+            ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd, onPullDownPastAppsListStart, onPullUpPastAppsListEnd ->
                 when (pageScreen) {
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
@@ -294,6 +294,8 @@ internal fun TypeLauncherApp(
                         onRequestNotificationAccess = onRequestNotificationAccess,
                         onHorizontalBarPullPastStart = onHorizontalBarPullPastStart,
                         onHorizontalBarPullPastEnd = onHorizontalBarPullPastEnd,
+                        onPullDownPastAppsListStart = onPullDownPastAppsListStart,
+                        onPullUpPastAppsListEnd = onPullUpPastAppsListEnd,
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
@@ -363,7 +365,13 @@ private fun SwipeNavigationBox(
     onSetNotificationBarOpen: (Boolean) -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit,
     onSwipeDown: () -> Unit,
-    content: @Composable (LauncherScreen, onHorizontalBarPullPastStart: () -> Unit, onHorizontalBarPullPastEnd: () -> Unit) -> Unit,
+    content: @Composable (
+        LauncherScreen,
+        onHorizontalBarPullPastStart: () -> Unit,
+        onHorizontalBarPullPastEnd: () -> Unit,
+        onPullDownPastAppsListStart: () -> Unit,
+        onPullUpPastAppsListEnd: () -> Unit,
+    ) -> Unit,
 ) {
     // Both pull gestures dispatch from this single carousel-level handler so
     // they're triggerable from anywhere on Home that doesn't have a more
@@ -390,7 +398,9 @@ private fun SwipeNavigationBox(
                 when (currentNotificationPullDownBehavior) {
                     NotificationPullDownBehavior.None -> Unit
                     NotificationPullDownBehavior.System -> currentOnSwipeDown()
-                    NotificationPullDownBehavior.Launcher -> {
+                    NotificationPullDownBehavior.BarBelow,
+                    NotificationPullDownBehavior.BarAbove,
+                    -> {
                         if (currentBarOpen) {
                             currentOnSwipeDown()
                         } else {
@@ -610,6 +620,8 @@ private fun SwipeNavigationBox(
                 pageScreen,
                 { navigateCarouselBy(-1) },
                 { navigateCarouselBy(1) },
+                swipeDownDispatch,
+                swipeUpDispatch,
             )
         } else {
             Box(modifier = Modifier.fillMaxSize())

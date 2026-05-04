@@ -84,14 +84,14 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun notificationPullDownBehaviorDefaultsToLauncher() {
+    fun notificationPullDownBehaviorDefaultsToBarBelow() {
         val store = DockSettingsStore(context)
 
-        assertEquals(NotificationPullDownBehavior.Launcher, store.notificationPullDownBehavior)
+        assertEquals(NotificationPullDownBehavior.BarBelow, store.notificationPullDownBehavior)
     }
 
     @Test
-    fun notificationPullDownBehaviorMigratesLegacyEnabledToLauncher() {
+    fun notificationPullDownBehaviorMigratesLegacyEnabledToBarBelow() {
         context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
             .edit()
             .putBoolean("notifications_enabled", true)
@@ -99,7 +99,19 @@ class DockedAppStoreTest {
 
         val store = DockSettingsStore(context)
 
-        assertEquals(NotificationPullDownBehavior.Launcher, store.notificationPullDownBehavior)
+        assertEquals(NotificationPullDownBehavior.BarBelow, store.notificationPullDownBehavior)
+    }
+
+    @Test
+    fun notificationPullDownBehaviorMigratesOldLauncherEnumToBarBelow() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("notification_pull_down_behavior", "Launcher")
+            .commit()
+
+        val store = DockSettingsStore(context)
+
+        assertEquals(NotificationPullDownBehavior.BarBelow, store.notificationPullDownBehavior)
     }
 
     @Test

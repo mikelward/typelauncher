@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.Intent
 import android.os.Process
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
@@ -99,7 +100,7 @@ class NotificationBarTest {
                         notifyingApps = notifying,
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -153,7 +154,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -200,7 +201,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = false,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -253,7 +254,7 @@ class NotificationBarTest {
                         notifyingApps = listOf(mail),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -318,7 +319,7 @@ class NotificationBarTest {
                         notifyingApps = listOf(mail),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -368,7 +369,7 @@ class NotificationBarTest {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = emptyList(),
-                        notificationPullDownBehavior = NotificationPullDownBehavior.Launcher,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -410,5 +411,99 @@ class NotificationBarTest {
         assertEquals(0, swipeDownCount)
         assertNotNull("Expected notification bar open call", notificationBarTarget)
         assertEquals(true, notificationBarTarget)
+    }
+
+    @Test
+    fun notificationBarCanRenderAboveAppsList() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = listOf(fakeApp(name = "Calculator", packageName = "com.example.calculator")),
+                        isNotificationBarOpen = true,
+                        hasNotificationAccess = true,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarAbove,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        val barAboveBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
+        val appsBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        assertEquals(true, barAboveBounds.bottom <= appsBounds.top)
+    }
+
+    @Test
+    fun notificationBarCanRenderBelowAppsList() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = listOf(fakeApp(name = "Calculator", packageName = "com.example.calculator")),
+                        isNotificationBarOpen = true,
+                        hasNotificationAccess = true,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        val barBelowBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
+        val appsBelowBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        assertEquals(true, barBelowBounds.top >= appsBelowBounds.bottom)
     }
 }

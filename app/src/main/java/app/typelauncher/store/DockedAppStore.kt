@@ -117,14 +117,15 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Home pull-down behavior. Defaults to [NotificationPullDownBehavior.Launcher]
+     * Home pull-down behavior. Defaults to [NotificationPullDownBehavior.BarBelow]
      * for users without an explicit selection, including installs that only have
-     * the legacy `notifications_enabled` boolean.
+     * the legacy `notifications_enabled` boolean. The old persisted `Launcher`
+     * enum name maps to BarBelow.
      */
     var notificationPullDownBehavior: NotificationPullDownBehavior
         get() = sharedPreferences.getString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, null)
-            ?.let { name -> runCatching { NotificationPullDownBehavior.valueOf(name) }.getOrNull() }
-            ?: NotificationPullDownBehavior.Launcher
+            ?.let(::parseNotificationPullDownBehavior)
+            ?: NotificationPullDownBehavior.BarBelow
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, value.name)
@@ -176,6 +177,12 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_THEME_MODE = "theme_mode"
     }
 }
+
+private fun parseNotificationPullDownBehavior(name: String): NotificationPullDownBehavior? =
+    when (name) {
+        "Launcher" -> NotificationPullDownBehavior.BarBelow
+        else -> runCatching { NotificationPullDownBehavior.valueOf(name) }.getOrNull()
+    }
 
 private fun android.content.SharedPreferences.deriveDockIconCountFromLegacySize(): Int {
     val legacySize = getInt(LEGACY_KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)

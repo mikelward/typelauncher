@@ -166,6 +166,8 @@ internal fun HomeScreen(
     onRequestNotificationAccess: () -> Unit = {},
     onHorizontalBarPullPastStart: () -> Unit = {},
     onHorizontalBarPullPastEnd: () -> Unit = {},
+    onPullDownPastAppsListStart: () -> Unit = {},
+    onPullUpPastAppsListEnd: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -193,6 +195,24 @@ internal fun HomeScreen(
         // holdback is a cold-start optimisation, not a per-mount one. See the
         // comment on `homeBodyReady` in TypeLauncherApp for the why.
         if (bodyReady) {
+            val showNotificationBar = state.notificationPullDownBehavior.showsLauncherNotificationBar &&
+                state.isNotificationBarOpen
+            val showNotificationBarAbove = state.notificationPullDownBehavior == NotificationPullDownBehavior.BarAbove
+            if (showNotificationBarAbove) {
+                NotificationBarCard(
+                    notifyingApps = state.notifyingApps,
+                    isVisible = showNotificationBar,
+                    hasNotificationAccess = state.hasNotificationAccess,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onDismissNotifications = onDismissNotifications,
+                    onOpenNotificationSettings = onOpenNotificationSettings,
+                    onRequestNotificationAccess = onRequestNotificationAccess,
+                    onDismiss = { onSetNotificationBarOpen(false) },
+                    onPullPastStart = onHorizontalBarPullPastStart,
+                    onPullPastEnd = onHorizontalBarPullPastEnd,
+                )
+            }
             AppsCard(
                 apps = state.filteredApps,
                 isLoading = state.isLoadingApps,
@@ -208,28 +228,24 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
-                onPullDownPastStart = { onSetNotificationBarOpen(true) },
-                onPullUpPastEnd = { onSetNotificationBarOpen(false) },
+                onPullDownPastStart = onPullDownPastAppsListStart,
+                onPullUpPastEnd = onPullUpPastAppsListEnd,
             )
-            // Notification bar sits between the app list and the dock so a
-            // single pull-down brings it into view without displacing the dock
-            // or the keyboard. The list above shrinks (it has weight 1f) to
-            // make room. Gated on the "Pull down" setting's Launcher mode:
-            // other modes never render the in-app notification bar.
-            NotificationBarCard(
-                notifyingApps = state.notifyingApps,
-                isVisible = state.notificationPullDownBehavior == NotificationPullDownBehavior.Launcher &&
-                    state.isNotificationBarOpen,
-                hasNotificationAccess = state.hasNotificationAccess,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onDismissNotifications = onDismissNotifications,
-                onOpenNotificationSettings = onOpenNotificationSettings,
-                onRequestNotificationAccess = onRequestNotificationAccess,
-                onDismiss = { onSetNotificationBarOpen(false) },
-                onPullPastStart = onHorizontalBarPullPastStart,
-                onPullPastEnd = onHorizontalBarPullPastEnd,
-            )
+            if (!showNotificationBarAbove) {
+                NotificationBarCard(
+                    notifyingApps = state.notifyingApps,
+                    isVisible = showNotificationBar,
+                    hasNotificationAccess = state.hasNotificationAccess,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onDismissNotifications = onDismissNotifications,
+                    onOpenNotificationSettings = onOpenNotificationSettings,
+                    onRequestNotificationAccess = onRequestNotificationAccess,
+                    onDismiss = { onSetNotificationBarOpen(false) },
+                    onPullPastStart = onHorizontalBarPullPastStart,
+                    onPullPastEnd = onHorizontalBarPullPastEnd,
+                )
+            }
             if (state.isDockEnabled) {
                 DockCard(
                     dockedApps = state.dockedApps,
@@ -1046,9 +1062,10 @@ private fun rememberAppListEdgePullConnection(
     return remember(canScrollVisuallyUp, canScrollVisuallyDown, thresholdPx) {
         object : NestedScrollConnection {
             private var edgeDragPx = 0f
+            private var didDispatch = false
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (source != NestedScrollSource.UserInput || didDispatch) return Offset.Zero
                 val availableY = available.y
                 edgeDragPx = when {
                     availableY > 0f && !canScrollVisuallyUp() -> (edgeDragPx + availableY).coerceAtLeast(0f)
@@ -1057,11 +1074,11 @@ private fun rememberAppListEdgePullConnection(
                 }
                 when {
                     edgeDragPx >= thresholdPx -> {
-                        edgeDragPx = 0f
+                        didDispatch = true
                         currentOnPullDownPastStart()
                     }
                     edgeDragPx <= -thresholdPx -> {
-                        edgeDragPx = 0f
+                        didDispatch = true
                         currentOnPullUpPastEnd()
                     }
                 }
@@ -1070,6 +1087,7 @@ private fun rememberAppListEdgePullConnection(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 edgeDragPx = 0f
+                didDispatch = false
                 return Velocity.Zero
             }
         }
@@ -2281,14 +2299,16 @@ private fun NotificationPullDownBehavior.labelRes(): Int =
     when (this) {
         NotificationPullDownBehavior.None -> R.string.settings_pull_down_option_none
         NotificationPullDownBehavior.System -> R.string.settings_pull_down_option_system
-        NotificationPullDownBehavior.Launcher -> R.string.settings_pull_down_option_launcher
+        NotificationPullDownBehavior.BarBelow -> R.string.settings_pull_down_option_bar_below
+        NotificationPullDownBehavior.BarAbove -> R.string.settings_pull_down_option_bar_above
     }
 
 private fun NotificationPullDownBehavior.optionTag(): String =
     when (this) {
         NotificationPullDownBehavior.None -> PULL_DOWN_BEHAVIOR_OPTION_NONE_TAG
         NotificationPullDownBehavior.System -> PULL_DOWN_BEHAVIOR_OPTION_SYSTEM_TAG
-        NotificationPullDownBehavior.Launcher -> PULL_DOWN_BEHAVIOR_OPTION_LAUNCHER_TAG
+        NotificationPullDownBehavior.BarBelow -> PULL_DOWN_BEHAVIOR_OPTION_BAR_BELOW_TAG
+        NotificationPullDownBehavior.BarAbove -> PULL_DOWN_BEHAVIOR_OPTION_BAR_ABOVE_TAG
     }
 
 @Composable
@@ -2530,14 +2550,15 @@ private fun SettingsPreview(
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
     // user can see the size impact of enabling each bar: the notification bar
-    // (when Pull down is Launcher) plus every additional bottom card (dock,
-    // recents) each eats one bar of vertical space out of the apps card.
+    // plus every additional card (dock, recents) each eats one bar of vertical
+    // space out of the apps card.
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
     val bottomCardCount =
         (if (state.isDockEnabled) 1 else 0) + (if (state.isRecentsAlwaysShown) 1 else 0)
-    val showNotificationBarPreview = state.notificationPullDownBehavior == NotificationPullDownBehavior.Launcher
+    val showNotificationBarPreview = state.notificationPullDownBehavior.showsLauncherNotificationBar
+    val showNotificationBarAbove = state.notificationPullDownBehavior == NotificationPullDownBehavior.BarAbove
     val fixedBarCount = (if (showNotificationBarPreview) 1 else 0) + bottomCardCount
     val appListHeight =
         totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
@@ -2545,6 +2566,22 @@ private fun SettingsPreview(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
     ) {
+        if (showNotificationBarPreview && showNotificationBarAbove) {
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = true,
+                hasNotificationAccess = true,
+                dockIconSizeDp = dockIconSizeDp,
+                modifier = Modifier.height(previewHeight),
+                onLaunchApp = onLaunchApp,
+                onDismissNotifications = {},
+                onOpenNotificationSettings = {},
+                onRequestNotificationAccess = {},
+                onDismiss = {},
+                onPullPastStart = {},
+                onPullPastEnd = {},
+            )
+        }
         AppsCard(
             apps = state.filteredApps,
             dockLimit = Int.MAX_VALUE,
@@ -2562,11 +2599,9 @@ private fun SettingsPreview(
             onPullDownPastStart = {},
             onPullUpPastEnd = {},
         )
-        // Mirror Home: notification bar sits between the app list and the
-        // dock, and only renders when Pull down is Launcher. Forced
-        // access-granted so toggling the setting shows the inline bar at its
-        // natural height rather than the taller permission CTA.
-        if (showNotificationBarPreview) {
+        // Forced access-granted so toggling the setting shows the inline bar at
+        // its natural height rather than the taller permission CTA.
+        if (showNotificationBarPreview && !showNotificationBarAbove) {
             NotificationBarCard(
                 notifyingApps = state.notifyingApps,
                 isVisible = true,
