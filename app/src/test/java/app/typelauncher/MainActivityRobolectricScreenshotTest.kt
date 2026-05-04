@@ -1861,6 +1861,7 @@ class MainActivityRobolectricScreenshotTest {
             .onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true)
             .getBoundsInRoot()
         val largeBadgeSize = largeBadgeBounds.right - largeBadgeBounds.left
+        saveScreenshot("compose_home_work_badge_min_dock_icon_count_robolectric.png")
 
         // More slots → narrower icons → badge bottoms out at the 18 dp floor.
         viewModel.setDockVisibleIconCount(MAX_DOCK_ICON_COUNT)
@@ -1869,6 +1870,7 @@ class MainActivityRobolectricScreenshotTest {
             .onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true)
             .getBoundsInRoot()
         val smallBadgeSize = smallBadgeBounds.right - smallBadgeBounds.left
+        saveScreenshot("compose_home_work_badge_max_dock_icon_count_robolectric.png")
 
         assertTrue(
             "Badge at MIN dock icon count ($largeBadgeSize) should be larger " +
