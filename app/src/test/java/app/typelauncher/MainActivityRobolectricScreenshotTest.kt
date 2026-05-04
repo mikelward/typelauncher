@@ -525,6 +525,30 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_settingsButton_playUpdateBadge_rendersAsCornerDotWithoutText() {
+        composeRule.activity.viewModel.setPlayUpdateAvailable(123)
+        composeRule.waitForIdle()
+
+        val badge = composeRule.onNodeWithTag(PLAY_UPDATE_BADGE_TAG, useUnmergedTree = true)
+        badge.assertExists()
+        // The dot is intentionally text-free — assert the legacy "New" pill copy
+        // is no longer rendered so we don't silently regress to the old style.
+        composeRule.onNodeWithText("New").assertDoesNotExist()
+
+        val badgeBounds = badge.getBoundsInRoot()
+        val width = (badgeBounds.right - badgeBounds.left).value
+        val height = (badgeBounds.bottom - badgeBounds.top).value
+        assertTrue("badge should be square, was ${width}x$height", kotlin.math.abs(width - height) <= 1f)
+        // Badge sits in the gear's top-right corner; assert it is meaningfully
+        // smaller than the gear icon so it reads as a dot rather than a pill.
+        val gearBounds = composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).getBoundsInRoot()
+        val gearWidth = (gearBounds.right - gearBounds.left).value
+        assertTrue("badge ${width}dp should be smaller than gear ${gearWidth}dp", width < gearWidth / 2f)
+
+        saveScreenshot("compose_settings_button_play_update_badge_robolectric.png")
+    }
+
+    @Test
     fun settingsShowsLocalBuildBannerWhenNoPlayUpdateIsAvailable() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()

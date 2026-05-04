@@ -3,7 +3,7 @@
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>
     <string name="settings_open_button_description">Open settings</string>
-    <string name="play_update_badge_label">New</string>
+    <string name="play_update_badge_description">New version available</string>
     <string name="play_update_banner_title">New version available</string>
     <string name="play_update_banner_body">Tap to update from Google Play.</string>
     <string name="play_update_banner_update_button">Update</string>

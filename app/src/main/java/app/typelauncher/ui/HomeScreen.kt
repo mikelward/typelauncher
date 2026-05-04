@@ -342,16 +342,15 @@ private fun SearchCard(
                                 contentDescription = stringResource(R.string.settings_open_button_description),
                             )
                             if (showPlayUpdateBadge) {
-                                Text(
-                                    text = stringResource(R.string.play_update_badge_label),
+                                val badgeDescription = stringResource(R.string.play_update_badge_description)
+                                Box(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .offset(x = 10.dp, y = (-8).dp)
-                                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        .offset(x = 2.dp, y = (-2).dp)
+                                        .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                        .semantics { contentDescription = badgeDescription }
                                         .testTag(PLAY_UPDATE_BADGE_TAG),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
                                 )
                             }
                         }
@@ -2744,3 +2743,7 @@ private const val SETTINGS_PREVIEW_SPACING_DP = 16
 // top-right corner of the icon with a thin surface-coloured ring so it stays
 // legible against busy app icons.
 private const val NOTIFICATION_BADGE_SIZE_DP = 12
+
+// Play update badge dot — same "presence" treatment as the notification dot,
+// scaled down for the smaller search-field gear icon.
+private const val PLAY_UPDATE_BADGE_SIZE_DP = 8
