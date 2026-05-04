@@ -34,6 +34,54 @@ class SwipeUpRecentsTest {
         )
 
     @Test
+    fun homeReadyDoesNotWaitForImeWhenKeyboardAutoShowIsDisabled() {
+        var homeReadyCount = 0
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        isFreshAppLoadComplete = true,
+                        isKeyboardAutoShown = false,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onHomeReady = { homeReadyCount += 1 },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+
+        assertEquals(1, homeReadyCount)
+    }
+
+    @Test
     fun swipingUpOnHomeWithRecentsClosed_opensRecents() {
         var recentsTarget: Boolean? = null
         var swipeDownCount = 0
