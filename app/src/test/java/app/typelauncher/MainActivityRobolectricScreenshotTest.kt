@@ -69,7 +69,7 @@ class MainActivityRobolectricScreenshotTest {
     @get:Rule
     val ruleChain: RuleChain = RuleChain
         .outerRule(placeholderSuffixRule)
-        .outerRule(SeedLauncherStateRule())
+        .around(SeedLauncherStateRule())
         .around(composeRule)
 
     @Before
