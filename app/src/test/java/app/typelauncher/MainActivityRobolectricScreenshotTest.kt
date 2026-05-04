@@ -491,6 +491,10 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
+        if (BuildConfig.LOCAL_BUILD_BRANCH.isBlank()) {
+            composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertDoesNotExist()
+            return
+        }
         composeRule.onNodeWithTag(LOCAL_BUILD_BANNER_TAG).assertIsDisplayed()
         val displayBranch = BuildConfig.LOCAL_BUILD_BRANCH.substringAfter('/')
         composeRule.onNodeWithText(
