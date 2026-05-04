@@ -1036,8 +1036,8 @@ private fun BoxScope.OverflowScrollChevron(
     )
 }
 
-private val HorizontalScrollChevronEdgeOffset = 12.dp
-private val VerticalScrollChevronEdgeOffset = 12.dp
+private val HorizontalScrollChevronEdgeOffset = 18.dp
+private val VerticalScrollChevronEdgeOffset = 18.dp
 
 @Composable
 private fun AppsCard(

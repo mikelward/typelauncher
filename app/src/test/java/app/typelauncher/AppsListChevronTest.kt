@@ -90,15 +90,20 @@ class AppsListChevronTest {
     }
 
     @Test
-    fun appsListOverflow_textRows_placesBottomChevronAtCardPaddingEdge() {
+    fun appsListOverflow_textRows_placesBottomChevronAtOuterCardEdge() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).getBoundsInRoot()
         assertTrue(
             "bottom chevron should sit past the scroll list edge (list=${appsListBounds.bottom}, chevron=${chevronBounds.bottom})",
             chevronBounds.bottom > appsListBounds.bottom,
+        )
+        assertTrue(
+            "bottom chevron should sit on the apps card edge (card=${appsCardBounds.bottom}, chevron=${chevronBounds.bottom})",
+            kotlin.math.abs((chevronBounds.bottom - appsCardBounds.bottom).value) <= 1f,
         )
     }
 
@@ -134,18 +139,23 @@ class AppsListChevronTest {
     }
 
     @Test
-    fun appsListOverflow_textRows_placesTopChevronAtCardPaddingEdgeAfterScrollingDown() {
+    fun appsListOverflow_textRows_placesTopChevronAtOuterCardEdgeAfterScrollingDown() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(LauncherUiState(filteredApps = apps))
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val chevronBounds = composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).getBoundsInRoot()
         assertTrue(
             "top chevron should sit past the scroll list edge (list=${appsListBounds.top}, chevron=${chevronBounds.top})",
             chevronBounds.top < appsListBounds.top,
+        )
+        assertTrue(
+            "top chevron should sit on the apps card edge (card=${appsCardBounds.top}, chevron=${chevronBounds.top})",
+            kotlin.math.abs((chevronBounds.top - appsCardBounds.top).value) <= 1f,
         )
     }
 }
