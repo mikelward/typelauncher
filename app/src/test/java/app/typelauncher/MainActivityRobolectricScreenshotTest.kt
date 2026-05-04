@@ -601,36 +601,6 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsExposesWorkProfileVisibilityDropdownAndPersistsSelection() {
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("Show work icons").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag(WORK_PROFILE_VISIBILITY_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
-        // Dropdown's currently-selected label is rendered inside the trigger
-        // button, so the default ("When work on") is visible without opening
-        // the menu.
-        composeRule.onNodeWithText("When work on").assertIsDisplayed()
-
-        composeRule.onNodeWithTag(WORK_PROFILE_VISIBILITY_DROPDOWN_TAG).performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(WORK_PROFILE_VISIBILITY_OPTION_ALWAYS_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(WORK_PROFILE_VISIBILITY_OPTION_WHEN_WORK_ON_TAG).assertIsDisplayed()
-
-        composeRule.onNodeWithTag(WORK_PROFILE_VISIBILITY_OPTION_ALWAYS_TAG).performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(
-            WorkProfileVisibility.Always,
-            composeRule.activity.viewModel.uiState.value.workProfileVisibility,
-        )
-        assertEquals(
-            WorkProfileVisibility.Always,
-            DockSettingsStore(ApplicationProvider.getApplicationContext()).workProfileVisibility,
-        )
-    }
-
-    @Test
     fun settingsOverflowMenuExposesReportBugAppInfoAndAboutActions() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertDoesNotExist()
@@ -1733,68 +1703,13 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun workAppIcon_isDimmedWhenQuietModeEnabled() {
-        val viewModel = composeRule.activity.viewModel
-        // The default "Show work icons = When work on" filters paused work
-        // apps out of every surface, so opt the test into "Always" first to
-        // exercise the dimmed-but-visible rendering path.
-        viewModel.setWorkProfileVisibility(WorkProfileVisibility.Always)
-        // Drive the dimmed branch directly via the test seam — Robolectric's
-        // shadows can't simulate a real work profile in quiet mode for the
-        // launcher to read back through `UserManager.isQuietModeEnabled`. The
-        // production reactive path is exercised by the unit test for
-        // `personalProfileAppsAreNotMarkedQuiet` and by the broadcast-receiver
-        // wiring in `LauncherViewModel`.
-        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
-        viewModel.setQuery("work")
-        composeRule.waitForIdle()
-
-        val pausedApp = viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" }
-        assertTrue("Test seam marks the app as a work app", pausedApp.isWorkApp)
-        assertTrue("Test seam marks the app as quiet", pausedApp.isQuietMode)
-
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
-        composeRule.onNodeWithTag("$APP_ICON_TAG:Work Calendar", useUnmergedTree = true).assertExists()
-        composeRule.onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true).assertExists()
-
-        saveScreenshot("compose_home_work_app_quiet_mode_robolectric.png")
-    }
-
-    @Test
-    fun pausedWorkApp_isHiddenByDefault_andReturnsWhenAlwaysSelected() {
-        val viewModel = composeRule.activity.viewModel
-        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
-        viewModel.setQuery("work")
-        composeRule.waitForIdle()
-
-        // Default "Show work icons = When work on" filters the paused work app
-        // out of every derived surface (the app list here, but the same
-        // visibleInstalledApps() filter feeds the dock, recents, and the
-        // notification bar).
-        assertEquals(WorkProfileVisibility.WhenWorkOn, viewModel.uiState.value.workProfileVisibility)
-        assertTrue(
-            "Paused work app should not appear in the filtered list",
-            viewModel.uiState.value.filteredApps.none { it.name == "Work Calendar" },
-        )
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertDoesNotExist()
-
-        viewModel.setWorkProfileVisibility(WorkProfileVisibility.Always)
-        composeRule.waitForIdle()
-
-        val pausedApp = viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" }
-        assertTrue("Underlying installedApps entry stays paused", pausedApp.isWorkApp)
-        assertTrue("Underlying installedApps entry stays paused", pausedApp.isQuietMode)
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
-    }
-
-    @Test
-    fun pausedWorkApp_isHiddenFromDock_whenWorkProfileVisibilityIsWhenWorkOn() {
+    fun pausedWorkApp_isHiddenFromEverySurface() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("work")
         composeRule.waitForIdle()
-        // Dock the work app first while it is "active" so it survives into the
-        // dock list, then mark it paused: the visibility filter should drop it
-        // from the dock derivation even though the dock store still pins it.
+        // Dock the work app first while it is "active" so the dock store
+        // pins it; pausing the profile should then drop it from the
+        // derived dock list (and every other surface) without unpinning.
         viewModel.toggleDock(
             viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" },
             maxDockedApps = 6,
@@ -1803,28 +1718,43 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertIsDisplayed()
 
         viewModel.setQuery("")
+        // Drive quiet mode through the test seam — Robolectric's shadows
+        // can't simulate a real work profile in quiet mode for the launcher
+        // to read back through `UserManager.isQuietModeEnabled`. The
+        // production reactive path is exercised by the unit test for
+        // `personalProfileAppsAreNotMarkedQuiet` and by the
+        // broadcast-receiver wiring in `LauncherViewModel`.
         viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
         composeRule.waitForIdle()
 
+        // Dropped from the dock derivation even though the dock store still
+        // pins it; the same `visibleInstalledApps()` filter feeds search
+        // results, recents, and the notification bar so they all hide it
+        // too without per-surface plumbing.
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertDoesNotExist()
         assertTrue(
-            "Paused work app should be filtered out of dockedApps under WhenWorkOn",
+            "Paused work app should be filtered out of dockedApps",
             viewModel.uiState.value.dockedApps.none { it.name == "Work Calendar" },
         )
-
-        viewModel.setWorkProfileVisibility(WorkProfileVisibility.Always)
+        viewModel.setQuery("work")
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertIsDisplayed()
+        assertTrue(
+            "Paused work app should not appear in search results",
+            viewModel.uiState.value.filteredApps.none { it.name == "Work Calendar" },
+        )
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertDoesNotExist()
     }
 
     @Test
-    fun workAppBadge_isShownForWorkApps() {
+    fun workAppIcon_rendersWithoutCustomOverlay() {
         composeRule.activity.viewModel.setQuery("work")
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
         assertEquals(listOf("Work Calendar"), composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
-        composeRule.onNodeWithText("app.typelauncher.fake8").assertDoesNotExist()
+        // The system badges the icon via `LauncherActivityInfo.getBadgedIcon`,
+        // so there's no custom overlay node in the tree anymore — the work
+        // briefcase comes baked into the bitmap on real devices.
         composeRule.onNodeWithTag("$APP_ICON_TAG:Work Calendar", useUnmergedTree = true).assertExists()
 
         val viewModel = composeRule.activity.viewModel
@@ -1833,58 +1763,8 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertIsDisplayed()
         assertTrue(viewModel.uiState.value.dockedApps.single().name.startsWith("Work"))
-    }
 
-    @Test
-    fun workAppBadge_scalesWithDockIconCount() {
-        val viewModel = composeRule.activity.viewModel
-        // Robolectric's `ShadowLauncherApps` doesn't surface a foreign
-        // profile, so use the same test seam as
-        // `workAppIcon_isDimmedWhenQuietModeEnabled` to mark the Work
-        // Calendar fixture as a real work app and opt into the `Always`
-        // visibility branch so the (paused) work entry stays in the dock.
-        viewModel.setWorkProfileVisibility(WorkProfileVisibility.Always)
-        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
-        viewModel.setQuery("work")
-        composeRule.waitForIdle()
-        viewModel.toggleDock(
-            viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" },
-            maxDockedApps = MAX_DOCK_ICON_COUNT,
-        )
-        viewModel.setQuery("")
-        composeRule.waitForIdle()
-
-        // Fewer slots → wider icons → larger badge.
-        viewModel.setDockVisibleIconCount(MIN_DOCK_ICON_COUNT)
-        composeRule.waitForIdle()
-        val largeBadgeBounds = composeRule
-            .onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true)
-            .getBoundsInRoot()
-        val largeBadgeSize = largeBadgeBounds.right - largeBadgeBounds.left
-        saveScreenshot("compose_home_work_badge_min_dock_icon_count_robolectric.png")
-
-        // More slots → narrower icons → badge bottoms out at the 18 dp floor.
-        viewModel.setDockVisibleIconCount(MAX_DOCK_ICON_COUNT)
-        composeRule.waitForIdle()
-        val smallBadgeBounds = composeRule
-            .onNodeWithTag("$WORK_APP_BADGE_TAG:Work Calendar", useUnmergedTree = true)
-            .getBoundsInRoot()
-        val smallBadgeSize = smallBadgeBounds.right - smallBadgeBounds.left
-        saveScreenshot("compose_home_work_badge_max_dock_icon_count_robolectric.png")
-
-        assertTrue(
-            "Badge at MIN dock icon count ($largeBadgeSize) should be larger " +
-                "than badge at MAX dock icon count ($smallBadgeSize)",
-            largeBadgeSize > smallBadgeSize,
-        )
-        // The badge must never shrink below the historical 18 dp size — the
-        // floor is what keeps it readable at small dock icons.
-        assertEquals(
-            "Badge at MAX dock icon count should match the 18 dp floor",
-            18f,
-            smallBadgeSize.value,
-            0.5f,
-        )
+        saveScreenshot("compose_home_work_app_icon_robolectric.png")
     }
 
     private fun assertVisibleApps(vararg names: String) {

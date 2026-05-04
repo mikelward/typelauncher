@@ -102,13 +102,22 @@ internal object AppIconLoader {
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
         val component = app.launchIntent.component ?: return null
         return if (app.launchWithLauncherApps) {
+            // getBadgedIcon delegates to PackageManager.getUserBadgedIcon for
+            // managed-profile activities, so on a Pixel the work icon comes
+            // back with the system blue-briefcase already composited in.
+            // Personal-profile activities pass through unchanged.
             context.getSystemService<LauncherApps>()
                 ?.getActivityList(component.packageName, app.user)
                 ?.firstOrNull { activity -> activity.componentName == component }
-                ?.getIcon(0)
+                ?.getBadgedIcon(0)
         } else {
             try {
-                context.packageManager.getActivityIcon(component)
+                val raw = context.packageManager.getActivityIcon(component)
+                if (app.isWorkApp) {
+                    context.packageManager.getUserBadgedIcon(raw, app.user)
+                } else {
+                    raw
+                }
             } catch (_: PackageManager.NameNotFoundException) {
                 null
             }

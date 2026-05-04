@@ -101,9 +101,6 @@
     <string name="settings_theme_option_system">系统</string>
     <string name="settings_theme_option_light">浅色</string>
     <string name="settings_theme_option_dark">深色</string>
-    <string name="settings_work_icons_title">显示工作图标</string>
-    <string name="settings_work_icons_option_always">始终</string>
-    <string name="settings_work_icons_option_when_work_on">工作启用时</string>
     <string name="settings_dock_icon_count_label">每行图标数: %1$d</string>
     <string name="settings_dock_icon_size_value">图标大小: %1$d dp</string>
     <string name="settings_dock_preview_label">预览</string>
