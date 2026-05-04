@@ -67,4 +67,12 @@ class PlayUpdateStoreTest {
         assertEquals("demo · abc1234 · 2 hours ago", info.displayText(nowMillis = 1_000L + 2 * 60 * 60 * 1_000L))
         assertEquals("demo · abc1234 · 3 days ago", info.displayText(nowMillis = 1_000L + 3 * 24 * 60 * 60 * 1_000L))
     }
+
+    @Test
+    fun buildSourceInfoSplitsBranchFromStableSuffixForEllipsizedBanner() {
+        val info = BuildSourceInfo(branch = "cursor/very-long-branch-name", sha = "abc1234", isDirty = true, configuredAtMillis = 1_000L)
+
+        assertEquals("very-long-branch-name", info.displayBranch())
+        assertEquals(" · abc1234 (dirty) · 2 hours ago", info.displaySuffix(nowMillis = 1_000L + 2 * 60 * 60 * 1_000L))
+    }
 }
