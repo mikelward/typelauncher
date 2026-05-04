@@ -49,7 +49,7 @@ class ManifestUnitTest {
     }
 
     @Test
-    fun launcherIcon_localResourcesIncludeGoogleConstructionBadge() {
+    fun launcherIcon_localResourcesIncludeDevBar() {
         val localIcon = File("src/main/res/mipmap-anydpi/ic_launcher_local.xml").readText()
         val localRoundIcon = File("src/main/res/mipmap-anydpi/ic_launcher_round_local.xml").readText()
         val localForeground = File("src/main/res/drawable/ic_launcher_foreground_local.xml").readText()
@@ -61,15 +61,15 @@ class ManifestUnitTest {
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_background"))
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_foreground_local"))
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_monochrome_local"))
-        assertTrue(localForeground.contains("Google Material Symbols \"construction\" icon"))
-        assertTrue(localForeground.contains("M83,66 A17,17 0,1 1,83,100 A17,17 0,1 1,83,66"))
-        assertTrue(localForeground.contains("android:scaleX=\"0.035416667\""))
-        assertTrue(localForeground.contains("M756,-120 L537,-339l84,-84 219,219 -84,84"))
-        assertTrue(localForeground.contains("#FFFFC107"))
-        assertTrue(localMonochrome.contains("Google Material Symbols \"construction\" icon"))
-        assertTrue(localMonochrome.contains("android:scaleX=\"0.035416667\""))
-        assertTrue(localMonochrome.contains("M756,-120 L537,-339l84,-84 219,219 -84,84"))
-        assertTrue(localMonochrome.contains("#FF000000"))
+        assertTrue(localForeground.contains("DEV bar"))
+        assertTrue(localForeground.contains("android:scaleX=\"1.8\""))
+        assertTrue(localForeground.contains("android:translateY=\"90\""))
+        assertTrue(localForeground.contains("#FFC107"))
+        assertTrue(localForeground.contains("M37.01,8.5"))
+        assertTrue(localMonochrome.contains("DEV bar"))
+        assertTrue(localMonochrome.contains("android:scaleX=\"1.8\""))
+        assertTrue(localMonochrome.contains("android:translateY=\"90\""))
+        assertTrue(localMonochrome.contains("M37.01,8.5"))
     }
 
     @Test
