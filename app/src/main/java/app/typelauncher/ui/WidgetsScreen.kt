@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Process
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
@@ -28,9 +29,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
@@ -137,7 +140,7 @@ private fun WidgetPickerCard(
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
     SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
-        var expandedAppName by remember { mutableStateOf<String?>(null) }
+        var expandedGroupKey by remember { mutableStateOf<WidgetGroupKey?>(null) }
         var filterQuery by remember { mutableStateOf("") }
 
         Row(
@@ -179,19 +182,25 @@ private fun WidgetPickerCard(
                 query = filterQuery,
                 onQueryChanged = { value ->
                     filterQuery = value
-                    expandedAppName = null
+                    expandedGroupKey = null
                 },
             )
             // TODO: also filter individual widget labels within an app group, not just the app group names.
             val trimmedQuery = filterQuery.trim()
+            // Group key includes the work-profile flag so the personal and work
+            // copies of the same package render as distinct sections; otherwise
+            // the work copy's badge would be hidden under the personal entry.
             val filteredGroups = availableWidgets
-                .groupBy { provider -> provider.appName }
+                .groupBy { provider -> WidgetGroupKey(provider.appName, provider.isWorkProvider) }
                 .let { groups ->
                     if (trimmedQuery.isEmpty()) {
                         groups
                     } else {
                         groups.entries
-                            .mapNotNull { entry -> entry.key.launcherMatchTier(trimmedQuery)?.let { tier -> entry to tier } }
+                            .mapNotNull { entry ->
+                                entry.key.appName.launcherMatchTier(trimmedQuery)
+                                    ?.let { tier -> entry to tier }
+                            }
                             .sortedBy { (_, tier) -> tier.ordinal }
                             .associate { (entry, _) -> entry.toPair() }
                     }
@@ -208,15 +217,15 @@ private fun WidgetPickerCard(
                     modifier = Modifier.testTag(WIDGET_PICKER_LIST_TAG),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    filteredGroups.forEach { (appName, providers) ->
-                        val isAppExpanded = expandedAppName == appName
+                    filteredGroups.forEach { (groupKey, providers) ->
+                        val isAppExpanded = expandedGroupKey == groupKey
                         WidgetAppSection(
-                            appName = appName,
+                            groupKey = groupKey,
                             providers = providers,
                             isExpanded = isAppExpanded,
                             appWidgetManager = appWidgetManager,
                             onToggleExpanded = {
-                                expandedAppName = if (isAppExpanded) null else appName
+                                expandedGroupKey = if (isAppExpanded) null else groupKey
                             },
                             onSelectWidget = onSelectWidget,
                         )
@@ -265,7 +274,7 @@ private fun WidgetPickerFilterField(
 
 @Composable
 private fun WidgetAppSection(
-    appName: String,
+    groupKey: WidgetGroupKey,
     providers: List<WidgetProvider>,
     isExpanded: Boolean,
     appWidgetManager: AppWidgetManager?,
@@ -280,7 +289,7 @@ private fun WidgetAppSection(
                 .fillMaxWidth()
                 .clickable(onClick = onToggleExpanded)
                 .semantics { role = Role.Button }
-                .testTag("$WIDGET_APP_ROW_TAG:$appName"),
+                .testTag("$WIDGET_APP_ROW_TAG:${groupKey.tagSuffix}"),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Row(
@@ -290,13 +299,16 @@ private fun WidgetAppSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                WidgetAppIcon(providers.firstOrNull()?.appIcon)
+                WidgetAppIcon(
+                    appIcon = providers.firstOrNull()?.appIcon,
+                    isWorkProvider = groupKey.isWorkProvider,
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = appName,
+                        text = groupKey.appName,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -451,26 +463,47 @@ private fun WidgetPreview(
 }
 
 @Composable
-private fun WidgetAppIcon(appIcon: Drawable?) {
+private fun WidgetAppIcon(appIcon: Drawable?, isWorkProvider: Boolean = false) {
     val bitmap = remember(appIcon) { appIcon?.toBitmap()?.asImageBitmap() }
-    Box(
-        modifier = Modifier.size(36.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
-            )
-        } else {
-            Icon(
-                Icons.Filled.Widgets,
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+    val workBadgeDescription = stringResource(R.string.widgets_work_badge_description)
+    Box(modifier = Modifier.size(36.dp)) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                Icon(
+                    Icons.Filled.Widgets,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        if (isWorkProvider) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(14.dp)
+                    .semantics { contentDescription = workBadgeDescription }
+                    .testTag(WIDGET_WORK_BADGE_TAG),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+            ) {
+                Icon(
+                    Icons.Filled.Badge,
+                    contentDescription = null,
+                    modifier = Modifier.padding(2.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
         }
     }
 }
@@ -577,6 +610,9 @@ private fun HostedWidgetCard(
         mutableFloatStateOf((customHeightDp?.toFloat() ?: defaultHeightDp.value))
     }
     val effectiveHeightDp = if (isResizing) resizeHeightDp.dp else (customHeightDp?.dp ?: defaultHeightDp)
+    val isWorkProfileWidget = remember(providerInfo) {
+        providerInfo.profile != Process.myUserHandle()
+    }
 
     Box(
         modifier = Modifier
@@ -610,6 +646,14 @@ private fun HostedWidgetCard(
             },
             modifier = Modifier.fillMaxSize(),
         )
+        if (isWorkProfileWidget) {
+            HostedWidgetWorkBadge(
+                widgetId = widgetId,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp),
+            )
+        }
         WidgetActionsMenu(
             expanded = menuExpanded,
             widgetId = widgetId,
@@ -633,6 +677,26 @@ private fun HostedWidgetCard(
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+    }
+}
+
+@Composable
+private fun HostedWidgetWorkBadge(widgetId: Int, modifier: Modifier = Modifier) {
+    val workBadgeDescription = stringResource(R.string.widgets_work_badge_description)
+    Surface(
+        modifier = modifier
+            .size(18.dp)
+            .semantics { contentDescription = workBadgeDescription }
+            .testTag("$WIDGET_WORK_BADGE_TAG:$widgetId"),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary,
+    ) {
+        Icon(
+            Icons.Filled.Badge,
+            contentDescription = null,
+            modifier = Modifier.padding(3.dp),
+            tint = MaterialTheme.colorScheme.onPrimary,
+        )
     }
 }
 
@@ -709,6 +773,20 @@ private data class WidgetPreviewValue(
     val generated: RemoteViews?,
     val image: Drawable?,
 )
+
+internal data class WidgetGroupKey(
+    val appName: String,
+    val isWorkProvider: Boolean,
+) {
+    /**
+     * Suffix used in compose test tags. Plain `appName` for personal-profile
+     * groups (so existing tests continue matching `widget_app_row:Calendar`)
+     * and `appName|work` for work-profile groups so the same display name in a
+     * different profile is targetable.
+     */
+    val tagSuffix: String
+        get() = if (isWorkProvider) "$appName|work" else appName
+}
 
 private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context: Context): WidgetPreviewValue {
     val generated = if (Build.VERSION.SDK_INT >= GENERATED_WIDGET_PREVIEW_MIN_API) {

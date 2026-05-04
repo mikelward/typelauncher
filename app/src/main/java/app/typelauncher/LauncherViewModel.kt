@@ -1112,16 +1112,38 @@ internal class LauncherViewModel(
         return map { app -> labels[app.id]?.let { app.copy(disambiguator = it) } ?: app }
     }
 
-    private fun loadAvailableWidgets(): List<WidgetProvider> =
-        AppWidgetManager.getInstance(app)
-            .installedProviders
-            .filter { provider -> provider.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_HIDE_FROM_PICKER == 0 }
-            .map { provider -> provider.toWidgetProvider(app) }
+    private fun loadAvailableWidgets(): List<WidgetProvider> {
+        val widgetManager = AppWidgetManager.getInstance(app)
+        val personalUser = Process.myUserHandle()
+        // Enumerate every available profile (personal + any work profiles) so
+        // the picker surfaces work-profile widgets alongside personal ones.
+        // `getInstalledProvidersForProfile` is the cross-profile counterpart to
+        // `installedProviders`; it dispatches to the same AppWidgetService and
+        // is restricted by the platform to profiles the launcher already has
+        // access to. Falling back to `Process.myUserHandle()` keeps the picker
+        // populated when LauncherApps is unavailable (test / non-launcher
+        // contexts).
+        val profiles = launcherAppsService?.profiles?.takeIf { it.isNotEmpty() }
+            ?: listOf(personalUser)
+        return profiles
+            .flatMap { profile ->
+                val providers = widgetManager.getInstalledProvidersForProfile(profile)
+                LauncherDebugLog.event(
+                    "loadAvailableWidgets profile=${profile.hashCode()} providers=${providers.size}",
+                )
+                providers
+                    .filter { info ->
+                        info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_HIDE_FROM_PICKER == 0
+                    }
+                    .map { info -> info.toWidgetProvider(app, personalUser) }
+            }
+            .distinctBy { provider -> provider.id }
             .sortedWith(
                 compareBy<WidgetProvider> { provider -> provider.appName.lowercase() }
                     .thenBy { provider -> provider.label.lowercase() },
             )
             .also { providers -> LauncherDebugLog.event("loadAvailableWidgets providers=${providers.size}") }
+    }
 
     private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
         _uiState.update {
@@ -1172,7 +1194,7 @@ private fun AgendaEvent.formatTime(context: Context): String {
     return DateUtils.formatDateRange(context, beginMillis, endMillis, DateUtils.FORMAT_SHOW_TIME).toString()
 }
 
-private fun AppWidgetProviderInfo.toWidgetProvider(context: Context): WidgetProvider {
+private fun AppWidgetProviderInfo.toWidgetProvider(context: Context, personalUser: UserHandle): WidgetProvider {
     val packageManager = context.packageManager
     val appInfo = try {
         packageManager.getApplicationInfo(provider.packageName, 0)
@@ -1195,6 +1217,7 @@ private fun AppWidgetProviderInfo.toWidgetProvider(context: Context): WidgetProv
         targetCellWidth = targetCellWidth.takeIf { it > 0 } ?: estimateCellSpan(minWidth),
         targetCellHeight = targetCellHeight.takeIf { it > 0 } ?: estimateCellSpan(minHeight),
         previewImage = loadPreviewImage(context, 0),
+        isWorkProvider = profile != personalUser,
     )
 }
 

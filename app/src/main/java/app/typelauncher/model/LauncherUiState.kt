@@ -162,6 +162,11 @@ internal data class WidgetProvider(
     val targetCellWidth: Int,
     val targetCellHeight: Int,
     val previewImage: Drawable?,
+    // True when the provider lives in a managed (work) profile. The picker
+    // groups providers by `(appName, isWorkProvider)` so the personal and
+    // work copies of the same app render as separate sections, and the work
+    // section shows a work badge.
+    val isWorkProvider: Boolean = false,
 ) {
     val id: String = "${profile.hashCode()}:${componentName.flattenToShortString()}"
 }

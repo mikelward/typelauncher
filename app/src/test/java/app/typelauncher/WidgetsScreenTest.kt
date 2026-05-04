@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.content.ComponentName
 import android.os.Process
+import android.os.UserHandle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -246,16 +247,60 @@ class WidgetsScreenTest {
         composeRule.onNodeWithTag(WIDGET_PICKER_LIST_TAG).assertDoesNotExist()
     }
 
+    @Test
+    fun widgetPicker_showsWorkBadgeForWorkProfileProviderGroup() {
+        val personal = fakeWidgetProvider(appName = "Calendar", label = "Calendar month")
+        val work = fakeWidgetProvider(
+            appName = "Calendar",
+            label = "Calendar work month",
+            packageName = "app.typelauncher.fakewidget.work",
+            profile = workUserHandle(),
+            isWorkProvider = true,
+        )
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(personal, work),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        // Personal and work groups for the same display name render as
+        // separate sections so the work badge has somewhere to live.
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work")
+            .performScrollTo()
+            .assertIsDisplayed()
+        // The work badge sits inside the work group's app-icon thumbnail.
+        composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
+            .assertExists()
+    }
+
     private fun fakeWidgetProvider(
         appName: String,
         label: String,
         minHeight: Int = 56,
+        packageName: String = "app.typelauncher.fakewidget",
+        profile: UserHandle = Process.myUserHandle(),
+        isWorkProvider: Boolean = false,
     ): WidgetProvider =
         WidgetProvider(
             appName = appName,
             label = label,
-            componentName = ComponentName("app.typelauncher.fakewidget", "$label.Provider"),
-            profile = Process.myUserHandle(),
+            componentName = ComponentName(packageName, "$label.Provider"),
+            profile = profile,
             icon = null,
             appIcon = null,
             minWidth = 112,
@@ -263,5 +308,21 @@ class WidgetsScreenTest {
             targetCellWidth = 2,
             targetCellHeight = 1,
             previewImage = null,
+            isWorkProvider = isWorkProvider,
         )
+
+    /**
+     * Returns a `UserHandle` whose hash differs from the personal-profile
+     * handle, so two `WidgetProvider`s with the same component but different
+     * profiles produce distinct IDs (and aren't deduped by `distinctBy { id }`
+     * if a future change reintroduces it). User 10 is the conventional first
+     * managed-profile user ID on Android.
+     */
+    private fun workUserHandle(): UserHandle = UserHandle.getUserHandleForUid(WORK_USER_TEST_UID)
+
+    private companion object {
+        // Encodes user 10 (the conventional first managed-profile user on Android).
+        // UserHandle.getUserHandleForUid(uid) extracts the user id as `uid / 100000`.
+        const val WORK_USER_TEST_UID = 1_010_000
+    }
 }
