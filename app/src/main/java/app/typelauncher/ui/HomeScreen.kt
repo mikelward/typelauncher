@@ -63,7 +63,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -96,13 +95,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
@@ -1762,7 +1759,6 @@ internal fun SettingsScreen(
     onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
-    onWorkProfileVisibilityChanged: (WorkProfileVisibility) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1953,22 +1949,6 @@ internal fun SettingsScreen(
                 ThemeModeDropdown(
                     selected = state.themeMode,
                     onThemeModeChanged = onThemeModeChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_work_icons_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                WorkProfileVisibilityDropdown(
-                    selected = state.workProfileVisibility,
-                    onVisibilityChanged = onWorkProfileVisibilityChanged,
                 )
             }
         }
@@ -2330,55 +2310,6 @@ private fun ThemeMode.optionTag(): String =
     }
 
 @Composable
-private fun WorkProfileVisibilityDropdown(
-    selected: WorkProfileVisibility,
-    onVisibilityChanged: (WorkProfileVisibility) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabelRes = selected.labelRes()
-    Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.testTag(WORK_PROFILE_VISIBILITY_DROPDOWN_TAG),
-        ) {
-            Text(stringResource(selectedLabelRes))
-            Icon(
-                Icons.Filled.ArrowDropDown,
-                contentDescription = null,
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.testTag(WORK_PROFILE_VISIBILITY_DROPDOWN_MENU_TAG),
-        ) {
-            WorkProfileVisibility.entries.forEach { visibility ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(visibility.labelRes())) },
-                    modifier = Modifier.testTag(visibility.optionTag()),
-                    onClick = {
-                        expanded = false
-                        onVisibilityChanged(visibility)
-                    },
-                )
-            }
-        }
-    }
-}
-
-private fun WorkProfileVisibility.labelRes(): Int =
-    when (this) {
-        WorkProfileVisibility.Always -> R.string.settings_work_icons_option_always
-        WorkProfileVisibility.WhenWorkOn -> R.string.settings_work_icons_option_when_work_on
-    }
-
-private fun WorkProfileVisibility.optionTag(): String =
-    when (this) {
-        WorkProfileVisibility.Always -> WORK_PROFILE_VISIBILITY_OPTION_ALWAYS_TAG
-        WorkProfileVisibility.WhenWorkOn -> WORK_PROFILE_VISIBILITY_OPTION_WHEN_WORK_ON_TAG
-    }
-
-@Composable
 private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
@@ -2673,11 +2604,6 @@ private fun AppIcon(
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     val bitmap = rememberAppIconBitmap(app, size)
-    // Hoisted so toggling `isQuietMode` doesn't reallocate the underlying
-    // float[20] color matrix on every recomposition.
-    val grayscaleFilter = remember {
-        ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
-    }
     Box(
         modifier = Modifier
             .size(size)
@@ -2692,49 +2618,17 @@ private fun AppIcon(
                 Image(
                     bitmap = bitmap,
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(if (app.isQuietMode) Modifier.alpha(0.38f) else Modifier),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
-                    colorFilter = if (app.isQuietMode) grayscaleFilter else null,
-                )
-            }
-        }
-        if (app.isWorkApp) {
-            val badgeSize = maxOf(MIN_WORK_BADGE_SIZE_DP.dp, size * WORK_BADGE_SIZE_FRACTION)
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(badgeSize)
-                    .testTag("$WORK_APP_BADGE_TAG:${app.displayName}"),
-                shape = CircleShape,
-                // Drop the badge to a neutral outline tone when the work
-                // profile is paused so it reads as "off" alongside the
-                // desaturated icon, but stays visible — it's the only
-                // remaining "this is a work app" signal once colour is gone.
-                color = if (app.isQuietMode) {
-                    MaterialTheme.colorScheme.outline
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            ) {
-                Icon(
-                    Icons.Filled.Badge,
-                    contentDescription = null,
-                    modifier = Modifier.padding(badgeSize / 6f),
-                    tint = if (app.isQuietMode) {
-                        MaterialTheme.colorScheme.surface
-                    } else {
-                        MaterialTheme.colorScheme.onPrimary
-                    },
                 )
             }
         }
         app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
             // Top-start corner is the only one not already used by the
-            // notification dot (top-end) or the work-profile badge
-            // (bottom-end). Sized as a wide pill so 3-4 character regional
-            // codes ("EMEA", "APAC") still fit at the smallest icon size.
+            // notification dot (top-end) or the system-rendered work-profile
+            // badge (baked into the bitmap, typically bottom-end). Sized as
+            // a wide pill so 3-4 character regional codes ("EMEA", "APAC")
+            // still fit at the smallest icon size.
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -2777,13 +2671,3 @@ private const val NOTIFICATION_BADGE_SIZE_DP = 12
 // Play update badge dot — same "presence" treatment as the notification dot,
 // scaled down for the smaller search-field gear icon.
 private const val PLAY_UPDATE_BADGE_SIZE_DP = 8
-
-// Work-profile badge — floored at 18 dp so small dock icons keep the
-// historical badge size that already read fine, then scales up
-// proportionally (icon edge × 18/56) once the icon grows past the default
-// 56 dp size, so larger icons get a visually balanced badge instead of a
-// dot lost in their corner. The inner glyph is padded at 1/6 of the badge
-// edge (3 / 18) so it keeps its original proportion within the circle at
-// every size.
-private const val MIN_WORK_BADGE_SIZE_DP = 18
-private const val WORK_BADGE_SIZE_FRACTION = 18f / 56f
