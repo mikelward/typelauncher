@@ -101,6 +101,9 @@
     <string name="settings_theme_option_system">システム</string>
     <string name="settings_theme_option_light">ライト</string>
     <string name="settings_theme_option_dark">ダーク</string>
+    <string name="settings_work_icons_title">仕事用アイコンを表示</string>
+    <string name="settings_work_icons_option_always">常に</string>
+    <string name="settings_work_icons_option_when_work_on">仕事プロファイル有効時</string>
     <string name="settings_dock_icon_count_label">行ごとのアイコン数: %1$d</string>
     <string name="settings_dock_icon_size_value">アイコンサイズ: %1$d dp</string>
     <string name="settings_dock_preview_label">プレビュー</string>

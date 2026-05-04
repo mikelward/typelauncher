@@ -101,6 +101,9 @@
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Claro</string>
     <string name="settings_theme_option_dark">Escuro</string>
+    <string name="settings_work_icons_title">Mostrar ícones de trabalho</string>
+    <string name="settings_work_icons_option_always">Sempre</string>
+    <string name="settings_work_icons_option_when_work_on">Quando trabalho ativo</string>
     <string name="settings_dock_icon_count_label">Ícones por linha: %1$d</string>
     <string name="settings_dock_icon_size_value">Tamanho do ícone: %1$d dp</string>
     <string name="settings_dock_preview_label">Pré-visualização</string>

@@ -101,6 +101,9 @@
     <string name="settings_theme_option_system">सिस्टम</string>
     <string name="settings_theme_option_light">हल्की</string>
     <string name="settings_theme_option_dark">गहरी</string>
+    <string name="settings_work_icons_title">कार्य आइकन दिखाएं</string>
+    <string name="settings_work_icons_option_always">हमेशा</string>
+    <string name="settings_work_icons_option_when_work_on">कार्य चालू होने पर</string>
     <string name="settings_dock_icon_count_label">प्रति पंक्ति आइकन: %1$d</string>
     <string name="settings_dock_icon_size_value">आइकन आकार: %1$d dp</string>
     <string name="settings_dock_preview_label">पूर्वावलोकन</string>

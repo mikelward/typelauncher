@@ -101,6 +101,9 @@
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Hell</string>
     <string name="settings_theme_option_dark">Dunkel</string>
+    <string name="settings_work_icons_title">Arbeitssymbole anzeigen</string>
+    <string name="settings_work_icons_option_always">Immer</string>
+    <string name="settings_work_icons_option_when_work_on">Wenn Arbeit aktiv</string>
     <string name="settings_dock_icon_count_label">Symbole pro Zeile: %1$d</string>
     <string name="settings_dock_icon_size_value">Symbolgröße: %1$d dp</string>
     <string name="settings_dock_preview_label">Vorschau</string>

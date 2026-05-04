@@ -101,6 +101,9 @@
     <string name="settings_theme_option_system">시스템</string>
     <string name="settings_theme_option_light">밝게</string>
     <string name="settings_theme_option_dark">어둡게</string>
+    <string name="settings_work_icons_title">직장 아이콘 표시</string>
+    <string name="settings_work_icons_option_always">항상</string>
+    <string name="settings_work_icons_option_when_work_on">직장 프로필 활성 시</string>
     <string name="settings_dock_icon_count_label">행당 아이콘 수: %1$d</string>
     <string name="settings_dock_icon_size_value">아이콘 크기: %1$d dp</string>
     <string name="settings_dock_preview_label">미리보기</string>
