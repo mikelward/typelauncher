@@ -11,13 +11,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -119,6 +121,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -861,9 +864,24 @@ private fun ScrollableIconRow(
         // viewport on non-integer densities and trip a spurious overflow
         // chevron when the row content actually fits.
         val viewportPx = constraints.maxWidth
+        val scope = rememberCoroutineScope()
+        val pageBack: () -> Unit = {
+            scope.launch { scrollState.scrollOneHorizontalPage(backward = true, viewportPx = viewportPx) }
+        }
+        val pageForward: () -> Unit = {
+            scope.launch { scrollState.scrollOneHorizontalPage(backward = false, viewportPx = viewportPx) }
+        }
         Row(
             modifier = rowModifier
                 .nestedScroll(edgePullConnection)
+                .pointerInput(showStartChevron, showEndChevron, viewportPx) {
+                    detectTapGestures { offset ->
+                        when {
+                            showStartChevron && offset.x <= HorizontalScrollChevronTapTargetSize.toPx() -> pageBack()
+                            showEndChevron && offset.x >= size.width - HorizontalScrollChevronTapTargetSize.toPx() -> pageForward()
+                        }
+                    }
+                }
                 .horizontalScroll(scrollState)
                 .layout { measurable, childConstraints ->
                     val placeable = measurable.measure(
@@ -893,6 +911,9 @@ private fun ScrollableIconRow(
                 alignment = Alignment.CenterStart,
                 xEdgeOffset = -HorizontalScrollChevronEdgeOffset,
                 testTag = startChevronTestTag,
+                tapTargetSize = HorizontalScrollChevronTapTargetSize,
+                onClick = pageBack,
+                handlePointerInput = false,
             )
         }
         if (showEndChevron) {
@@ -902,9 +923,17 @@ private fun ScrollableIconRow(
                 alignment = Alignment.CenterEnd,
                 xEdgeOffset = HorizontalScrollChevronEdgeOffset,
                 testTag = endChevronTestTag,
+                tapTargetSize = HorizontalScrollChevronTapTargetSize,
+                onClick = pageForward,
+                handlePointerInput = false,
             )
         }
     }
+}
+
+private suspend fun ScrollState.scrollOneHorizontalPage(backward: Boolean, viewportPx: Int) {
+    val delta = if (backward) -viewportPx else viewportPx
+    scrollTo((value + delta).coerceIn(0, maxValue))
 }
 
 @Composable
@@ -1056,14 +1085,30 @@ private fun BoxScope.OverflowScrollChevron(
     yEdgeOffset: Dp = 0.dp,
     tapTargetSize: Dp? = null,
     onClick: (() -> Unit)? = null,
+    handlePointerInput: Boolean = true,
 ) {
     if (onClick != null && tapTargetSize != null) {
+        val tapModifier = if (handlePointerInput) {
+            Modifier.pointerInput(onClick) {
+                detectTapGestures(onTap = { onClick() })
+            }
+        } else {
+            Modifier
+        }
         Box(
             modifier = Modifier
                 .align(alignment)
                 .offset(x = xEdgeOffset, y = yEdgeOffset)
                 .size(tapTargetSize)
-                .clickable(role = Role.Button, onClick = onClick)
+                .then(tapModifier)
+                .semantics {
+                    role = Role.Button
+                    this.contentDescription = contentDescription
+                    onClick {
+                        onClick()
+                        true
+                    }
+                }
                 .testTag(testTag),
             contentAlignment = alignment,
         ) {
@@ -1104,6 +1149,7 @@ private fun ChevronIcon(
 }
 
 private val HorizontalScrollChevronEdgeOffset = 18.dp
+private val HorizontalScrollChevronTapTargetSize = 32.dp
 private val VerticalScrollChevronEdgeOffset = 18.dp
 private val VerticalScrollChevronTapTargetSize = 32.dp
 
