@@ -26,9 +26,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -270,7 +275,7 @@ internal fun TypeLauncherApp(
                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                 onSetRecentsOpen = onSetRecentsOpen,
                 onSwipeDown = onSwipeDown,
-            ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd, onPullDownPastAppsListStart, onPullUpPastAppsListEnd ->
+            ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd ->
                 when (pageScreen) {
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
@@ -294,8 +299,6 @@ internal fun TypeLauncherApp(
                         onRequestNotificationAccess = onRequestNotificationAccess,
                         onHorizontalBarPullPastStart = onHorizontalBarPullPastStart,
                         onHorizontalBarPullPastEnd = onHorizontalBarPullPastEnd,
-                        onPullDownPastAppsListStart = onPullDownPastAppsListStart,
-                        onPullUpPastAppsListEnd = onPullUpPastAppsListEnd,
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
@@ -369,17 +372,19 @@ private fun SwipeNavigationBox(
         LauncherScreen,
         onHorizontalBarPullPastStart: () -> Unit,
         onHorizontalBarPullPastEnd: () -> Unit,
-        onPullDownPastAppsListStart: () -> Unit,
-        onPullUpPastAppsListEnd: () -> Unit,
     ) -> Unit,
 ) {
     // Both pull gestures dispatch from this single carousel-level handler so
-    // they're triggerable from anywhere on Home that doesn't have a more
-    // specific consumer (margins, dock surface, recents/notification bars,
-    // and — at their top/bottom edges — the apps list itself). Pull-down uses
-    // the Settings-selected action: do nothing, expand the system shade, or
-    // open the launcher notification bar as a first stage. Pull-up opens the
-    // recents bar.
+    // they fire from anywhere on the launcher except a child scrollable that's
+    // actively scrolling. The detector accumulates raw vertical pointer
+    // movement and subtracts whatever a child scrollable consumed via nested
+    // scroll; what's left is "the gesture past the list edge or off the
+    // list", which is what should trigger pull-down/pull-up. So the apps list
+    // mid-scroll never fires (consumed cancels raw), but the apps list at the
+    // top/bottom edge does (consumed = 0 for the past-edge portion), and so
+    // does any non-scrolling area. Pull-down uses the Settings-selected
+    // action: do nothing, expand the system shade, or open the launcher
+    // notification bar as a first stage. Pull-up opens the recents bar.
     // We capture the latest values via rememberUpdatedState so the dispatch
     // lambdas keep stable identities and don't re-key the pointerInput
     // mid-gesture.
@@ -445,6 +450,7 @@ private fun SwipeNavigationBox(
     val verticalPullThresholdPx = with(density) {
         VERTICAL_PULL_THRESHOLD_DP.dp.toPx()
     }
+    val verticalScrollTracker = remember { VerticalScrollTracker() }
     val coroutineScope = rememberCoroutineScope()
     val navigateCarouselBy = remember(pagerState, coroutineScope) {
         { pageDelta: Int ->
@@ -586,27 +592,50 @@ private fun SwipeNavigationBox(
                     }
                 }
             }
-            .pointerInput(verticalPullThresholdPx, swipeDownDispatch, swipeUpDispatch) {
+            .nestedScroll(verticalScrollTracker.connection)
+            .pointerInput(touchSlopPx, verticalPullThresholdPx, swipeDownDispatch, swipeUpDispatch) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
-                    var verticalDragPx = 0f
+                    val startConsumedY = verticalScrollTracker.totalConsumedY
+                    // Track raw finger movement (ignoring pointer-event
+                    // consumption) so we still see the gesture after a child
+                    // scrollable or the carousel claims it. The
+                    // nested-scroll connection above records how much of that
+                    // raw vertical movement a child scrollable actually
+                    // translated into scroll; the rest is the launcher-pull
+                    // signal. We also track raw X so we can recognise a
+                    // horizontal-dominant gesture (handled as a carousel
+                    // page swipe) and skip the vertical dispatch in that
+                    // case — without this, a diagonal page-swipe with > 96 dp
+                    // of incidental vertical drift would also fire pull-down.
+                    var rawDragX = 0f
+                    var rawDragY = 0f
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
-                            verticalDragPx += change.positionChange().y
+                            val delta = change.positionChangeIgnoreConsumed()
+                            rawDragX += delta.x
+                            rawDragY += delta.y
                         }
                     } while (event.changes.any { it.pressed })
 
+                    if (shouldClaimCarouselDrag(rawDragX, rawDragY, touchSlopPx)) {
+                        return@awaitEachGesture
+                    }
+
+                    val consumedY = verticalScrollTracker.totalConsumedY - startConsumedY
+                    val netDragY = rawDragY - consumedY
+
                     when {
-                        verticalDragPx >= verticalPullThresholdPx -> {
+                        netDragY >= verticalPullThresholdPx -> {
                             LauncherDebugLog.event(
-                                "SwipeNavigationBox swipe down verticalDragPx=$verticalDragPx",
+                                "SwipeNavigationBox swipe down rawDragY=$rawDragY consumedY=$consumedY netDragY=$netDragY",
                             )
                             swipeDownDispatch()
                         }
-                        verticalDragPx <= -verticalPullThresholdPx -> {
+                        netDragY <= -verticalPullThresholdPx -> {
                             LauncherDebugLog.event(
-                                "SwipeNavigationBox swipe up verticalDragPx=$verticalDragPx",
+                                "SwipeNavigationBox swipe up rawDragY=$rawDragY consumedY=$consumedY netDragY=$netDragY",
                             )
                             swipeUpDispatch()
                         }
@@ -620,11 +649,34 @@ private fun SwipeNavigationBox(
                 pageScreen,
                 { navigateCarouselBy(-1) },
                 { navigateCarouselBy(1) },
-                swipeDownDispatch,
-                swipeUpDispatch,
             )
         } else {
             Box(modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+/**
+ * Records how much vertical scroll any child consumed during a pointer
+ * gesture. The carousel-level pull-down/pull-up detector subtracts this from
+ * the raw finger movement so a finger drag that only scrolls a child
+ * scrollable doesn't masquerade as a launcher pull. Source = `UserInput`
+ * filters out post-release fling animations and any programmatic scrolls.
+ */
+private class VerticalScrollTracker {
+    var totalConsumedY: Float = 0f
+        private set
+
+    val connection: NestedScrollConnection = object : NestedScrollConnection {
+        override fun onPostScroll(
+            consumed: Offset,
+            available: Offset,
+            source: NestedScrollSource,
+        ): Offset {
+            if (source == NestedScrollSource.UserInput) {
+                totalConsumedY += consumed.y
+            }
+            return Offset.Zero
         }
     }
 }
