@@ -46,12 +46,13 @@ val gitBranchName: String = providers.environmentVariable("GITHUB_REF_NAME")
     .get()
 // `git status --porcelain` is empty for a clean tree, so we can't route this
 // through `gitOutput` — its empty-means-fallback semantics would map clean to
-// "dirty". Inline the exec and treat an exception as conservatively dirty.
+// "dirty". Inline the exec, and *don't* ignore the exit code: a non-zero exit
+// (e.g. running from a tarball with no `.git`) should fall through to the
+// conservative "assume dirty" branch rather than being misread as clean.
 val isGitWorkingTreeDirty: Boolean =
     try {
         providers.exec {
             commandLine("git", "status", "--porcelain")
-            isIgnoreExitValue = true
         }.standardOutput.asText.get().trim().isNotEmpty()
     } catch (_: Exception) {
         true
