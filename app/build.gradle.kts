@@ -142,13 +142,24 @@ android {
             applicationIdSuffix = ".debug"
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
+            // CI runs R8 in shrink-only mode (see proguard-rules.pro) so tester APKs
+            // drop the bulk of unused code, including the unreferenced 99% of
+            // material-icons-extended. Local debug builds skip R8 to keep the
+            // edit-install loop fast.
+            isMinifyEnabled = isCiBuild
+            isShrinkResources = isCiBuild
+            proguardFiles(
+                getDefaultProguardFile("proguard-android.txt"),
+                "proguard-rules.pro"
+            )
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = isCiBuild
+            isShrinkResources = isCiBuild
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(""))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "true")
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                getDefaultProguardFile("proguard-android.txt"),
                 "proguard-rules.pro"
             )
             // Only attach the release signingConfig when CI has populated it;

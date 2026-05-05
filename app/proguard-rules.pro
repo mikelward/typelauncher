@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Shrink-only mode: tree-shake unreferenced classes and methods (so e.g. the
+# unused 99% of material-icons-extended is dropped) but keep original names
+# and skip optimization passes. The result is smaller APKs whose stack traces
+# stay readable in Crashlytics without a mapping file, and reflection-shaped
+# bugs stay rare because the optimizer isn't rewriting code.
+-dontobfuscate
+-dontoptimize
