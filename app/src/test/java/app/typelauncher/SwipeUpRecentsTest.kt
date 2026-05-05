@@ -236,6 +236,65 @@ class SwipeUpRecentsTest {
     }
 
     @Test
+    fun swipingUpOnHomeWithRecentsAlwaysShown_requestsShowKeyboardOnFirstPull() {
+        // Regression: with `Show recents` toggled on, recents is already visible
+        // even though `isRecentsOpen` defaults to false. The pull-up dispatch
+        // must treat the visible-recents predicate (`isRecentsAlwaysShown ||
+        // isRecentsOpen`) as the gate for the keyboard stage, otherwise users
+        // with the setting on need an extra gesture to re-show the IME.
+        var recentsTarget: Boolean? = null
+        var requestShowKeyboardCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isRecentsAlwaysShown = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetRecentsOpen = { recentsTarget = it },
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        // Recents is already visible via the persistent setting, so the first
+        // pull-up should skip the recents stage and ask for the keyboard.
+        assertNull(recentsTarget)
+        assertEquals(1, requestShowKeyboardCount)
+    }
+
+    @Test
     fun swipingUpOnHomeWithNotificationBarOpen_closesBarAndDoesNotShowKeyboard() {
         var notificationBarOpened: Boolean? = null
         var recentsTarget: Boolean? = null
