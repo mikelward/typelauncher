@@ -2665,11 +2665,15 @@ private fun AppIcon(
         app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
             // Full-width strip across the bottom mirrors the yellow DEV bar
             // baked into the local-build adaptive icon (ic_launcher_foreground_local).
-            // Fixed colours rather than theme tokens so the badge reads the
-            // same in light and dark mode, matching the always-yellow DEV
-            // bar. Bottom corners are hardcoded to the Material `shapes.medium`
-            // 12.dp radius so the strip stays inside the icon's rounded
-            // container without needing a separate clip on the parent.
+            // Theme tokens rather than fixed colours so the badge respects
+            // light/dark and Material You — `surface`/`onSurface` reads as
+            // a neutral white-on-light, dark-on-dark strip with guaranteed
+            // text contrast in both schemes. (The DEV bar is fixed yellow
+            // only because it lives in a vector drawable where Material
+            // tokens aren't reachable.) Bottom corners are hardcoded to the
+            // Material `shapes.medium` 12.dp radius so the strip stays
+            // inside the icon's rounded container without needing a
+            // separate clip on the parent.
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -2681,11 +2685,11 @@ private fun AppIcon(
                     bottomStart = 12.dp,
                     bottomEnd = 12.dp,
                 ),
-                color = Color(0xFFEEEEEE),
+                color = MaterialTheme.colorScheme.surface,
             ) {
                 Text(
                     text = label,
-                    color = Color(0xFF1A1A1A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
