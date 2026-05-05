@@ -31,8 +31,12 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -151,6 +155,18 @@ internal class LauncherViewModel(
         ),
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
+
+    // One-shot signal the launcher uses to ask the search field to grab focus
+    // and re-raise the soft keyboard. Emitted when the user pull-up gesture
+    // reaches its second stage (recents bar already open). The IME show itself
+    // happens in `SearchCard` because the Android IME only appears when an
+    // editable view holds focus, and the `FocusRequester` lives there.
+    private val _keyboardShowRequests = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val keyboardShowRequests: SharedFlow<Unit> = _keyboardShowRequests.asSharedFlow()
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
@@ -450,6 +466,11 @@ internal class LauncherViewModel(
         if (_uiState.value.isRecentsOpen == isOpen) return
         _uiState.update { it.copy(isRecentsOpen = isOpen) }
         logState("setRecentsOpen=$isOpen")
+    }
+
+    fun requestShowKeyboard() {
+        val emitted = _keyboardShowRequests.tryEmit(Unit)
+        LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
     }
 
     fun setNotificationBarOpen(isOpen: Boolean) {
