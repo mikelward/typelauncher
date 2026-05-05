@@ -617,21 +617,31 @@ private fun SwipeNavigationBox(
                         !velocityOpposesDrag &&
                         (distanceCommits || flingCommits)
 
-                    val basePage = chooseDragBasePage(
-                        settledPage = dragStartSettledPage,
-                        inFlightTargetPage = dragStartTargetPage,
-                        dragDirection = dragDirection,
-                    )
+                    // On commit, pick the base via chooseDragBasePage so the
+                    // gesture lands one page from the right anchor (settled when
+                    // extending an in-flight animation, in-flight target when
+                    // reversing one). On a non-commit, just let the in-flight
+                    // animation continue to its destination — using the settled
+                    // page here would snap a forward 5→6 animation back to 5
+                    // any time the user lightly touched the screen mid-flight.
+                    val targetPage = if (committed) {
+                        val basePage = chooseDragBasePage(
+                            settledPage = dragStartSettledPage,
+                            inFlightTargetPage = dragStartTargetPage,
+                            dragDirection = dragDirection,
+                        )
+                        basePage + dragDirection
+                    } else {
+                        dragStartTargetPage
+                    }
 
                     LauncherDebugLog.event(
                         "SwipeNavigationBox release availableDragX=$availableDragX totalDragY=$totalDragY " +
                             "velocityX=$releaseVelocity " +
-                            "settled=$dragStartSettledPage inFlight=$dragStartTargetPage base=$basePage " +
+                            "settled=$dragStartSettledPage inFlight=$dragStartTargetPage targetPage=$targetPage " +
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
                     )
-
-                    val targetPage = if (committed) basePage + dragDirection else basePage
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(targetPage)
                     }
