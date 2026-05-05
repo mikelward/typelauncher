@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -95,6 +96,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -2646,6 +2648,7 @@ private fun AppIcon(
     Box(
         modifier = Modifier
             .size(size)
+            .clip(MaterialTheme.shapes.medium)
             .testTag("$testTag:${app.displayName}"),
     ) {
         Surface(
@@ -2663,40 +2666,40 @@ private fun AppIcon(
             }
         }
         app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
-            // Full-width strip across the bottom mirrors the yellow DEV bar
-            // baked into the local-build adaptive icon (ic_launcher_foreground_local).
-            // Theme tokens rather than fixed colours so the badge respects
-            // light/dark and Material You — `surface`/`onSurface` reads as
-            // a neutral white-on-light, dark-on-dark strip with guaranteed
-            // text contrast in both schemes. (The DEV bar is fixed yellow
-            // only because it lives in a vector drawable where Material
-            // tokens aren't reachable.) Bottom corners are hardcoded to the
-            // Material `shapes.medium` 12.dp radius so the strip stays
-            // inside the icon's rounded container without needing a
-            // separate clip on the parent.
+            // Match the yellow DEV bar baked into the local-build adaptive
+            // icon (ic_launcher_foreground_local): a flat full-width strip
+            // occupying the bottom 16/108 (~14.8%) of the icon's height, with
+            // the bar's bottom corners following the parent box's
+            // `shapes.medium` clip — the same way the launcher's adaptive-icon
+            // mask shapes the DEV bar's corners. Font size scales with the
+            // bar so the label fills it the same way "DEV" fills the launcher
+            // strip. Theme tokens (`surface` / `onSurface`) so the strip reads
+            // as white-on-light / dark-on-dark in both colour schemes; the
+            // DEV bar is fixed yellow only because vector drawables can't
+            // reach Material tokens.
+            val barFraction = 16f / 108f
+            val labelSp = (size.value * barFraction * 0.7f).sp
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+                    .fillMaxHeight(barFraction)
                     .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
-                shape = RoundedCornerShape(
-                    topStart = 0.dp,
-                    topEnd = 0.dp,
-                    bottomStart = 12.dp,
-                    bottomEnd = 12.dp,
-                ),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                Text(
-                    text = label,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 3.dp, vertical = 1.dp),
-                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Text(
+                        text = label,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = labelSp,
+                        lineHeight = labelSp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
     }
