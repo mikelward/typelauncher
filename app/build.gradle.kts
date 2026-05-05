@@ -20,7 +20,17 @@ if (hasFirebaseConfig) {
     val hasReleaseClient = firebaseConfigFile.readText().contains("\"app.typelauncher\"")
     if (!hasReleaseClient) {
         afterEvaluate {
-            tasks.matching { it.name == "processReleaseGoogleServices" }.configureEach {
+            // processReleaseGoogleServices generates gmpAppId/release.txt; disabling
+            // it means that file is never created. AGP 9's strict input validation
+            // then rejects uploadCrashlyticsMappingFileRelease at configuration time
+            // because its declared appIdFile input is missing, so we must disable
+            // that task too.
+            tasks.matching {
+                it.name in setOf(
+                    "processReleaseGoogleServices",
+                    "uploadCrashlyticsMappingFileRelease",
+                )
+            }.configureEach {
                 enabled = false
             }
         }
