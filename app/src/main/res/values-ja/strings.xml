@@ -91,6 +91,7 @@
     <string name="settings_app_list_sort_option_name_reversed">名前 ↑</string>
     <string name="settings_dock_enabled_title">ドックを表示</string>
     <string name="settings_show_recents_title">最近のアプリを表示</string>
+    <string name="settings_hide_recents_from_app_list_title">最近のアプリをアプリ一覧から非表示</string>
     <string name="settings_pull_down_title">下にスワイプ</string>
     <string name="settings_pull_down_option_none">なし</string>
     <string name="settings_pull_down_option_system">システムシェード</string>

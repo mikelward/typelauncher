@@ -91,6 +91,7 @@
     <string name="settings_app_list_sort_option_name_reversed">Name ↑</string>
     <string name="settings_dock_enabled_title">Dock anzeigen</string>
     <string name="settings_show_recents_title">Zuletzt verwendet anzeigen</string>
+    <string name="settings_hide_recents_from_app_list_title">Zuletzt verwendete aus App-Liste ausblenden</string>
     <string name="settings_pull_down_title">Nach unten ziehen</string>
     <string name="settings_pull_down_option_none">Keine</string>
     <string name="settings_pull_down_option_system">System-Schatten</string>

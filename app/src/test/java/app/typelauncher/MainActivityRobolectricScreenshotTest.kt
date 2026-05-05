@@ -1522,6 +1522,191 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun hideRecentsFromAppList_excludesRecentAppsWhileAlwaysShownIsOn() {
+        val viewModel = composeRule.activity.viewModel
+        // Launch a couple of apps so they appear in recents. The dock pre-fill
+        // can claim popular labels, so pick names from outside the default
+        // dock seed (they're in `ALL_FAKE_APP_NAMES`).
+        viewModel.setQuery("browser")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setQuery("camera")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        composeRule.waitForIdle()
+        // The setting defaults on, but takes effect only when recents is
+        // always shown — without `setRecentsAlwaysShown(true)` Browser /
+        // Camera should still appear in the main list.
+        assertTrue(viewModel.uiState.value.isHideRecentsFromAppList)
+        assertTrue(viewModel.uiState.value.filteredApps.any { it.name == "Browser" })
+        assertTrue(viewModel.uiState.value.filteredApps.any { it.name == "Camera" })
+
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+
+        // With recents always shown and the deduplication on (default), the
+        // recent apps drop out of the main list — they already render in the
+        // recents card.
+        assertFalse(viewModel.uiState.value.filteredApps.any { it.name == "Browser" })
+        assertFalse(viewModel.uiState.value.filteredApps.any { it.name == "Camera" })
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Browser").assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Camera").assertIsDisplayed()
+
+        // Disabling the dedup setting brings the recent apps back into the
+        // main list while leaving them in the recents row.
+        viewModel.setHideRecentsFromAppList(false)
+        composeRule.waitForIdle()
+        assertTrue(viewModel.uiState.value.filteredApps.any { it.name == "Browser" })
+        assertTrue(viewModel.uiState.value.filteredApps.any { it.name == "Camera" })
+    }
+
+    @Test
+    fun hideRecentsFromAppList_keepsOffScreenRecentsInAppList() {
+        val viewModel = composeRule.activity.viewModel
+        // Default `dockIconCount` is 4 on the test screen, so launching 8
+        // distinct apps overflows the recents row and pushes the older 4
+        // entries off-screen. Only the 4 visible (most-recent) entries
+        // should drop out of the main list — the off-screen recents are
+        // still the user's only on-launcher path to those apps.
+        val launchOrder = listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Calculator", "Work Calendar")
+        launchOrder.forEach { name ->
+            viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == name })
+        }
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+
+        val dockIconCount = viewModel.uiState.value.dockIconCount
+        val mostRecent = launchOrder.takeLast(dockIconCount).toSet()
+        val olderOffScreen = launchOrder.dropLast(dockIconCount).toSet()
+        val filteredNames = viewModel.uiState.value.filteredApps.map { it.name }.toSet()
+        for (name in mostRecent) {
+            assertFalse("most-recent visible recent $name should be hidden from app list", name in filteredNames)
+        }
+        for (name in olderOffScreen) {
+            assertTrue("off-screen recent $name should remain in app list", name in filteredNames)
+        }
+    }
+
+    @Test
+    fun hideRecentsFromAppList_excludesPostFilterRecentsNotRawStoreHead() {
+        val viewModel = composeRule.activity.viewModel
+        // Launch enough apps that the *raw* recents store overflows past
+        // `dockIconCount`, then hide the most-recently-launched ones so they
+        // drop out of `state.recentApps` (filterRecent skips hidden apps).
+        // The visible row now shows the next-most-recent entries — those are
+        // the apps that should be excluded from the main list, not the
+        // hidden-but-still-in-the-raw-store entries that consumed the head.
+        val launchOrder = listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings")
+        launchOrder.forEach { name ->
+            viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == name })
+        }
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+        val dockIconCount = viewModel.uiState.value.dockIconCount
+        // Hide the two most-recent launches so the raw store still has them
+        // at the head but `state.recentApps` does not.
+        val hiddenNames = launchOrder.takeLast(2)
+        hiddenNames.forEach { name ->
+            viewModel.hideApp(viewModel.uiState.value.recentApps.first { it.name == name })
+        }
+        composeRule.waitForIdle()
+
+        val visibleRecentNames = viewModel.uiState.value.recentApps
+            .takeLast(dockIconCount)
+            .map { it.name }
+            .toSet()
+        val filteredNames = viewModel.uiState.value.filteredApps.map { it.name }.toSet()
+        for (name in visibleRecentNames) {
+            assertFalse("visible recent $name should be hidden from app list", name in filteredNames)
+        }
+        // Confirm the test set up the scenario it's checking — the visible
+        // recents come from after the hidden head, not from the raw store
+        // head, so the post-filter list should not contain the hidden names.
+        for (name in hiddenNames) {
+            assertFalse(
+                "hidden $name should not appear in the post-filter recents row",
+                viewModel.uiState.value.recentApps.any { it.name == name },
+            )
+        }
+    }
+
+    @Test
+    fun hideRecentsFromAppList_recomputesWhenDockIconCountChanges() {
+        val viewModel = composeRule.activity.viewModel
+        // Launch a few apps so the recents row has content, then enable the
+        // toggle while `dockIconCount` defaults to N. Shrinking / growing the
+        // slider has to recompute `filteredApps` so the dedup window matches
+        // the new icons-per-row immediately.
+        listOf("Browser", "Calendar", "Camera").forEach { name ->
+            viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == name })
+        }
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+        // With dockIconCount >= 3 (the default on the test screen is 4), all
+        // three recents are visible and excluded.
+        val initialCount = viewModel.uiState.value.dockIconCount
+        assertTrue("test assumes default dockIconCount covers the launches", initialCount >= 3)
+        val initiallyFiltered = viewModel.uiState.value.filteredApps.map { it.name }.toSet()
+        assertFalse("Browser should be excluded at dockIconCount=$initialCount", "Browser" in initiallyFiltered)
+
+        // Shrink the visible window to 1. Only the most-recent recent
+        // (Camera) should stay excluded; Browser and Calendar slide
+        // off-screen and reappear in the main list — without an explicit
+        // refresh on the count change, the main list would still hide them.
+        viewModel.setDockVisibleIconCount(1)
+        composeRule.waitForIdle()
+
+        val shrunkFiltered = viewModel.uiState.value.filteredApps.map { it.name }.toSet()
+        assertTrue("Browser is off-screen after shrinking, should reappear", "Browser" in shrunkFiltered)
+        assertTrue("Calendar is off-screen after shrinking, should reappear", "Calendar" in shrunkFiltered)
+        assertFalse("Camera is the most-recent visible recent, still hidden", "Camera" in shrunkFiltered)
+    }
+
+    @Test
+    fun hideRecentsFromAppList_enterFallback_launchesRecentMatch() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("browser")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setRecentsAlwaysShown(true)
+        composeRule.waitForIdle()
+
+        // The recent app is excluded from `filteredApps`, but typing its name
+        // and pressing Enter should still launch it via the recents fallback.
+        viewModel.setQuery("browser")
+        composeRule.waitForIdle()
+        assertFalse(viewModel.uiState.value.filteredApps.any { it.name == "Browser" })
+
+        viewModel.launchActiveApp()
+        composeRule.waitForIdle()
+
+        // launchApp records a fresh launch and clears the query; Browser
+        // moves to the head of the recents list (display-reversed so its
+        // most-recent position is the right edge — the row still contains
+        // it).
+        assertEquals("", viewModel.uiState.value.query)
+        assertTrue(viewModel.uiState.value.recentApps.any { it.name == "Browser" })
+    }
+
+    @Test
+    fun hideRecentsFromAppListToggle_inSettings_persistsAndDisabledWhenRecentsHidden() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // Default on, but disabled until "Show recents" is enabled.
+        composeRule.onNodeWithTag(HIDE_RECENTS_FROM_APP_LIST_SWITCH_TAG).performScrollTo().assertIsOn()
+        assertEquals(true, viewModel.uiState.value.isHideRecentsFromAppList)
+        composeRule.onNodeWithTag(HIDE_RECENTS_FROM_APP_LIST_SWITCH_TAG).performScrollTo().assertIsNotEnabled()
+
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HIDE_RECENTS_FROM_APP_LIST_SWITCH_TAG).performScrollTo().assertIsEnabled()
+
+        composeRule.onNodeWithTag(HIDE_RECENTS_FROM_APP_LIST_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HIDE_RECENTS_FROM_APP_LIST_SWITCH_TAG).performScrollTo().assertIsOff()
+        assertEquals(false, viewModel.uiState.value.isHideRecentsFromAppList)
+    }
+
+    @Test
     fun showRecentsToggle_inSettings_revealsRecentsInPreview() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")

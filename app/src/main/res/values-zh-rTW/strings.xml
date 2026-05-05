@@ -91,6 +91,7 @@
     <string name="settings_app_list_sort_option_name_reversed">名稱 ↑</string>
     <string name="settings_dock_enabled_title">顯示 Dock</string>
     <string name="settings_show_recents_title">顯示最近使用</string>
+    <string name="settings_hide_recents_from_app_list_title">從應用程式列表隱藏最近使用</string>
     <string name="settings_pull_down_title">下拉</string>
     <string name="settings_pull_down_option_none">無</string>
     <string name="settings_pull_down_option_system">系統陰影</string>

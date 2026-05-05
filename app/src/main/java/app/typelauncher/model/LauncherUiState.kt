@@ -92,6 +92,11 @@ internal data class LauncherUiState(
     // visible-recents predicate is `isRecentsAlwaysShown || isRecentsOpen`, so
     // the gesture still works when the setting is off.
     val isRecentsAlwaysShown: Boolean = false,
+    // When true (default), apps that appear in the persistently-visible recents
+    // card are excluded from the main app list — same convention as docked
+    // apps when the dock is enabled, so the same icon never renders in two
+    // places at once. Only takes effect while `isRecentsAlwaysShown` is on.
+    val isHideRecentsFromAppList: Boolean = true,
     val widgetIds: List<Int> = emptyList(),
     val widgetHeights: Map<Int, Int> = emptyMap(),
     val availableWidgets: List<WidgetProvider> = emptyList(),

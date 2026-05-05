@@ -91,6 +91,7 @@
     <string name="settings_app_list_sort_option_name_reversed">名称 ↑</string>
     <string name="settings_dock_enabled_title">显示程序坞</string>
     <string name="settings_show_recents_title">显示最近使用</string>
+    <string name="settings_hide_recents_from_app_list_title">从应用列表隐藏最近使用</string>
     <string name="settings_pull_down_title">下拉</string>
     <string name="settings_pull_down_option_none">无</string>
     <string name="settings_pull_down_option_system">系统通知栏</string>

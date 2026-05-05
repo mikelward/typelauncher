@@ -1771,6 +1771,7 @@ internal fun SettingsScreen(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
+    onHideRecentsFromAppListChanged: (Boolean) -> Unit = {},
     onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
@@ -1931,6 +1932,29 @@ internal fun SettingsScreen(
                     checked = state.isRecentsAlwaysShown,
                     onCheckedChange = onRecentsAlwaysShownChanged,
                     modifier = Modifier.testTag(SHOW_RECENTS_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_hide_recents_from_app_list_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (state.isRecentsAlwaysShown) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+                Switch(
+                    checked = state.isHideRecentsFromAppList,
+                    onCheckedChange = onHideRecentsFromAppListChanged,
+                    enabled = state.isRecentsAlwaysShown,
+                    modifier = Modifier.testTag(HIDE_RECENTS_FROM_APP_LIST_SWITCH_TAG),
                 )
             }
             Row(

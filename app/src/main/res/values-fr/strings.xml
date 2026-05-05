@@ -91,6 +91,7 @@
     <string name="settings_app_list_sort_option_name_reversed">Nom ↑</string>
     <string name="settings_dock_enabled_title">Afficher le dock</string>
     <string name="settings_show_recents_title">Afficher les récents</string>
+    <string name="settings_hide_recents_from_app_list_title">Masquer les récents de la liste d\'applis</string>
     <string name="settings_pull_down_title">Tirer vers le bas</string>
     <string name="settings_pull_down_option_none">Aucun</string>
     <string name="settings_pull_down_option_system">Ombre système</string>
