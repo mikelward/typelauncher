@@ -3,8 +3,9 @@ package app.typelauncher
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
-import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.os.UserHandle
@@ -80,7 +81,7 @@ internal object AppIconLoader {
         }
         return traceBlock("app_icon_load") { trace ->
             val resolveStart = SystemClock.elapsedRealtime()
-            val resolved = withContext(Dispatchers.IO) { resolve(context, app) }
+            val resolved = withContext(Dispatchers.IO) { resolve(context, app, sizePx) }
             trace.incrementMetric("resolve_ms", SystemClock.elapsedRealtime() - resolveStart)
             if (resolved == null) {
                 trace.setAttribute("result", "drawable_missing")
@@ -155,7 +156,7 @@ internal object AppIconLoader {
 
     private data class ResolvedIcon(val base: Drawable, val badge: Drawable?)
 
-    private fun resolve(context: Context, app: InstalledApp): ResolvedIcon? {
+    private fun resolve(context: Context, app: InstalledApp, sizePx: Int): ResolvedIcon? {
         val component = app.launchIntent.component ?: return null
         return if (app.launchWithLauncherApps) {
             // `LauncherActivityInfo.getIcon(0)` returns the unbadged drawable
@@ -169,11 +170,11 @@ internal object AppIconLoader {
                 ?.firstOrNull { activity -> activity.componentName == component }
                 ?.getIcon(0)
                 ?: return null
-            ResolvedIcon(base = base, badge = extractBadgeOverlay(context, app))
+            ResolvedIcon(base = base, badge = extractBadgeOverlay(context, app, sizePx))
         } else {
             try {
                 val raw = context.packageManager.getActivityIcon(component)
-                ResolvedIcon(base = raw, badge = extractBadgeOverlay(context, app))
+                ResolvedIcon(base = raw, badge = extractBadgeOverlay(context, app, sizePx))
             } catch (_: PackageManager.NameNotFoundException) {
                 null
             }
@@ -181,14 +182,20 @@ internal object AppIconLoader {
     }
 
     // Renders the system profile badge ("blue briefcase" on Pixel) on its own
-    // by feeding `getUserBadgedIcon` a fully transparent canvas. The framework
-    // composites the badge over the source drawable at its system-defined
+    // by feeding `getUserBadgedIcon` a fully transparent icon-sized canvas.
+    // The framework composites the badge over the source at its system-defined
     // corner (bottom-end on every OEM we care about), so a transparent source
     // yields a drawable that is empty except for the badge graphic — exactly
-    // what we want to layer on top of the disambiguator strip.
-    private fun extractBadgeOverlay(context: Context, app: InstalledApp): Drawable? {
+    // what we want to layer on top of the disambiguator strip. The source has
+    // to be a `BitmapDrawable` with positive intrinsic dimensions because
+    // `getUserBadgedIcon` allocates its output via
+    // `Bitmap.createBitmap(intrinsicWidth, intrinsicHeight)` and would throw
+    // on a default `ColorDrawable` (which reports `-1` for both dimensions).
+    private fun extractBadgeOverlay(context: Context, app: InstalledApp, sizePx: Int): Drawable? {
         if (!app.isWorkApp) return null
-        val transparent = ColorDrawable(AndroidColor.TRANSPARENT)
+        val canvas = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(AndroidColor.TRANSPARENT) }
+        val transparent = BitmapDrawable(context.resources, canvas)
         return context.packageManager.getUserBadgedIcon(transparent, app.user)
     }
 }
