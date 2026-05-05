@@ -1691,6 +1691,28 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_home_icon_only_overflowing_grid_robolectric.png")
     }
 
+    // Regression: on ~427dp screens (Pixel 9 Pro) GridCells.Adaptive(iconSizeDp) fitted 7 columns
+    // instead of 6 because it ignored the 4dp padding on each side of each icon button.
+    // 427dp × 2.625 (420dpi) = 1120.875 ≈ 1121px wide.
+    @Test
+    @Config(qualifiers = "w427dp-h914dp-420dpi")
+    fun screenshot_appListIconOnly_overflowingGrid_pixel9ProWidth() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertTrue(viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" })
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+
+        saveScreenshot(
+            "compose_home_icon_only_overflowing_grid_pixel9pro_robolectric.png",
+            widthPx = 1121,
+            heightPx = 2400,
+        )
+    }
+
     @Test
     fun dockWithoutOverflow_hidesScrollChevrons() {
         val viewModel = composeRule.activity.viewModel
@@ -1806,16 +1828,16 @@ class MainActivityRobolectricScreenshotTest {
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
         fetchSemanticsNode().config[CarouselVirtualPageKey]
 
-    private fun saveScreenshot(name: String) {
+    private fun saveScreenshot(name: String, widthPx: Int = 1080, heightPx: Int = 2400) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return
         val root = composeRule.activity.window.decorView.rootView
         root.measure(
-            android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
-            android.view.View.MeasureSpec.makeMeasureSpec(2400, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(widthPx, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(heightPx, android.view.View.MeasureSpec.EXACTLY),
         )
-        root.layout(0, 0, 1080, 2400)
+        root.layout(0, 0, widthPx, heightPx)
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
         bitmap.captureRoboImage(filePath = "src/test/snapshots/images/$name")
@@ -1883,7 +1905,11 @@ class MainActivityRobolectricScreenshotTest {
                             .commit()
                     }
                     seedFakeLauncherApps()
-                    if (description.methodName == "screenshot_appListIconOnly_overflowingGrid") {
+                    if (description.methodName in listOf(
+                            "screenshot_appListIconOnly_overflowingGrid",
+                            "screenshot_appListIconOnly_overflowingGrid_pixel9ProWidth",
+                        )
+                    ) {
                         seedOverflowLauncherApps()
                         application
                             .getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
