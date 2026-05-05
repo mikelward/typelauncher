@@ -148,8 +148,11 @@ android {
             // edit-install loop fast.
             isMinifyEnabled = isCiBuild
             isShrinkResources = isCiBuild
+            // AGP 9.x rejects the non-optimize baseline (proguard-android.txt) by
+            // default, so we always pull in the optimize baseline and rely on
+            // -dontoptimize in proguard-rules.pro to keep this a shrink-only run.
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
@@ -159,7 +162,7 @@ android {
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(""))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "true")
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             // Only attach the release signingConfig when CI has populated it;
