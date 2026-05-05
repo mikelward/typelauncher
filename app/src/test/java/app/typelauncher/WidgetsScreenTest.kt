@@ -6,6 +6,7 @@ import android.os.UserHandle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -276,15 +277,18 @@ class WidgetsScreenTest {
         }
 
         // Personal and work groups for the same display name render as
-        // separate sections so the work badge has somewhere to live.
+        // separate sections, and the work group's app-icon thumbnail carries
+        // a "Work profile widget" content description so screenreaders can
+        // tell them apart even though both rows share the visible label.
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work")
             .performScrollTo()
             .assertIsDisplayed()
-        // The work badge sits inside the work group's app-icon thumbnail.
-        composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
+        // System badge composites into the bitmap via PackageManager.getUserBadgedIcon,
+        // so there's no separate badge node to query — accessibility check stands in.
+        composeRule.onNodeWithContentDescription("Work profile widget", useUnmergedTree = true)
             .assertExists()
     }
 
