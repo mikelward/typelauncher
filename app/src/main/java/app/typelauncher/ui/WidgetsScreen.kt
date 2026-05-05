@@ -104,8 +104,15 @@ internal fun WidgetsScreen(
             .testTag(WIDGETS_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item {
-            AddWidgetCard(onAddWidget = onAddWidget)
+        items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
+            HostedWidgetCard(
+                widgetId = widgetId,
+                appWidgetHost = appWidgetHost,
+                appWidgetManager = appWidgetManager,
+                customHeightDp = widgetHeights[widgetId],
+                onRemoveWidget = onRemoveWidget,
+                onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
+            )
         }
         if (isAddingWidget) {
             item {
@@ -118,15 +125,8 @@ internal fun WidgetsScreen(
                 )
             }
         }
-        items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
-            HostedWidgetCard(
-                widgetId = widgetId,
-                appWidgetHost = appWidgetHost,
-                appWidgetManager = appWidgetManager,
-                customHeightDp = widgetHeights[widgetId],
-                onRemoveWidget = onRemoveWidget,
-                onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
-            )
+        item {
+            AddWidgetCard(onAddWidget = onAddWidget)
         }
     }
 }
