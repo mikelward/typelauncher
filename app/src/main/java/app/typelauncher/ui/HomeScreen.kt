@@ -2663,25 +2663,35 @@ private fun AppIcon(
             }
         }
         app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
-            // Top-start corner is the only one not already used by the
-            // notification dot (top-end) or the system-rendered work-profile
-            // badge (baked into the bitmap, typically bottom-end). Sized as
-            // a wide pill so 3-4 character regional codes ("EMEA", "APAC")
-            // still fit at the smallest icon size.
+            // Full-width strip across the bottom mirrors the yellow DEV bar
+            // baked into the local-build adaptive icon (ic_launcher_foreground_local).
+            // Fixed colours rather than theme tokens so the badge reads the
+            // same in light and dark mode, matching the always-yellow DEV
+            // bar. Bottom corners are hardcoded to the Material `shapes.medium`
+            // 12.dp radius so the strip stays inside the icon's rounded
+            // container without needing a separate clip on the parent.
             Surface(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
                     .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
-                shape = MaterialTheme.shapes.extraSmall,
-                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 0.dp,
+                    bottomStart = 12.dp,
+                    bottomEnd = 12.dp,
+                ),
+                color = Color(0xFFEEEEEE),
             ) {
                 Text(
                     text = label,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    color = Color(0xFF1A1A1A),
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 3.dp, vertical = 1.dp),
                 )
             }
         }
