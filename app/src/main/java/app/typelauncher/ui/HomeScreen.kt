@@ -1314,7 +1314,7 @@ private fun IconOnlyAppGrid(
     onHideApp: (InstalledApp) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(iconSizeDp.dp),
+        columns = GridCells.Adaptive((iconSizeDp + 8).dp),
         state = state,
         reverseLayout = reverseLayout,
         modifier = Modifier
