@@ -91,6 +91,7 @@
     <string name="settings_app_list_sort_option_name_reversed">नाम ↑</string>
     <string name="settings_dock_enabled_title">डॉक दिखाएं</string>
     <string name="settings_show_recents_title">हाल के ऐप्स दिखाएं</string>
+    <string name="settings_hide_recents_from_app_list_title">हाल के ऐप्स को ऐप सूची से छिपाएं</string>
     <string name="settings_pull_down_title">नीचे खींचें</string>
     <string name="settings_pull_down_option_none">कोई नहीं</string>
     <string name="settings_pull_down_option_system">सिस्टम शेड</string>
