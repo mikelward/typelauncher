@@ -74,6 +74,20 @@ class AppIconDisambiguatorScreenshotTest {
         saveScreenshot("compose_disambiguator_amex_three_pack_robolectric.png")
     }
 
+    @Test
+    @Config(qualifiers = "+night")
+    fun amexThreePackInDarkTheme() {
+        // Same three-pack as the light-mode test but with the night-mode
+        // qualifier so the badge renders against the dark colour scheme.
+        // Captures the theme-aware fill (`surface` / `onSurface`) — the
+        // light-mode strip is near-white with dark text, the dark-mode
+        // strip is near-black with light text, both with adequate contrast.
+        composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Amex (US)", useUnmergedTree = true)
+            .assertIsDisplayed()
+
+        saveScreenshot("compose_disambiguator_amex_three_pack_dark_robolectric.png")
+    }
+
     private fun saveScreenshot(name: String) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
