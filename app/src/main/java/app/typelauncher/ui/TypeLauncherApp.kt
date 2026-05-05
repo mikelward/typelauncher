@@ -274,7 +274,12 @@ internal fun TypeLauncherApp(
                 screen = state.screen,
                 isNotificationBarOpen = state.isNotificationBarOpen,
                 notificationPullDownBehavior = state.notificationPullDownBehavior,
-                isRecentsOpen = state.isRecentsOpen,
+                // Pull-up's stage gating cares about whether the user is
+                // already *looking* at recents, regardless of whether that's
+                // because of the gesture-toggled `isRecentsOpen` or the
+                // persistent `isRecentsAlwaysShown` setting (whose visibility
+                // predicate is the same OR — see `LauncherUiState`).
+                isRecentsVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
                 onShowAgenda = onShowAgenda,
                 onShowWidgets = onShowWidgets,
                 onShowHome = onShowHome,
@@ -369,7 +374,7 @@ private fun SwipeNavigationBox(
     screen: LauncherScreen,
     isNotificationBarOpen: Boolean,
     notificationPullDownBehavior: NotificationPullDownBehavior,
-    isRecentsOpen: Boolean,
+    isRecentsVisible: Boolean,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
@@ -401,7 +406,7 @@ private fun SwipeNavigationBox(
     val currentScreen by rememberUpdatedState(screen)
     val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
     val currentNotificationPullDownBehavior by rememberUpdatedState(notificationPullDownBehavior)
-    val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
+    val currentRecentsVisible by rememberUpdatedState(isRecentsVisible)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
@@ -443,7 +448,7 @@ private fun SwipeNavigationBox(
             if (currentScreen == LauncherScreen.Home) {
                 if (currentBarOpen) {
                     currentSetBarOpen(false)
-                } else if (!currentRecentsOpen) {
+                } else if (!currentRecentsVisible) {
                     currentSetRecentsOpen(true)
                 } else {
                     currentRequestShowKeyboard()
