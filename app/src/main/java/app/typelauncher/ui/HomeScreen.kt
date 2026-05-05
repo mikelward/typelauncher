@@ -2643,6 +2643,7 @@ private fun AppIcon(
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     val bitmap = rememberAppIconBitmap(app, size)
+    val badge = rememberAppBadgeBitmap(app, size)
     Box(
         modifier = Modifier
             .size(size)
@@ -2698,6 +2699,22 @@ private fun AppIcon(
                         .padding(horizontal = 3.dp, vertical = 1.dp),
                 )
             }
+        }
+        // Work-profile badge overlay drawn on top of the disambiguator strip.
+        // The base bitmap is unbadged on the work-app path (`AppIconLoader`
+        // splits the system briefcase out via `extractBadgeOverlay`), so this
+        // is the only layer that paints the briefcase. Drawing it after the
+        // strip keeps the badge visible even when a regional bar covers the
+        // bottom of the icon.
+        if (badge != null) {
+            Image(
+                bitmap = badge,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("$APP_ICON_WORK_BADGE_TAG:${app.displayName}"),
+                contentScale = ContentScale.Fit,
+            )
         }
     }
 }

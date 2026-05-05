@@ -3,6 +3,8 @@ package app.typelauncher
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.os.UserHandle
@@ -40,6 +42,17 @@ internal object AppIconLoader {
 
     internal data class CacheKey(val id: String, val sizePx: Int)
 
+    // Sub-id suffix for the work-profile badge overlay. The base icon stays
+    // cached under the plain `iconCacheId`; the system badge (briefcase on
+    // Pixel) — applied to a transparent canvas via `getUserBadgedIcon` so
+    // only the badge graphic ends up rendered — sits under `id@badge`.
+    // Splitting the layers lets `AppIcon` paint the disambiguator strip
+    // *between* the icon and the badge, preserving briefcase visibility on
+    // work apps even when a regional bar covers the bottom of the icon.
+    // The same suffix shows up in `evict`'s prefix sweep, so per-(package,
+    // user) eviction naturally drops the matching badge entry.
+    private const val BADGE_CACHE_SUFFIX = "@badge"
+
     private val cache = object : LruCache<CacheKey, ImageBitmap>(CACHE_BYTE_BUDGET) {
         override fun sizeOf(key: CacheKey, value: ImageBitmap): Int =
             (value.width * value.height * ARGB_8888_BYTES_PER_PIXEL).coerceAtLeast(1)
@@ -56,25 +69,39 @@ internal object AppIconLoader {
 
     fun cached(app: InstalledApp, sizePx: Int): ImageBitmap? = cached(app.iconCacheId, sizePx)
 
+    fun cachedBadge(app: InstalledApp, sizePx: Int): ImageBitmap? =
+        cache.get(CacheKey(app.iconCacheId + BADGE_CACHE_SUFFIX, sizePx))
+
     suspend fun load(context: Context, app: InstalledApp, sizePx: Int): ImageBitmap? {
         val key = CacheKey(app.iconCacheId, sizePx)
-        cache.get(key)?.let { return it }
+        val cachedBase = cache.get(key)
+        if (cachedBase != null && (!app.isWorkApp || cachedBadge(app, sizePx) != null)) {
+            return cachedBase
+        }
         return traceBlock("app_icon_load") { trace ->
             val resolveStart = SystemClock.elapsedRealtime()
-            val drawable = withContext(Dispatchers.IO) { resolve(context, app) }
+            val resolved = withContext(Dispatchers.IO) { resolve(context, app) }
             trace.incrementMetric("resolve_ms", SystemClock.elapsedRealtime() - resolveStart)
-            if (drawable == null) {
+            if (resolved == null) {
                 trace.setAttribute("result", "drawable_missing")
                 return@traceBlock null
             }
             val bitmapStart = SystemClock.elapsedRealtime()
-            val bitmap = withContext(Dispatchers.Default) {
-                drawable.toBitmap(width = sizePx, height = sizePx).asImageBitmap()
+            val baseBitmap = cachedBase ?: withContext(Dispatchers.Default) {
+                resolved.base.toBitmap(width = sizePx, height = sizePx).asImageBitmap()
+            }
+            val badgeBitmap = resolved.badge?.let { badge ->
+                withContext(Dispatchers.Default) {
+                    badge.toBitmap(width = sizePx, height = sizePx).asImageBitmap()
+                }
             }
             trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
             trace.setAttribute("result", "success")
-            cache.put(key, bitmap)
-            bitmap
+            cache.put(key, baseBitmap)
+            if (badgeBitmap != null) {
+                cache.put(CacheKey(app.iconCacheId + BADGE_CACHE_SUFFIX, sizePx), badgeBitmap)
+            }
+            baseBitmap
         }
     }
 
@@ -126,29 +153,43 @@ internal object AppIconLoader {
         }
     }
 
-    private fun resolve(context: Context, app: InstalledApp): Drawable? {
+    private data class ResolvedIcon(val base: Drawable, val badge: Drawable?)
+
+    private fun resolve(context: Context, app: InstalledApp): ResolvedIcon? {
         val component = app.launchIntent.component ?: return null
         return if (app.launchWithLauncherApps) {
-            // getBadgedIcon delegates to PackageManager.getUserBadgedIcon for
-            // managed-profile activities, so on a Pixel the work icon comes
-            // back with the system blue-briefcase already composited in.
-            // Personal-profile activities pass through unchanged.
-            context.getSystemService<LauncherApps>()
+            // `LauncherActivityInfo.getIcon(0)` returns the unbadged drawable
+            // for both personal and managed-profile activities. The work
+            // briefcase used to be picked up implicitly via `getBadgedIcon`
+            // here; it now arrives via `extractBadgeOverlay` below as a
+            // separate transparent-canvas drawable so the disambiguator
+            // strip can render between icon and badge.
+            val base = context.getSystemService<LauncherApps>()
                 ?.getActivityList(component.packageName, app.user)
                 ?.firstOrNull { activity -> activity.componentName == component }
-                ?.getBadgedIcon(0)
+                ?.getIcon(0)
+                ?: return null
+            ResolvedIcon(base = base, badge = extractBadgeOverlay(context, app))
         } else {
             try {
                 val raw = context.packageManager.getActivityIcon(component)
-                if (app.isWorkApp) {
-                    context.packageManager.getUserBadgedIcon(raw, app.user)
-                } else {
-                    raw
-                }
+                ResolvedIcon(base = raw, badge = extractBadgeOverlay(context, app))
             } catch (_: PackageManager.NameNotFoundException) {
                 null
             }
         }
+    }
+
+    // Renders the system profile badge ("blue briefcase" on Pixel) on its own
+    // by feeding `getUserBadgedIcon` a fully transparent canvas. The framework
+    // composites the badge over the source drawable at its system-defined
+    // corner (bottom-end on every OEM we care about), so a transparent source
+    // yields a drawable that is empty except for the badge graphic — exactly
+    // what we want to layer on top of the disambiguator strip.
+    private fun extractBadgeOverlay(context: Context, app: InstalledApp): Drawable? {
+        if (!app.isWorkApp) return null
+        val transparent = ColorDrawable(AndroidColor.TRANSPARENT)
+        return context.packageManager.getUserBadgedIcon(transparent, app.user)
     }
 }
 
@@ -164,4 +205,27 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
         }
     }
     return bitmap
+}
+
+@Composable
+internal fun rememberAppBadgeBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
+    if (!app.isWorkApp) return null
+    val context = LocalContext.current.applicationContext
+    val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
+    val cacheId = app.iconCacheId
+    // Driven by its own LaunchedEffect rather than piggy-backing on the base
+    // bitmap's state because cold-start hydration re-puts the *same* base
+    // reference in the cache, so the base StateFlow never transitions and a
+    // bystanding remember() keyed on base wouldn't re-read the badge cache.
+    // `AppIconLoader.load` is idempotent and short-circuits when both base
+    // and badge are cached, so the parallel call here doesn't double-work
+    // with `rememberAppIconBitmap` once both LaunchedEffects have run.
+    var badge by remember(cacheId, sizePx) { mutableStateOf(AppIconLoader.cachedBadge(app, sizePx)) }
+    LaunchedEffect(cacheId, sizePx) {
+        if (badge == null) {
+            AppIconLoader.load(context, app, sizePx)
+            badge = AppIconLoader.cachedBadge(app, sizePx)
+        }
+    }
+    return badge
 }

@@ -125,7 +125,15 @@ internal class IconSnapshotStore(context: Context) {
 
     private companion object {
         const val DIRECTORY_NAME = "icon_snapshots"
-        const val EXTENSION = ".bin"
+
+        // `.v2` marks snapshots written after the work-profile badge was split
+        // out of the cached base bitmap. Pre-v2 entries persisted the badged
+        // bitmap as the base, so reusing them now would double-paint the
+        // briefcase (badged base plus the new badge overlay layer). Bumping
+        // the extension makes old files invisible to `parseFileName`; the
+        // orphan-pruning step in `save` deletes them on the next persistence
+        // pass without a dedicated migration.
+        const val EXTENSION = ".v2.bin"
         const val TMP_SUFFIX = ".tmp"
         const val HEADER_SIZE = 8
         const val BYTES_PER_PIXEL = 4
