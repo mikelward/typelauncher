@@ -43,6 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
@@ -148,6 +150,8 @@ internal fun TypeLauncherApp(
         onHomeReady = viewModel::onHomeReady,
         onSetRecentsOpen = viewModel::setRecentsOpen,
         onSetNotificationBarOpen = viewModel::setNotificationBarOpen,
+        onRequestShowKeyboard = viewModel::requestShowKeyboard,
+        keyboardShowRequests = viewModel.keyboardShowRequests,
         onRequestNotificationAccess = viewModel::openNotificationAccessSettings,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
@@ -200,6 +204,8 @@ internal fun TypeLauncherApp(
     onHomeReady: () -> Unit = {},
     onSetRecentsOpen: (Boolean) -> Unit = {},
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
+    onRequestShowKeyboard: () -> Unit = {},
+    keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onRequestNotificationAccess: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
@@ -274,6 +280,7 @@ internal fun TypeLauncherApp(
                 onShowHome = onShowHome,
                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                 onSetRecentsOpen = onSetRecentsOpen,
+                onRequestShowKeyboard = onRequestShowKeyboard,
                 onSwipeDown = onSwipeDown,
             ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd ->
                 when (pageScreen) {
@@ -282,6 +289,7 @@ internal fun TypeLauncherApp(
                         innerPadding = innerPadding,
                         bodyReady = homeBodyReady,
                         searchPlaceholderSuffix = searchPlaceholderSuffix,
+                        keyboardShowRequests = keyboardShowRequests,
                         onQueryChanged = onQueryChanged,
                         onClearQuery = onClearQuery,
                         onLaunchActiveApp = onLaunchActiveApp,
@@ -367,6 +375,7 @@ private fun SwipeNavigationBox(
     onShowHome: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit,
+    onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
     content: @Composable (
         LauncherScreen,
@@ -384,7 +393,8 @@ private fun SwipeNavigationBox(
     // top/bottom edge does (consumed = 0 for the past-edge portion), and so
     // does any non-scrolling area. Pull-down uses the Settings-selected
     // action: do nothing, expand the system shade, or open the launcher
-    // notification bar as a first stage. Pull-up opens the recents bar.
+    // notification bar as a first stage. Pull-up opens the recents bar as a
+    // first stage and re-shows the soft keyboard once recents is already open.
     // We capture the latest values via rememberUpdatedState so the dispatch
     // lambdas keep stable identities and don't re-key the pointerInput
     // mid-gesture.
@@ -394,6 +404,7 @@ private fun SwipeNavigationBox(
     val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
+    val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val keyboard = LocalSoftwareKeyboardController.current
     val currentKeyboard by rememberUpdatedState(keyboard)
@@ -421,15 +432,21 @@ private fun SwipeNavigationBox(
     }
     val swipeUpDispatch = remember<() -> Unit> {
         {
-            // Pull-up only does anything on Home — the recents bar lives on
-            // Home, and there's no second-stage hand-off (the system has no
-            // pull-up gesture we'd want to defer to). If the notification bar
-            // is visible, close it before treating the pull as a recents ask.
+            // Pull-up only does anything on Home. If the notification bar is
+            // visible, close it before treating the pull as anything else.
+            // Otherwise the gesture chains: first stage opens the recents bar
+            // (mirrors the launcher-bar first stage of pull-down), and once
+            // recents is open a further pull-up asks the search field to grab
+            // focus and re-show the soft keyboard. This is the "I dismissed
+            // the IME and now want it back without tapping the search box"
+            // affordance.
             if (currentScreen == LauncherScreen.Home) {
                 if (currentBarOpen) {
                     currentSetBarOpen(false)
                 } else if (!currentRecentsOpen) {
                     currentSetRecentsOpen(true)
+                } else {
+                    currentRequestShowKeyboard()
                 }
             }
         }

@@ -2,7 +2,10 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -11,7 +14,10 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -123,8 +129,9 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithRecentsClosed_opensRecents() {
+    fun swipingUpOnHomeWithRecentsClosed_opensRecentsAndDoesNotShowKeyboard() {
         var recentsTarget: Boolean? = null
+        var requestShowKeyboardCount = 0
         var swipeDownCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
@@ -150,6 +157,7 @@ class SwipeUpRecentsTest {
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { recentsTarget = it },
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -167,13 +175,17 @@ class SwipeUpRecentsTest {
         composeRule.waitForIdle()
 
         assertEquals(true, recentsTarget)
+        // First-stage pull-up must not also re-show the keyboard — the
+        // keyboard ask is the second stage.
+        assertEquals(0, requestShowKeyboardCount)
         // Pull-up must never trigger the pull-down dispatch path.
         assertEquals(0, swipeDownCount)
     }
 
     @Test
-    fun swipingUpOnHomeWithRecentsAlreadyOpen_doesNotReopenAndDoesNotFireSwipeDown() {
+    fun swipingUpOnHomeWithRecentsAlreadyOpen_requestsShowKeyboard() {
         var recentsTarget: Boolean? = null
+        var requestShowKeyboardCount = 0
         var swipeDownCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
@@ -199,6 +211,7 @@ class SwipeUpRecentsTest {
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { recentsTarget = it },
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -215,14 +228,76 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        // Recents already open ⇒ pull-up is a no-op (no second-stage hand-off).
+        // Second-stage pull-up: don't re-ack recents, just re-show the IME.
         assertNull(recentsTarget)
+        assertEquals(1, requestShowKeyboardCount)
+        // Pull-up must never trigger the pull-down dispatch path.
         assertEquals(0, swipeDownCount)
     }
 
     @Test
-    fun swipingUpOnAgenda_doesNotOpenRecents() {
+    fun swipingUpOnHomeWithNotificationBarOpen_closesBarAndDoesNotShowKeyboard() {
+        var notificationBarOpened: Boolean? = null
         var recentsTarget: Boolean? = null
+        var requestShowKeyboardCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationBarOpen = true,
+                        // Even with recents already open, the bar takes priority.
+                        isRecentsOpen = true,
+                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    onSetRecentsOpen = { recentsTarget = it },
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        // Bar takes priority over both recents and the keyboard stage.
+        assertEquals(false, notificationBarOpened)
+        assertNull(recentsTarget)
+        assertEquals(0, requestShowKeyboardCount)
+    }
+
+    @Test
+    fun swipingUpOnAgenda_doesNotOpenRecentsOrShowKeyboard() {
+        var recentsTarget: Boolean? = null
+        var requestShowKeyboardCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
@@ -250,6 +325,7 @@ class SwipeUpRecentsTest {
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { recentsTarget = it },
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -268,6 +344,81 @@ class SwipeUpRecentsTest {
 
         // Pull-up is Home-only — Widgets/Agenda ignore it.
         assertNull(recentsTarget)
+        assertEquals(0, requestShowKeyboardCount)
+    }
+
+    @Test
+    fun emittingOnKeyboardShowRequests_invokesKeyboardShowOnSearchCard() {
+        val keyboardShowRequests = MutableSharedFlow<Unit>(
+            replay = 0,
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
+        var showCalled = false
+        val fakeKeyboard = object : SoftwareKeyboardController {
+            override fun show() { showCalled = true }
+            override fun hide() {}
+        }
+        composeRule.setContent {
+            CompositionLocalProvider(LocalSoftwareKeyboardController provides fakeKeyboard) {
+                TypeLauncherTheme {
+                    TypeLauncherApp(
+                        state = LauncherUiState(
+                            filteredApps = emptyList(),
+                            // Disable cold-start auto-show so the show() call we
+                            // observe is the result of the keyboardShowRequests
+                            // emit, not the LaunchedEffect on isKeyboardAutoShown.
+                            isKeyboardAutoShown = false,
+                        ),
+                        keyboardShowRequests = keyboardShowRequests,
+                        onQueryChanged = {},
+                        onClearQuery = {},
+                        onLaunchActiveApp = {},
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onHideApp = {},
+                        onUnhideApp = {},
+                        onOpenSettings = {},
+                        onCloseSettings = {},
+                        onRequestDefaultLauncher = {},
+                        onDockEnabledChanged = {},
+                        onAppListIconOnlyChanged = {},
+                        onDockVisibleIconCountChanged = {},
+                        onAppListSortOrderChanged = {},
+                        onShowAgenda = {},
+                        onShowWidgets = {},
+                        onShowHome = {},
+                        appWidgetHost = null,
+                        appWidgetManager = null,
+                        onAddWidget = {},
+                        onDismissWidgetPicker = {},
+                        onSelectWidget = {},
+                        onRemoveWidget = {},
+                        onRequestCalendarPermission = {},
+                        onOpenAgendaEvent = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        // Pre-condition: with auto-show disabled the IME has not been shown yet.
+        assertFalse(
+            "keyboard.show should not run on cold start when isKeyboardAutoShown=false",
+            showCalled,
+        )
+
+        assertTrue(keyboardShowRequests.tryEmit(Unit))
+        composeRule.waitForIdle()
+
+        // The collector inside SearchCard requests focus *and* calls show. We
+        // can't easily probe focus from here without importing assertIsFocused
+        // (no sibling test imports it; CLAUDE.md says don't add it), so we
+        // assert the show() side of the pair — that's enough to prove the
+        // request flowed end-to-end through TypeLauncherApp → HomeScreen →
+        // SearchCard's LaunchedEffect.
+        assertTrue("keyboard.show was called after keyboardShowRequests emit", showCalled)
     }
 
     @Test

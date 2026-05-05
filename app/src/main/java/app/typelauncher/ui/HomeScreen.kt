@@ -138,6 +138,8 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -150,6 +152,7 @@ internal fun HomeScreen(
     innerPadding: PaddingValues,
     bodyReady: Boolean,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
+    keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
@@ -184,6 +187,7 @@ internal fun HomeScreen(
             autoShowKeyboard = state.isKeyboardAutoShown,
             showPlayUpdateBadge = state.playUpdate.showBadge,
             placeholderSuffix = searchPlaceholderSuffix,
+            keyboardShowRequests = keyboardShowRequests,
             onQueryChanged = onQueryChanged,
             onClearQuery = onClearQuery,
             onOpenSettings = onOpenSettings,
@@ -287,6 +291,7 @@ private fun SearchCard(
     autoShowKeyboard: Boolean,
     showPlayUpdateBadge: Boolean,
     placeholderSuffix: String,
+    keyboardShowRequests: SharedFlow<Unit>,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -302,6 +307,16 @@ private fun SearchCard(
     // window softInputMode in concert with this flag.
     LaunchedEffect(autoShowKeyboard) {
         if (autoShowKeyboard) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
+    // Pull-up second-stage trigger: when the carousel decides the user wants
+    // the IME back (recents already open, gesture continues), it emits on this
+    // flow. Focus has to be re-grabbed too because the back gesture that
+    // dismissed the keyboard typically also dropped focus from the TextField.
+    LaunchedEffect(keyboardShowRequests) {
+        keyboardShowRequests.collect {
             focusRequester.requestFocus()
             keyboard?.show()
         }
