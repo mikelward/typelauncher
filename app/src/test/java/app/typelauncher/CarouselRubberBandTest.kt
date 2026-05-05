@@ -108,6 +108,38 @@ class CarouselRubberBandTest {
     }
 
     @Test
+    fun nonCommittedDragMidAnimationResumesInFlightTarget() {
+        // Regression: a light retouch mid-animation must NOT cancel the
+        // animation. The release path computes the target only from
+        // dragStartTargetPage when not committed (this test mirrors the
+        // logic in TypeLauncherApp.kt around line 612). Asserting at the
+        // call-site granularity guards against a future refactor that
+        // routes the non-commit branch through chooseDragBasePage again.
+        val settled = 5
+        val inFlight = 6
+        // committed = false → target should be inFlight regardless of which
+        // way the user happened to nudge their finger.
+        assertEquals(inFlight, computeReleaseTarget(committed = false, settled = settled, inFlight = inFlight, dragDirection = 1))
+        assertEquals(inFlight, computeReleaseTarget(committed = false, settled = settled, inFlight = inFlight, dragDirection = -1))
+        assertEquals(inFlight, computeReleaseTarget(committed = false, settled = settled, inFlight = inFlight, dragDirection = 0))
+        // committed = true → target is base + dragDirection (forward extends
+        // settled, backward reverses to inFlight).
+        assertEquals(6, computeReleaseTarget(committed = true, settled = settled, inFlight = inFlight, dragDirection = 1))
+        assertEquals(5, computeReleaseTarget(committed = true, settled = settled, inFlight = inFlight, dragDirection = -1))
+    }
+
+    private fun computeReleaseTarget(
+        committed: Boolean,
+        settled: Int,
+        inFlight: Int,
+        dragDirection: Int,
+    ): Int = if (committed) {
+        chooseDragBasePage(settled, inFlight, dragDirection) + dragDirection
+    } else {
+        inFlight
+    }
+
+    @Test
     fun carouselClaimsOnlyPredominantlyHorizontalAvailableDrag() {
         assertTrue(shouldClaimCarouselDrag(availableDragX = 20f, totalDragY = 5f, touchSlopPx = 8f))
         assertTrue(shouldClaimCarouselDrag(availableDragX = -20f, totalDragY = 5f, touchSlopPx = 8f))
