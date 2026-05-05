@@ -68,6 +68,13 @@ private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
 // pulled back, so they don't want to commit.
 private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 
+// Fraction of page width over which the drag tracks the finger 1:1 with no
+// damping. Past this point the curve asymptotes to one full page width so a
+// single drag still can't push the pager past one page boundary, but inside
+// the free zone the visible offset matches the finger so the swipe feels
+// honest at the commit threshold instead of "lagging" behind the user.
+private const val CAROUSEL_RUBBER_BAND_LINEAR_FRACTION = 0.5f
+
 // Drag distance the user must travel vertically before either pull gesture
 // commits — same value for both directions so a pull-up and a pull-down feel
 // equally deliberate. Pull-down on Home follows the Settings-selected action;
@@ -538,7 +545,16 @@ private fun SwipeNavigationBox(
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     val commitDistancePx = pageWidthPx * CAROUSEL_COMMIT_DISTANCE_RATIO
-                    val dragStartPage = pagerState.currentPage
+                    // Capture both the last-settled page and the in-flight target
+                    // (these differ when a prior gesture or the dock-edge pull
+                    // queued an animateScrollToPage that hasn't completed). At
+                    // release we pick whichever base keeps the gesture honest:
+                    // extending the in-flight direction uses the settled page
+                    // (so a fast re-touch can't compound into a multi-page
+                    // jump), reversing it uses the in-flight target (so a
+                    // backward drag cancels the in-flight animation cleanly).
+                    val dragStartSettledPage = pagerState.settledPage
+                    val dragStartTargetPage = pagerState.targetPage
                     var availableDragX = 0f
                     var totalDragY = 0f
                     var displayDeltaPx = 0f
@@ -601,14 +617,21 @@ private fun SwipeNavigationBox(
                         !velocityOpposesDrag &&
                         (distanceCommits || flingCommits)
 
+                    val basePage = chooseDragBasePage(
+                        settledPage = dragStartSettledPage,
+                        inFlightTargetPage = dragStartTargetPage,
+                        dragDirection = dragDirection,
+                    )
+
                     LauncherDebugLog.event(
                         "SwipeNavigationBox release availableDragX=$availableDragX totalDragY=$totalDragY " +
                             "velocityX=$releaseVelocity " +
+                            "settled=$dragStartSettledPage inFlight=$dragStartTargetPage base=$basePage " +
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
                     )
 
-                    val targetPage = if (committed) dragStartPage + dragDirection else dragStartPage
+                    val targetPage = if (committed) basePage + dragDirection else basePage
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(targetPage)
                     }
@@ -704,17 +727,58 @@ private class VerticalScrollTracker {
 }
 
 /**
- * Maps a raw drag distance to a damped display offset that asymptotes at the
- * page width. The returned magnitude is always less than `pageWidth`, so a
- * single drag can never push the pager past one page boundary even if the user
- * keeps dragging — they have to release and start a new gesture.
+ * Maps a raw drag distance to a display offset that tracks the finger 1:1 up
+ * to a free zone (`CAROUSEL_RUBBER_BAND_LINEAR_FRACTION` of the page width)
+ * and then asymptotes to exactly one page width. Inside the free zone the
+ * page follows the finger honestly, so the visible offset at the commit
+ * threshold (40 % of page width) matches the user's drag and the swipe feels
+ * responsive. Past the free zone, resistance ramps up — the returned
+ * magnitude is always less than `pageWidth`, so a single drag can never push
+ * the pager past one page boundary even if the user keeps dragging.
  *
- * Shape: at |x| = pageWidth, output ≈ 0.5 · pageWidth; at |x| = 2·pageWidth,
- * output ≈ 0.67 · pageWidth; output → pageWidth as |x| → ∞.
+ * Shape (with linear fraction 0.5):
+ * - |x| ≤ 0.5·pageWidth → output = x (linear).
+ * - |x| = pageWidth → output ≈ 0.75 · pageWidth.
+ * - |x| = 2·pageWidth → output ≈ 0.875 · pageWidth.
+ * - output → pageWidth as |x| → ∞.
  */
 internal fun rubberBand(rawDragPx: Float, pageWidthPx: Float): Float {
     if (pageWidthPx <= 0f) return 0f
-    return rawDragPx * pageWidthPx / (pageWidthPx + abs(rawDragPx))
+    val absX = abs(rawDragPx)
+    val freeZone = pageWidthPx * CAROUSEL_RUBBER_BAND_LINEAR_FRACTION
+    if (absX <= freeZone) return rawDragPx
+    val excess = absX - freeZone
+    val maxAdditional = pageWidthPx - freeZone
+    val damped = excess * maxAdditional / (maxAdditional + excess)
+    return sign(rawDragPx) * (freeZone + damped)
+}
+
+/**
+ * Picks the base page for a release commit. When a prior gesture or the
+ * Home dock-edge pull has queued an `animateScrollToPage` that hasn't
+ * completed, [settledPage] still points at the previous screen while
+ * [inFlightTargetPage] points at the in-flight destination. We pick:
+ *
+ * - [settledPage] when the user's drag direction extends the in-flight
+ *   animation (forward-on-forward, backward-on-backward) — so a fast
+ *   re-touch mid-animation can't compound into a multi-page jump.
+ * - [inFlightTargetPage] when the user's drag reverses the in-flight
+ *   animation, or when no animation is in flight — so a backward drag
+ *   during a forward animation cancels back to where it was heading
+ *   instead of overshooting one further page back.
+ */
+internal fun chooseDragBasePage(
+    settledPage: Int,
+    inFlightTargetPage: Int,
+    dragDirection: Int,
+): Int {
+    val animatingForward = inFlightTargetPage > settledPage
+    val animatingBackward = inFlightTargetPage < settledPage
+    return when {
+        animatingForward && dragDirection > 0 -> settledPage
+        animatingBackward && dragDirection < 0 -> settledPage
+        else -> inFlightTargetPage
+    }
 }
 
 internal fun shouldClaimCarouselDrag(

@@ -20,12 +20,23 @@ class CarouselRubberBandTest {
     }
 
     @Test
-    fun outputAtOnePageWidthIsHalfPageWidth() {
-        // The asymptotic curve hits exactly half the page width when the raw
-        // drag equals the page width — this is the visual "stiffness" the user
-        // feels at full-width drag.
-        assertEquals(pageWidth / 2f, rubberBand(pageWidth, pageWidth), 0.001f)
-        assertEquals(-pageWidth / 2f, rubberBand(-pageWidth, pageWidth), 0.001f)
+    fun linearInsideTheFreeZone() {
+        // Inside the free zone the page follows the finger 1:1 — visible
+        // offset equals raw drag — so the swipe feels honest at the commit
+        // threshold instead of lagging.
+        assertEquals(0.1f * pageWidth, rubberBand(0.1f * pageWidth, pageWidth), 0.001f)
+        assertEquals(0.4f * pageWidth, rubberBand(0.4f * pageWidth, pageWidth), 0.001f)
+        assertEquals(-0.4f * pageWidth, rubberBand(-0.4f * pageWidth, pageWidth), 0.001f)
+    }
+
+    @Test
+    fun stiffensPastTheFreeZone() {
+        // Past the free zone (50% of page width) the curve damps — the user
+        // can keep dragging but the page no longer tracks 1:1, signalling
+        // they're approaching the one-page limit.
+        val pastFreeZone = rubberBand(0.75f * pageWidth, pageWidth)
+        assertTrue("display=$pastFreeZone should be < raw 0.75·pw", pastFreeZone < 0.75f * pageWidth)
+        assertTrue("display=$pastFreeZone should still grow past freeZone", pastFreeZone > 0.5f * pageWidth)
     }
 
     @Test
@@ -60,14 +71,40 @@ class CarouselRubberBandTest {
     }
 
     @Test
-    fun atFortyPercentDragDisplayIsAboutTwentyEightPercent() {
-        // Sanity check that the commit threshold (40% raw drag) corresponds
-        // to a substantial visible offset (~28% of page width), so when the
-        // user reaches the commit point the next page is clearly emerging.
+    fun atFortyPercentDragDisplayMatchesFinger() {
+        // At the commit threshold (40% raw drag) the visible offset is the
+        // full 40% — inside the free zone — so when the user reaches the
+        // commit point the next page is clearly half-emerging instead of
+        // lagging at ~28% (the previous asymptotic curve).
         val rawDrag = 0.4f * pageWidth
         val displayed = rubberBand(rawDrag, pageWidth) / pageWidth
-        assertTrue("display=$displayed should be > 0.27", displayed > 0.27f)
-        assertTrue("display=$displayed should be < 0.30", displayed < 0.30f)
+        assertEquals(0.4f, displayed, 0.001f)
+    }
+
+    @Test
+    fun chooseBaseExtendsInFlightUsesSettled() {
+        // Forward drag during a forward in-flight animation must NOT compound
+        // into a multi-page jump: base = settledPage so commit lands at the
+        // in-flight target, not one beyond it.
+        assertEquals(5, chooseDragBasePage(settledPage = 5, inFlightTargetPage = 6, dragDirection = 1))
+        assertEquals(5, chooseDragBasePage(settledPage = 5, inFlightTargetPage = 4, dragDirection = -1))
+    }
+
+    @Test
+    fun chooseBaseReversesInFlightUsesTarget() {
+        // Backward drag during a forward in-flight animation must cancel back
+        // to the in-flight destination, not overshoot one further back: base
+        // = inFlightTargetPage so the user lands on the screen the animation
+        // was already heading to.
+        assertEquals(6, chooseDragBasePage(settledPage = 5, inFlightTargetPage = 6, dragDirection = -1))
+        assertEquals(4, chooseDragBasePage(settledPage = 5, inFlightTargetPage = 4, dragDirection = 1))
+    }
+
+    @Test
+    fun chooseBaseNoAnimationUsesCurrentPage() {
+        // No animation in flight → settled == target → base is that page.
+        assertEquals(5, chooseDragBasePage(settledPage = 5, inFlightTargetPage = 5, dragDirection = 1))
+        assertEquals(5, chooseDragBasePage(settledPage = 5, inFlightTargetPage = 5, dragDirection = -1))
     }
 
     @Test
