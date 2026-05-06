@@ -39,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
@@ -405,6 +406,8 @@ private fun SwipeNavigationBox(
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val keyboard = LocalSoftwareKeyboardController.current
     val currentKeyboard by rememberUpdatedState(keyboard)
+    val focusManager = LocalFocusManager.current
+    val currentFocusManager by rememberUpdatedState(focusManager)
     val swipeDownDispatch = remember<() -> Unit> {
         {
             if (currentScreen == LauncherScreen.Home) {
@@ -471,6 +474,12 @@ private fun SwipeNavigationBox(
             LauncherScreen.Agenda -> onShowAgenda()
             LauncherScreen.Widgets -> onShowWidgets()
             LauncherScreen.Home -> onShowHome()
+        }
+    }
+    fun hideKeyboardForCarouselPage(targetScreen: LauncherScreen) {
+        if (targetScreen != LauncherScreen.Home) {
+            currentFocusManager.clearFocus(force = true)
+            currentKeyboard?.hide()
         }
     }
     fun awaitScreenAck(targetPage: Int, targetScreen: LauncherScreen) {
@@ -615,6 +624,7 @@ private fun SwipeNavigationBox(
                     val willChangePage = committed && targetPage != gestureStartPage
                     if (willChangePage) {
                         carouselTransition = CarouselTransitionState.UserAnimating(targetPage, targetScreen)
+                        hideKeyboardForCarouselPage(targetScreen)
                     }
                     carouselAnimationJob = coroutineScope.launch {
                         val targetOffsetPx = when {
