@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -569,9 +570,15 @@ private fun SwipeNavigationBox(
                     // tracker only sees later MOVE samples and can read 0 px/s
                     // for gestures that finish in a single frame.
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
+                    // Tracks the launch{} that preempts any in-flight
+                    // animateScrollToPage when the drag claims the gesture; the
+                    // release path joins this before launching its own animation
+                    // so a fast lift can't have its release animation cancelled
+                    // by a still-pending higher-priority preempt.
+                    var preemptInFlightJob: Job? = null
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
-                        for (change in event.changes) {
+                        event.changes.forEach { change ->
                             val availableDelta = change.positionChange()
                             val totalDelta = change.position - change.previousPosition
                             availableDragX += availableDelta.x
@@ -579,24 +586,25 @@ private fun SwipeNavigationBox(
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             if (!claimed && shouldClaimCarouselDrag(availableDragX, totalDragY, touchSlopPx)) {
                                 claimed = true
-                                // Synchronously preempt any in-flight animateScrollToPage
-                                // before the first dispatchRawDelta below. Both code
-                                // paths mutate the same scroll-position float on every
-                                // frame — the animation via scrollBy inside its
-                                // scroll{} block, the drag via dispatchRawDelta which
-                                // intentionally bypasses the scroll mutex — so without
-                                // a preempt their per-frame contributions stack and the
-                                // visible page offset can land beyond one page even
-                                // though the rubber-band caps the drag itself at one
-                                // page width. We suspend the gesture coroutine here
-                                // (rather than fire-and-forget the preempt on a side
-                                // coroutine) so (a) the very next dispatchRawDelta
-                                // operates on a stationary pager, and (b) the release
-                                // path's animateScrollToPage launches strictly after
-                                // the preempt has released the mutex — a fire-and-
-                                // forget preempt could otherwise still be queued behind
-                                // the release animation and cancel it on a fast lift.
-                                pagerState.scroll(MutatePriority.UserInput) {}
+                                // Preempt any in-flight animateScrollToPage so the
+                                // drag's dispatchRawDelta below isn't compounding
+                                // with an animation that's still progressing on
+                                // its own. scroll(UserInput) cancels the in-flight
+                                // Default-priority scroll and returns immediately.
+                                // Has to be a fire-and-forget launch because
+                                // AwaitPointerEventScope is @RestrictsSuspension —
+                                // we can't suspend on pagerState.scroll() inline —
+                                // so the very first claimed frame can still
+                                // compound for ~1 frame while the preempt
+                                // acquires the user-input mutex; subsequent
+                                // frames operate on a stationary pager. The
+                                // release path joins this Job before launching
+                                // its own animateScrollToPage, so a fast lift
+                                // can't have the release animation cancelled by
+                                // a preempt that hadn't yet acquired the mutex.
+                                preemptInFlightJob = coroutineScope.launch {
+                                    pagerState.scroll(MutatePriority.UserInput) {}
+                                }
                             }
                             if (claimed) {
                                 val newDisplay = rubberBand(availableDragX, pageWidthPx)
@@ -665,6 +673,13 @@ private fun SwipeNavigationBox(
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
                     )
                     coroutineScope.launch {
+                        // Wait for the claim-time preempt to release the user-
+                        // input mutex first; otherwise on a fast lift the
+                        // higher-priority preempt could land on the dispatcher
+                        // after this Default-priority animateScrollToPage
+                        // started and cancel the release animation, leaving
+                        // the pager frozen mid-scroll.
+                        preemptInFlightJob?.join()
                         pagerState.animateScrollToPage(targetPage)
                     }
                 }
