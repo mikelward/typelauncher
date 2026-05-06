@@ -71,6 +71,14 @@ Install it on the selected emulator or device:
 ./gradlew installDebug
 ```
 
+To install and launch the debug build only in the personal/default profile on a device that also has a work profile, use:
+
+```sh
+./gradlew :app:installAndRun
+```
+
+That task targets Android user `0`, removes `app.typelauncher.debug` from non-owner users if it is present there, and starts the debug launcher as user `0`.
+
 If multiple devices are attached, set `ANDROID_SERIAL` first:
 
 ```sh
@@ -215,6 +223,7 @@ See [docs/firebase-app-distribution.md](docs/firebase-app-distribution.md) for t
 | List Gradle tasks | `./gradlew tasks` |
 | Build debug APK | `./gradlew assembleDebug` |
 | Install debug APK | `./gradlew installDebug` |
+| Install and run debug APK in personal profile | `./gradlew :app:installAndRun` |
 | Run local unit tests | `./gradlew test` |
 | Run app unit tests | `./gradlew :app:testDebugUnitTest` |
 | Run instrumented tests | `./gradlew connectedDebugAndroidTest` |
