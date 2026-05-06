@@ -51,10 +51,10 @@ class AppIconDisambiguatorScreenshotTest {
     }
 
     @Test
-    fun chaseVariantsUseFlagBadges() {
-        // Same-named "Chase" entries survive the dedup pass. The UK and INTL
-        // variants get flag badges; "sig" is not regional, so that entry is
-        // left unbadged.
+    fun chaseVariantsUseCornerBadges() {
+        // Same-named "Chase" entries survive the dedup pass. The UK variant
+        // gets a flag badge and INTL gets a globe badge; "sig" is not
+        // regional, so that entry is left unbadged.
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chase (UK)").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chase (INTL)").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chase").assertIsDisplayed()
@@ -63,7 +63,7 @@ class AppIconDisambiguatorScreenshotTest {
         composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Chase (INTL)", useUnmergedTree = true)
             .assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Chase (UK) flag", useUnmergedTree = true).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Chase (INTL) flag", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Chase (INTL) globe", useUnmergedTree = true).assertIsDisplayed()
         assertBadgeMatchesWorkBadgeSizeAndBottomLeft(
             iconTag = "$APP_ICON_TAG:Chase (UK)",
             badgeTag = "$APP_ICON_DISAMBIGUATOR_TAG:Chase (UK)",

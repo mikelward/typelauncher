@@ -2559,18 +2559,18 @@ private fun AppIcon(
             }
         }
         app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
-            disambiguatorFlag(label)?.let { flag ->
+            disambiguatorBadge(label)?.let { badge ->
                 val flagSp = (APP_ICON_CORNER_BADGE_SIZE_DP - 2).sp
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
-                        .semantics { contentDescription = "${app.displayName} flag" }
+                        .semantics { contentDescription = "${app.displayName} ${badge.contentDescription}" }
                         .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = flag,
+                        text = badge.glyph,
                         fontSize = flagSp,
                         lineHeight = flagSp,
                         textAlign = TextAlign.Center,
@@ -2581,14 +2581,19 @@ private fun AppIcon(
     }
 }
 
-private fun disambiguatorFlag(label: String): String? {
+private data class DisambiguatorBadge(
+    val glyph: String,
+    val contentDescription: String,
+)
+
+private fun disambiguatorBadge(label: String): DisambiguatorBadge? {
     val normalized = label.trim().uppercase()
     return when (normalized) {
-        "INTL" -> countryFlag("UN")
-        "UK" -> countryFlag("GB")
+        "INTL" -> DisambiguatorBadge(INTL_GLOBE, "globe")
+        "UK" -> DisambiguatorBadge(countryFlag("GB"), "flag")
         else -> normalized.takeIf { code ->
             code.length == 2 && code.all { it in 'A'..'Z' }
-        }?.let(::countryFlag)
+        }?.let { code -> DisambiguatorBadge(countryFlag(code), "flag") }
     }
 }
 
@@ -2619,4 +2624,5 @@ private const val NOTIFICATION_BADGE_SIZE_DP = 12
 // Play update badge dot — same "presence" treatment as the notification dot,
 // scaled down for the smaller search-field gear icon.
 private const val PLAY_UPDATE_BADGE_SIZE_DP = 8
+private const val INTL_GLOBE = "\uD83C\uDF10"
 private const val REGIONAL_INDICATOR_BASE = 0x1F1E6
