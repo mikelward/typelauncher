@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -578,6 +579,25 @@ private fun SwipeNavigationBox(
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             if (!claimed && shouldClaimCarouselDrag(availableDragX, totalDragY, touchSlopPx)) {
                                 claimed = true
+                                // Cancel any in-flight animateScrollToPage so the
+                                // drag's dispatchRawDelta below is the only thing
+                                // moving the pager from this point onward. Without
+                                // this, an animation in flight (a fast re-touch
+                                // after a previous fling commit, the dock-edge
+                                // pull's animateScrollToPage, or a programmatic
+                                // LaunchedEffect(screen) animation) keeps
+                                // progressing on its own thread of execution while
+                                // the new drag's dispatchRawDelta adds delta on
+                                // top — so the visible page offset compounds past
+                                // one page boundary even though the rubber-band
+                                // itself caps the drag's contribution at one page
+                                // width. scroll(UserInput) preempts the in-flight
+                                // Default-priority scroll and returns immediately,
+                                // leaving subsequent dispatchRawDelta calls to
+                                // operate on a stationary pager.
+                                coroutineScope.launch {
+                                    pagerState.scroll(MutatePriority.UserInput) {}
+                                }
                             }
                             if (claimed) {
                                 val newDisplay = rubberBand(availableDragX, pageWidthPx)
