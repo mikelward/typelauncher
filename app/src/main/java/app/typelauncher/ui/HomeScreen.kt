@@ -99,15 +99,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
@@ -136,7 +132,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -145,8 +140,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
-
-private const val HORIZONTAL_BAR_EDGE_PULL_THRESHOLD_DP = 96
 
 @Composable
 internal fun HomeScreen(
@@ -170,8 +163,6 @@ internal fun HomeScreen(
     onOpenSettings: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
-    onHorizontalBarPullPastStart: () -> Unit = {},
-    onHorizontalBarPullPastEnd: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -214,8 +205,6 @@ internal fun HomeScreen(
                     onOpenNotificationSettings = onOpenNotificationSettings,
                     onRequestNotificationAccess = onRequestNotificationAccess,
                     onDismiss = { onSetNotificationBarOpen(false) },
-                    onPullPastStart = onHorizontalBarPullPastStart,
-                    onPullPastEnd = onHorizontalBarPullPastEnd,
                 )
             }
             AppsCard(
@@ -245,8 +234,6 @@ internal fun HomeScreen(
                     onOpenNotificationSettings = onOpenNotificationSettings,
                     onRequestNotificationAccess = onRequestNotificationAccess,
                     onDismiss = { onSetNotificationBarOpen(false) },
-                    onPullPastStart = onHorizontalBarPullPastStart,
-                    onPullPastEnd = onHorizontalBarPullPastEnd,
                 )
             }
             if (state.isDockEnabled) {
@@ -260,8 +247,6 @@ internal fun HomeScreen(
                     onReorderDock = onReorderDock,
                     onResetRank = onResetRank,
                     onHideApp = onHideApp,
-                    onPullPastStart = onHorizontalBarPullPastStart,
-                    onPullPastEnd = onHorizontalBarPullPastEnd,
                 )
             }
             // Recents lives in its own card below the dock so it can render
@@ -276,8 +261,6 @@ internal fun HomeScreen(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onDismissRecent = onDismissRecent,
-                onPullPastStart = onHorizontalBarPullPastStart,
-                onPullPastEnd = onHorizontalBarPullPastEnd,
             )
         } else {
             // Reserve the remaining vertical space so SearchCard stays pinned
@@ -403,8 +386,6 @@ private fun DockCard(
     onReorderDock: (Int, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
-    onPullPastStart: () -> Unit,
-    onPullPastEnd: () -> Unit,
 ) {
     // Drag-to-reorder state is hoisted here so neighbouring icons can read
     // each other's slot centres and trigger swaps when the dragged icon's
@@ -422,8 +403,6 @@ private fun DockCard(
             startChevronTestTag = DOCK_SCROLL_START_CHEVRON_TAG,
             endChevronTestTag = DOCK_SCROLL_END_CHEVRON_TAG,
             chevronContentDescription = stringResource(R.string.dock_scroll_more_hint),
-            onPullPastStart = onPullPastStart,
-            onPullPastEnd = onPullPastEnd,
         ) {
             // `key(app.id)` keeps each DockedAppButton's Compose identity tied
             // to the app, not the slot — so a reorder mid-drag moves the same
@@ -541,8 +520,6 @@ private fun RecentsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onPullPastStart: () -> Unit,
-    onPullPastEnd: () -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -557,8 +534,6 @@ private fun RecentsCard(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onDismissRecent = onDismissRecent,
-                onPullPastStart = onPullPastStart,
-                onPullPastEnd = onPullPastEnd,
             )
         }
     }
@@ -576,8 +551,6 @@ private fun NotificationBarCard(
     onOpenNotificationSettings: (InstalledApp) -> Unit,
     onRequestNotificationAccess: () -> Unit,
     onDismiss: () -> Unit,
-    onPullPastStart: () -> Unit,
-    onPullPastEnd: () -> Unit,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -610,8 +583,6 @@ private fun NotificationBarCard(
                     },
                     onDismissNotifications = onDismissNotifications,
                     onOpenNotificationSettings = onOpenNotificationSettings,
-                    onPullPastStart = onPullPastStart,
-                    onPullPastEnd = onPullPastEnd,
                 )
             }
         }
@@ -648,8 +619,6 @@ private fun NotificationBarRow(
     onLaunchApp: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
     onOpenNotificationSettings: (InstalledApp) -> Unit,
-    onPullPastStart: () -> Unit,
-    onPullPastEnd: () -> Unit,
 ) {
     val description = stringResource(R.string.notification_bar_description)
     ScrollableIconRow(
@@ -663,8 +632,6 @@ private fun NotificationBarRow(
         // end whenever the list contents change so the freshest entry stays
         // visible without the user having to swipe.
         pinToEndKey = notifyingApps.map { it.id },
-        onPullPastStart = onPullPastStart,
-        onPullPastEnd = onPullPastEnd,
     ) {
         notifyingApps.forEach { app ->
             NotifyingAppButton(
@@ -744,8 +711,6 @@ private fun RecentsRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onPullPastStart: () -> Unit,
-    onPullPastEnd: () -> Unit,
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -769,8 +734,6 @@ private fun RecentsRow(
         chevronContentDescription = stringResource(R.string.dock_recents_scroll_more_hint),
         // Keep the freshest recent app (rightmost) visible after every launch.
         pinToEndKey = recentApps.map { it.id },
-        onPullPastStart = onPullPastStart,
-        onPullPastEnd = onPullPastEnd,
     ) {
         recentApps.forEach { app ->
             RecentAppButton(
@@ -850,20 +813,11 @@ private fun ScrollableIconRow(
     chevronContentDescription: String,
     rowModifier: Modifier = Modifier,
     pinToEndKey: Any? = null,
-    onPullPastStart: () -> Unit = {},
-    onPullPastEnd: () -> Unit = {},
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
-    val edgePullConnection = rememberHorizontalBarEdgePullConnection(
-        canScrollBackward = { scrollState.value > overflowSlopPx },
-        canScrollForward = { scrollState.value < scrollState.maxValue - overflowSlopPx },
-        thresholdPx = with(LocalDensity.current) { HORIZONTAL_BAR_EDGE_PULL_THRESHOLD_DP.dp.toPx() },
-        onPullPastStart = onPullPastStart,
-        onPullPastEnd = onPullPastEnd,
-    )
     if (pinToEndKey != null) {
         LaunchedEffect(pinToEndKey, scrollState.maxValue, hasMeasuredContent, overflowSlopPx) {
             if (hasMeasuredContent) {
@@ -903,7 +857,6 @@ private fun ScrollableIconRow(
         }
         Row(
             modifier = rowModifier
-                .nestedScroll(edgePullConnection)
                 .pointerInput(showStartChevron, showEndChevron, viewportPx) {
                     detectTapGestures { offset ->
                         when {
@@ -966,58 +919,6 @@ private fun ScrollableIconRow(
 private suspend fun ScrollState.scrollOneHorizontalPage(backward: Boolean, viewportPx: Int) {
     val delta = if (backward) -viewportPx else viewportPx
     scrollTo((value + delta).coerceIn(0, maxValue))
-}
-
-@Composable
-private fun rememberHorizontalBarEdgePullConnection(
-    canScrollBackward: () -> Boolean,
-    canScrollForward: () -> Boolean,
-    thresholdPx: Float,
-    onPullPastStart: () -> Unit,
-    onPullPastEnd: () -> Unit,
-): NestedScrollConnection {
-    val currentOnPullPastStart by rememberUpdatedState(onPullPastStart)
-    val currentOnPullPastEnd by rememberUpdatedState(onPullPastEnd)
-    return remember(canScrollBackward, canScrollForward, thresholdPx) {
-        object : NestedScrollConnection {
-            private var edgeDragPx = 0f
-            private var didDispatch = false
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput || didDispatch) return Offset.Zero
-                val availableX = available.x
-                val edgeDelta = when {
-                    availableX > 0f && !canScrollBackward() -> availableX
-                    availableX < 0f && !canScrollForward() -> availableX
-                    else -> 0f
-                }
-                edgeDragPx = if (edgeDelta > 0f) {
-                    (edgeDragPx + edgeDelta).coerceAtLeast(0f)
-                } else if (edgeDelta < 0f) {
-                    (edgeDragPx + edgeDelta).coerceAtMost(0f)
-                } else {
-                    0f
-                }
-                when {
-                    edgeDragPx >= thresholdPx -> {
-                        didDispatch = true
-                        currentOnPullPastStart()
-                    }
-                    edgeDragPx <= -thresholdPx -> {
-                        didDispatch = true
-                        currentOnPullPastEnd()
-                    }
-                }
-                return Offset(x = edgeDelta, y = 0f)
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                edgeDragPx = 0f
-                didDispatch = false
-                return Velocity.Zero
-            }
-        }
-    }
 }
 
 /**
@@ -2566,8 +2467,6 @@ private fun SettingsPreview(
                 onOpenNotificationSettings = {},
                 onRequestNotificationAccess = {},
                 onDismiss = {},
-                onPullPastStart = {},
-                onPullPastEnd = {},
             )
         }
         AppsCard(
@@ -2599,8 +2498,6 @@ private fun SettingsPreview(
                 onOpenNotificationSettings = {},
                 onRequestNotificationAccess = {},
                 onDismiss = {},
-                onPullPastStart = {},
-                onPullPastEnd = {},
             )
         }
         if (state.isDockEnabled) {
@@ -2615,8 +2512,6 @@ private fun SettingsPreview(
                 onReorderDock = { _, _ -> },
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
-                onPullPastStart = {},
-                onPullPastEnd = {},
             )
         }
         // Mirror Home: recents lives in its own card below the dock so the
@@ -2631,8 +2526,6 @@ private fun SettingsPreview(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onDismissRecent = {},
-            onPullPastStart = {},
-            onPullPastEnd = {},
         )
     }
 }
