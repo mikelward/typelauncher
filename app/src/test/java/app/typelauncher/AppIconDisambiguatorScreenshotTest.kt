@@ -6,10 +6,13 @@ import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -45,22 +48,35 @@ class AppIconDisambiguatorScreenshotTest {
     }
 
     @Test
-    fun bothChasesSurviveUkVariantGetsBadge() {
-        // Both same-named "Chase" entries survive the dedup pass. Only the UK
-        // variant (com.chase.uk.consumer) gets a "UK" badge — "sig" is not a
-        // country code so com.chase.sig.android is left unbadged.
+    fun chaseVariantsUseFlagBadges() {
+        // Same-named "Chase" entries survive the dedup pass. The UK and INTL
+        // variants get flag badges; "sig" is not regional, so that entry is
+        // left unbadged.
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chase (UK)").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Chase (INTL)").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chase").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Chase (UK)", useUnmergedTree = true)
             .assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Chase (INTL)", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Chase (UK) flag", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Chase (INTL) flag", useUnmergedTree = true).assertIsDisplayed()
+        assertBadgeMatchesWorkBadgeSizeAndBottomLeft(
+            iconTag = "$APP_ICON_TAG:Chase (UK)",
+            badgeTag = "$APP_ICON_DISAMBIGUATOR_TAG:Chase (UK)",
+        )
+        assertBadgeMatchesWorkBadgeSizeAndBottomLeft(
+            iconTag = "$APP_ICON_TAG:Chase (INTL)",
+            badgeTag = "$APP_ICON_DISAMBIGUATOR_TAG:Chase (INTL)",
+        )
 
-        saveScreenshot("compose_disambiguator_chase_pair_robolectric.png")
+        saveScreenshot("compose_disambiguator_chase_variants_robolectric.png")
     }
 
     @Test
     fun amexThreePackTagsEachWithCountryBadge() {
         // Three Amex variants share a brand and first word; each gets a
-        // country-code badge derived from the package tail. The plain "Amex"
+        // country-flag badge derived from the package tail. The plain "Amex"
         // entry (US package) gets "(US)" appended; the regional names "Amex
         // UK" / "Amex AU" already contain the country tag so the
         // parenthesised suffix is suppressed.
@@ -70,6 +86,9 @@ class AppIconDisambiguatorScreenshotTest {
             .assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Amex AU", useUnmergedTree = true)
             .assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Amex (US) flag", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Amex UK flag", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Amex AU flag", useUnmergedTree = true).assertIsDisplayed()
 
         saveScreenshot("compose_disambiguator_amex_three_pack_robolectric.png")
     }
@@ -78,14 +97,31 @@ class AppIconDisambiguatorScreenshotTest {
     @Config(qualifiers = "+night")
     fun amexThreePackInDarkTheme() {
         // Same three-pack as the light-mode test but with the night-mode
-        // qualifier so the badge renders against the dark colour scheme.
-        // Captures the theme-aware fill (`surface` / `onSurface`) — the
-        // light-mode strip is near-white with dark text, the dark-mode
-        // strip is near-black with light text, both with adequate contrast.
+        // qualifier so the flag badge renders against the dark colour scheme.
         composeRule.onNodeWithTag("$APP_ICON_DISAMBIGUATOR_TAG:Amex (US)", useUnmergedTree = true)
             .assertIsDisplayed()
 
         saveScreenshot("compose_disambiguator_amex_three_pack_dark_robolectric.png")
+    }
+
+    private fun assertBadgeMatchesWorkBadgeSizeAndBottomLeft(iconTag: String, badgeTag: String) {
+        val iconBounds = composeRule.onNodeWithTag(iconTag, useUnmergedTree = true).getBoundsInRoot()
+        val badgeBounds = composeRule.onNodeWithTag(badgeTag, useUnmergedTree = true).getBoundsInRoot()
+        val badgeWidth = (badgeBounds.right - badgeBounds.left).value
+        val badgeHeight = (badgeBounds.bottom - badgeBounds.top).value
+        assertTrue(
+            "badge should match the ${APP_ICON_CORNER_BADGE_SIZE_DP}dp work badge size, was ${badgeWidth}x$badgeHeight",
+            kotlin.math.abs(badgeWidth - APP_ICON_CORNER_BADGE_SIZE_DP) <= 1f &&
+                kotlin.math.abs(badgeHeight - APP_ICON_CORNER_BADGE_SIZE_DP) <= 1f,
+        )
+        assertTrue(
+            "badge should sit on the icon's left edge (badge.left=${badgeBounds.left}, icon.left=${iconBounds.left})",
+            kotlin.math.abs((badgeBounds.left - iconBounds.left).value) <= 1f,
+        )
+        assertTrue(
+            "badge should sit on the icon's bottom edge (badge.bottom=${badgeBounds.bottom}, icon.bottom=${iconBounds.bottom})",
+            kotlin.math.abs((badgeBounds.bottom - iconBounds.bottom).value) <= 1f,
+        )
     }
 
     private fun saveScreenshot(name: String) {
@@ -129,15 +165,16 @@ class AppIconDisambiguatorScreenshotTest {
             val pm = shadowOf(
                 ApplicationProvider.getApplicationContext<android.content.Context>().packageManager,
             )
-            // Both Chase entries deliberately share the same display name so
-            // the dedup change is exercised. The Amex entries have different
-            // names but identical brand and first word so the disambiguator
-            // pass picks them up via country-code matching.
+            // Chase entries deliberately share the same display name so the
+            // dedup change is exercised. The Amex entries have different names
+            // but identical brand and first word so the disambiguator pass
+            // picks them up via country-code matching.
             val seeds = listOf(
                 "Calculator" to "com.android.calculator2",
                 "Browser" to "com.android.browser",
                 "Chase" to "com.chase.sig.android",
                 "Chase" to "com.chase.uk.consumer",
+                "Chase" to "com.chase.intl",
                 "Amex" to "com.americanexpress.android.acctsvcs.us",
                 "Amex UK" to "com.americanexpress.android.acctsvcs.uk",
                 "Amex AU" to "com.americanexpress.android.acctsvcs.au",

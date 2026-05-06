@@ -2559,37 +2559,20 @@ private fun AppIcon(
             }
         }
         app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
-            // Match the yellow DEV bar baked into the local-build adaptive
-            // icon (ic_launcher_foreground_local): a flat full-width strip
-            // occupying the bottom 16/108 (~14.8%) of the icon's height, with
-            // the bar's bottom corners following the parent box's
-            // `shapes.medium` clip — the same way the launcher's adaptive-icon
-            // mask shapes the DEV bar's corners. Font size scales with the
-            // bar so the label fills it the same way "DEV" fills the launcher
-            // strip. Theme tokens (`surface` / `onSurface`) so the strip reads
-            // as white-on-light / dark-on-dark in both colour schemes; the
-            // DEV bar is fixed yellow only because vector drawables can't
-            // reach Material tokens.
-            val barFraction = 16f / 108f
-            val labelSp = (size.value * barFraction * 0.7f).sp
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .fillMaxHeight(barFraction)
-                    .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
+            disambiguatorFlag(label)?.let { flag ->
+                val flagSp = (APP_ICON_CORNER_BADGE_SIZE_DP - 2).sp
                 Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
+                        .semantics { contentDescription = "${app.displayName} flag" }
+                        .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize(),
                 ) {
                     Text(
-                        text = label,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = labelSp,
-                        lineHeight = labelSp,
-                        fontWeight = FontWeight.Bold,
+                        text = flag,
+                        fontSize = flagSp,
+                        lineHeight = flagSp,
                         textAlign = TextAlign.Center,
                     )
                 }
@@ -2597,6 +2580,22 @@ private fun AppIcon(
         }
     }
 }
+
+private fun disambiguatorFlag(label: String): String? {
+    val normalized = label.trim().uppercase()
+    return when (normalized) {
+        "INTL" -> countryFlag("UN")
+        "UK" -> countryFlag("GB")
+        else -> normalized.takeIf { code ->
+            code.length == 2 && code.all { it in 'A'..'Z' }
+        }?.let(::countryFlag)
+    }
+}
+
+private fun countryFlag(countryCode: String): String =
+    countryCode.map { codePoint ->
+        Character.toChars(REGIONAL_INDICATOR_BASE + (codePoint - 'A')).concatToString()
+    }.joinToString(separator = "")
 
 @Composable
 private fun selectionHighlightColor(): Color =
@@ -2620,3 +2619,4 @@ private const val NOTIFICATION_BADGE_SIZE_DP = 12
 // Play update badge dot — same "presence" treatment as the notification dot,
 // scaled down for the smaller search-field gear icon.
 private const val PLAY_UPDATE_BADGE_SIZE_DP = 8
+private const val REGIONAL_INDICATOR_BASE = 0x1F1E6

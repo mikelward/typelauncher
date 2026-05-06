@@ -491,7 +491,7 @@ private fun WidgetAppIcon(appIcon: Drawable?, isWorkProvider: Boolean = false) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(14.dp)
+                    .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
                     .semantics { contentDescription = workBadgeDescription }
                     .testTag(WIDGET_WORK_BADGE_TAG),
                 shape = CircleShape,
