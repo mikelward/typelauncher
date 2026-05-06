@@ -571,7 +571,7 @@ private fun SwipeNavigationBox(
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
-                        event.changes.forEach { change ->
+                        for (change in event.changes) {
                             val availableDelta = change.positionChange()
                             val totalDelta = change.position - change.previousPosition
                             availableDragX += availableDelta.x
@@ -579,25 +579,24 @@ private fun SwipeNavigationBox(
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             if (!claimed && shouldClaimCarouselDrag(availableDragX, totalDragY, touchSlopPx)) {
                                 claimed = true
-                                // Cancel any in-flight animateScrollToPage so the
-                                // drag's dispatchRawDelta below is the only thing
-                                // moving the pager from this point onward. Without
-                                // this, an animation in flight (a fast re-touch
-                                // after a previous fling commit, the dock-edge
-                                // pull's animateScrollToPage, or a programmatic
-                                // LaunchedEffect(screen) animation) keeps
-                                // progressing on its own thread of execution while
-                                // the new drag's dispatchRawDelta adds delta on
-                                // top — so the visible page offset compounds past
-                                // one page boundary even though the rubber-band
-                                // itself caps the drag's contribution at one page
-                                // width. scroll(UserInput) preempts the in-flight
-                                // Default-priority scroll and returns immediately,
-                                // leaving subsequent dispatchRawDelta calls to
-                                // operate on a stationary pager.
-                                coroutineScope.launch {
-                                    pagerState.scroll(MutatePriority.UserInput) {}
-                                }
+                                // Synchronously preempt any in-flight animateScrollToPage
+                                // before the first dispatchRawDelta below. Both code
+                                // paths mutate the same scroll-position float on every
+                                // frame — the animation via scrollBy inside its
+                                // scroll{} block, the drag via dispatchRawDelta which
+                                // intentionally bypasses the scroll mutex — so without
+                                // a preempt their per-frame contributions stack and the
+                                // visible page offset can land beyond one page even
+                                // though the rubber-band caps the drag itself at one
+                                // page width. We suspend the gesture coroutine here
+                                // (rather than fire-and-forget the preempt on a side
+                                // coroutine) so (a) the very next dispatchRawDelta
+                                // operates on a stationary pager, and (b) the release
+                                // path's animateScrollToPage launches strictly after
+                                // the preempt has released the mutex — a fire-and-
+                                // forget preempt could otherwise still be queued behind
+                                // the release animation and cancel it on a fast lift.
+                                pagerState.scroll(MutatePriority.UserInput) {}
                             }
                             if (claimed) {
                                 val newDisplay = rubberBand(availableDragX, pageWidthPx)
