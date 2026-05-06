@@ -106,10 +106,10 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
 
     @TaskAction
     fun installAndRun() {
+        uninstallFromNonPersonalUsers()
         execOperations.exec {
             commandLine("adb", "install", "--user", PERSONAL_USER_ID, "-r", apkFile.get().asFile.absolutePath)
         }
-        uninstallFromNonPersonalUsers()
         execOperations.exec {
             commandLine("adb", "shell", "am", "start", "--user", PERSONAL_USER_ID, "-n", LAUNCH_COMPONENT)
         }
