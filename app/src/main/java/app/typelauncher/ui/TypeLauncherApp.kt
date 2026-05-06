@@ -534,14 +534,27 @@ private fun SwipeNavigationBox(
     }
 
     LaunchedEffect(screen) {
+        // Read against settledPage (not currentPage) for both the closest-page
+        // computation and the gate. currentPage tracks the live scroll position,
+        // which can be transiently off the last-landed page during a release
+        // animation, during a follow-up dispatchRawDelta drag, or in the brief
+        // window between animation completion and recomposition. Using
+        // currentPage here meant a stale `screen=Agenda` reaction could read
+        // M+2 (Agenda forward) but compute closestCarouselPage from the
+        // pulled-back M+1 currentPage, picking the backward wraparound to M-1
+        // and animating Agenda in from the wrong side. settledPage is
+        // `derivedStateOf { if (isScrollInProgress) settledPageState else
+        // currentPage }`, which freezes during animations and is the value
+        // closestCarouselPage was always meant to consult.
+        val source = pagerState.settledPage
         val targetPage = LauncherScreen.closestCarouselPage(
-            currentPage = pagerState.currentPage,
+            currentPage = source,
             screen = screen,
         )
         LauncherDebugLog.event(
-            "SwipeNavigationBox screen=$screen currentPage=${pagerState.currentPage} targetPage=$targetPage",
+            "SwipeNavigationBox screen=$screen settledPage=$source currentPage=${pagerState.currentPage} targetPage=$targetPage",
         )
-        if (pagerState.currentPage != targetPage) {
+        if (source != targetPage) {
             pagerState.animateScrollToPage(targetPage)
         }
     }
