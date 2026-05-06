@@ -316,6 +316,12 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
         composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
 
+        // The launcher only takes over if the row is already at its edge when
+        // the gesture starts; scrolling to the edge mid-gesture stays with the row.
+        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
+
         composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 

@@ -2,6 +2,8 @@ package app.typelauncher
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -32,7 +34,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
@@ -45,22 +46,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
-// Drag must clear this many pixels of horizontal movement before the carousel
-// claims the gesture from child handlers and starts rubber-banding the page.
+// Drag must clear this many pixels before the launcher decides whether a child
+// scrollable or a launcher-level gesture owns the pointer sequence.
 private const val CAROUSEL_TOUCH_SLOP_DP = 8
 
-// Fraction of page width the user must drag (raw, before rubber-band damping)
-// to commit a screen change on release. Combined with the rubber-band easing,
-// this is a meaningful tug — much harder to trigger accidentally than the old
-// flat 48dp threshold.
-private const val CAROUSEL_COMMIT_DISTANCE_RATIO = 0.4f
+// Launcher-level swipes must travel this far before committing. Horizontal
+// carousel swipes and vertical pull-up/down gestures share the same threshold so
+// they feel equally deliberate and cannot chain more than one action.
+private const val LAUNCHER_SWIPE_COMMIT_DISTANCE_DP = 96
 
 // Release velocity (in dp/s) above which a fling commits even if the raw drag
-// distance is below the commit ratio. Lets a quick flick still advance a page.
+// distance is below the commit distance. Lets a quick flick still advance a page.
 private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
 
 // If at release the velocity is in the opposite direction of the net drag and
@@ -68,20 +69,10 @@ private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
 // pulled back, so they don't want to commit.
 private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 
-// Fraction of page width over which the drag tracks the finger 1:1 with no
-// damping. Past this point the curve asymptotes to one full page width so a
-// single drag still can't push the pager past one page boundary, but inside
-// the free zone the visible offset matches the finger so the swipe feels
-// honest at the commit threshold instead of "lagging" behind the user.
-private const val CAROUSEL_RUBBER_BAND_LINEAR_FRACTION = 0.5f
-
-// Drag distance the user must travel vertically before either pull gesture
-// commits — same value for both directions so a pull-up and a pull-down feel
-// equally deliberate. Pull-down on Home follows the Settings-selected action;
-// pull-up on Home opens the recents bar. The threshold matches the carousel's
-// horizontal commit so all three directions share the same "this was a real
-// intentional drag" budget.
-private const val VERTICAL_PULL_THRESHOLD_DP = 96
+// AwaitingAck should be effectively instantaneous; this timeout is a bug-report
+// breadcrumb and a fail-safe so a bad future callback path cannot permanently
+// deadlock launcher swipes.
+private const val CAROUSEL_ACK_TIMEOUT_MS = 1500L
 
 // Once the app list has loaded, wait this long for the soft keyboard to come
 // up before signalling "home ready" anyway, when keyboard auto-show is enabled.
@@ -89,6 +80,11 @@ private const val VERTICAL_PULL_THRESHOLD_DP = 96
 // all keep WindowInsets.isImeVisible false indefinitely; we don't want to defer
 // the agenda load forever in those cases.
 private const val HOME_READY_IME_TIMEOUT_MS = 1500L
+
+private val CarouselPageAnimationSpec = tween<Float>(
+    durationMillis = 220,
+    easing = FastOutSlowInEasing,
+)
 
 private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
 
@@ -297,7 +293,7 @@ internal fun TypeLauncherApp(
                 onSetRecentsOpen = onSetRecentsOpen,
                 onRequestShowKeyboard = onRequestShowKeyboard,
                 onSwipeDown = onSwipeDown,
-            ) { pageScreen, onHorizontalBarPullPastStart, onHorizontalBarPullPastEnd ->
+            ) { pageScreen ->
                 when (pageScreen) {
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
@@ -320,8 +316,6 @@ internal fun TypeLauncherApp(
                         onOpenSettings = onOpenSettings,
                         onSetNotificationBarOpen = onSetNotificationBarOpen,
                         onRequestNotificationAccess = onRequestNotificationAccess,
-                        onHorizontalBarPullPastStart = onHorizontalBarPullPastStart,
-                        onHorizontalBarPullPastEnd = onHorizontalBarPullPastEnd,
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
@@ -392,27 +386,13 @@ private fun SwipeNavigationBox(
     onSetRecentsOpen: (Boolean) -> Unit,
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
-    content: @Composable (
-        LauncherScreen,
-        onHorizontalBarPullPastStart: () -> Unit,
-        onHorizontalBarPullPastEnd: () -> Unit,
-    ) -> Unit,
+    content: @Composable (LauncherScreen) -> Unit,
 ) {
-    // Both pull gestures dispatch from this single carousel-level handler so
-    // they fire from anywhere on the launcher except a child scrollable that's
-    // actively scrolling. The detector accumulates raw vertical pointer
-    // movement and subtracts whatever a child scrollable consumed via nested
-    // scroll; what's left is "the gesture past the list edge or off the
-    // list", which is what should trigger pull-down/pull-up. So the apps list
-    // mid-scroll never fires (consumed cancels raw), but the apps list at the
-    // top/bottom edge does (consumed = 0 for the past-edge portion), and so
-    // does any non-scrolling area. Pull-down uses the Settings-selected
-    // action: do nothing, expand the system shade, or open the launcher
-    // notification bar as a first stage. Pull-up opens the recents bar as a
-    // first stage and re-shows the soft keyboard once recents is already open.
-    // We capture the latest values via rememberUpdatedState so the dispatch
-    // lambdas keep stable identities and don't re-key the pointerInput
-    // mid-gesture.
+    // A pointer sequence locks once, shortly after touch slop, to either the
+    // child scrollable that consumed movement at gesture start or to a
+    // launcher-level action. Reaching a child edge mid-gesture does not hand
+    // the same drag to the carousel/pull handlers; the next gesture can claim
+    // from that already-at-edge state.
     val currentScreen by rememberUpdatedState(screen)
     val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
     val currentNotificationPullDownBehavior by rememberUpdatedState(notificationPullDownBehavior)
@@ -479,18 +459,31 @@ private fun SwipeNavigationBox(
     val backwardVelocityCancelPxPerSec = with(density) {
         CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC.dp.toPx()
     }
-    val verticalPullThresholdPx = with(density) {
-        VERTICAL_PULL_THRESHOLD_DP.dp.toPx()
+    val launcherSwipeCommitDistancePx = with(density) {
+        LAUNCHER_SWIPE_COMMIT_DISTANCE_DP.dp.toPx()
     }
-    val verticalScrollTracker = remember { VerticalScrollTracker() }
+    val scrollConsumptionTracker = remember { ScrollConsumptionTracker() }
     val coroutineScope = rememberCoroutineScope()
-    val navigateCarouselBy = remember(pagerState, coroutineScope) {
-        { pageDelta: Int ->
-            val targetPage = (pagerState.settledPage + pageDelta)
-                .coerceIn(0, LauncherScreen.carouselPageCount - 1)
-            coroutineScope.launch {
-                pagerState.animateScrollToPage(targetPage)
-            }
+    var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
+    var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
+    var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
+    fun dispatchSettledScreen(settledScreen: LauncherScreen) {
+        when (settledScreen) {
+            LauncherScreen.Agenda -> onShowAgenda()
+            LauncherScreen.Widgets -> onShowWidgets()
+            LauncherScreen.Home -> onShowHome()
+        }
+    }
+    fun awaitScreenAck(targetPage: Int, targetScreen: LauncherScreen) {
+        allowSwipeWithUnackedScreen = false
+        carouselTransition = CarouselTransitionState.AwaitingAck(
+            settledPage = targetPage,
+            expectedScreen = targetScreen,
+        )
+        if (currentScreen != targetScreen) {
+            dispatchSettledScreen(targetScreen)
+        } else {
+            carouselTransition = CarouselTransitionState.Idle
         }
     }
     // Hold off on composing carousel pages other than the visible one until the
@@ -505,25 +498,86 @@ private fun SwipeNavigationBox(
     }
 
     LaunchedEffect(screen) {
+        when (val transition = carouselTransition) {
+            is CarouselTransitionState.AwaitingAck -> {
+                if (screen == transition.expectedScreen) {
+                    allowSwipeWithUnackedScreen = false
+                    carouselTransition = CarouselTransitionState.Idle
+                }
+                return@LaunchedEffect
+            }
+            is CarouselTransitionState.UserAnimating,
+            is CarouselTransitionState.ExternalAnimating,
+            -> return@LaunchedEffect
+            CarouselTransitionState.Idle -> Unit
+        }
+        if (carouselAnimationJob?.isActive == true || pagerState.targetPage != pagerState.settledPage) {
+            return@LaunchedEffect
+        }
+        val settledPage = pagerState.settledPage
+        if (screen == LauncherScreen.fromCarouselPage(settledPage)) {
+            allowSwipeWithUnackedScreen = false
+        }
         val targetPage = LauncherScreen.closestCarouselPage(
-            currentPage = pagerState.currentPage,
+            currentPage = settledPage,
             screen = screen,
         )
         LauncherDebugLog.event(
-            "SwipeNavigationBox screen=$screen currentPage=${pagerState.currentPage} targetPage=$targetPage",
+            "SwipeNavigationBox external screen=$screen settledPage=$settledPage targetPage=$targetPage",
         )
-        if (pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
+        if (targetPage != settledPage) {
+            allowSwipeWithUnackedScreen = false
+            carouselTransition = CarouselTransitionState.ExternalAnimating(targetPage, screen)
+            carouselAnimationJob = coroutineScope.launch {
+                pagerState.animateScrollToPage(
+                    page = targetPage,
+                    animationSpec = CarouselPageAnimationSpec,
+                )
+            }
+        } else {
+            carouselTransition = CarouselTransitionState.Idle
         }
     }
     LaunchedEffect(settledPage) {
+        val settledScreen = LauncherScreen.fromCarouselPage(settledPage)
         LauncherDebugLog.event(
-            "SwipeNavigationBox settledPage=$settledPage screen=${LauncherScreen.fromCarouselPage(settledPage)}",
+            "SwipeNavigationBox settledPage=$settledPage screen=$settledScreen",
         )
-        when (LauncherScreen.fromCarouselPage(settledPage)) {
-            LauncherScreen.Agenda -> if (screen != LauncherScreen.Agenda) onShowAgenda()
-            LauncherScreen.Widgets -> if (screen != LauncherScreen.Widgets) onShowWidgets()
-            LauncherScreen.Home -> if (screen != LauncherScreen.Home) onShowHome()
+        when (val transition = carouselTransition) {
+            is CarouselTransitionState.UserAnimating -> {
+                if (settledPage == transition.targetPage) {
+                    carouselTransition = CarouselTransitionState.AwaitingAck(
+                        settledPage = settledPage,
+                        expectedScreen = transition.targetScreen,
+                    )
+                    if (screen != transition.targetScreen) {
+                        dispatchSettledScreen(transition.targetScreen)
+                    } else {
+                        carouselTransition = CarouselTransitionState.Idle
+                    }
+                }
+            }
+            is CarouselTransitionState.ExternalAnimating -> {
+                if (settledPage == transition.targetPage) {
+                    carouselTransition = CarouselTransitionState.Idle
+                }
+            }
+            is CarouselTransitionState.AwaitingAck,
+            CarouselTransitionState.Idle,
+            -> Unit
+        }
+    }
+    LaunchedEffect(carouselTransition) {
+        val transition = carouselTransition as? CarouselTransitionState.AwaitingAck ?: return@LaunchedEffect
+        delay(CAROUSEL_ACK_TIMEOUT_MS)
+        if (carouselTransition == transition) {
+            LauncherDebugLog.warning(
+                "SwipeNavigationBox ack timeout settled=${transition.settledPage} expected=${transition.expectedScreen} " +
+                    "screen=$currentScreen",
+            )
+            allowSwipeWithUnackedScreen = true
+            dispatchSettledScreen(transition.expectedScreen)
+            carouselTransition = CarouselTransitionState.Idle
         }
     }
 
@@ -537,163 +591,170 @@ private fun SwipeNavigationBox(
                 carouselVirtualPage = pagerState.settledPage
             }
             .pointerInput(
-                pagerState,
+                scrollConsumptionTracker,
                 touchSlopPx,
+                launcherSwipeCommitDistancePx,
                 flingCommitVelocityPxPerSec,
                 backwardVelocityCancelPxPerSec,
             ) {
                 awaitEachGesture {
-                    // Let child scrollables consume horizontal drags first so
-                    // dock/notification/recents rows can scroll inside Home.
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+                    val startConsumed = scrollConsumptionTracker.totalConsumed
+                    val gestureStartPage = pagerState.settledPage
+                    val gestureStartScreen = LauncherScreen.fromCarouselPage(gestureStartPage)
+                    val canStartCarouselGesture = carouselTransition == CarouselTransitionState.Idle &&
+                        carouselAnimationJob?.isActive != true &&
+                        pagerState.targetPage == gestureStartPage &&
+                        (currentScreen == gestureStartScreen || allowSwipeWithUnackedScreen)
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
-                    val commitDistancePx = pageWidthPx * CAROUSEL_COMMIT_DISTANCE_RATIO
-                    // Capture both the last-settled page and the in-flight target
-                    // (these differ when a prior gesture or the dock-edge pull
-                    // queued an animateScrollToPage that hasn't completed). At
-                    // release we pick whichever base keeps the gesture honest:
-                    // extending the in-flight direction uses the settled page
-                    // (so a fast re-touch can't compound into a multi-page
-                    // jump), reversing it uses the in-flight target (so a
-                    // backward drag cancels the in-flight animation cleanly).
-                    val dragStartSettledPage = pagerState.settledPage
-                    val dragStartTargetPage = pagerState.targetPage
-                    var availableDragX = 0f
-                    var totalDragY = 0f
-                    var displayDeltaPx = 0f
-                    var claimed = false
+                    var rawDragX = 0f
+                    var rawDragY = 0f
+                    var displayedDragX = 0f
+                    var owner = LauncherGestureOwner.Undecided
                     val velocityTracker = VelocityTracker()
-                    // Seed the tracker with the DOWN sample so short flicks get
-                    // a representative velocity at release — without this, the
-                    // tracker only sees later MOVE samples and can read 0 px/s
-                    // for gestures that finish in a single frame.
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
-                            val availableDelta = change.positionChange()
-                            val totalDelta = change.position - change.previousPosition
-                            availableDragX += availableDelta.x
-                            totalDragY += totalDelta.y
+                            val rawDelta = change.positionChangeIgnoreConsumed()
+                            rawDragX += rawDelta.x
+                            rawDragY += rawDelta.y
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            if (!claimed && shouldClaimCarouselDrag(availableDragX, totalDragY, touchSlopPx)) {
-                                claimed = true
+                            if (owner == LauncherGestureOwner.Undecided) {
+                                val consumed = scrollConsumptionTracker.totalConsumed - startConsumed
+                                owner = resolveLauncherGestureOwner(
+                                    rawDragX = rawDragX,
+                                    rawDragY = rawDragY,
+                                    consumedDragX = consumed.x,
+                                    consumedDragY = consumed.y,
+                                    touchSlopPx = touchSlopPx,
+                                )
                             }
-                            if (claimed) {
-                                val newDisplay = rubberBand(availableDragX, pageWidthPx)
-                                    .coerceIn(-pageWidthPx, pageWidthPx)
-                                val moveBy = newDisplay - displayDeltaPx
-                                displayDeltaPx = newDisplay
-                                if (moveBy != 0f) {
-                                    // dispatchRawDelta uses scroll-axis sign, which is
-                                    // opposite of finger drag (drag finger left → next
-                                    // page → positive scroll delta), so flip the sign.
-                                    pagerState.dispatchRawDelta(-moveBy)
+                            if (owner == LauncherGestureOwner.HorizontalLauncher && canStartCarouselGesture) {
+                                val nextDisplayedDragX = rawDragX.coerceIn(-pageWidthPx, pageWidthPx)
+                                val deltaToDisplay = nextDisplayedDragX - displayedDragX
+                                if (deltaToDisplay != 0f) {
+                                    pagerState.dispatchRawDelta(-deltaToDisplay)
+                                    displayedDragX = nextDisplayedDragX
                                 }
                                 change.consume()
                             }
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (!claimed) {
+                    if (owner != LauncherGestureOwner.HorizontalLauncher || !canStartCarouselGesture) {
                         return@awaitEachGesture
                     }
 
                     val releaseVelocity = velocityTracker.calculateVelocity().x
                     val dragDirection = when {
-                        availableDragX < 0f -> 1
-                        availableDragX > 0f -> -1
+                        rawDragX < 0f -> 1
+                        rawDragX > 0f -> -1
                         else -> 0
                     }
-                    // Finger and pager move in opposite directions: dragging finger
-                    // left (availableDragX < 0) advances the pager forward, so a forward
-                    // intent corresponds to releaseVelocity also being negative.
-                    // "Backwards at release" → velocity sign opposite of availableDragX sign.
                     val velocityOpposesDrag = dragDirection != 0 &&
                         abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
-                        sign(releaseVelocity) == -sign(availableDragX)
-                    val distanceCommits = abs(availableDragX) >= commitDistancePx
+                        sign(releaseVelocity) == -sign(rawDragX)
+                    val distanceCommits = abs(rawDragX) >= launcherSwipeCommitDistancePx
                     val flingCommits = dragDirection != 0 &&
                         abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
-                        sign(releaseVelocity) == sign(availableDragX)
+                        sign(releaseVelocity) == sign(rawDragX)
                     val committed = dragDirection != 0 &&
                         !velocityOpposesDrag &&
                         (distanceCommits || flingCommits)
 
-                    // On commit, pick the base via chooseDragBasePage so the
-                    // gesture lands one page from the right anchor (settled when
-                    // extending an in-flight animation, in-flight target when
-                    // reversing one). On a non-commit, just let the in-flight
-                    // animation continue to its destination — using the settled
-                    // page here would snap a forward 5→6 animation back to 5
-                    // any time the user lightly touched the screen mid-flight.
-                    val targetPage = if (committed) {
-                        val basePage = chooseDragBasePage(
-                            settledPage = dragStartSettledPage,
-                            inFlightTargetPage = dragStartTargetPage,
-                            dragDirection = dragDirection,
-                        )
-                        basePage + dragDirection
-                    } else {
-                        dragStartTargetPage
-                    }
-
                     LauncherDebugLog.event(
-                        "SwipeNavigationBox release availableDragX=$availableDragX totalDragY=$totalDragY " +
+                        "SwipeNavigationBox horizontal release rawDragX=$rawDragX rawDragY=$rawDragY " +
                             "velocityX=$releaseVelocity " +
-                            "settled=$dragStartSettledPage inFlight=$dragStartTargetPage targetPage=$targetPage " +
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
                     )
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(targetPage)
+                    val targetPage = if (committed) {
+                        (gestureStartPage + dragDirection)
+                            .coerceIn(0, LauncherScreen.carouselPageCount - 1)
+                    } else {
+                        gestureStartPage
+                    }
+                    val targetScreen = LauncherScreen.fromCarouselPage(targetPage)
+                    val willChangePage = committed && targetPage != gestureStartPage
+                    if (willChangePage) {
+                        carouselTransition = CarouselTransitionState.UserAnimating(targetPage, targetScreen)
+                    }
+                    carouselAnimationJob = coroutineScope.launch {
+                        pagerState.animateScrollToPage(
+                            page = targetPage,
+                            animationSpec = CarouselPageAnimationSpec,
+                        )
+                        if (willChangePage &&
+                            carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetScreen)
+                        ) {
+                            awaitScreenAck(targetPage, targetScreen)
+                        }
                     }
                 }
             }
-            .nestedScroll(verticalScrollTracker.connection)
-            .pointerInput(touchSlopPx, verticalPullThresholdPx, swipeDownDispatch, swipeUpDispatch) {
+            .nestedScroll(scrollConsumptionTracker.connection)
+            .pointerInput(
+                scrollConsumptionTracker,
+                touchSlopPx,
+                launcherSwipeCommitDistancePx,
+                flingCommitVelocityPxPerSec,
+                backwardVelocityCancelPxPerSec,
+                swipeDownDispatch,
+                swipeUpDispatch,
+            ) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
-                    val startConsumedY = verticalScrollTracker.totalConsumedY
-                    // Track raw finger movement (ignoring pointer-event
-                    // consumption) so we still see the gesture after a child
-                    // scrollable or the carousel claims it. The
-                    // nested-scroll connection above records how much of that
-                    // raw vertical movement a child scrollable actually
-                    // translated into scroll; the rest is the launcher-pull
-                    // signal. We also track raw X so we can recognise a
-                    // horizontal-dominant gesture (handled as a carousel
-                    // page swipe) and skip the vertical dispatch in that
-                    // case — without this, a diagonal page-swipe with > 96 dp
-                    // of incidental vertical drift would also fire pull-down.
+                    val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+                    val startConsumed = scrollConsumptionTracker.totalConsumed
                     var rawDragX = 0f
                     var rawDragY = 0f
+                    var owner = LauncherGestureOwner.Undecided
+                    val velocityTracker = VelocityTracker()
+                    velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
                             val delta = change.positionChangeIgnoreConsumed()
                             rawDragX += delta.x
                             rawDragY += delta.y
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            if (owner == LauncherGestureOwner.Undecided) {
+                                val consumed = scrollConsumptionTracker.totalConsumed - startConsumed
+                                owner = resolveLauncherGestureOwner(
+                                    rawDragX = rawDragX,
+                                    rawDragY = rawDragY,
+                                    consumedDragX = consumed.x,
+                                    consumedDragY = consumed.y,
+                                    touchSlopPx = touchSlopPx,
+                                )
+                            }
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (shouldClaimCarouselDrag(rawDragX, rawDragY, touchSlopPx)) {
+                    if (owner != LauncherGestureOwner.VerticalLauncher) {
                         return@awaitEachGesture
                     }
 
-                    val consumedY = verticalScrollTracker.totalConsumedY - startConsumedY
-                    val netDragY = rawDragY - consumedY
+                    val releaseVelocity = velocityTracker.calculateVelocity().y
+                    val velocityOpposesDrag = rawDragY != 0f &&
+                        abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
+                        sign(releaseVelocity) == -sign(rawDragY)
+                    val distanceCommits = abs(rawDragY) >= launcherSwipeCommitDistancePx
+                    val flingCommits = rawDragY != 0f &&
+                        abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
+                        sign(releaseVelocity) == sign(rawDragY)
+                    val committed = !velocityOpposesDrag && (distanceCommits || flingCommits)
 
                     when {
-                        netDragY >= verticalPullThresholdPx -> {
+                        committed && rawDragY > 0f -> {
                             LauncherDebugLog.event(
-                                "SwipeNavigationBox swipe down rawDragY=$rawDragY consumedY=$consumedY netDragY=$netDragY",
+                                "SwipeNavigationBox swipe down rawDragY=$rawDragY velocityY=$releaseVelocity",
                             )
                             swipeDownDispatch()
                         }
-                        netDragY <= -verticalPullThresholdPx -> {
+                        committed && rawDragY < 0f -> {
                             LauncherDebugLog.event(
-                                "SwipeNavigationBox swipe up rawDragY=$rawDragY consumedY=$consumedY netDragY=$netDragY",
+                                "SwipeNavigationBox swipe up rawDragY=$rawDragY velocityY=$releaseVelocity",
                             )
                             swipeUpDispatch()
                         }
@@ -703,11 +764,7 @@ private fun SwipeNavigationBox(
     ) { page ->
         val pageScreen = LauncherScreen.fromCarouselPage(page)
         if (pageScreen == screen || offscreenPagesReady) {
-            content(
-                pageScreen,
-                { navigateCarouselBy(-1) },
-                { navigateCarouselBy(1) },
-            )
+            content(pageScreen)
         } else {
             Box(modifier = Modifier.fillMaxSize())
         }
@@ -715,14 +772,12 @@ private fun SwipeNavigationBox(
 }
 
 /**
- * Records how much vertical scroll any child consumed during a pointer
- * gesture. The carousel-level pull-down/pull-up detector subtracts this from
- * the raw finger movement so a finger drag that only scrolls a child
- * scrollable doesn't masquerade as a launcher pull. Source = `UserInput`
- * filters out post-release fling animations and any programmatic scrolls.
+ * Records child scroll consumed during a pointer gesture. Launcher gestures
+ * claim only when the child has not consumed movement on the winning axis at
+ * gesture start.
  */
-private class VerticalScrollTracker {
-    var totalConsumedY: Float = 0f
+private class ScrollConsumptionTracker {
+    var totalConsumed: Offset = Offset.Zero
         private set
 
     val connection: NestedScrollConnection = object : NestedScrollConnection {
@@ -732,70 +787,68 @@ private class VerticalScrollTracker {
             source: NestedScrollSource,
         ): Offset {
             if (source == NestedScrollSource.UserInput) {
-                totalConsumedY += consumed.y
+                totalConsumed += consumed
             }
             return Offset.Zero
         }
     }
 }
 
-/**
- * Maps a raw drag distance to a display offset that tracks the finger 1:1 up
- * to a free zone (`CAROUSEL_RUBBER_BAND_LINEAR_FRACTION` of the page width)
- * and then asymptotes to exactly one page width. Inside the free zone the
- * page follows the finger honestly, so the visible offset at the commit
- * threshold (40 % of page width) matches the user's drag and the swipe feels
- * responsive. Past the free zone, resistance ramps up — the returned
- * magnitude is always less than `pageWidth`, so a single drag can never push
- * the pager past one page boundary even if the user keeps dragging.
- *
- * Shape (with linear fraction 0.5):
- * - |x| ≤ 0.5·pageWidth → output = x (linear).
- * - |x| = pageWidth → output ≈ 0.75 · pageWidth.
- * - |x| = 2·pageWidth → output ≈ 0.875 · pageWidth.
- * - output → pageWidth as |x| → ∞.
- */
-internal fun rubberBand(rawDragPx: Float, pageWidthPx: Float): Float {
-    if (pageWidthPx <= 0f) return 0f
-    val absX = abs(rawDragPx)
-    val freeZone = pageWidthPx * CAROUSEL_RUBBER_BAND_LINEAR_FRACTION
-    if (absX <= freeZone) return rawDragPx
-    val excess = absX - freeZone
-    val maxAdditional = pageWidthPx - freeZone
-    val damped = excess * maxAdditional / (maxAdditional + excess)
-    return sign(rawDragPx) * (freeZone + damped)
+private sealed interface CarouselTransitionState {
+    data object Idle : CarouselTransitionState
+
+    data class UserAnimating(
+        val targetPage: Int,
+        val targetScreen: LauncherScreen,
+    ) : CarouselTransitionState
+
+    data class ExternalAnimating(
+        val targetPage: Int,
+        val targetScreen: LauncherScreen,
+    ) : CarouselTransitionState
+
+    data class AwaitingAck(
+        val settledPage: Int,
+        val expectedScreen: LauncherScreen,
+    ) : CarouselTransitionState
 }
 
-/**
- * Picks the base page for a release commit. When a prior gesture or the
- * Home dock-edge pull has queued an `animateScrollToPage` that hasn't
- * completed, [settledPage] still points at the previous screen while
- * [inFlightTargetPage] points at the in-flight destination. We pick:
- *
- * - [settledPage] when the user's drag direction extends the in-flight
- *   animation (forward-on-forward, backward-on-backward) — so a fast
- *   re-touch mid-animation can't compound into a multi-page jump.
- * - [inFlightTargetPage] when the user's drag reverses the in-flight
- *   animation, or when no animation is in flight — so a backward drag
- *   during a forward animation cancels back to where it was heading
- *   instead of overshooting one further page back.
- */
-internal fun chooseDragBasePage(
-    settledPage: Int,
-    inFlightTargetPage: Int,
-    dragDirection: Int,
-): Int {
-    val animatingForward = inFlightTargetPage > settledPage
-    val animatingBackward = inFlightTargetPage < settledPage
+internal enum class LauncherGestureOwner {
+    Undecided,
+    ChildScrollable,
+    HorizontalLauncher,
+    VerticalLauncher,
+}
+
+internal fun resolveLauncherGestureOwner(
+    rawDragX: Float,
+    rawDragY: Float,
+    consumedDragX: Float,
+    consumedDragY: Float,
+    touchSlopPx: Float,
+): LauncherGestureOwner {
+    val absX = abs(rawDragX)
+    val absY = abs(rawDragY)
+    // Child scrollables get a smaller consumption threshold than the launcher's
+    // claim threshold: once a child has demonstrably started scrolling, keep
+    // the whole gesture with that child instead of stealing it later.
+    val childClaimSlop = touchSlopPx / 2f
     return when {
-        animatingForward && dragDirection > 0 -> settledPage
-        animatingBackward && dragDirection < 0 -> settledPage
-        else -> inFlightTargetPage
+        absX <= touchSlopPx && absY <= touchSlopPx -> LauncherGestureOwner.Undecided
+        absX > absY -> {
+            if (abs(consumedDragX) > childClaimSlop) {
+                LauncherGestureOwner.ChildScrollable
+            } else {
+                LauncherGestureOwner.HorizontalLauncher
+            }
+        }
+        absY > absX -> {
+            if (abs(consumedDragY) > childClaimSlop) {
+                LauncherGestureOwner.ChildScrollable
+            } else {
+                LauncherGestureOwner.VerticalLauncher
+            }
+        }
+        else -> LauncherGestureOwner.Undecided
     }
 }
-
-internal fun shouldClaimCarouselDrag(
-    availableDragX: Float,
-    totalDragY: Float,
-    touchSlopPx: Float,
-): Boolean = abs(availableDragX) > touchSlopPx && abs(availableDragX) > abs(totalDragY)
