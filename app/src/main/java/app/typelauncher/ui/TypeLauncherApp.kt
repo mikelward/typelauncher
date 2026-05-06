@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -586,24 +587,62 @@ private fun SwipeNavigationBox(
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             if (!claimed && shouldClaimCarouselDrag(availableDragX, totalDragY, touchSlopPx)) {
                                 claimed = true
-                                // Preempt any in-flight animateScrollToPage so the
-                                // drag's dispatchRawDelta below isn't compounding
-                                // with an animation that's still progressing on
-                                // its own. scroll(UserInput) cancels the in-flight
-                                // Default-priority scroll and returns immediately.
+                                // Hold the pager's user-input scroll mutex for
+                                // the duration of the drag. This serves two
+                                // purposes:
+                                //
+                                //   1. It preempts any in-flight Default-priority
+                                //      scroll (a previous gesture's release
+                                //      animation, the dock-edge-pull's
+                                //      animateScrollToPage, or a programmatic
+                                //      LaunchedEffect(screen) animation) so the
+                                //      drag's dispatchRawDelta below doesn't
+                                //      compound with an animation that's still
+                                //      progressing on its own thread.
+                                //
+                                //   2. It keeps `pagerState.isScrollInProgress`
+                                //      true throughout the drag, which freezes
+                                //      `pagerState.settledPage` at the pre-drag
+                                //      value (settledPage's derivedStateOf is
+                                //      `if (isScrollInProgress) settledPageState
+                                //      else currentPage`). Without that freeze,
+                                //      dispatchRawDelta — which intentionally
+                                //      bypasses the scroll mutex — would let
+                                //      currentPage and settledPage flip every
+                                //      time the drag passes a snap boundary,
+                                //      and our `LaunchedEffect(settledPage)`
+                                //      would fire mid-drag and call
+                                //      onShowWidgets/Agenda, which then
+                                //      re-keys `LaunchedEffect(screen)`. When
+                                //      the gesture's release animation lands
+                                //      back on settled+1, that lingering
+                                //      `LaunchedEffect(screen=Agenda)` block
+                                //      can still run with the now-pulled-back
+                                //      currentPage and call
+                                //      `animateScrollToPage(closestCarouselPage(
+                                //      M+1, Agenda)) == M+2`, which is the
+                                //      "lands on the right page briefly then
+                                //      kicks one more for no reason" jump.
+                                //
                                 // Has to be a fire-and-forget launch because
                                 // AwaitPointerEventScope is @RestrictsSuspension —
                                 // we can't suspend on pagerState.scroll() inline —
-                                // so the very first claimed frame can still
-                                // compound for ~1 frame while the preempt
-                                // acquires the user-input mutex; subsequent
-                                // frames operate on a stationary pager. The
-                                // release path joins this Job before launching
-                                // its own animateScrollToPage, so a fast lift
-                                // can't have the release animation cancelled by
-                                // a preempt that hadn't yet acquired the mutex.
+                                // so the first claimed frame can still compound
+                                // for ~1 frame while the launch acquires the
+                                // mutex. The release path cancels this Job and
+                                // joins it before launching animateScrollToPage,
+                                // so the held mutex is released cleanly and a
+                                // fast lift can't race the release animation.
                                 preemptInFlightJob = coroutineScope.launch {
-                                    pagerState.scroll(MutatePriority.UserInput) {}
+                                    pagerState.scroll(MutatePriority.UserInput) {
+                                        // Hold the mutex (and isScrollInProgress)
+                                        // until the gesture releases. The release
+                                        // path cancels this Job; awaitCancellation
+                                        // throws CancellationException, which
+                                        // propagates out of the scroll {} block
+                                        // and releases the mutex.
+                                        awaitCancellation()
+                                    }
                                 }
                             }
                             if (claimed) {
@@ -672,13 +711,15 @@ private fun SwipeNavigationBox(
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
                     )
+                    // Release the held user-input mutex (cancels the
+                    // awaitCancellation inside the scroll {} block) and wait
+                    // for it to actually clear before launching the release
+                    // animation. Without the join, a fast lift could let the
+                    // Default-priority animateScrollToPage start before the
+                    // UserInput-priority hold has released, and it'd be
+                    // immediately cancelled by the still-being-cancelled hold.
+                    preemptInFlightJob?.cancel()
                     coroutineScope.launch {
-                        // Wait for the claim-time preempt to release the user-
-                        // input mutex first; otherwise on a fast lift the
-                        // higher-priority preempt could land on the dispatcher
-                        // after this Default-priority animateScrollToPage
-                        // started and cancel the release animation, leaving
-                        // the pager frozen mid-scroll.
                         preemptInFlightJob?.join()
                         pagerState.animateScrollToPage(targetPage)
                     }
