@@ -1,3 +1,11 @@
+import java.io.ByteArrayOutputStream
+import javax.inject.Inject
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+
 plugins {
     alias(libs.plugins.android.application)
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
@@ -88,6 +96,49 @@ val debugSearchPlaceholderSuffix = when {
     isGitWorkingTreeDirty -> " (dirty)"
     gitBranchName == "main" -> " (v$gitCommitCount)"
     else -> " ($gitShortSha)"
+}
+
+abstract class InstallAndRunPersonalDebugTask @Inject constructor(
+    private val execOperations: ExecOperations,
+) : DefaultTask() {
+    @get:InputFile
+    abstract val apkFile: RegularFileProperty
+
+    @TaskAction
+    fun installAndRun() {
+        execOperations.exec {
+            commandLine("adb", "install", "--user", PERSONAL_USER_ID, "-r", apkFile.get().asFile.absolutePath)
+        }
+        uninstallFromNonPersonalUsers()
+        execOperations.exec {
+            commandLine("adb", "shell", "am", "start", "--user", PERSONAL_USER_ID, "-n", LAUNCH_COMPONENT)
+        }
+    }
+
+    private fun uninstallFromNonPersonalUsers() {
+        val usersOutput = ByteArrayOutputStream()
+        execOperations.exec {
+            commandLine("adb", "shell", "pm", "list", "users")
+            standardOutput = usersOutput
+        }
+
+        USER_INFO_REGEX.findAll(usersOutput.toString())
+            .map { match -> match.groupValues[1] }
+            .filter { userId -> userId != PERSONAL_USER_ID }
+            .forEach { userId ->
+                execOperations.exec {
+                    commandLine("adb", "shell", "pm", "uninstall", "--user", userId, DEBUG_APPLICATION_ID)
+                    isIgnoreExitValue = true
+                }
+            }
+    }
+
+    private companion object {
+        const val PERSONAL_USER_ID = "0"
+        const val DEBUG_APPLICATION_ID = "app.typelauncher.debug"
+        const val LAUNCH_COMPONENT = "$DEBUG_APPLICATION_ID/app.typelauncher.MainActivity"
+        val USER_INFO_REGEX = Regex("""UserInfo\{(\d+):""")
+    }
 }
 
 android {
@@ -198,9 +249,11 @@ android {
     }
 }
 
-tasks.register<Exec>("installAndRun") {
-    dependsOn("installDebug")
-    commandLine("adb", "shell", "am", "start", "-n", "app.typelauncher.debug/app.typelauncher.MainActivity")
+tasks.register<InstallAndRunPersonalDebugTask>("installAndRun") {
+    group = "install"
+    description = "Installs the debug APK for the personal profile (user 0) only, then launches it."
+    dependsOn("assembleDebug")
+    apkFile.set(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
 }
 
 tasks.withType<Test>().configureEach {
