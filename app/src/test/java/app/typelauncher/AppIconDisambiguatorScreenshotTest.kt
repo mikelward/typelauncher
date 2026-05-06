@@ -1,10 +1,13 @@
 package app.typelauncher
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -70,7 +73,7 @@ class AppIconDisambiguatorScreenshotTest {
             badgeTag = "$APP_ICON_DISAMBIGUATOR_TAG:Chase (INTL)",
         )
 
-        saveScreenshot("compose_disambiguator_chase_variants_robolectric.png")
+        saveScreenshot("compose_disambiguator_chase_pair_robolectric.png")
     }
 
     @Test
@@ -179,17 +182,29 @@ class AppIconDisambiguatorScreenshotTest {
                 "Amex UK" to "com.americanexpress.android.acctsvcs.uk",
                 "Amex AU" to "com.americanexpress.android.acctsvcs.au",
             )
-            for ((label, packageName) in seeds) {
+            for ((index, seed) in seeds.withIndex()) {
+                val (label, packageName) = seed
+                val componentName = ComponentName(packageName, "$packageName.LaunchActivity")
                 val resolveInfo = ResolveInfo().apply {
                     nonLocalizedLabel = label
                     activityInfo = ActivityInfo().apply {
                         this.packageName = packageName
-                        name = "$packageName.LaunchActivity"
+                        name = componentName.className
                     }
                 }
                 @Suppress("DEPRECATION")
                 pm.addResolveInfoForIntent(launcherIntent, resolveInfo)
+                pm.addActivityIcon(componentName, ColorDrawable(ICON_COLORS[index % ICON_COLORS.size]))
             }
+        }
+
+        private companion object {
+            val ICON_COLORS = intArrayOf(
+                Color.rgb(0x1A, 0x73, 0xE8),
+                Color.rgb(0xD9, 0x30, 0x25),
+                Color.rgb(0x18, 0x80, 0x38),
+                Color.rgb(0xF9, 0xAB, 0x00),
+            )
         }
     }
 }
