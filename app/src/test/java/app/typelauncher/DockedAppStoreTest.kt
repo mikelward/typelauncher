@@ -140,6 +140,22 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun agendaEnabledDefaultsToTrue() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(true, store.isAgendaEnabled)
+    }
+
+    @Test
+    fun agendaEnabledPersistsExplicitSelection() {
+        DockSettingsStore(context).isAgendaEnabled = false
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(false, reloaded.isAgendaEnabled)
+    }
+
+    @Test
     fun themeModeFallsBackToSystemForUnknownStoredValue() {
         context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
             .edit()

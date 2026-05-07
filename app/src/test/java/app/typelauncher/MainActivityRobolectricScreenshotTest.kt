@@ -666,6 +666,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Pull down").assertIsDisplayed()
         composeRule.onNodeWithText("Show dock").assertExists()
+        composeRule.onNodeWithText("Show agenda").assertExists()
         composeRule.onNodeWithText("Icons per row: 4").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
@@ -913,6 +914,31 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun showAgendaToggle_inSettingsRemovesAgendaFromCarousel() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SHOW_AGENDA_SWITCH_TAG).performScrollTo().assertIsOn()
+        composeRule.onNodeWithTag(SHOW_AGENDA_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SHOW_AGENDA_SWITCH_TAG).performScrollTo().assertIsOff()
+        assertFalse(viewModel.uiState.value.isAgendaEnabled)
+        assertFalse(DockSettingsStore(composeRule.activity).isAgendaEnabled)
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Widgets, viewModel.uiState.value.screen)
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertDoesNotExist()
     }
 
     @Test

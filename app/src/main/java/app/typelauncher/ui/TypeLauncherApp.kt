@@ -115,6 +115,7 @@ internal fun TypeLauncherApp(
         state.isFreshAppLoadComplete,
         state.filteredApps.size,
         state.dockedApps.size,
+        state.isAgendaEnabled,
     ) {
         LauncherDebugLog.event("TypeLauncherApp state ${state.debugSummary()}")
     }
@@ -151,6 +152,7 @@ internal fun TypeLauncherApp(
         onHideRecentsFromAppListChanged = viewModel::setHideRecentsFromAppList,
         onNotificationPullDownBehaviorChanged = viewModel::setNotificationPullDownBehavior,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
+        onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onThemeModeChanged = viewModel::setThemeMode,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
@@ -206,6 +208,7 @@ internal fun TypeLauncherApp(
     onHideRecentsFromAppListChanged: (Boolean) -> Unit = {},
     onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
+    onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
@@ -268,6 +271,7 @@ internal fun TypeLauncherApp(
                 onHideRecentsFromAppListChanged = onHideRecentsFromAppListChanged,
                 onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
                 onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
+                onAgendaEnabledChanged = onAgendaEnabledChanged,
                 onThemeModeChanged = onThemeModeChanged,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
@@ -283,6 +287,7 @@ internal fun TypeLauncherApp(
             var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
             SwipeNavigationBox(
                 screen = state.screen,
+                isAgendaEnabled = state.isAgendaEnabled,
                 isNotificationBarOpen = state.isNotificationBarOpen,
                 notificationPullDownBehavior = state.notificationPullDownBehavior,
                 // Pull-up's stage gating cares about whether the user is
@@ -356,8 +361,8 @@ internal fun TypeLauncherApp(
  * returned (`appsReady`). When Home is configured to auto-show the keyboard,
  * this also waits until the soft keyboard is visible or
  * [HOME_READY_IME_TIMEOUT_MS] has elapsed since the apps loaded. The downstream
- * signal kicks off the deferred initial agenda load so it doesn't contend with
- * the cold-start app list IO or an expected keyboard show.
+ * signal releases deferred startup work, including the initial agenda load when
+ * Agenda is enabled.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -383,6 +388,7 @@ private fun HomeReadySignal(
 @Composable
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
+    isAgendaEnabled: Boolean,
     isNotificationBarOpen: Boolean,
     notificationPullDownBehavior: NotificationPullDownBehavior,
     isRecentsVisible: Boolean,
@@ -457,7 +463,7 @@ private fun SwipeNavigationBox(
             }
         }
     }
-    var currentPage by remember { mutableStateOf(LauncherScreen.initialCarouselPage(screen)) }
+    var currentPage by remember { mutableStateOf(LauncherScreen.initialCarouselPage(screen, isAgendaEnabled)) }
     var carouselOffsetPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
     val touchSlopPx = with(density) { CAROUSEL_TOUCH_SLOP_DP.dp.toPx() }
@@ -555,7 +561,10 @@ private fun SwipeNavigationBox(
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     val startConsumed = scrollConsumptionTracker.totalConsumed
                     val gestureStartPage = currentPage
-                    val gestureStartScreen = LauncherScreen.fromCarouselPage(gestureStartPage)
+                    val gestureStartScreen = LauncherScreen.fromCarouselPage(
+                        gestureStartPage,
+                        isAgendaEnabled,
+                    )
                     val canStartCarouselGesture = carouselTransition == CarouselTransitionState.Idle &&
                         carouselAnimationJob?.isActive != true &&
                         carouselOffsetPx == 0f &&
@@ -626,7 +635,7 @@ private fun SwipeNavigationBox(
                     } else {
                         gestureStartPage
                     }
-                    val targetScreen = LauncherScreen.fromCarouselPage(targetPage)
+                    val targetScreen = LauncherScreen.fromCarouselPage(targetPage, isAgendaEnabled)
                     val willChangePage = committed && targetPage != gestureStartPage
                     if (willChangePage) {
                         carouselTransition = CarouselTransitionState.UserAnimating(targetPage, targetScreen)
@@ -722,7 +731,7 @@ private fun SwipeNavigationBox(
             },
     ) {
         val pageWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-        LaunchedEffect(screen, pageWidthPx) {
+        LaunchedEffect(screen, pageWidthPx, isAgendaEnabled) {
             when (val transition = carouselTransition) {
                 is CarouselTransitionState.AwaitingAck -> {
                     if (screen == transition.expectedScreen) {
@@ -739,12 +748,13 @@ private fun SwipeNavigationBox(
             if (carouselAnimationJob?.isActive == true || carouselOffsetPx != 0f) {
                 return@LaunchedEffect
             }
-            if (screen == LauncherScreen.fromCarouselPage(currentPage)) {
+            if (screen == LauncherScreen.fromCarouselPage(currentPage, isAgendaEnabled)) {
                 allowSwipeWithUnackedScreen = false
             }
             val targetPage = LauncherScreen.closestCarouselPage(
                 currentPage = currentPage,
                 screen = screen,
+                isAgendaEnabled = isAgendaEnabled,
             )
             LauncherDebugLog.event(
                 "SwipeNavigationBox external screen=$screen settledPage=$currentPage targetPage=$targetPage",
@@ -766,11 +776,12 @@ private fun SwipeNavigationBox(
         }
         LaunchedEffect(currentPage) {
             LauncherDebugLog.event(
-                "SwipeNavigationBox settledPage=$currentPage screen=${LauncherScreen.fromCarouselPage(currentPage)}",
+                "SwipeNavigationBox settledPage=$currentPage " +
+                    "screen=${LauncherScreen.fromCarouselPage(currentPage, isAgendaEnabled)}",
             )
         }
         listOf(currentPage - 1, currentPage, currentPage + 1).forEach { page ->
-            val pageScreen = LauncherScreen.fromCarouselPage(page)
+            val pageScreen = LauncherScreen.fromCarouselPage(page, isAgendaEnabled)
             val translationX = (page - currentPage) * pageWidthPx + carouselOffsetPx
             Box(
                 modifier = Modifier

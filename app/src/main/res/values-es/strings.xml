@@ -96,6 +96,7 @@
     <string name="settings_pull_down_option_bar_below">Barra abajo</string>
     <string name="settings_pull_down_option_bar_above">Barra arriba</string>
     <string name="settings_keyboard_auto_show_title">Mostrar teclado automáticamente</string>
+    <string name="settings_show_agenda_title">Mostrar agenda</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Claro</string>

@@ -149,6 +149,7 @@ internal class LauncherViewModel(
             isHideRecentsFromAppList = dockSettingsStore.isHideRecentsFromAppList,
             notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
+            isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
@@ -426,16 +427,22 @@ internal class LauncherViewModel(
      * the soft keyboard is in place (or a fallback timeout has elapsed).
      * Publishes `isHomeReady` for downstream consumers (e.g. MainActivity's
      * deferred `AppWidgetHost.startListening`) and triggers the deferred first
-     * agenda load on the IO dispatcher. Idempotent.
+     * agenda load on the IO dispatcher when the Agenda page is enabled.
+     * Idempotent.
      */
     fun onHomeReady() {
         if (_uiState.value.isHomeReady) return
         _uiState.update { it.copy(isHomeReady = true) }
-        LauncherDebugLog.event("onHomeReady published; starting deferred agenda load")
-        if (!initialAgendaTriggered) {
-            initialAgendaTriggered = true
-            loadAgendaAsync(reason = "homeReady", traceName = "agenda_initial_load")
-        }
+        LauncherDebugLog.event("onHomeReady published")
+        triggerInitialAgendaLoadIfEnabled(reason = "homeReady")
+    }
+
+    private fun triggerInitialAgendaLoadIfEnabled(reason: String) {
+        val state = _uiState.value
+        if (initialAgendaTriggered || !state.isHomeReady || !state.isAgendaEnabled) return
+        initialAgendaTriggered = true
+        LauncherDebugLog.event("$reason starting deferred agenda load")
+        loadAgendaAsync(reason = reason, traceName = "agenda_initial_load")
     }
 
     fun setQuery(query: String) {
@@ -449,6 +456,10 @@ internal class LauncherViewModel(
     }
 
     fun showAgenda() {
+        if (!_uiState.value.isAgendaEnabled) {
+            LauncherDebugLog.event("showAgenda ignored; agenda disabled")
+            return
+        }
         _uiState.update {
             it.copy(screen = LauncherScreen.Agenda, isRecentsOpen = false, isNotificationBarOpen = false)
         }
@@ -1039,6 +1050,26 @@ internal class LauncherViewModel(
         dockSettingsStore.isKeyboardAutoShown = isAutoShown
         _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
         logState("setKeyboardAutoShown=$isAutoShown")
+    }
+
+    fun setAgendaEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isAgendaEnabled = isEnabled
+        _uiState.update { state ->
+            state.copy(
+                isAgendaEnabled = isEnabled,
+                screen = if (!isEnabled && state.screen == LauncherScreen.Agenda) {
+                    LauncherScreen.Home
+                } else {
+                    state.screen
+                },
+                isRecentsOpen = state.isRecentsOpen && state.screen != LauncherScreen.Agenda,
+                isNotificationBarOpen = state.isNotificationBarOpen && state.screen != LauncherScreen.Agenda,
+            )
+        }
+        logState("setAgendaEnabled=$isEnabled")
+        if (isEnabled) {
+            triggerInitialAgendaLoadIfEnabled(reason = "agendaEnabled")
+        }
     }
 
     fun setThemeMode(mode: ThemeMode) {
