@@ -13,6 +13,7 @@ import android.os.Process
 import android.os.UserHandle
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -33,6 +34,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
@@ -1169,6 +1171,18 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appActionsMenu_keepsSearchFocusedWhileOpen() {
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsFocusedBySemantics()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calculator").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsFocusedBySemantics()
+    }
+
+    @Test
     fun appActionsMenuAppInfo_opensAndroidAppInfoForThatApp() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calendar")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").performTouchInput { longClick() }
@@ -2277,6 +2291,9 @@ class MainActivityRobolectricScreenshotTest {
             ),
         )
     }
+
+    private fun SemanticsNodeInteraction.assertIsFocusedBySemantics(): SemanticsNodeInteraction =
+        assert(SemanticsMatcher.expectValue(SemanticsProperties.Focused, true))
 
     private companion object {
         val ALL_FAKE_APP_NAMES = listOf(
