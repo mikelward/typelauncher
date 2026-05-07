@@ -274,7 +274,8 @@ private fun WidgetPickerFilterField(
         textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Words,
-            keyboardType = KeyboardType.Text,
+        autoCorrectEnabled = false,
+        keyboardType = KeyboardType.Password,
             imeAction = ImeAction.Search,
         ),
     )
