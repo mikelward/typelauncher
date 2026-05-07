@@ -291,7 +291,7 @@ internal fun TypeLauncherApp(
             }
         }
         LaunchedEffect(reserveForHomeKeyboardRequest, imeVisible, imeTargetBottomPx, navBottomPx) {
-            if (imeTargetBottomPx > navBottomPx || imeVisible) {
+            if (imeTargetBottomPx > navBottomPx) {
                 reserveForHomeKeyboardRequest = false
             } else if (reserveForHomeKeyboardRequest) {
                 delay(HOME_READY_IME_TIMEOUT_MS)
@@ -300,14 +300,46 @@ internal fun TypeLauncherApp(
                 }
             }
         }
+        val keyboardReserveSource: String
         val keyboardBottomPx = when {
-            imeTargetBottomPx > navBottomPx -> imeTargetBottomPx
-            reserveForHomeKeyboardRequest && lastKeyboardBottomPx > navBottomPx -> lastKeyboardBottomPx
-            imeVisible && lastKeyboardBottomPx > navBottomPx -> lastKeyboardBottomPx
-            imeVisible -> imeBottomPx
-            else -> 0
+            imeTargetBottomPx > navBottomPx -> {
+                keyboardReserveSource = "target"
+                imeTargetBottomPx
+            }
+            reserveForHomeKeyboardRequest && lastKeyboardBottomPx > navBottomPx -> {
+                keyboardReserveSource = "preShowCache"
+                lastKeyboardBottomPx
+            }
+            imeVisible && lastKeyboardBottomPx > navBottomPx -> {
+                keyboardReserveSource = "visibleCache"
+                lastKeyboardBottomPx
+            }
+            imeVisible -> {
+                keyboardReserveSource = "animatedIme"
+                imeBottomPx
+            }
+            else -> {
+                keyboardReserveSource = "none"
+                0
+            }
         }
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
+        LaunchedEffect(
+            state.screen,
+            keyboardReserveSource,
+            keyboardReservationPx,
+            imeVisible,
+            imeBottomPx,
+            imeTargetBottomPx,
+            lastKeyboardBottomPx,
+            navBottomPx,
+        ) {
+            LauncherDebugLog.event(
+                "KeyboardReservation screen=${state.screen} source=$keyboardReserveSource " +
+                    "reservePx=$keyboardReservationPx imeVisible=$imeVisible imeBottomPx=$imeBottomPx " +
+                    "imeTargetBottomPx=$imeTargetBottomPx lastKeyboardBottomPx=$lastKeyboardBottomPx navBottomPx=$navBottomPx",
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
