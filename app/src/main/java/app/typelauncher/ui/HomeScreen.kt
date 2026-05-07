@@ -134,6 +134,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -1376,7 +1377,11 @@ private fun AppActionsMenu(
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        properties = AppActionsMenuPopupProperties,
+    ) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_app_info)) },
             modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
@@ -1429,7 +1434,11 @@ private fun RecentAppActionsMenu(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismissMenu) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissMenu,
+        properties = AppActionsMenuPopupProperties,
+    ) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_app_info)) },
             modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
@@ -1474,7 +1483,11 @@ private fun NotifyingAppActionsMenu(
     onDismissNotifications: (InstalledApp) -> Unit,
     onOpenNotificationSettings: (InstalledApp) -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismissMenu) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissMenu,
+        properties = AppActionsMenuPopupProperties,
+    ) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_dismiss)) },
             modifier = Modifier.testTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:${app.displayName}"),
@@ -1493,6 +1506,8 @@ private fun NotifyingAppActionsMenu(
         )
     }
 }
+
+private val AppActionsMenuPopupProperties = PopupProperties(focusable = false)
 
 @Composable
 private fun DockedAppButton(
