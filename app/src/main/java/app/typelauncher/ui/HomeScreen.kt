@@ -1719,6 +1719,7 @@ internal fun SettingsScreen(
     onHideRecentsFromAppListChanged: (Boolean) -> Unit = {},
     onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
+    onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1917,6 +1918,23 @@ internal fun SettingsScreen(
                     checked = state.isKeyboardAutoShown,
                     onCheckedChange = onKeyboardAutoShownChanged,
                     modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_agenda_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isAgendaEnabled,
+                    onCheckedChange = onAgendaEnabledChanged,
+                    modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
                 )
             }
             Row(

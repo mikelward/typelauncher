@@ -70,6 +70,7 @@ internal object BugReport {
             isAppListIconOnly = dockSettings.isAppListIconOnly,
             dockIconCount = dockSettings.dockIconCount,
             appListSortOrder = dockSettings.appListSortOrder,
+            isAgendaEnabled = dockSettings.isAgendaEnabled,
             dockedAppIds = dockedApps,
             widgetIds = widgetIds,
             recentLog = LauncherDebugLog.snapshot(),
@@ -200,6 +201,7 @@ internal fun buildBugReportPayload(
     isAppListIconOnly: Boolean,
     dockIconCount: Int,
     appListSortOrder: AppListSortOrder,
+    isAgendaEnabled: Boolean,
     dockedAppIds: List<String>,
     widgetIds: List<Int>,
     recentLog: List<String>,
@@ -225,6 +227,7 @@ internal fun buildBugReportPayload(
         appendLine("App list icon-only: $isAppListIconOnly")
         appendLine("Dock icons visible: $dockIconCount")
         appendLine("App list sort order: $appListSortOrder")
+        appendLine("Agenda enabled: $isAgendaEnabled")
         appendLine("Docked apps (${dockedAppIds.size}):")
         if (dockedAppIds.isEmpty()) {
             appendLine("  (none)")

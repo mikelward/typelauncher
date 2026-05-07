@@ -96,6 +96,7 @@
     <string name="settings_pull_down_option_bar_below">下のバー</string>
     <string name="settings_pull_down_option_bar_above">上のバー</string>
     <string name="settings_keyboard_auto_show_title">キーボードを自動表示</string>
+    <string name="settings_show_agenda_title">アジェンダを表示</string>
     <string name="settings_theme_title">テーマ</string>
     <string name="settings_theme_option_system">システム</string>
     <string name="settings_theme_option_light">ライト</string>

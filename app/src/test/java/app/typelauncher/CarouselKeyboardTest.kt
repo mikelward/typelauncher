@@ -51,6 +51,19 @@ class CarouselKeyboardTest {
     }
 
     @Test
+    fun swipingRightFromHome_whenAgendaDisabledWrapsToWidgets() {
+        val keyboard = CountingKeyboardController()
+        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), isAgendaEnabled = false))
+        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(1, keyboard.hideCount)
+    }
+
+    @Test
     fun swipingBackToHome_reShowsKeyboardWhenAutoShowEnabled() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), isKeyboardAutoShown = true))
