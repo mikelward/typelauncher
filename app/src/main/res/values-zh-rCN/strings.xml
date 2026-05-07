@@ -8,7 +8,6 @@
     <string name="play_update_banner_body">点按以从 Google Play 更新。</string>
     <string name="play_update_banner_update_button">更新</string>
     <string name="play_update_banner_dismiss_description">关闭更新横幅</string>
-    <string name="work_app_badge_description">工作应用</string>
     <string name="installed_apps_list_label">已安装的应用</string>
     <string name="dock_apps_list_label">程序坞</string>
     <string name="dock_apps_hint">长按应用以固定到程序坞</string>
@@ -60,7 +59,6 @@
     <string name="widgets_preview_unavailable">预览不可用</string>
     <string name="widgets_picker_unavailable">小部件选择器不可用</string>
     <string name="widgets_unavailable">小部件不可用</string>
-    <string name="widgets_work_badge_description">工作资料小部件</string>
     <string name="widget_menu_resize">调整大小</string>
     <string name="widget_menu_remove">移除</string>
     <string name="widget_resize_handle_description">拖动以调整小部件大小</string>

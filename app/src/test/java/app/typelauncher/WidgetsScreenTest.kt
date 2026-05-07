@@ -248,7 +248,7 @@ class WidgetsScreenTest {
     }
 
     @Test
-    fun widgetPicker_showsWorkBadgeForWorkProfileProviderGroup() {
+    fun widgetPicker_keepsWorkProfileProviderGroupSeparateWithoutCustomBadge() {
         val personal = fakeWidgetProvider(appName = "Calendar", label = "Calendar month")
         val work = fakeWidgetProvider(
             appName = "Calendar",
@@ -275,17 +275,16 @@ class WidgetsScreenTest {
             }
         }
 
-        // Personal and work groups for the same display name render as
-        // separate sections so the work badge has somewhere to live.
+        // Personal and work groups for the same display name still render as
+        // separate sections so binds use the provider's original profile.
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work")
             .performScrollTo()
             .assertIsDisplayed()
-        // The work badge sits inside the work group's app-icon thumbnail.
         composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
-            .assertExists()
+            .assertDoesNotExist()
     }
 
     private fun fakeWidgetProvider(

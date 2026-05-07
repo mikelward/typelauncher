@@ -8,7 +8,6 @@
     <string name="play_update_banner_body">Toca para actualizar desde Google Play.</string>
     <string name="play_update_banner_update_button">Actualizar</string>
     <string name="play_update_banner_dismiss_description">Cerrar banner de actualización</string>
-    <string name="work_app_badge_description">App de trabajo</string>
     <string name="installed_apps_list_label">Apps instaladas</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Mantén pulsada una app para anclarla</string>
@@ -60,7 +59,6 @@
     <string name="widgets_preview_unavailable">Vista previa no disponible</string>
     <string name="widgets_picker_unavailable">Selector de widgets no disponible</string>
     <string name="widgets_unavailable">Widget no disponible</string>
-    <string name="widgets_work_badge_description">Widget del perfil de trabajo</string>
     <string name="widget_menu_resize">Redimensionar</string>
     <string name="widget_menu_remove">Eliminar</string>
     <string name="widget_resize_handle_description">Arrastra para redimensionar el widget</string>

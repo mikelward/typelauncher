@@ -8,7 +8,6 @@
     <string name="play_update_banner_body">Google Play से अपडेट करने के लिए टैप करें.</string>
     <string name="play_update_banner_update_button">अपडेट करें</string>
     <string name="play_update_banner_dismiss_description">अपडेट बैनर खारिज करें</string>
-    <string name="work_app_badge_description">कार्य ऐप</string>
     <string name="installed_apps_list_label">इंस्टॉल किए गए ऐप्स</string>
     <string name="dock_apps_list_label">डॉक</string>
     <string name="dock_apps_hint">डॉक पर लगाने के लिए ऐप्स को देर तक दबाएं</string>
@@ -60,7 +59,6 @@
     <string name="widgets_preview_unavailable">पूर्वावलोकन उपलब्ध नहीं</string>
     <string name="widgets_picker_unavailable">विजेट चयनकर्ता उपलब्ध नहीं</string>
     <string name="widgets_unavailable">विजेट उपलब्ध नहीं</string>
-    <string name="widgets_work_badge_description">कार्य प्रोफ़ाइल विजेट</string>
     <string name="widget_menu_resize">आकार बदलें</string>
     <string name="widget_menu_remove">हटाएं</string>
     <string name="widget_resize_handle_description">विजेट का आकार बदलने के लिए खींचें</string>

@@ -8,7 +8,6 @@
     <string name="play_update_banner_body">Tap to update from Google Play.</string>
     <string name="play_update_banner_update_button">Update</string>
     <string name="play_update_banner_dismiss_description">Dismiss update banner</string>
-    <string name="work_app_badge_description">Work app</string>
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Long press apps to dock</string>
@@ -60,7 +59,6 @@
     <string name="widgets_preview_unavailable">Preview unavailable</string>
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>
     <string name="widgets_unavailable">Widget unavailable</string>
-    <string name="widgets_work_badge_description">Work profile widget</string>
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_remove">Remove</string>
     <string name="widget_resize_handle_description">Drag to resize widget</string>
