@@ -96,7 +96,6 @@
     <string name="settings_pull_down_option_bar_below">下方栏</string>
     <string name="settings_pull_down_option_bar_above">上方栏</string>
     <string name="settings_keyboard_auto_show_title">自动显示键盘</string>
-    <string name="settings_remove_widget_padding_title">移除小组件内边距</string>
     <string name="settings_theme_title">主题</string>
     <string name="settings_theme_option_system">系统</string>
     <string name="settings_theme_option_light">浅色</string>

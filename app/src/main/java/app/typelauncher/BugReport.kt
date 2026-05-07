@@ -70,7 +70,6 @@ internal object BugReport {
             isAppListIconOnly = dockSettings.isAppListIconOnly,
             dockIconCount = dockSettings.dockIconCount,
             appListSortOrder = dockSettings.appListSortOrder,
-            isWidgetPaddingRemoved = dockSettings.isWidgetPaddingRemoved,
             dockedAppIds = dockedApps,
             widgetIds = widgetIds,
             recentLog = LauncherDebugLog.snapshot(),
@@ -201,7 +200,6 @@ internal fun buildBugReportPayload(
     isAppListIconOnly: Boolean,
     dockIconCount: Int,
     appListSortOrder: AppListSortOrder,
-    isWidgetPaddingRemoved: Boolean,
     dockedAppIds: List<String>,
     widgetIds: List<Int>,
     recentLog: List<String>,
@@ -227,7 +225,6 @@ internal fun buildBugReportPayload(
         appendLine("App list icon-only: $isAppListIconOnly")
         appendLine("Dock icons visible: $dockIconCount")
         appendLine("App list sort order: $appListSortOrder")
-        appendLine("Widget padding removed: $isWidgetPaddingRemoved")
         appendLine("Docked apps (${dockedAppIds.size}):")
         if (dockedAppIds.isEmpty()) {
             appendLine("  (none)")

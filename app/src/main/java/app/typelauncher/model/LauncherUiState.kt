@@ -114,9 +114,6 @@ internal data class LauncherUiState(
     // `MainActivity` overrides the manifest's `stateAlwaysVisible` softInputMode
     // so the keyboard stays down until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
-    // When true, hosted widgets remove the framework's default AppWidgetHostView
-    // padding so widget content can sit closer to the page edges.
-    val isWidgetPaddingRemoved: Boolean = false,
     // User-selected appearance mode. `System` (default) follows the device's
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.

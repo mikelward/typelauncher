@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
-import android.graphics.Rect
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -20,7 +19,6 @@ internal class LauncherAppWidgetHost(context: Context, hostId: Int) : AppWidgetH
 
 internal class LauncherAppWidgetHostView(context: Context) : AppWidgetHostView(context) {
     private var onWidgetLongPress: (() -> Unit)? = null
-    private var removeWidgetPadding = false
     private val longPressTimeoutMs = ViewConfiguration.getLongPressTimeout().toLong()
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var downX = 0f
@@ -38,24 +36,9 @@ internal class LauncherAppWidgetHostView(context: Context) : AppWidgetHostView(c
         onWidgetLongPress = listener
     }
 
-    fun setRemoveWidgetPadding(remove: Boolean) {
-        if (removeWidgetPadding == remove) return
-        removeWidgetPadding = remove
-        applyWidgetPadding()
-    }
-
     override fun setAppWidget(appWidgetId: Int, info: AppWidgetProviderInfo?) {
         super.setAppWidget(appWidgetId, info)
-        applyWidgetPadding()
-    }
-
-    private fun applyWidgetPadding() {
-        if (removeWidgetPadding) {
-            setPadding(0, 0, 0, 0)
-        } else {
-            val padding = AppWidgetHostView.getDefaultPaddingForWidget(context, appWidgetInfo?.provider, Rect())
-            setPadding(padding.left, padding.top, padding.right, padding.bottom)
-        }
+        setPadding(0, 0, 0, 0)
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
