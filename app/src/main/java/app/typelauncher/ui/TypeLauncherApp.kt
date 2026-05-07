@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.union
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +47,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
@@ -53,6 +56,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.sign
 
 // Drag must clear this many pixels before the launcher decides whether a child
@@ -254,118 +258,142 @@ internal fun TypeLauncherApp(
         withFrameNanos { }
         homeBodyReady = true
     }
-    Scaffold(
-        contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
-    ) { innerPadding ->
-        if (state.isSettingsOpen) {
-            SettingsScreen(
-                state = state,
-                innerPadding = innerPadding,
-                onCloseSettings = onCloseSettings,
-                onRequestDefaultLauncher = onRequestDefaultLauncher,
-                onDockEnabledChanged = onDockEnabledChanged,
-                onAppListIconOnlyChanged = onAppListIconOnlyChanged,
-                onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
-                onAppListSortOrderChanged = onAppListSortOrderChanged,
-                onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
-                onHideRecentsFromAppListChanged = onHideRecentsFromAppListChanged,
-                onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
-                onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
-                onAgendaEnabledChanged = onAgendaEnabledChanged,
-                onThemeModeChanged = onThemeModeChanged,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onHideApp = onHideApp,
-                onUnhideApp = onUnhideApp,
-                onOpenLauncherAppInfo = onOpenLauncherAppInfo,
-                onOpenPlayUpdate = onOpenPlayUpdate,
-                onDismissPlayUpdate = onDismissPlayUpdate,
-            )
-        } else {
-            var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
-            SwipeNavigationBox(
-                screen = state.screen,
-                currentWidgetPage = state.currentWidgetPage,
-                widgetPageCount = state.widgetPages.size,
-                isAgendaEnabled = state.isAgendaEnabled,
-                isNotificationBarOpen = state.isNotificationBarOpen,
-                notificationPullDownBehavior = state.notificationPullDownBehavior,
-                // Pull-up's stage gating cares about whether the user is
-                // already *looking* at recents, regardless of whether that's
-                // because of the gesture-toggled `isRecentsOpen` or the
-                // persistent `isRecentsAlwaysShown` setting (whose visibility
-                // predicate is the same OR — see `LauncherUiState`).
-                isRecentsVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
-                onShowAgenda = onShowAgenda,
-                onShowWidgets = onShowWidgets,
-                onShowHome = onShowHome,
-                onSetNotificationBarOpen = onSetNotificationBarOpen,
-                onSetRecentsOpen = onSetRecentsOpen,
-                onRequestShowKeyboard = onRequestShowKeyboard,
-                onSwipeDown = onSwipeDown,
-                appListBoundsInRoot = homeAppListBoundsInRoot,
-            ) { page, isCurrentPage ->
-                when (page.screen) {
-                    LauncherScreen.Home -> HomeScreen(
-                        state = state,
-                        innerPadding = innerPadding,
-                        bodyReady = homeBodyReady,
-                        searchPlaceholderSuffix = searchPlaceholderSuffix,
-                        keyboardShowRequests = keyboardShowRequests,
-                        onQueryChanged = onQueryChanged,
-                        onClearQuery = onClearQuery,
-                        onLaunchActiveApp = onLaunchActiveApp,
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onReorderDock = onReorderDock,
-                        onResetRank = onResetRank,
-                        onHideApp = onHideApp,
-                        onDismissRecent = onDismissRecent,
-                        onDismissNotifications = onDismissNotifications,
-                        onOpenNotificationSettings = onOpenNotificationSettings,
-                        onOpenSettings = onOpenSettings,
-                        onSetNotificationBarOpen = onSetNotificationBarOpen,
-                        onRequestNotificationAccess = onRequestNotificationAccess,
-                        onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
-                    )
-                    LauncherScreen.Widgets -> WidgetsScreen(
-                        widgetIds = state.widgetPages.getOrElse(
-                            page.widgetPageIndex.coerceIn(0, state.widgetPages.lastIndex.coerceAtLeast(0)),
-                        ) { emptyList() },
-                        availableWidgets = state.availableWidgets,
-                        isAddingWidget = state.isAddingWidget && state.currentWidgetPage == page.widgetPageIndex,
-                        isLoadingAvailableWidgets = state.isLoadingAvailableWidgets,
-                        appWidgetHost = appWidgetHost,
-                        appWidgetManager = appWidgetManager,
-                        innerPadding = innerPadding,
-                        widgetHeights = state.widgetHeights,
-                        isCurrentPage = isCurrentPage,
-                        onAddWidget = { isCurrentPageScrollable ->
-                            onAddWidget(
-                                WidgetAddRequest(
-                                    pageIndex = page.widgetPageIndex,
-                                    isCurrentPageScrollable = isCurrentPageScrollable,
-                                ),
-                            )
-                        },
-                        onDismissWidgetPicker = onDismissWidgetPicker,
-                        onSelectWidget = onSelectWidget,
-                        onRemoveWidget = onRemoveWidget,
-                        onResizeWidget = onResizeWidget,
-                    )
-                    LauncherScreen.Agenda -> AgendaScreen(
-                        agenda = state.agenda,
-                        innerPadding = innerPadding,
-                        onRequestCalendarPermission = onRequestCalendarPermission,
-                        onOpenAgendaEvent = onOpenAgendaEvent,
-                    )
+    Scaffold(contentWindowInsets = WindowInsets.statusBars) { innerPadding ->
+        val density = LocalDensity.current
+        val imeBottomPx = WindowInsets.ime.getBottom(density)
+        val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding()
+                .imeAnimationTargetReservation(
+                    imeBottomPx = imeBottomPx,
+                    imeTargetBottomPx = imeTargetBottomPx,
+                    density = density,
+                ),
+        ) {
+            if (state.isSettingsOpen) {
+                SettingsScreen(
+                    state = state,
+                    innerPadding = innerPadding,
+                    onCloseSettings = onCloseSettings,
+                    onRequestDefaultLauncher = onRequestDefaultLauncher,
+                    onDockEnabledChanged = onDockEnabledChanged,
+                    onAppListIconOnlyChanged = onAppListIconOnlyChanged,
+                    onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
+                    onAppListSortOrderChanged = onAppListSortOrderChanged,
+                    onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
+                    onHideRecentsFromAppListChanged = onHideRecentsFromAppListChanged,
+                    onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
+                    onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
+                    onAgendaEnabledChanged = onAgendaEnabledChanged,
+                    onThemeModeChanged = onThemeModeChanged,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onHideApp = onHideApp,
+                    onUnhideApp = onUnhideApp,
+                    onOpenLauncherAppInfo = onOpenLauncherAppInfo,
+                    onOpenPlayUpdate = onOpenPlayUpdate,
+                    onDismissPlayUpdate = onDismissPlayUpdate,
+                )
+            } else {
+                var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+                SwipeNavigationBox(
+                    screen = state.screen,
+                    currentWidgetPage = state.currentWidgetPage,
+                    widgetPageCount = state.widgetPages.size,
+                    isAgendaEnabled = state.isAgendaEnabled,
+                    isNotificationBarOpen = state.isNotificationBarOpen,
+                    notificationPullDownBehavior = state.notificationPullDownBehavior,
+                    // Pull-up's stage gating cares about whether the user is
+                    // already *looking* at recents, regardless of whether that's
+                    // because of the gesture-toggled `isRecentsOpen` or the
+                    // persistent `isRecentsAlwaysShown` setting (whose visibility
+                    // predicate is the same OR — see `LauncherUiState`).
+                    isRecentsVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
+                    onShowAgenda = onShowAgenda,
+                    onShowWidgets = onShowWidgets,
+                    onShowHome = onShowHome,
+                    onSetNotificationBarOpen = onSetNotificationBarOpen,
+                    onSetRecentsOpen = onSetRecentsOpen,
+                    onRequestShowKeyboard = onRequestShowKeyboard,
+                    onSwipeDown = onSwipeDown,
+                    appListBoundsInRoot = homeAppListBoundsInRoot,
+                ) { page, isCurrentPage ->
+                    when (page.screen) {
+                        LauncherScreen.Home -> HomeScreen(
+                            state = state,
+                            innerPadding = innerPadding,
+                            bodyReady = homeBodyReady,
+                            searchPlaceholderSuffix = searchPlaceholderSuffix,
+                            keyboardShowRequests = keyboardShowRequests,
+                            onQueryChanged = onQueryChanged,
+                            onClearQuery = onClearQuery,
+                            onLaunchActiveApp = onLaunchActiveApp,
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onReorderDock = onReorderDock,
+                            onResetRank = onResetRank,
+                            onHideApp = onHideApp,
+                            onDismissRecent = onDismissRecent,
+                            onDismissNotifications = onDismissNotifications,
+                            onOpenNotificationSettings = onOpenNotificationSettings,
+                            onOpenSettings = onOpenSettings,
+                            onSetNotificationBarOpen = onSetNotificationBarOpen,
+                            onRequestNotificationAccess = onRequestNotificationAccess,
+                            onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
+                        )
+                        LauncherScreen.Widgets -> WidgetsScreen(
+                            widgetIds = state.widgetPages.getOrElse(
+                                page.widgetPageIndex.coerceIn(0, state.widgetPages.lastIndex.coerceAtLeast(0)),
+                            ) { emptyList() },
+                            availableWidgets = state.availableWidgets,
+                            isAddingWidget = state.isAddingWidget && state.currentWidgetPage == page.widgetPageIndex,
+                            isLoadingAvailableWidgets = state.isLoadingAvailableWidgets,
+                            appWidgetHost = appWidgetHost,
+                            appWidgetManager = appWidgetManager,
+                            innerPadding = innerPadding,
+                            widgetHeights = state.widgetHeights,
+                            isCurrentPage = isCurrentPage,
+                            onAddWidget = { isCurrentPageScrollable ->
+                                onAddWidget(
+                                    WidgetAddRequest(
+                                        pageIndex = page.widgetPageIndex,
+                                        isCurrentPageScrollable = isCurrentPageScrollable,
+                                    ),
+                                )
+                            },
+                            onDismissWidgetPicker = onDismissWidgetPicker,
+                            onSelectWidget = onSelectWidget,
+                            onRemoveWidget = onRemoveWidget,
+                            onResizeWidget = onResizeWidget,
+                        )
+                        LauncherScreen.Agenda -> AgendaScreen(
+                            agenda = state.agenda,
+                            innerPadding = innerPadding,
+                            onRequestCalendarPermission = onRequestCalendarPermission,
+                            onOpenAgendaEvent = onOpenAgendaEvent,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+private fun Modifier.imeAnimationTargetReservation(
+    imeBottomPx: Int,
+    imeTargetBottomPx: Int,
+    density: Density,
+): Modifier {
+    val additionalBottomPx = max(imeTargetBottomPx - imeBottomPx, 0)
+    if (additionalBottomPx == 0) return this
+    return padding(bottom = with(density) { additionalBottomPx.toDp() })
+        .graphicsLayer { translationY = additionalBottomPx.toFloat() }
 }
 
 /**

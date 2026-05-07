@@ -129,8 +129,9 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         // Apply the persisted keyboard-auto-show preference before setContent
         // so the cold-start IME state matches the setting on the very first
-        // frame. Compose owns the Home search focus target; the window keeps
-        // the platform resize/show policy in sync with the user preference.
+        // frame. Compose owns the Home search focus target and IME insets; the
+        // window only keeps the platform show policy in sync with the user
+        // preference so Android never performs a legacy adjustResize relayout.
         applyKeyboardAutoShownPreference(viewModel.uiState.value.isKeyboardAutoShown)
         observeKeyboardAutoShownPreference()
         // Apply edge-to-edge with system-bar styling that matches the persisted
@@ -323,12 +324,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
-        // Keep the window resize/show contract aligned with the Home keyboard
-        // preference while Compose controls which field owns focus. When the
-        // user opts out of Home auto-show, stateAlwaysHidden prevents retained
-        // search focus from resurrecting the keyboard on launcher resume. Plain
-        // stateHidden only applies on forward navigation.
-        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+        // Keep the window draw-behind/show contract aligned with the Home
+        // keyboard preference while Compose controls focus and animated IME
+        // insets. When the user opts out of Home auto-show, stateAlwaysHidden
+        // prevents retained search focus from resurrecting the keyboard on
+        // launcher resume. Plain stateHidden only applies on forward navigation.
+        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
             if (autoShown) {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
             } else {

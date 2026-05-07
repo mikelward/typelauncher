@@ -1892,7 +1892,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         val initialMode = composeRule.activity.window.attributes.softInputMode
         assertEquals(
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING,
             initialMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST,
         )
         assertEquals(
@@ -1911,11 +1911,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().assertIsOff()
         assertEquals(false, viewModel.uiState.value.isKeyboardAutoShown)
         // MainActivity observes the preference and switches the window
-        // softInputMode state; adjustResize stays active while stateAlwaysHidden
+        // softInputMode state; adjustNothing stays active while stateAlwaysHidden
         // prevents retained search focus from re-opening the IME on resume.
         val updatedMode = composeRule.activity.window.attributes.softInputMode
         assertEquals(
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING,
             updatedMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST,
         )
         val flag = updatedMode and
