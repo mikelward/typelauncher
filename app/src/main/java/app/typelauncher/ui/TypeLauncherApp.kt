@@ -254,9 +254,46 @@ internal fun TypeLauncherApp(
         withFrameNanos { }
         homeBodyReady = true
     }
+    val density = LocalDensity.current
+    val imeVisible = WindowInsets.isImeVisible
+    val imeBottomPx = WindowInsets.ime.getBottom(density)
+    val navBottomPx = WindowInsets.navigationBars.getBottom(density)
+    var homeRootBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var homeAppsCardBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
     ) { innerPadding ->
+        LaunchedEffect(
+            state.screen,
+            state.isSettingsOpen,
+            homeBodyReady,
+            state.isLoadingApps,
+            state.isFreshAppLoadComplete,
+            state.filteredApps.size,
+            state.dockedApps.size,
+            state.recentApps.size,
+            state.isKeyboardAutoShown,
+            imeVisible,
+            imeBottomPx,
+            navBottomPx,
+            innerPadding.calculateTopPadding(),
+            innerPadding.calculateBottomPadding(),
+            homeRootBoundsInRoot,
+            homeAppsCardBoundsInRoot,
+            homeAppListBoundsInRoot,
+        ) {
+            LauncherDebugLog.event(
+                "HomeLayout screen=${state.screen} settingsOpen=${state.isSettingsOpen} bodyReady=$homeBodyReady " +
+                    "loadingApps=${state.isLoadingApps} freshApps=${state.isFreshAppLoadComplete} " +
+                    "filtered=${state.filteredApps.size} docked=${state.dockedApps.size} recents=${state.recentApps.size} " +
+                    "keyboardAuto=${state.isKeyboardAutoShown} imeVisible=$imeVisible imeBottomPx=$imeBottomPx " +
+                    "navBottomPx=$navBottomPx paddingTop=${innerPadding.calculateTopPadding()} " +
+                    "paddingBottom=${innerPadding.calculateBottomPadding()} root=${homeRootBoundsInRoot.layoutDebugSummary()} " +
+                    "appsCard=${homeAppsCardBoundsInRoot.layoutDebugSummary()} " +
+                    "appList=${homeAppListBoundsInRoot.layoutDebugSummary()}",
+            )
+        }
         if (state.isSettingsOpen) {
             SettingsScreen(
                 state = state,
@@ -284,7 +321,6 @@ internal fun TypeLauncherApp(
                 onDismissPlayUpdate = onDismissPlayUpdate,
             )
         } else {
-            var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
             SwipeNavigationBox(
                 screen = state.screen,
                 currentWidgetPage = state.currentWidgetPage,
@@ -329,6 +365,8 @@ internal fun TypeLauncherApp(
                         onOpenSettings = onOpenSettings,
                         onSetNotificationBarOpen = onSetNotificationBarOpen,
                         onRequestNotificationAccess = onRequestNotificationAccess,
+                        onHomeBoundsChanged = { homeRootBoundsInRoot = it },
+                        onAppsCardBoundsChanged = { homeAppsCardBoundsInRoot = it },
                         onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
@@ -863,6 +901,11 @@ private class ScrollConsumptionTracker {
         }
     }
 }
+
+private fun Rect?.layoutDebugSummary(): String =
+    this?.let { rect ->
+        "x=${rect.left.toInt()} y=${rect.top.toInt()} w=${rect.width.toInt()} h=${rect.height.toInt()}"
+    } ?: "null"
 
 private sealed interface CarouselTransitionState {
     data object Idle : CarouselTransitionState
