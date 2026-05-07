@@ -24,7 +24,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
     - keyboard auto-show enabled: `SOFT_INPUT_STATE_ALWAYS_VISIBLE | SOFT_INPUT_ADJUST_RESIZE`;
     - keyboard auto-show disabled: `SOFT_INPUT_STATE_ALWAYS_HIDDEN | SOFT_INPUT_ADJUST_RESIZE`;
     - edge-to-edge system bar styles are matched to the persisted theme mode.
-11. `MainActivity` starts lifecycle collectors for keyboard-auto-show, theme mode, and home-ready, then calls `setContent` on the UI thread.
+11. `MainActivity` starts lifecycle collectors for keyboard-auto-show, theme mode, and home-ready, then calls `setContent` on the UI thread. The top-level `Scaffold` applies status/navigation bar insets only; `adjustResize` owns IME height changes so Home does not shrink once for the window and again for `WindowInsets.ime`.
 12. `setContent` composes `TypeLauncherTheme` and `TypeLauncherApp`, collecting `LauncherViewModel.uiState` with lifecycle awareness.
 13. The first Compose pass renders the Home screen. `SearchCard` is composed before the home body.
 14. `TypeLauncherApp` deliberately holds back the Home body for one frame. During that first frame, Home reserves the remaining space with a spacer, so the search field can compose and lay out before the app list, dock, notification bar, and recents do their heavier work.

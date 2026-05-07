@@ -262,7 +262,10 @@ internal fun TypeLauncherApp(
     var homeAppsCardBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     Scaffold(
-        contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars).union(WindowInsets.ime),
+        // `MainActivity` uses adjustResize, so the window is already resized
+        // as the IME animates. Applying WindowInsets.ime here as well would
+        // change Home's height twice during the same keyboard transition.
+        contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars),
     ) { innerPadding ->
         LaunchedEffect(
             state.screen,
