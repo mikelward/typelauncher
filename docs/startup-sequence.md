@@ -4,7 +4,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 
 ## Cold-open order
 
-1. Android launches `MainActivity`. The manifest defaults the activity to `adjustNothing`; Compose owns both IME layout and the explicit Home keyboard show for the launcher's primary "type immediately" flow.
+1. Android launches `MainActivity`. The manifest defaults to `stateAlwaysVisible|adjustResize` while Compose keeps the explicit Home keyboard show tied to the search field for the launcher's primary "type immediately" flow.
 2. `MainActivity.onCreate` runs on the UI thread: it calls `super.onCreate`, enables edge-to-edge, starts the `launcher_cold_start` trace, creates `LauncherAppWidgetHost` / `AppWidgetManager`, and obtains `LauncherViewModel`.
 3. `LauncherViewModel` construction synchronously reads lightweight persisted state on the UI thread:
    - `WidgetStore`: selected widget IDs and custom heights.
@@ -21,8 +21,8 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 8. The view model starts the fresh installed-app load from `viewModelScope`: the coroutine starts on main, switches to `Dispatchers.IO`, queries `LauncherApps` across profiles, falls back to `PackageManager.queryIntentActivities` if needed, deduplicates, sorts, and applies disambiguators.
 9. The view model registers `LauncherApps.Callback` after scheduling the fresh load. Package changes during the cold-start load are latched and replayed after the initial result publishes, rather than racing a concurrent reload.
 10. Back in `MainActivity.onCreate`, before `setContent`, the activity applies persisted keyboard and theme preferences to the window:
-    - keyboard auto-show enabled: `SOFT_INPUT_STATE_UNSPECIFIED | SOFT_INPUT_ADJUST_NOTHING`;
-    - keyboard auto-show disabled: `SOFT_INPUT_STATE_ALWAYS_HIDDEN | SOFT_INPUT_ADJUST_NOTHING`;
+    - keyboard auto-show enabled: `SOFT_INPUT_STATE_ALWAYS_VISIBLE | SOFT_INPUT_ADJUST_RESIZE`;
+    - keyboard auto-show disabled: `SOFT_INPUT_STATE_ALWAYS_HIDDEN | SOFT_INPUT_ADJUST_RESIZE`;
     - edge-to-edge system bar styles are matched to the persisted theme mode.
 11. `MainActivity` starts lifecycle collectors for keyboard-auto-show, theme mode, and home-ready, then calls `setContent` on the UI thread.
 12. `setContent` composes `TypeLauncherTheme` and `TypeLauncherApp`, collecting `LauncherViewModel.uiState` with lifecycle awareness.

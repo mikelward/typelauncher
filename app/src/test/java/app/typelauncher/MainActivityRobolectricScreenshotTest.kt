@@ -1892,11 +1892,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         val initialMode = composeRule.activity.window.attributes.softInputMode
         assertEquals(
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING,
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
             initialMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST,
         )
         assertEquals(
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED,
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE,
             initialMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE,
         )
 
@@ -1911,12 +1911,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().assertIsOff()
         assertEquals(false, viewModel.uiState.value.isKeyboardAutoShown)
         // MainActivity observes the preference and switches the window
-        // softInputMode state; Compose keeps ownership of IME layout through
-        // adjustNothing, while stateAlwaysHidden prevents a retained search
-        // focus from re-opening the IME on launcher resume.
+        // softInputMode state; adjustResize stays active while stateAlwaysHidden
+        // prevents retained search focus from re-opening the IME on resume.
         val updatedMode = composeRule.activity.window.attributes.softInputMode
         assertEquals(
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING,
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
             updatedMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST,
         )
         val flag = updatedMode and
