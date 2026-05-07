@@ -271,48 +271,25 @@ internal fun TypeLauncherApp(
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
         var lastKeyboardBottomPx by remember { mutableStateOf(state.keyboardReservationBottomPx) }
-        var reserveForHomeKeyboardRequest by remember(
-            state.screen,
-            state.isKeyboardAutoShown,
-            state.isSettingsOpen,
-            navBottomPx,
-        ) {
-            mutableStateOf(
-                state.screen == LauncherScreen.Home &&
-                !state.isSettingsOpen &&
-                state.isKeyboardAutoShown &&
-                lastKeyboardBottomPx > navBottomPx,
-            )
-        }
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
             if (imeTargetBottomPx > navBottomPx) {
                 lastKeyboardBottomPx = imeTargetBottomPx
                 onKeyboardReservationBottomChanged(imeTargetBottomPx)
             }
         }
-        LaunchedEffect(reserveForHomeKeyboardRequest, imeVisible, imeTargetBottomPx, navBottomPx) {
-            if (imeTargetBottomPx > navBottomPx) {
-                reserveForHomeKeyboardRequest = false
-            } else if (reserveForHomeKeyboardRequest) {
-                delay(HOME_READY_IME_TIMEOUT_MS)
-                if (!imeVisible && imeTargetBottomPx <= navBottomPx) {
-                    reserveForHomeKeyboardRequest = false
-                }
-            }
-        }
+        val shouldUseTypingGeometry = state.screen == LauncherScreen.Home &&
+            !state.isSettingsOpen &&
+            state.isKeyboardAutoShown &&
+            lastKeyboardBottomPx > navBottomPx
         val keyboardReserveSource: String
         val keyboardBottomPx = when {
+            shouldUseTypingGeometry -> {
+                keyboardReserveSource = "typingCache"
+                lastKeyboardBottomPx
+            }
             imeTargetBottomPx > navBottomPx -> {
                 keyboardReserveSource = "target"
                 imeTargetBottomPx
-            }
-            reserveForHomeKeyboardRequest && lastKeyboardBottomPx > navBottomPx -> {
-                keyboardReserveSource = "preShowCache"
-                lastKeyboardBottomPx
-            }
-            imeVisible && lastKeyboardBottomPx > navBottomPx -> {
-                keyboardReserveSource = "visibleCache"
-                lastKeyboardBottomPx
             }
             imeVisible -> {
                 keyboardReserveSource = "animatedIme"
