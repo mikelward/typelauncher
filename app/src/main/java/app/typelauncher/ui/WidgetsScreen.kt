@@ -68,7 +68,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -273,7 +272,6 @@ private fun WidgetPickerFilterField(
         placeholder = { Text(stringResource(R.string.widgets_picker_filter_hint)) },
         textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
         keyboardOptions = KeyboardOptions(
-            capitalization = KeyboardCapitalization.Words,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Search,
         ),
