@@ -34,6 +34,7 @@ class CarouselKeyboardTest {
 
         assertEquals(LauncherScreen.Home, state.screen)
         assertEquals("initial Home should use the same one-shot search auto-show path", 1, keyboard.showCount)
+        assertEquals("initial Home auto-show must not immediately hide the keyboard", 0, keyboard.hideCount)
     }
 
     @Test
@@ -92,6 +93,7 @@ class CarouselKeyboardTest {
 
         assertEquals(LauncherScreen.Home, state.screen)
         assertEquals(2, keyboard.showCount)
+        assertEquals("returning Home should not hide after re-showing the keyboard", 1, keyboard.hideCount)
     }
 
     @Test
@@ -123,6 +125,7 @@ class CarouselKeyboardTest {
         assertEquals(LauncherScreen.Home, state.screen)
         assertEquals("keyboard.show should happen before onShowHome acknowledges Home", 1, showCountWhenHomeAcked)
         assertEquals("state ack must not trigger a duplicate keyboard.show", 1, keyboard.showCount)
+        assertEquals("Home ack must not hide the keyboard after the early show", 0, keyboard.hideCount)
     }
 
     @Test
@@ -145,6 +148,7 @@ class CarouselKeyboardTest {
 
         assertEquals(LauncherScreen.Home, state.screen)
         assertEquals("two-page carousel must not double-compose a keyboard show", 1, keyboard.showCount)
+        assertEquals("two-page return Home must not hide after showing the keyboard", 0, keyboard.hideCount)
     }
 
     @Test
