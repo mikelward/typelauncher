@@ -96,6 +96,7 @@
     <string name="settings_pull_down_option_bar_below">नीचे की पट्टी</string>
     <string name="settings_pull_down_option_bar_above">ऊपर की पट्टी</string>
     <string name="settings_keyboard_auto_show_title">कीबोर्ड अपने आप दिखाएं</string>
+    <string name="settings_remove_widget_padding_title">विजेट पैडिंग हटाएं</string>
     <string name="settings_theme_title">थीम</string>
     <string name="settings_theme_option_system">सिस्टम</string>
     <string name="settings_theme_option_light">हल्की</string>

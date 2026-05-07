@@ -96,6 +96,7 @@
     <string name="settings_pull_down_option_bar_below">아래 바</string>
     <string name="settings_pull_down_option_bar_above">위 바</string>
     <string name="settings_keyboard_auto_show_title">키보드 자동 표시</string>
+    <string name="settings_remove_widget_padding_title">위젯 패딩 제거</string>
     <string name="settings_theme_title">테마</string>
     <string name="settings_theme_option_system">시스템</string>
     <string name="settings_theme_option_light">밝게</string>

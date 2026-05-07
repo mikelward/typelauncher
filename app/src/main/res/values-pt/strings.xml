@@ -96,6 +96,7 @@
     <string name="settings_pull_down_option_bar_below">Barra abaixo</string>
     <string name="settings_pull_down_option_bar_above">Barra acima</string>
     <string name="settings_keyboard_auto_show_title">Mostrar teclado automaticamente</string>
+    <string name="settings_remove_widget_padding_title">Remover preenchimento dos widgets</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Claro</string>

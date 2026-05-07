@@ -23,6 +23,7 @@ class BugReportPayloadTest {
             isAppListIconOnly = false,
             dockIconCount = 5,
             appListSortOrder = AppListSortOrder.Usage,
+            isWidgetPaddingRemoved = true,
             dockedAppIds = listOf("0:com.example/.LaunchActivity", "0:com.example2/.LaunchActivity"),
             widgetIds = listOf(11, 22),
             recentLog = listOf("11-04 09:00:00.000 D TypeLauncherDebug: hello"),
@@ -39,6 +40,7 @@ class BugReportPayloadTest {
         assertTrue("includes icon only", payload.contains("App list icon-only: false"))
         assertTrue("includes dock icon count", payload.contains("Dock icons visible: 5"))
         assertTrue("includes sort order", payload.contains("App list sort order: Usage"))
+        assertTrue("includes widget padding", payload.contains("Widget padding removed: true"))
         assertTrue("includes docked apps count", payload.contains("Docked apps (2):"))
         assertTrue("includes docked app id", payload.contains("0:com.example/.LaunchActivity"))
         assertTrue("includes widgets summary", payload.contains("Widgets (2): 11, 22"))
@@ -64,6 +66,7 @@ class BugReportPayloadTest {
             isAppListIconOnly = true,
             dockIconCount = 4,
             appListSortOrder = AppListSortOrder.Alphabetical,
+            isWidgetPaddingRemoved = false,
             dockedAppIds = emptyList(),
             widgetIds = emptyList(),
             recentLog = emptyList(),

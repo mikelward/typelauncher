@@ -96,6 +96,7 @@
     <string name="settings_pull_down_option_bar_below">Leiste darunter</string>
     <string name="settings_pull_down_option_bar_above">Leiste darüber</string>
     <string name="settings_keyboard_auto_show_title">Tastatur automatisch anzeigen</string>
+    <string name="settings_remove_widget_padding_title">Widget-Abstand entfernen</string>
     <string name="settings_theme_title">Design</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Hell</string>

@@ -86,6 +86,7 @@ internal fun WidgetsScreen(
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
     widgetHeights: Map<Int, Int> = emptyMap(),
+    removeWidgetPadding: Boolean = false,
     onAddWidget: () -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
@@ -107,6 +108,7 @@ internal fun WidgetsScreen(
                 appWidgetHost = appWidgetHost,
                 appWidgetManager = appWidgetManager,
                 customHeightDp = widgetHeights[widgetId],
+                removeWidgetPadding = removeWidgetPadding,
                 onRemoveWidget = onRemoveWidget,
                 onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
             )
@@ -544,6 +546,7 @@ private fun HostedWidgetCard(
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     customHeightDp: Int?,
+    removeWidgetPadding: Boolean,
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (Int) -> Unit,
 ) {
@@ -596,6 +599,9 @@ private fun HostedWidgetCard(
         AndroidView(
             factory = { context ->
                 appWidgetHost.createView(context, widgetId, providerInfo).apply {
+                    if (this is LauncherAppWidgetHostView) {
+                        setRemoveWidgetPadding(removeWidgetPadding)
+                    }
                     setAppWidget(widgetId, providerInfo)
                     if (this is LauncherAppWidgetHostView) {
                         setOnWidgetLongPressListener { menuExpanded = true }
@@ -609,6 +615,7 @@ private fun HostedWidgetCard(
             },
             update = { view ->
                 if (view is LauncherAppWidgetHostView) {
+                    view.setRemoveWidgetPadding(removeWidgetPadding)
                     view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
                 } else {
                     view.setOnLongClickListener {
