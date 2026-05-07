@@ -167,6 +167,8 @@ internal fun HomeScreen(
     onOpenSettings: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
+    onHomeBoundsChanged: (Rect?) -> Unit = {},
+    onAppsCardBoundsChanged: (Rect?) -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
@@ -177,6 +179,9 @@ internal fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+            .onGloballyPositioned { coords ->
+                onHomeBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+            }
             .testTag(HOME_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -227,6 +232,7 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
+                onAppsCardBoundsChanged = onAppsCardBoundsChanged,
                 onAppListBoundsChanged = onAppListBoundsChanged,
             )
             if (!showNotificationBarAbove) {
@@ -1085,14 +1091,22 @@ private fun AppsCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onAppsCardBoundsChanged: (Rect?) -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
     LaunchedEffect(isLoading, apps.isEmpty()) {
         if (isLoading || apps.isEmpty()) {
+            onAppsCardBoundsChanged(null)
             onAppListBoundsChanged(null)
         }
     }
-    SectionCard(modifier.testTag(APPS_CARD_TAG)) {
+    SectionCard(
+        modifier
+            .onGloballyPositioned { coords ->
+                onAppsCardBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+            }
+            .testTag(APPS_CARD_TAG),
+    ) {
         if (isLoading) {
             Box(
                 modifier = Modifier
