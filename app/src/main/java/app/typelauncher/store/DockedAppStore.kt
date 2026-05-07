@@ -165,6 +165,19 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Settings -> "Remove widget padding". When true, hosted widgets opt out of
+     * the framework's default AppWidgetHostView padding so widgets can use more
+     * of the page width.
+     */
+    var isWidgetPaddingRemoved: Boolean
+        get() = sharedPreferences.getBoolean(KEY_WIDGET_PADDING_REMOVED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_WIDGET_PADDING_REMOVED, value)
+                .apply()
+        }
+
+    /**
      * Settings → "Theme" mode. Defaults to [ThemeMode.System] so the launcher
      * follows the device's night-mode configuration; users can pin to
      * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
@@ -190,6 +203,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
+        const val KEY_WIDGET_PADDING_REMOVED = "widget_padding_removed"
         const val KEY_THEME_MODE = "theme_mode"
     }
 }
