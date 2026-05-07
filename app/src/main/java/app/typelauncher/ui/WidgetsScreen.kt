@@ -70,6 +70,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -277,6 +278,7 @@ private fun WidgetPickerFilterField(
         autoCorrectEnabled = false,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Search,
+        platformImeOptions = PlatformImeOptions(privateImeOptions = "nm"),
         ),
     )
 }
