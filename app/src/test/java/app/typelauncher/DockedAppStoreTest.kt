@@ -131,22 +131,6 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun widgetPaddingRemovedDefaultsToFalse() {
-        val store = DockSettingsStore(context)
-
-        assertEquals(false, store.isWidgetPaddingRemoved)
-    }
-
-    @Test
-    fun widgetPaddingRemovedPersistsExplicitSelection() {
-        DockSettingsStore(context).isWidgetPaddingRemoved = true
-
-        val reloaded = DockSettingsStore(context)
-
-        assertEquals(true, reloaded.isWidgetPaddingRemoved)
-    }
-
-    @Test
     fun themeModePersistsExplicitSelection() {
         DockSettingsStore(context).themeMode = ThemeMode.Dark
 

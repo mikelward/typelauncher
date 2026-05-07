@@ -149,7 +149,6 @@ internal class LauncherViewModel(
             isHideRecentsFromAppList = dockSettingsStore.isHideRecentsFromAppList,
             notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
-            isWidgetPaddingRemoved = dockSettingsStore.isWidgetPaddingRemoved,
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
             hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
@@ -1040,12 +1039,6 @@ internal class LauncherViewModel(
         dockSettingsStore.isKeyboardAutoShown = isAutoShown
         _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
         logState("setKeyboardAutoShown=$isAutoShown")
-    }
-
-    fun setWidgetPaddingRemoved(isRemoved: Boolean) {
-        dockSettingsStore.isWidgetPaddingRemoved = isRemoved
-        _uiState.update { it.copy(isWidgetPaddingRemoved = isRemoved) }
-        logState("setWidgetPaddingRemoved=$isRemoved")
     }
 
     fun setThemeMode(mode: ThemeMode) {

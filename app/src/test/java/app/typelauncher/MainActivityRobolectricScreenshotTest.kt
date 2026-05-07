@@ -349,7 +349,6 @@ class MainActivityRobolectricScreenshotTest {
     fun screenshot_widgets_removePaddingWidgetPage() {
         val widgetId = 42
 
-        composeRule.activity.viewModel.setWidgetPaddingRemoved(true)
         composeRule.activity.viewModel.addWidget(widgetId)
         composeRule.waitForIdle()
 
@@ -676,16 +675,6 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
-    }
-
-    @Test
-    fun screenshot_settings_removeWidgetPaddingToggle() {
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(REMOVE_WIDGET_PADDING_SWITCH_TAG).performScrollTo().assertIsOff()
-        composeRule.onNodeWithText("Remove widget padding").assertIsDisplayed()
-        saveScreenshot("compose_settings_remove_widget_padding_robolectric.png")
     }
 
     @Test
