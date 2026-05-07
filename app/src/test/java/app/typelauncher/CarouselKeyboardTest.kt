@@ -97,7 +97,7 @@ class CarouselKeyboardTest {
     }
 
     @Test
-    fun swipingBackToHome_showsKeyboardBeforeScreenAckWhenAutoShowEnabled() {
+    fun swipingBackToHome_waitsForScreenAckBeforeShowingKeyboard() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
             LauncherUiState(
@@ -123,9 +123,9 @@ class CarouselKeyboardTest {
         composeRule.waitForIdle()
 
         assertEquals(LauncherScreen.Home, state.screen)
-        assertEquals("keyboard.show should happen before onShowHome acknowledges Home", 1, showCountWhenHomeAcked)
-        assertEquals("state ack must not trigger a duplicate keyboard.show", 1, keyboard.showCount)
-        assertEquals("Home ack must not hide the keyboard after the early show", 0, keyboard.hideCount)
+        assertEquals("keyboard.show should wait until Home is the acknowledged screen", 0, showCountWhenHomeAcked)
+        assertEquals("Home ack should trigger one keyboard.show", 1, keyboard.showCount)
+        assertEquals("Home ack must not hide the keyboard after showing", 0, keyboard.hideCount)
     }
 
     @Test
