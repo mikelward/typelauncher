@@ -11,6 +11,7 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
@@ -78,6 +79,17 @@ class SwipeUpRecentsTest {
             }
         }
         composeRule.waitForIdle()
+    }
+
+    private class CountingKeyboardController : SoftwareKeyboardController {
+        var hideCount = 0
+            private set
+
+        override fun show() {}
+
+        override fun hide() {
+            hideCount += 1
+        }
     }
 
     @Test
@@ -351,6 +363,61 @@ class SwipeUpRecentsTest {
         assertEquals(false, notificationBarOpened)
         assertNull(recentsTarget)
         assertEquals(0, requestShowKeyboardCount)
+    }
+
+    @Test
+    fun pullingDownOnAppListDoesNotHideKeyboardOrOpenNotificationBar() {
+        val keyboard = CountingKeyboardController()
+        var notificationBarOpened: Boolean? = null
+        val apps = (1..20).map { i -> fakeApp(name = "App%02d".format(i)) }
+        composeRule.setContent {
+            CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
+                TypeLauncherTheme {
+                    TypeLauncherApp(
+                        state = LauncherUiState(
+                            filteredApps = apps,
+                            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                            isKeyboardAutoShown = false,
+                        ),
+                        onQueryChanged = {},
+                        onClearQuery = {},
+                        onLaunchActiveApp = {},
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onHideApp = {},
+                        onUnhideApp = {},
+                        onOpenSettings = {},
+                        onCloseSettings = {},
+                        onRequestDefaultLauncher = {},
+                        onDockEnabledChanged = {},
+                        onAppListIconOnlyChanged = {},
+                        onDockVisibleIconCountChanged = {},
+                        onAppListSortOrderChanged = {},
+                        onShowAgenda = {},
+                        onShowWidgets = {},
+                        onShowHome = {},
+                        onSetNotificationBarOpen = { notificationBarOpened = it },
+                        appWidgetHost = null,
+                        appWidgetManager = null,
+                        onAddWidget = {},
+                        onDismissWidgetPicker = {},
+                        onSelectWidget = {},
+                        onRemoveWidget = {},
+                        onRequestCalendarPermission = {},
+                        onOpenAgendaEvent = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertNull("app-list scroll gestures must not open the notification bar", notificationBarOpened)
+        assertEquals("app-list scroll gestures must not hide the keyboard", 0, keyboard.hideCount)
     }
 
     @Test

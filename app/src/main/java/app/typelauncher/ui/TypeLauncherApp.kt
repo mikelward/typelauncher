@@ -30,6 +30,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -282,6 +283,7 @@ internal fun TypeLauncherApp(
                 onDismissPlayUpdate = onDismissPlayUpdate,
             )
         } else {
+            var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
             SwipeNavigationBox(
                 screen = state.screen,
                 isNotificationBarOpen = state.isNotificationBarOpen,
@@ -299,6 +301,7 @@ internal fun TypeLauncherApp(
                 onSetRecentsOpen = onSetRecentsOpen,
                 onRequestShowKeyboard = onRequestShowKeyboard,
                 onSwipeDown = onSwipeDown,
+                appListBoundsInRoot = homeAppListBoundsInRoot,
             ) { pageScreen ->
                 when (pageScreen) {
                     LauncherScreen.Home -> HomeScreen(
@@ -322,6 +325,7 @@ internal fun TypeLauncherApp(
                         onOpenSettings = onOpenSettings,
                         onSetNotificationBarOpen = onSetNotificationBarOpen,
                         onRequestNotificationAccess = onRequestNotificationAccess,
+                        onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
                         widgetIds = state.widgetIds,
@@ -386,6 +390,7 @@ private fun SwipeNavigationBox(
     isNotificationBarOpen: Boolean,
     notificationPullDownBehavior: NotificationPullDownBehavior,
     isRecentsVisible: Boolean,
+    appListBoundsInRoot: Rect?,
     onShowAgenda: () -> Unit,
     onShowWidgets: () -> Unit,
     onShowHome: () -> Unit,
@@ -408,6 +413,7 @@ private fun SwipeNavigationBox(
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
+    val currentAppListBoundsInRoot by rememberUpdatedState(appListBoundsInRoot)
     val keyboard = LocalSoftwareKeyboardController.current
     val currentKeyboard by rememberUpdatedState(keyboard)
     val focusManager = LocalFocusManager.current
@@ -660,6 +666,8 @@ private fun SwipeNavigationBox(
             ) {
                 awaitEachGesture {
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+                    val startedInHomeAppList = currentScreen == LauncherScreen.Home &&
+                        currentAppListBoundsInRoot?.contains(downChange.position) == true
                     val startConsumed = scrollConsumptionTracker.totalConsumed
                     var rawDragX = 0f
                     var rawDragY = 0f
@@ -686,7 +694,7 @@ private fun SwipeNavigationBox(
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (owner != LauncherGestureOwner.VerticalLauncher) {
+                    if (owner != LauncherGestureOwner.VerticalLauncher || startedInHomeAppList) {
                         return@awaitEachGesture
                     }
 

@@ -2292,8 +2292,10 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
-    private fun SemanticsNodeInteraction.assertIsFocusedBySemantics(): SemanticsNodeInteraction =
-        assert(SemanticsMatcher.expectValue(SemanticsProperties.Focused, true))
+    private fun SemanticsNodeInteraction.assertIsFocusedBySemantics(): SemanticsNodeInteraction {
+        assertTrue(SemanticsMatcher.expectValue(SemanticsProperties.Focused, true).matches(fetchSemanticsNode()))
+        return this
+    }
 
     private companion object {
         val ALL_FAKE_APP_NAMES = listOf(
