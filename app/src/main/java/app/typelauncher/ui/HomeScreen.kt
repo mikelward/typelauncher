@@ -297,9 +297,8 @@ private fun SearchCard(
     val focusManager = LocalFocusManager.current
     // The auto-focus / show pair is the launcher's "type immediately on Home"
     // behavior. Gating both on the user setting is what actually keeps the IME
-    // down — a focused TextField on its own would re-trigger the soft keyboard
-    // via the manifest's stateAlwaysVisible. MainActivity also overrides the
-    // window softInputMode in concert with this flag.
+    // down. MainActivity also applies stateAlwaysHidden when the setting is off
+    // so a retained TextField focus cannot re-show the IME on launcher resume.
     LaunchedEffect(autoShowKeyboard) {
         if (autoShowKeyboard) {
             focusRequester.requestFocus()

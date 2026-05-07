@@ -1890,6 +1890,15 @@ class MainActivityRobolectricScreenshotTest {
     fun keyboardAutoShowToggle_inSettings_persistsAndUpdatesWindowSoftInput() {
         val viewModel = composeRule.activity.viewModel
         composeRule.waitForIdle()
+        val initialMode = composeRule.activity.window.attributes.softInputMode
+        assertEquals(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING,
+            initialMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST,
+        )
+        assertEquals(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED,
+            initialMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE,
+        )
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
@@ -1902,10 +1911,15 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG).performScrollTo().assertIsOff()
         assertEquals(false, viewModel.uiState.value.isKeyboardAutoShown)
         // MainActivity observes the preference and switches the window
-        // softInputMode flag; with the toggle off the activity asks for
-        // stateAlwaysHidden so returning to Home from another app keeps the
-        // IME down (plain stateHidden would only fire on forward navigation).
-        val flag = composeRule.activity.window.attributes.softInputMode and
+        // softInputMode state; Compose keeps ownership of IME layout through
+        // adjustNothing, while stateAlwaysHidden prevents a retained search
+        // focus from re-opening the IME on launcher resume.
+        val updatedMode = composeRule.activity.window.attributes.softInputMode
+        assertEquals(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING,
+            updatedMode and android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST,
+        )
+        val flag = updatedMode and
             android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE
         assertEquals(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN, flag)
     }
