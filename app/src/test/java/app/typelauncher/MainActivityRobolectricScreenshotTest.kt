@@ -15,6 +15,7 @@ import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -30,6 +31,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performKeyPress
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -358,6 +360,41 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).assertIsDisplayed()
 
         saveScreenshot("compose_widgets_remove_padding_page_robolectric.png")
+    }
+
+    @Test
+    fun tappingAddOnScrollableWidgetPagePlacesSelectedWidgetOnNewPageToRight() {
+        val viewModel = composeRule.activity.viewModel
+        val existingWidgets = (1..20).toList()
+        existingWidgets.forEach(viewModel::addWidget)
+        viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performScrollToNode(hasTestTag(ADD_WIDGET_CARD_TAG))
+        composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).performClick()
+        composeRule.waitForIdle()
+        viewModel.addWidget(999)
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(existingWidgets, listOf(999)), viewModel.uiState.value.widgetPages)
+        assertEquals(1, viewModel.uiState.value.currentWidgetPage)
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:999").assertIsDisplayed()
+    }
+
+    @Test
+    fun tappingAddOnNonScrollableWidgetPagePlacesSelectedWidgetOnCurrentPage() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.addWidget(42)
+        viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(ADD_WIDGET_CARD_TAG).performClick()
+        composeRule.waitForIdle()
+        viewModel.addWidget(43)
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(listOf(42, 43)), viewModel.uiState.value.widgetPages)
+        assertEquals(0, viewModel.uiState.value.currentWidgetPage)
     }
 
     @Test

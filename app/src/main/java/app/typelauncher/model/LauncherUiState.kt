@@ -98,6 +98,8 @@ internal data class LauncherUiState(
     // places at once. Only takes effect while `isRecentsAlwaysShown` is on.
     val isHideRecentsFromAppList: Boolean = true,
     val widgetIds: List<Int> = emptyList(),
+    val widgetPages: List<List<Int>> = listOf(emptyList()),
+    val currentWidgetPage: Int = 0,
     val widgetHeights: Map<Int, Int> = emptyMap(),
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
@@ -177,3 +179,8 @@ internal data class WidgetProvider(
 ) {
     val id: String = "${profile.hashCode()}:${componentName.flattenToShortString()}"
 }
+
+internal data class WidgetAddRequest(
+    val pageIndex: Int,
+    val isCurrentPageScrollable: Boolean,
+)

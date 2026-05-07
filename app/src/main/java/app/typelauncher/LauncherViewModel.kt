@@ -137,9 +137,11 @@ internal class LauncherViewModel(
     // may have already returned pre-event data. The cold-start coroutine
     // checks this flag after publishing and triggers a reload if set.
     private var reloadPendingDuringColdStart = false
+    private var pendingWidgetPlacement: PendingWidgetPlacement? = null
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
+            widgetPages = widgetStore.widgetPages,
             widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
@@ -468,8 +470,17 @@ internal class LauncherViewModel(
     }
 
     fun showWidgets() {
-        _uiState.update {
-            it.copy(screen = LauncherScreen.Widgets, isRecentsOpen = false, isNotificationBarOpen = false)
+        showWidgets(_uiState.value.currentWidgetPage)
+    }
+
+    fun showWidgets(pageIndex: Int) {
+        _uiState.update { state ->
+            state.copy(
+                screen = LauncherScreen.Widgets,
+                currentWidgetPage = pageIndex.coerceInWidgetPages(state.widgetPages),
+                isRecentsOpen = false,
+                isNotificationBarOpen = false,
+            )
         }
         logState("showWidgets")
     }
@@ -491,10 +502,18 @@ internal class LauncherViewModel(
         logState("setNotificationBarOpen=$isOpen")
     }
 
-    fun showWidgetPicker() {
+    fun showWidgetPicker(
+        pageIndex: Int = _uiState.value.currentWidgetPage,
+        addToNewPageAfterSelection: Boolean = false,
+    ) {
+        pendingWidgetPlacement = PendingWidgetPlacement(
+            pageIndex = pageIndex.coerceInWidgetPages(_uiState.value.widgetPages),
+            addToNewPageAfterSelection = addToNewPageAfterSelection,
+        )
         _uiState.update {
             it.copy(
                 screen = LauncherScreen.Widgets,
+                currentWidgetPage = pageIndex.coerceInWidgetPages(it.widgetPages),
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = true,
                 availableWidgets = emptyList(),
@@ -518,6 +537,7 @@ internal class LauncherViewModel(
     }
 
     fun hideWidgetPicker() {
+        pendingWidgetPlacement = null
         _uiState.update { it.copy(isAddingWidget = false, isLoadingAvailableWidgets = false) }
         logState("hideWidgetPicker")
     }
@@ -528,6 +548,7 @@ internal class LauncherViewModel(
     }
 
     fun returnToLauncherHome() {
+        pendingWidgetPlacement = null
         _uiState.update {
             it.copy(
                 screen = LauncherScreen.Home,
@@ -865,14 +886,34 @@ internal class LauncherViewModel(
     }
 
     fun addWidget(appWidgetId: Int) {
-        LauncherDebugLog.event("addWidget appWidgetId=$appWidgetId")
-        widgetStore.add(appWidgetId)
+        val placement = pendingWidgetPlacement ?: PendingWidgetPlacement(
+            pageIndex = _uiState.value.currentWidgetPage,
+            addToNewPageAfterSelection = false,
+        )
+        val targetPage = if (placement.addToNewPageAfterSelection) {
+            (placement.pageIndex + 1).coerceAtMost(widgetStore.widgetPages.size)
+        } else {
+            placement.pageIndex.coerceInWidgetPages(widgetStore.widgetPages)
+        }
+        LauncherDebugLog.event(
+            "addWidget appWidgetId=$appWidgetId page=${placement.pageIndex} " +
+                "newPage=${placement.addToNewPageAfterSelection}",
+        )
+        widgetStore.add(
+            appWidgetId = appWidgetId,
+            pageIndex = placement.pageIndex,
+            addToNewPageAfter = placement.addToNewPageAfterSelection,
+        )
+        pendingWidgetPlacement = null
         _uiState.update {
+            val widgetPages = widgetStore.widgetPages
             it.copy(
                 screen = LauncherScreen.Widgets,
+                currentWidgetPage = targetPage.coerceInWidgetPages(widgetPages),
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 widgetIds = widgetStore.widgetIds,
+                widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
             )
         }
@@ -912,9 +953,12 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         widgetStore.remove(appWidgetId)
         _uiState.update {
+            val widgetPages = widgetStore.widgetPages
             it.copy(
                 screen = LauncherScreen.Widgets,
                 widgetIds = widgetStore.widgetIds,
+                widgetPages = widgetPages,
+                currentWidgetPage = it.currentWidgetPage.coerceInWidgetPages(widgetPages),
                 widgetHeights = widgetStore.customHeights,
             )
         }
@@ -1394,6 +1438,10 @@ internal class LauncherViewModel(
     }
 
     private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
+        pendingWidgetPlacement = PendingWidgetPlacement(
+            pageIndex = _uiState.value.currentWidgetPage,
+            addToNewPageAfterSelection = false,
+        )
         _uiState.update {
             it.copy(
                 screen = LauncherScreen.Widgets,
@@ -1434,6 +1482,14 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("$reason ${_uiState.value.debugSummary()}")
     }
 }
+
+private data class PendingWidgetPlacement(
+    val pageIndex: Int,
+    val addToNewPageAfterSelection: Boolean,
+)
+
+private fun Int.coerceInWidgetPages(widgetPages: List<List<Int>>): Int =
+    coerceIn(0, widgetPages.lastIndex.coerceAtLeast(0))
 
 private fun AgendaEvent.formatTime(context: Context): String {
     if (isAllDay) {

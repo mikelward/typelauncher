@@ -25,7 +25,7 @@ class BugReportPayloadTest {
             appListSortOrder = AppListSortOrder.Usage,
             isAgendaEnabled = true,
             dockedAppIds = listOf("0:com.example/.LaunchActivity", "0:com.example2/.LaunchActivity"),
-            widgetIds = listOf(11, 22),
+            widgetPages = listOf(listOf(11), listOf(22)),
             recentLog = listOf("11-04 09:00:00.000 D TypeLauncherDebug: hello"),
         )
 
@@ -44,6 +44,7 @@ class BugReportPayloadTest {
         assertTrue("includes docked apps count", payload.contains("Docked apps (2):"))
         assertTrue("includes docked app id", payload.contains("0:com.example/.LaunchActivity"))
         assertTrue("includes widgets summary", payload.contains("Widgets (2): 11, 22"))
+        assertTrue("includes widget pages", payload.contains("Page 2: 22"))
         assertTrue("includes recent log header", payload.contains("--- Recent log"))
         assertTrue("includes recent log entry", payload.contains("hello"))
     }
@@ -68,7 +69,7 @@ class BugReportPayloadTest {
             appListSortOrder = AppListSortOrder.Alphabetical,
             isAgendaEnabled = false,
             dockedAppIds = emptyList(),
-            widgetIds = emptyList(),
+            widgetPages = listOf(emptyList()),
             recentLog = emptyList(),
         )
 
