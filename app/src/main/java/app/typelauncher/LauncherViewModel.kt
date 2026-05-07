@@ -162,9 +162,10 @@ internal class LauncherViewModel(
 
     // One-shot signal the launcher uses to ask the search field to grab focus
     // and re-raise the soft keyboard. Emitted when the user pull-up gesture
-    // reaches its second stage (recents bar already open). The IME show itself
-    // happens in `SearchCard` because the Android IME only appears when an
-    // editable view holds focus, and the `FocusRequester` lives there.
+    // reaches its second stage (recents bar already open), and when the activity
+    // regains window focus on Home after the initial cold start. The IME show
+    // itself happens in `SearchCard` because the Android IME only appears when
+    // an editable view holds focus, and the `FocusRequester` lives there.
     private val _keyboardShowRequests = MutableSharedFlow<Unit>(
         replay = 0,
         extraBufferCapacity = 1,
@@ -494,6 +495,24 @@ internal class LauncherViewModel(
     fun requestShowKeyboard() {
         val emitted = _keyboardShowRequests.tryEmit(Unit)
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
+    }
+
+    fun requestShowKeyboardOnHomeResume() {
+        val state = _uiState.value
+        if (
+            state.screen == LauncherScreen.Home &&
+            !state.isSettingsOpen &&
+            !state.isAddingWidget &&
+            state.isKeyboardAutoShown
+        ) {
+            requestShowKeyboard()
+        } else {
+            LauncherDebugLog.event(
+                "requestShowKeyboardOnHomeResume skipped screen=${state.screen} " +
+                    "settings=${state.isSettingsOpen} addingWidget=${state.isAddingWidget} " +
+                    "autoShown=${state.isKeyboardAutoShown}",
+            )
+        }
     }
 
     fun setNotificationBarOpen(isOpen: Boolean) {

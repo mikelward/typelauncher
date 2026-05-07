@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var appWidgetHost: LauncherAppWidgetHost
     private lateinit var appWidgetManager: AppWidgetManager
     private lateinit var playUpdateChecker: PlayUpdateChecker
+    private var hasSeenInitialWindowFocus = false
 
     private val requestDefaultLauncherLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
@@ -385,6 +386,13 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         LauncherDebugLog.event("MainActivity.onWindowFocusChanged hasFocus=$hasFocus window=${window.debugSummary()}")
+        if (hasFocus && ::viewModel.isInitialized) {
+            if (hasSeenInitialWindowFocus) {
+                viewModel.requestShowKeyboardOnHomeResume()
+            } else {
+                hasSeenInitialWindowFocus = true
+            }
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
