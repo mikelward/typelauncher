@@ -12,22 +12,24 @@ class PinShortcutActivity : Activity() {
         val launcherApps = getSystemService<LauncherApps>()
         val request = launcherApps?.getPinItemRequest(intent)
         val shortcut = request?.shortcutInfo
-        val accepted = request != null &&
-            shortcut != null &&
-            request.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT &&
-            request.isValid &&
-            request.accept()
-        if (accepted && shortcut != null) {
-            val label = shortcut.shortLabel?.toString()?.takeIf { it.isNotBlank() }
-            Toast.makeText(
-                this,
-                if (label == null) "Added shortcut" else "Added $label",
-                Toast.LENGTH_SHORT,
-            ).show()
-            LauncherDebugLog.event("PinShortcutActivity accepted shortcut package=${shortcut.`package`}")
-        } else {
+        if (
+            request == null ||
+            shortcut == null ||
+            request.requestType != LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT ||
+            !request.isValid ||
+            !request.accept()
+        ) {
             LauncherDebugLog.event("PinShortcutActivity ignored invalid pin request")
+            finish()
+            return
         }
+        val label = shortcut.shortLabel?.toString()?.takeIf { it.isNotBlank() }
+        Toast.makeText(
+            this,
+            if (label == null) "Added shortcut" else "Added $label",
+            Toast.LENGTH_SHORT,
+        ).show()
+        LauncherDebugLog.event("PinShortcutActivity accepted shortcut package=${shortcut.`package`}")
         finish()
     }
 }
