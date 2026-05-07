@@ -131,6 +131,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PlatformImeOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -369,6 +370,7 @@ private fun SearchCard(
                 autoCorrectEnabled = false,
                 keyboardType = KeyboardType.Text,
                 imeAction = ImeAction.Search,
+                platformImeOptions = PlatformImeOptions(privateImeOptions = "nm"),
             ),
             keyboardActions = KeyboardActions(
                 onSearch = {
