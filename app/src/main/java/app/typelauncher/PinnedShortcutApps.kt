@@ -18,7 +18,7 @@ internal fun LauncherApps.loadPinnedShortcutApps(user: UserHandle): List<Install
         LauncherDebugLog.warning("loadPinnedShortcutApps failed user=${user.hashCode()}", exception)
         return emptyList()
     }
-    return shortcuts
+    return shortcuts.orEmpty()
         .filter { shortcut -> shortcut.isEnabled }
         .mapNotNull { shortcut -> shortcut.toInstalledApp() }
 }

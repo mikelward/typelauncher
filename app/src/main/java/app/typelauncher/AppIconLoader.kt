@@ -165,7 +165,7 @@ internal object AppIconLoader {
                     .setShortcutIds(listOf(shortcutId))
                     .setQueryFlags(ShortcutQuery.FLAG_MATCH_PINNED),
                 user,
-            ).firstOrNull()
+            ).orEmpty().firstOrNull()
         } catch (_: RuntimeException) {
             null
         }
