@@ -128,8 +128,8 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         // Apply the persisted keyboard-auto-show preference before setContent
         // so the cold-start IME state matches the setting on the very first
-        // frame; without this the manifest's stateAlwaysVisible would briefly
-        // raise the keyboard before the toggle could undo it.
+        // frame. Compose owns showing the Home keyboard; the window only keeps
+        // non-Home pages from inheriting an unsolicited IME show when disabled.
         applyKeyboardAutoShownPreference(viewModel.uiState.value.isKeyboardAutoShown)
         observeKeyboardAutoShownPreference()
         // Apply edge-to-edge with system-bar styling that matches the persisted
@@ -322,19 +322,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
-        // The manifest declares stateAlwaysVisible so the launcher boots into
-        // the typing state by default. When the user opts out we override with
-        // stateAlwaysHidden — not stateHidden — because plain stateHidden only
-        // fires on forward navigation to the window, and returning to the
-        // launcher from another app (the dominant home-screen flow) isn't
-        // considered forward navigation, so the IME would still reappear if
-        // the search field had retained focus. stateAlwaysHidden enforces the
-        // opt-out every time the launcher regains focus. adjustResize stays so
-        // the IME insets math is unchanged when the keyboard is later raised
-        // by tapping the search field.
-        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+        // Compose handles IME visibility and insets. Keep the window out of
+        // resize mode so Scaffold's WindowInsets.ime path is the single layout
+        // source; when the user opts out of Home auto-show, add
+        // stateAlwaysHidden so returning to the launcher from another app
+        // doesn't resurrect the keyboard just because the search field had
+        // retained focus. Plain stateHidden only applies on forward navigation.
+        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
             if (autoShown) {
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED
             } else {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
             }

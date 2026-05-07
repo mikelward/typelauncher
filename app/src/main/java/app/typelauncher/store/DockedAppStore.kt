@@ -152,9 +152,8 @@ internal class DockSettingsStore(context: Context) {
      * the foreground. When `true` (default) the search field is focused and
      * `keyboard.show()` runs on cold start, matching the original always-typing
      * launcher behavior. When `false` the search field is not auto-focused and
-     * `MainActivity` overrides the manifest's `stateAlwaysVisible` softInputMode
-     * with `stateHidden` so the activity-level "always show" doesn't undo the
-     * preference.
+     * `MainActivity` applies `stateAlwaysHidden` so retained focus doesn't undo
+     * the preference when the launcher resumes.
      */
     var isKeyboardAutoShown: Boolean
         get() = sharedPreferences.getBoolean(KEY_KEYBOARD_AUTO_SHOWN, true)
