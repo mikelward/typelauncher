@@ -129,8 +129,8 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         // Apply the persisted keyboard-auto-show preference before setContent
         // so the cold-start IME state matches the setting on the very first
-        // frame. Compose owns showing the Home keyboard; the window only keeps
-        // non-Home pages from inheriting an unsolicited IME show when disabled.
+        // frame. Compose owns the Home search focus target; the window keeps
+        // the platform resize/show policy in sync with the user preference.
         applyKeyboardAutoShownPreference(viewModel.uiState.value.isKeyboardAutoShown)
         observeKeyboardAutoShownPreference()
         // Apply edge-to-edge with system-bar styling that matches the persisted
@@ -323,15 +323,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
-        // Compose handles IME visibility and insets. Keep the window out of
-        // resize mode so Scaffold's WindowInsets.ime path is the single layout
-        // source; when the user opts out of Home auto-show, add
-        // stateAlwaysHidden so returning to the launcher from another app
-        // doesn't resurrect the keyboard just because the search field had
-        // retained focus. Plain stateHidden only applies on forward navigation.
-        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
+        // Keep the window resize/show contract aligned with the Home keyboard
+        // preference while Compose controls which field owns focus. When the
+        // user opts out of Home auto-show, stateAlwaysHidden prevents retained
+        // search focus from resurrecting the keyboard on launcher resume. Plain
+        // stateHidden only applies on forward navigation.
+        val mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
             if (autoShown) {
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
             } else {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
             }
