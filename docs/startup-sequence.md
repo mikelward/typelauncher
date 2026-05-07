@@ -31,17 +31,18 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 15. `SearchCard` runs `LaunchedEffect(autoShowKeyboard)` after composition:
     - if enabled, it calls `FocusRequester.requestFocus()` and `LocalSoftwareKeyboardController.show()`;
     - if disabled, it skips both calls, and the activity-level soft input mode already keeps the IME hidden until the user taps the field.
-16. The top-level carousel also holds off composing offscreen pages until after the first frame. This keeps Widgets and Agenda UI work out of the critical first search/IME frame.
-17. One frame later, `homeBodyReady` flips `true`; Home composes the app list, notification bar, dock, and recents from the current state. Depending on cache state, this is either cached app data or a loading state.
-18. Visible app icons are loaded lazily by each row/icon:
+16. Subsequent `onWindowFocusChanged(true)` callbacks after the initial cold-start focus ask the same `SearchCard` collector to request focus and show the keyboard again when Home is visible and keyboard auto-show remains enabled. This covers return-from-app resumes without reintroducing manifest `stateAlwaysVisible`.
+17. The top-level carousel also holds off composing offscreen pages until after the first frame. This keeps Widgets and Agenda UI work out of the critical first search/IME frame.
+18. One frame later, `homeBodyReady` flips `true`; Home composes the app list, notification bar, dock, and recents from the current state. Depending on cache state, this is either cached app data or a loading state.
+19. Visible app icons are loaded lazily by each row/icon:
     - composition first checks `AppIconLoader.cached(id, sizePx)` on the composition thread;
     - on a miss, `AppIconLoader.load` resolves the `Drawable` on `Dispatchers.IO`;
     - bitmap rasterization runs on `Dispatchers.Default`;
     - the resulting `ImageBitmap` updates Compose state and is stored in the LRU cache.
-19. When the fresh installed-app load returns, the coroutine resumes on main, updates `installedApps`, may prefill the dock on first run, recomputes app surfaces, sets `isLoadingApps = false`, sets `isFreshAppLoadComplete = true`, and asynchronously saves the new metadata snapshot on `Dispatchers.IO`.
-20. `HomeReadySignal` waits until `isFreshAppLoadComplete` is true. When keyboard auto-show is enabled, it then waits for either IME visibility or a 1500 ms fallback; when keyboard auto-show is disabled, it skips the IME wait because no keyboard show is expected. This prevents agenda IO from competing with the fresh app load and keyboard show, while still allowing hardware-keyboard, IME-disabled, and keyboard-opt-out environments to proceed.
-21. When home-ready fires, `LauncherViewModel.onHomeReady` sets `isHomeReady = true` and starts the deferred initial agenda load. The agenda load switches to `Dispatchers.IO`, checks calendar permission, queries `CalendarContract.Instances` if permitted, organizes events, and publishes only the newest agenda request.
-22. The same home-ready signal releases `MainActivity`'s deferred `AppWidgetHost.startListening`. `onStart` skips widget-host listening while cold start is in progress; after home-ready, the host starts immediately if the activity is already started, and future `onStart` calls start it normally.
+20. When the fresh installed-app load returns, the coroutine resumes on main, updates `installedApps`, may prefill the dock on first run, recomputes app surfaces, sets `isLoadingApps = false`, sets `isFreshAppLoadComplete = true`, and asynchronously saves the new metadata snapshot on `Dispatchers.IO`.
+21. `HomeReadySignal` waits until `isFreshAppLoadComplete` is true. When keyboard auto-show is enabled, it then waits for either IME visibility or a 1500 ms fallback; when keyboard auto-show is disabled, it skips the IME wait because no keyboard show is expected. This prevents agenda IO from competing with the fresh app load and keyboard show, while still allowing hardware-keyboard, IME-disabled, and keyboard-opt-out environments to proceed.
+22. When home-ready fires, `LauncherViewModel.onHomeReady` sets `isHomeReady = true` and starts the deferred initial agenda load. The agenda load switches to `Dispatchers.IO`, checks calendar permission, queries `CalendarContract.Instances` if permitted, organizes events, and publishes only the newest agenda request.
+23. The same home-ready signal releases `MainActivity`'s deferred `AppWidgetHost.startListening`. `onStart` skips widget-host listening while cold start is in progress; after home-ready, the host starts immediately if the activity is already started, and future `onStart` calls start it normally.
 
 ## Timing notes
 
