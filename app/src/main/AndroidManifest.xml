@@ -61,15 +61,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".PinShortcutActivity"
-            android:exported="true"
-            android:theme="@style/Theme.TypeLauncher.NoDisplay">
-            <intent-filter>
-                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
-            </intent-filter>
-        </activity>
-
     </application>
 
 </manifest>

@@ -12,7 +12,6 @@ internal data class InstalledApp(
     val user: UserHandle,
     val isWorkApp: Boolean,
     val launchWithLauncherApps: Boolean,
-    val shortcutId: String? = null,
     val iconCacheToken: String? = null,
     val isDocked: Boolean = false,
     val isHidden: Boolean = false,
@@ -20,9 +19,7 @@ internal data class InstalledApp(
     val disambiguator: String? = null,
 ) {
     val id: String
-        get() = shortcutId
-            ?.let { id -> "${user.hashCode()}:shortcut:$packageName/${Uri.encode(id)}" }
-            ?: "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
+        get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
 
     val iconCacheId: String
         get() = iconCacheToken?.let { token -> "$id@$token" } ?: id

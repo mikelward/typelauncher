@@ -28,20 +28,16 @@ internal class AppMetadataStore(context: Context) {
             buildList(array.length()) {
                 for (i in 0 until array.length()) {
                     val obj = array.getJSONObject(i)
-                    val shortcutId = obj.optString(KEY_SHORTCUT_ID).takeIf { it.isNotEmpty() }
-                    val component = obj.optString(KEY_COMPONENT)
-                        .takeIf { it.isNotEmpty() }
-                        ?.let(ComponentName::unflattenFromString)
-                    if (shortcutId == null && component == null) continue
+                    val component = ComponentName.unflattenFromString(obj.getString(KEY_COMPONENT))
+                        ?: continue
                     add(
                         InstalledApp(
                             name = obj.getString(KEY_NAME),
                             packageName = obj.getString(KEY_PACKAGE),
-                            launchIntent = component?.let { Intent.makeMainActivity(it) } ?: Intent(),
+                            launchIntent = Intent.makeMainActivity(component),
                             user = personal,
                             isWorkApp = obj.optBoolean(KEY_IS_WORK_APP, false),
                             launchWithLauncherApps = obj.optBoolean(KEY_LAUNCH_WITH_LAUNCHER_APPS, true),
-                            shortcutId = shortcutId,
                             iconCacheToken = obj.optString(KEY_ICON_CACHE_TOKEN).takeIf { it.isNotEmpty() },
                         ),
                     )
@@ -57,15 +53,13 @@ internal class AppMetadataStore(context: Context) {
         val array = JSONArray()
         for (app in apps) {
             if (!isPersonal(app.user, personal)) continue
-            val component = app.launchIntent.component
-            if (component == null && app.shortcutId == null) continue
+            val component = app.launchIntent.component ?: continue
             val obj = JSONObject().apply {
                 put(KEY_NAME, app.name)
                 put(KEY_PACKAGE, app.packageName)
-                component?.let { put(KEY_COMPONENT, it.flattenToString()) }
+                put(KEY_COMPONENT, component.flattenToString())
                 put(KEY_IS_WORK_APP, app.isWorkApp)
                 put(KEY_LAUNCH_WITH_LAUNCHER_APPS, app.launchWithLauncherApps)
-                app.shortcutId?.let { put(KEY_SHORTCUT_ID, it) }
                 app.iconCacheToken?.let { put(KEY_ICON_CACHE_TOKEN, it) }
             }
             array.put(obj)
@@ -85,7 +79,6 @@ internal class AppMetadataStore(context: Context) {
         const val KEY_COMPONENT = "component"
         const val KEY_IS_WORK_APP = "isWorkApp"
         const val KEY_LAUNCH_WITH_LAUNCHER_APPS = "launchWithLauncherApps"
-        const val KEY_SHORTCUT_ID = "shortcutId"
         const val KEY_ICON_CACHE_TOKEN = "iconCacheToken"
     }
 }
