@@ -97,6 +97,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -110,6 +111,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -134,6 +136,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -164,6 +167,7 @@ internal fun HomeScreen(
     onOpenSettings: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
+    onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -223,6 +227,7 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onHideApp = onHideApp,
+                onAppListBoundsChanged = onAppListBoundsChanged,
             )
             if (!showNotificationBarAbove) {
                 NotificationBarCard(
@@ -1081,7 +1086,13 @@ private fun AppsCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
+    LaunchedEffect(isLoading, apps.isEmpty()) {
+        if (isLoading || apps.isEmpty()) {
+            onAppListBoundsChanged(null)
+        }
+    }
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
         if (isLoading) {
             Box(
@@ -1131,6 +1142,7 @@ private fun AppsCard(
                         highlightFirst = highlightFirst,
                         reverseLayout = reverseLayout,
                         state = gridState,
+                        onBoundsChanged = onAppListBoundsChanged,
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -1161,6 +1173,11 @@ private fun AppsCard(
                         reverseLayout = reverseLayout,
                         modifier = Modifier
                             .fillMaxSize()
+                            .onGloballyPositioned { coords ->
+                                onAppListBoundsChanged(
+                                    Rect(coords.positionInRoot(), coords.size.toSize()),
+                                )
+                            }
                             .testTag(APPS_LIST_TAG),
                     ) {
                         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
@@ -1211,6 +1228,7 @@ private fun IconOnlyAppGrid(
     highlightFirst: Boolean,
     state: LazyGridState,
     reverseLayout: Boolean = false,
+    onBoundsChanged: (Rect?) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1224,6 +1242,11 @@ private fun IconOnlyAppGrid(
         modifier = Modifier
             .fillMaxSize()
             .heightIn(min = iconSizeDp.dp)
+            .onGloballyPositioned { coords ->
+                onBoundsChanged(
+                    Rect(coords.positionInRoot(), coords.size.toSize()),
+                )
+            }
             .testTag(APPS_LIST_TAG),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(
@@ -1507,6 +1530,10 @@ private fun NotifyingAppActionsMenu(
     }
 }
 
+// Keep app-action menus out of Android window focus so opening them does not
+// clear the focused search field and collapse the IME. The menu content still
+// renders as Compose semantics, but this popup should stay scoped to app
+// actions where keyboard preservation is more important than modal focus.
 private val AppActionsMenuPopupProperties = PopupProperties(focusable = false)
 
 @Composable

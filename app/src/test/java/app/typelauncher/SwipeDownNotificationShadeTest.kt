@@ -553,7 +553,7 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun pullingDownPastTopOfAppsList_opensNotificationBar() {
+    fun pullingDownPastTopOfAppsList_doesNotOpenNotificationBar() {
         val apps = fakeScrollableApps()
         var notificationBarOpened = false
         var swipeDownCount = 0
@@ -601,11 +601,11 @@ class SwipeDownNotificationShadeTest {
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
+        assertEquals(false, notificationBarOpened)
     }
 
     @Test
-    fun pullingDownPastTopOfAppsListWithSystemBehavior_invokesOnSwipeDownCallback() {
+    fun pullingDownPastTopOfAppsListWithSystemBehavior_doesNotInvokeOnSwipeDownCallback() {
         val apps = fakeScrollableApps()
         var notificationBarOpened = false
         var swipeDownCount = 0
@@ -652,12 +652,12 @@ class SwipeDownNotificationShadeTest {
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
-        assertEquals(1, swipeDownCount)
+        assertEquals(0, swipeDownCount)
         assertEquals(false, notificationBarOpened)
     }
 
     @Test
-    fun pushingUpPastBottomOfAppsList_hidesNotificationBar() {
+    fun pushingUpPastBottomOfAppsList_doesNotHideNotificationBar() {
         val apps = fakeScrollableApps()
         var notificationBarOpen = true
         var recentsOpened = false
@@ -709,15 +709,15 @@ class SwipeDownNotificationShadeTest {
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        assertEquals(false, notificationBarOpen)
+        assertEquals(true, notificationBarOpen)
         assertEquals(false, recentsOpened)
     }
 
     @Test
-    fun pullingDownOnShortNonScrollableAppsList_opensNotificationBar() {
+    fun pullingDownOnShortNonScrollableAppsList_doesNotOpenNotificationBar() {
         // A handful of apps doesn't fill the apps card, so the LazyColumn has
-        // no scrolling room. The pull-down should still fire — "fully scrolled
-        // to the end" is trivially true when there's nothing to scroll.
+        // no scrolling room. Drags that start in the app list still stay app-list
+        // gestures so the keyboard does not jump while the user explores results.
         val apps = (0 until 3).map { index ->
             InstalledApp(
                 name = "App %02d".format(index),
@@ -774,7 +774,7 @@ class SwipeDownNotificationShadeTest {
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
+        assertEquals(false, notificationBarOpened)
     }
 
     private fun fakeScrollableApps(): List<InstalledApp> =
