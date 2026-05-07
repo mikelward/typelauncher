@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Build
-import android.os.Process
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
@@ -29,11 +28,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
@@ -188,8 +185,8 @@ private fun WidgetPickerCard(
             // TODO: also filter individual widget labels within an app group, not just the app group names.
             val trimmedQuery = filterQuery.trim()
             // Group key includes the work-profile flag so the personal and work
-            // copies of the same package render as distinct sections; otherwise
-            // the work copy's badge would be hidden under the personal entry.
+            // copies of the same package render as distinct sections and bind
+            // against the correct profile.
             val filteredGroups = availableWidgets
                 .groupBy { provider -> WidgetGroupKey(provider.appName, provider.isWorkProvider) }
                 .let { groups ->
@@ -301,7 +298,6 @@ private fun WidgetAppSection(
             ) {
                 WidgetAppIcon(
                     appIcon = providers.firstOrNull()?.appIcon,
-                    isWorkProvider = groupKey.isWorkProvider,
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -463,9 +459,8 @@ private fun WidgetPreview(
 }
 
 @Composable
-private fun WidgetAppIcon(appIcon: Drawable?, isWorkProvider: Boolean = false) {
+private fun WidgetAppIcon(appIcon: Drawable?) {
     val bitmap = remember(appIcon) { appIcon?.toBitmap()?.asImageBitmap() }
-    val workBadgeDescription = stringResource(R.string.widgets_work_badge_description)
     Box(modifier = Modifier.size(36.dp)) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -484,24 +479,6 @@ private fun WidgetAppIcon(appIcon: Drawable?, isWorkProvider: Boolean = false) {
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-        if (isWorkProvider) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
-                    .semantics { contentDescription = workBadgeDescription }
-                    .testTag(WIDGET_WORK_BADGE_TAG),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-            ) {
-                Icon(
-                    Icons.Filled.Badge,
-                    contentDescription = null,
-                    modifier = Modifier.padding(2.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         }
@@ -610,10 +587,6 @@ private fun HostedWidgetCard(
         mutableFloatStateOf((customHeightDp?.toFloat() ?: defaultHeightDp.value))
     }
     val effectiveHeightDp = if (isResizing) resizeHeightDp.dp else (customHeightDp?.dp ?: defaultHeightDp)
-    val isWorkProfileWidget = remember(providerInfo) {
-        providerInfo.profile != Process.myUserHandle()
-    }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -646,14 +619,6 @@ private fun HostedWidgetCard(
             },
             modifier = Modifier.fillMaxSize(),
         )
-        if (isWorkProfileWidget) {
-            HostedWidgetWorkBadge(
-                widgetId = widgetId,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp),
-            )
-        }
         WidgetActionsMenu(
             expanded = menuExpanded,
             widgetId = widgetId,
@@ -677,26 +642,6 @@ private fun HostedWidgetCard(
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
-    }
-}
-
-@Composable
-private fun HostedWidgetWorkBadge(widgetId: Int, modifier: Modifier = Modifier) {
-    val workBadgeDescription = stringResource(R.string.widgets_work_badge_description)
-    Surface(
-        modifier = modifier
-            .size(18.dp)
-            .semantics { contentDescription = workBadgeDescription }
-            .testTag("$WIDGET_WORK_BADGE_TAG:$widgetId"),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primary,
-    ) {
-        Icon(
-            Icons.Filled.Badge,
-            contentDescription = null,
-            modifier = Modifier.padding(3.dp),
-            tint = MaterialTheme.colorScheme.onPrimary,
-        )
     }
 }
 

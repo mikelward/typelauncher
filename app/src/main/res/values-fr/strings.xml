@@ -8,7 +8,6 @@
     <string name="play_update_banner_body">Appuyez pour mettre à jour depuis Google Play.</string>
     <string name="play_update_banner_update_button">Mettre à jour</string>
     <string name="play_update_banner_dismiss_description">Ignorer la bannière de mise à jour</string>
-    <string name="work_app_badge_description">Application professionnelle</string>
     <string name="installed_apps_list_label">Applications installées</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Appuyez longuement sur les applications pour les ancrer</string>
@@ -60,7 +59,6 @@
     <string name="widgets_preview_unavailable">Aperçu non disponible</string>
     <string name="widgets_picker_unavailable">Sélecteur de widgets non disponible</string>
     <string name="widgets_unavailable">Widget non disponible</string>
-    <string name="widgets_work_badge_description">Widget du profil professionnel</string>
     <string name="widget_menu_resize">Redimensionner</string>
     <string name="widget_menu_remove">Supprimer</string>
     <string name="widget_resize_handle_description">Faire glisser pour redimensionner le widget</string>

@@ -64,11 +64,11 @@ class AppIconDisambiguatorScreenshotTest {
             .assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Chase (UK) flag", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Chase (INTL) globe", useUnmergedTree = true).assertIsDisplayed()
-        assertBadgeMatchesWorkBadgeSizeAndBottomLeft(
+        assertBadgeMatchesCornerSizeAndBottomLeft(
             iconTag = "$APP_ICON_TAG:Chase (UK)",
             badgeTag = "$APP_ICON_DISAMBIGUATOR_TAG:Chase (UK)",
         )
-        assertBadgeMatchesWorkBadgeSizeAndBottomLeft(
+        assertBadgeMatchesCornerSizeAndBottomLeft(
             iconTag = "$APP_ICON_TAG:Chase (INTL)",
             badgeTag = "$APP_ICON_DISAMBIGUATOR_TAG:Chase (INTL)",
         )
@@ -107,13 +107,13 @@ class AppIconDisambiguatorScreenshotTest {
         saveScreenshot("compose_disambiguator_amex_three_pack_dark_robolectric.png")
     }
 
-    private fun assertBadgeMatchesWorkBadgeSizeAndBottomLeft(iconTag: String, badgeTag: String) {
+    private fun assertBadgeMatchesCornerSizeAndBottomLeft(iconTag: String, badgeTag: String) {
         val iconBounds = composeRule.onNodeWithTag(iconTag, useUnmergedTree = true).getBoundsInRoot()
         val badgeBounds = composeRule.onNodeWithTag(badgeTag, useUnmergedTree = true).getBoundsInRoot()
         val badgeWidth = (badgeBounds.right - badgeBounds.left).value
         val badgeHeight = (badgeBounds.bottom - badgeBounds.top).value
         assertTrue(
-            "badge should match the ${APP_ICON_CORNER_BADGE_SIZE_DP}dp work badge size, was ${badgeWidth}x$badgeHeight",
+            "badge should match the ${APP_ICON_CORNER_BADGE_SIZE_DP}dp corner badge size, was ${badgeWidth}x$badgeHeight",
             kotlin.math.abs(badgeWidth - APP_ICON_CORNER_BADGE_SIZE_DP) <= 1f &&
                 kotlin.math.abs(badgeHeight - APP_ICON_CORNER_BADGE_SIZE_DP) <= 1f,
         )

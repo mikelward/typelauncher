@@ -49,8 +49,8 @@ class AppMetadataStoreTest {
 
     @Test
     fun preservesIsWorkAppFlagForPersonalProfileApps() {
-        // Personal-profile apps tagged via TEST_WORK_PACKAGES_EXTRA still need to round-trip
-        // their work badge across cold starts.
+        // Personal-profile apps tagged via TEST_WORK_PACKAGES_EXTRA still need
+        // to round-trip their work identity across cold starts.
         val app = personalApp(name = "Work mail", packageName = "app.workmail").copy(isWorkApp = true)
         AppMetadataStore(context).save(listOf(app))
 

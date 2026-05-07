@@ -8,7 +8,6 @@
     <string name="play_update_banner_body">탭하여 Google Play에서 업데이트하세요.</string>
     <string name="play_update_banner_update_button">업데이트</string>
     <string name="play_update_banner_dismiss_description">업데이트 배너 닫기</string>
-    <string name="work_app_badge_description">업무용 앱</string>
     <string name="installed_apps_list_label">설치된 앱</string>
     <string name="dock_apps_list_label">독</string>
     <string name="dock_apps_hint">앱을 길게 눌러 독에 추가하세요</string>
@@ -60,7 +59,6 @@
     <string name="widgets_preview_unavailable">미리보기를 사용할 수 없습니다</string>
     <string name="widgets_picker_unavailable">위젯 선택기를 사용할 수 없습니다</string>
     <string name="widgets_unavailable">위젯을 사용할 수 없습니다</string>
-    <string name="widgets_work_badge_description">업무용 프로필 위젯</string>
     <string name="widget_menu_resize">크기 조절</string>
     <string name="widget_menu_remove">삭제</string>
     <string name="widget_resize_handle_description">드래그하여 위젯 크기 조절</string>
