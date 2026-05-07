@@ -150,7 +150,12 @@ class MainActivity : ComponentActivity() {
                         viewModel = viewModel,
                         appWidgetHost = appWidgetHost,
                         appWidgetManager = appWidgetManager,
-                        onAddWidget = viewModel::showWidgetPicker,
+                        onAddWidget = { request ->
+                            viewModel.showWidgetPicker(
+                                pageIndex = request.pageIndex,
+                                addToNewPageAfterSelection = request.isCurrentPageScrollable,
+                            )
+                        },
                         onDismissWidgetPicker = viewModel::hideWidgetPicker,
                         onSelectWidget = ::bindWidget,
                         onRemoveWidget = ::removeWidget,

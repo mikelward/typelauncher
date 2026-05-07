@@ -53,7 +53,7 @@ internal object BugReport {
     private fun collectPayload(context: Context): String {
         val dockSettings = DockSettingsStore(context)
         val dockedApps = DockedAppStore(context).dockedAppIds
-        val widgetIds = WidgetStore(context).widgetIds
+        val widgetStore = WidgetStore(context)
         return buildBugReportPayload(
             nowMillis = System.currentTimeMillis(),
             versionName = BuildConfig.VERSION_NAME,
@@ -72,7 +72,7 @@ internal object BugReport {
             appListSortOrder = dockSettings.appListSortOrder,
             isAgendaEnabled = dockSettings.isAgendaEnabled,
             dockedAppIds = dockedApps,
-            widgetIds = widgetIds,
+            widgetPages = widgetStore.widgetPages,
             recentLog = LauncherDebugLog.snapshot(),
         )
     }
@@ -203,9 +203,10 @@ internal fun buildBugReportPayload(
     appListSortOrder: AppListSortOrder,
     isAgendaEnabled: Boolean,
     dockedAppIds: List<String>,
-    widgetIds: List<Int>,
+    widgetPages: List<List<Int>>,
     recentLog: List<String>,
 ): String {
+    val widgetIds = widgetPages.flatten()
     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))
     return buildString {
         appendLine("Type Launcher bug report")
@@ -235,6 +236,9 @@ internal fun buildBugReportPayload(
             dockedAppIds.forEach { appendLine("  - $it") }
         }
         appendLine("Widgets (${widgetIds.size}): ${if (widgetIds.isEmpty()) "(none)" else widgetIds.joinToString()}")
+        widgetPages.forEachIndexed { index, pageIds ->
+            appendLine("  Page ${index + 1}: ${if (pageIds.isEmpty()) "(empty)" else pageIds.joinToString()}")
+        }
         appendLine()
         appendLine("--- Recent log (newest last, ${recentLog.size} of max $LOG_BUFFER_MAX_ENTRIES) ---")
         if (recentLog.isEmpty()) {

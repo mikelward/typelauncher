@@ -97,7 +97,7 @@ internal fun TypeLauncherApp(
     viewModel: LauncherViewModel,
     appWidgetHost: AppWidgetHost,
     appWidgetManager: AppWidgetManager,
-    onAddWidget: () -> Unit,
+    onAddWidget: (WidgetAddRequest) -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
@@ -211,7 +211,7 @@ internal fun TypeLauncherApp(
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onShowAgenda: () -> Unit,
-    onShowWidgets: () -> Unit,
+    onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
     onHomeReady: () -> Unit = {},
     onSetRecentsOpen: (Boolean) -> Unit = {},
@@ -221,7 +221,7 @@ internal fun TypeLauncherApp(
     onRequestNotificationAccess: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
-    onAddWidget: () -> Unit,
+    onAddWidget: (WidgetAddRequest) -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
@@ -287,6 +287,8 @@ internal fun TypeLauncherApp(
             var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
             SwipeNavigationBox(
                 screen = state.screen,
+                currentWidgetPage = state.currentWidgetPage,
+                widgetPageCount = state.widgetPages.size,
                 isAgendaEnabled = state.isAgendaEnabled,
                 isNotificationBarOpen = state.isNotificationBarOpen,
                 notificationPullDownBehavior = state.notificationPullDownBehavior,
@@ -304,8 +306,8 @@ internal fun TypeLauncherApp(
                 onRequestShowKeyboard = onRequestShowKeyboard,
                 onSwipeDown = onSwipeDown,
                 appListBoundsInRoot = homeAppListBoundsInRoot,
-            ) { pageScreen ->
-                when (pageScreen) {
+            ) { page, isCurrentPage ->
+                when (page.screen) {
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
                         innerPadding = innerPadding,
@@ -330,15 +332,25 @@ internal fun TypeLauncherApp(
                         onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
                     )
                     LauncherScreen.Widgets -> WidgetsScreen(
-                        widgetIds = state.widgetIds,
+                        widgetIds = state.widgetPages.getOrElse(
+                            page.widgetPageIndex.coerceIn(0, state.widgetPages.lastIndex.coerceAtLeast(0)),
+                        ) { emptyList() },
                         availableWidgets = state.availableWidgets,
-                        isAddingWidget = state.isAddingWidget,
+                        isAddingWidget = state.isAddingWidget && state.currentWidgetPage == page.widgetPageIndex,
                         isLoadingAvailableWidgets = state.isLoadingAvailableWidgets,
                         appWidgetHost = appWidgetHost,
                         appWidgetManager = appWidgetManager,
                         innerPadding = innerPadding,
                         widgetHeights = state.widgetHeights,
-                        onAddWidget = onAddWidget,
+                        isCurrentPage = isCurrentPage,
+                        onAddWidget = { isCurrentPageScrollable ->
+                            onAddWidget(
+                                WidgetAddRequest(
+                                    pageIndex = page.widgetPageIndex,
+                                    isCurrentPageScrollable = isCurrentPageScrollable,
+                                ),
+                            )
+                        },
                         onDismissWidgetPicker = onDismissWidgetPicker,
                         onSelectWidget = onSelectWidget,
                         onRemoveWidget = onRemoveWidget,
@@ -388,19 +400,21 @@ private fun HomeReadySignal(
 @Composable
 private fun SwipeNavigationBox(
     screen: LauncherScreen,
+    currentWidgetPage: Int,
+    widgetPageCount: Int,
     isAgendaEnabled: Boolean,
     isNotificationBarOpen: Boolean,
     notificationPullDownBehavior: NotificationPullDownBehavior,
     isRecentsVisible: Boolean,
     appListBoundsInRoot: Rect?,
     onShowAgenda: () -> Unit,
-    onShowWidgets: () -> Unit,
+    onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit,
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
-    content: @Composable (LauncherScreen) -> Unit,
+    content: @Composable (LauncherPage, Boolean) -> Unit,
 ) {
     // A pointer sequence locks once, shortly after touch slop, to either the
     // child scrollable that consumed movement at gesture start or to a
@@ -408,6 +422,7 @@ private fun SwipeNavigationBox(
     // the same drag to the carousel/pull handlers; the next gesture can claim
     // from that already-at-edge state.
     val currentScreen by rememberUpdatedState(screen)
+    val currentLauncherPage by rememberUpdatedState(LauncherPage(screen, currentWidgetPage.coerceAtLeast(0)))
     val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
     val currentNotificationPullDownBehavior by rememberUpdatedState(notificationPullDownBehavior)
     val currentRecentsVisible by rememberUpdatedState(isRecentsVisible)
@@ -463,7 +478,18 @@ private fun SwipeNavigationBox(
             }
         }
     }
-    var currentPage by remember { mutableStateOf(LauncherScreen.initialCarouselPage(screen, isAgendaEnabled)) }
+    var currentPage by remember {
+        mutableStateOf(
+            LauncherScreen.initialCarouselPage(
+                page = LauncherPage(screen, currentWidgetPage),
+                widgetPageCount = widgetPageCount,
+                isAgendaEnabled = isAgendaEnabled,
+            ),
+        )
+    }
+    var carouselPageConfig by remember {
+        mutableStateOf(CarouselPageConfig(widgetPageCount = widgetPageCount, isAgendaEnabled = isAgendaEnabled))
+    }
     var carouselOffsetPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
     val touchSlopPx = with(density) { CAROUSEL_TOUCH_SLOP_DP.dp.toPx() }
@@ -481,10 +507,10 @@ private fun SwipeNavigationBox(
     var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
-    fun dispatchSettledScreen(settledScreen: LauncherScreen) {
-        when (settledScreen) {
+    fun dispatchSettledPage(settledPage: LauncherPage) {
+        when (settledPage.screen) {
             LauncherScreen.Agenda -> onShowAgenda()
-            LauncherScreen.Widgets -> onShowWidgets()
+            LauncherScreen.Widgets -> onShowWidgets(settledPage.widgetPageIndex)
             LauncherScreen.Home -> onShowHome()
         }
     }
@@ -494,14 +520,14 @@ private fun SwipeNavigationBox(
             currentKeyboard?.hide()
         }
     }
-    fun awaitScreenAck(targetPage: Int, targetScreen: LauncherScreen) {
+    fun awaitPageAck(targetPage: Int, targetLauncherPage: LauncherPage) {
         allowSwipeWithUnackedScreen = false
         carouselTransition = CarouselTransitionState.AwaitingAck(
             settledPage = targetPage,
-            expectedScreen = targetScreen,
+            expectedPage = targetLauncherPage,
         )
-        if (currentScreen != targetScreen) {
-            dispatchSettledScreen(targetScreen)
+        if (currentLauncherPage != targetLauncherPage) {
+            dispatchSettledPage(targetLauncherPage)
         } else {
             carouselTransition = CarouselTransitionState.Idle
         }
@@ -532,11 +558,11 @@ private fun SwipeNavigationBox(
         delay(CAROUSEL_ACK_TIMEOUT_MS)
         if (carouselTransition == transition) {
             LauncherDebugLog.warning(
-                "SwipeNavigationBox ack timeout settled=${transition.settledPage} expected=${transition.expectedScreen} " +
-                    "screen=$currentScreen",
+                "SwipeNavigationBox ack timeout settled=${transition.settledPage} expected=${transition.expectedPage} " +
+                    "page=$currentLauncherPage",
             )
             allowSwipeWithUnackedScreen = true
-            dispatchSettledScreen(transition.expectedScreen)
+            dispatchSettledPage(transition.expectedPage)
             carouselTransition = CarouselTransitionState.Idle
         }
     }
@@ -556,19 +582,22 @@ private fun SwipeNavigationBox(
                 launcherSwipeCommitDistancePx,
                 flingCommitVelocityPxPerSec,
                 backwardVelocityCancelPxPerSec,
+                widgetPageCount,
+                isAgendaEnabled,
             ) {
                 awaitEachGesture {
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     val startConsumed = scrollConsumptionTracker.totalConsumed
                     val gestureStartPage = currentPage
-                    val gestureStartScreen = LauncherScreen.fromCarouselPage(
+                    val gestureStartLauncherPage = LauncherScreen.fromCarouselPage(
                         gestureStartPage,
+                        widgetPageCount = widgetPageCount,
                         isAgendaEnabled,
                     )
                     val canStartCarouselGesture = carouselTransition == CarouselTransitionState.Idle &&
                         carouselAnimationJob?.isActive != true &&
                         carouselOffsetPx == 0f &&
-                        (currentScreen == gestureStartScreen || allowSwipeWithUnackedScreen)
+                        (currentLauncherPage == gestureStartLauncherPage || allowSwipeWithUnackedScreen)
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     var rawDragX = 0f
                     var rawDragY = 0f
@@ -635,11 +664,15 @@ private fun SwipeNavigationBox(
                     } else {
                         gestureStartPage
                     }
-                    val targetScreen = LauncherScreen.fromCarouselPage(targetPage, isAgendaEnabled)
+                    val targetLauncherPage = LauncherScreen.fromCarouselPage(
+                        targetPage,
+                        widgetPageCount = widgetPageCount,
+                        isAgendaEnabled,
+                    )
                     val willChangePage = committed && targetPage != gestureStartPage
                     if (willChangePage) {
-                        carouselTransition = CarouselTransitionState.UserAnimating(targetPage, targetScreen)
-                        hideKeyboardForCarouselPage(targetScreen)
+                        carouselTransition = CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)
+                        hideKeyboardForCarouselPage(targetLauncherPage.screen)
                     }
                     carouselAnimationJob = coroutineScope.launch {
                         val targetOffsetPx = when {
@@ -649,11 +682,11 @@ private fun SwipeNavigationBox(
                         }
                         animateCarouselOffsetTo(targetOffsetPx)
                         if (willChangePage &&
-                            carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetScreen)
+                            carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)
                         ) {
                             currentPage = targetPage
                             carouselOffsetPx = 0f
-                            awaitScreenAck(targetPage, targetScreen)
+                            awaitPageAck(targetPage, targetLauncherPage)
                         } else {
                             carouselOffsetPx = 0f
                         }
@@ -731,10 +764,22 @@ private fun SwipeNavigationBox(
             },
     ) {
         val pageWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-        LaunchedEffect(screen, pageWidthPx, isAgendaEnabled) {
+        val statePage = LauncherPage(screen, currentWidgetPage.coerceAtLeast(0))
+        LaunchedEffect(screen, currentWidgetPage, pageWidthPx, isAgendaEnabled, widgetPageCount) {
+            val newConfig = CarouselPageConfig(widgetPageCount = widgetPageCount, isAgendaEnabled = isAgendaEnabled)
+            if (carouselPageConfig != newConfig) {
+                currentPage = LauncherScreen.reanchoredCarouselPage(
+                    currentPage = currentPage,
+                    oldWidgetPageCount = carouselPageConfig.widgetPageCount,
+                    newWidgetPageCount = newConfig.widgetPageCount,
+                    oldIsAgendaEnabled = carouselPageConfig.isAgendaEnabled,
+                    newIsAgendaEnabled = newConfig.isAgendaEnabled,
+                )
+                carouselPageConfig = newConfig
+            }
             when (val transition = carouselTransition) {
                 is CarouselTransitionState.AwaitingAck -> {
-                    if (screen == transition.expectedScreen) {
+                    if (statePage == transition.expectedPage) {
                         allowSwipeWithUnackedScreen = false
                         carouselTransition = CarouselTransitionState.Idle
                     }
@@ -748,21 +793,22 @@ private fun SwipeNavigationBox(
             if (carouselAnimationJob?.isActive == true || carouselOffsetPx != 0f) {
                 return@LaunchedEffect
             }
-            if (screen == LauncherScreen.fromCarouselPage(currentPage, isAgendaEnabled)) {
+            if (statePage == LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)) {
                 allowSwipeWithUnackedScreen = false
             }
             val targetPage = LauncherScreen.closestCarouselPage(
                 currentPage = currentPage,
-                screen = screen,
+                page = statePage,
+                widgetPageCount = widgetPageCount,
                 isAgendaEnabled = isAgendaEnabled,
             )
             LauncherDebugLog.event(
-                "SwipeNavigationBox external screen=$screen settledPage=$currentPage targetPage=$targetPage",
+                "SwipeNavigationBox external page=$statePage settledPage=$currentPage targetPage=$targetPage",
             )
             if (targetPage != currentPage) {
                 val startPage = currentPage
                 allowSwipeWithUnackedScreen = false
-                carouselTransition = CarouselTransitionState.ExternalAnimating(targetPage, screen)
+                carouselTransition = CarouselTransitionState.ExternalAnimating(targetPage, statePage)
                 carouselAnimationJob = coroutineScope.launch {
                     val targetOffsetPx = if (targetPage > startPage) -pageWidthPx else pageWidthPx
                     animateCarouselOffsetTo(targetOffsetPx)
@@ -777,19 +823,19 @@ private fun SwipeNavigationBox(
         LaunchedEffect(currentPage) {
             LauncherDebugLog.event(
                 "SwipeNavigationBox settledPage=$currentPage " +
-                    "screen=${LauncherScreen.fromCarouselPage(currentPage, isAgendaEnabled)}",
+                    "page=${LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)}",
             )
         }
         listOf(currentPage - 1, currentPage, currentPage + 1).forEach { page ->
-            val pageScreen = LauncherScreen.fromCarouselPage(page, isAgendaEnabled)
+            val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount, isAgendaEnabled)
             val translationX = (page - currentPage) * pageWidthPx + carouselOffsetPx
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer { this.translationX = translationX },
             ) {
-                if (page == currentPage || pageScreen == screen || offscreenPagesReady) {
-                    content(pageScreen)
+                if (page == currentPage || launcherPage == statePage || offscreenPagesReady) {
+                    content(launcherPage, page == currentPage)
                 }
             }
         }
@@ -824,19 +870,24 @@ private sealed interface CarouselTransitionState {
 
     data class UserAnimating(
         val targetPage: Int,
-        val targetScreen: LauncherScreen,
+        val targetLauncherPage: LauncherPage,
     ) : CarouselTransitionState
 
     data class ExternalAnimating(
         val targetPage: Int,
-        val targetScreen: LauncherScreen,
+        val targetLauncherPage: LauncherPage,
     ) : CarouselTransitionState
 
     data class AwaitingAck(
         val settledPage: Int,
-        val expectedScreen: LauncherScreen,
+        val expectedPage: LauncherPage,
     ) : CarouselTransitionState
 }
+
+private data class CarouselPageConfig(
+    val widgetPageCount: Int,
+    val isAgendaEnabled: Boolean,
+)
 
 internal enum class LauncherGestureOwner {
     Undecided,

@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -86,19 +87,24 @@ internal fun WidgetsScreen(
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
     widgetHeights: Map<Int, Int> = emptyMap(),
-    onAddWidget: () -> Unit,
+    isCurrentPage: Boolean = true,
+    onAddWidget: (isCurrentPageScrollable: Boolean) -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
 ) {
+    val listState = rememberLazyListState()
+    val widgetScreenTag = if (isCurrentPage) WIDGETS_SCREEN_TAG else "$WIDGETS_SCREEN_TAG:offscreen"
+    val addWidgetCardTag = if (isCurrentPage) ADD_WIDGET_CARD_TAG else "$ADD_WIDGET_CARD_TAG:offscreen"
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
-            .testTag(WIDGETS_SCREEN_TAG),
+            .testTag(widgetScreenTag),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
@@ -123,7 +129,12 @@ internal fun WidgetsScreen(
             }
         }
         item {
-            AddWidgetCard(onAddWidget = onAddWidget)
+            AddWidgetCard(
+                testTag = addWidgetCardTag,
+                onAddWidget = {
+                    onAddWidget(listState.canScrollBackward || listState.canScrollForward)
+                },
+            )
         }
     }
 }
@@ -511,7 +522,7 @@ private fun WidgetIcon(provider: WidgetProvider) {
 }
 
 @Composable
-private fun AddWidgetCard(onAddWidget: () -> Unit) {
+private fun AddWidgetCard(testTag: String, onAddWidget: () -> Unit) {
     val addWidgetDescription = stringResource(R.string.widgets_add_button_description)
     Card(
         modifier = Modifier
@@ -522,7 +533,7 @@ private fun AddWidgetCard(onAddWidget: () -> Unit) {
                 role = Role.Button
                 contentDescription = addWidgetDescription
             }
-            .testTag(ADD_WIDGET_CARD_TAG),
+            .testTag(testTag),
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
