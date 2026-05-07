@@ -88,6 +88,7 @@ internal class LauncherViewModel(
     // PACKAGE_ADDED) doesn't pile up redundant IO; the latest cancels its
     // predecessor.
     private var pendingReloadJob: Job? = null
+    private var pausedWorkWidgetIdsForTest: Set<Int> = emptySet()
     private val launcherAppsCallback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
@@ -139,24 +140,26 @@ internal class LauncherViewModel(
     private var reloadPendingDuringColdStart = false
     private var pendingWidgetPlacement: PendingWidgetPlacement? = null
     private val _uiState = MutableStateFlow(
-        LauncherUiState(
-            widgetIds = widgetStore.widgetIds,
-            widgetPages = widgetStore.widgetPages,
-            widgetHeights = widgetStore.customHeights,
-            isDockEnabled = dockSettingsStore.isDockEnabled,
-            isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
-            dockIconCount = dockSettingsStore.dockIconCount,
-            appListSortOrder = dockSettingsStore.appListSortOrder,
-            isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
-            isHideRecentsFromAppList = dockSettingsStore.isHideRecentsFromAppList,
-            notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
-            isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
-            isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
-            themeMode = dockSettingsStore.themeMode,
-            isLoadingApps = cachedMetadata.isEmpty(),
-            hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
-            playUpdate = PlayUpdateState.NotAvailable,
-        ),
+        visibleWidgetPages().let { visibleWidgets ->
+            LauncherUiState(
+                widgetIds = visibleWidgets.widgetIds,
+                widgetPages = visibleWidgets.pages,
+                widgetHeights = visibleWidgetHeights(visibleWidgets.widgetIds),
+                isDockEnabled = dockSettingsStore.isDockEnabled,
+                isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
+                dockIconCount = dockSettingsStore.dockIconCount,
+                appListSortOrder = dockSettingsStore.appListSortOrder,
+                isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
+                isHideRecentsFromAppList = dockSettingsStore.isHideRecentsFromAppList,
+                notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
+                isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
+                isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
+                themeMode = dockSettingsStore.themeMode,
+                isLoadingApps = cachedMetadata.isEmpty(),
+                hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
+                playUpdate = PlayUpdateState.NotAvailable,
+            )
+        },
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
@@ -425,6 +428,16 @@ internal class LauncherViewModel(
     }
 
     /**
+     * Test seam for paused work-profile widgets. Robolectric cannot bind host
+     * widget IDs to a managed-profile [AppWidgetProviderInfo.profile], so tests
+     * inject the affected IDs while production uses `getAppWidgetInfo`.
+     */
+    internal fun setPausedWorkWidgetsForTest(vararg appWidgetIds: Int) {
+        pausedWorkWidgetIdsForTest = appWidgetIds.toSet()
+        refreshLists()
+    }
+
+    /**
      * Called by the UI once the Home screen has fully drawn its app list and
      * the soft keyboard is in place (or a fallback timeout has elapsed).
      * Publishes `isHomeReady` for downstream consumers (e.g. MainActivity's
@@ -506,14 +519,16 @@ internal class LauncherViewModel(
         pageIndex: Int = _uiState.value.currentWidgetPage,
         addToNewPageAfterSelection: Boolean = false,
     ) {
+        val visibleWidgets = visibleWidgetPages()
+        val currentPage = pageIndex.coerceInWidgetPages(visibleWidgets.pages)
         pendingWidgetPlacement = PendingWidgetPlacement(
-            pageIndex = pageIndex.coerceInWidgetPages(_uiState.value.widgetPages),
+            storePageIndex = visibleWidgets.sourcePageIndexFor(currentPage),
             addToNewPageAfterSelection = addToNewPageAfterSelection,
         )
         _uiState.update {
             it.copy(
                 screen = LauncherScreen.Widgets,
-                currentWidgetPage = pageIndex.coerceInWidgetPages(it.widgetPages),
+                currentWidgetPage = currentPage,
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = true,
                 availableWidgets = emptyList(),
@@ -887,34 +902,31 @@ internal class LauncherViewModel(
 
     fun addWidget(appWidgetId: Int) {
         val placement = pendingWidgetPlacement ?: PendingWidgetPlacement(
-            pageIndex = _uiState.value.currentWidgetPage,
+            storePageIndex = visibleWidgetPages().sourcePageIndexFor(_uiState.value.currentWidgetPage),
             addToNewPageAfterSelection = false,
         )
-        val targetPage = if (placement.addToNewPageAfterSelection) {
-            (placement.pageIndex + 1).coerceAtMost(widgetStore.widgetPages.size)
-        } else {
-            placement.pageIndex.coerceInWidgetPages(widgetStore.widgetPages)
-        }
         LauncherDebugLog.event(
-            "addWidget appWidgetId=$appWidgetId page=${placement.pageIndex} " +
+            "addWidget appWidgetId=$appWidgetId page=${placement.storePageIndex} " +
                 "newPage=${placement.addToNewPageAfterSelection}",
         )
         widgetStore.add(
             appWidgetId = appWidgetId,
-            pageIndex = placement.pageIndex,
+            pageIndex = placement.storePageIndex,
             addToNewPageAfter = placement.addToNewPageAfterSelection,
         )
         pendingWidgetPlacement = null
         _uiState.update {
-            val widgetPages = widgetStore.widgetPages
+            val visibleWidgets = visibleWidgetPages()
+            val targetPage = visibleWidgets.pageIndexFor(appWidgetId)
+                ?: it.currentWidgetPage.coerceInWidgetPages(visibleWidgets.pages)
             it.copy(
                 screen = LauncherScreen.Widgets,
-                currentWidgetPage = targetPage.coerceInWidgetPages(widgetPages),
+                currentWidgetPage = targetPage,
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
-                widgetIds = widgetStore.widgetIds,
-                widgetPages = widgetPages,
-                widgetHeights = widgetStore.customHeights,
+                widgetIds = visibleWidgets.widgetIds,
+                widgetPages = visibleWidgets.pages,
+                widgetHeights = visibleWidgetHeights(visibleWidgets.widgetIds),
             )
         }
         logState("addWidget")
@@ -923,7 +935,7 @@ internal class LauncherViewModel(
     fun resizeWidget(appWidgetId: Int, heightDp: Int) {
         LauncherDebugLog.event("resizeWidget appWidgetId=$appWidgetId heightDp=$heightDp")
         widgetStore.setCustomHeight(appWidgetId, heightDp)
-        _uiState.update { it.copy(widgetHeights = widgetStore.customHeights) }
+        _uiState.update { state -> state.copy(widgetHeights = visibleWidgetHeights(state.widgetIds)) }
         logState("resizeWidget")
     }
 
@@ -953,13 +965,13 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         widgetStore.remove(appWidgetId)
         _uiState.update {
-            val widgetPages = widgetStore.widgetPages
+            val visibleWidgets = visibleWidgetPages()
             it.copy(
                 screen = LauncherScreen.Widgets,
-                widgetIds = widgetStore.widgetIds,
-                widgetPages = widgetPages,
-                currentWidgetPage = it.currentWidgetPage.coerceInWidgetPages(widgetPages),
-                widgetHeights = widgetStore.customHeights,
+                widgetIds = visibleWidgets.widgetIds,
+                widgetPages = visibleWidgets.pages,
+                currentWidgetPage = it.currentWidgetPage.coerceInWidgetPages(visibleWidgets.pages),
+                widgetHeights = visibleWidgetHeights(visibleWidgets.widgetIds),
             )
         }
         logState("removeWidget")
@@ -1139,6 +1151,7 @@ internal class LauncherViewModel(
         _uiState.update { state ->
             val dockedIds = dockedAppStore.dockedAppIds
             val visibleApps = visibleInstalledApps()
+            val visibleWidgets = visibleWidgetPages()
             // Compute the new recents list first so the exclusion sees the
             // post-filterRecent display list rather than `state.recentApps`,
             // which is a snapshot from before this update and may not include
@@ -1158,6 +1171,10 @@ internal class LauncherViewModel(
                 notifyingApps = visibleApps
                     .filterNotifying(ActiveNotifications.packages.value)
                     .markVisibility(),
+                widgetIds = visibleWidgets.widgetIds,
+                widgetPages = visibleWidgets.pages,
+                currentWidgetPage = state.currentWidgetPage.coerceInWidgetPages(visibleWidgets.pages),
+                widgetHeights = visibleWidgetHeights(visibleWidgets.widgetIds),
             )
         }
     }
@@ -1228,6 +1245,32 @@ internal class LauncherViewModel(
         return installedApps.filterNot { app ->
             hiddenAppStore.contains(app.id) || (app.isWorkApp && app.isQuietMode)
         }
+    }
+
+    private fun visibleWidgetPages(): VisibleWidgetPages {
+        val appWidgetManager = AppWidgetManager.getInstance(app)
+        val personalUser = Process.myUserHandle()
+        val userManager = app.getSystemService<UserManager>()
+        val quietByProfile = mutableMapOf<UserHandle, Boolean>()
+        return widgetStore.widgetPages.filterWidgetPagesForDisplay { appWidgetId ->
+            if (appWidgetId in pausedWorkWidgetIdsForTest) {
+                return@filterWidgetPagesForDisplay false
+            }
+            val profile = try {
+                appWidgetManager.getAppWidgetInfo(appWidgetId)?.profile
+            } catch (exception: RuntimeException) {
+                LauncherDebugLog.warning("getAppWidgetInfo failed for $appWidgetId", exception)
+                null
+            }
+            profile == null ||
+                profile == personalUser ||
+                quietByProfile.getOrPut(profile) { userManager?.isQuietModeEnabled(profile) == true }.not()
+        }
+    }
+
+    private fun visibleWidgetHeights(widgetIds: List<Int>): Map<Int, Int> {
+        val visibleIds = widgetIds.toSet()
+        return widgetStore.customHeights.filterKeys { id -> id in visibleIds }
     }
 
     private fun refreshNotifyingApps(packages: Map<String, Long>) {
@@ -1438,8 +1481,9 @@ internal class LauncherViewModel(
     }
 
     private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
+        val visibleWidgets = visibleWidgetPages()
         pendingWidgetPlacement = PendingWidgetPlacement(
-            pageIndex = _uiState.value.currentWidgetPage,
+            storePageIndex = visibleWidgets.sourcePageIndexFor(_uiState.value.currentWidgetPage),
             addToNewPageAfterSelection = false,
         )
         _uiState.update {
@@ -1484,9 +1528,39 @@ internal class LauncherViewModel(
 }
 
 private data class PendingWidgetPlacement(
-    val pageIndex: Int,
+    val storePageIndex: Int,
     val addToNewPageAfterSelection: Boolean,
 )
+
+internal data class VisibleWidgetPages(
+    val pages: List<List<Int>>,
+    val sourcePageIndices: List<Int>,
+) {
+    val widgetIds: List<Int> = pages.flatten()
+
+    fun sourcePageIndexFor(pageIndex: Int): Int =
+        sourcePageIndices[pageIndex.coerceInWidgetPages(pages)]
+
+    fun pageIndexFor(appWidgetId: Int): Int? =
+        pages.indexOfFirst { page -> appWidgetId in page }.takeIf { index -> index >= 0 }
+}
+
+internal fun List<List<Int>>.filterWidgetPagesForDisplay(isWidgetVisible: (Int) -> Boolean): VisibleWidgetPages {
+    val visiblePages = mapIndexedNotNull { index, ids ->
+        val visibleIds = ids.filter(isWidgetVisible)
+        if (visibleIds.isEmpty()) null else index to visibleIds
+    }
+    if (visiblePages.isEmpty()) {
+        return VisibleWidgetPages(
+            pages = listOf(emptyList()),
+            sourcePageIndices = listOf(lastIndex.coerceAtLeast(0)),
+        )
+    }
+    return VisibleWidgetPages(
+        pages = visiblePages.map { (_, ids) -> ids },
+        sourcePageIndices = visiblePages.map { (index, _) -> index },
+    )
+}
 
 private fun Int.coerceInWidgetPages(widgetPages: List<List<Int>>): Int =
     coerceIn(0, widgetPages.lastIndex.coerceAtLeast(0))

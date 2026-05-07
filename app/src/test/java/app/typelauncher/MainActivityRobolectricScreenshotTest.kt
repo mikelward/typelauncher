@@ -479,6 +479,38 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun pausedWorkWidget_isHiddenWithoutRemovingStoredWidget() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.addWidget(42)
+        viewModel.addWidget(43)
+        viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:43").assertIsDisplayed()
+
+        viewModel.setPausedWorkWidgetsForTest(42)
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(43), viewModel.uiState.value.widgetIds)
+        assertEquals(listOf(listOf(43)), viewModel.uiState.value.widgetPages)
+        assertEquals(
+            "Hidden work widget should stay persisted for profile resume",
+            listOf(42, 43),
+            WidgetStore(composeRule.activity).widgetIds,
+        )
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:43").assertIsDisplayed()
+        saveScreenshot("compose_widgets_paused_work_widget_hidden_robolectric.png")
+
+        viewModel.setPausedWorkWidgetsForTest()
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(42, 43), viewModel.uiState.value.widgetIds)
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").assertIsDisplayed()
+    }
+
+    @Test
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
         composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")
