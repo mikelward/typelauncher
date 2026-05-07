@@ -290,6 +290,7 @@ internal fun TypeLauncherApp(
                 currentWidgetPage = state.currentWidgetPage,
                 widgetPageCount = state.widgetPages.size,
                 isAgendaEnabled = state.isAgendaEnabled,
+                isKeyboardAutoShown = state.isKeyboardAutoShown,
                 isNotificationBarOpen = state.isNotificationBarOpen,
                 notificationPullDownBehavior = state.notificationPullDownBehavior,
                 // Pull-up's stage gating cares about whether the user is
@@ -306,12 +307,14 @@ internal fun TypeLauncherApp(
                 onRequestShowKeyboard = onRequestShowKeyboard,
                 onSwipeDown = onSwipeDown,
                 appListBoundsInRoot = homeAppListBoundsInRoot,
-            ) { page, isCurrentPage ->
+            ) { page, isCurrentPage, autoShowKeyboard, onAutoShowKeyboardHandled ->
                 when (page.screen) {
                     LauncherScreen.Home -> HomeScreen(
                         state = state,
                         innerPadding = innerPadding,
                         bodyReady = homeBodyReady,
+                        autoShowKeyboard = autoShowKeyboard,
+                        onAutoShowKeyboardHandled = onAutoShowKeyboardHandled,
                         searchPlaceholderSuffix = searchPlaceholderSuffix,
                         keyboardShowRequests = keyboardShowRequests,
                         onQueryChanged = onQueryChanged,
@@ -403,6 +406,7 @@ private fun SwipeNavigationBox(
     currentWidgetPage: Int,
     widgetPageCount: Int,
     isAgendaEnabled: Boolean,
+    isKeyboardAutoShown: Boolean,
     isNotificationBarOpen: Boolean,
     notificationPullDownBehavior: NotificationPullDownBehavior,
     isRecentsVisible: Boolean,
@@ -414,7 +418,7 @@ private fun SwipeNavigationBox(
     onSetRecentsOpen: (Boolean) -> Unit,
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
-    content: @Composable (LauncherPage, Boolean) -> Unit,
+    content: @Composable (LauncherPage, Boolean, Boolean, () -> Unit) -> Unit,
 ) {
     // A pointer sequence locks once, shortly after touch slop, to either the
     // child scrollable that consumed movement at gesture start or to a
@@ -507,6 +511,10 @@ private fun SwipeNavigationBox(
     var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
+    // Initial Home and carousel returns both route through SearchCard's
+    // auto-show effect. This flag prevents duplicate visual Home copies from
+    // handling the same logical request, especially in the two-page wrap.
+    var homeAutoShowKeyboardHandled by remember { mutableStateOf(false) }
     fun dispatchSettledPage(settledPage: LauncherPage) {
         when (settledPage.screen) {
             LauncherScreen.Agenda -> onShowAgenda()
@@ -518,6 +526,21 @@ private fun SwipeNavigationBox(
         if (targetScreen != LauncherScreen.Home) {
             currentFocusManager.clearFocus(force = true)
             currentKeyboard?.hide()
+            homeAutoShowKeyboardHandled = false
+        }
+    }
+    fun shouldAutoShowKeyboardForPage(page: Int, launcherPage: LauncherPage): Boolean {
+        if (!isKeyboardAutoShown || launcherPage.screen != LauncherScreen.Home || homeAutoShowKeyboardHandled) {
+            return false
+        }
+        return when (val transition = carouselTransition) {
+            is CarouselTransitionState.UserAnimating -> transition.targetPage == page &&
+                transition.targetLauncherPage == launcherPage
+            is CarouselTransitionState.ExternalAnimating -> transition.targetPage == page &&
+                transition.targetLauncherPage == launcherPage
+            is CarouselTransitionState.AwaitingAck -> transition.settledPage == page &&
+                transition.expectedPage == launcherPage
+            CarouselTransitionState.Idle -> currentPage == page && currentLauncherPage == launcherPage
         }
     }
     fun awaitPageAck(targetPage: Int, targetLauncherPage: LauncherPage) {
@@ -564,6 +587,11 @@ private fun SwipeNavigationBox(
             allowSwipeWithUnackedScreen = true
             dispatchSettledPage(transition.expectedPage)
             carouselTransition = CarouselTransitionState.Idle
+        }
+    }
+    LaunchedEffect(isKeyboardAutoShown) {
+        if (!isKeyboardAutoShown) {
+            homeAutoShowKeyboardHandled = false
         }
     }
 
@@ -835,7 +863,13 @@ private fun SwipeNavigationBox(
                     .graphicsLayer { this.translationX = translationX },
             ) {
                 if (page == currentPage || launcherPage == statePage || offscreenPagesReady) {
-                    content(launcherPage, page == currentPage)
+                    content(
+                        launcherPage,
+                        page == currentPage,
+                        shouldAutoShowKeyboardForPage(page, launcherPage),
+                    ) {
+                        homeAutoShowKeyboardHandled = true
+                    }
                 }
             }
         }

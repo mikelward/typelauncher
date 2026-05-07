@@ -25,6 +25,18 @@ class CarouselKeyboardTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun initialHomeAutoShow_requestsKeyboardOnce() {
+        val keyboard = CountingKeyboardController()
+        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), isKeyboardAutoShown = true))
+        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
+
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals("initial Home should use the same one-shot search auto-show path", 1, keyboard.showCount)
+    }
+
+    @Test
     fun swipingFromHomeToWidgets_hidesKeyboard() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(LauncherUiState(filteredApps = emptyList()))
@@ -80,6 +92,59 @@ class CarouselKeyboardTest {
 
         assertEquals(LauncherScreen.Home, state.screen)
         assertEquals(2, keyboard.showCount)
+    }
+
+    @Test
+    fun swipingBackToHome_showsKeyboardBeforeScreenAckWhenAutoShowEnabled() {
+        val keyboard = CountingKeyboardController()
+        var state by mutableStateOf(
+            LauncherUiState(
+                screen = LauncherScreen.Widgets,
+                filteredApps = emptyList(),
+                isKeyboardAutoShown = true,
+            ),
+        )
+        var showCountWhenHomeAcked = -1
+        renderWithKeyboard(
+            keyboard,
+            stateProvider = { state },
+            onStateChanged = {
+                showCountWhenHomeAcked = keyboard.showCount
+                state = it
+            },
+        )
+        composeRule.waitForIdle()
+        assertEquals("widgets precondition", LauncherScreen.Widgets, state.screen)
+        assertEquals("keyboard must stay hidden while Widgets is settled", 0, keyboard.showCount)
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals("keyboard.show should happen before onShowHome acknowledges Home", 1, showCountWhenHomeAcked)
+        assertEquals("state ack must not trigger a duplicate keyboard.show", 1, keyboard.showCount)
+    }
+
+    @Test
+    fun swipingBackToHomeWithAgendaDisabled_showsKeyboardOnce() {
+        val keyboard = CountingKeyboardController()
+        var state by mutableStateOf(
+            LauncherUiState(
+                screen = LauncherScreen.Widgets,
+                filteredApps = emptyList(),
+                isAgendaEnabled = false,
+                isKeyboardAutoShown = true,
+            ),
+        )
+        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
+        composeRule.waitForIdle()
+        assertEquals("widgets precondition", LauncherScreen.Widgets, state.screen)
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals("two-page carousel must not double-compose a keyboard show", 1, keyboard.showCount)
     }
 
     @Test

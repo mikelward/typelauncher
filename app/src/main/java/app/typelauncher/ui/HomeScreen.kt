@@ -150,6 +150,8 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
+    autoShowKeyboard: Boolean,
+    onAutoShowKeyboardHandled: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onQueryChanged: (String) -> Unit,
@@ -182,7 +184,8 @@ internal fun HomeScreen(
     ) {
         SearchCard(
             query = state.query,
-            autoShowKeyboard = state.isKeyboardAutoShown && state.screen == LauncherScreen.Home,
+            autoShowKeyboard = autoShowKeyboard,
+            onAutoShowKeyboardHandled = onAutoShowKeyboardHandled,
             showPlayUpdateBadge = state.playUpdate.showBadge,
             placeholderSuffix = searchPlaceholderSuffix,
             keyboardShowRequests = keyboardShowRequests,
@@ -280,6 +283,7 @@ internal fun HomeScreen(
 private fun SearchCard(
     query: String,
     autoShowKeyboard: Boolean,
+    onAutoShowKeyboardHandled: () -> Unit,
     showPlayUpdateBadge: Boolean,
     placeholderSuffix: String,
     keyboardShowRequests: SharedFlow<Unit>,
@@ -300,6 +304,7 @@ private fun SearchCard(
         if (autoShowKeyboard) {
             focusRequester.requestFocus()
             keyboard?.show()
+            onAutoShowKeyboardHandled()
         }
     }
     // Pull-up second-stage trigger: when the carousel decides the user wants
