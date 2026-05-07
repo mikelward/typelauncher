@@ -48,6 +48,19 @@ class AppMetadataStoreTest {
     }
 
     @Test
+    fun roundTripsPinnedShortcut() {
+        val app = pinnedShortcut(name = "Example PWA", packageName = "com.brave.browser", shortcutId = "example")
+        AppMetadataStore(context).save(listOf(app))
+
+        val restored = AppMetadataStore(context).load().single()
+        assertEquals("Example PWA", restored.name)
+        assertEquals("com.brave.browser", restored.packageName)
+        assertEquals("example", restored.shortcutId)
+        assertEquals(app.id, restored.id)
+        assertEquals(Process.myUserHandle(), restored.user)
+    }
+
+    @Test
     fun preservesIsWorkAppFlagForPersonalProfileApps() {
         // Personal-profile apps tagged via TEST_WORK_PACKAGES_EXTRA still need to round-trip
         // their work badge across cold starts.
@@ -92,4 +105,16 @@ class AppMetadataStoreTest {
             iconCacheToken = "1234",
         )
     }
+
+    private fun pinnedShortcut(name: String, packageName: String, shortcutId: String): InstalledApp =
+        InstalledApp(
+            name = name,
+            packageName = packageName,
+            launchIntent = Intent(),
+            user = Process.myUserHandle(),
+            isWorkApp = false,
+            launchWithLauncherApps = false,
+            shortcutId = shortcutId,
+            iconCacheToken = "5678",
+        )
 }

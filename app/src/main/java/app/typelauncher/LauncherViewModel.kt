@@ -117,6 +117,13 @@ internal class LauncherViewModel(
             packageNames.forEach { AppIconLoader.evict(it, user) }
             scheduleReload("packagesUnavailable:${packageNames.size}")
         }
+        override fun onShortcutsChanged(
+            packageName: String,
+            shortcuts: List<android.content.pm.ShortcutInfo>,
+            user: UserHandle,
+        ) {
+            scheduleReload("shortcutsChanged:$packageName:${shortcuts.size}")
+        }
     }
     private var launcherAppsCallbackRegistered = false
     // Receiver for the system broadcasts the OS sends when the user toggles
@@ -700,7 +707,14 @@ internal class LauncherViewModel(
                 "work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
         )
         try {
-            if (app.launchWithLauncherApps && component != null) {
+            if (app.shortcutId != null) {
+                val launcherApps = launcherAppsService
+                if (launcherApps != null) {
+                    launcherApps.startShortcut(app.packageName, app.shortcutId, null, null, app.user)
+                } else {
+                    startActivity(app.launchIntent.asLauncherTaskIntent())
+                }
+            } else if (app.launchWithLauncherApps && component != null) {
                 this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
             } else {
                 startActivity(app.launchIntent.asLauncherTaskIntent())
@@ -1262,7 +1276,7 @@ internal class LauncherViewModel(
         val quietByUser: Map<UserHandle, Boolean> = profiles.associateWith { user ->
             user != personalUser && (userManager?.isQuietModeEnabled(user) == true)
         }
-        val profileApps = profiles
+        val profileItems = profiles
             .flatMap { user ->
                 val activities = launcherApps
                     ?.getActivityList(null, user)
@@ -1271,7 +1285,7 @@ internal class LauncherViewModel(
                     "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} " +
                         "quiet=${quietByUser[user] == true}",
                 )
-                activities
+                val appActivities = activities
                     .map { activity ->
                         InstalledApp(
                             name = activity.label.toString(),
@@ -1284,8 +1298,9 @@ internal class LauncherViewModel(
                             isQuietMode = quietByUser[user] == true,
                         )
                     }
+                appActivities + launcherApps.orEmptyPinnedShortcuts(user)
             }
-        val collected = profileApps
+        val collected = profileItems
             .ifEmpty {
                 val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
                 LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=${resolveInfos.size}")
@@ -1315,6 +1330,9 @@ internal class LauncherViewModel(
             .applyDisambiguators()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
+
+    private fun LauncherApps?.orEmptyPinnedShortcuts(user: UserHandle): List<InstalledApp> =
+        this?.loadPinnedShortcutApps(user).orEmpty()
 
     private fun List<InstalledApp>.applyDisambiguators(): List<InstalledApp> {
         val labels = computeDisambiguators(this)

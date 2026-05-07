@@ -13,11 +13,18 @@ class ManifestUnitTest {
     fun mainActivity_manifestHasLauncherFlagsAndCalendarPermission() {
         val manifest = parseManifest()
         val application = manifest.getElementsByTagName("application").item(0)
-        val activity = manifest.getElementsByTagName("activity").item(0)
+        val activities = manifest.getElementsByTagName("activity")
+        val activity = activities.item(0)
+        val pinShortcutActivity = activities.item(1)
         val queryIntent = manifest.getElementsByTagName("queries").item(0).elementChildren().single()
         val queryElements = queryIntent.elementChildren()
         val applicationAttrs = application.attributes
         val attrs = activity.attributes
+        val pinAttrs = pinShortcutActivity.attributes
+        val pinIntentFilter = pinShortcutActivity.elementChildren()
+            .single { element -> element.nodeName == "intent-filter" }
+            .elementChildren()
+            .single()
         val permissions = manifest.getElementsByTagName("uses-permission")
         val names = (0 until permissions.length)
             .map { index -> permissions.item(index).attributes.getNamedItem("android:name").nodeValue }
@@ -34,6 +41,14 @@ class ManifestUnitTest {
         assertEquals("android.intent.action.MAIN", queryElements[0].attributes.getNamedItem("android:name").nodeValue)
         assertEquals("category", queryElements[1].nodeName)
         assertEquals("android.intent.category.LAUNCHER", queryElements[1].attributes.getNamedItem("android:name").nodeValue)
+        assertEquals(".PinShortcutActivity", pinAttrs.getNamedItem("android:name").nodeValue)
+        assertEquals("true", pinAttrs.getNamedItem("android:exported").nodeValue)
+        assertEquals("@style/Theme.TypeLauncher.NoDisplay", pinAttrs.getNamedItem("android:theme").nodeValue)
+        assertEquals("action", pinIntentFilter.nodeName)
+        assertEquals(
+            "android.content.pm.action.CONFIRM_PIN_SHORTCUT",
+            pinIntentFilter.attributes.getNamedItem("android:name").nodeValue,
+        )
         assertTrue(names.contains("android.permission.READ_CALENDAR"))
     }
 

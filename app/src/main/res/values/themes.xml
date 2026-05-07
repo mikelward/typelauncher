@@ -4,4 +4,6 @@
         <item name="android:navigationBarColor">@color/type_launcher_light_background</item>
         <item name="android:windowBackground">@color/type_launcher_light_background</item>
     </style>
+
+    <style name="Theme.TypeLauncher.NoDisplay" parent="android:style/Theme.NoDisplay" />
 </resources>

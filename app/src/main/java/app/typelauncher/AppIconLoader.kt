@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.content.Context
 import android.content.pm.LauncherApps
+import android.content.pm.LauncherApps.ShortcutQuery
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
@@ -127,6 +128,11 @@ internal object AppIconLoader {
     }
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
+        val shortcutId = app.shortcutId
+        if (shortcutId != null) {
+            return context.getSystemService<LauncherApps>()?.shortcutInfo(app.packageName, shortcutId, app.user)
+                ?.let { shortcut -> context.getSystemService<LauncherApps>()?.getShortcutBadgedIconDrawable(shortcut, 0) }
+        }
         val component = app.launchIntent.component ?: return null
         return if (app.launchWithLauncherApps) {
             // getBadgedIcon delegates to PackageManager.getUserBadgedIcon for
@@ -150,6 +156,19 @@ internal object AppIconLoader {
             }
         }
     }
+
+    private fun LauncherApps.shortcutInfo(packageName: String, shortcutId: String, user: UserHandle) =
+        try {
+            getShortcuts(
+                ShortcutQuery()
+                    .setPackage(packageName)
+                    .setShortcutIds(listOf(shortcutId))
+                    .setQueryFlags(ShortcutQuery.FLAG_MATCH_PINNED),
+                user,
+            ).firstOrNull()
+        } catch (_: RuntimeException) {
+            null
+        }
 }
 
 @Composable
