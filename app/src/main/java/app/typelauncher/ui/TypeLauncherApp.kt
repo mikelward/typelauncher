@@ -164,6 +164,7 @@ internal fun TypeLauncherApp(
         onSetRecentsOpen = viewModel::setRecentsOpen,
         onSetNotificationBarOpen = viewModel::setNotificationBarOpen,
         onRequestShowKeyboard = viewModel::requestShowKeyboard,
+        onKeyboardReservationBottomChanged = viewModel::setKeyboardReservationBottomPx,
         keyboardShowRequests = viewModel.keyboardShowRequests,
         onRequestNotificationAccess = viewModel::openNotificationAccessSettings,
         appWidgetHost = appWidgetHost,
@@ -220,6 +221,7 @@ internal fun TypeLauncherApp(
     onSetRecentsOpen: (Boolean) -> Unit = {},
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestShowKeyboard: () -> Unit = {},
+    onKeyboardReservationBottomChanged: (Int) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onRequestNotificationAccess: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
@@ -268,14 +270,39 @@ internal fun TypeLauncherApp(
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
-        var lastKeyboardBottomPx by remember { mutableStateOf(0) }
+        var lastKeyboardBottomPx by remember { mutableStateOf(state.keyboardReservationBottomPx) }
+        var reserveForHomeKeyboardRequest by remember(
+            state.screen,
+            state.isKeyboardAutoShown,
+            state.isSettingsOpen,
+            navBottomPx,
+        ) {
+            mutableStateOf(
+                state.screen == LauncherScreen.Home &&
+                !state.isSettingsOpen &&
+                state.isKeyboardAutoShown &&
+                lastKeyboardBottomPx > navBottomPx,
+            )
+        }
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
             if (imeTargetBottomPx > navBottomPx) {
                 lastKeyboardBottomPx = imeTargetBottomPx
+                onKeyboardReservationBottomChanged(imeTargetBottomPx)
+            }
+        }
+        LaunchedEffect(reserveForHomeKeyboardRequest, imeVisible, imeTargetBottomPx, navBottomPx) {
+            if (imeTargetBottomPx > navBottomPx || imeVisible) {
+                reserveForHomeKeyboardRequest = false
+            } else if (reserveForHomeKeyboardRequest) {
+                delay(HOME_READY_IME_TIMEOUT_MS)
+                if (!imeVisible && imeTargetBottomPx <= navBottomPx) {
+                    reserveForHomeKeyboardRequest = false
+                }
             }
         }
         val keyboardBottomPx = when {
             imeTargetBottomPx > navBottomPx -> imeTargetBottomPx
+            reserveForHomeKeyboardRequest && lastKeyboardBottomPx > navBottomPx -> lastKeyboardBottomPx
             imeVisible && lastKeyboardBottomPx > navBottomPx -> lastKeyboardBottomPx
             imeVisible -> imeBottomPx
             else -> 0
