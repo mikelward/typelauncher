@@ -10,6 +10,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Process
+import android.os.UserHandle
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.getBoundsInRoot
@@ -381,6 +382,31 @@ class MainActivityRobolectricScreenshotTest {
             .assertExists()
 
         saveScreenshot("compose_widget_picker_inline_previews_robolectric.png")
+    }
+
+    @Test
+    fun screenshot_widgetPicker_workProfileGroupHasNoCustomBadge() {
+        val personal = fakeWidgetProvider(appName = "Calendar", label = "Calendar month")
+        val work = fakeWidgetProvider(
+            appName = "Calendar",
+            label = "Calendar work month",
+            packageName = "app.typelauncher.fakewidget.work",
+            profile = workUserHandle(),
+            isWorkProvider = true,
+        )
+        composeRule.activity.viewModel.showWidgetPickerForTest(listOf(personal, work))
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
+            .assertDoesNotExist()
+
+        saveScreenshot("compose_widget_picker_work_profile_no_badge_robolectric.png")
     }
 
     @Test
@@ -2044,12 +2070,18 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(appInfoFlags, intent.flags and appInfoFlags)
     }
 
-    private fun fakeWidgetProvider(appName: String, label: String): WidgetProvider =
+    private fun fakeWidgetProvider(
+        appName: String,
+        label: String,
+        packageName: String = "app.typelauncher.fakewidget",
+        profile: UserHandle = Process.myUserHandle(),
+        isWorkProvider: Boolean = false,
+    ): WidgetProvider =
         WidgetProvider(
             appName = appName,
             label = label,
-            componentName = ComponentName("app.typelauncher.fakewidget", "$label.Provider"),
-            profile = Process.myUserHandle(),
+            componentName = ComponentName(packageName, "$label.Provider"),
+            profile = profile,
             icon = null,
             appIcon = null,
             minWidth = 112,
@@ -2057,7 +2089,14 @@ class MainActivityRobolectricScreenshotTest {
             targetCellWidth = 2,
             targetCellHeight = 1,
             previewImage = null,
+            isWorkProvider = isWorkProvider,
         )
+
+    /**
+     * Encodes user 10 (the conventional first managed-profile user on Android).
+     * UserHandle.getUserHandleForUid(uid) extracts the user id as `uid / 100000`.
+     */
+    private fun workUserHandle(): UserHandle = UserHandle.getUserHandleForUid(WORK_USER_TEST_UID)
 
     private fun addFakeLauncherApps(labels: List<String>) {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -2232,5 +2271,7 @@ class MainActivityRobolectricScreenshotTest {
             Color.rgb(0x18, 0x80, 0x38),
             Color.rgb(0xF9, 0xAB, 0x00),
         )
+
+        const val WORK_USER_TEST_UID = 1_010_000
     }
 }
