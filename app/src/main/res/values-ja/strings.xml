@@ -88,13 +88,6 @@
     <string name="settings_app_list_sort_option_name">名前 ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">名前 ↑</string>
     <string name="settings_dock_enabled_title">ドックを表示</string>
-    <string name="settings_show_recents_title">最近のアプリを表示</string>
-    <string name="settings_hide_recents_from_app_list_title">最近のアプリをアプリ一覧から非表示</string>
-    <string name="settings_pull_down_title">下にスワイプ</string>
-    <string name="settings_pull_down_option_none">なし</string>
-    <string name="settings_pull_down_option_system">システムシェード</string>
-    <string name="settings_pull_down_option_bar_below">下のバー</string>
-    <string name="settings_pull_down_option_bar_above">上のバー</string>
     <string name="settings_keyboard_auto_show_title">キーボードを自動表示</string>
     <string name="settings_show_agenda_title">アジェンダを表示</string>
     <string name="settings_theme_title">テーマ</string>

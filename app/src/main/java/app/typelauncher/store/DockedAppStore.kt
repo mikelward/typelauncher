@@ -103,35 +103,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * When true, the recents row is permanently visible above the keyboard
-     * (as its own card below the dock) without requiring the drag-up gesture.
-     * Orthogonal to [isDockEnabled] — recents can be on while the dock is off
-     * and vice versa.
-     */
-    var isRecentsAlwaysShown: Boolean
-        get() = sharedPreferences.getBoolean(KEY_RECENTS_ALWAYS_SHOWN, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_RECENTS_ALWAYS_SHOWN, value)
-                .apply()
-        }
-
-    /**
-     * When true (default), apps already shown in the recents card are excluded
-     * from the main app list while the recents card is visible, mirroring the
-     * dock-row exclusion convention so the same icon never appears in two
-     * places at once. Only takes effect when [isRecentsAlwaysShown] is on; the
-     * gesture-driven recents panel is transient and not deduplicated.
-     */
-    var isHideRecentsFromAppList: Boolean
-        get() = sharedPreferences.getBoolean(KEY_HIDE_RECENTS_FROM_APP_LIST, true)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_HIDE_RECENTS_FROM_APP_LIST, value)
-                .apply()
-        }
-
-    /**
      * Home pull-down behavior. Defaults to [NotificationPullDownBehavior.BarBelow]
      * for users without an explicit selection, including installs that only have
      * the legacy `notifications_enabled` boolean. The old persisted `Launcher`
@@ -210,8 +181,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
-        const val KEY_RECENTS_ALWAYS_SHOWN = "recents_always_shown"
-        const val KEY_HIDE_RECENTS_FROM_APP_LIST = "hide_recents_from_app_list"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
