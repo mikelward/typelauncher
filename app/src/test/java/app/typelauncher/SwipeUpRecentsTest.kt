@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.Intent
 import android.os.Process
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
@@ -141,45 +142,48 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithRecentsClosed_opensRecentsAndDoesNotShowKeyboard() {
+    fun swipingUpOnHomeWithRecentsClosed_hidesKeyboardAndOpensRecents() {
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
         var swipeDownCount = 0
+        val keyboard = CountingKeyboardController()
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = emptyList()),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetRecentsOpen = { recentsTarget = it },
-                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
+            CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
+                TypeLauncherTheme {
+                    TypeLauncherApp(
+                        state = LauncherUiState(filteredApps = emptyList()),
+                        onQueryChanged = {},
+                        onClearQuery = {},
+                        onLaunchActiveApp = {},
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onHideApp = {},
+                        onUnhideApp = {},
+                        onOpenSettings = {},
+                        onCloseSettings = {},
+                        onRequestDefaultLauncher = {},
+                        onDockEnabledChanged = {},
+                        onAppListIconOnlyChanged = {},
+                        onDockVisibleIconCountChanged = {},
+                        onAppListSortOrderChanged = {},
+                        onShowAgenda = {},
+                        onShowWidgets = {},
+                        onShowHome = {},
+                        onSetRecentsOpen = { recentsTarget = it },
+                        onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
+                        appWidgetHost = null,
+                        appWidgetManager = null,
+                        onAddWidget = {},
+                        onDismissWidgetPicker = {},
+                        onSelectWidget = {},
+                        onRemoveWidget = {},
+                        onRequestCalendarPermission = {},
+                        onOpenAgendaEvent = {},
+                        onSwipeDown = { swipeDownCount += 1 },
+                    )
+                }
             }
         }
 
@@ -190,6 +194,7 @@ class SwipeUpRecentsTest {
         // First-stage pull-up must not also re-show the keyboard — the
         // keyboard ask is the second stage.
         assertEquals(0, requestShowKeyboardCount)
+        assertEquals(1, keyboard.hideCount)
         // Pull-up must never trigger the pull-down dispatch path.
         assertEquals(0, swipeDownCount)
     }
@@ -545,6 +550,69 @@ class SwipeUpRecentsTest {
         // request flowed end-to-end through TypeLauncherApp → HomeScreen →
         // SearchCard's LaunchedEffect.
         assertTrue("keyboard.show was called after keyboardShowRequests emit", showCalled)
+    }
+
+    @Test
+    fun recentsUsesKeyboardTray_whenKeyboardReservationExists() {
+        val apps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
+        val dockedApps = listOf(fakeApp(name = "Docked").copy(isDocked = true))
+        val recentApps = listOf(fakeApp(name = "Recent"))
+        val state = mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = dockedApps,
+                recentApps = recentApps,
+                keyboardReservationBottomPx = 900,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state.value,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val appsBefore = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockBefore = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        state.value = state.value.copy(isRecentsOpen = true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        val appsAfter = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockAfter = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        val recentsBounds = composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).getBoundsInRoot()
+        assertEquals(appsBefore, appsAfter)
+        assertEquals(dockBefore, dockAfter)
+        assertTrue("recents tray should appear below the fixed dock", recentsBounds.top >= dockAfter.bottom)
     }
 
     @Test
