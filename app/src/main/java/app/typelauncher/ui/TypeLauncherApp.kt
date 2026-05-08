@@ -93,6 +93,15 @@ private const val CAROUSEL_ACK_TIMEOUT_MS = 1500L
 // the agenda load forever in those cases.
 private const val HOME_READY_IME_TIMEOUT_MS = 1500L
 
+// Debounce window applied before adopting an `imeAnimationTarget` reading as
+// the entry's typing geometry. Multi-stage IME opens (e.g. the suggestion
+// strip animating in then collapsing) can transiently report a larger target
+// than the keyboard ultimately settles at; persisting/locking that peak
+// leaves Home's bottom padding too tall for the rest of the entry. Since
+// each new value re-keys the LaunchedEffect and cancels the pending delay,
+// only a target that has been stable for this long is treated as authoritative.
+private const val IME_TARGET_DEBOUNCE_MS = 250L
+
 private val CarouselPageAnimationSpec = tween<Float>(
     durationMillis = 220,
     easing = FastOutSlowInEasing,
@@ -287,10 +296,20 @@ internal fun TypeLauncherApp(
                 entryKeyboardBottomPx = state.keyboardReservationBottomPx
             }
         }
+        // Debounce `imeAnimationTarget` before persisting it as the cached
+        // reservation. A rapid carousel double-swipe (Home → Widgets → Home,
+        // second swipe arriving before Widgets settles) drives a hide-then-
+        // show keyboard sequence whose intermediate `imeAnimationTarget`
+        // values can briefly land above the keyboard's settled height; the
+        // growth-only adoption LaunchedEffect above would then lock that peak
+        // into `entryKeyboardBottomPx` for the rest of the entry. Each new
+        // value re-keys this LaunchedEffect and cancels the pending delay, so
+        // only a target that has held still for the debounce window reaches
+        // `state.keyboardReservationBottomPx`.
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
-            if (imeTargetBottomPx > navBottomPx) {
-                onKeyboardReservationBottomChanged(imeTargetBottomPx)
-            }
+            if (imeTargetBottomPx <= navBottomPx) return@LaunchedEffect
+            delay(IME_TARGET_DEBOUNCE_MS)
+            onKeyboardReservationBottomChanged(imeTargetBottomPx)
         }
         val stableTypingGeometryAvailable = !state.isSettingsOpen &&
             state.isKeyboardAutoShown &&
