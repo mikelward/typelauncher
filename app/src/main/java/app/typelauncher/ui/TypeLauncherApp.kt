@@ -44,6 +44,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -51,6 +53,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -349,6 +352,17 @@ internal fun TypeLauncherApp(
                     "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx navBottomPx=$navBottomPx",
             )
         }
+        val touchSlopPx = with(density) { CAROUSEL_TOUCH_SLOP_DP.dp.toPx() }
+        val launcherSwipeCommitDistancePx = with(density) {
+            LAUNCHER_SWIPE_COMMIT_DISTANCE_DP.dp.toPx()
+        }
+        val flingCommitVelocityPxPerSec = with(density) {
+            CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC.dp.toPx()
+        }
+        val backwardVelocityCancelPxPerSec = with(density) {
+            CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC.dp.toPx()
+        }
+        var homeKeyboardTrayBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -393,6 +407,11 @@ internal fun TypeLauncherApp(
                         onRequestShowKeyboard = onRequestShowKeyboard,
                         onSwipeDown = onSwipeDown,
                         appListBoundsInRoot = homeAppListBoundsInRoot,
+                        keyboardTrayBoundsInRoot = if (secondaryBarsVisible) {
+                            homeKeyboardTrayBoundsInRoot
+                        } else {
+                            null
+                        },
                     ) { page, isCurrentPage ->
                         when (page.screen) {
                             LauncherScreen.Home -> HomeScreen(
@@ -462,7 +481,20 @@ internal fun TypeLauncherApp(
                         .padding(bottom = innerPadding.calculateBottomPadding())
                         .height(keyboardReservationDp)
                         .fillMaxWidth()
-                        .clipToBounds(),
+                        .clipToBounds()
+                        .onGloballyPositioned { coords ->
+                            homeKeyboardTrayBoundsInRoot = Rect(
+                                coords.positionInRoot(),
+                                coords.size.toSize(),
+                            )
+                        }
+                        .pullUpToShowKeyboard(
+                            touchSlopPx = touchSlopPx,
+                            commitDistancePx = launcherSwipeCommitDistancePx,
+                            flingCommitVelocityPxPerSec = flingCommitVelocityPxPerSec,
+                            backwardVelocityCancelPxPerSec = backwardVelocityCancelPxPerSec,
+                            onPullUp = onRequestShowKeyboard,
+                        ),
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
@@ -514,6 +546,7 @@ private fun SwipeNavigationBox(
     isAgendaEnabled: Boolean,
     isSecondaryTrayVisible: Boolean,
     appListBoundsInRoot: Rect?,
+    keyboardTrayBoundsInRoot: Rect?,
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
@@ -535,6 +568,7 @@ private fun SwipeNavigationBox(
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val currentAppListBoundsInRoot by rememberUpdatedState(appListBoundsInRoot)
+    val currentKeyboardTrayBoundsInRoot by rememberUpdatedState(keyboardTrayBoundsInRoot)
     val keyboard = LocalSoftwareKeyboardController.current
     val currentKeyboard by rememberUpdatedState(keyboard)
     val focusManager = LocalFocusManager.current
@@ -790,6 +824,11 @@ private fun SwipeNavigationBox(
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     val startedInHomeAppList = currentScreen == LauncherScreen.Home &&
                         currentAppListBoundsInRoot?.contains(downChange.position) == true
+                    // The keyboard tray has its own pull-up handler; if the
+                    // gesture started inside the tray, let that handler own it
+                    // so we don't double-fire `onRequestShowKeyboard`.
+                    val startedInKeyboardTray = currentScreen == LauncherScreen.Home &&
+                        currentKeyboardTrayBoundsInRoot?.contains(downChange.position) == true
                     val startConsumed = scrollConsumptionTracker.totalConsumed
                     var rawDragX = 0f
                     var rawDragY = 0f
@@ -816,7 +855,7 @@ private fun SwipeNavigationBox(
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (owner != LauncherGestureOwner.VerticalLauncher || startedInHomeAppList) {
+                    if (owner != LauncherGestureOwner.VerticalLauncher || startedInHomeAppList || startedInKeyboardTray) {
                         return@awaitEachGesture
                     }
 
@@ -1010,5 +1049,65 @@ internal fun resolveLauncherGestureOwner(
             }
         }
         else -> LauncherGestureOwner.Undecided
+    }
+}
+
+/**
+ * Pull-up detector for the keyboard tray. The tray (notification bar + recents)
+ * sits above the launcher's vertical pull-up handler, and the icons inside it
+ * have their own click/scroll detectors that swallow the touch sequence — so
+ * a pull-up that starts on the tray never reaches the launcher's handler.
+ * This modifier listens on the Final pass without consuming events, so child
+ * taps and horizontal scrolls keep working, and only fires `onPullUp` when a
+ * mostly-vertical upward gesture commits by distance or fling velocity.
+ * Calling `onPullUp` re-shows the soft keyboard, which in turn hides the tray
+ * because `secondaryBarsVisible` is gated on `!imeVisible`.
+ */
+private fun Modifier.pullUpToShowKeyboard(
+    touchSlopPx: Float,
+    commitDistancePx: Float,
+    flingCommitVelocityPxPerSec: Float,
+    backwardVelocityCancelPxPerSec: Float,
+    onPullUp: () -> Unit,
+): Modifier = pointerInput(
+    touchSlopPx,
+    commitDistancePx,
+    flingCommitVelocityPxPerSec,
+    backwardVelocityCancelPxPerSec,
+    onPullUp,
+) {
+    awaitEachGesture {
+        val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+        var rawDragX = 0f
+        var rawDragY = 0f
+        val velocityTracker = VelocityTracker()
+        velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Final)
+            event.changes.forEach { change ->
+                val delta = change.positionChangeIgnoreConsumed()
+                rawDragX += delta.x
+                rawDragY += delta.y
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+            }
+        } while (event.changes.any { it.pressed })
+
+        if (abs(rawDragY) <= touchSlopPx) return@awaitEachGesture
+        if (abs(rawDragY) <= abs(rawDragX)) return@awaitEachGesture
+        if (rawDragY >= 0f) return@awaitEachGesture
+
+        val releaseVelocity = velocityTracker.calculateVelocity().y
+        val velocityOpposesDrag = abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
+            releaseVelocity > 0f
+        val distanceCommits = abs(rawDragY) >= commitDistancePx
+        val flingCommits = abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
+            releaseVelocity < 0f
+        if (!velocityOpposesDrag && (distanceCommits || flingCommits)) {
+            LauncherDebugLog.event(
+                "HomeKeyboardTray pull-up rawDragY=$rawDragY velocityY=$releaseVelocity " +
+                    "distanceCommits=$distanceCommits flingCommits=$flingCommits",
+            )
+            onPullUp()
+        }
     }
 }

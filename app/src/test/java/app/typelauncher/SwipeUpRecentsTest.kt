@@ -359,6 +359,118 @@ class SwipeUpRecentsTest {
     }
 
     @Test
+    fun pullingUpOnKeyboardTrayRequestsShowKeyboard() {
+        // Pull-up that starts inside the keyboard tray (recents/notifications)
+        // must reach the launcher even though the tray's icons have their own
+        // tap and horizontal-scroll detectors. Without the tray's own pull-up
+        // listener, a swipe that begins on a notification icon never reaches
+        // the launcher's vertical handler on the carousel.
+        var requestShowKeyboardCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationBarOpen = true,
+                        isRecentsOpen = true,
+                        keyboardReservationBottomPx = 900,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, requestShowKeyboardCount)
+    }
+
+    @Test
+    fun horizontalSwipeOnKeyboardTrayDoesNotRequestShowKeyboard() {
+        // The pull-up detector must ignore mostly-horizontal drags, so
+        // horizontal scrolling within the recents/notifications row keeps
+        // working unchanged.
+        var requestShowKeyboardCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isNotificationBarOpen = true,
+                        isRecentsOpen = true,
+                        keyboardReservationBottomPx = 900,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).performTouchInput { swipeRight() }
+        composeRule.waitForIdle()
+
+        assertEquals(0, requestShowKeyboardCount)
+    }
+
+    @Test
     fun pullingDownOnAppListDoesNotHideKeyboardOrOpenNotificationBar() {
         val keyboard = CountingKeyboardController()
         var notificationBarOpened: Boolean? = null
