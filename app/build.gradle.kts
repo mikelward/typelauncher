@@ -11,6 +11,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
 }
 
+// Emit Compose Compiler stability and metrics reports under
+// `app/build/compose_compiler/` on every Kotlin compilation. Inspect
+// `app_release-classes.txt` to see which classes the compiler considers
+// `stable`, `unstable`, or `runtime`, and `app_release-composables.txt`
+// to see which composables are `skippable` / `restartable`. Generated
+// build output, not checked in.
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    metricsDestination = layout.buildDirectory.dir("compose_compiler")
+}
+
 // Firebase Crashlytics + Performance Monitoring need google-services.json to be
 // present at app/google-services.json. The file isn't checked in (it identifies
 // the Firebase project; the SDK still relies on the APK signature for trust),
