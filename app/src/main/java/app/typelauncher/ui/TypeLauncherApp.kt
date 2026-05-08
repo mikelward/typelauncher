@@ -336,9 +336,16 @@ internal fun TypeLauncherApp(
             !hasSeenImeForHomeEntry &&
             !autoKeyboardWaitElapsed
         val forceShowSecondaryBars = state.isNotificationBarOpen || state.isRecentsOpen
+        // While the carousel is animating away from Home (or back into it), the
+        // soft keyboard has already been asked to hide but `state.screen` is
+        // still `Home` until the animation acks. Without this gate the tray
+        // would render for the duration of the carousel animation, then vanish
+        // once the page change dispatches — visible as a 220ms jank.
+        var isCarouselTransitioning by remember { mutableStateOf(false) }
         val secondaryBarsVisible = routeSecondaryBarsToKeyboardTray &&
             state.screen == LauncherScreen.Home &&
             !imeVisible &&
+            !isCarouselTransitioning &&
             (!waitingForAutoKeyboard || forceShowSecondaryBars)
         LaunchedEffect(
             state.screen,
@@ -399,6 +406,7 @@ internal fun TypeLauncherApp(
                         onSetRecentsOpen = onSetRecentsOpen,
                         onRequestShowKeyboard = onRequestShowKeyboard,
                         onSwipeDown = onSwipeDown,
+                        onCarouselTransitioningChanged = { isCarouselTransitioning = it },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
                     ) { page, isCurrentPage ->
                         when (page.screen) {
@@ -528,6 +536,7 @@ private fun SwipeNavigationBox(
     onSetRecentsOpen: (Boolean) -> Unit,
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
+    onCarouselTransitioningChanged: (Boolean) -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
 ) {
     // A pointer sequence locks once, shortly after touch slop, to either the
@@ -599,6 +608,15 @@ private fun SwipeNavigationBox(
     var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
+    val currentOnCarouselTransitioningChanged by rememberUpdatedState(onCarouselTransitioningChanged)
+    fun setCarouselTransition(next: CarouselTransitionState) {
+        val wasTransitioning = carouselTransition != CarouselTransitionState.Idle
+        carouselTransition = next
+        val nowTransitioning = next != CarouselTransitionState.Idle
+        if (wasTransitioning != nowTransitioning) {
+            currentOnCarouselTransitioningChanged(nowTransitioning)
+        }
+    }
     fun dispatchSettledPage(settledPage: LauncherPage) {
         when (settledPage.screen) {
             LauncherScreen.Agenda -> onShowAgenda()
@@ -614,14 +632,16 @@ private fun SwipeNavigationBox(
     }
     fun awaitPageAck(targetPage: Int, targetLauncherPage: LauncherPage) {
         allowSwipeWithUnackedScreen = false
-        carouselTransition = CarouselTransitionState.AwaitingAck(
-            settledPage = targetPage,
-            expectedPage = targetLauncherPage,
+        setCarouselTransition(
+            CarouselTransitionState.AwaitingAck(
+                settledPage = targetPage,
+                expectedPage = targetLauncherPage,
+            ),
         )
         if (currentLauncherPage != targetLauncherPage) {
             dispatchSettledPage(targetLauncherPage)
         } else {
-            carouselTransition = CarouselTransitionState.Idle
+            setCarouselTransition(CarouselTransitionState.Idle)
         }
     }
     suspend fun animateCarouselOffsetTo(targetOffsetPx: Float) {
@@ -655,7 +675,7 @@ private fun SwipeNavigationBox(
             )
             allowSwipeWithUnackedScreen = true
             dispatchSettledPage(transition.expectedPage)
-            carouselTransition = CarouselTransitionState.Idle
+            setCarouselTransition(CarouselTransitionState.Idle)
         }
     }
     BoxWithConstraints(
@@ -762,7 +782,9 @@ private fun SwipeNavigationBox(
                     )
                     val willChangePage = committed && targetPage != gestureStartPage
                     if (willChangePage) {
-                        carouselTransition = CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)
+                        setCarouselTransition(
+                            CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage),
+                        )
                         hideKeyboardForCarouselPage(targetLauncherPage.screen)
                     }
                     carouselAnimationJob = coroutineScope.launch {
@@ -872,7 +894,7 @@ private fun SwipeNavigationBox(
                 is CarouselTransitionState.AwaitingAck -> {
                     if (statePage == transition.expectedPage) {
                         allowSwipeWithUnackedScreen = false
-                        carouselTransition = CarouselTransitionState.Idle
+                        setCarouselTransition(CarouselTransitionState.Idle)
                     }
                     return@LaunchedEffect
                 }
@@ -899,16 +921,16 @@ private fun SwipeNavigationBox(
             if (targetPage != currentPage) {
                 val startPage = currentPage
                 allowSwipeWithUnackedScreen = false
-                carouselTransition = CarouselTransitionState.ExternalAnimating(targetPage, statePage)
+                setCarouselTransition(CarouselTransitionState.ExternalAnimating(targetPage, statePage))
                 carouselAnimationJob = coroutineScope.launch {
                     val targetOffsetPx = if (targetPage > startPage) -pageWidthPx else pageWidthPx
                     animateCarouselOffsetTo(targetOffsetPx)
                     currentPage = targetPage
                     carouselOffsetPx = 0f
-                    carouselTransition = CarouselTransitionState.Idle
+                    setCarouselTransition(CarouselTransitionState.Idle)
                 }
             } else {
-                carouselTransition = CarouselTransitionState.Idle
+                setCarouselTransition(CarouselTransitionState.Idle)
             }
         }
         LaunchedEffect(currentPage) {
