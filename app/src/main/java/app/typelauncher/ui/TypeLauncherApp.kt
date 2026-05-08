@@ -267,9 +267,10 @@ internal fun TypeLauncherApp(
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
-        // Freeze the keyboard-height geometry for this Home entry. IME target
-        // insets can jitter by a row fraction while the keyboard/tray toggles;
-        // feeding each update back into Home padding visibly reflows the list.
+        // Keep keyboard-height geometry monotonic for this Home entry. IME
+        // target insets can jitter downward by a row fraction while the
+        // keyboard/tray toggles, but a larger value means the user picked a
+        // taller keyboard and Home should reserve the extra height immediately.
         var entryKeyboardBottomPx by remember(
             state.screen,
             state.isSettingsOpen,
@@ -279,7 +280,7 @@ internal fun TypeLauncherApp(
             mutableStateOf(state.keyboardReservationBottomPx)
         }
         LaunchedEffect(state.keyboardReservationBottomPx, navBottomPx) {
-            if (entryKeyboardBottomPx <= navBottomPx && state.keyboardReservationBottomPx > navBottomPx) {
+            if (state.keyboardReservationBottomPx > max(entryKeyboardBottomPx, navBottomPx)) {
                 entryKeyboardBottomPx = state.keyboardReservationBottomPx
             }
         }

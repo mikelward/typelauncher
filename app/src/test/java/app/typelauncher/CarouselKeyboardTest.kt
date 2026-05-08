@@ -245,6 +245,39 @@ class CarouselKeyboardTest {
     }
 
     @Test
+    fun homePageAcceptsLargerKeyboardReservationWithinEntry() {
+        val keyboard = CountingKeyboardController()
+        val apps = (1..20).map { index -> fakeApp(name = "App%02d".format(index)) }
+        val docked = listOf(fakeApp(name = "Docked").copy(isDocked = true))
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = docked,
+                keyboardReservationBottomPx = 840,
+                isKeyboardAutoShown = true,
+            ),
+        )
+        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
+
+        val listBeforeIncrease = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val dockBeforeIncrease = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        state = state.copy(keyboardReservationBottomPx = 900)
+        composeRule.waitForIdle()
+
+        val listAfterIncrease = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val dockAfterIncrease = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        assertTrue(
+            "Home app list should reserve more space when the keyboard reservation grows",
+            listAfterIncrease.bottom < listBeforeIncrease.bottom,
+        )
+        assertTrue(
+            "Dock should move up when the keyboard reservation grows",
+            dockAfterIncrease.bottom < dockBeforeIncrease.bottom,
+        )
+    }
+
+    @Test
     fun swipingBackToHomeWithAgendaDisabled_showsKeyboardOnce() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
