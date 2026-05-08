@@ -270,22 +270,23 @@ internal fun TypeLauncherApp(
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
-        var lastKeyboardBottomPx by remember { mutableStateOf(state.keyboardReservationBottomPx) }
+        val entryKeyboardBottomPx = remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown, navBottomPx) {
+            state.keyboardReservationBottomPx
+        }
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
             if (imeTargetBottomPx > navBottomPx) {
-                lastKeyboardBottomPx = imeTargetBottomPx
                 onKeyboardReservationBottomChanged(imeTargetBottomPx)
             }
         }
         val shouldUseTypingGeometry = state.screen == LauncherScreen.Home &&
             !state.isSettingsOpen &&
             state.isKeyboardAutoShown &&
-            lastKeyboardBottomPx > navBottomPx
+            entryKeyboardBottomPx > navBottomPx
         val keyboardReserveSource: String
         val keyboardBottomPx = when {
             shouldUseTypingGeometry -> {
                 keyboardReserveSource = "typingCache"
-                lastKeyboardBottomPx
+                entryKeyboardBottomPx
             }
             imeTargetBottomPx > navBottomPx -> {
                 keyboardReserveSource = "target"
@@ -308,13 +309,13 @@ internal fun TypeLauncherApp(
             imeVisible,
             imeBottomPx,
             imeTargetBottomPx,
-            lastKeyboardBottomPx,
+            entryKeyboardBottomPx,
             navBottomPx,
         ) {
             LauncherDebugLog.event(
                 "KeyboardReservation screen=${state.screen} source=$keyboardReserveSource " +
                     "reservePx=$keyboardReservationPx imeVisible=$imeVisible imeBottomPx=$imeBottomPx " +
-                    "imeTargetBottomPx=$imeTargetBottomPx lastKeyboardBottomPx=$lastKeyboardBottomPx navBottomPx=$navBottomPx",
+                    "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx navBottomPx=$navBottomPx",
             )
         }
         Box(
