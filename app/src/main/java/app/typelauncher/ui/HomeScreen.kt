@@ -169,6 +169,7 @@ internal fun HomeScreen(
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
+    onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
@@ -226,6 +227,7 @@ internal fun HomeScreen(
                     onReorderDock = onReorderDock,
                     onResetRank = onResetRank,
                     onHideApp = onHideApp,
+                    onDragStateChanged = onDockDragChanged,
                 )
             }
         } else {
@@ -396,6 +398,7 @@ private fun DockCard(
     onReorderDock: (Int, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onDragStateChanged: (Boolean) -> Unit = {},
 ) {
     // Drag-to-reorder state is hoisted here so neighbouring icons can read
     // each other's slot centres and trigger swaps when the dragged icon's
@@ -406,6 +409,7 @@ private fun DockCard(
     val slotCenters = remember { mutableStateMapOf<String, Float>() }
     val latestDockedApps by rememberUpdatedState(dockedApps)
     val latestOnReorderDock by rememberUpdatedState(onReorderDock)
+    val latestOnDragStateChanged by rememberUpdatedState(onDragStateChanged)
 
     SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
         ScrollableIconRow(
@@ -434,6 +438,11 @@ private fun DockCard(
                         onDragStart = {
                             draggedAppId = app.id
                             dragOffsetX = 0f
+                            // Tell the launcher's outer gesture surface that
+                            // a reorder is in flight, so the carousel does
+                            // not also try to claim the same horizontal
+                            // motion and page Home → Widgets/Agenda.
+                            latestOnDragStateChanged(true)
                         },
                         onDrag = { dx ->
                             handleDockDrag(
@@ -449,6 +458,7 @@ private fun DockCard(
                         onDragEnd = {
                             draggedAppId = null
                             dragOffsetX = 0f
+                            latestOnDragStateChanged(false)
                         },
                     )
                 }

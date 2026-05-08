@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -396,6 +397,13 @@ internal fun TypeLauncherApp(
                     )
                 } else {
                     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+                    // The carousel's pointerInput has to see this flip within a
+                    // single pointer event (Main pass writes from the dock,
+                    // Final pass reads from the carousel), so the state is
+                    // shared by reference instead of going through a Boolean
+                    // prop + rememberUpdatedState — the wrapper there only
+                    // updates during recomposition, which is one frame later.
+                    val isDockDraggingState = remember { mutableStateOf(false) }
                     SwipeNavigationBox(
                         screen = state.screen,
                         currentWidgetPage = state.currentWidgetPage,
@@ -411,6 +419,7 @@ internal fun TypeLauncherApp(
                         onSwipeDown = onSwipeDown,
                         onCarouselTransitioningChanged = { isCarouselTransitioning = it },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
+                        isDockDraggingState = isDockDraggingState,
                         secondaryTray = {
                             if (secondaryBarsVisible) {
                                 HomeKeyboardTray(
@@ -457,6 +466,7 @@ internal fun TypeLauncherApp(
                                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                                 onRequestNotificationAccess = onRequestNotificationAccess,
                                 onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
+                                onDockDragChanged = { isDockDraggingState.value = it },
                             )
                             LauncherScreen.Widgets -> WidgetsScreen(
                             widgetIds = state.widgetPages.getOrElse(
@@ -542,6 +552,7 @@ private fun SwipeNavigationBox(
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
     onCarouselTransitioningChanged: (Boolean) -> Unit = {},
+    isDockDraggingState: State<Boolean> = mutableStateOf(false),
     secondaryTray: @Composable BoxScope.() -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
 ) {
@@ -557,6 +568,14 @@ private fun SwipeNavigationBox(
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val currentAppListBoundsInRoot by rememberUpdatedState(appListBoundsInRoot)
+    // Dock drag-to-reorder fights the carousel for the same horizontal motion:
+    // the dock's pointerInput consumes pointer changes, but the carousel reads
+    // raw deltas via positionChangeIgnoreConsumed and can't see that
+    // consumption (consume() does not dispatch nested scroll). The dock writes
+    // to isDockDraggingState during the Main pass; the carousel's pointerInput
+    // reads .value directly during the Final pass of the same event, so this
+    // must be the same MutableState object — not a Boolean prop wrapped in
+    // rememberUpdatedState, which would only refresh after recomposition.
     val keyboard = LocalSoftwareKeyboardController.current
     val currentKeyboard by rememberUpdatedState(keyboard)
     val focusManager = LocalFocusManager.current
@@ -720,6 +739,16 @@ private fun SwipeNavigationBox(
                     var rawDragY = 0f
                     var displayedDragX = 0f
                     var owner = LauncherGestureOwner.Undecided
+                    // Latch: true once a dock reorder is observed at any event
+                    // during this gesture. Reading isDockDraggingState live in
+                    // the claim check is unsafe on `up` — the dock fires
+                    // onDragEnd in Main pass before this Final-pass loop sees
+                    // the up event, so the live state is false again, and
+                    // rawDragX is still non-zero from the prior moveBy. The
+                    // latch keeps the suppression in effect for the whole
+                    // gesture, including the release event.
+                    var dockDraggedDuringGesture = false
+                    var carouselClaimed = false
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
@@ -729,6 +758,9 @@ private fun SwipeNavigationBox(
                             rawDragX += rawDelta.x
                             rawDragY += rawDelta.y
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            if (isDockDraggingState.value) {
+                                dockDraggedDuringGesture = true
+                            }
                             if (owner == LauncherGestureOwner.Undecided) {
                                 val consumed = scrollConsumptionTracker.totalConsumed - startConsumed
                                 owner = resolveLauncherGestureOwner(
@@ -739,16 +771,20 @@ private fun SwipeNavigationBox(
                                     touchSlopPx = touchSlopPx,
                                 )
                             }
-                            if (owner == LauncherGestureOwner.HorizontalLauncher && canStartCarouselGesture) {
+                            if (owner == LauncherGestureOwner.HorizontalLauncher &&
+                                canStartCarouselGesture &&
+                                !dockDraggedDuringGesture
+                            ) {
                                 val nextDisplayedDragX = rawDragX.coerceIn(-pageWidthPx, pageWidthPx)
                                 carouselOffsetPx = nextDisplayedDragX
                                 displayedDragX = nextDisplayedDragX
+                                carouselClaimed = true
                                 change.consume()
                             }
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (owner != LauncherGestureOwner.HorizontalLauncher || !canStartCarouselGesture) {
+                    if (!carouselClaimed) {
                         return@awaitEachGesture
                     }
 
@@ -829,6 +865,15 @@ private fun SwipeNavigationBox(
                     var rawDragX = 0f
                     var rawDragY = 0f
                     var owner = LauncherGestureOwner.Undecided
+                    // Latch: if a dock reorder was active at any event during
+                    // this gesture, suppress the swipe-down/up dispatch on
+                    // release. Reading the final state alone is unsafe — the
+                    // dock fires onDragEnd during the up event's Main pass,
+                    // so by the time this Final-pass post-loop check runs,
+                    // isDockDraggingState.value has already flipped back to
+                    // false. Matters for diagonal drags that resolve as
+                    // VerticalLauncher.
+                    var dockDraggedDuringGesture = false
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
@@ -838,6 +883,9 @@ private fun SwipeNavigationBox(
                             rawDragX += delta.x
                             rawDragY += delta.y
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            if (isDockDraggingState.value) {
+                                dockDraggedDuringGesture = true
+                            }
                             if (owner == LauncherGestureOwner.Undecided) {
                                 val consumed = scrollConsumptionTracker.totalConsumed - startConsumed
                                 owner = resolveLauncherGestureOwner(
@@ -851,7 +899,10 @@ private fun SwipeNavigationBox(
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (owner != LauncherGestureOwner.VerticalLauncher || startedInHomeAppList) {
+                    if (owner != LauncherGestureOwner.VerticalLauncher ||
+                        startedInHomeAppList ||
+                        dockDraggedDuringGesture
+                    ) {
                         return@awaitEachGesture
                     }
 
