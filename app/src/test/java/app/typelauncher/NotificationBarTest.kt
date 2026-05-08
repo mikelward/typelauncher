@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.swipeDown
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -505,5 +507,72 @@ class NotificationBarTest {
         val barBelowBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
         val appsBelowBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         assertEquals(true, barBelowBounds.top >= appsBelowBounds.bottom)
+    }
+
+    @Test
+    fun notificationBarUsesKeyboardTray_whenKeyboardReservationExists() {
+        val apps = (1..12).map { index ->
+            fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
+        }
+        val docked = listOf(fakeApp(name = "Docked", packageName = "com.example.docked").copy(isDocked = true))
+        val notifying = listOf(fakeApp(name = "Mail", packageName = "com.example.mail"))
+        val state = mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = docked,
+                notifyingApps = notifying,
+                hasNotificationAccess = true,
+                notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                keyboardReservationBottomPx = 900,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state.value,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val appsBefore = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockBefore = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        state.value = state.value.copy(isNotificationBarOpen = true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        val appsAfter = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockAfter = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        val barBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
+        assertEquals(appsBefore, appsAfter)
+        assertEquals(dockBefore, dockAfter)
+        assertTrue("notification tray should appear below the fixed dock", barBounds.top >= dockAfter.bottom)
     }
 }

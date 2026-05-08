@@ -150,6 +150,7 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
+    secondaryBarsInKeyboardTray: Boolean = false,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onQueryChanged: (String) -> Unit,
@@ -199,7 +200,7 @@ internal fun HomeScreen(
             val showNotificationBar = state.notificationPullDownBehavior.showsLauncherNotificationBar &&
                 state.isNotificationBarOpen
             val showNotificationBarAbove = state.notificationPullDownBehavior == NotificationPullDownBehavior.BarAbove
-            if (showNotificationBarAbove) {
+            if (!secondaryBarsInKeyboardTray && showNotificationBarAbove) {
                 NotificationBarCard(
                     notifyingApps = state.notifyingApps,
                     isVisible = showNotificationBar,
@@ -229,7 +230,7 @@ internal fun HomeScreen(
                 onHideApp = onHideApp,
                 onAppListBoundsChanged = onAppListBoundsChanged,
             )
-            if (!showNotificationBarAbove) {
+            if (!secondaryBarsInKeyboardTray && !showNotificationBarAbove) {
                 NotificationBarCard(
                     notifyingApps = state.notifyingApps,
                     isVisible = showNotificationBar,
@@ -255,24 +256,73 @@ internal fun HomeScreen(
                     onHideApp = onHideApp,
                 )
             }
-            // Recents lives in its own card below the dock so it can render
-            // independently of `isDockEnabled`. The drag-up gesture on the dock
-            // and the `Show recents` setting are orthogonal triggers — either
-            // is enough to make the card appear.
-            RecentsCard(
-                recentApps = state.recentApps,
-                isVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onDismissRecent = onDismissRecent,
-            )
+            if (!secondaryBarsInKeyboardTray) {
+                // Recents lives in its own card below the dock so it can render
+                // independently of `isDockEnabled`. The drag-up gesture on the dock
+                // and the `Show recents` setting are orthogonal triggers — either
+                // is enough to make the card appear.
+                RecentsCard(
+                    recentApps = state.recentApps,
+                    isVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onDismissRecent = onDismissRecent,
+                )
+            }
         } else {
             // Reserve the remaining vertical space so SearchCard stays pinned
             // to the top of the screen during the one-frame holdback.
             Spacer(modifier = Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+internal fun HomeKeyboardTray(
+    state: LauncherUiState,
+    modifier: Modifier = Modifier,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+    onDismissNotifications: (InstalledApp) -> Unit,
+    onOpenNotificationSettings: (InstalledApp) -> Unit,
+    onSetNotificationBarOpen: (Boolean) -> Unit = {},
+    onRequestNotificationAccess: () -> Unit = {},
+) {
+    val configuration = LocalConfiguration.current
+    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
+    val showNotificationBar = state.notificationPullDownBehavior.showsLauncherNotificationBar &&
+        state.isNotificationBarOpen
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .testTag(HOME_KEYBOARD_TRAY_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        NotificationBarCard(
+            notifyingApps = state.notifyingApps,
+            isVisible = showNotificationBar,
+            hasNotificationAccess = state.hasNotificationAccess,
+            dockIconSizeDp = dockIconSizeDp,
+            onLaunchApp = onLaunchApp,
+            onDismissNotifications = onDismissNotifications,
+            onOpenNotificationSettings = onOpenNotificationSettings,
+            onRequestNotificationAccess = onRequestNotificationAccess,
+            onDismiss = { onSetNotificationBarOpen(false) },
+        )
+        RecentsCard(
+            recentApps = state.recentApps,
+            isVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
+            dockIconSizeDp = dockIconSizeDp,
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onDismissRecent = onDismissRecent,
+        )
     }
 }
 
@@ -508,12 +558,10 @@ private fun handleDockDrag(
 }
 
 /**
- * Recents card sits below the dock and above the keyboard. Visibility is
- * controlled by either the persistent `Show recents` setting or the transient
- * drag-up gesture on the dock; the two triggers are orthogonal — either alone
- * surfaces the card. When the card is hidden the composable collapses to zero
- * height (no dangling chrome), so swapping to the always-on setting just makes
- * what would otherwise be a transient panel into a permanent home-screen row.
+ * Recents card sits below the dock, either in Home's main column on first-run
+ * no-cache layouts or in the keyboard tray once a keyboard-height reservation
+ * exists. Visibility is controlled by either the persistent `Show recents`
+ * setting or the transient drag-up gesture; the two triggers are orthogonal.
  */
 @Composable
 private fun RecentsCard(
