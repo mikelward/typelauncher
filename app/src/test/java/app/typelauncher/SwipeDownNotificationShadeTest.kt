@@ -129,9 +129,9 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun swipingDownOnHomeWithSystemBehavior_invokesOnSwipeDownCallback() {
-        // With "System" selected, the very first pull-down on Home expands the
-        // system shade instead of opening the launcher notification bar.
+    fun swipingDownOnHomeWithLegacySystemBehavior_opensBarInsteadOfShade() {
+        // The Pull down setting was removed; old persisted values no longer
+        // change the first pull-down stage.
         var swipeDownCount = 0
         var notificationBarOpened = false
         composeRule.setContent {
@@ -177,12 +177,12 @@ class SwipeDownNotificationShadeTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
-        assertEquals(1, swipeDownCount)
-        assertEquals(false, notificationBarOpened)
+        assertEquals(0, swipeDownCount)
+        assertEquals(true, notificationBarOpened)
     }
 
     @Test
-    fun swipingDownOnHomeWithNoneBehavior_doesNothing() {
+    fun swipingDownOnHomeWithLegacyNoneBehavior_opensBarInsteadOfDoingNothing() {
         var swipeDownCount = 0
         var notificationBarOpened = false
         composeRule.setContent {
@@ -229,7 +229,7 @@ class SwipeDownNotificationShadeTest {
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
-        assertEquals(false, notificationBarOpened)
+        assertEquals(true, notificationBarOpened)
     }
 
     @Test
@@ -296,7 +296,7 @@ class SwipeDownNotificationShadeTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},

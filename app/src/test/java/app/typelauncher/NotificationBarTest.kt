@@ -102,7 +102,7 @@ class NotificationBarTest {
                         notifyingApps = notifying,
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -156,7 +156,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -203,7 +203,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = false,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -256,7 +256,7 @@ class NotificationBarTest {
                         notifyingApps = listOf(mail),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -321,7 +321,7 @@ class NotificationBarTest {
                         notifyingApps = listOf(mail),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -416,100 +416,6 @@ class NotificationBarTest {
     }
 
     @Test
-    fun notificationBarCanRenderAboveAppsList() {
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = listOf(fakeApp(name = "Calculator", packageName = "com.example.calculator")),
-                        isNotificationBarOpen = true,
-                        hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarAbove,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                )
-            }
-        }
-
-        val barAboveBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
-        val appsBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
-        assertEquals(true, barAboveBounds.bottom <= appsBounds.top)
-    }
-
-    @Test
-    fun notificationBarCanRenderBelowAppsList() {
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = listOf(fakeApp(name = "Calculator", packageName = "com.example.calculator")),
-                        isNotificationBarOpen = true,
-                        hasNotificationAccess = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                )
-            }
-        }
-
-        val barBelowBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
-        val appsBelowBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
-        assertEquals(true, barBelowBounds.top >= appsBelowBounds.bottom)
-    }
-
-    @Test
     fun notificationBarUsesKeyboardTray_whenKeyboardReservationExists() {
         val apps = (1..12).map { index ->
             fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
@@ -522,7 +428,6 @@ class NotificationBarTest {
                 dockedApps = docked,
                 notifyingApps = notifying,
                 hasNotificationAccess = true,
-                notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                 keyboardReservationBottomPx = 900,
             ),
         )
@@ -574,5 +479,115 @@ class NotificationBarTest {
         assertEquals(appsBefore, appsAfter)
         assertEquals(dockBefore, dockAfter)
         assertTrue("notification tray should appear below the fixed dock", barBounds.top >= dockAfter.bottom)
+    }
+
+    @Test
+    fun notificationBarUsesKeyboardTray_whenReservationArrivesAfterFirstComposition() {
+        val apps = (1..12).map { index ->
+            fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
+        }
+        val docked = listOf(fakeApp(name = "Docked", packageName = "com.example.docked").copy(isDocked = true))
+        val notifying = listOf(fakeApp(name = "Mail", packageName = "com.example.mail"))
+        val state = mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = docked,
+                notifyingApps = notifying,
+                hasNotificationAccess = true,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state.value,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        state.value = state.value.copy(
+            keyboardReservationBottomPx = 900,
+            isNotificationBarOpen = true,
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun secondaryTrayStaysHiddenWhileAutoKeyboardIsExpected() {
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        recentApps = listOf(fakeApp(name = "Mail", packageName = "com.example.mail")),
+                        keyboardReservationBottomPx = 900,
+                        isKeyboardAutoShown = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
+        composeRule.mainClock.autoAdvance = true
     }
 }

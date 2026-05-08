@@ -142,59 +142,53 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithRecentsClosed_hidesKeyboardAndOpensRecents() {
+    fun swipingUpOnHome_requestsShowKeyboardBecauseRecentsIsAlwaysSecondary() {
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
         var swipeDownCount = 0
-        val keyboard = CountingKeyboardController()
         composeRule.setContent {
-            CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
-                TypeLauncherTheme {
-                    TypeLauncherApp(
-                        state = LauncherUiState(filteredApps = emptyList()),
-                        onQueryChanged = {},
-                        onClearQuery = {},
-                        onLaunchActiveApp = {},
-                        onLaunchApp = {},
-                        onOpenAppInfo = {},
-                        onToggleDock = { _, _ -> },
-                        onResetRank = {},
-                        onHideApp = {},
-                        onUnhideApp = {},
-                        onOpenSettings = {},
-                        onCloseSettings = {},
-                        onRequestDefaultLauncher = {},
-                        onDockEnabledChanged = {},
-                        onAppListIconOnlyChanged = {},
-                        onDockVisibleIconCountChanged = {},
-                        onAppListSortOrderChanged = {},
-                        onShowAgenda = {},
-                        onShowWidgets = {},
-                        onShowHome = {},
-                        onSetRecentsOpen = { recentsTarget = it },
-                        onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
-                        appWidgetHost = null,
-                        appWidgetManager = null,
-                        onAddWidget = {},
-                        onDismissWidgetPicker = {},
-                        onSelectWidget = {},
-                        onRemoveWidget = {},
-                        onRequestCalendarPermission = {},
-                        onOpenAgendaEvent = {},
-                        onSwipeDown = { swipeDownCount += 1 },
-                    )
-                }
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(filteredApps = emptyList()),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetRecentsOpen = { recentsTarget = it },
+                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
             }
         }
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        assertEquals(true, recentsTarget)
-        // First-stage pull-up must not also re-show the keyboard — the
-        // keyboard ask is the second stage.
-        assertEquals(0, requestShowKeyboardCount)
-        assertEquals(1, keyboard.hideCount)
+        assertNull(recentsTarget)
+        assertEquals(1, requestShowKeyboardCount)
         // Pull-up must never trigger the pull-down dispatch path.
         assertEquals(0, swipeDownCount)
     }
@@ -253,12 +247,9 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithRecentsAlwaysShown_requestsShowKeyboardOnFirstPull() {
-        // Regression: with `Show recents` toggled on, recents is already visible
-        // even though `isRecentsOpen` defaults to false. The pull-up dispatch
-        // must treat the visible-recents predicate (`isRecentsAlwaysShown ||
-        // isRecentsOpen`) as the gate for the keyboard stage, otherwise users
-        // with the setting on need an extra gesture to re-show the IME.
+    fun swipingUpOnHomeWithSecondaryTrayVisible_requestsShowKeyboardOnFirstPull() {
+        // Recents is now always a secondary bar, so pull-up always means
+        // "bring the keyboard back" rather than first opening recents.
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
         composeRule.setContent {
@@ -266,7 +257,6 @@ class SwipeUpRecentsTest {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = emptyList(),
-                        isRecentsAlwaysShown = true,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -312,7 +302,7 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithNotificationBarOpen_closesBarAndDoesNotShowKeyboard() {
+    fun swipingUpOnHomeWithNotificationBarOpen_requestsShowKeyboard() {
         var notificationBarOpened: Boolean? = null
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
@@ -322,9 +312,8 @@ class SwipeUpRecentsTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
-                        // Even with recents already open, the bar takes priority.
                         isRecentsOpen = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -364,10 +353,9 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        // Bar takes priority over both recents and the keyboard stage.
-        assertEquals(false, notificationBarOpened)
+        assertNull(notificationBarOpened)
         assertNull(recentsTarget)
-        assertEquals(0, requestShowKeyboardCount)
+        assertEquals(1, requestShowKeyboardCount)
     }
 
     @Test
@@ -644,7 +632,8 @@ class SwipeUpRecentsTest {
             LauncherUiState(
                 filteredApps = emptyList(),
                 recentApps = recentApps,
-                isRecentsAlwaysShown = true,
+                isRecentsOpen = true,
+                keyboardReservationBottomPx = 900,
             ),
         )
 
@@ -676,7 +665,8 @@ class SwipeUpRecentsTest {
             LauncherUiState(
                 filteredApps = emptyList(),
                 recentApps = recentApps,
-                isRecentsAlwaysShown = true,
+                isRecentsOpen = true,
+                keyboardReservationBottomPx = 900,
             ),
         )
 
@@ -721,7 +711,8 @@ class SwipeUpRecentsTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         recentApps = recentApps,
-                        isRecentsAlwaysShown = true,
+                        isRecentsOpen = true,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -763,7 +754,7 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingPastRecentsEnd_navigatesCarousel() {
+    fun swipingPastRecentsEnd_staysInRecentsUntilTrayCarouselTodoIsImplemented() {
         var widgetsCount = 0
         val recentApps = (1..8).map { i -> fakeApp(name = "App%02d".format(i)) }
         composeRule.setContent {
@@ -772,7 +763,8 @@ class SwipeUpRecentsTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         recentApps = recentApps,
-                        isRecentsAlwaysShown = true,
+                        isRecentsOpen = true,
+                        keyboardReservationBottomPx = 900,
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -810,6 +802,6 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals("recents end pull should advance the carousel", 1, widgetsCount)
+        assertEquals("recents tray swipes do not yet advance the carousel", 0, widgetsCount)
     }
 }

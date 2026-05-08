@@ -1,17 +1,21 @@
 package app.typelauncher
 
+import android.content.Intent
+import android.os.Process
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -129,6 +133,51 @@ class CarouselKeyboardTest {
     }
 
     @Test
+    fun homePageKeepsKeyboardReservedGeometryBeforeReturnAck() {
+        val keyboard = CountingKeyboardController()
+        val apps = (1..12).map { index -> fakeApp(name = "App%02d".format(index)) }
+        val docked = listOf(fakeApp(name = "Docked").copy(isDocked = true))
+        var state by mutableStateOf(
+            LauncherUiState(
+                screen = LauncherScreen.Widgets,
+                filteredApps = apps,
+                dockedApps = docked,
+                keyboardReservationBottomPx = 900,
+                isKeyboardAutoShown = true,
+            ),
+        )
+        composeRule.mainClock.autoAdvance = false
+        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
+        composeRule.mainClock.advanceTimeByFrame()
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
+        composeRule.mainClock.advanceTimeByFrame()
+        val appsBeforeAck = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockBeforeAck = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        val appsAfterAck = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockAfterAck = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        assertTrue(
+            "Home app list height should not change when Home screen ack arrives",
+            kotlin.math.abs(((appsBeforeAck.bottom - appsBeforeAck.top) - (appsAfterAck.bottom - appsAfterAck.top)).value) <= 1f,
+        )
+        assertTrue(
+            "Home app list bottom should not jump when Home screen ack arrives",
+            kotlin.math.abs((appsBeforeAck.bottom - appsAfterAck.bottom).value) <= 1f,
+        )
+        assertTrue(
+            "Dock height should not change when Home screen ack arrives",
+            kotlin.math.abs(((dockBeforeAck.bottom - dockBeforeAck.top) - (dockAfterAck.bottom - dockAfterAck.top)).value) <= 1f,
+        )
+        assertTrue(
+            "Dock bottom should not jump when Home screen ack arrives",
+            kotlin.math.abs((dockBeforeAck.bottom - dockAfterAck.bottom).value) <= 1f,
+        )
+    }
+
+    @Test
     fun swipingBackToHomeWithAgendaDisabled_showsKeyboardOnce() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
@@ -229,4 +278,14 @@ class CarouselKeyboardTest {
             hideCount += 1
         }
     }
+
+    private fun fakeApp(name: String): InstalledApp =
+        InstalledApp(
+            name = name,
+            packageName = "app.typelauncher.fake.$name",
+            launchIntent = Intent(),
+            user = Process.myUserHandle(),
+            isWorkApp = false,
+            launchWithLauncherApps = false,
+        )
 }

@@ -88,13 +88,6 @@
     <string name="settings_app_list_sort_option_name">Nome ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Nome ↑</string>
     <string name="settings_dock_enabled_title">Mostrar dock</string>
-    <string name="settings_show_recents_title">Mostrar recentes</string>
-    <string name="settings_hide_recents_from_app_list_title">Ocultar recentes da lista de apps</string>
-    <string name="settings_pull_down_title">Puxar para baixo</string>
-    <string name="settings_pull_down_option_none">Nenhum</string>
-    <string name="settings_pull_down_option_system">Sombra do sistema</string>
-    <string name="settings_pull_down_option_bar_below">Barra abaixo</string>
-    <string name="settings_pull_down_option_bar_above">Barra acima</string>
     <string name="settings_keyboard_auto_show_title">Mostrar teclado automaticamente</string>
     <string name="settings_show_agenda_title">Mostrar agenda</string>
     <string name="settings_theme_title">Tema</string>

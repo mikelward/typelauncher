@@ -147,9 +147,7 @@ internal class LauncherViewModel(
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             dockIconCount = dockSettingsStore.dockIconCount,
             appListSortOrder = dockSettingsStore.appListSortOrder,
-            isRecentsAlwaysShown = dockSettingsStore.isRecentsAlwaysShown,
-            isHideRecentsFromAppList = dockSettingsStore.isHideRecentsFromAppList,
-            notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
+            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             keyboardReservationBottomPx = dockSettingsStore.keyboardReservationBottomPx,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
@@ -229,7 +227,7 @@ internal class LauncherViewModel(
                         filteredApps = visibleApps.filterByName(
                             query = state.query,
                             appLaunchStatsStore = appLaunchStatsStore,
-                            excludedAppIds = excludedFromAppList(state, dockedIds, newRecentApps),
+                            excludedAppIds = excludedFromAppList(state, dockedIds),
                             dockedAppIds = dockedIds,
                             sortOrder = state.appListSortOrder,
                         ).markVisibility(),
@@ -273,7 +271,7 @@ internal class LauncherViewModel(
                     filteredApps = visibleApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
-                        excludedAppIds = excludedFromAppList(state, dockedIds, newRecentApps),
+                        excludedAppIds = excludedFromAppList(state, dockedIds),
                         dockedAppIds = dockedIds,
                         sortOrder = state.appListSortOrder,
                     ).markVisibility(),
@@ -503,6 +501,7 @@ internal class LauncherViewModel(
         if (_uiState.value.keyboardReservationBottomPx == coerced) return
         dockSettingsStore.keyboardReservationBottomPx = coerced
         _uiState.update { it.copy(keyboardReservationBottomPx = coerced) }
+        refreshFilteredApps()
         LauncherDebugLog.event("setKeyboardReservationBottomPx=$coerced")
     }
 
@@ -728,28 +727,17 @@ internal class LauncherViewModel(
             setQuery("")
             return
         }
-        // Docked and (when "Hide recents from app list" is on) recents apps
-        // are excluded from filteredApps while their respective surface is
-        // visible, so fall back to launching the first matching entry from
-        // those rows when no non-excluded match exists. Both rows are
+        // Docked apps are excluded from filteredApps while the dock is visible,
+        // so fall back to launching the first matching dock entry when no
+        // non-excluded match exists. The dock row is
         // unfiltered by typed search, so the fallback re-runs the matcher
         // here rather than reading state.dockedApps / state.recentApps in
         // their displayed order — otherwise we would launch whichever app
         // happens to sit first in the row regardless of the query.
         val state = _uiState.value
-        // `state.recentApps` is reversed for display (oldest first, newest
-        // last); the visible window when the row overflows is the rightmost
-        // `dockIconCount` entries — those are the ones that get excluded
-        // from the main list, so those are the ones the fallback covers.
-        val visibleRecents = if (state.isRecentsAlwaysShown && state.isHideRecentsFromAppList) {
-            state.recentApps.takeLast(state.dockIconCount)
-        } else {
-            emptyList()
-        }
         val target = state.filteredApps.firstOrNull()
             ?: state.dockedApps.firstOrNull { app -> app.name.launcherMatchTier(trimmedQuery) != null }
                 ?.takeIf { state.isDockEnabled }
-            ?: visibleRecents.firstOrNull { app -> app.name.launcherMatchTier(trimmedQuery) != null }
         target?.let(::launchApp)
     }
 
@@ -1081,23 +1069,6 @@ internal class LauncherViewModel(
         logState("setAppListSortOrder")
     }
 
-    fun setRecentsAlwaysShown(isAlwaysShown: Boolean) {
-        dockSettingsStore.isRecentsAlwaysShown = isAlwaysShown
-        _uiState.update { it.copy(isRecentsAlwaysShown = isAlwaysShown) }
-        // The "hide recents from app list" exclusion is gated on the
-        // always-shown setting, so toggling it here flips which apps belong
-        // in `filteredApps` and the list has to be recomputed.
-        refreshFilteredApps()
-        logState("setRecentsAlwaysShown")
-    }
-
-    fun setHideRecentsFromAppList(hide: Boolean) {
-        dockSettingsStore.isHideRecentsFromAppList = hide
-        _uiState.update { it.copy(isHideRecentsFromAppList = hide) }
-        refreshFilteredApps()
-        logState("setHideRecentsFromAppList=$hide")
-    }
-
     /**
      * Persists the user's Home pull-down behavior. Choosing the launcher's
      * notification bar prompts for notification listener access if needed; the
@@ -1154,11 +1125,6 @@ internal class LauncherViewModel(
         val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
         dockSettingsStore.dockIconCount = clampedCount
         _uiState.update { it.copy(dockIconCount = clampedCount) }
-        // The "hide recents from app list" exclusion window is sized by
-        // `dockIconCount`, so changing the slider has to recompute the main
-        // list — otherwise the dedup keeps drawing from the old window until
-        // an unrelated refresh lands.
-        refreshFilteredApps()
         logState("setDockVisibleIconCount requested=$count")
     }
 
@@ -1176,7 +1142,7 @@ internal class LauncherViewModel(
                 filteredApps = visibleApps.filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
-                    excludedAppIds = excludedFromAppList(state, dockedIds, newRecentApps),
+                    excludedAppIds = excludedFromAppList(state, dockedIds),
                     dockedAppIds = dockedIds,
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
@@ -1198,9 +1164,7 @@ internal class LauncherViewModel(
                 filteredApps = visibleInstalledApps().filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
-                    // The recents list is query-independent and not rebuilt on
-                    // this fast-path refresh, so reuse the existing snapshot.
-                    excludedAppIds = excludedFromAppList(state, dockedIds, state.recentApps),
+                    excludedAppIds = excludedFromAppList(state, dockedIds),
                     dockedAppIds = dockedIds,
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
@@ -1212,33 +1176,15 @@ internal class LauncherViewModel(
      * Returns the IDs of apps that should be omitted from the main app list
      * because they already render on another always-visible surface. Docked
      * apps are hidden while the dock UI is on (the dock row already shows
-     * them); the most-recent [LauncherUiState.dockIconCount] visible recents
-     * are hidden while the always-on recents card is up and the user hasn't
-     * opted out via [LauncherUiState.isHideRecentsFromAppList] — only that
-     * visible window is deduplicated, since `recent_app_ids` holds up to 16
-     * entries but only `dockIconCount` of them fit in the row at once and
-     * the rest sit off-screen until the user scrolls. Off-screen recents
-     * staying in the main list is intentional; otherwise recently-used apps
-     * would disappear from the launcher entirely.
-     *
-     * The recents source is the post-`filterRecent` list passed in
-     * [recentApps] (display-reversed: oldest first, newest last). Working
-     * off the post-filter list rather than `appLaunchStatsStore.recentAppIds`
-     * matters because hidden / uninstalled / quiet-work-profile entries get
-     * dropped at the filter step but still occupy slots in the raw store —
-     * if we took those raw IDs, a stale entry could consume a slot and leak
-     * an actually-visible recent back into the main list.
+     * them). Secondary bars such as recents and notifications do not dedupe
+     * from the app list.
      */
     private fun excludedFromAppList(
         state: LauncherUiState,
         dockedIds: List<String>,
-        recentApps: List<InstalledApp>,
     ): Set<String> {
         val excluded = mutableSetOf<String>()
         if (state.isDockEnabled) excluded.addAll(dockedIds)
-        if (state.isRecentsAlwaysShown && state.isHideRecentsFromAppList) {
-            excluded.addAll(recentApps.takeLast(state.dockIconCount).map { it.id })
-        }
         return excluded
     }
 
