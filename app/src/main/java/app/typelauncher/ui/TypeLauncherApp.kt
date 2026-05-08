@@ -267,14 +267,21 @@ internal fun TypeLauncherApp(
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
-        val entryKeyboardBottomPx = remember(
+        // Freeze the keyboard-height geometry for this Home entry. IME target
+        // insets can jitter by a row fraction while the keyboard/tray toggles;
+        // feeding each update back into Home padding visibly reflows the list.
+        var entryKeyboardBottomPx by remember(
             state.screen,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
-            state.keyboardReservationBottomPx,
             navBottomPx,
         ) {
-            state.keyboardReservationBottomPx
+            mutableStateOf(state.keyboardReservationBottomPx)
+        }
+        LaunchedEffect(state.keyboardReservationBottomPx, navBottomPx) {
+            if (entryKeyboardBottomPx <= navBottomPx && state.keyboardReservationBottomPx > navBottomPx) {
+                entryKeyboardBottomPx = state.keyboardReservationBottomPx
+            }
         }
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
             if (imeTargetBottomPx > navBottomPx) {
