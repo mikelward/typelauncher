@@ -79,6 +79,7 @@ class ManifestUnitTest {
         val mainActivitySource = File("src/main/java/app/typelauncher/MainActivity.kt").readText()
         val typeLauncherAppSource = File("src/main/java/app/typelauncher/ui/TypeLauncherApp.kt").readText()
         val homeScreenSource = File("src/main/java/app/typelauncher/ui/HomeScreen.kt").readText()
+        val launcherFilterFieldSource = File("src/main/java/app/typelauncher/ui/LauncherFilterField.kt").readText()
         val themeSource = File("src/main/java/app/typelauncher/ui/TypeLauncherTheme.kt").readText()
         val viewModelSource = File("src/main/java/app/typelauncher/LauncherViewModel.kt").readText()
 
@@ -86,7 +87,8 @@ class ManifestUnitTest {
         assertTrue(themeSource.contains("MaterialTheme"))
         assertTrue(typeLauncherAppSource.contains("Scaffold"))
         assertTrue(homeScreenSource.contains("Card"))
-        assertTrue(homeScreenSource.contains("OutlinedTextField"))
+        assertTrue(homeScreenSource.contains("LauncherFilterField"))
+        assertTrue(launcherFilterFieldSource.contains("OutlinedTextField"))
         assertTrue(typeLauncherAppSource.contains("collectAsStateWithLifecycle"))
         assertTrue(viewModelSource.contains("ViewModel"))
         assertTrue(themeSource.contains("dynamicLightColorScheme"))
