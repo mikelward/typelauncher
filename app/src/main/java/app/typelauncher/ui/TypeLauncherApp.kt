@@ -44,6 +44,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -90,6 +91,11 @@ private const val CAROUSEL_ACK_TIMEOUT_MS = 1500L
 // all keep WindowInsets.isImeVisible false indefinitely; we don't want to defer
 // the agenda load forever in those cases.
 private const val HOME_READY_IME_TIMEOUT_MS = 1500L
+
+// Used only before the first real IME target is reported on a fresh install.
+// It deliberately errs slightly high so the primary Home area never grows when
+// the actual keyboard height arrives a few frames later.
+private const val FIRST_ENTRY_KEYBOARD_RESERVATION_FRACTION = 0.40f
 
 private val CarouselPageAnimationSpec = tween<Float>(
     durationMillis = 220,
@@ -263,18 +269,25 @@ internal fun TypeLauncherApp(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars),
     ) { innerPadding ->
         val density = LocalDensity.current
+        val configuration = LocalConfiguration.current
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
+        val estimatedKeyboardBottomPx = if (state.isKeyboardAutoShown && !state.isSettingsOpen) {
+            with(density) { configuration.screenHeightDp.dp.toPx() * FIRST_ENTRY_KEYBOARD_RESERVATION_FRACTION }.toInt()
+        } else {
+            0
+        }
         val entryKeyboardBottomPx = remember(
             state.screen,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
             state.keyboardReservationBottomPx,
+            estimatedKeyboardBottomPx,
             navBottomPx,
         ) {
-            state.keyboardReservationBottomPx
+            max(state.keyboardReservationBottomPx, estimatedKeyboardBottomPx)
         }
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
             if (imeTargetBottomPx > navBottomPx) {
@@ -346,7 +359,8 @@ internal fun TypeLauncherApp(
             LauncherDebugLog.event(
                 "KeyboardReservation screen=${state.screen} source=$keyboardReserveSource " +
                     "reservePx=$keyboardReservationPx imeVisible=$imeVisible imeBottomPx=$imeBottomPx " +
-                    "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx navBottomPx=$navBottomPx",
+                    "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx " +
+                    "estimatedKeyboardBottomPx=$estimatedKeyboardBottomPx navBottomPx=$navBottomPx",
             )
         }
         Box(modifier = Modifier.fillMaxSize()) {

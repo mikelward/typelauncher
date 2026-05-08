@@ -8,7 +8,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 2. `MainActivity.onCreate` runs on the UI thread: it calls `super.onCreate`, enables edge-to-edge, starts the `launcher_cold_start` trace, creates `LauncherAppWidgetHost` / `AppWidgetManager`, and obtains `LauncherViewModel`.
 3. `LauncherViewModel` construction synchronously reads lightweight persisted state on the UI thread:
    - `WidgetStore`: selected widget IDs and custom heights.
-   - `DockSettingsStore`: dock visibility, dock size, list mode, sort order, hide-recents setting, keyboard auto-show, cached keyboard reservation, and theme mode.
+   - `DockSettingsStore`: dock visibility, dock size, list mode, sort order, keyboard auto-show, cached keyboard reservation, and theme mode.
    - `AppLaunchStatsStore`: launch counts and recents.
    - `HiddenAppStore`: hidden app IDs.
    - `DockedAppStore`: docked app IDs.
@@ -24,7 +24,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
     - keyboard auto-show enabled: `SOFT_INPUT_STATE_ALWAYS_VISIBLE | SOFT_INPUT_ADJUST_RESIZE`;
     - keyboard auto-show disabled: `SOFT_INPUT_STATE_ALWAYS_HIDDEN | SOFT_INPUT_ADJUST_RESIZE`;
     - edge-to-edge system bar styles are matched to the persisted theme mode.
-11. `MainActivity` starts lifecycle collectors for keyboard-auto-show, theme mode, and home-ready, then calls `setContent` on the UI thread. The top-level `Scaffold` applies status/navigation bar insets only; when Home is in keyboard-auto-show mode, Compose reserves the last known keyboard-height slot immediately instead of following every animated `WindowInsets.ime` tick or waiting for the next IME target. Fresh non-zero IME targets update the persisted `dock_settings` value for future warm starts and carousel returns.
+11. `MainActivity` starts lifecycle collectors for keyboard-auto-show, theme mode, and home-ready, then calls `setContent` on the UI thread. The top-level `Scaffold` applies status/navigation bar insets only; when Home is in keyboard-auto-show mode, Compose reserves the last known keyboard-height slot immediately instead of following every animated `WindowInsets.ime` tick or waiting for the next IME target. If no keyboard height has been cached yet, Home uses a conservative first-entry estimate so the app list and dock are already measured above the keyboard area; fresh non-zero IME targets update the persisted `dock_settings` value for future warm starts and carousel returns.
 12. `setContent` composes `TypeLauncherTheme` and `TypeLauncherApp`, collecting `LauncherViewModel.uiState` with lifecycle awareness.
 13. The first Compose pass renders the Home screen. `SearchCard` is composed before the home body.
 14. `TypeLauncherApp` deliberately holds back the Home body for one frame. During that first frame, Home reserves the remaining space with a spacer, so the search field can compose and lay out before the app list, dock, notification bar, and recents do their heavier work.
@@ -33,7 +33,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
     - if disabled, it skips both calls, and the activity-level soft input mode already keeps the IME hidden until the user taps the field.
 16. Subsequent `onWindowFocusChanged(true)` callbacks after the initial cold-start focus ask the same `SearchCard` collector to request focus and show the keyboard again when Home is visible and keyboard auto-show remains enabled. This covers return-from-app resumes without reintroducing manifest `stateAlwaysVisible`.
 17. The top-level carousel also holds off composing offscreen pages until after the first frame. This keeps Widgets and Agenda UI work out of the critical first search/IME frame.
-18. One frame later, `homeBodyReady` flips `true`; Home composes the app list and dock into the stable typing area, and routes notification/recents cards into the cached keyboard slot when that reservation exists and the IME is down. Depending on cache state, this is either cached app data or a loading state.
+18. One frame later, `homeBodyReady` flips `true`; Home composes the app list and dock into the stable typing area, and routes notification/recents cards into the keyboard slot when that reservation exists and the IME is down. Depending on cache state, this is either cached app data or a loading state.
 19. Visible app icons are loaded lazily by each row/icon:
     - composition first checks `AppIconLoader.cached(id, sizePx)` on the composition thread;
     - on a miss, `AppIconLoader.load` resolves the `Drawable` on `Dispatchers.IO`;

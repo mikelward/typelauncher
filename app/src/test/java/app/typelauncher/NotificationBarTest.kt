@@ -584,10 +584,134 @@ class NotificationBarTest {
                 )
             }
         }
-        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.mainClock.advanceTimeBy(100)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
         composeRule.mainClock.autoAdvance = true
+    }
+
+    @Test
+    fun appListAndDockStayFixedWhenSecondaryTrayRepaintsAfterKeyboardWait() {
+        val apps = (1..12).map { index ->
+            fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
+        }
+        val docked = listOf(fakeApp(name = "Docked", packageName = "com.example.docked").copy(isDocked = true))
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = apps,
+                        dockedApps = docked,
+                        recentApps = listOf(fakeApp(name = "Recent", packageName = "com.example.recent")),
+                        keyboardReservationBottomPx = 900,
+                        isKeyboardAutoShown = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
+        val appsBeforeTray = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockBeforeTray = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
+
+        composeRule.mainClock.advanceTimeBy(1_600)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        val appsAfterTray = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockAfterTray = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        assertEquals(appsBeforeTray, appsAfterTray)
+        assertEquals(dockBeforeTray, dockAfterTray)
+        composeRule.mainClock.autoAdvance = true
+    }
+
+    @Test
+    fun appListAndDockStayFixedWhenKeyboardHeightArrivesAfterNoCache() {
+        val apps = (1..12).map { index ->
+            fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
+        }
+        val docked = listOf(fakeApp(name = "Docked", packageName = "com.example.docked").copy(isDocked = true))
+        val state = mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = docked,
+                isKeyboardAutoShown = true,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state.value,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val appsBeforeCache = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockBeforeCache = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        state.value = state.value.copy(keyboardReservationBottomPx = 900)
+        composeRule.waitForIdle()
+
+        val appsAfterCache = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockAfterCache = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        assertEquals(appsBeforeCache, appsAfterCache)
+        assertEquals(dockBeforeCache, dockAfterCache)
     }
 }

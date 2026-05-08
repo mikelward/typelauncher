@@ -158,6 +158,10 @@ class AppIconDisambiguatorScreenshotTest {
                         application.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
                             .edit().clear().commit()
                     }
+                    application.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean("keyboard_auto_shown", false)
+                        .commit()
                     seedAmbiguousApps()
                     base.evaluate()
                 }
