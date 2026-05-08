@@ -154,9 +154,6 @@ internal fun TypeLauncherApp(
         onAppListIconOnlyChanged = viewModel::setAppListIconOnly,
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
-        onRecentsAlwaysShownChanged = viewModel::setRecentsAlwaysShown,
-        onHideRecentsFromAppListChanged = viewModel::setHideRecentsFromAppList,
-        onNotificationPullDownBehaviorChanged = viewModel::setNotificationPullDownBehavior,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onThemeModeChanged = viewModel::setThemeMode,
@@ -211,9 +208,6 @@ internal fun TypeLauncherApp(
     onAppListIconOnlyChanged: (Boolean) -> Unit,
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
-    onRecentsAlwaysShownChanged: (Boolean) -> Unit = {},
-    onHideRecentsFromAppListChanged: (Boolean) -> Unit = {},
-    onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
@@ -273,7 +267,13 @@ internal fun TypeLauncherApp(
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
-        val entryKeyboardBottomPx = remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown, navBottomPx) {
+        val entryKeyboardBottomPx = remember(
+            state.screen,
+            state.isSettingsOpen,
+            state.isKeyboardAutoShown,
+            state.keyboardReservationBottomPx,
+            navBottomPx,
+        ) {
             state.keyboardReservationBottomPx
         }
         LaunchedEffect(imeTargetBottomPx, navBottomPx) {
@@ -281,10 +281,10 @@ internal fun TypeLauncherApp(
                 onKeyboardReservationBottomChanged(imeTargetBottomPx)
             }
         }
-        val shouldUseTypingGeometry = state.screen == LauncherScreen.Home &&
-            !state.isSettingsOpen &&
+        val stableTypingGeometryAvailable = !state.isSettingsOpen &&
             state.isKeyboardAutoShown &&
             entryKeyboardBottomPx > navBottomPx
+        val shouldUseTypingGeometry = stableTypingGeometryAvailable
         val keyboardReserveSource: String
         val keyboardBottomPx = when {
             shouldUseTypingGeometry -> {
@@ -306,7 +306,33 @@ internal fun TypeLauncherApp(
         }
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
-        val routeSecondaryBarsToKeyboardTray = shouldUseTypingGeometry && keyboardReservationPx > 0
+        val routeSecondaryBarsToKeyboardTray = stableTypingGeometryAvailable && keyboardReservationPx > 0
+        var hasSeenImeForHomeEntry by remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown) {
+            mutableStateOf(!state.isKeyboardAutoShown)
+        }
+        var autoKeyboardWaitElapsed by remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown) {
+            mutableStateOf(!state.isKeyboardAutoShown)
+        }
+        LaunchedEffect(routeSecondaryBarsToKeyboardTray, imeVisible) {
+            if (routeSecondaryBarsToKeyboardTray && imeVisible) {
+                hasSeenImeForHomeEntry = true
+            }
+        }
+        LaunchedEffect(routeSecondaryBarsToKeyboardTray, hasSeenImeForHomeEntry, autoKeyboardWaitElapsed) {
+            if (routeSecondaryBarsToKeyboardTray && !hasSeenImeForHomeEntry && !autoKeyboardWaitElapsed) {
+                delay(HOME_READY_IME_TIMEOUT_MS)
+                autoKeyboardWaitElapsed = true
+            }
+        }
+        val waitingForAutoKeyboard = routeSecondaryBarsToKeyboardTray &&
+            state.isKeyboardAutoShown &&
+            !hasSeenImeForHomeEntry &&
+            !autoKeyboardWaitElapsed
+        val forceShowSecondaryBars = state.isNotificationBarOpen || state.isRecentsOpen
+        val secondaryBarsVisible = routeSecondaryBarsToKeyboardTray &&
+            state.screen == LauncherScreen.Home &&
+            !imeVisible &&
+            (!waitingForAutoKeyboard || forceShowSecondaryBars)
         LaunchedEffect(
             state.screen,
             keyboardReserveSource,
@@ -326,8 +352,7 @@ internal fun TypeLauncherApp(
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = keyboardReservationDp),
+                    .fillMaxSize(),
             ) {
                 if (state.isSettingsOpen) {
                     SettingsScreen(
@@ -339,9 +364,6 @@ internal fun TypeLauncherApp(
                         onAppListIconOnlyChanged = onAppListIconOnlyChanged,
                         onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
-                        onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
-                        onHideRecentsFromAppListChanged = onHideRecentsFromAppListChanged,
-                        onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onThemeModeChanged = onThemeModeChanged,
@@ -362,14 +384,7 @@ internal fun TypeLauncherApp(
                         currentWidgetPage = state.currentWidgetPage,
                         widgetPageCount = state.widgetPages.size,
                         isAgendaEnabled = state.isAgendaEnabled,
-                        isNotificationBarOpen = state.isNotificationBarOpen,
-                        notificationPullDownBehavior = state.notificationPullDownBehavior,
-                        // Pull-up's stage gating cares about whether the user is
-                        // already *looking* at recents, regardless of whether that's
-                        // because of the gesture-toggled `isRecentsOpen` or the
-                        // persistent `isRecentsAlwaysShown` setting (whose visibility
-                        // predicate is the same OR — see `LauncherUiState`).
-                        isRecentsVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
+                        isSecondaryTrayVisible = secondaryBarsVisible,
                         onShowAgenda = onShowAgenda,
                         onShowWidgets = onShowWidgets,
                         onShowHome = onShowHome,
@@ -384,7 +399,7 @@ internal fun TypeLauncherApp(
                                 state = state,
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
-                                secondaryBarsInKeyboardTray = routeSecondaryBarsToKeyboardTray,
+                                primaryBottomPadding = keyboardReservationDp,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
                                 onQueryChanged = onQueryChanged,
@@ -439,7 +454,7 @@ internal fun TypeLauncherApp(
                     }
                 }
             }
-            if (routeSecondaryBarsToKeyboardTray && !imeVisible) {
+            if (secondaryBarsVisible) {
                 HomeKeyboardTray(
                     state = state,
                     modifier = Modifier
@@ -497,9 +512,7 @@ private fun SwipeNavigationBox(
     currentWidgetPage: Int,
     widgetPageCount: Int,
     isAgendaEnabled: Boolean,
-    isNotificationBarOpen: Boolean,
-    notificationPullDownBehavior: NotificationPullDownBehavior,
-    isRecentsVisible: Boolean,
+    isSecondaryTrayVisible: Boolean,
     appListBoundsInRoot: Rect?,
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -517,11 +530,8 @@ private fun SwipeNavigationBox(
     // from that already-at-edge state.
     val currentScreen by rememberUpdatedState(screen)
     val currentLauncherPage by rememberUpdatedState(LauncherPage(screen, currentWidgetPage.coerceAtLeast(0)))
-    val currentBarOpen by rememberUpdatedState(isNotificationBarOpen)
-    val currentNotificationPullDownBehavior by rememberUpdatedState(notificationPullDownBehavior)
-    val currentRecentsVisible by rememberUpdatedState(isRecentsVisible)
+    val currentSecondaryTrayVisible by rememberUpdatedState(isSecondaryTrayVisible)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
-    val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val currentAppListBoundsInRoot by rememberUpdatedState(appListBoundsInRoot)
@@ -532,19 +542,11 @@ private fun SwipeNavigationBox(
     val swipeDownDispatch = remember<() -> Unit> {
         {
             if (currentScreen == LauncherScreen.Home) {
-                when (currentNotificationPullDownBehavior) {
-                    NotificationPullDownBehavior.None -> Unit
-                    NotificationPullDownBehavior.System -> currentOnSwipeDown()
-                    NotificationPullDownBehavior.BarBelow,
-                    NotificationPullDownBehavior.BarAbove,
-                    -> {
-                        if (currentBarOpen) {
-                            currentOnSwipeDown()
-                        } else {
-                            currentKeyboard?.hide()
-                            currentSetBarOpen(true)
-                        }
-                    }
+                if (currentSecondaryTrayVisible) {
+                    currentOnSwipeDown()
+                } else {
+                    currentKeyboard?.hide()
+                    currentSetBarOpen(true)
                 }
             } else {
                 currentOnSwipeDown()
@@ -554,22 +556,10 @@ private fun SwipeNavigationBox(
     val swipeUpDispatch = remember<() -> Unit> {
         {
             // Pull-up only does anything on Home. If the notification bar is
-            // visible, close it before treating the pull as anything else.
-            // Otherwise the gesture chains: first stage opens the recents bar
-            // (mirrors the launcher-bar first stage of pull-down), and once
-            // recents is open a further pull-up asks the search field to grab
-            // focus and re-show the soft keyboard. This is the "I dismissed
-            // the IME and now want it back without tapping the search box"
-            // affordance.
+            // visible in the keyboard tray, the gesture asks the search field
+            // to grab focus and re-show the soft keyboard.
             if (currentScreen == LauncherScreen.Home) {
-                if (currentBarOpen) {
-                    currentSetBarOpen(false)
-                } else if (!currentRecentsVisible) {
-                    currentKeyboard?.hide()
-                    currentSetRecentsOpen(true)
-                } else {
-                    currentRequestShowKeyboard()
-                }
+                currentRequestShowKeyboard()
             }
         }
     }

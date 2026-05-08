@@ -83,20 +83,9 @@ internal data class LauncherUiState(
     // Refreshed in `refreshPermissionDrivenUi` so flipping the toggle in
     // Android settings is picked up on the next resume.
     val hasNotificationAccess: Boolean = false,
-    // Settings → "Pull down" action. BarBelow / BarAbove insert the in-app
-    // notification bar as a first stage; System opens Android's shade; None
-    // disables pull-down handling.
+    // Legacy persisted pull-down action. The setting UI has been removed and
+    // runtime Home gestures always use the launcher notification bar first.
     val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-    // When true, the recents card is permanently visible above the keyboard
-    // (orthogonal to `isDockEnabled`), independent of the drag-up gesture. The
-    // visible-recents predicate is `isRecentsAlwaysShown || isRecentsOpen`, so
-    // the gesture still works when the setting is off.
-    val isRecentsAlwaysShown: Boolean = false,
-    // When true (default), apps that appear in the persistently-visible recents
-    // card are excluded from the main app list — same convention as docked
-    // apps when the dock is enabled, so the same icon never renders in two
-    // places at once. Only takes effect while `isRecentsAlwaysShown` is on.
-    val isHideRecentsFromAppList: Boolean = true,
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
     val currentWidgetPage: Int = 0,
