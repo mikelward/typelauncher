@@ -811,7 +811,14 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingPastRecentsEnd_staysInRecentsUntilTrayCarouselTodoIsImplemented() {
+    fun swipingPastRecentsEnd_advancesCarousel() {
+        // Recents auto-scrolls to its end, so a further swipeLeft can't be
+        // absorbed by the row's horizontalScroll. The leftover motion flows
+        // up to the launcher's vertical/horizontal arbitrator (the tray now
+        // lives inside the carousel's pointerInput) and commits a Home →
+        // Widgets page change once it crosses the 96 dp distance / 800 dp/s
+        // fling threshold — same rule that keeps an in-row scroll from
+        // accidentally flipping pages.
         var widgetsCount = 0
         val recentApps = (1..8).map { i -> fakeApp(name = "App%02d".format(i)) }
         composeRule.setContent {
@@ -859,6 +866,6 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals("recents tray swipes do not yet advance the carousel", 0, widgetsCount)
+        assertEquals("over-scrolling past recents end should advance the carousel", 1, widgetsCount)
     }
 }
