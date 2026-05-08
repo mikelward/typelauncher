@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.isImeVisible
@@ -29,6 +31,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -302,6 +305,8 @@ internal fun TypeLauncherApp(
             }
         }
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
+        val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
+        val routeSecondaryBarsToKeyboardTray = shouldUseTypingGeometry && keyboardReservationPx > 0
         LaunchedEffect(
             state.screen,
             keyboardReserveSource,
@@ -318,86 +323,88 @@ internal fun TypeLauncherApp(
                     "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx navBottomPx=$navBottomPx",
             )
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = with(density) { keyboardReservationPx.toDp() }),
-        ) {
-            if (state.isSettingsOpen) {
-                SettingsScreen(
-                    state = state,
-                    innerPadding = innerPadding,
-                    onCloseSettings = onCloseSettings,
-                    onRequestDefaultLauncher = onRequestDefaultLauncher,
-                    onDockEnabledChanged = onDockEnabledChanged,
-                    onAppListIconOnlyChanged = onAppListIconOnlyChanged,
-                    onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
-                    onAppListSortOrderChanged = onAppListSortOrderChanged,
-                    onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
-                    onHideRecentsFromAppListChanged = onHideRecentsFromAppListChanged,
-                    onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
-                    onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
-                    onAgendaEnabledChanged = onAgendaEnabledChanged,
-                    onThemeModeChanged = onThemeModeChanged,
-                    onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
-                    onResetRank = onResetRank,
-                    onHideApp = onHideApp,
-                    onUnhideApp = onUnhideApp,
-                    onOpenLauncherAppInfo = onOpenLauncherAppInfo,
-                    onOpenPlayUpdate = onOpenPlayUpdate,
-                    onDismissPlayUpdate = onDismissPlayUpdate,
-                )
-            } else {
-                var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
-                SwipeNavigationBox(
-                    screen = state.screen,
-                    currentWidgetPage = state.currentWidgetPage,
-                    widgetPageCount = state.widgetPages.size,
-                    isAgendaEnabled = state.isAgendaEnabled,
-                    isNotificationBarOpen = state.isNotificationBarOpen,
-                    notificationPullDownBehavior = state.notificationPullDownBehavior,
-                    // Pull-up's stage gating cares about whether the user is
-                    // already *looking* at recents, regardless of whether that's
-                    // because of the gesture-toggled `isRecentsOpen` or the
-                    // persistent `isRecentsAlwaysShown` setting (whose visibility
-                    // predicate is the same OR — see `LauncherUiState`).
-                    isRecentsVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
-                    onShowAgenda = onShowAgenda,
-                    onShowWidgets = onShowWidgets,
-                    onShowHome = onShowHome,
-                    onSetNotificationBarOpen = onSetNotificationBarOpen,
-                    onSetRecentsOpen = onSetRecentsOpen,
-                    onRequestShowKeyboard = onRequestShowKeyboard,
-                    onSwipeDown = onSwipeDown,
-                    appListBoundsInRoot = homeAppListBoundsInRoot,
-                ) { page, isCurrentPage ->
-                    when (page.screen) {
-                        LauncherScreen.Home -> HomeScreen(
-                            state = state,
-                            innerPadding = innerPadding,
-                            bodyReady = homeBodyReady,
-                            searchPlaceholderSuffix = searchPlaceholderSuffix,
-                            keyboardShowRequests = keyboardShowRequests,
-                            onQueryChanged = onQueryChanged,
-                            onClearQuery = onClearQuery,
-                            onLaunchActiveApp = onLaunchActiveApp,
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onToggleDock = onToggleDock,
-                            onReorderDock = onReorderDock,
-                            onResetRank = onResetRank,
-                            onHideApp = onHideApp,
-                            onDismissRecent = onDismissRecent,
-                            onDismissNotifications = onDismissNotifications,
-                            onOpenNotificationSettings = onOpenNotificationSettings,
-                            onOpenSettings = onOpenSettings,
-                            onSetNotificationBarOpen = onSetNotificationBarOpen,
-                            onRequestNotificationAccess = onRequestNotificationAccess,
-                            onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
-                        )
-                        LauncherScreen.Widgets -> WidgetsScreen(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = keyboardReservationDp),
+            ) {
+                if (state.isSettingsOpen) {
+                    SettingsScreen(
+                        state = state,
+                        innerPadding = innerPadding,
+                        onCloseSettings = onCloseSettings,
+                        onRequestDefaultLauncher = onRequestDefaultLauncher,
+                        onDockEnabledChanged = onDockEnabledChanged,
+                        onAppListIconOnlyChanged = onAppListIconOnlyChanged,
+                        onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
+                        onAppListSortOrderChanged = onAppListSortOrderChanged,
+                        onRecentsAlwaysShownChanged = onRecentsAlwaysShownChanged,
+                        onHideRecentsFromAppListChanged = onHideRecentsFromAppListChanged,
+                        onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
+                        onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
+                        onAgendaEnabledChanged = onAgendaEnabledChanged,
+                        onThemeModeChanged = onThemeModeChanged,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
+                        onHideApp = onHideApp,
+                        onUnhideApp = onUnhideApp,
+                        onOpenLauncherAppInfo = onOpenLauncherAppInfo,
+                        onOpenPlayUpdate = onOpenPlayUpdate,
+                        onDismissPlayUpdate = onDismissPlayUpdate,
+                    )
+                } else {
+                    var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+                    SwipeNavigationBox(
+                        screen = state.screen,
+                        currentWidgetPage = state.currentWidgetPage,
+                        widgetPageCount = state.widgetPages.size,
+                        isAgendaEnabled = state.isAgendaEnabled,
+                        isNotificationBarOpen = state.isNotificationBarOpen,
+                        notificationPullDownBehavior = state.notificationPullDownBehavior,
+                        // Pull-up's stage gating cares about whether the user is
+                        // already *looking* at recents, regardless of whether that's
+                        // because of the gesture-toggled `isRecentsOpen` or the
+                        // persistent `isRecentsAlwaysShown` setting (whose visibility
+                        // predicate is the same OR — see `LauncherUiState`).
+                        isRecentsVisible = state.isRecentsAlwaysShown || state.isRecentsOpen,
+                        onShowAgenda = onShowAgenda,
+                        onShowWidgets = onShowWidgets,
+                        onShowHome = onShowHome,
+                        onSetNotificationBarOpen = onSetNotificationBarOpen,
+                        onSetRecentsOpen = onSetRecentsOpen,
+                        onRequestShowKeyboard = onRequestShowKeyboard,
+                        onSwipeDown = onSwipeDown,
+                        appListBoundsInRoot = homeAppListBoundsInRoot,
+                    ) { page, isCurrentPage ->
+                        when (page.screen) {
+                            LauncherScreen.Home -> HomeScreen(
+                                state = state,
+                                innerPadding = innerPadding,
+                                bodyReady = homeBodyReady,
+                                secondaryBarsInKeyboardTray = routeSecondaryBarsToKeyboardTray,
+                                searchPlaceholderSuffix = searchPlaceholderSuffix,
+                                keyboardShowRequests = keyboardShowRequests,
+                                onQueryChanged = onQueryChanged,
+                                onClearQuery = onClearQuery,
+                                onLaunchActiveApp = onLaunchActiveApp,
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onToggleDock = onToggleDock,
+                                onReorderDock = onReorderDock,
+                                onResetRank = onResetRank,
+                                onHideApp = onHideApp,
+                                onDismissRecent = onDismissRecent,
+                                onDismissNotifications = onDismissNotifications,
+                                onOpenNotificationSettings = onOpenNotificationSettings,
+                                onOpenSettings = onOpenSettings,
+                                onSetNotificationBarOpen = onSetNotificationBarOpen,
+                                onRequestNotificationAccess = onRequestNotificationAccess,
+                                onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
+                            )
+                            LauncherScreen.Widgets -> WidgetsScreen(
                             widgetIds = state.widgetPages.getOrElse(
                                 page.widgetPageIndex.coerceIn(0, state.widgetPages.lastIndex.coerceAtLeast(0)),
                             ) { emptyList() },
@@ -421,15 +428,35 @@ internal fun TypeLauncherApp(
                             onSelectWidget = onSelectWidget,
                             onRemoveWidget = onRemoveWidget,
                             onResizeWidget = onResizeWidget,
-                        )
-                        LauncherScreen.Agenda -> AgendaScreen(
-                            agenda = state.agenda,
-                            innerPadding = innerPadding,
-                            onRequestCalendarPermission = onRequestCalendarPermission,
-                            onOpenAgendaEvent = onOpenAgendaEvent,
-                        )
+                            )
+                            LauncherScreen.Agenda -> AgendaScreen(
+                                agenda = state.agenda,
+                                innerPadding = innerPadding,
+                                onRequestCalendarPermission = onRequestCalendarPermission,
+                                onOpenAgendaEvent = onOpenAgendaEvent,
+                            )
+                        }
                     }
                 }
+            }
+            if (routeSecondaryBarsToKeyboardTray && !imeVisible) {
+                HomeKeyboardTray(
+                    state = state,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = innerPadding.calculateBottomPadding())
+                        .height(keyboardReservationDp)
+                        .fillMaxWidth()
+                        .clipToBounds(),
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onDismissRecent = onDismissRecent,
+                    onDismissNotifications = onDismissNotifications,
+                    onOpenNotificationSettings = onOpenNotificationSettings,
+                    onSetNotificationBarOpen = onSetNotificationBarOpen,
+                    onRequestNotificationAccess = onRequestNotificationAccess,
+                )
             }
         }
     }
@@ -538,6 +565,7 @@ private fun SwipeNavigationBox(
                 if (currentBarOpen) {
                     currentSetBarOpen(false)
                 } else if (!currentRecentsVisible) {
+                    currentKeyboard?.hide()
                     currentSetRecentsOpen(true)
                 } else {
                     currentRequestShowKeyboard()

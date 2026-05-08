@@ -8,7 +8,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 2. `MainActivity.onCreate` runs on the UI thread: it calls `super.onCreate`, enables edge-to-edge, starts the `launcher_cold_start` trace, creates `LauncherAppWidgetHost` / `AppWidgetManager`, and obtains `LauncherViewModel`.
 3. `LauncherViewModel` construction synchronously reads lightweight persisted state on the UI thread:
    - `WidgetStore`: selected widget IDs and custom heights.
-   - `DockSettingsStore`: dock visibility, dock size, list mode, sort order, recents setting, notification pull-down behavior, keyboard auto-show, and theme mode.
+   - `DockSettingsStore`: dock visibility, dock size, list mode, sort order, recents setting, notification pull-down behavior, keyboard auto-show, cached keyboard reservation, and theme mode.
    - `AppLaunchStatsStore`: launch counts and recents.
    - `HiddenAppStore`: hidden app IDs.
    - `DockedAppStore`: docked app IDs.
@@ -33,7 +33,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
     - if disabled, it skips both calls, and the activity-level soft input mode already keeps the IME hidden until the user taps the field.
 16. Subsequent `onWindowFocusChanged(true)` callbacks after the initial cold-start focus ask the same `SearchCard` collector to request focus and show the keyboard again when Home is visible and keyboard auto-show remains enabled. This covers return-from-app resumes without reintroducing manifest `stateAlwaysVisible`.
 17. The top-level carousel also holds off composing offscreen pages until after the first frame. This keeps Widgets and Agenda UI work out of the critical first search/IME frame.
-18. One frame later, `homeBodyReady` flips `true`; Home composes the app list, notification bar, dock, and recents from the current state. Depending on cache state, this is either cached app data or a loading state.
+18. One frame later, `homeBodyReady` flips `true`; Home composes the app list and dock into the stable typing area, and routes notification/recents cards into the cached keyboard slot when that reservation exists and the IME is down. Depending on cache state, this is either cached app data or a loading state.
 19. Visible app icons are loaded lazily by each row/icon:
     - composition first checks `AppIconLoader.cached(id, sizePx)` on the composition thread;
     - on a miss, `AppIconLoader.load` resolves the `Drawable` on `Dispatchers.IO`;
