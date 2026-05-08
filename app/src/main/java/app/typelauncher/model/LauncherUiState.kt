@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.ComponentName
 import android.graphics.drawable.Drawable
 import android.os.UserHandle
+import androidx.compose.runtime.Immutable
 
 internal const val MIN_DOCK_APP_ICON_SIZE_DP = 40
 internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 56
@@ -56,6 +57,13 @@ internal enum class ThemeMode {
     Dark,
 }
 
+// Compose can't infer stability through the transitive Drawable / Intent /
+// UserHandle references carried by `WidgetProvider` and `InstalledApp`,
+// so without this annotation `HomeScreen(state = …)` (and every child
+// composable that takes a `LauncherUiState` parameter) is treated as
+// unstable and never skipped. We only ever construct new instances via
+// `state.copy(...)`, so the immutability contract holds.
+@Immutable
 internal data class LauncherUiState(
     val screen: LauncherScreen = LauncherScreen.Home,
     val query: String = "",
@@ -153,6 +161,11 @@ internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
     return minSlotCount..maxSlotCount
 }
 
+// `Drawable` and `ComponentName` are unstable to Compose; the picker passes
+// `WidgetProvider` instances to composables and we never mutate the wrapped
+// drawables after the provider list is built, so the data class is safe to
+// treat as immutable.
+@Immutable
 internal data class WidgetProvider(
     val appName: String,
     val label: String,
