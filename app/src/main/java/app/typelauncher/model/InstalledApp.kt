@@ -4,7 +4,14 @@ import android.content.Intent
 import android.net.Uri
 import android.os.UserHandle
 import android.provider.Settings
+import androidx.compose.runtime.Immutable
 
+// Compose can't infer stability through `Intent` / `UserHandle`, so it
+// otherwise marks every parameter typed as `InstalledApp` (or any list of
+// them) unstable and skips no recompositions. Every field here is a `val`
+// and we never mutate the wrapped Intent after construction, so the
+// instance is genuinely immutable for rendering purposes.
+@Immutable
 internal data class InstalledApp(
     val name: String,
     val packageName: String,
