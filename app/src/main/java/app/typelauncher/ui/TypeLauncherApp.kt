@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
@@ -409,6 +410,27 @@ internal fun TypeLauncherApp(
                         onSwipeDown = onSwipeDown,
                         onCarouselTransitioningChanged = { isCarouselTransitioning = it },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
+                        secondaryTray = {
+                            if (secondaryBarsVisible) {
+                                HomeKeyboardTray(
+                                    state = state,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = innerPadding.calculateBottomPadding())
+                                        .height(keyboardReservationDp)
+                                        .fillMaxWidth()
+                                        .clipToBounds(),
+                                    onLaunchApp = onLaunchApp,
+                                    onOpenAppInfo = onOpenAppInfo,
+                                    onToggleDock = onToggleDock,
+                                    onDismissRecent = onDismissRecent,
+                                    onDismissNotifications = onDismissNotifications,
+                                    onOpenNotificationSettings = onOpenNotificationSettings,
+                                    onSetNotificationBarOpen = onSetNotificationBarOpen,
+                                    onRequestNotificationAccess = onRequestNotificationAccess,
+                                )
+                            }
+                        },
                     ) { page, isCurrentPage ->
                         when (page.screen) {
                             LauncherScreen.Home -> HomeScreen(
@@ -470,25 +492,6 @@ internal fun TypeLauncherApp(
                     }
                 }
             }
-            if (secondaryBarsVisible) {
-                HomeKeyboardTray(
-                    state = state,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = innerPadding.calculateBottomPadding())
-                        .height(keyboardReservationDp)
-                        .fillMaxWidth()
-                        .clipToBounds(),
-                    onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
-                    onDismissRecent = onDismissRecent,
-                    onDismissNotifications = onDismissNotifications,
-                    onOpenNotificationSettings = onOpenNotificationSettings,
-                    onSetNotificationBarOpen = onSetNotificationBarOpen,
-                    onRequestNotificationAccess = onRequestNotificationAccess,
-                )
-            }
         }
     }
 }
@@ -538,6 +541,7 @@ private fun SwipeNavigationBox(
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
     onCarouselTransitioningChanged: (Boolean) -> Unit = {},
+    secondaryTray: @Composable BoxScope.() -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
 ) {
     // A pointer sequence locks once, shortly after touch slop, to either the
@@ -953,6 +957,13 @@ private fun SwipeNavigationBox(
                 }
             }
         }
+        // The keyboard tray sits inside the carousel's pointerInput surface
+        // (rather than as a sibling overlay) so the existing vertical pull-up
+        // detector receives gestures that start on the tray. The tray draws
+        // last so it stays on top of the page Boxes, and it does not get the
+        // pages' graphicsLayer translationX, so it stays put during a
+        // horizontal carousel transition.
+        secondaryTray()
     }
 }
 
