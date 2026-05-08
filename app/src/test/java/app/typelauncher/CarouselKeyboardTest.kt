@@ -178,6 +178,73 @@ class CarouselKeyboardTest {
     }
 
     @Test
+    fun homePageKeepsKeyboardReservedGeometryWhenReservationJittersWithinEntry() {
+        val keyboard = CountingKeyboardController()
+        val apps = (1..20).map { index -> fakeApp(name = "App%02d".format(index)) }
+        val docked = listOf(fakeApp(name = "Docked").copy(isDocked = true))
+        val recentApps = listOf(fakeApp(name = "Recent"))
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = docked,
+                recentApps = recentApps,
+                keyboardReservationBottomPx = 900,
+                isKeyboardAutoShown = true,
+                isRecentsOpen = true,
+            ),
+        )
+        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
+
+        val listBaseline = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val dockBaseline = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        state = state.copy(isRecentsOpen = false)
+        composeRule.waitForIdle()
+        val listTrayClosed = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+
+        state = state.copy(keyboardReservationBottomPx = 840)
+        composeRule.waitForIdle()
+        val listSmallerReservation = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val dockSmallerReservation = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        state = state.copy(isRecentsOpen = true)
+        composeRule.waitForIdle()
+        val listTrayReopened = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+
+        state = state.copy(keyboardReservationBottomPx = 900)
+        composeRule.waitForIdle()
+        val listRestoredReservation = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+
+        assertTrue(
+            "Home app list bottom should ignore tray close when reservation is unchanged",
+            kotlin.math.abs((listBaseline.bottom - listTrayClosed.bottom).value) <= 1f,
+        )
+        assertTrue(
+            "Home app list bottom should ignore reservation jitter within the same Home entry",
+            kotlin.math.abs((listBaseline.bottom - listSmallerReservation.bottom).value) <= 1f,
+        )
+        assertTrue(
+            "Home app list height should ignore reservation jitter within the same Home entry",
+            kotlin.math.abs(
+                ((listBaseline.bottom - listBaseline.top) -
+                    (listSmallerReservation.bottom - listSmallerReservation.top)).value,
+            ) <= 1f,
+        )
+        assertTrue(
+            "Dock bottom should ignore reservation jitter within the same Home entry",
+            kotlin.math.abs((dockBaseline.bottom - dockSmallerReservation.bottom).value) <= 1f,
+        )
+        assertTrue(
+            "Home app list bottom should ignore tray reopen when reservation is unchanged",
+            kotlin.math.abs((listSmallerReservation.bottom - listTrayReopened.bottom).value) <= 1f,
+        )
+        assertTrue(
+            "Home app list bottom should remain stable when reservation returns to its entry value",
+            kotlin.math.abs((listBaseline.bottom - listRestoredReservation.bottom).value) <= 1f,
+        )
+    }
+
+    @Test
     fun swipingBackToHomeWithAgendaDisabled_showsKeyboardOnce() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
