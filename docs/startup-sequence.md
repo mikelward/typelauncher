@@ -8,7 +8,7 @@ This document summarizes the launcher's cold-open path in execution order, inclu
 2. `MainActivity.onCreate` runs on the UI thread: it calls `super.onCreate`, enables edge-to-edge, starts the `launcher_cold_start` trace, creates `LauncherAppWidgetHost` / `AppWidgetManager`, and obtains `LauncherViewModel`.
 3. `LauncherViewModel` construction synchronously reads lightweight persisted state on the UI thread:
    - `WidgetStore`: selected widget IDs and custom heights.
-   - `DockSettingsStore`: dock visibility, dock size, list mode, sort order, recents setting, notification pull-down behavior, keyboard auto-show, cached keyboard reservation, and theme mode.
+   - `DockSettingsStore`: dock visibility, dock size, list mode, sort order, hide-recents setting, keyboard auto-show, cached keyboard reservation, and theme mode.
    - `AppLaunchStatsStore`: launch counts and recents.
    - `HiddenAppStore`: hidden app IDs.
    - `DockedAppStore`: docked app IDs.

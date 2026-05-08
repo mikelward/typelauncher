@@ -88,13 +88,6 @@
     <string name="settings_app_list_sort_option_name">이름 ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">이름 ↑</string>
     <string name="settings_dock_enabled_title">독 표시</string>
-    <string name="settings_show_recents_title">최근 앱 표시</string>
-    <string name="settings_hide_recents_from_app_list_title">앱 목록에서 최근 앱 숨기기</string>
-    <string name="settings_pull_down_title">아래로 당기기</string>
-    <string name="settings_pull_down_option_none">없음</string>
-    <string name="settings_pull_down_option_system">시스템 그림자</string>
-    <string name="settings_pull_down_option_bar_below">아래 바</string>
-    <string name="settings_pull_down_option_bar_above">위 바</string>
     <string name="settings_keyboard_auto_show_title">키보드 자동 표시</string>
     <string name="settings_show_agenda_title">일정 표시</string>
     <string name="settings_theme_title">테마</string>
