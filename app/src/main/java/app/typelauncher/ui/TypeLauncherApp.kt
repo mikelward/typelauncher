@@ -998,11 +998,15 @@ private fun SwipeNavigationBox(
         }
         listOf(currentPage - 1, currentPage, currentPage + 1).forEach { page ->
             val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount, isAgendaEnabled)
-            val translationX = (page - currentPage) * pageWidthPx + carouselOffsetPx
+            // Read `carouselOffsetPx` inside the graphicsLayer lambda so the
+            // per-frame drag/settle updates run at the layer phase only — if
+            // the read happened in the composable body, every frame of a
+            // swipe would recompose all three page Boxes.
+            val baseTranslationPx = (page - currentPage) * pageWidthPx
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { this.translationX = translationX },
+                    .graphicsLayer { this.translationX = baseTranslationPx + carouselOffsetPx },
             ) {
                 if (page == currentPage || launcherPage == statePage || offscreenPagesReady) {
                     content(launcherPage, page == currentPage)
