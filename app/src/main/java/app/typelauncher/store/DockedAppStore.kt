@@ -164,6 +164,20 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Last non-navigation-bar-inclusive IME bottom inset reported while the
+     * keyboard was opening. Used to reserve Home's keyboard slot before the IME
+     * reports its next animation target, avoiding one full-height pre-keyboard
+     * frame on warm starts and carousel returns.
+     */
+    var keyboardReservationBottomPx: Int
+        get() = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_BOTTOM_PX, 0)
+        set(value) {
+            sharedPreferences.edit()
+                .putInt(KEY_KEYBOARD_RESERVATION_BOTTOM_PX, value.coerceAtLeast(0))
+                .apply()
+        }
+
+    /**
      * Controls whether Agenda participates in the carousel. Defaults to true
      * to preserve the existing three-page launcher for current users.
      */
@@ -201,6 +215,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
+        const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_THEME_MODE = "theme_mode"
     }

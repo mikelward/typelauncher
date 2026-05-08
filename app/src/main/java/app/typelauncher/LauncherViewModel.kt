@@ -151,6 +151,7 @@ internal class LauncherViewModel(
             isHideRecentsFromAppList = dockSettingsStore.isHideRecentsFromAppList,
             notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
+            keyboardReservationBottomPx = dockSettingsStore.keyboardReservationBottomPx,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
@@ -495,6 +496,14 @@ internal class LauncherViewModel(
     fun requestShowKeyboard() {
         val emitted = _keyboardShowRequests.tryEmit(Unit)
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
+    }
+
+    fun setKeyboardReservationBottomPx(bottomPx: Int) {
+        val coerced = bottomPx.coerceAtLeast(0)
+        if (_uiState.value.keyboardReservationBottomPx == coerced) return
+        dockSettingsStore.keyboardReservationBottomPx = coerced
+        _uiState.update { it.copy(keyboardReservationBottomPx = coerced) }
+        LauncherDebugLog.event("setKeyboardReservationBottomPx=$coerced")
     }
 
     fun requestShowKeyboardOnHomeResume() {
