@@ -280,7 +280,9 @@ internal fun TypeLauncherApp(
             mutableStateOf(state.keyboardReservationBottomPx)
         }
         LaunchedEffect(state.keyboardReservationBottomPx, navBottomPx) {
-            if (entryKeyboardBottomPx <= navBottomPx && state.keyboardReservationBottomPx > navBottomPx) {
+            if (state.keyboardReservationBottomPx > navBottomPx &&
+                state.keyboardReservationBottomPx > entryKeyboardBottomPx
+            ) {
                 entryKeyboardBottomPx = state.keyboardReservationBottomPx
             }
         }
