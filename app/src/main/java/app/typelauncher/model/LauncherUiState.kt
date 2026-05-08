@@ -116,6 +116,10 @@ internal data class LauncherUiState(
     // `MainActivity` applies `stateAlwaysHidden` so the keyboard stays down
     // until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
+    // Last keyboard bottom inset observed while the IME was opening. Home uses
+    // it as a pre-show reservation so the first frame can use keyboard-height
+    // geometry before Android reports the next IME animation target.
+    val keyboardReservationBottomPx: Int = 0,
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,
