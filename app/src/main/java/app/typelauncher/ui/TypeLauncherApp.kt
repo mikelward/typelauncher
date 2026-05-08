@@ -306,6 +306,12 @@ internal fun TypeLauncherApp(
         }
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
+        val primaryBottomPaddingDp = with(density) {
+            homePrimaryBottomPaddingPx(
+                keyboardReservationPx = keyboardReservationPx,
+                imeVisible = imeVisible,
+            ).toDp()
+        }
         val routeSecondaryBarsToKeyboardTray = stableTypingGeometryAvailable && keyboardReservationPx > 0
         var hasSeenImeForHomeEntry by remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown) {
             mutableStateOf(!state.isKeyboardAutoShown)
@@ -399,7 +405,7 @@ internal fun TypeLauncherApp(
                                 state = state,
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
-                                primaryBottomPadding = keyboardReservationDp,
+                                primaryBottomPadding = primaryBottomPaddingDp,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
                                 onQueryChanged = onQueryChanged,
@@ -476,6 +482,18 @@ internal fun TypeLauncherApp(
         }
     }
 }
+
+internal fun homePrimaryBottomPaddingPx(
+    keyboardReservationPx: Int,
+    imeVisible: Boolean,
+): Int =
+    if (imeVisible) {
+        // `adjustResize` has already removed the keyboard area from the root
+        // bounds. Keep cached padding for pre/post-IME states only.
+        0
+    } else {
+        keyboardReservationPx
+    }
 
 /**
  * Fires `onHomeReady` exactly once after the fresh `LauncherApps` query has

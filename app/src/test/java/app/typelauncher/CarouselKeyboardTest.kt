@@ -178,6 +178,12 @@ class CarouselKeyboardTest {
     }
 
     @Test
+    fun homePrimaryPaddingIsSkippedWhenImeIsVisibleBecauseAdjustResizeOwnsIt() {
+        assertEquals(900, homePrimaryBottomPaddingPx(keyboardReservationPx = 900, imeVisible = false))
+        assertEquals(0, homePrimaryBottomPaddingPx(keyboardReservationPx = 900, imeVisible = true))
+    }
+
+    @Test
     fun swipingBackToHomeWithAgendaDisabled_showsKeyboardOnce() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
