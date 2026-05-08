@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeLeft
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -589,5 +590,81 @@ class NotificationBarTest {
 
         composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
         composeRule.mainClock.autoAdvance = true
+    }
+
+    @Test
+    fun secondaryTrayHidesImmediatelyWhenSwipingAwayFromHome() {
+        // Repro: keyboard is up on Home, user swipes to a sibling page. The
+        // carousel hides the IME on commit but the page doesn't ack until the
+        // 220ms slide finishes — without the carousel-transitioning gate the
+        // tray flashes in for that whole window. This test exercises the same
+        // code path with a force-shown tray (recents open) so we can assert
+        // suppression takes effect on the same frame as commit, without
+        // depending on a real IME.
+        val screenState = mutableStateOf(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                recentApps = listOf(fakeApp(name = "Mail", packageName = "com.example.mail")),
+                keyboardReservationBottomPx = 900,
+                isKeyboardAutoShown = true,
+                isRecentsOpen = true,
+            ),
+        )
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = screenState.value,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {
+                        screenState.value = screenState.value.copy(
+                            screen = LauncherScreen.Widgets,
+                            isRecentsOpen = false,
+                        )
+                    },
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+        // Precondition: the tray is visible while idle on Home with recents open.
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeLeft() }
+        // Step a couple of frames so commit is processed but the 220ms
+        // animation has not finished and the page change has not acked yet.
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.mainClock.advanceTimeByFrame()
+
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
+
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+        assertEquals(LauncherScreen.Widgets, screenState.value.screen)
     }
 }
