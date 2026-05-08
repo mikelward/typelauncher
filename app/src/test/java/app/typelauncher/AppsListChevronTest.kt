@@ -44,7 +44,7 @@ class AppsListChevronTest {
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
-                    state = state,
+                    state = state.copy(isKeyboardAutoShown = false),
                     onQueryChanged = {},
                     onClearQuery = {},
                     onLaunchActiveApp = {},
