@@ -3,6 +3,7 @@ package app.typelauncher
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -351,6 +352,100 @@ class CarouselScreenSyncRaceTest {
 
         assertEquals(LauncherScreen.Agenda, state.screen)
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
+    }
+
+    @Test
+    fun swipeStartingDuringAckClaimsOncePageSettles() {
+        // Regression: a finger that touches down while the carousel is still
+        // settling from a prior swipe used to be ignored for the rest of that
+        // gesture, even after the page reached Idle mid-gesture. Subsequent
+        // moves were silently dropped because the claim check captured a
+        // false `canStartCarouselGesture` at first-down and never
+        // re-evaluated. Reported as: "scrolling sideways on the dock usually
+        // doesn't scroll if I start scrolling before the home page settles —
+        // it ignores subsequent scrolls even after the page settles."
+        var state by mutableStateOf(LauncherUiState())
+        var holdWidgetsAck = true
+        var heldWidgetsAck: LauncherScreen? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowWidgets = {
+                        if (!holdWidgetsAck) {
+                            state = state.copy(screen = LauncherScreen.Widgets)
+                        } else {
+                            heldWidgetsAck = LauncherScreen.Widgets
+                        }
+                    },
+                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val homePage = carousel.carouselVirtualPage()
+
+        // First swipe: Home -> Widgets, with the parent withholding the ack
+        // so the carousel parks in AwaitingAck.
+        carousel.performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+        assertEquals(homePage + 1, carousel.carouselVirtualPage())
+        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherScreen.Widgets, heldWidgetsAck)
+
+        // Touch down while AwaitingAck — the previous behaviour latched
+        // `canStartCarouselGesture = false` for the whole gesture here.
+        carousel.performTouchInput { down(center) }
+
+        // Release the ack mid-gesture so the carousel transitions to Idle
+        // before the user's drag and release events arrive.
+        holdWidgetsAck = false
+        state = state.copy(screen = heldWidgetsAck!!)
+        composeRule.waitForIdle()
+        assertEquals(LauncherScreen.Widgets, state.screen)
+
+        // Now drag past the 96 dp commit threshold (~252 px at this
+        // qualifier) and release. The continuation of the swipe should
+        // commit to the next page (Agenda) since the carousel reached Idle
+        // before this drag arrived.
+        carousel.performTouchInput {
+            moveBy(Offset(-700f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "A swipe started during ack must commit once the carousel reaches Idle mid-gesture",
+            homePage + 2,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherScreen.Agenda, state.screen)
     }
 
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =

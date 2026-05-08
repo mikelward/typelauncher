@@ -743,16 +743,6 @@ private fun SwipeNavigationBox(
                 awaitEachGesture {
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     val startConsumed = scrollConsumptionTracker.totalConsumed
-                    val gestureStartPage = currentPage
-                    val gestureStartLauncherPage = LauncherScreen.fromCarouselPage(
-                        gestureStartPage,
-                        widgetPageCount = widgetPageCount,
-                        isAgendaEnabled,
-                    )
-                    val canStartCarouselGesture = carouselTransition == CarouselTransitionState.Idle &&
-                        carouselAnimationJob?.isActive != true &&
-                        carouselOffsetPx == 0f &&
-                        (currentLauncherPage == gestureStartLauncherPage || allowSwipeWithUnackedScreen)
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     var rawDragX = 0f
                     var rawDragY = 0f
@@ -768,11 +758,23 @@ private fun SwipeNavigationBox(
                     // gesture, including the release event.
                     var dockDraggedDuringGesture = false
                     var carouselClaimed = false
+                    // Captured at the moment the carousel claims this gesture
+                    // (which can be later than first-down if the gesture began
+                    // during a settle). Anchoring rawDragX and re-reading the
+                    // pager's then-current page at the claim instant lets a
+                    // swipe that started while the carousel was still settling
+                    // pick up cleanly once it reaches Idle, without snapping
+                    // to wherever the finger drifted before the claim and
+                    // without committing the pre-claim drag against the old
+                    // (pre-settle) start page.
+                    var claimGestureStartPage = 0
+                    var anchorRawDragX = 0f
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
+                            val rawDragXBefore = rawDragX
                             val rawDelta = change.positionChangeIgnoreConsumed()
                             rawDragX += rawDelta.x
                             rawDragY += rawDelta.y
@@ -790,14 +792,37 @@ private fun SwipeNavigationBox(
                                     touchSlopPx = touchSlopPx,
                                 )
                             }
-                            if (owner == LauncherGestureOwner.HorizontalLauncher &&
-                                canStartCarouselGesture &&
+                            if (!carouselClaimed &&
+                                owner == LauncherGestureOwner.HorizontalLauncher &&
                                 !dockDraggedDuringGesture
                             ) {
-                                val nextDisplayedDragX = rawDragX.coerceIn(-pageWidthPx, pageWidthPx)
+                                val candidatePage = currentPage
+                                val candidateLauncherPage = LauncherScreen.fromCarouselPage(
+                                    candidatePage,
+                                    widgetPageCount = widgetPageCount,
+                                    isAgendaEnabled,
+                                )
+                                val canStartCarouselGesture =
+                                    carouselTransition == CarouselTransitionState.Idle &&
+                                        carouselAnimationJob?.isActive != true &&
+                                        carouselOffsetPx == 0f &&
+                                        (currentLauncherPage == candidateLauncherPage ||
+                                            allowSwipeWithUnackedScreen)
+                                if (canStartCarouselGesture) {
+                                    carouselClaimed = true
+                                    claimGestureStartPage = candidatePage
+                                    // Anchor at rawDragX *before* this event's delta
+                                    // so the first claimed event still moves the
+                                    // carousel by that delta, instead of being
+                                    // absorbed into the anchor and looking dropped.
+                                    anchorRawDragX = rawDragXBefore
+                                }
+                            }
+                            if (carouselClaimed) {
+                                val effectiveDragX = rawDragX - anchorRawDragX
+                                val nextDisplayedDragX = effectiveDragX.coerceIn(-pageWidthPx, pageWidthPx)
                                 carouselOffsetPx = nextDisplayedDragX
                                 displayedDragX = nextDisplayedDragX
-                                carouselClaimed = true
                                 change.consume()
                             }
                         }
@@ -807,25 +832,27 @@ private fun SwipeNavigationBox(
                         return@awaitEachGesture
                     }
 
+                    val effectiveDragX = rawDragX - anchorRawDragX
+                    val gestureStartPage = claimGestureStartPage
                     val releaseVelocity = velocityTracker.calculateVelocity().x
                     val dragDirection = when {
-                        rawDragX < 0f -> 1
-                        rawDragX > 0f -> -1
+                        effectiveDragX < 0f -> 1
+                        effectiveDragX > 0f -> -1
                         else -> 0
                     }
                     val velocityOpposesDrag = dragDirection != 0 &&
                         abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
-                        sign(releaseVelocity) == -sign(rawDragX)
-                    val distanceCommits = abs(rawDragX) >= launcherSwipeCommitDistancePx
+                        sign(releaseVelocity) == -sign(effectiveDragX)
+                    val distanceCommits = abs(effectiveDragX) >= launcherSwipeCommitDistancePx
                     val flingCommits = dragDirection != 0 &&
                         abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
-                        sign(releaseVelocity) == sign(rawDragX)
+                        sign(releaseVelocity) == sign(effectiveDragX)
                     val committed = dragDirection != 0 &&
                         !velocityOpposesDrag &&
                         (distanceCommits || flingCommits)
 
                     LauncherDebugLog.event(
-                        "SwipeNavigationBox horizontal release rawDragX=$rawDragX rawDragY=$rawDragY " +
+                        "SwipeNavigationBox horizontal release effectiveDragX=$effectiveDragX rawDragY=$rawDragY " +
                             "velocityX=$releaseVelocity " +
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
                             "velocityOpposes=$velocityOpposesDrag committed=$committed",
