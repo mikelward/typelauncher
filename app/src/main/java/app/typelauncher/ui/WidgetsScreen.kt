@@ -29,10 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -46,7 +44,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,9 +64,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -249,34 +243,20 @@ private fun WidgetPickerFilterField(
     query: String,
     onQueryChanged: (String) -> Unit,
 ) {
-    OutlinedTextField(
+    LauncherFilterField(
         value = query,
         onValueChange = onQueryChanged,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(WIDGET_PICKER_FILTER_TAG),
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        placeholder = stringResource(R.string.widgets_picker_filter_hint),
+        modifier = Modifier.testTag(WIDGET_PICKER_FILTER_TAG),
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(
+                FilterClearButton(
                     onClick = { onQueryChanged("") },
+                    contentDescription = stringResource(R.string.widgets_picker_filter_clear_description),
                     modifier = Modifier.testTag(WIDGET_PICKER_FILTER_CLEAR_TAG),
-                ) {
-                    Icon(
-                        Icons.Filled.Clear,
-                        contentDescription = stringResource(R.string.widgets_picker_filter_clear_description),
-                    )
-                }
+                )
             }
         },
-        singleLine = true,
-        placeholder = { Text(stringResource(R.string.widgets_picker_filter_hint)) },
-        textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
-        keyboardOptions = KeyboardOptions(
-            capitalization = KeyboardCapitalization.Words,
-            keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Search,
-        ),
     )
 }
 

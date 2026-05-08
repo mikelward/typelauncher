@@ -55,7 +55,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -77,7 +76,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -128,9 +126,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -319,11 +314,11 @@ private fun SearchCard(
         }
     }
     SectionCard {
-        OutlinedTextField(
+        LauncherFilterField(
             value = query,
             onValueChange = onQueryChanged,
+            placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
             modifier = Modifier
-                .fillMaxWidth()
                 .focusRequester(focusRequester)
                 .onKeyEvent { event ->
                     if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER && event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
@@ -334,12 +329,12 @@ private fun SearchCard(
                     }
                 }
                 .testTag(SEARCH_FIELD_TAG),
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = onClearQuery) {
-                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.app_search_clear_button_description))
-                    }
+                    FilterClearButton(
+                        onClick = onClearQuery,
+                        contentDescription = stringResource(R.string.app_search_clear_button_description),
+                    )
                 } else {
                     IconButton(
                         onClick = onOpenSettings,
@@ -366,16 +361,6 @@ private fun SearchCard(
                     }
                 }
             },
-            singleLine = true,
-            placeholder = {
-                Text(stringResource(R.string.app_search_hint, placeholderSuffix))
-            },
-            textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Search,
-            ),
             keyboardActions = KeyboardActions(
                 onSearch = {
                     focusManager.clearFocus(force = false)
