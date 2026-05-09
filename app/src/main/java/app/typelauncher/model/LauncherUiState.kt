@@ -223,37 +223,6 @@ internal data class LauncherUiState(
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
 )
 
-// 1 dp of slack per dock slot is reserved when sizing dock icons to absorb
-// per-child pixel rounding inside the `FlowRow` that hosts them. Each dock
-// item is rendered as `padding(4.dp) + AppIcon(iconSize.dp)`, and
-// `Density.roundToPx` rounds each of those three dimensions independently —
-// at density 2.625 (411dp/420dpi) that turns 51 dp logical into
-// 11 + 113 + 11 = 135 px per item, 1 px more than rounding `(iconSize+8).dp`
-// once would give. With six items per row the accumulated overrun exceeds
-// the natural slack and the row wraps to 5 + 1 even though dp math says 6
-// fits. The `LazyVerticalGrid.Adaptive` grid in the apps list doesn't
-// suffer the same accumulation because it distributes the row's actual
-// pixel width across `floor((avail+spacing)/(minCell+spacing))` columns.
-//
-// The slack applies asymmetrically to the slot-range bounds:
-//
-// - The **lower** bound (driven by `MAX_DOCK_APP_ICON_SIZE_DP`) is computed
-//   without slack. At the maximum icon size the user can't pick fewer slots
-//   to make icons bigger; adding slack here would let the user pick a slot
-//   count whose icon size is clamped to MAX, which would diverge from the
-//   apps list `Adaptive` grid — e.g. on a 440dp screen the slider would
-//   advertise 3 dock icons while the app list still adapts to 4 cells of
-//   the same MAX-sized icon.
-//
-// - The **upper** bound (driven by `MIN_DOCK_APP_ICON_SIZE_DP`) is computed
-//   *with* the slack so the iconSize formula can still shrink icons to
-//   absorb rounding. Without it, the slack subtraction in
-//   `dockIconSizeForSlotCount` is consumed by the clamp-to-MIN floor and
-//   the row no longer fits at typical densities — e.g. on a 392dp screen
-//   the dp math says six 40-dp icons fit, but at density 2.625 the rendered
-//   row needs 867 px in 861 px of available width.
-private const val DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP = 1
-
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
     return ((availableWidthDp + DOCK_ITEM_SPACING_DP) /
@@ -265,17 +234,13 @@ internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
     val clampedSlotCount = slotCount.coerceAtLeast(1)
     val itemChromeWidthDp = DOCK_ITEM_SPACING_DP * (clampedSlotCount - 1) +
         DOCK_ITEM_HORIZONTAL_PADDING_DP * clampedSlotCount
-    val pixelRoundingSlackDp = DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP * clampedSlotCount
-    return ((availableWidthDp - itemChromeWidthDp - pixelRoundingSlackDp) / clampedSlotCount)
+    return ((availableWidthDp - itemChromeWidthDp) / clampedSlotCount)
         .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
 }
 
 internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
-    val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
     val minSlotCount = dockSlotCountForIconSize(screenWidthDp, MAX_DOCK_APP_ICON_SIZE_DP)
-    val maxSlotCount = ((availableWidthDp + DOCK_ITEM_SPACING_DP) /
-        (MIN_DOCK_APP_ICON_SIZE_DP + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP +
-            DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP)).coerceAtLeast(1)
+    val maxSlotCount = dockSlotCountForIconSize(screenWidthDp, MIN_DOCK_APP_ICON_SIZE_DP)
     return minSlotCount..maxSlotCount
 }
 

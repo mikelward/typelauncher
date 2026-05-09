@@ -54,19 +54,17 @@ class IconOnlyGridColumnCountTest {
 
     // Regression: at v403 the dock's `FlowRow` wrapped the 6th icon to a
     // second row at 411dp/420dpi (and similar configurations) even though
-    // the dp math said six fit. Each `padding(4.dp) + AppIcon(iconSize.dp)`
-    // dock item gets three independent `Density.roundToPx` calls (left
-    // padding, icon size, right padding), and at density 2.625 the rounded
-    // sum is 1 px wider than the dp logical width. With six items per row
-    // the accumulated overrun exceeds the natural slack and the row wraps.
-    // This test simulates the rendered pixel layout at every standard
-    // Android density bucket and asserts the requested slot count fits in
-    // one row.
+    // the dp math said six fit. Each dock item used to be rendered as
+    // `padding(4.dp) + AppIcon(iconSize.dp)`, which produces three
+    // independent `Density.roundToPx` calls (left padding, icon size, right
+    // padding). At density 2.625 that turns 51 dp logical into
+    // 11 + 113 + 11 = 135 px per item — 1 px more than rounding
+    // `(iconSize+8).dp` once would give — and with six items the accumulated
+    // overrun exceeds the row width and the row wraps.
     //
-    // Per-side `4.dp` padding is treated as a separate `roundToPx` because
-    // `Modifier.padding(4.dp)` decomposes into start + end padding, and the
-    // icon size is measured separately, so each conversion rounds
-    // independently.
+    // The fix: each dock item is now a single `size((iconSize+8).dp)` box,
+    // so its width is one `roundToPx` call and accumulation is eliminated.
+    // This test verifies the single-call model fits at every density.
     @Test
     fun dockFlowRow_fitsRequestedSlotCountInOneRow_acrossDensities() {
         val itemSidePaddingDp = 4
@@ -79,9 +77,7 @@ class IconOnlyGridColumnCountTest {
                 val rowWidthDp = screenWidthDp - gridHorizontalInsetDp
 
                 for (density in standardDensities) {
-                    val itemPx = roundToPx(itemSidePaddingDp.toFloat(), density) +
-                        roundToPx(iconSizeDp.toFloat(), density) +
-                        roundToPx(itemSidePaddingDp.toFloat(), density)
+                    val itemPx = roundToPx((iconSizeDp + 2 * itemSidePaddingDp).toFloat(), density)
                     val spacingPx = roundToPx(8f, density)
                     val rowWidthPx = roundToPx(rowWidthDp.toFloat(), density)
                     val usedPx = slotCount * itemPx + (slotCount - 1) * spacingPx

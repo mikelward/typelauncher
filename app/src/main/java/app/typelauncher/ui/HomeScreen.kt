@@ -1958,12 +1958,12 @@ private fun DockedAppButton(
                 }
             },
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .semantics { contentDescription = app.displayName }
-                .padding(4.dp)
+                .size((dockIconSizeDp + 8).dp)
                 .testTag("$DOCK_APP_TAG:${app.displayName}"),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            contentAlignment = Alignment.Center,
         ) {
             AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_APP_ICON_TAG)
         }
@@ -2062,7 +2062,7 @@ private fun DockAddButton(dockIconSizeDp: Int) {
     Box(
         modifier = Modifier
             .testTag(DOCK_ADD_BUTTON_TAG)
-            .padding(4.dp),
+            .size((dockIconSizeDp + 8).dp),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
