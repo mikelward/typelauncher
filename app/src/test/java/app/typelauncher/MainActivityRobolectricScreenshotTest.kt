@@ -1899,6 +1899,43 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
+    // Regression for the v403 dock layout bug: at 411dp/420dpi the dock
+    // wrapped to 5+1 instead of fitting all 6 icons on a single row when
+    // the user picked 6 icons-per-row. The dp math said 6×51 + 5×8 = 346 dp
+    // ≤ 347 dp available, but `Density.roundToPx` rounds each `Dp` of every
+    // dock item's `padding(4.dp) + AppIcon(iconSize.dp)` independently, so
+    // the rendered per-item width was 1 px wider than the dp logical width.
+    // Six items × 1 px overrun exceeded the natural slack and `FlowRow`
+    // wrapped the trailing icon. The fix reserves 1 dp slack per slot when
+    // sizing dock icons, matching the behaviour of the apps-list
+    // `LazyVerticalGrid.Adaptive` (which divides the row's actual pixel
+    // width across columns and so doesn't accumulate per-child rounding).
+    @Test
+    fun dockFitsRequestedIconCountInOneRow_atSixSlotsAndDefaultScreen() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(6)
+        composeRule.waitForIdle()
+        val sixApps = viewModel.uiState.value.filteredApps.take(6)
+        sixApps.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+
+        assertEquals(6, viewModel.uiState.value.dockedApps.size)
+        assertEquals(6, viewModel.uiState.value.dockIconCount)
+
+        val tops = viewModel.uiState.value.dockedApps.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot().top.value
+        }
+        val firstTop = tops.first()
+        tops.forEachIndexed { index, top ->
+            assertTrue(
+                "dock icon $index should share the first row's top (firstTop=$firstTop, top=$top, allTops=$tops)",
+                kotlin.math.abs(top - firstTop) <= 1f,
+            )
+        }
+
+        saveScreenshot("compose_dock_six_slots_one_row_robolectric.png")
+    }
+
     // The trailing + button shows only when there is exactly one row and
     // it isn't full — once the user has filled a row or spanned multiple
     // rows they've learned the long-press gesture and don't need the nudge.
