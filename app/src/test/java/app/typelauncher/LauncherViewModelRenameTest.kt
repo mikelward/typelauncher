@@ -105,6 +105,34 @@ class LauncherViewModelRenameTest {
         assertEquals("Codex", restored.displayName)
     }
 
+    @Test
+    fun renameAppSurvivesProcessRestartForSearchToo() {
+        // Regression: at one point `renameApp` only mirrored `customName`
+        // onto the in-memory `installedApps` for the rename that just
+        // happened; a fresh ViewModel reloaded `installedApps` from the
+        // package manager with `customName = null`, and `markVisibility`
+        // (which runs after `filterByName`) only attached the override
+        // to the *derived* lists. So typing the saved override into the
+        // search field returned no matches even though the empty list
+        // would have rendered the renamed label. The fix applies
+        // `RenamedAppStore` overrides to `installedApps` at every load
+        // path (cached metadata, fresh load, package-event reload) so
+        // `filterByName` sees the right `displayName` on the very first
+        // call after restart.
+        seedApp("ChatGPT", "com.openai.chatgpt")
+        val initial = freshlyLoaded()
+        val target = initial.uiState.value.filteredApps.single { it.name == "ChatGPT" }
+        initial.renameApp(target, "Codex")
+
+        val reloaded = freshlyLoaded()
+        reloaded.setQuery("cod")
+        val matches = reloaded.uiState.value.filteredApps.map { it.displayName }
+        assertTrue(
+            "Search for 'cod' on a freshly-reloaded VM should find the persisted override; got $matches",
+            matches.contains("Codex"),
+        )
+    }
+
     private fun freshlyLoaded(): LauncherViewModel {
         val viewModel = LauncherViewModel(
             app = ApplicationProvider.getApplicationContext(),
