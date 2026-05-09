@@ -223,24 +223,33 @@ internal data class LauncherUiState(
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
 )
 
-// 1 dp of slack per dock slot to absorb per-child pixel rounding inside the
-// `FlowRow` that hosts dock icons. Each dock item is rendered as
-// `padding(4.dp) + AppIcon(iconSize.dp)`, and `Density.roundToPx` rounds each
-// of those three dimensions independently. At density 2.625 (411dp/420dpi)
-// that turns 51 dp logical into 11 + 113 + 11 = 135 px per item, 1 px more
-// than rounding `(iconSize+8).dp` once would give. With six items per row
-// the accumulated overrun exceeds the natural slack, so the row wraps to
-// 5 + 1 even though dp math says 6 fits. The `LazyVerticalGrid.Adaptive`
-// grid in the apps list distributes the row's actual pixel width across
-// `floor((avail+spacing)/(minCell+spacing))` columns and so doesn't suffer
-// the same accumulation.
+// 1 dp of slack per dock slot is reserved when sizing dock icons to absorb
+// per-child pixel rounding inside the `FlowRow` that hosts them. Each dock
+// item is rendered as `padding(4.dp) + AppIcon(iconSize.dp)`, and
+// `Density.roundToPx` rounds each of those three dimensions independently —
+// at density 2.625 (411dp/420dpi) that turns 51 dp logical into
+// 11 + 113 + 11 = 135 px per item, 1 px more than rounding `(iconSize+8).dp`
+// once would give. With six items per row the accumulated overrun exceeds
+// the natural slack and the row wraps to 5 + 1 even though dp math says 6
+// fits. The `LazyVerticalGrid.Adaptive` grid in the apps list doesn't
+// suffer the same accumulation because it distributes the row's actual
+// pixel width across `floor((avail+spacing)/(minCell+spacing))` columns.
+//
+// The slack is only applied to the icon size calculation. The slot-range
+// computation (`dockSlotCountForIconSize`) deliberately doesn't include it
+// because the lower bound of the range is set by `MAX_DOCK_APP_ICON_SIZE_DP`
+// — at the maximum icon size the user can't pick fewer slots to make
+// icons bigger, and adding the slack there would let the user pick a slot
+// count whose icon size is clamped to MAX, which would diverge from the
+// apps list `Adaptive` grid (e.g. on a 440dp screen the slider would let
+// the user request 3 dock icons while the app list still adapts to 4 cells
+// of the same MAX-sized icon).
 private const val DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP = 1
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
     return ((availableWidthDp + DOCK_ITEM_SPACING_DP) /
-        (iconSizeDp + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP +
-            DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP)).coerceAtLeast(1)
+        (iconSizeDp + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP)).coerceAtLeast(1)
 }
 
 internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
