@@ -207,3 +207,27 @@ private fun pickDisambiguator(remainingTail: List<String>): String {
     val regional = remainingTail.firstOrNull { it.lowercase() in REGIONAL_MARKERS }
     return regional?.uppercase().orEmpty()
 }
+
+/**
+ * Parses a recognised regional badge tag from the trailing whitespace-
+ * separated token of a user-supplied display label, normalising surrounding
+ * punctuation so "Chase (US)", "Chase US", and "Chase US " all map to "US".
+ * Returns the upper-cased tag if it matches a country code (the same
+ * [COUNTRY_CODES] set the auto-disambiguator uses, plus the colloquial "uk"
+ * alias) or "intl"; returns `null` otherwise. Used by [InstalledApp.
+ * effectiveDisambiguator] so that renaming an app to e.g. "Chase (US)"
+ * surfaces a US flag badge instead of silently retaining whatever badge the
+ * auto-disambiguator computed from the original label.
+ */
+internal fun parseTrailingDisambiguatorTag(label: String): String? {
+    val trimmed = label.trim()
+    if (trimmed.isEmpty()) return null
+    val lastToken = trimmed.split(Regex("\\s+")).last()
+        .trim('(', ')', '[', ']', '-', '–', '—')
+        .trim()
+    if (lastToken.isEmpty()) return null
+    val normalized = lastToken.lowercase()
+    if (normalized in REGIONAL_MARKERS) return normalized.uppercase()
+    if (normalized in COUNTRY_CODES) return normalized.uppercase()
+    return null
+}

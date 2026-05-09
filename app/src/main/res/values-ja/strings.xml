@@ -38,9 +38,17 @@
     <string name="app_menu_dock">ドック</string>
     <string name="app_menu_undock">ドックから外す</string>
     <string name="app_menu_reset_rank">ランクをリセット</string>
+    <string name="app_menu_edit">編集</string>
     <string name="app_menu_hide">非表示</string>
     <string name="app_menu_dismiss">閉じる</string>
     <string name="app_menu_settings">設定</string>
+    <string name="edit_app_dialog_title">アプリを編集</string>
+    <string name="edit_app_dialog_label">表示名</string>
+    <string name="edit_app_dialog_original">元の名前: %1$s</string>
+    <string name="edit_app_dialog_package">パッケージ: %1$s</string>
+    <string name="edit_app_dialog_save">保存</string>
+    <string name="edit_app_dialog_cancel">キャンセル</string>
+    <string name="edit_app_dialog_restore">既定にリセット</string>
     <string name="widgets_add_button_description">ウィジェットを追加</string>
     <string name="widgets_picker_title">ウィジェットを追加</string>
     <string name="widgets_picker_subtitle">ホーム画面のウィジェットを選択</string>

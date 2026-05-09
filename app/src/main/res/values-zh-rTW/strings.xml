@@ -38,9 +38,17 @@
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">從 Dock 移除</string>
     <string name="app_menu_reset_rank">重設排名</string>
+    <string name="app_menu_edit">編輯</string>
     <string name="app_menu_hide">隱藏</string>
     <string name="app_menu_dismiss">關閉</string>
     <string name="app_menu_settings">設定</string>
+    <string name="edit_app_dialog_title">編輯應用程式</string>
+    <string name="edit_app_dialog_label">顯示名稱</string>
+    <string name="edit_app_dialog_original">原始名稱：%1$s</string>
+    <string name="edit_app_dialog_package">套件：%1$s</string>
+    <string name="edit_app_dialog_save">儲存</string>
+    <string name="edit_app_dialog_cancel">取消</string>
+    <string name="edit_app_dialog_restore">還原預設值</string>
     <string name="widgets_add_button_description">新增小工具</string>
     <string name="widgets_picker_title">新增小工具</string>
     <string name="widgets_picker_subtitle">為主畫面選擇小工具</string>

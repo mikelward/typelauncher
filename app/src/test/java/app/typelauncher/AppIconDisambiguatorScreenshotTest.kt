@@ -154,6 +154,7 @@ class AppIconDisambiguatorScreenshotTest {
                         "widgets",
                         "app_metadata",
                         "hidden_apps",
+                        "renamed_apps",
                     ).forEach { name ->
                         application.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
                             .edit().clear().commit()

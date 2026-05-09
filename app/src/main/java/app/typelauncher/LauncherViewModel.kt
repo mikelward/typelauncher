@@ -52,6 +52,7 @@ internal class LauncherViewModel(
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val hiddenAppStore = HiddenAppStore(app)
+    private val renamedAppStore = RenamedAppStore(app)
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
@@ -904,6 +905,44 @@ internal class LauncherViewModel(
         logState("unhideApp")
     }
 
+    /**
+     * Sets a user-supplied display label for [app] that overrides the system-
+     * provided launcher name everywhere in the UI and in typed search. Passing
+     * a blank string, or one that matches the app's original [InstalledApp.
+     * name], clears any existing override (so the app reverts to whatever the
+     * system reports). The override is keyed by [InstalledApp.id], so it
+     * survives package upgrades but a fresh install (which produces a new
+     * component) starts from the system label again.
+     */
+    fun renameApp(app: InstalledApp, newName: String) {
+        val trimmed = newName.trim()
+        val effective: String? = if (trimmed.isEmpty() || trimmed == app.name) {
+            LauncherDebugLog.event("renameApp clear package=${app.packageName}")
+            renamedAppStore.clear(app.id)
+            null
+        } else {
+            LauncherDebugLog.event("renameApp package=${app.packageName} length=${trimmed.length}")
+            renamedAppStore.rename(app.id, trimmed)
+            trimmed
+        }
+        // Mirror the override onto the master installed-app list so the next
+        // `filterByName` (which sorts and matches against `displayName`) sees
+        // the new label. `markVisibility` later re-applies the same value when
+        // it copies isDocked / isHidden / customName onto each derived list,
+        // but it runs *after* `filterByName` — without this in-place patch,
+        // typing the override into the search field returns no matches until
+        // the next reload re-derives `displayName`.
+        installedApps = installedApps.map { existing ->
+            if (existing.id == app.id && existing.customName != effective) {
+                existing.copy(customName = effective)
+            } else {
+                existing
+            }
+        }
+        refreshLists()
+        logState("renameApp")
+    }
+
     fun addWidget(appWidgetId: Int) {
         val placement = pendingWidgetPlacement ?: PendingWidgetPlacement(
             pageIndex = _uiState.value.currentWidgetPage,
@@ -1439,10 +1478,11 @@ internal class LauncherViewModel(
         map { app ->
             val isDocked = dockedAppStore.contains(app.id)
             val isHidden = hiddenAppStore.contains(app.id)
-            if (app.isDocked == isDocked && app.isHidden == isHidden) {
+            val customName = renamedAppStore.customNameFor(app.id)
+            if (app.isDocked == isDocked && app.isHidden == isHidden && app.customName == customName) {
                 app
             } else {
-                app.copy(isDocked = isDocked, isHidden = isHidden)
+                app.copy(isDocked = isDocked, isHidden = isHidden, customName = customName)
             }
         }
 
