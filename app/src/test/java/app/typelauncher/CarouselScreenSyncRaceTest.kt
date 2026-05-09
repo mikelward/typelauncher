@@ -1,5 +1,7 @@
 package app.typelauncher
 
+import android.content.Intent
+import android.os.Process
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -21,6 +23,16 @@ import org.robolectric.annotation.Config
 class CarouselScreenSyncRaceTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    private fun fakeApp(name: String): InstalledApp =
+        InstalledApp(
+            name = name,
+            packageName = "app.typelauncher.fake.$name",
+            launchIntent = Intent(),
+            user = Process.myUserHandle(),
+            isWorkApp = false,
+            launchWithLauncherApps = false,
+        )
 
     @Test
     fun secondSwipeBeforeWidgetsAckDoesNotAdvancePastWidgets() {
@@ -452,6 +464,182 @@ class CarouselScreenSyncRaceTest {
             carousel.carouselVirtualPage(),
         )
         assertEquals(LauncherScreen.Agenda, state.screen)
+    }
+
+    @Test
+    fun dockSwipeStartingDuringExternalHomeSettleClaimsOnceHomeSettles() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+        )
+        var state by mutableStateOf(
+            LauncherUiState(
+                screen = LauncherScreen.Widgets,
+                filteredApps = emptyList(),
+                dockedApps = docked,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
+                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val widgetsPage = carousel.carouselVirtualPage()
+
+        composeRule.mainClock.autoAdvance = false
+        state = state.copy(screen = LauncherScreen.Home)
+        composeRule.mainClock.advanceTimeByFrame()
+
+        val dockApp = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01")
+        dockApp.performTouchInput { down(center) }
+
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(widgetsPage - 1, carousel.carouselVirtualPage())
+
+        dockApp.performTouchInput {
+            moveBy(Offset(-700f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "A dock swipe started during Home settle must commit once Home reaches Idle",
+            widgetsPage,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherScreen.Widgets, state.screen)
+    }
+
+    @Test
+    fun dockSwipeStartingDuringHomeAckClaimsOnceHomeAckArrives() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+        )
+        var state by mutableStateOf(
+            LauncherUiState(
+                screen = LauncherScreen.Widgets,
+                filteredApps = emptyList(),
+                dockedApps = docked,
+            ),
+        )
+        var holdHomeAck = true
+        var heldHomeAck: LauncherScreen? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
+                    onShowHome = {
+                        if (!holdHomeAck) {
+                            state = state.copy(screen = LauncherScreen.Home)
+                        } else {
+                            heldHomeAck = LauncherScreen.Home
+                        }
+                    },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val widgetsPage = carousel.carouselVirtualPage()
+
+        carousel.performTouchInput {
+            down(center)
+            moveBy(Offset(700f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+        assertEquals(widgetsPage - 1, carousel.carouselVirtualPage())
+        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherScreen.Home, heldHomeAck)
+
+        val dockApp = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01")
+        dockApp.performTouchInput { down(center) }
+
+        holdHomeAck = false
+        state = state.copy(screen = heldHomeAck!!)
+        composeRule.waitForIdle()
+        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(widgetsPage - 1, carousel.carouselVirtualPage())
+
+        dockApp.performTouchInput {
+            moveBy(Offset(-700f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "A dock swipe started while Home ack is pending must commit once Home reaches Idle",
+            widgetsPage,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherScreen.Widgets, state.screen)
     }
 
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
