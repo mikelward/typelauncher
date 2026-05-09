@@ -2,6 +2,10 @@ package app.typelauncher
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
+import android.content.ActivityNotFoundException
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -47,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -118,6 +123,18 @@ private val CarouselPageAnimationSpec = tween<Float>(
     easing = FastOutSlowInEasing,
 )
 
+// MIME types offered to `ActivityResultContracts.OpenDocument` when the user
+// chooses an icon override. Limited to the formats `AppIconLoader` can decode:
+// raster (PNG / JPEG / WEBP) via `BitmapFactory` and SVG via AndroidSVG.
+// `image/svg+xml` is enumerated explicitly because Android's media providers
+// don't always include SVG when only `image/*` is requested.
+private val ICON_PICKER_MIME_TYPES = arrayOf(
+    "image/svg+xml",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+)
+
 private var SemanticsPropertyReceiver.carouselVirtualPage by CarouselVirtualPageKey
 
 @Composable
@@ -151,6 +168,22 @@ internal fun TypeLauncherApp(
     // observer for the same event because it would refresh permission-driven UI twice
     // per resume.
 
+    val context = LocalContext.current
+    // The system file picker runs out-of-process, so the result lands in this
+    // composable's scope rather than the dialog's. The pending app id is held
+    // here so the chosen URI can be routed back to the right `InstalledApp`
+    // without making the picker callback re-look up by id from `state`.
+    var pendingIconPickApp by remember { mutableStateOf<InstalledApp?>(null) }
+    val iconPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        val targetApp = pendingIconPickApp
+        pendingIconPickApp = null
+        if (uri != null && targetApp != null) {
+            viewModel.setAppIconOverride(targetApp, uri)
+        }
+    }
+
     TypeLauncherApp(
         state = state,
         onQueryChanged = viewModel::setQuery,
@@ -162,6 +195,20 @@ internal fun TypeLauncherApp(
         onReorderDock = viewModel::reorderDockedApps,
         onResetRank = viewModel::resetRank,
         onRenameApp = viewModel::renameApp,
+        onSetAppIconOverride = { app ->
+            pendingIconPickApp = app
+            try {
+                iconPickerLauncher.launch(ICON_PICKER_MIME_TYPES)
+            } catch (_: ActivityNotFoundException) {
+                pendingIconPickApp = null
+                Toast.makeText(
+                    context,
+                    R.string.edit_app_dialog_pick_icon_unavailable,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        },
+        onClearAppIconOverride = viewModel::clearAppIconOverride,
         onHideApp = viewModel::hideApp,
         onUnhideApp = viewModel::unhideApp,
         onDismissRecent = viewModel::removeRecent,
@@ -217,6 +264,8 @@ internal fun TypeLauncherApp(
     onReorderDock: (Int, Int) -> Unit = { _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit = {},
@@ -543,6 +592,8 @@ internal fun TypeLauncherApp(
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
                         onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
                         onHideApp = onHideApp,
                         onUnhideApp = onUnhideApp,
                         onOpenLauncherAppInfo = onOpenLauncherAppInfo,
@@ -613,6 +664,8 @@ internal fun TypeLauncherApp(
                                 onReorderDock = onReorderDock,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
                                 onHideApp = onHideApp,
                                 onDismissRecent = onDismissRecent,
                                 onDismissNotifications = onDismissNotifications,

@@ -49,6 +49,9 @@
     <string name="edit_app_dialog_save">Speichern</string>
     <string name="edit_app_dialog_cancel">Abbrechen</string>
     <string name="edit_app_dialog_restore">Standard wiederherstellen</string>
+    <string name="edit_app_dialog_choose_icon">Symbol auswählen</string>
+    <string name="edit_app_dialog_clear_icon">Standardsymbol verwenden</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">Keine App zum Auswählen eines Symbols verfügbar</string>
     <string name="widgets_add_button_description">Widget hinzufügen</string>
     <string name="widgets_picker_title">Widget hinzufügen</string>
     <string name="widgets_picker_subtitle">Widget für den Startbildschirm auswählen</string>

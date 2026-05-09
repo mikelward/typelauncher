@@ -49,6 +49,9 @@
     <string name="edit_app_dialog_save">Salva</string>
     <string name="edit_app_dialog_cancel">Annulla</string>
     <string name="edit_app_dialog_restore">Ripristina predefiniti</string>
+    <string name="edit_app_dialog_choose_icon">Scegli icona</string>
+    <string name="edit_app_dialog_clear_icon">Usa icona predefinita</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">Nessuna app disponibile per scegliere un\'icona</string>
     <string name="widgets_add_button_description">Aggiungi widget</string>
     <string name="widgets_picker_title">Aggiungi widget</string>
     <string name="widgets_picker_subtitle">Scegli un widget per la schermata principale</string>

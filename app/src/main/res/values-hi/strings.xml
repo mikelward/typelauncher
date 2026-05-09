@@ -49,6 +49,9 @@
     <string name="edit_app_dialog_save">सेव करें</string>
     <string name="edit_app_dialog_cancel">रद्द करें</string>
     <string name="edit_app_dialog_restore">डिफ़ॉल्ट रीसेट करें</string>
+    <string name="edit_app_dialog_choose_icon">आइकन चुनें</string>
+    <string name="edit_app_dialog_clear_icon">डिफ़ॉल्ट आइकन का उपयोग करें</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">आइकन चुनने के लिए कोई ऐप उपलब्ध नहीं है</string>
     <string name="widgets_add_button_description">विजेट जोड़ें</string>
     <string name="widgets_picker_title">विजेट जोड़ें</string>
     <string name="widgets_picker_subtitle">होम स्क्रीन के लिए विजेट चुनें</string>

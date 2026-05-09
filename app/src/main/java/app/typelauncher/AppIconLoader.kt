@@ -3,11 +3,16 @@ package app.typelauncher
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.os.UserHandle
 import android.util.LruCache
 import androidx.compose.runtime.Composable
+import com.caverock.androidsvg.SVG
+import java.io.File
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -136,6 +141,26 @@ internal object AppIconLoader {
         app: InstalledApp,
         sizePx: Int,
     ): ImageBitmap? = traceBlock("app_icon_load") { trace ->
+        // User-supplied override wins over the system icon. Decoded directly
+        // to a sized bitmap (no Drawable wrapper) so an SVG renders crisply
+        // at the requested size instead of being rasterised at its document
+        // size and then scaled, and so a large source image is sub-sampled
+        // straight to roughly the target dimensions.
+        app.customIconPath?.let { path ->
+            val file = File(path)
+            if (file.isFile) {
+                val overrideStart = SystemClock.elapsedRealtime()
+                val override = withContext(Dispatchers.IO) { decodeOverrideBitmap(file, sizePx) }
+                trace.incrementMetric("override_ms", SystemClock.elapsedRealtime() - overrideStart)
+                if (override != null) {
+                    trace.setAttribute("result", "override")
+                    return@traceBlock override.asImageBitmap()
+                }
+                trace.setAttribute("override_result", "decode_failed")
+            } else {
+                trace.setAttribute("override_result", "missing_file")
+            }
+        }
         val resolveStart = SystemClock.elapsedRealtime()
         val drawable = withContext(Dispatchers.IO) { resolve(context, app) }
         trace.incrementMetric("resolve_ms", SystemClock.elapsedRealtime() - resolveStart)
@@ -150,6 +175,60 @@ internal object AppIconLoader {
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")
         bitmap
+    }
+
+    private fun decodeOverrideBitmap(file: File, sizePx: Int): Bitmap? = try {
+        if (file.extension.equals("svg", ignoreCase = true)) {
+            renderSvgToBitmap(file, sizePx)
+        } else {
+            decodeRasterToSquareBitmap(file, sizePx)
+        }
+    } catch (t: Throwable) {
+        LauncherDebugLog.event(
+            "AppIconLoader override decode failed path=${file.name} err=${t.javaClass.simpleName}",
+        )
+        null
+    }
+
+    private fun renderSvgToBitmap(file: File, sizePx: Int): Bitmap {
+        val svg = file.inputStream().use { input -> SVG.getFromInputStream(input) }
+        // Override the SVG's intrinsic dimensions so `renderToCanvas` scales
+        // the document into the entire `sizePx × sizePx` target instead of
+        // honouring whatever size the original document declared. Use the
+        // explicit float setters because AndroidSVG also overloads them with
+        // a `String` variant — Kotlin property syntax becomes ambiguous.
+        svg.setDocumentWidth(sizePx.toFloat())
+        svg.setDocumentHeight(sizePx.toFloat())
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        svg.renderToCanvas(Canvas(bitmap))
+        return bitmap
+    }
+
+    private fun decodeRasterToSquareBitmap(file: File, sizePx: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = computeInSampleSize(bounds.outWidth, bounds.outHeight, sizePx)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        val raw = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return null
+        if (raw.width == sizePx && raw.height == sizePx) return raw
+        val scaled = Bitmap.createScaledBitmap(raw, sizePx, sizePx, /* filter = */ true)
+        if (scaled !== raw) raw.recycle()
+        return scaled
+    }
+
+    private fun computeInSampleSize(srcWidth: Int, srcHeight: Int, targetPx: Int): Int {
+        if (targetPx <= 0) return 1
+        var sample = 1
+        // Halve until both axes are within ~2× of the target. Powers-of-two
+        // keep `BitmapFactory`'s decoder on its fast path; any residual
+        // mismatch is cleaned up by `createScaledBitmap` afterwards.
+        while ((srcHeight / sample) > targetPx * 2 && (srcWidth / sample) > targetPx * 2) {
+            sample *= 2
+        }
+        return sample
     }
 
     fun put(id: String, sizePx: Int, bitmap: ImageBitmap) {

@@ -49,6 +49,9 @@
     <string name="edit_app_dialog_save">保存</string>
     <string name="edit_app_dialog_cancel">取消</string>
     <string name="edit_app_dialog_restore">恢复默认</string>
+    <string name="edit_app_dialog_choose_icon">选择图标</string>
+    <string name="edit_app_dialog_clear_icon">使用默认图标</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">没有可用于选择图标的应用</string>
     <string name="widgets_add_button_description">添加小部件</string>
     <string name="widgets_picker_title">添加小部件</string>
     <string name="widgets_picker_subtitle">选择主屏幕的小部件</string>
