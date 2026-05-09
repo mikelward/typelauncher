@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -98,6 +100,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -109,6 +112,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -142,9 +146,10 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun HomeScreen(
     state: LauncherUiState,
@@ -176,7 +181,16 @@ internal fun HomeScreen(
 ) {
     val configuration = LocalConfiguration.current
     val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
-    Column(
+    // Custom Layout (not Column) so the dock's max-height constraint is
+    // derived from the actual measured search-card height in the same
+    // measurement pass. A `Column { weight(1f) }` plus state-tracked search
+    // height would either jitter for a frame or rely on Compose's
+    // state-batching to update both `bodyReady` and the height in time. The
+    // measurement order here — search → dock-with-cap → apps-with-remainder —
+    // makes the apps-list minimum a hard constraint that the dock can never
+    // squeeze, regardless of how many apps the user has docked.
+    val isDockSlotPresent = bodyReady && state.isDockEnabled
+    Layout(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -184,45 +198,54 @@ internal fun HomeScreen(
             .padding(innerPadding)
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
             .testTag(HOME_SCREEN_TAG),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        SearchCard(
-            query = state.query,
-            autoShowKeyboard = state.isKeyboardAutoShown && state.screen == LauncherScreen.Home,
-            showPlayUpdateBadge = state.playUpdate.showBadge,
-            placeholderSuffix = searchPlaceholderSuffix,
-            keyboardShowRequests = keyboardShowRequests,
-            onQueryChanged = onQueryChanged,
-            onClearQuery = onClearQuery,
-            onOpenSettings = onOpenSettings,
-            onLaunchActiveApp = onLaunchActiveApp,
-        )
-        // `bodyReady` flips one frame after TypeLauncherApp first composes,
-        // and stays true for the lifetime of the activity composition: the
-        // holdback is a cold-start optimisation, not a per-mount one. See the
-        // comment on `homeBodyReady` in TypeLauncherApp for the why.
-        if (bodyReady) {
-            AppsCard(
-                apps = state.filteredApps,
-                isLoading = state.isLoadingApps,
-                dockLimit = Int.MAX_VALUE,
-                isIconOnly = state.isAppListIconOnly,
-                iconSizeDp = dockIconSizeDp,
-                highlightFirst = state.query.isNotBlank(),
-                reverseLayout = state.appListSortOrder.isReversed,
-                scrollResetKey = state.query,
-                modifier = Modifier.weight(1f),
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onRenameApp = onRenameApp,
-                onSetAppIconOverride = onSetAppIconOverride,
-                onClearAppIconOverride = onClearAppIconOverride,
-                onHideApp = onHideApp,
-                onAppListBoundsChanged = onAppListBoundsChanged,
+        content = {
+            // Index 0: search card (always present).
+            SearchCard(
+                query = state.query,
+                autoShowKeyboard = state.isKeyboardAutoShown && state.screen == LauncherScreen.Home,
+                showPlayUpdateBadge = state.playUpdate.showBadge,
+                placeholderSuffix = searchPlaceholderSuffix,
+                keyboardShowRequests = keyboardShowRequests,
+                onQueryChanged = onQueryChanged,
+                onClearQuery = onClearQuery,
+                onOpenSettings = onOpenSettings,
+                onLaunchActiveApp = onLaunchActiveApp,
             )
-            if (state.isDockEnabled) {
+            // Index 1: apps card OR a placeholder spacer that fills the
+            // remaining space during the cold-start holdback so the search
+            // card stays pinned to the top.
+            // `bodyReady` flips one frame after TypeLauncherApp first
+            // composes and stays true for the lifetime of the activity
+            // composition; the holdback is a cold-start optimisation, not
+            // a per-mount one. See the comment on `homeBodyReady` in
+            // TypeLauncherApp for the why.
+            if (bodyReady) {
+                AppsCard(
+                    apps = state.filteredApps,
+                    isLoading = state.isLoadingApps,
+                    dockLimit = Int.MAX_VALUE,
+                    isIconOnly = state.isAppListIconOnly,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = state.query.isNotBlank(),
+                    reverseLayout = state.appListSortOrder.isReversed,
+                    scrollResetKey = state.query,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onRenameApp = onRenameApp,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
+                    onHideApp = onHideApp,
+                    onAppListBoundsChanged = onAppListBoundsChanged,
+                )
+            } else {
+                Spacer(modifier = Modifier.fillMaxSize())
+            }
+            // Index 2: dock card OR a zero-size spacer when the dock is
+            // disabled or the home body isn't ready yet. Always emitted so
+            // index 2 is stable.
+            if (isDockSlotPresent) {
                 DockCard(
                     dockedApps = state.dockedApps,
                     dockIconSizeDp = dockIconSizeDp,
@@ -238,11 +261,44 @@ internal fun HomeScreen(
                     onHideApp = onHideApp,
                     onDragStateChanged = onDockDragChanged,
                 )
+            } else {
+                Spacer(modifier = Modifier.size(0.dp))
             }
+        },
+    ) { measurables, constraints ->
+        val spacingPx = 16.dp.roundToPx()
+        // Reserve at least APP_LIST_MIN_VISIBLE_ROWS rows for the apps list.
+        // Each app-list row is ≈ dockIconSizeDp + 2 * DOCK_ITEM_SPACING_DP
+        // (icon-only mode); text rows are 56dp regardless of icon size, and
+        // the floor here is the larger of the two so neither layout mode is
+        // squeezed.
+        val appRowHeightPx = (dockIconSizeDp + DOCK_ITEM_SPACING_DP * 2).dp.roundToPx()
+        val appListMinPx = APP_LIST_MIN_VISIBLE_ROWS * appRowHeightPx
+
+        val search = measurables[0].measure(
+            constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
+        )
+        val belowSearch = (constraints.maxHeight - search.height - spacingPx).coerceAtLeast(0)
+        val dockMaxPx = if (isDockSlotPresent) {
+            (belowSearch - appListMinPx - spacingPx).coerceAtLeast(0)
         } else {
-            // Reserve the remaining vertical space so SearchCard stays pinned
-            // to the top of the screen during the one-frame holdback.
-            Spacer(modifier = Modifier.weight(1f))
+            0
+        }
+        val dock = measurables[2].measure(
+            constraints.copy(minHeight = 0, maxHeight = dockMaxPx),
+        )
+        val dockSpacingPx = if (dock.height > 0) spacingPx else 0
+        val appHeight = (belowSearch - dock.height - dockSpacingPx).coerceAtLeast(0)
+        val apps = measurables[1].measure(
+            constraints.copy(minHeight = appHeight, maxHeight = appHeight),
+        )
+
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            search.place(0, 0)
+            apps.place(0, search.height + spacingPx)
+            if (dock.height > 0) {
+                dock.place(0, search.height + spacingPx + apps.height + spacingPx)
+            }
         }
     }
 }
@@ -385,6 +441,7 @@ private fun SearchCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
@@ -405,20 +462,28 @@ private fun DockCard(
     // Drag-to-reorder state is hoisted here so neighbouring icons can read
     // each other's slot centres and trigger swaps when the dragged icon's
     // centre crosses an adjacent slot. `slotCenters` is keyed by app id, so
-    // it survives reorders that change positional indices.
+    // it survives reorders that change positional indices. The offsets are
+    // 2D so reorder works across the wrapped FlowRow's row boundaries.
     var draggedAppId by remember { mutableStateOf<String?>(null) }
-    var dragOffsetX by remember { mutableStateOf(0f) }
-    val slotCenters = remember { mutableStateMapOf<String, Float>() }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val slotCenters = remember { mutableStateMapOf<String, Offset>() }
     val latestDockedApps by rememberUpdatedState(dockedApps)
     val latestOnReorderDock by rememberUpdatedState(onReorderDock)
     val latestOnDragStateChanged by rememberUpdatedState(onDragStateChanged)
+    val scrollState = rememberScrollState()
 
     SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
-        ScrollableIconRow(
-            rowModifier = Modifier.testTag(DOCK_LIST_TAG),
-            startChevronTestTag = DOCK_SCROLL_START_CHEVRON_TAG,
-            endChevronTestTag = DOCK_SCROLL_END_CHEVRON_TAG,
-            chevronContentDescription = stringResource(R.string.dock_scroll_more_hint),
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .testTag(DOCK_LIST_TAG),
+            horizontalArrangement = Arrangement.spacedBy(
+                DOCK_ITEM_SPACING_DP.dp,
+                Alignment.CenterHorizontally,
+            ),
+            verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            maxItemsInEachRow = dockIconCount.coerceAtLeast(1),
         ) {
             // `key(app.id)` keeps each DockedAppButton's Compose identity tied
             // to the app, not the slot — so a reorder mid-drag moves the same
@@ -430,7 +495,7 @@ private fun DockCard(
                         app = app,
                         dockIconSizeDp = dockIconSizeDp,
                         isDragged = draggedAppId == app.id,
-                        dragOffsetX = if (draggedAppId == app.id) dragOffsetX else 0f,
+                        dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -442,33 +507,42 @@ private fun DockCard(
                         onReportSlotCenter = { center -> slotCenters[app.id] = center },
                         onDragStart = {
                             draggedAppId = app.id
-                            dragOffsetX = 0f
+                            dragOffset = Offset.Zero
                             // Tell the launcher's outer gesture surface that
                             // a reorder is in flight, so the carousel does
                             // not also try to claim the same horizontal
                             // motion and page Home → Widgets/Agenda.
                             latestOnDragStateChanged(true)
                         },
-                        onDrag = { dx ->
+                        onDrag = { delta ->
                             handleDockDrag(
-                                dx = dx,
+                                delta = delta,
                                 draggedAppId = draggedAppId,
                                 currentDockedApps = latestDockedApps,
                                 slotCenters = slotCenters,
                                 onReorder = latestOnReorderDock,
-                                currentOffset = dragOffsetX,
-                                setOffset = { dragOffsetX = it },
+                                currentOffset = dragOffset,
+                                setOffset = { dragOffset = it },
                             )
                         },
                         onDragEnd = {
                             draggedAppId = null
-                            dragOffsetX = 0f
+                            dragOffset = Offset.Zero
                             latestOnDragStateChanged(false)
                         },
                     )
                 }
             }
-            if (dockedApps.size < dockIconCount) {
+            // Show the trailing add affordance whenever the wrapped grid has
+            // at least one empty cell. Empty cells appear when
+            // `dockedApps.size` isn't an exact multiple of `dockIconCount`,
+            // so adding the + button lands it inside the existing bottom row
+            // rather than forcing an extra empty row of its own.
+            val rowCount = ceil(
+                dockedApps.size.toFloat() / dockIconCount.coerceAtLeast(1),
+            ).toInt().coerceAtLeast(1)
+            val totalCells = rowCount * dockIconCount.coerceAtLeast(1)
+            if (dockedApps.size < totalCells) {
                 DockAddButton(dockIconSizeDp = dockIconSizeDp)
             }
         }
@@ -476,53 +550,84 @@ private fun DockCard(
 }
 
 /**
- * Walks the dock list and fires [onReorder] for every adjacent slot whose
- * centre the dragged icon's centre crossed in this single drag step. The
- * dragged-app's offset is rebased on each crossing so the icon stays
- * visually under the finger as the persisted order updates underneath.
+ * Walks the dock list and fires [onReorder] when the dragged icon has both
+ * (a) been pushed in the direction of an adjacent flat-list neighbour and
+ * (b) crossed the perpendicular bisector between its current effective
+ * slot and that neighbour. The dragged app's offset is rebased on each
+ * crossing so the icon stays visually under the finger as the persisted
+ * order updates underneath.
+ *
+ * Adjacency is taken from the *flat* docked list (`workingIndex - 1` and
+ * `workingIndex + 1`). Under FlowRow wrapping, the next flat-list
+ * neighbour after the last icon of row N is the first icon of row N+1, so
+ * the candidate vector for "forward" at the row boundary points
+ * diagonally down-left. The candidate is picked by the highest normalised
+ * dot product of `newOffset` against `(candidateCenter - effectiveOwn)`,
+ * so a diagonal-down-left drag at the end of a row prefers the next-row
+ * candidate over the geometrically-closer same-row previous neighbour
+ * (which is in the opposite direction of the drag). The bisector test is
+ * applied after the directional pick — without it the icon would jump as
+ * soon as the user starts moving even if the finger hasn't yet reached
+ * the half-way point.
  *
  * `currentDockedApps` is captured at the start of the call and intentionally
  * not re-read across iterations: each reorder only shifts the dragged app,
  * so the unaffected neighbours keep their old indices and we can keep
- * walking with the same list.
+ * walking with the same list. `effectiveOwnCenter` follows the dragged app
+ * across swaps within a single call so the bisector test stays correctly
+ * anchored even before Compose recomposes the new layout.
  */
 private fun handleDockDrag(
-    dx: Float,
+    delta: Offset,
     draggedAppId: String?,
     currentDockedApps: List<InstalledApp>,
-    slotCenters: Map<String, Float>,
+    slotCenters: Map<String, Offset>,
     onReorder: (Int, Int) -> Unit,
-    currentOffset: Float,
-    setOffset: (Float) -> Unit,
+    currentOffset: Offset,
+    setOffset: (Offset) -> Unit,
 ) {
     if (draggedAppId == null) return
     var workingIndex = currentDockedApps.indexOfFirst { it.id == draggedAppId }
     if (workingIndex < 0) return
-    var newOffset = currentOffset + dx
+    var newOffset = currentOffset + delta
+    var effectiveOwnCenter = slotCenters[draggedAppId] ?: run {
+        setOffset(newOffset)
+        return
+    }
+
     while (true) {
-        val ownCenter = slotCenters[draggedAppId] ?: break
-        val draggedCenter = ownCenter + newOffset
-        var swapped = false
-        if (newOffset > 0f && workingIndex < currentDockedApps.lastIndex) {
-            val neighbour = currentDockedApps[workingIndex + 1]
-            val neighbourCenter = slotCenters[neighbour.id]
-            if (neighbourCenter != null && draggedCenter > neighbourCenter) {
-                onReorder(workingIndex, workingIndex + 1)
-                newOffset += (ownCenter - neighbourCenter)
-                workingIndex += 1
-                swapped = true
-            }
-        } else if (newOffset < 0f && workingIndex > 0) {
-            val neighbour = currentDockedApps[workingIndex - 1]
-            val neighbourCenter = slotCenters[neighbour.id]
-            if (neighbourCenter != null && draggedCenter < neighbourCenter) {
-                onReorder(workingIndex, workingIndex - 1)
-                newOffset += (ownCenter - neighbourCenter)
-                workingIndex -= 1
-                swapped = true
+        val draggedCenter = effectiveOwnCenter + newOffset
+        val candidates = listOfNotNull(
+            (workingIndex - 1).takeIf { it >= 0 },
+            (workingIndex + 1).takeIf { it <= currentDockedApps.lastIndex },
+        )
+        var bestCandidate: Pair<Int, Offset>? = null
+        var bestAlignment = 0f
+        for (i in candidates) {
+            val neighbour = currentDockedApps[i]
+            val neighbourCenter = slotCenters[neighbour.id] ?: continue
+            val candidateDir = neighbourCenter - effectiveOwnCenter
+            val candidateDirLength = candidateDir.getDistance()
+            if (candidateDirLength <= 0f) continue
+            val alignment = (
+                newOffset.x * candidateDir.x + newOffset.y * candidateDir.y
+            ) / candidateDirLength
+            if (alignment > bestAlignment) {
+                bestCandidate = i to neighbourCenter
+                bestAlignment = alignment
             }
         }
-        if (!swapped) break
+        val pick = bestCandidate ?: break
+        val (newIndex, neighbourCenter) = pick
+        if ((neighbourCenter - draggedCenter).getDistance() >=
+            (effectiveOwnCenter - draggedCenter).getDistance()
+        ) {
+            break
+        }
+        onReorder(workingIndex, newIndex)
+        newOffset += (effectiveOwnCenter - neighbourCenter)
+        effectiveOwnCenter = neighbourCenter
+        workingIndex = newIndex
     }
     setOffset(newOffset)
 }
@@ -1801,7 +1906,7 @@ private fun DockedAppButton(
     app: InstalledApp,
     dockIconSizeDp: Int,
     isDragged: Boolean,
-    dragOffsetX: Float,
+    dragOffset: Offset,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1810,9 +1915,9 @@ private fun DockedAppButton(
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
-    onReportSlotCenter: (Float) -> Unit,
+    onReportSlotCenter: (Offset) -> Unit,
     onDragStart: () -> Unit,
-    onDrag: (Float) -> Unit,
+    onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -1831,13 +1936,18 @@ private fun DockedAppButton(
             // reports the icon's static slot centre, not its translated
             // visual centre — that's what the parent compares against.
             .onGloballyPositioned { coords ->
-                val center = coords.positionInParent().x + coords.size.width / 2f
+                val pos = coords.positionInParent()
+                val center = Offset(
+                    pos.x + coords.size.width / 2f,
+                    pos.y + coords.size.height / 2f,
+                )
                 latestOnReportSlotCenter(center)
             }
             .zIndex(if (isDragged) 1f else 0f)
             .graphicsLayer {
                 if (isDragged) {
-                    translationX = dragOffsetX
+                    translationX = dragOffset.x
+                    translationY = dragOffset.y
                     scaleX = 1.1f
                     scaleY = 1.1f
                     alpha = 0.85f
@@ -1863,11 +1973,12 @@ private fun DockedAppButton(
                     onClick = { onLaunchApp(app) },
                 )
                 // Long-press arms a drag. If the finger crosses the 8 dp slop
-                // the parent gets onDragStart / onDrag / onDragEnd and the
-                // icon "lifts" via the graphicsLayer above; releasing without
-                // crossing the slop opens the AppActionsMenu instead. Once
-                // the long-press fires we consume every pointer change so the
-                // enclosing horizontalScroll can't snatch the gesture.
+                // (in either axis) the parent gets onDragStart / onDrag /
+                // onDragEnd and the icon "lifts" via the graphicsLayer above;
+                // releasing without crossing the slop opens the
+                // AppActionsMenu instead. Once the long-press fires we
+                // consume every pointer change so the carousel's horizontal
+                // pager can't snatch the gesture mid-reorder.
                 .pointerInput(app.id) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -1876,7 +1987,7 @@ private fun DockedAppButton(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         longPress.consume()
                         var dragging = false
-                        var totalDx = 0f
+                        var totalDelta = Offset.Zero
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id }
@@ -1890,18 +2001,18 @@ private fun DockedAppButton(
                                 change.consume()
                                 break
                             }
-                            val dx = change.positionChange().x
-                            totalDx += dx
-                            if (!dragging && abs(totalDx) > slopPx) {
+                            val delta = change.positionChange()
+                            totalDelta += delta
+                            if (!dragging && totalDelta.getDistance() > slopPx) {
                                 dragging = true
                                 latestOnDragStart()
                                 // Carry the full pre-slop displacement into
                                 // the first dispatch so the icon snaps to
                                 // where the finger actually is, not back to
                                 // its slot centre.
-                                latestOnDrag(totalDx)
+                                latestOnDrag(totalDelta)
                             } else if (dragging) {
-                                latestOnDrag(dx)
+                                latestOnDrag(delta)
                             }
                             change.consume()
                         }

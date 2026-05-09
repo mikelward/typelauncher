@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">ऊपर दी गई सूची में कोई ऐप ढूंढें,\nदेर तक दबाएं फिर डॉक पर टैप करें</string>
     <string name="dock_recents_empty_hint">अभी तक कोई हाल का ऐप नहीं</string>
     <string name="dock_recents_description">हाल के ऐप्स</string>
-    <string name="dock_scroll_more_hint">और डॉक ऐप्स देखने के लिए स्क्रॉल करें</string>
     <string name="dock_recents_scroll_more_hint">और हाल के ऐप्स देखने के लिए स्क्रॉल करें</string>
     <string name="apps_list_scroll_more_hint">और ऐप्स देखने के लिए स्क्रॉल करें</string>
     <string name="notification_listener_service_label">Type Launcher सूचनाएं</string>

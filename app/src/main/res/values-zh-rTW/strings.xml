@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">在上方清單中找到應用程式，\n長按然後點按 Dock</string>
     <string name="dock_recents_empty_hint">尚無最近使用的應用程式</string>
     <string name="dock_recents_description">最近使用的應用程式</string>
-    <string name="dock_scroll_more_hint">捲動以查看更多 Dock 應用程式</string>
     <string name="dock_recents_scroll_more_hint">捲動以查看更多最近使用的應用程式</string>
     <string name="apps_list_scroll_more_hint">捲動以查看更多應用程式</string>
     <string name="notification_listener_service_label">Type Launcher 通知</string>
