@@ -223,10 +223,24 @@ internal data class LauncherUiState(
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
 )
 
+// 1 dp of slack per dock slot to absorb per-child pixel rounding inside the
+// `FlowRow` that hosts dock icons. Each dock item is rendered as
+// `padding(4.dp) + AppIcon(iconSize.dp)`, and `Density.roundToPx` rounds each
+// of those three dimensions independently. At density 2.625 (411dp/420dpi)
+// that turns 51 dp logical into 11 + 113 + 11 = 135 px per item, 1 px more
+// than rounding `(iconSize+8).dp` once would give. With six items per row
+// the accumulated overrun exceeds the natural slack, so the row wraps to
+// 5 + 1 even though dp math says 6 fits. The `LazyVerticalGrid.Adaptive`
+// grid in the apps list distributes the row's actual pixel width across
+// `floor((avail+spacing)/(minCell+spacing))` columns and so doesn't suffer
+// the same accumulation.
+private const val DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP = 1
+
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
     return ((availableWidthDp + DOCK_ITEM_SPACING_DP) /
-        (iconSizeDp + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP)).coerceAtLeast(1)
+        (iconSizeDp + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP +
+            DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP)).coerceAtLeast(1)
 }
 
 internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
@@ -234,7 +248,8 @@ internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
     val clampedSlotCount = slotCount.coerceAtLeast(1)
     val itemChromeWidthDp = DOCK_ITEM_SPACING_DP * (clampedSlotCount - 1) +
         DOCK_ITEM_HORIZONTAL_PADDING_DP * clampedSlotCount
-    return ((availableWidthDp - itemChromeWidthDp) / clampedSlotCount)
+    val pixelRoundingSlackDp = DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP * clampedSlotCount
+    return ((availableWidthDp - itemChromeWidthDp - pixelRoundingSlackDp) / clampedSlotCount)
         .coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
 }
 
