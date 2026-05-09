@@ -25,6 +25,26 @@ internal fun countryFlag(countryCode: String): String =
     }.joinToString(separator = "")
 
 /**
+ * Inverse of [countryFlag]. If [glyph] is a valid two-character regional-
+ * indicator pair (the encoding Unicode uses for flag emoji), returns the
+ * corresponding 2-letter ISO 3166-1 alpha-2 code; otherwise returns
+ * `null`. Used by the corner-badge accessibility helper to recover a
+ * country code from a user-chosen flag glyph so the screen-reader content
+ * description names the country instead of saying generic "badge".
+ *
+ * The encoding lives in the Unicode supplementary plane (codepoints
+ * 0x1F1E6 ... 0x1F1FF), so each regional indicator is two UTF-16
+ * surrogate halves and a flag string is exactly four UTF-16 chars long.
+ */
+internal fun decodeRegionalIndicatorPair(glyph: String): String? {
+    if (glyph.length != 4) return null
+    val first = glyph.codePointAt(0) - REGIONAL_INDICATOR_BASE
+    val second = glyph.codePointAt(2) - REGIONAL_INDICATOR_BASE
+    if (first !in 0..25 || second !in 0..25) return null
+    return "${('A' + first)}${('A' + second)}"
+}
+
+/**
  * One option in the badge picker. [key] is a stable identifier used as the
  * picker's test tag suffix and selection comparison; [glyph] is the literal
  * string persisted to [CustomBadgeStore] and rendered as the corner badge.
