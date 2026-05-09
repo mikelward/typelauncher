@@ -180,13 +180,16 @@ internal object AppIconLoader {
             id.startsWith(componentPrefix) ||
                 id.startsWith(packageWithToken) ||
                 id == packageOnly
-        cache.snapshot().keys.filter { matches(it.id) }.forEach { cache.remove(it) }
-        // Detach any in-flight load that started before this eviction so its
-        // completion skips `cache.put` (the identity check in `createInFlight`
-        // sees the slot is no longer ours) and the next caller creates a fresh
-        // deferred that picks up the post-event state from `resolve`.
+        // Order matters: detach in-flight loads under the lock first so any
+        // concurrent producer completion sees its slot is no longer current
+        // and skips its `cache.put`. Then clear the LRU under the same lock,
+        // which also catches a `cache.put` that an async block had already
+        // performed before we acquired the lock — without holding the lock
+        // across the cache clear, that put could land between our snapshot
+        // and our detach, leaving a stale bitmap pinned past the eviction.
         synchronized(inFlightLock) {
             inFlight.keys.filter { matches(it.id) }.toList().forEach { inFlight.remove(it) }
+            cache.snapshot().keys.filter { matches(it.id) }.forEach { cache.remove(it) }
         }
     }
 
