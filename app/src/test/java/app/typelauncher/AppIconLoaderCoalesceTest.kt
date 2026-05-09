@@ -1,7 +1,10 @@
 package app.typelauncher
 
+import android.content.ComponentName
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.os.Process
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import java.util.concurrent.atomic.AtomicInteger
@@ -12,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -120,6 +124,67 @@ class AppIconLoaderCoalesceTest {
         }
         assertSame(bitmap, hit)
         assertEquals(2, invocations.get())
+    }
+
+    @Test
+    fun evictDuringFlightSkipsCachePutAndForcesNextLoadToReResolve() = runBlocking {
+        val sizePx = 24
+        val packageName = "app.typelauncher.coalescetest.evict"
+        // Build the InstalledApp through the same path production uses so the
+        // resulting `iconCacheId` matches what `evict(packageName, user)` will
+        // scan for. Using a hand-crafted key would risk drifting from the real
+        // prefix scheme (`${user.hashCode()}:component@token`).
+        val app = InstalledApp(
+            name = "EvictDuringFlight",
+            packageName = packageName,
+            launchIntent = Intent.makeMainActivity(
+                ComponentName(packageName, "$packageName.LaunchActivity"),
+            ),
+            user = Process.myUserHandle(),
+            isWorkApp = false,
+            launchWithLauncherApps = true,
+            iconCacheToken = "100",
+        )
+        val key = AppIconLoader.CacheKey(id = app.iconCacheId, sizePx = sizePx)
+        val staleBitmap = newBitmap(sizePx, Color.YELLOW)
+        val freshBitmap = newBitmap(sizePx, Color.GREEN)
+        val invocations = AtomicInteger(0)
+        val staleStarted = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        // First call: producer starts, then parks. While parked, evict() runs and
+        // detaches our in-flight slot. When the producer finally returns, the
+        // identity check in `createInFlight` must skip `cache.put` so the stale
+        // bitmap doesn't repopulate the LRU after the eviction.
+        val staleLoad = async(Dispatchers.Default) {
+            AppIconLoader.coalesce(key) {
+                invocations.incrementAndGet()
+                staleStarted.complete(Unit)
+                release.await()
+                staleBitmap
+            }
+        }
+        staleStarted.await()
+        AppIconLoader.evict(packageName, app.user)
+        release.complete(Unit)
+
+        // The orphaned deferred still delivers its bitmap to its existing awaiter
+        // (we can't change that without disrupting the caller), but the LRU must
+        // be empty so the next render forces a fresh resolve.
+        assertSame(staleBitmap, staleLoad.await())
+        assertNull(
+            "evict during flight must prevent the stale bitmap from landing in the cache",
+            AppIconLoader.cached(key.id, key.sizePx),
+        )
+
+        // A subsequent load creates a brand-new deferred and runs its producer.
+        val freshLoad = AppIconLoader.coalesce(key) {
+            invocations.incrementAndGet()
+            freshBitmap
+        }
+        assertSame(freshBitmap, freshLoad)
+        assertEquals(2, invocations.get())
+        assertSame(freshBitmap, AppIconLoader.cached(key.id, key.sizePx))
     }
 
     private fun newBitmap(sizePx: Int, color: Int): ImageBitmap =
