@@ -113,7 +113,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -2106,8 +2105,13 @@ private fun DockedAppButton(
             // onGloballyPositioned sits outside the graphicsLayer so it
             // reports the icon's static slot centre, not its translated
             // visual centre — that's what the parent compares against.
+            // positionInRoot() (not positionInParent()) puts every slot in
+            // one window-wide coordinate space; the dock is a Column of
+            // per-row Rows, so positionInParent() would give every row's
+            // first slot the same (≈0, ≈0) and the drag handler could not
+            // tell rows apart.
             .onGloballyPositioned { coords ->
-                val pos = coords.positionInParent()
+                val pos = coords.positionInRoot()
                 val center = Offset(
                     pos.x + coords.size.width / 2f,
                     pos.y + coords.size.height / 2f,
@@ -2233,7 +2237,7 @@ private fun EmptyDockSlot(
         modifier = modifier
             .height((dockIconSizeDp + 8).dp)
             .onGloballyPositioned { coords ->
-                val pos = coords.positionInParent()
+                val pos = coords.positionInRoot()
                 onReportSlotCenter(
                     Offset(
                         pos.x + coords.size.width / 2f,
@@ -2257,7 +2261,7 @@ private fun DockAddButton(
         modifier = modifier
             .height((dockIconSizeDp + 8).dp)
             .onGloballyPositioned { coords ->
-                val pos = coords.positionInParent()
+                val pos = coords.positionInRoot()
                 onReportSlotCenter?.invoke(
                     Offset(
                         pos.x + coords.size.width / 2f,

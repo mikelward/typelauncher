@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -116,6 +117,86 @@ class DockReorderCarouselTest {
         assertEquals("dock reorder must not page the carousel to Widgets", 0, showWidgetsCount)
         assertEquals("dock reorder must not page the carousel to Agenda", 0, showAgendaCount)
         assertEquals(LauncherScreen.Home, state.screen)
+    }
+
+    // Regression: the dock is laid out as a Column of per-row Rows. Slot
+    // centres used to be reported via `coords.positionInParent()`, which gives
+    // each slot's position relative to its own per-row Row — so (row 0, col 0)
+    // and (row 1, col 0) reported identical centres and the drag handler
+    // could not distinguish rows. Dragging a docked icon to another row never
+    // snapped or persisted, regardless of whether the target row was full.
+    // The fix uses `coords.positionInRoot()` so every slot's centre lives in
+    // one window-wide coordinate space.
+    @Test
+    fun dragReorderingDockedApp_movesIconBetweenRows() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+            fakeApp("App05").copy(isDocked = true),
+        )
+        val state = LauncherUiState(filteredApps = emptyList(), dockedApps = docked)
+        var reorderTarget: Triple<String, Int, Int>? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onReorderDock = { id, row, column ->
+                        reorderTarget = Triple(id, row, column)
+                    },
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        // Drag the row-0 icon downward by well more than a slot height so the
+        // dragged centre clears row 1's halfway threshold. Coordinates are in
+        // pixels relative to the touched node, so a generous offset like 600
+        // pixels reliably crosses one slot row at 420dpi without depending on
+        // exact icon-size math.
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            val start = Offset(width / 2f, height / 2f)
+            down(start)
+            move(longPressMs + 100)
+            moveBy(Offset(0f, 600f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        val target = reorderTarget
+        assertNotNull("vertical drag must trigger a reorder to row 1", target)
+        assertEquals("dragged app id", docked[0].id, target!!.first)
+        assertEquals("dragged app must land in a lower row", 1, target.second)
     }
 
     @Test
