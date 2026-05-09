@@ -25,8 +25,6 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -59,8 +57,12 @@ internal object AppIconLoader {
     // resolve+rasterize pass. The deferred runs in `loaderScope` so a single caller
     // cancelling (e.g. its `LaunchedEffect` going away) doesn't tear down the work
     // others are still waiting on — the bitmap still lands in the LRU for next time.
+    //
+    // `inFlight` is guarded by a JVM monitor (not a `Mutex`) because `evict` needs to
+    // detach matching entries from non-suspending `LauncherApps.Callback` paths, and
+    // every critical section here is just a map operation — no suspension while held.
     private val loaderScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val inFlightMutex = Mutex()
+    private val inFlightLock = Any()
     private val inFlight = mutableMapOf<CacheKey, Deferred<ImageBitmap?>>()
 
     fun cached(id: String, sizePx: Int): ImageBitmap? {
@@ -88,19 +90,45 @@ internal object AppIconLoader {
         producer: suspend () -> ImageBitmap?,
     ): ImageBitmap? {
         cache.get(key)?.let { return it }
-        val deferred = inFlightMutex.withLock {
+        val deferred = synchronized(inFlightLock) {
             // Re-check under the lock: another caller may have completed between
             // our cache miss and now, populating the LRU.
             cache.get(key)?.let { return it }
-            inFlight[key] ?: loaderScope.async {
-                try {
-                    producer()?.also { cache.put(key, it) }
-                } finally {
-                    inFlightMutex.withLock { inFlight.remove(key) }
-                }
-            }.also { inFlight[key] = it }
+            inFlight[key] ?: createInFlight(key, producer)
         }
         return deferred.await()
+    }
+
+    private fun createInFlight(
+        key: CacheKey,
+        producer: suspend () -> ImageBitmap?,
+    ): Deferred<ImageBitmap?> {
+        // `self` is captured by the async block and read on completion to compare
+        // against `inFlight[key]`. `evict` may have replaced or removed our slot
+        // mid-flight (e.g. a work-profile package event during a load whose
+        // resolved drawable is now stale); the identity check ensures we only
+        // populate the LRU when our deferred is still the one callers are
+        // awaiting through `inFlight`. The assignment runs under
+        // `inFlightLock` (held by the caller in `coalesce`), and every read of
+        // `self` inside the async block is also under `inFlightLock`, so the
+        // happens-before edge for the lateinit write is established by the
+        // monitor.
+        lateinit var self: Deferred<ImageBitmap?>
+        self = loaderScope.async {
+            try {
+                producer()?.also { bitmap ->
+                    synchronized(inFlightLock) {
+                        if (inFlight[key] === self) cache.put(key, bitmap)
+                    }
+                }
+            } finally {
+                synchronized(inFlightLock) {
+                    if (inFlight[key] === self) inFlight.remove(key)
+                }
+            }
+        }
+        inFlight[key] = self
+        return self
     }
 
     private suspend fun performLoad(
@@ -148,12 +176,18 @@ internal object AppIconLoader {
         val componentPrefix = "$userPrefix$packageName/"
         val packageOnly = "$userPrefix$packageName"
         val packageWithToken = "$packageOnly@"
-        val toRemove = cache.snapshot().keys.filter { key ->
-            key.id.startsWith(componentPrefix) ||
-                key.id.startsWith(packageWithToken) ||
-                key.id == packageOnly
+        fun matches(id: String): Boolean =
+            id.startsWith(componentPrefix) ||
+                id.startsWith(packageWithToken) ||
+                id == packageOnly
+        cache.snapshot().keys.filter { matches(it.id) }.forEach { cache.remove(it) }
+        // Detach any in-flight load that started before this eviction so its
+        // completion skips `cache.put` (the identity check in `createInFlight`
+        // sees the slot is no longer ours) and the next caller creates a fresh
+        // deferred that picks up the post-event state from `resolve`.
+        synchronized(inFlightLock) {
+            inFlight.keys.filter { matches(it.id) }.toList().forEach { inFlight.remove(it) }
         }
-        toRemove.forEach { cache.remove(it) }
     }
 
     private fun recordCacheLookup(hit: Boolean) {
