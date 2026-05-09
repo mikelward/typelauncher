@@ -816,6 +816,14 @@ private fun SwipeNavigationBox(
                                     // carousel by that delta, instead of being
                                     // absorbed into the anchor and looking dropped.
                                     anchorRawDragX = rawDragXBefore
+                                    // Drop pre-claim velocity samples — they were
+                                    // recorded against a different anchor and
+                                    // would otherwise let a fast pre-settle swipe
+                                    // satisfy flingCommits, or oppose-cancel a
+                                    // valid post-claim drag, even though the
+                                    // commit decision uses effectiveDragX.
+                                    velocityTracker.resetTracking()
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
                                 }
                             }
                             if (carouselClaimed) {
