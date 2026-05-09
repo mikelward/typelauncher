@@ -31,6 +31,7 @@ class SettingsScreenTest {
                     onOpenAppInfo = {},
                     onToggleDock = { _, _ -> },
                     onResetRank = {},
+                    onRenameApp = { _, _ -> },
                     onHideApp = {},
                     onUnhideApp = {},
                     onOpenLauncherAppInfo = {},

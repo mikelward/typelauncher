@@ -38,9 +38,17 @@
     <string name="app_menu_dock">डॉक</string>
     <string name="app_menu_undock">डॉक से हटाएं</string>
     <string name="app_menu_reset_rank">रैंक रीसेट करें</string>
+    <string name="app_menu_edit">एडिट करें</string>
     <string name="app_menu_hide">छिपाएं</string>
     <string name="app_menu_dismiss">खारिज करें</string>
     <string name="app_menu_settings">सेटिंग</string>
+    <string name="edit_app_dialog_title">ऐप एडिट करें</string>
+    <string name="edit_app_dialog_label">प्रदर्शन नाम</string>
+    <string name="edit_app_dialog_original">मूल नाम: %1$s</string>
+    <string name="edit_app_dialog_package">पैकेज: %1$s</string>
+    <string name="edit_app_dialog_save">सेव करें</string>
+    <string name="edit_app_dialog_cancel">रद्द करें</string>
+    <string name="edit_app_dialog_restore">डिफ़ॉल्ट रीसेट करें</string>
     <string name="widgets_add_button_description">विजेट जोड़ें</string>
     <string name="widgets_picker_title">विजेट जोड़ें</string>
     <string name="widgets_picker_subtitle">होम स्क्रीन के लिए विजेट चुनें</string>

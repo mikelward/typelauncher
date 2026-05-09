@@ -38,9 +38,17 @@
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Vom Dock entfernen</string>
     <string name="app_menu_reset_rank">Rang zurücksetzen</string>
+    <string name="app_menu_edit">Bearbeiten</string>
     <string name="app_menu_hide">Ausblenden</string>
     <string name="app_menu_dismiss">Schließen</string>
     <string name="app_menu_settings">Einstellungen</string>
+    <string name="edit_app_dialog_title">App bearbeiten</string>
+    <string name="edit_app_dialog_label">Anzeigename</string>
+    <string name="edit_app_dialog_original">Originalname: %1$s</string>
+    <string name="edit_app_dialog_package">Paket: %1$s</string>
+    <string name="edit_app_dialog_save">Speichern</string>
+    <string name="edit_app_dialog_cancel">Abbrechen</string>
+    <string name="edit_app_dialog_restore">Standard wiederherstellen</string>
     <string name="widgets_add_button_description">Widget hinzufügen</string>
     <string name="widgets_picker_title">Widget hinzufügen</string>
     <string name="widgets_picker_subtitle">Widget für den Startbildschirm auswählen</string>

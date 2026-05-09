@@ -55,6 +55,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -76,11 +77,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -126,6 +129,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -156,6 +161,7 @@ internal fun HomeScreen(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onReorderDock: (Int, Int) -> Unit = { _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
@@ -208,6 +214,7 @@ internal fun HomeScreen(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onRenameApp = onRenameApp,
                 onHideApp = onHideApp,
                 onAppListBoundsChanged = onAppListBoundsChanged,
             )
@@ -221,6 +228,7 @@ internal fun HomeScreen(
                     onToggleDock = onToggleDock,
                     onReorderDock = onReorderDock,
                     onResetRank = onResetRank,
+                    onRenameApp = onRenameApp,
                     onHideApp = onHideApp,
                     onDragStateChanged = onDockDragChanged,
                 )
@@ -382,6 +390,7 @@ private fun DockCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onReorderDock: (Int, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
 ) {
@@ -418,6 +427,7 @@ private fun DockCard(
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
+                        onRenameApp = onRenameApp,
                         onHideApp = onHideApp,
                         onReportSlotCenter = { center -> slotCenters[app.id] = center },
                         onDragStart = {
@@ -1081,6 +1091,7 @@ private fun AppsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
@@ -1143,6 +1154,7 @@ private fun AppsCard(
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
+                        onRenameApp = onRenameApp,
                         onHideApp = onHideApp,
                     )
                 }
@@ -1185,6 +1197,7 @@ private fun AppsCard(
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleDock,
                                 onResetRank = onResetRank,
+                                onRenameApp = onRenameApp,
                                 onHideApp = onHideApp,
                             )
                         }
@@ -1229,6 +1242,7 @@ private fun IconOnlyAppGrid(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -1260,6 +1274,7 @@ private fun IconOnlyAppGrid(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
+                onRenameApp = onRenameApp,
                 onHideApp = onHideApp,
             )
         }
@@ -1276,6 +1291,7 @@ private fun IconOnlyAppButton(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -1324,6 +1340,7 @@ private fun IconOnlyAppButton(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
             onHideApp = onHideApp,
         )
     }
@@ -1338,6 +1355,7 @@ private fun AppRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val highlightColor = selectionHighlightColor()
@@ -1380,6 +1398,7 @@ private fun AppRow(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
             onHideApp = onHideApp,
         )
     }
@@ -1394,8 +1413,13 @@ private fun AppActionsMenu(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
+    // Boolean rather than the InstalledApp itself so dialog visibility doesn't
+    // re-evaluate identity-based equality on every parent recomposition; the
+    // dialog reads `app` directly from this composable's parameter.
+    var editDialogVisible by remember { mutableStateOf(false) }
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -1426,6 +1450,14 @@ private fun AppActionsMenu(
             },
         )
         DropdownMenuItem(
+            text = { Text(stringResource(R.string.app_menu_edit)) },
+            modifier = Modifier.testTag("$EDIT_APP_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismiss()
+                editDialogVisible = true
+            },
+        )
+        DropdownMenuItem(
             text = { Text(stringResource(R.string.app_menu_hide)) },
             modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.displayName}"),
             onClick = {
@@ -1433,6 +1465,146 @@ private fun AppActionsMenu(
                 onHideApp(app)
             },
         )
+    }
+    if (editDialogVisible) {
+        EditAppDialog(
+            app = app,
+            onSave = { newName ->
+                onRenameApp(app, newName)
+                editDialogVisible = false
+            },
+            onRestoreDefaults = {
+                onRenameApp(app, "")
+                editDialogVisible = false
+            },
+            onDismiss = { editDialogVisible = false },
+        )
+    }
+}
+
+/**
+ * Dialog that lets the user override an app's display label and review the
+ * publisher's shipped values (system label + Android package name). Submits
+ * the trimmed text via [onSave]; an empty string is forwarded so the
+ * ViewModel can drop the override consistently with [onRestoreDefaults], which
+ * also fires when the user taps the inline "Restore defaults" action — only
+ * shown when an override is currently in effect, since there is nothing to
+ * restore otherwise. The button slots stay single-button (Material3
+ * AlertDialog assumes one widget per slot); Restore lives in the body so it
+ * does not contend with Save / Cancel for the slot.
+ */
+@Composable
+internal fun EditAppDialog(
+    app: InstalledApp,
+    onSave: (String) -> Unit,
+    onRestoreDefaults: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Low-level `Dialog` + custom `Surface` rather than `AlertDialog`: the
+    // material `AlertDialog`'s `text` slot wraps its content in a vertically
+    // scrollable `Column` with unbounded height constraints, and any
+    // `TextField` / `OutlinedTextField` placed inside it measures itself
+    // recursively against those constraints under Robolectric, causing
+    // `composeRule.waitForIdle` to spin past 60 s. Hand-rolling the layout
+    // keeps the same visual structure (title + body + buttons) without the
+    // scrollable wrapper, breaking the loop.
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(EDIT_APP_DIALOG_TAG),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+        ) {
+            EditAppDialogContent(
+                app = app,
+                onSave = onSave,
+                onRestoreDefaults = onRestoreDefaults,
+                onDismiss = onDismiss,
+            )
+        }
+    }
+}
+
+/**
+ * The dialog body, factored out of [EditAppDialog] so a Robolectric
+ * screenshot test can compose just the content without the surrounding
+ * `Dialog` popup window. A `TextField` rendered inside Compose's
+ * `Dialog` window does not settle on Robolectric (`waitForIdle` blows
+ * past 60 s during initial composition), so the test renders this
+ * content directly inside an activity-hosted Compose tree instead.
+ * The visual layout matches what the user sees inside the popup
+ * because [EditAppDialog] wraps exactly this content in a `Dialog` +
+ * `Surface`.
+ */
+@Composable
+internal fun EditAppDialogContent(
+    app: InstalledApp,
+    onSave: (String) -> Unit,
+    onRestoreDefaults: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember(app.id) { mutableStateOf(app.customName ?: app.name) }
+    val hasOverride = !app.customName.isNullOrBlank()
+    Column(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.edit_app_dialog_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        TextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            label = { Text(stringResource(R.string.edit_app_dialog_label)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSave(text) }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(EDIT_APP_DIALOG_FIELD_TAG),
+        )
+        Text(
+            text = stringResource(R.string.edit_app_dialog_original, app.name),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(R.string.edit_app_dialog_package, app.packageName),
+            modifier = Modifier.testTag(EDIT_APP_DIALOG_PACKAGE_TAG),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (hasOverride) {
+            TextButton(
+                onClick = onRestoreDefaults,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .testTag(EDIT_APP_DIALOG_RESTORE_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_restore))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_CANCEL_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_cancel))
+            }
+            TextButton(
+                onClick = { onSave(text) },
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_SAVE_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_save))
+            }
+        }
     }
 }
 
@@ -1542,6 +1714,7 @@ private fun DockedAppButton(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onReportSlotCenter: (Float) -> Unit,
     onDragStart: () -> Unit,
@@ -1664,6 +1837,7 @@ private fun DockedAppButton(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
             onHideApp = onHideApp,
         )
     }
@@ -1718,6 +1892,7 @@ internal fun SettingsScreen(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
@@ -1911,6 +2086,7 @@ internal fun SettingsScreen(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
             onHideApp = onHideApp,
         )
     }
@@ -2378,6 +2554,7 @@ private fun SettingsPreview(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
@@ -2406,6 +2583,7 @@ private fun SettingsPreview(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
             onHideApp = onHideApp,
         )
         // Forced access-granted so the preview shows the compact secondary bar
@@ -2433,6 +2611,7 @@ private fun SettingsPreview(
                 onToggleDock = onToggleDock,
                 onReorderDock = { _, _ -> },
                 onResetRank = onResetRank,
+                onRenameApp = onRenameApp,
                 onHideApp = onHideApp,
             )
         }
@@ -2478,7 +2657,7 @@ private fun AppIcon(
                 )
             }
         }
-        app.disambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
+        app.effectiveDisambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
             disambiguatorBadge(label)?.let { badge ->
                 val flagSp = (APP_ICON_CORNER_BADGE_SIZE_DP - 2).sp
                 Box(

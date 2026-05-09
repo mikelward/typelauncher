@@ -1311,6 +1311,39 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun editDialog_savingCustomLabel_overridesLabelAndMakesSearchMatchTheNewName() {
+        // Apply the rename via the ViewModel to keep the assertion focused on
+        // the override-propagation contract; the dialog's typed-input flow is
+        // exercised by the screenshot test below.
+        val viewModel = composeRule.activity.viewModel
+        val target = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
+        viewModel.renameApp(target, "Numbers")
+        composeRule.waitForIdle()
+
+        // Searching for the override surfaces the renamed entry; the original
+        // "Calculator" label no longer matches anywhere.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("numb")
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Numbers").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
+        assertEquals(
+            "Numbers",
+            viewModel.uiState.value.filteredApps
+                .single { it.name == "Calculator" }
+                .displayName,
+        )
+    }
+
+    // Dialog-open-from-menu tests (Restore button visibility,
+    // screenshot of the dialog with its field + metadata + buttons) live in
+    // EditAppDialogScreenshotTest as an isolated Compose unit test rather
+    // than this MainActivity integration suite. Opening a dialog with a
+    // TextField via a DropdownMenu inside the running launcher window
+    // triggers a Compose composition loop under Robolectric that
+    // `composeRule.waitForIdle` can't settle within 60 s. The isolated
+    // composition reproduces the exact same dialog content without the
+    // menu-popup → dialog → IME cascade that produces the loop.
+
+    @Test
     fun manageHiddenAppsDialog_showsEmptyMessageWhenNothingIsHidden() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
@@ -2029,6 +2062,7 @@ class MainActivityRobolectricScreenshotTest {
                         "widgets",
                         "app_metadata",
                         "hidden_apps",
+                        "renamed_apps",
                     ).forEach { preferenceName ->
                         application
                             .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)

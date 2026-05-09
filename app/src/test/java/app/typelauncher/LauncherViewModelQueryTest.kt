@@ -37,6 +37,7 @@ class LauncherViewModelQueryTest {
             "widgets",
             "app_metadata",
             "hidden_apps",
+            "renamed_apps",
         ).forEach { name ->
             context.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
                 .edit()

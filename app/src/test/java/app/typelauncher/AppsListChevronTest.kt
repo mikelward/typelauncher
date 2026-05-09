@@ -52,6 +52,7 @@ class AppsListChevronTest {
                     onOpenAppInfo = {},
                     onToggleDock = { _, _ -> },
                     onResetRank = {},
+                    onRenameApp = { _, _ -> },
                     onHideApp = {},
                     onUnhideApp = {},
                     onOpenSettings = {},

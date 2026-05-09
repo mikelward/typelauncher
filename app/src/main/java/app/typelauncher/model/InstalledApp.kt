@@ -24,6 +24,7 @@ internal data class InstalledApp(
     val isHidden: Boolean = false,
     val isQuietMode: Boolean = false,
     val disambiguator: String? = null,
+    val customName: String? = null,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
@@ -31,14 +32,18 @@ internal data class InstalledApp(
     val iconCacheId: String
         get() = iconCacheToken?.let { token -> "$id@$token" } ?: id
 
-    // Display label that appends a parenthesised disambiguator (e.g. "Chase
-    // (US)") when this app shares an icon-level identity with peers; falls
-    // back to the raw `name` when no disambiguator was assigned. Skips the
-    // suffix if the disambiguator already appears as a whitespace-separated
-    // token in the name — "Amex UK" with a "UK" badge stays "Amex UK"
-    // rather than becoming the redundant "Amex UK (UK)".
+    // Display label. A user-supplied [customName] always wins so a renamed app
+    // (e.g. a "ChatGPT" PWA renamed to "Codex") shows the chosen label across
+    // every surface and search matches the override rather than the system
+    // label. Falling through, appends a parenthesised disambiguator (e.g.
+    // "Chase (US)") when this app shares an icon-level identity with peers;
+    // falls back to the raw `name` when no disambiguator was assigned. Skips
+    // the suffix if the disambiguator already appears as a whitespace-
+    // separated token in the name — "Amex UK" with a "UK" badge stays
+    // "Amex UK" rather than becoming the redundant "Amex UK (UK)".
     val displayName: String
         get() {
+            customName?.takeIf { it.isNotBlank() }?.let { return it }
             val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return name
             // Strip surrounding punctuation so a name like "Bank (US)" with a
             // "US" disambiguator doesn't render as "Bank (US) (US)".
@@ -47,6 +52,24 @@ internal data class InstalledApp(
                 .map { it.trim('(', ')', '[', ']', '-', '–', '—').trim() }
             if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return name
             return "$name ($tag)"
+        }
+
+    /**
+     * Label used to pick the corner badge (country flag / globe). When the
+     * user has supplied a [customName], the override takes precedence over
+     * the system-derived [disambiguator]: the badge is parsed from the
+     * trailing whitespace-separated token of the override (e.g. "Chase (US)"
+     * → "US", "Amex UK" → "UK"), so a user-renamed app gets a US flag if
+     * they tag it that way and no badge if their override has no
+     * recognisable tag — they explicitly chose the label, so we don't
+     * silently keep the old system badge they were trying to override.
+     * Returns `null` when no badge should render.
+     */
+    val effectiveDisambiguator: String?
+        get() {
+            val customLabel = customName?.takeIf { it.isNotBlank() }
+                ?: return disambiguator?.takeIf { it.isNotEmpty() }
+            return parseTrailingDisambiguatorTag(customLabel)
         }
 
     // Fallback used by `LauncherViewModel.openAppInfo` when no LauncherApps

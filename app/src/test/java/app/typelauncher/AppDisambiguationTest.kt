@@ -143,6 +143,71 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun displayNameUsesCustomNameWhenSet() {
+        val app = personalApp("ChatGPT", "com.openai.chatgpt").copy(customName = "Codex")
+        assertEquals("Codex", app.displayName)
+    }
+
+    @Test
+    fun displayNameCustomNameWinsOverDisambiguator() {
+        // The user explicitly chose a label, so respect it instead of
+        // appending a regional badge that would no longer make sense.
+        val app = personalApp("ChatGPT", "com.openai.chatgpt")
+            .copy(customName = "Codex", disambiguator = "Web")
+        assertEquals("Codex", app.displayName)
+    }
+
+    @Test
+    fun displayNameFallsBackToSystemNameWhenCustomNameIsBlank() {
+        val app = personalApp("ChatGPT", "com.openai.chatgpt").copy(customName = "   ")
+        assertEquals("ChatGPT", app.displayName)
+    }
+
+    @Test
+    fun effectiveDisambiguatorFallsBackToModelDisambiguatorWithoutOverride() {
+        val app = personalApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("US", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun effectiveDisambiguatorIsNullWhenNoCustomNameNorAutoBadge() {
+        val app = personalApp("Calculator", "com.example.calc")
+        assertNull(app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun customNameWithParenthesisedCountryTagDrivesBadge() {
+        // Renaming "Chase" to "Chase (US)" must surface a US flag even if the
+        // auto-disambiguator picked something else (or nothing at all).
+        val app = personalApp("Chase", "com.chase.intl")
+            .copy(disambiguator = "INTL", customName = "Chase (US)")
+        assertEquals("US", app.effectiveDisambiguator)
+        assertEquals("Chase (US)", app.displayName)
+    }
+
+    @Test
+    fun customNameWithBareCountryTagDrivesBadge() {
+        val app = personalApp("Foo", "com.example.foo").copy(customName = "Foo UK")
+        assertEquals("UK", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun customNameWithIntlTagDrivesGlobeBadge() {
+        val app = personalApp("Chase", "com.chase.sig.android")
+            .copy(customName = "Chase (intl)")
+        assertEquals("INTL", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun customNameWithoutRecognisedTagSuppressesBadge() {
+        // The user explicitly chose a label without a regional tag; do not
+        // silently retain the system-picked badge they were overriding.
+        val app = personalApp("ChatGPT", "com.openai.chatgpt")
+            .copy(disambiguator = "US", customName = "Codex")
+        assertNull(app.effectiveDisambiguator)
+    }
+
+    @Test
     fun samePackagePersonalWorkPairIsNotDisambiguated() {
         // Personal Gmail and a work-profile clone of the same Gmail share
         // the same package — the work-profile badge already disambiguates
