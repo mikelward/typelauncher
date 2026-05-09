@@ -367,6 +367,74 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
+    fun filterByNameOrdersDockedAppsByDockPositionInEmptyQueryWhenDockHidden() {
+        val apple = installedApp("Apple")
+        val banana = installedApp("Banana")
+        val cherry = installedApp("Cherry")
+        val date = installedApp("Date")
+        // Three docked apps in a non-alphabetical, non-usage dock order. Apple
+        // has the most launches but is pinned last in the dock; the dock is
+        // hidden. The list should mirror the dock's persisted order
+        // (cherry, banana, apple) so the muscle-memory positions the user has
+        // for the dock survive turning it off.
+        repeat(10) { store.recordLaunch(apple.id) }
+        repeat(3) { store.recordLaunch(banana.id) }
+        repeat(1) { store.recordLaunch(cherry.id) }
+
+        val filtered = listOf(apple, banana, cherry, date).filterByName(
+            query = "",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            dockedAppIds = listOf(cherry.id, banana.id, apple.id),
+        )
+
+        assertEquals(listOf("Cherry", "Banana", "Apple", "Date"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameOrdersDockedAppsByDockPositionWithinTierWhenDockHidden() {
+        // Three Prefix-tier matches for "c", all docked, persisted in a dock
+        // order that is neither alphabetical nor by launch count. Within the
+        // tier the docked apps must appear in dock order, not launch-count or
+        // alphabetical order.
+        val calculator = installedApp("Calculator")
+        val camera = installedApp("Camera")
+        val clock = installedApp("Clock")
+        repeat(7) { store.recordLaunch(calculator.id) }
+        repeat(2) { store.recordLaunch(camera.id) }
+
+        val filtered = listOf(calculator, camera, clock).filterByName(
+            query = "c",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            dockedAppIds = listOf(clock.id, camera.id, calculator.id),
+        )
+
+        assertEquals(listOf("Clock", "Camera", "Calculator"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameOrdersDockedAppsByDockPositionUnderAlphabeticalSortWhenDockHidden() {
+        val apple = installedApp("Apple")
+        val banana = installedApp("Banana")
+        val cherry = installedApp("Cherry")
+        val date = installedApp("Date")
+
+        val filtered = listOf(apple, banana, cherry, date).filterByName(
+            query = "",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            dockedAppIds = listOf(cherry.id, apple.id),
+            sortOrder = AppListSortOrder.Alphabetical,
+        )
+
+        // Docked apps come first in dock order even when the user has chosen
+        // the alphabetical sort — the dock-first contract trumps the in-tier
+        // ordering rule, same as it does under the usage sort.
+        assertEquals(listOf("Cherry", "Apple", "Banana", "Date"), filtered.map { it.name })
+    }
+
+    @Test
     fun filterByNameSurfacesSubstringMatchesBelowEverythingElse() {
         val apps = listOf(
             installedApp("Cool"),
