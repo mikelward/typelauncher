@@ -533,16 +533,10 @@ private fun DockCard(
                     )
                 }
             }
-            // Show the trailing add affordance whenever the wrapped grid has
-            // at least one empty cell. Empty cells appear when
-            // `dockedApps.size` isn't an exact multiple of `dockIconCount`,
-            // so adding the + button lands it inside the existing bottom row
-            // rather than forcing an extra empty row of its own.
-            val rowCount = ceil(
-                dockedApps.size.toFloat() / dockIconCount.coerceAtLeast(1),
-            ).toInt().coerceAtLeast(1)
-            val totalCells = rowCount * dockIconCount.coerceAtLeast(1)
-            if (dockedApps.size < totalCells) {
+            // Show the hint only when there's exactly one row and it isn't
+            // full: once users have a full row or multiple rows they've learned
+            // the long-press gesture and don't need the nudge.
+            if (dockedApps.size < dockIconCount.coerceAtLeast(1)) {
                 DockAddButton(dockIconSizeDp = dockIconSizeDp)
             }
         }
