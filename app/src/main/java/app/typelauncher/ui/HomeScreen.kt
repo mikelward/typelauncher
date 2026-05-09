@@ -162,6 +162,8 @@ internal fun HomeScreen(
     onReorderDock: (Int, Int) -> Unit = { _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
@@ -215,6 +217,8 @@ internal fun HomeScreen(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onRenameApp = onRenameApp,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
                 onHideApp = onHideApp,
                 onAppListBoundsChanged = onAppListBoundsChanged,
             )
@@ -229,6 +233,8 @@ internal fun HomeScreen(
                     onReorderDock = onReorderDock,
                     onResetRank = onResetRank,
                     onRenameApp = onRenameApp,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
                     onHideApp = onHideApp,
                     onDragStateChanged = onDockDragChanged,
                 )
@@ -391,6 +397,8 @@ private fun DockCard(
     onReorderDock: (Int, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
 ) {
@@ -428,6 +436,8 @@ private fun DockCard(
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
                         onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
                         onHideApp = onHideApp,
                         onReportSlotCenter = { center -> slotCenters[app.id] = center },
                         onDragStart = {
@@ -1092,6 +1102,8 @@ private fun AppsCard(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
     onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
@@ -1155,6 +1167,8 @@ private fun AppsCard(
                         onToggleDock = onToggleDock,
                         onResetRank = onResetRank,
                         onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
                         onHideApp = onHideApp,
                     )
                 }
@@ -1198,6 +1212,8 @@ private fun AppsCard(
                                 onToggleDock = onToggleDock,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
                                 onHideApp = onHideApp,
                             )
                         }
@@ -1243,6 +1259,8 @@ private fun IconOnlyAppGrid(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -1275,6 +1293,8 @@ private fun IconOnlyAppGrid(
                 onToggleDock = onToggleDock,
                 onResetRank = onResetRank,
                 onRenameApp = onRenameApp,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
                 onHideApp = onHideApp,
             )
         }
@@ -1292,6 +1312,8 @@ private fun IconOnlyAppButton(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -1341,6 +1363,8 @@ private fun IconOnlyAppButton(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
             onHideApp = onHideApp,
         )
     }
@@ -1356,6 +1380,8 @@ private fun AppRow(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val highlightColor = selectionHighlightColor()
@@ -1399,6 +1425,8 @@ private fun AppRow(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
             onHideApp = onHideApp,
         )
     }
@@ -1414,6 +1442,8 @@ private fun AppActionsMenu(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
 ) {
     // Boolean rather than the InstalledApp itself so dialog visibility doesn't
@@ -1477,27 +1507,51 @@ private fun AppActionsMenu(
                 onRenameApp(app, "")
                 editDialogVisible = false
             },
+            onPickIcon = {
+                // Keep the dialog open while the system picker is up so the
+                // user lands back here after choosing — and once the new
+                // icon flows through `markVisibility`, the preview at the
+                // top of the dialog refreshes to show it.
+                onSetAppIconOverride(app)
+            },
+            onClearIcon = {
+                onClearAppIconOverride(app)
+            },
             onDismiss = { editDialogVisible = false },
         )
     }
 }
 
 /**
- * Dialog that lets the user override an app's display label and review the
- * publisher's shipped values (system label + Android package name). Submits
- * the trimmed text via [onSave]; an empty string is forwarded so the
- * ViewModel can drop the override consistently with [onRestoreDefaults], which
- * also fires when the user taps the inline "Restore defaults" action — only
- * shown when an override is currently in effect, since there is nothing to
- * restore otherwise. The button slots stay single-button (Material3
- * AlertDialog assumes one widget per slot); Restore lives in the body so it
- * does not contend with Save / Cancel for the slot.
+ * Dialog that lets the user override an app's display label and launcher
+ * icon, and review the publisher's shipped values (system label + Android
+ * package name). Submits the trimmed text via [onSave]; an empty string is
+ * forwarded so the ViewModel can drop the rename override consistently with
+ * [onRestoreDefaults], which also fires when the user taps the inline
+ * "Restore defaults" action — only shown when a rename override is currently
+ * in effect.
+ *
+ * Tapping [onPickIcon] kicks off the system file picker for an SVG/PNG/
+ * JPEG/WEBP image. The picker activity runs outside this composable; the
+ * chosen URI flows back through `LauncherViewModel.setAppIconOverride` and
+ * the next markVisibility pass mirrors the new `customIconPath` onto every
+ * `InstalledApp` instance — including the `app` parameter passed in here
+ * the next time the parent recomposes — so the preview at the top of the
+ * dialog refreshes without the dialog needing to close. [onClearIcon]
+ * drops the icon override and is hidden until one is in effect, mirroring
+ * the rename-restore behaviour.
+ *
+ * The button slots stay single-button (Material3 AlertDialog assumes one
+ * widget per slot); the rename Restore + the icon controls live in the body
+ * so they do not contend with Save / Cancel for the slot.
  */
 @Composable
 internal fun EditAppDialog(
     app: InstalledApp,
     onSave: (String) -> Unit,
     onRestoreDefaults: () -> Unit,
+    onPickIcon: () -> Unit,
+    onClearIcon: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Low-level `Dialog` + custom `Surface` rather than `AlertDialog`: the
@@ -1521,6 +1575,8 @@ internal fun EditAppDialog(
                 app = app,
                 onSave = onSave,
                 onRestoreDefaults = onRestoreDefaults,
+                onPickIcon = onPickIcon,
+                onClearIcon = onClearIcon,
                 onDismiss = onDismiss,
             )
         }
@@ -1543,10 +1599,13 @@ internal fun EditAppDialogContent(
     app: InstalledApp,
     onSave: (String) -> Unit,
     onRestoreDefaults: () -> Unit,
+    onPickIcon: () -> Unit,
+    onClearIcon: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var text by remember(app.id) { mutableStateOf(app.customName ?: app.name) }
     val hasOverride = !app.customName.isNullOrBlank()
+    val hasIconOverride = app.customIconPath != null
     Column(
         modifier = Modifier.padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1556,6 +1615,39 @@ internal fun EditAppDialogContent(
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(EDIT_APP_DIALOG_ICON_ROW_TAG),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Render the icon at 48 dp so the user sees roughly what the app
+            // list will display. `AppIcon` honours `customIconPath` via the
+            // shared `AppIconLoader.load` path, so it shows the live override
+            // when one is set without any extra plumbing.
+            AppIcon(
+                app = app,
+                size = 48.dp,
+                testTag = EDIT_APP_DIALOG_ICON_TAG,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                TextButton(
+                    onClick = onPickIcon,
+                    modifier = Modifier.testTag(EDIT_APP_DIALOG_CHOOSE_ICON_TAG),
+                ) {
+                    Text(stringResource(R.string.edit_app_dialog_choose_icon))
+                }
+                if (hasIconOverride) {
+                    TextButton(
+                        onClick = onClearIcon,
+                        modifier = Modifier.testTag(EDIT_APP_DIALOG_CLEAR_ICON_TAG),
+                    ) {
+                        Text(stringResource(R.string.edit_app_dialog_clear_icon))
+                    }
+                }
+            }
+        }
         TextField(
             value = text,
             onValueChange = { text = it },
@@ -1715,6 +1807,8 @@ private fun DockedAppButton(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
     onReportSlotCenter: (Float) -> Unit,
     onDragStart: () -> Unit,
@@ -1838,6 +1932,8 @@ private fun DockedAppButton(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
             onHideApp = onHideApp,
         )
     }
@@ -1893,6 +1989,8 @@ internal fun SettingsScreen(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
@@ -2087,6 +2185,8 @@ internal fun SettingsScreen(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
             onHideApp = onHideApp,
         )
     }
@@ -2555,6 +2655,8 @@ private fun SettingsPreview(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
@@ -2584,6 +2686,8 @@ private fun SettingsPreview(
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
             onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
             onHideApp = onHideApp,
         )
         // Forced access-granted so the preview shows the compact secondary bar
@@ -2612,6 +2716,8 @@ private fun SettingsPreview(
                 onReorderDock = { _, _ -> },
                 onResetRank = onResetRank,
                 onRenameApp = onRenameApp,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
                 onHideApp = onHideApp,
             )
         }

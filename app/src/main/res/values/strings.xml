@@ -49,6 +49,9 @@
     <string name="edit_app_dialog_save">Save</string>
     <string name="edit_app_dialog_cancel">Cancel</string>
     <string name="edit_app_dialog_restore">Restore defaults</string>
+    <string name="edit_app_dialog_choose_icon">Choose icon</string>
+    <string name="edit_app_dialog_clear_icon">Use default icon</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">No app available to pick an icon</string>
     <string name="widgets_add_button_description">Add widget</string>
     <string name="widgets_picker_title">Add widget</string>
     <string name="widgets_picker_subtitle">Choose a widget for the home screen</string>

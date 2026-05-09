@@ -49,6 +49,9 @@
     <string name="edit_app_dialog_save">保存</string>
     <string name="edit_app_dialog_cancel">キャンセル</string>
     <string name="edit_app_dialog_restore">既定にリセット</string>
+    <string name="edit_app_dialog_choose_icon">アイコンを選択</string>
+    <string name="edit_app_dialog_clear_icon">既定のアイコンを使用</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">アイコンを選べるアプリがありません</string>
     <string name="widgets_add_button_description">ウィジェットを追加</string>
     <string name="widgets_picker_title">ウィジェットを追加</string>
     <string name="widgets_picker_subtitle">ホーム画面のウィジェットを選択</string>

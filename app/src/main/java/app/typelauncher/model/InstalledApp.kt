@@ -25,12 +25,27 @@ internal data class InstalledApp(
     val isQuietMode: Boolean = false,
     val disambiguator: String? = null,
     val customName: String? = null,
+    val customIconPath: String? = null,
+    // Bumped (typically to the override file's `lastModified()` timestamp)
+    // every time the user re-uploads an icon for this app. Folded into
+    // [iconCacheId] so a re-upload produces a fresh `AppIconLoader` cache key
+    // rather than handing back the previous bitmap.
+    val customIconVersion: Long = 0L,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
 
+    // Cache identity for AppIconLoader / IconSnapshotStore. Layered so the
+    // system-icon variant and a user-supplied override variant occupy
+    // independent cache entries: clearing the override automatically reverts
+    // to whatever the system entry already had cached, and bumping
+    // [customIconVersion] orphans the previous override entry instead of
+    // returning a stale bitmap.
     val iconCacheId: String
-        get() = iconCacheToken?.let { token -> "$id@$token" } ?: id
+        get() {
+            val base = iconCacheToken?.let { token -> "$id@$token" } ?: id
+            return customIconPath?.let { _ -> "$base#override:$customIconVersion" } ?: base
+        }
 
     // Display label. A user-supplied [customName] always wins so a renamed app
     // (e.g. a "ChatGPT" PWA renamed to "Codex") shows the chosen label across

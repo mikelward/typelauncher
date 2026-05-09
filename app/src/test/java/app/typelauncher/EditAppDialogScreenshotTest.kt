@@ -44,6 +44,8 @@ class EditAppDialogScreenshotTest {
                     app = installedApp(name = "ChatGPT", packageName = "com.openai.chatgpt"),
                     onSave = {},
                     onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
                     onDismiss = {},
                 )
             }
@@ -70,6 +72,8 @@ class EditAppDialogScreenshotTest {
                         .copy(customName = "Codex"),
                     onSave = {},
                     onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
                     onDismiss = {},
                 )
             }
@@ -79,6 +83,56 @@ class EditAppDialogScreenshotTest {
         composeRule.onNodeWithTag(EDIT_APP_DIALOG_RESTORE_TAG, useUnmergedTree = true).assertIsDisplayed()
 
         captureSnapshot("compose_edit_app_dialog_with_override_robolectric.png")
+    }
+
+    @Test
+    fun editDialogAlwaysShowsChooseIconButton() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                EditAppDialogContent(
+                    app = installedApp(name = "ChatGPT", packageName = "com.openai.chatgpt"),
+                    onSave = {},
+                    onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Choose-icon is always visible; the clear-icon row only appears when an
+        // override is currently set.
+        composeRule
+            .onNodeWithTag(EDIT_APP_DIALOG_CHOOSE_ICON_TAG, useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(EDIT_APP_DIALOG_CLEAR_ICON_TAG, useUnmergedTree = true)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun editDialogWithIconOverride_alsoShowsClearIconButton() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                EditAppDialogContent(
+                    app = installedApp(name = "ChatGPT", packageName = "com.openai.chatgpt")
+                        .copy(customIconPath = "/data/example/override.svg", customIconVersion = 42L),
+                    onSave = {},
+                    onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag(EDIT_APP_DIALOG_CLEAR_ICON_TAG, useUnmergedTree = true)
+            .assertIsDisplayed()
+
+        captureSnapshot("compose_edit_app_dialog_with_icon_override_robolectric.png")
     }
 
     private fun installedApp(name: String, packageName: String): InstalledApp {

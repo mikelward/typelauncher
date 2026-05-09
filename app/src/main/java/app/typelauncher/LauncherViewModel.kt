@@ -53,6 +53,7 @@ internal class LauncherViewModel(
     private val dockedAppStore = DockedAppStore(app)
     private val hiddenAppStore = HiddenAppStore(app)
     private val renamedAppStore = RenamedAppStore(app)
+    private val iconOverrideStore = IconOverrideStore(app)
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
@@ -219,7 +220,10 @@ internal class LauncherViewModel(
         }
         if (cachedMetadata.isNotEmpty()) {
             androidTrace("launcher.metadata_prefill") {
-                installedApps = cachedMetadata.applyDisambiguators().applyRenameOverrides()
+                installedApps = cachedMetadata
+                    .applyDisambiguators()
+                    .applyRenameOverrides()
+                    .applyIconOverrides()
                 _uiState.update { state ->
                     val dockedIds = dockedAppStore.dockedAppIds
                     val visibleApps = visibleInstalledApps()
@@ -943,6 +947,99 @@ internal class LauncherViewModel(
         logState("renameApp")
     }
 
+    /**
+     * Replaces the launcher icon for [app] with the user-supplied image at
+     * [sourceUri] (PNG, JPEG, WEBP, or SVG). The bytes are copied into
+     * `filesDir/icon_overrides/` so the override survives package upgrades
+     * and process restarts but is wiped if the launcher itself is
+     * uninstalled — overrides are scoped to the launcher, not stored on
+     * the picked file's original location (which may be a transient
+     * `content://` Uri whose grant disappears when the picker activity
+     * goes away).
+     *
+     * Runs the IO + decode work on [ioDispatcher] so the UI stays
+     * responsive while a large image is being copied. Returns immediately;
+     * the StateFlow update happens off the main thread once the file is on
+     * disk.
+     */
+    fun setAppIconOverride(app: InstalledApp, sourceUri: Uri) {
+        LauncherDebugLog.event("setAppIconOverride package=${app.packageName} scheme=${sourceUri.scheme}")
+        viewModelScope.launch {
+            val savedFile = withContext(ioDispatcher) {
+                runCatching {
+                    val resolver = this@LauncherViewModel.app.contentResolver
+                    val mimeType = resolver.getType(sourceUri)
+                    val extension = inferIconExtension(mimeType, sourceUri)
+                        ?: throw IllegalArgumentException("Unsupported icon mime=$mimeType uri=$sourceUri")
+                    val input = resolver.openInputStream(sourceUri)
+                        ?: throw IllegalStateException("openInputStream returned null for $sourceUri")
+                    input.use { stream -> iconOverrideStore.setIcon(app.id, stream, extension) }
+                }.onFailure { error ->
+                    LauncherDebugLog.event(
+                        "setAppIconOverride failed package=${app.packageName} err=${error.javaClass.simpleName}",
+                    )
+                }.getOrNull()
+            } ?: return@launch
+            // Drop any cached bitmaps still pinned under the previous override
+            // version so the very next render rasterises the new file. Without
+            // this, the pre-upload entry would linger in the LRU until aged
+            // out — harmless for correctness (the new `iconCacheId` misses and
+            // triggers a fresh load) but a waste of memory.
+            AppIconLoader.evict(app.packageName, app.user)
+            val path = savedFile.absolutePath
+            val version = savedFile.lastModified()
+            installedApps = installedApps.map { existing ->
+                if (existing.id == app.id) {
+                    existing.copy(customIconPath = path, customIconVersion = version)
+                } else {
+                    existing
+                }
+            }
+            refreshLists()
+            logState("setAppIconOverride")
+        }
+    }
+
+    /**
+     * Drops [app]'s user-supplied icon override (no-op if none was set) and
+     * reverts every surface to whatever Android ships for the package. Counter
+     * to [setAppIconOverride], the file IO is small (one or two `delete`s) so
+     * this runs synchronously on the main thread alongside the in-memory
+     * patch and `refreshLists` call.
+     */
+    fun clearAppIconOverride(app: InstalledApp) {
+        LauncherDebugLog.event("clearAppIconOverride package=${app.packageName}")
+        iconOverrideStore.clear(app.id)
+        AppIconLoader.evict(app.packageName, app.user)
+        installedApps = installedApps.map { existing ->
+            if (existing.id == app.id && existing.customIconPath != null) {
+                existing.copy(customIconPath = null, customIconVersion = 0L)
+            } else {
+                existing
+            }
+        }
+        refreshLists()
+        logState("clearAppIconOverride")
+    }
+
+    private fun inferIconExtension(mimeType: String?, uri: Uri): String? {
+        when (mimeType?.lowercase()) {
+            "image/svg+xml" -> return "svg"
+            "image/png" -> return "png"
+            "image/jpeg", "image/jpg" -> return "jpg"
+            "image/webp" -> return "webp"
+        }
+        // Fall back to the path extension for `file://` Uris and for `content://`
+        // providers that don't supply a MIME type. A handful of pickers (notably
+        // some file-manager apps) hand back `application/octet-stream` and we
+        // only have the path to go on.
+        val pathExt = uri.lastPathSegment?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()
+        return when (pathExt) {
+            "svg", "png", "jpg", "jpeg", "webp" -> if (pathExt == "jpeg") "jpg" else pathExt
+            else -> null
+        }
+    }
+
     fun addWidget(appWidgetId: Int) {
         val placement = pendingWidgetPlacement ?: PendingWidgetPlacement(
             pageIndex = _uiState.value.currentWidgetPage,
@@ -1405,6 +1502,7 @@ internal class LauncherViewModel(
         return collected
             .applyDisambiguators()
             .applyRenameOverrides()
+            .applyIconOverrides()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
 
@@ -1425,6 +1523,41 @@ internal class LauncherViewModel(
             val customName = renamedAppStore.customNameFor(app.id)
             if (app.customName == customName) app else app.copy(customName = customName)
         }
+
+    /**
+     * Mirror persisted [IconOverrideStore] entries onto each [InstalledApp]
+     * in the freshly-loaded list so `AppIconLoader.cached`/`load` (which key
+     * by `iconCacheId`, which folds in the override version when one is set)
+     * see the override on the very first frame after a cold start or
+     * package-event reload. Without this pass, `iconCacheId` would resolve to
+     * the system-icon variant and the renderer would briefly show the
+     * pre-override icon.
+     *
+     * Skipped entirely when no overrides are persisted so the empty-overrides
+     * case stays a single map call without touching the file system.
+     */
+    private fun List<InstalledApp>.applyIconOverrides(): List<InstalledApp> {
+        val overriddenIds = iconOverrideStore.overriddenAppIds()
+        if (overriddenIds.isEmpty()) return this
+        return map { app ->
+            if (app.id !in overriddenIds) {
+                if (app.customIconPath == null) app else app.copy(customIconPath = null, customIconVersion = 0L)
+            } else {
+                val file = iconOverrideStore.iconFileFor(app.id)
+                if (file == null) {
+                    if (app.customIconPath == null) app else app.copy(customIconPath = null, customIconVersion = 0L)
+                } else {
+                    val path = file.absolutePath
+                    val version = file.lastModified()
+                    if (app.customIconPath == path && app.customIconVersion == version) {
+                        app
+                    } else {
+                        app.copy(customIconPath = path, customIconVersion = version)
+                    }
+                }
+            }
+        }
+    }
 
     private fun List<InstalledApp>.applyDisambiguators(): List<InstalledApp> {
         val labels = computeDisambiguators(this)
@@ -1498,10 +1631,24 @@ internal class LauncherViewModel(
             val isDocked = dockedAppStore.contains(app.id)
             val isHidden = hiddenAppStore.contains(app.id)
             val customName = renamedAppStore.customNameFor(app.id)
-            if (app.isDocked == isDocked && app.isHidden == isHidden && app.customName == customName) {
+            val overrideFile = iconOverrideStore.iconFileFor(app.id)
+            val customIconPath = overrideFile?.absolutePath
+            val customIconVersion = overrideFile?.lastModified() ?: 0L
+            if (app.isDocked == isDocked &&
+                app.isHidden == isHidden &&
+                app.customName == customName &&
+                app.customIconPath == customIconPath &&
+                app.customIconVersion == customIconVersion
+            ) {
                 app
             } else {
-                app.copy(isDocked = isDocked, isHidden = isHidden, customName = customName)
+                app.copy(
+                    isDocked = isDocked,
+                    isHidden = isHidden,
+                    customName = customName,
+                    customIconPath = customIconPath,
+                    customIconVersion = customIconVersion,
+                )
             }
         }
 
