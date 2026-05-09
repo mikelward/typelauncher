@@ -272,6 +272,12 @@ jobs:
         # artifact captures visual changes to the badge.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconDisambiguatorScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run edit-app dialog screenshot tests
+        # Renders EditAppDialogContent in the no-override and
+        # with-override states so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the rename dialog.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.EditAppDialogScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
