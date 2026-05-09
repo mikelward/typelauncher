@@ -481,6 +481,7 @@ class CarouselScreenSyncRaceTest {
                 dockedApps = docked,
             ),
         )
+        var showAgendaCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
@@ -502,7 +503,10 @@ class CarouselScreenSyncRaceTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowAgenda = {
+                        showAgendaCount += 1
+                        state = state.copy(screen = LauncherScreen.Agenda)
+                    },
                     onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
                     onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
                     appWidgetHost = null,
@@ -535,10 +539,11 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            "A dock swipe completed during Home settle must commit after Home reaches Idle",
+            "A dock swipe completed during Home settle must advance exactly one page from Home",
             widgetsPage,
             carousel.carouselVirtualPage(),
         )
+        assertEquals("queued Home swipe must not continue past Widgets to Agenda", 0, showAgendaCount)
         assertEquals(LauncherScreen.Widgets, state.screen)
     }
 
@@ -559,6 +564,7 @@ class CarouselScreenSyncRaceTest {
         )
         var holdHomeAck = true
         var heldHomeAck: LauncherScreen? = null
+        var showAgendaCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
@@ -580,7 +586,10 @@ class CarouselScreenSyncRaceTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowAgenda = {
+                        showAgendaCount += 1
+                        state = state.copy(screen = LauncherScreen.Agenda)
+                    },
                     onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
                     onShowHome = {
                         if (!holdHomeAck) {
@@ -625,10 +634,11 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            "A dock swipe completed while Home ack is pending must commit once Home reaches Idle",
+            "A dock swipe completed while Home ack is pending must advance exactly one page from Home",
             widgetsPage,
             carousel.carouselVirtualPage(),
         )
+        assertEquals("queued Home swipe must not continue past Widgets to Agenda", 0, showAgendaCount)
         assertEquals(LauncherScreen.Widgets, state.screen)
     }
 
