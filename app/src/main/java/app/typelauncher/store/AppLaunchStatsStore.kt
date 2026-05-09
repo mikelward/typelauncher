@@ -111,7 +111,7 @@ internal fun List<InstalledApp>.filterByName(
     query: String,
     appLaunchStatsStore: AppLaunchStatsStore,
     excludedAppIds: Collection<String>,
-    dockedAppIds: Collection<String> = emptyList(),
+    dockedAppIds: List<String> = emptyList(),
     sortOrder: AppListSortOrder = AppListSortOrder.Usage,
     // Reversed variants share the data ordering of their forward counterpart —
     // the visual flip is applied later in the UI via `reverseLayout = true`,
@@ -130,11 +130,14 @@ internal fun List<InstalledApp>.filterByName(
     // but they have to reappear here when the dock UI is hidden or no other
     // surface would show them. `dockedAppIds` is the full docked set regardless
     // of dock visibility; when the dock is hidden the docked apps surface here
-    // and float to the top of their bucket so the user's pinned apps stay
-    // reachable instead of getting buried under usage-ranked entries.
+    // and float to the top of their bucket — *in the same persisted order the
+    // dock would render them in* — so the user's pinned apps stay reachable
+    // instead of getting buried under usage-ranked entries and the "first
+    // docked entry" muscle-memory target survives turning the dock UI off.
     val candidates = if (excludedAppIds.isEmpty()) this else filterNot { app -> app.id in excludedAppIds }
-    val dockedSet = dockedAppIds.toSet()
-    val dockedFirst = compareByDescending<InstalledApp> { app -> app.id in dockedSet }
+    val dockIndexById: Map<String, Int> = dockedAppIds.withIndex().associate { (index, id) -> id to index }
+    val notDockedRank = Int.MAX_VALUE
+    val dockedFirst = compareBy<InstalledApp> { app -> dockIndexById[app.id] ?: notDockedRank }
     return if (query.isEmpty()) {
         when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> candidates.sortedWith(
@@ -149,7 +152,7 @@ internal fun List<InstalledApp>.filterByName(
             else -> candidates
         }
     } else {
-        val dockedFirstByPair = compareByDescending<Pair<InstalledApp, LauncherMatchTier>> { (app, _) -> app.id in dockedSet }
+        val dockedFirstByPair = compareBy<Pair<InstalledApp, LauncherMatchTier>> { (app, _) -> dockIndexById[app.id] ?: notDockedRank }
         val withinTier = when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> dockedFirstByPair
                 .thenByDescending { (app, _) -> launchCounts[app.id] ?: 0 }
