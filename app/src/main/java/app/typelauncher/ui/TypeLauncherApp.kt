@@ -269,7 +269,7 @@ internal fun TypeLauncherApp(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
-    onReorderDock: (Int, Int) -> Unit = { _, _ -> },
+    onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},

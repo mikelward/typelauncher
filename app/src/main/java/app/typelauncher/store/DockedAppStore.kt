@@ -9,22 +9,32 @@ internal class DockedAppStore(context: Context) {
         .split(DOCKED_APP_ID_SEPARATOR)
         .filter { appId -> appId.isNotBlank() }
         .toCollection(LinkedHashSet())
+    private var dockPositions = sharedPreferences.getString(KEY_DOCKED_APP_POSITIONS, "").orEmpty()
+        .parseDockPositions()
 
     val dockedAppIds: List<String>
         get() = dockedIds.toList()
 
+    val dockedAppPositions: Map<String, DockPosition>
+        get() = dockPositions.toMap()
+
+    fun dockedAppIdsFor(sortOrder: AppListSortOrder, columnCount: Int): List<String> =
+        dockedAppIdsInGridRankOrder(dockedAppIds, dockPositions, columnCount, sortOrder)
+
     fun contains(appId: String): Boolean = appId in dockedIds
 
-    fun dock(appId: String) {
+    fun dock(appId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) {
         if (appId in dockedIds) {
             return
         }
+        dockPositions[appId] = nextAvailableDockPosition(dockedIds.toList(), dockPositions, columnCount)
         dockedIds.add(appId)
         save()
     }
 
     fun undock(appId: String) {
         if (dockedIds.remove(appId)) {
+            dockPositions.remove(appId)
             save()
         }
     }
@@ -38,6 +48,29 @@ internal class DockedAppStore(context: Context) {
         val withoutMoved = current.subList(0, fromIndex) + current.subList(fromIndex + 1, current.size)
         val rebuilt = withoutMoved.subList(0, clampedTo) + moved + withoutMoved.subList(clampedTo, withoutMoved.size)
         dockedIds = LinkedHashSet(rebuilt)
+        dockPositions = rebuilt.withIndex()
+            .associate { (index, id) ->
+                id to DockPosition(index / DEFAULT_DOCK_ICON_COUNT, index % DEFAULT_DOCK_ICON_COUNT)
+            }
+            .toMutableMap()
+        save()
+    }
+
+    fun move(appId: String, row: Int, column: Int, columnCount: Int, sortOrder: AppListSortOrder) {
+        if (appId !in dockedIds) return
+        val columns = columnCount.coerceAtLeast(1)
+        val target = DockPosition(row.coerceAtLeast(0), column.coerceIn(0, columns - 1))
+        val currentPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns)
+        val previous = currentPositions[appId]
+        val occupant = currentPositions.entries.firstOrNull { (id, position) ->
+            id != appId && position == target
+        }?.key
+        dockPositions[appId] = target
+        if (occupant != null && previous != null) {
+            dockPositions[occupant] = previous
+        }
+        dockPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns).toMutableMap()
+        dockedIds = LinkedHashSet(dockedAppIdsInGridRankOrder(dockedIds.toList(), dockPositions, columns, sortOrder))
         save()
     }
 
@@ -51,15 +84,39 @@ internal class DockedAppStore(context: Context) {
     private fun save() {
         sharedPreferences.edit()
             .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
+            .putString(
+                KEY_DOCKED_APP_POSITIONS,
+                dockPositions.filterKeys { appId -> appId in dockedIds }.toPreferencesString(),
+            )
             .apply()
     }
 
     private companion object {
         const val PREFERENCES_NAME = "docked_apps"
         const val KEY_DOCKED_APP_IDS = "docked_app_ids"
+        const val KEY_DOCKED_APP_POSITIONS = "docked_app_positions"
         const val KEY_DOCK_PREFILLED = "dock_prefilled"
         const val DOCKED_APP_ID_SEPARATOR = "\n"
+        const val DOCK_POSITION_FIELD_SEPARATOR = "\t"
     }
+
+    private fun String.parseDockPositions(): MutableMap<String, DockPosition> =
+        lineSequence()
+            .mapNotNull { line ->
+                val fields = line.split(DOCK_POSITION_FIELD_SEPARATOR)
+                if (fields.size != 3) return@mapNotNull null
+                val row = fields[1].toIntOrNull() ?: return@mapNotNull null
+                val column = fields[2].toIntOrNull() ?: return@mapNotNull null
+                fields[0].takeIf { it.isNotBlank() }?.let { appId -> appId to DockPosition(row, column) }
+            }
+            .toMap()
+            .toMutableMap()
+
+    private fun Map<String, DockPosition>.toPreferencesString(): String =
+        entries.joinToString(DOCKED_APP_ID_SEPARATOR) { (appId, position) ->
+            listOf(appId, position.row.toString(), position.column.toString())
+                .joinToString(DOCK_POSITION_FIELD_SEPARATOR)
+        }
 }
 
 internal class DockSettingsStore(context: Context) {

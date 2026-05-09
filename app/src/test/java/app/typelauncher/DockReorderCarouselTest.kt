@@ -117,4 +117,77 @@ class DockReorderCarouselTest {
         assertEquals("dock reorder must not page the carousel to Agenda", 0, showAgendaCount)
         assertEquals(LauncherScreen.Home, state.screen)
     }
+
+    @Test
+    fun dragReorderingDockedApp_canMoveVerticallyToSparseSlot() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+        )
+        var positions by mutableStateOf(
+            docked.mapIndexed { index, app -> app.id to DockPosition(row = 0, column = index) }.toMap(),
+        )
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                dockedApps = docked,
+                dockPositions = positions,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onReorderDock = { appId, row, column ->
+                        positions = positions + (appId to DockPosition(row, column))
+                        state = state.copy(dockPositions = positions)
+                    },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            val start = Offset(width / 2f, height / 2f)
+            down(start)
+            move(longPressMs + 100)
+            moveBy(Offset(0f, 220f))
+            moveBy(Offset(0f, 220f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(DockPosition(row = 1, column = 0), positions.getValue(docked[0].id))
+    }
 }

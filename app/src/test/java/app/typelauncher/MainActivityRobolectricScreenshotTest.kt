@@ -1867,6 +1867,32 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_two_rows_robolectric.png")
     }
 
+    @Test
+    fun screenshot_dockSupportsSparseGridPositions() {
+        val viewModel = composeRule.activity.viewModel
+        val docked = viewModel.uiState.value.filteredApps.take(5)
+        docked.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+
+        val moved = docked.first()
+        val bottomLeft = docked.last()
+        viewModel.reorderDockedApps(moved.id, row = 1, column = 3)
+        composeRule.waitForIdle()
+
+        val bottomLeftBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:${bottomLeft.displayName}").getBoundsInRoot()
+        val movedBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:${moved.displayName}").getBoundsInRoot()
+        assertTrue(
+            "moved icon should stay on the sparse bottom row",
+            kotlin.math.abs((movedBounds.top - bottomLeftBounds.top).value) <= 1f,
+        )
+        assertTrue(
+            "moved icon should occupy the far-right sparse slot",
+            movedBounds.left.value > bottomLeftBounds.right.value,
+        )
+
+        saveScreenshot("compose_dock_sparse_grid_robolectric.png")
+    }
+
     // Regression-shaped invariant: the home layout reserves at least two
     // rows of the apps list above the dock no matter how many apps are
     // docked, so a heavy dock collection cannot starve the app list.

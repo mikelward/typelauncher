@@ -80,6 +80,6 @@ internal fun prefillDock(
     for (packageName in POPULAR_APP_PACKAGES) {
         if (dockedAppStore.dockedAppIds.size >= maxSlots) break
         val app = byPackage[packageName]?.firstOrNull() ?: continue
-        dockedAppStore.dock(app.id)
+        dockedAppStore.dock(app.id, columnCount = (maxSlots + 1).coerceAtLeast(1))
     }
 }

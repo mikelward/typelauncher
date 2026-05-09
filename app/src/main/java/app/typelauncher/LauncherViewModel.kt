@@ -235,7 +235,7 @@ internal class LauncherViewModel(
                     .applyRenameOverrides()
                     .applyIconOverrides()
                 _uiState.update { state ->
-                    val dockedIds = dockedAppStore.dockedAppIds
+                    val dockedIds = dockedAppIdsForState(state)
                     val visibleApps = visibleInstalledApps()
                     val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                     state.copy(
@@ -247,8 +247,9 @@ internal class LauncherViewModel(
                             sortOrder = state.appListSortOrder,
                         ).markVisibility(),
                         dockedApps = visibleApps
-                            .filterDocked(dockedAppStore.dockedAppIds)
+                            .filterDocked(dockedIds)
                             .markVisibility(),
+                        dockPositions = dockedAppStore.dockedAppPositions,
                         recentApps = newRecentApps,
                         hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                         notifyingApps = visibleApps
@@ -279,7 +280,7 @@ internal class LauncherViewModel(
                 dockedAppStore.markPrefilled()
             }
             _uiState.update { state ->
-                val dockedIds = dockedAppStore.dockedAppIds
+                val dockedIds = dockedAppIdsForState(state)
                 val visibleApps = visibleInstalledApps()
                 val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                 state.copy(
@@ -291,8 +292,9 @@ internal class LauncherViewModel(
                         sortOrder = state.appListSortOrder,
                     ).markVisibility(),
                     dockedApps = visibleApps
-                        .filterDocked(dockedAppStore.dockedAppIds)
+                        .filterDocked(dockedIds)
                         .markVisibility(),
+                    dockPositions = dockedAppStore.dockedAppPositions,
                     recentApps = newRecentApps,
                     hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                     notifyingApps = visibleApps
@@ -860,16 +862,22 @@ internal class LauncherViewModel(
         if (app.isDocked) {
             dockedAppStore.undock(app.id)
         } else {
-            dockedAppStore.dock(app.id)
+            dockedAppStore.dock(app.id, columnCount = _uiState.value.dockIconCount)
         }
         refreshLists()
         logState("toggleDock")
     }
 
-    fun reorderDockedApps(fromIndex: Int, toIndex: Int) {
-        if (fromIndex == toIndex) return
-        LauncherDebugLog.event("reorderDockedApps from=$fromIndex to=$toIndex")
-        dockedAppStore.reorder(fromIndex, toIndex)
+    fun reorderDockedApps(appId: String, row: Int, column: Int) {
+        val state = _uiState.value
+        LauncherDebugLog.event("reorderDockedApps appId=$appId row=$row column=$column")
+        dockedAppStore.move(
+            appId = appId,
+            row = row,
+            column = column,
+            columnCount = state.dockIconCount,
+            sortOrder = state.appListSortOrder,
+        )
         refreshLists()
         logState("reorderDockedApps")
     }
@@ -1360,7 +1368,7 @@ internal class LauncherViewModel(
     private fun refreshLists() {
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
-            val dockedIds = dockedAppStore.dockedAppIds
+            val dockedIds = dockedAppIdsForState(state)
             val visibleApps = visibleInstalledApps()
             // Compute the new recents list first so the exclusion sees the
             // post-filterRecent display list rather than `state.recentApps`,
@@ -1375,7 +1383,8 @@ internal class LauncherViewModel(
                     dockedAppIds = dockedIds,
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
-                dockedApps = visibleApps.filterDocked(dockedAppStore.dockedAppIds).markVisibility(),
+                dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
+                dockPositions = dockedAppStore.dockedAppPositions,
                 recentApps = newRecentApps,
                 hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                 notifyingApps = visibleApps
@@ -1388,7 +1397,7 @@ internal class LauncherViewModel(
     private fun refreshFilteredApps() {
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
-            val dockedIds = dockedAppStore.dockedAppIds
+            val dockedIds = dockedAppIdsForState(state)
             state.copy(
                 filteredApps = visibleInstalledApps().filterByName(
                     query = query,
@@ -1400,6 +1409,12 @@ internal class LauncherViewModel(
             )
         }
     }
+
+    private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
+        dockedAppStore.dockedAppIdsFor(
+            sortOrder = state.appListSortOrder,
+            columnCount = state.dockIconCount,
+        )
 
     /**
      * Returns the IDs of apps that should be omitted from the main app list
