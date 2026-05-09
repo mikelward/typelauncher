@@ -3145,12 +3145,42 @@ private data class DisambiguatorBadge(
 // badge picker overrides whatever the auto-disambiguator computed), and the
 // fallback runs the existing `effectiveDisambiguator` -> `disambiguatorBadge`
 // pipeline so the auto-detected country / regional badges still render for
-// apps the user hasn't customised.
+// apps the user hasn't customised. Composable because the custom-badge
+// branch resolves a localized accessibility label per device locale.
+@Composable
 private fun appCornerBadge(app: InstalledApp): DisambiguatorBadge? {
     app.customBadge?.takeIf { it.isNotEmpty() }?.let { glyph ->
-        return DisambiguatorBadge(glyph, "badge")
+        return DisambiguatorBadge(glyph, customBadgeContentDescription(glyph))
     }
     return app.effectiveDisambiguator?.takeIf { it.isNotEmpty() }?.let(::disambiguatorBadge)
+}
+
+// Builds a TalkBack-friendly content description for a user-chosen custom
+// badge so the screen reader announces "Home"/"Work"/"World"/"United
+// States" alongside the app's display name, instead of the generic word
+// "badge". The auto-disambiguator path (effectiveDisambiguator ->
+// disambiguatorBadge) keeps its existing "flag"/"globe" text — auto-
+// detection's output is intentionally coarse (no country lookup at that
+// stage), and changing it would also rewrite the existing disambiguator
+// screenshot test's expectations.
+@Composable
+private fun customBadgeContentDescription(glyph: String): String {
+    BUILT_IN_BADGE_OPTIONS.firstOrNull { it.glyph == glyph }?.labelRes?.let { res ->
+        return stringResource(res)
+    }
+    if (glyph == WORLD_BADGE_OPTION.glyph) {
+        WORLD_BADGE_OPTION.labelRes?.let { res -> return stringResource(res) }
+    }
+    decodeRegionalIndicatorPair(glyph)?.let { code ->
+        val locale = LocalConfiguration.current.locales[0]
+        val countryName = java.util.Locale.Builder().setRegion(code).build().getDisplayCountry(locale)
+        if (countryName.isNotEmpty()) return countryName
+    }
+    // Fallback for an unrecognised glyph. The curated picker shipping
+    // today never reaches this branch; it exists so a future free-form
+    // entry path or a stale persisted value doesn't render an empty
+    // accessibility label.
+    return stringResource(R.string.edit_app_dialog_badge_label)
 }
 
 private fun disambiguatorBadge(label: String): DisambiguatorBadge? {
