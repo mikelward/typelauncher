@@ -31,6 +31,11 @@ Android home screen launcher app (Kotlin, single `:app` module).
   7. **When restoring code after a bisect, restore *every* dependency together.** A bisect that strips `parseTrailingDisambiguatorTag` + `effectiveDisambiguator` + the `AppIcon` callsite must restore all three at once or the partial restore re-introduces the original symptom under a different identity. A practical check: after the restore, `grep -rn "<symbol-you-just-restored>" app/src/` against every symbol that was touched in the original change, and verify the count matches the pre-bisect total.
   8. **Before debugging, check whether the failure is pre-existing.** Run `mcp__github__pull_request_read` with `get_check_runs` for the PR's *base* commit (or the commit just before your push) to see if the job was already red. A pre-existing failure is not yours to fix; note it and move on.
 
+## Translations
+
+- Confirm the English copy with the user before translating it. Don't write translations in any `values-*/strings.xml` (French, Italian, Catalan, etc.) until the corresponding English string in `app/src/main/res/values/strings.xml` — or the proposed wording change to it — has been explicitly approved. Source-of-truth wording shifts often during review; translating ahead of approval wastes the round-trip and leaves stale copy in every locale when the English changes.
+- Sequence the approval *in chat*, not via a commit: do not push an English-only change and "wait for sign-off on the PR." CI runs `./gradlew lint`, which fails on `MissingTranslation` for any new `values/strings.xml` entry that isn't covered in every existing `values-*/` locale. So the working order is (1) propose the English wording in conversation, (2) wait for explicit user approval, (3) commit and push the English string *and* every locale translation together in the same commit so lint stays green. When a task says "translate X" or "add a string in all locales," show the English text first, wait for sign-off, then fan out — but land it all in one push.
+
 ## Cursor Cloud specific instructions
 
 ### Environment
