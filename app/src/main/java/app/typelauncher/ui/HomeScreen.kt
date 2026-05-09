@@ -588,7 +588,7 @@ private fun DockCard(
  * slot centre to the new slot centre so the lifted icon stays under the finger
  * while the grid recomposes around it.
  */
-private fun handleDockDrag(
+internal fun handleDockDrag(
     delta: Offset,
     draggedAppId: String?,
     currentDockedApps: List<InstalledApp>,
