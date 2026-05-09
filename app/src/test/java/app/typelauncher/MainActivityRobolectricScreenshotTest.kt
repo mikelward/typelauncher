@@ -1899,27 +1899,40 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
-    // The trailing + button shows whenever the wrapped dock grid has at
-    // least one empty cell, so users can keep adding apps without first
-    // having to top up to the next row boundary.
+    // The trailing + button shows only when there is exactly one row and
+    // it isn't full — once the user has filled a row or spanned multiple
+    // rows they've learned the long-press gesture and don't need the nudge.
     @Test
-    fun dockAddButton_visibleWhenFinalRowHasEmptySlot() {
+    fun dockAddButton_visibleWhenSingleRowHasEmptySlot() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(3).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        // 3 docked apps, 4 icons per row → 1 row, 1 empty slot; hint must show.
+        assertEquals(3, viewModel.uiState.value.dockedApps.size)
+        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun dockAddButton_hiddenWhenMoreThanOneRow() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(5).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
         }
         composeRule.waitForIdle()
 
-        // 5 docked apps × 4 icons per row = 1 full row + a second row with
-        // 1 app, leaving 3 empty cells; the + must occupy one of them.
+        // 5 docked apps × 4 icons per row = 2 rows; user has already learned
+        // the gesture, so the hint must not appear.
         assertEquals(5, viewModel.uiState.value.dockedApps.size)
-        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
     // When the user has filled every cell in the wrapped grid (an exact
-    // multiple of icons-per-row), the + button drops out so adding an app
-    // does not force an otherwise-empty extra row solely for the
-    // affordance.
+    // multiple of icons-per-row), the + button drops out regardless.
     @Test
     fun dockAddButton_hiddenWhenGridIsFull() {
         val viewModel = composeRule.activity.viewModel
