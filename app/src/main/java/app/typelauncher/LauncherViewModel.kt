@@ -219,7 +219,7 @@ internal class LauncherViewModel(
         }
         if (cachedMetadata.isNotEmpty()) {
             androidTrace("launcher.metadata_prefill") {
-                installedApps = cachedMetadata.applyDisambiguators()
+                installedApps = cachedMetadata.applyDisambiguators().applyRenameOverrides()
                 _uiState.update { state ->
                     val dockedIds = dockedAppStore.dockedAppIds
                     val visibleApps = visibleInstalledApps()
@@ -1404,8 +1404,27 @@ internal class LauncherViewModel(
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { launcherApp -> launcherApp.name })
         return collected
             .applyDisambiguators()
+            .applyRenameOverrides()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
+
+    /**
+     * Mirror persisted [RenamedAppStore] entries onto each [InstalledApp] in
+     * the freshly-loaded list so `filterByName` (which sorts and matches
+     * against `displayName`, which honours `customName` when set) sees the
+     * override on the very first call after a cold start or package-event
+     * reload. Without this pass, the master `installedApps` list comes back
+     * with `customName = null` for every app and the override only attaches
+     * later via `markVisibility` — which runs *after* `filterByName`, so
+     * typing a previously-saved override label returns no matches until
+     * the in-process `renameApp` patch (which mirrors customName onto
+     * `installedApps` directly) is invoked.
+     */
+    private fun List<InstalledApp>.applyRenameOverrides(): List<InstalledApp> =
+        map { app ->
+            val customName = renamedAppStore.customNameFor(app.id)
+            if (app.customName == customName) app else app.copy(customName = customName)
+        }
 
     private fun List<InstalledApp>.applyDisambiguators(): List<InstalledApp> {
         val labels = computeDisambiguators(this)
