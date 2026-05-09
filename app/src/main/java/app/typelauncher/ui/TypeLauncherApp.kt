@@ -335,13 +335,28 @@ internal fun TypeLauncherApp(
         // Until then, the entry cache may have been seeded from an
         // animation-target-only persisted value that has never been
         // ground-truthed; we don't let it shrink off that seed.
+        //
+        // Seeded from the current `imeVisible` rather than `false` so a
+        // configuration change that keeps the IME on screen (e.g. rotate
+        // while typing) re-enters with the visible-IME confirmation
+        // intact. The LaunchedEffect below is also keyed on the entry
+        // reset keys for defense-in-depth: if `imeVisible` stays `true`
+        // across a re-key, the effect would otherwise not run again and
+        // the just-reset `hasSeenVisibleImeThisEntry = false` would block
+        // the shrink branch for the rest of the entry.
         var hasSeenVisibleImeThisEntry by remember(
             state.screen,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
             currentConfigFingerprint,
-        ) { mutableStateOf(false) }
-        LaunchedEffect(imeVisible) {
+        ) { mutableStateOf(imeVisible) }
+        LaunchedEffect(
+            imeVisible,
+            state.screen,
+            state.isSettingsOpen,
+            state.isKeyboardAutoShown,
+            currentConfigFingerprint,
+        ) {
             if (imeVisible) hasSeenVisibleImeThisEntry = true
         }
         // Held by `rememberUpdatedState` so the LaunchedEffects below — whose
