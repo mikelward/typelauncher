@@ -136,16 +136,67 @@ internal class DockSettingsStore(context: Context) {
 
     /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
-     * keyboard was opening. Used to reserve Home's keyboard slot before the IME
-     * reports its next animation target, avoiding one full-height pre-keyboard
-     * frame on warm starts and carousel returns.
+     * keyboard was opening, paired with the configuration it was measured
+     * under and the source that produced it. Used to reserve Home's
+     * keyboard slot before the IME reports its next animation target,
+     * avoiding one full-height pre-keyboard frame on warm starts and
+     * carousel returns. The configuration fingerprint makes the cache
+     * shrink-safe: on rotation, density change, navigation-mode switch,
+     * or any other property that changes the IME's pixel height, the
+     * persisted value is ignored on the next cold start so a stale
+     * too-large reservation cannot survive the configuration change.
+     *
+     * Legacy installs that wrote only [KEY_KEYBOARD_RESERVATION_BOTTOM_PX]
+     * (without the fingerprint keys) are loaded with a null fingerprint
+     * and treated as a wildcard until the next IME observation overwrites
+     * them, so upgrades still benefit from the cached value.
      */
-    var keyboardReservationBottomPx: Int
-        get() = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_BOTTOM_PX, 0)
+    var keyboardReservation: KeyboardReservation
+        get() {
+            val bottomPx = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_BOTTOM_PX, 0)
+                .coerceAtLeast(0)
+            val hasConfig = sharedPreferences.contains(KEY_KEYBOARD_RESERVATION_ORIENTATION)
+            val configFingerprint = if (hasConfig) {
+                KeyboardReservationConfig(
+                    orientation = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_ORIENTATION, 0),
+                    screenWidthDp = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP, 0),
+                    screenHeightDp = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_SCREEN_HEIGHT_DP, 0),
+                    densityDpi = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_DENSITY_DPI, 0),
+                    navBottomPx = sharedPreferences.getInt(KEY_KEYBOARD_RESERVATION_NAV_BOTTOM_PX, 0),
+                )
+            } else {
+                null
+            }
+            val source = sharedPreferences.getString(KEY_KEYBOARD_RESERVATION_SOURCE, null)
+                ?.let { name -> runCatching { KeyboardReservationSource.valueOf(name) }.getOrNull() }
+                ?: KeyboardReservationSource.AnimationTarget
+            return KeyboardReservation(
+                bottomPx = bottomPx,
+                configFingerprint = configFingerprint,
+                source = source,
+            )
+        }
         set(value) {
-            sharedPreferences.edit()
-                .putInt(KEY_KEYBOARD_RESERVATION_BOTTOM_PX, value.coerceAtLeast(0))
-                .apply()
+            val editor = sharedPreferences.edit()
+                .putInt(KEY_KEYBOARD_RESERVATION_BOTTOM_PX, value.bottomPx.coerceAtLeast(0))
+                .putString(KEY_KEYBOARD_RESERVATION_SOURCE, value.source.name)
+            val fingerprint = value.configFingerprint
+            if (fingerprint == null) {
+                editor
+                    .remove(KEY_KEYBOARD_RESERVATION_ORIENTATION)
+                    .remove(KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP)
+                    .remove(KEY_KEYBOARD_RESERVATION_SCREEN_HEIGHT_DP)
+                    .remove(KEY_KEYBOARD_RESERVATION_DENSITY_DPI)
+                    .remove(KEY_KEYBOARD_RESERVATION_NAV_BOTTOM_PX)
+            } else {
+                editor
+                    .putInt(KEY_KEYBOARD_RESERVATION_ORIENTATION, fingerprint.orientation)
+                    .putInt(KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP, fingerprint.screenWidthDp)
+                    .putInt(KEY_KEYBOARD_RESERVATION_SCREEN_HEIGHT_DP, fingerprint.screenHeightDp)
+                    .putInt(KEY_KEYBOARD_RESERVATION_DENSITY_DPI, fingerprint.densityDpi)
+                    .putInt(KEY_KEYBOARD_RESERVATION_NAV_BOTTOM_PX, fingerprint.navBottomPx)
+            }
+            editor.apply()
         }
 
     /**
@@ -185,6 +236,12 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
+        const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"
+        const val KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP = "keyboard_reservation_screen_width_dp"
+        const val KEY_KEYBOARD_RESERVATION_SCREEN_HEIGHT_DP = "keyboard_reservation_screen_height_dp"
+        const val KEY_KEYBOARD_RESERVATION_DENSITY_DPI = "keyboard_reservation_density_dpi"
+        const val KEY_KEYBOARD_RESERVATION_NAV_BOTTOM_PX = "keyboard_reservation_nav_bottom_px"
+        const val KEY_KEYBOARD_RESERVATION_SOURCE = "keyboard_reservation_source"
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_THEME_MODE = "theme_mode"
     }

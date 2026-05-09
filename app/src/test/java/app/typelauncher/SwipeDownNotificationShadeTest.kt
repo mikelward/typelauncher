@@ -296,7 +296,7 @@ class SwipeDownNotificationShadeTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},

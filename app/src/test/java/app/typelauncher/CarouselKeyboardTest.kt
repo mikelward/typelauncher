@@ -142,7 +142,7 @@ class CarouselKeyboardTest {
                 screen = LauncherScreen.Widgets,
                 filteredApps = apps,
                 dockedApps = docked,
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
                 isKeyboardAutoShown = true,
             ),
         )
@@ -188,7 +188,7 @@ class CarouselKeyboardTest {
                 filteredApps = apps,
                 dockedApps = docked,
                 recentApps = recentApps,
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
                 isKeyboardAutoShown = true,
                 isRecentsOpen = true,
             ),
@@ -202,7 +202,7 @@ class CarouselKeyboardTest {
         composeRule.waitForIdle()
         val listTrayClosed = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
 
-        state = state.copy(keyboardReservationBottomPx = 840)
+        state = state.copy(keyboardReservation = KeyboardReservation(bottomPx = 840))
         composeRule.waitForIdle()
         val listSmallerReservation = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val dockSmallerReservation = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
@@ -211,7 +211,7 @@ class CarouselKeyboardTest {
         composeRule.waitForIdle()
         val listTrayReopened = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
 
-        state = state.copy(keyboardReservationBottomPx = 900)
+        state = state.copy(keyboardReservation = KeyboardReservation(bottomPx = 900))
         composeRule.waitForIdle()
         val listRestoredReservation = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
 
@@ -241,6 +241,98 @@ class CarouselKeyboardTest {
         assertTrue(
             "Home app list bottom should remain stable when reservation returns to its entry value",
             kotlin.math.abs((listBaseline.bottom - listRestoredReservation.bottom).value) <= 1f,
+        )
+    }
+
+    @Test
+    fun homeIgnoresPersistedReservationWhenConfigFingerprintMismatches() {
+        // Persisted reservation captured under a clearly different configuration
+        // (here: orientation/screen swapped to landscape, plus a fake density)
+        // must NOT seed the entry cache — otherwise a too-large value from the
+        // last session's portrait keyboard would survive a rotation.
+        val keyboard = CountingKeyboardController()
+        val apps = (1..12).map { index -> fakeApp(name = "App%02d".format(index)) }
+        val docked = listOf(fakeApp(name = "Docked").copy(isDocked = true))
+        val staleFingerprint = KeyboardReservationConfig(
+            orientation = 99,
+            screenWidthDp = 1,
+            screenHeightDp = 1,
+            densityDpi = 1,
+            navBottomPx = 0,
+        )
+        val matchedFingerprint = KeyboardReservationConfig(
+            orientation = 1,
+            screenWidthDp = 411,
+            screenHeightDp = 914,
+            densityDpi = 420,
+            navBottomPx = 0,
+        )
+        var staleState by mutableStateOf(
+            LauncherUiState(
+                filteredApps = apps,
+                dockedApps = docked,
+                keyboardReservation = KeyboardReservation(
+                    bottomPx = 900,
+                    configFingerprint = staleFingerprint,
+                ),
+                isKeyboardAutoShown = true,
+            ),
+        )
+        composeRule.setContent {
+            CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
+                TypeLauncherTheme {
+                    TypeLauncherApp(
+                        state = staleState,
+                        onQueryChanged = {},
+                        onClearQuery = {},
+                        onLaunchActiveApp = {},
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onHideApp = {},
+                        onUnhideApp = {},
+                        onOpenSettings = {},
+                        onCloseSettings = {},
+                        onRequestDefaultLauncher = {},
+                        onDockEnabledChanged = {},
+                        onAppListIconOnlyChanged = {},
+                        onDockVisibleIconCountChanged = {},
+                        onAppListSortOrderChanged = {},
+                        onShowAgenda = {},
+                        onShowWidgets = {},
+                        onShowHome = {},
+                        appWidgetHost = null,
+                        appWidgetManager = null,
+                        onAddWidget = {},
+                        onDismissWidgetPicker = {},
+                        onSelectWidget = {},
+                        onRemoveWidget = {},
+                        onRequestCalendarPermission = {},
+                        onOpenAgendaEvent = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val dockBoundsStaleConfig = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        // Now flip to a matching fingerprint — the same 900px reservation is
+        // suddenly applicable, and the dock should rise above the reserved
+        // keyboard slot.
+        staleState = staleState.copy(
+            keyboardReservation = KeyboardReservation(
+                bottomPx = 900,
+                configFingerprint = matchedFingerprint,
+            ),
+        )
+        composeRule.waitForIdle()
+        val dockBoundsMatchedConfig = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        assertTrue(
+            "Dock under a fingerprint-matching 900px reservation must sit visibly higher than " +
+                "under a fingerprint-mismatched one (which seeded 0 — i.e. dock rests at the bottom).",
+            (dockBoundsStaleConfig.bottom - dockBoundsMatchedConfig.bottom).value > 100f,
         )
     }
 

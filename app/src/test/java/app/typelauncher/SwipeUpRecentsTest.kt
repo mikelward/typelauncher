@@ -313,7 +313,7 @@ class SwipeUpRecentsTest {
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
                         isRecentsOpen = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -373,7 +373,7 @@ class SwipeUpRecentsTest {
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
                         isRecentsOpen = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -607,7 +607,7 @@ class SwipeUpRecentsTest {
                 filteredApps = apps,
                 dockedApps = dockedApps,
                 recentApps = recentApps,
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
             ),
         )
         composeRule.setContent {
@@ -690,7 +690,7 @@ class SwipeUpRecentsTest {
                 filteredApps = emptyList(),
                 recentApps = recentApps,
                 isRecentsOpen = true,
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
             ),
         )
 
@@ -723,7 +723,7 @@ class SwipeUpRecentsTest {
                 filteredApps = emptyList(),
                 recentApps = recentApps,
                 isRecentsOpen = true,
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
             ),
         )
 
@@ -769,7 +769,7 @@ class SwipeUpRecentsTest {
                         filteredApps = emptyList(),
                         recentApps = recentApps,
                         isRecentsOpen = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -828,7 +828,7 @@ class SwipeUpRecentsTest {
                         filteredApps = emptyList(),
                         recentApps = recentApps,
                         isRecentsOpen = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},

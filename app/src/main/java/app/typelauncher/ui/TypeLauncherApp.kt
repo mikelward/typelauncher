@@ -46,6 +46,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -101,6 +102,16 @@ private const val HOME_READY_IME_TIMEOUT_MS = 1500L
 // each new value re-keys the LaunchedEffect and cancels the pending delay,
 // only a target that has been stable for this long is treated as authoritative.
 private const val IME_TARGET_DEBOUNCE_MS = 250L
+
+// Debounce window applied before allowing a smaller settled IME reading to
+// shrink the entry's cached keyboard reservation. Within an entry the cache
+// is grow-biased to prevent secondary-tray toggles and IME open animations
+// from reflowing Home; the shrink path is gated on a separate, longer window
+// so a transient inset dip during, say, an IME layout swap cannot pull the
+// reservation down before the keyboard settles back. Tuned looser than the
+// growth debounce because growth is far more disruptive than a one-off
+// missed shrink.
+private const val IME_SHRINK_DEBOUNCE_MS = 600L
 
 private val CarouselPageAnimationSpec = tween<Float>(
     durationMillis = 220,
@@ -175,7 +186,7 @@ internal fun TypeLauncherApp(
         onSetRecentsOpen = viewModel::setRecentsOpen,
         onSetNotificationBarOpen = viewModel::setNotificationBarOpen,
         onRequestShowKeyboard = viewModel::requestShowKeyboard,
-        onKeyboardReservationBottomChanged = viewModel::setKeyboardReservationBottomPx,
+        onKeyboardReservationChanged = viewModel::setKeyboardReservation,
         keyboardShowRequests = viewModel.keyboardShowRequests,
         onRequestNotificationAccess = viewModel::openNotificationAccessSettings,
         appWidgetHost = appWidgetHost,
@@ -229,7 +240,7 @@ internal fun TypeLauncherApp(
     onSetRecentsOpen: (Boolean) -> Unit = {},
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestShowKeyboard: () -> Unit = {},
-    onKeyboardReservationBottomChanged: (Int) -> Unit = {},
+    onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onRequestNotificationAccess: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
@@ -274,26 +285,90 @@ internal fun TypeLauncherApp(
         contentWindowInsets = WindowInsets.statusBars.union(WindowInsets.navigationBars),
     ) { innerPadding ->
         val density = LocalDensity.current
+        val configuration = LocalConfiguration.current
         val imeVisible = WindowInsets.isImeVisible
         val imeBottomPx = WindowInsets.ime.getBottom(density)
         val imeTargetBottomPx = WindowInsets.imeAnimationTarget.getBottom(density)
         val navBottomPx = WindowInsets.navigationBars.getBottom(density)
+        // Fingerprint of the configuration the IME geometry would have been
+        // measured under right now. The persisted reservation is only safe
+        // to apply when its fingerprint matches: rotation, fold/unfold,
+        // density change, or a navigation-mode switch (gesture ↔ 3-button)
+        // all change the keyboard's pixel height, and any of them can leave
+        // a stale too-large reservation that the original grow-only cache
+        // would never shake off.
+        val currentConfigFingerprint = remember(
+            configuration.orientation,
+            configuration.screenWidthDp,
+            configuration.screenHeightDp,
+            configuration.densityDpi,
+            navBottomPx,
+        ) {
+            KeyboardReservationConfig(
+                orientation = configuration.orientation,
+                screenWidthDp = configuration.screenWidthDp,
+                screenHeightDp = configuration.screenHeightDp,
+                densityDpi = configuration.densityDpi,
+                navBottomPx = navBottomPx,
+            )
+        }
+        val applicableSeedReservationPx = if (state.keyboardReservation.appliesUnder(currentConfigFingerprint)) {
+            state.keyboardReservation.bottomPx
+        } else {
+            0
+        }
         // Freeze the keyboard-height geometry for this Home entry. IME target
         // insets can jitter by a row fraction while the keyboard/tray toggles;
         // feeding each update back into Home padding visibly reflows the list.
+        // Re-keyed on the configuration fingerprint so a rotation / nav-mode
+        // switch starts fresh rather than carrying forward a now-incorrect
+        // pixel height.
         var entryKeyboardBottomPx by remember(
             state.screen,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
-            navBottomPx,
+            currentConfigFingerprint,
         ) {
-            mutableStateOf(state.keyboardReservationBottomPx)
+            mutableStateOf(applicableSeedReservationPx)
         }
-        LaunchedEffect(state.keyboardReservationBottomPx, navBottomPx) {
-            if (state.keyboardReservationBottomPx > navBottomPx &&
-                state.keyboardReservationBottomPx > entryKeyboardBottomPx
+        // Whether a real visible IME has been observed during this entry.
+        // Until then, the entry cache may have been seeded from an
+        // animation-target-only persisted value that has never been
+        // ground-truthed; we don't let it shrink off that seed.
+        var hasSeenVisibleImeThisEntry by remember(
+            state.screen,
+            state.isSettingsOpen,
+            state.isKeyboardAutoShown,
+            currentConfigFingerprint,
+        ) { mutableStateOf(false) }
+        LaunchedEffect(imeVisible) {
+            if (imeVisible) hasSeenVisibleImeThisEntry = true
+        }
+        // Held by `rememberUpdatedState` so the LaunchedEffects below — whose
+        // keys deliberately exclude `state.keyboardReservation` to avoid
+        // re-launching every time the persistence callback fires back into
+        // state — still read the freshest value when their `delay` resumes.
+        val currentReservation by rememberUpdatedState(state.keyboardReservation)
+        LaunchedEffect(state.keyboardReservation, currentConfigFingerprint, hasSeenVisibleImeThisEntry) {
+            val reservation = state.keyboardReservation
+            if (!reservation.appliesUnder(currentConfigFingerprint)) return@LaunchedEffect
+            val candidate = reservation.bottomPx
+            if (candidate <= currentConfigFingerprint.navBottomPx) return@LaunchedEffect
+            if (candidate > entryKeyboardBottomPx) {
+                // Grow-biased: any larger applicable reservation is adopted
+                // immediately so secondary tray toggles and IME re-opens
+                // can rest against keyboard-height geometry.
+                entryKeyboardBottomPx = candidate
+            } else if (candidate < entryKeyboardBottomPx &&
+                hasSeenVisibleImeThisEntry &&
+                reservation.source == KeyboardReservationSource.VisibleIme
             ) {
-                entryKeyboardBottomPx = state.keyboardReservationBottomPx
+                // Shrink path: a visible-IME-confirmed smaller value lands
+                // only after the user has actually seen the IME this entry.
+                // Animation-target-only readings cannot pull the cache
+                // down — multi-stage IME opens would dip below the settled
+                // height during the transition.
+                entryKeyboardBottomPx = candidate
             }
         }
         // Debounce `imeAnimationTarget` before persisting it as the cached
@@ -305,11 +380,53 @@ internal fun TypeLauncherApp(
         // into `entryKeyboardBottomPx` for the rest of the entry. Each new
         // value re-keys this LaunchedEffect and cancels the pending delay, so
         // only a target that has held still for the debounce window reaches
-        // `state.keyboardReservationBottomPx`.
-        LaunchedEffect(imeTargetBottomPx, navBottomPx) {
-            if (imeTargetBottomPx <= navBottomPx) return@LaunchedEffect
+        // `state.keyboardReservation`.
+        LaunchedEffect(imeTargetBottomPx, currentConfigFingerprint, imeVisible) {
+            if (imeTargetBottomPx <= currentConfigFingerprint.navBottomPx) return@LaunchedEffect
+            // Growth and first-write path: settle on a stable target.
             delay(IME_TARGET_DEBOUNCE_MS)
-            onKeyboardReservationBottomChanged(imeTargetBottomPx)
+            val growthCandidate = KeyboardReservation(
+                bottomPx = imeTargetBottomPx,
+                configFingerprint = currentConfigFingerprint,
+                source = if (imeVisible) {
+                    KeyboardReservationSource.VisibleIme
+                } else {
+                    KeyboardReservationSource.AnimationTarget
+                },
+            )
+            val current = currentReservation
+            // Always overwrite on a configuration change so a stale
+            // fingerprint cannot survive. Otherwise grow-only at this
+            // shorter debounce — shrinks go through the longer
+            // [IME_SHRINK_DEBOUNCE_MS] gate below.
+            val configChanged = current.configFingerprint != currentConfigFingerprint
+            val grew = imeTargetBottomPx > current.bottomPx
+            val sourceUpgraded = imeTargetBottomPx == current.bottomPx &&
+                growthCandidate.source == KeyboardReservationSource.VisibleIme &&
+                current.source == KeyboardReservationSource.AnimationTarget
+            if (configChanged || grew || sourceUpgraded) {
+                onKeyboardReservationChanged(growthCandidate)
+            }
+        }
+        // Shrink-path persistence: only when the IME is actually visible
+        // (so the reading is ground-truthed, not just a settling target),
+        // and only after a longer debounce window so a transient inset
+        // dip during, say, an IME layout swap cannot pull the persisted
+        // value down before the keyboard settles back.
+        LaunchedEffect(imeBottomPx, imeVisible, currentConfigFingerprint) {
+            if (!imeVisible) return@LaunchedEffect
+            if (imeBottomPx <= currentConfigFingerprint.navBottomPx) return@LaunchedEffect
+            val current = currentReservation
+            val sameConfig = current.configFingerprint == currentConfigFingerprint
+            if (sameConfig && imeBottomPx >= current.bottomPx) return@LaunchedEffect
+            delay(IME_SHRINK_DEBOUNCE_MS)
+            onKeyboardReservationChanged(
+                KeyboardReservation(
+                    bottomPx = imeBottomPx,
+                    configFingerprint = currentConfigFingerprint,
+                    source = KeyboardReservationSource.VisibleIme,
+                ),
+            )
         }
         val stableTypingGeometryAvailable = !state.isSettingsOpen &&
             state.isKeyboardAutoShown &&
