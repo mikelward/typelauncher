@@ -84,6 +84,61 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun dockAssignsRowColumnPositions() {
+        val store = DockedAppStore(context)
+
+        store.dock("a", columnCount = 4)
+        store.dock("b", columnCount = 4)
+        store.dock("c", columnCount = 4)
+        store.dock("d", columnCount = 4)
+        store.dock("e", columnCount = 4)
+
+        assertEquals(DockPosition(0, 0), store.dockedAppPositions["a"])
+        assertEquals(DockPosition(0, 3), store.dockedAppPositions["d"])
+        assertEquals(DockPosition(1, 0), store.dockedAppPositions["e"])
+    }
+
+    @Test
+    fun movePersistsSparseGridPosition() {
+        DockedAppStore(context).apply {
+            dock("a", columnCount = 4)
+            dock("b", columnCount = 4)
+            dock("c", columnCount = 4)
+            move("a", row = 1, column = 0, columnCount = 4, sortOrder = AppListSortOrder.Usage)
+        }
+
+        val reloaded = DockedAppStore(context)
+        assertEquals(DockPosition(1, 0), reloaded.dockedAppPositions["a"])
+        assertEquals(listOf("b", "c", "a"), reloaded.dockedAppIdsFor(AppListSortOrder.Usage, columnCount = 4))
+    }
+
+    @Test
+    fun moveSwapsOccupiedGridPosition() {
+        val store = DockedAppStore(context)
+        store.dock("a", columnCount = 4)
+        store.dock("b", columnCount = 4)
+
+        store.move("a", row = 0, column = 1, columnCount = 4, sortOrder = AppListSortOrder.Usage)
+
+        assertEquals(DockPosition(0, 1), store.dockedAppPositions["a"])
+        assertEquals(DockPosition(0, 0), store.dockedAppPositions["b"])
+    }
+
+    @Test
+    fun dockedAppIdsForReversedSortRanksBottomRightFirst() {
+        val store = DockedAppStore(context)
+        store.dock("a", columnCount = 4)
+        store.dock("b", columnCount = 4)
+        store.dock("c", columnCount = 4)
+        store.move("a", row = 1, column = 0, columnCount = 4, sortOrder = AppListSortOrder.Usage)
+
+        assertEquals(
+            listOf("a", "c", "b"),
+            store.dockedAppIdsFor(AppListSortOrder.UsageReversed, columnCount = 4),
+        )
+    }
+
+    @Test
     fun notificationPullDownBehaviorDefaultsToBarBelow() {
         val store = DockSettingsStore(context)
 

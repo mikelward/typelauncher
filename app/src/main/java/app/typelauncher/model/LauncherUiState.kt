@@ -47,6 +47,97 @@ internal val AppListSortOrder.dataOrdering: AppListSortOrder
         AppListSortOrder.Alphabetical, AppListSortOrder.AlphabeticalReversed -> AppListSortOrder.Alphabetical
     }
 
+@Immutable
+internal data class DockPosition(
+    val row: Int,
+    val column: Int,
+)
+
+internal fun resolvedDockPositions(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    columnCount: Int,
+): Map<String, DockPosition> {
+    val columns = columnCount.coerceAtLeast(1)
+    val result = linkedMapOf<String, DockPosition>()
+    val occupied = mutableSetOf<DockPosition>()
+    fun firstOpenPosition(): DockPosition {
+        var row = 0
+        while (true) {
+            for (column in 0 until columns) {
+                val position = DockPosition(row, column)
+                if (position !in occupied) return position
+            }
+            row += 1
+        }
+    }
+    dockedAppIds.distinct().forEach { appId ->
+        val persisted = persistedPositions[appId]
+        if (
+            persisted != null &&
+            persisted.row >= 0 &&
+            persisted.column in 0 until columns &&
+            occupied.add(persisted)
+        ) {
+            result[appId] = persisted
+        } else {
+            val fallback = firstOpenPosition()
+            occupied.add(fallback)
+            result[appId] = fallback
+        }
+    }
+    return result
+}
+
+internal fun nextAvailableDockPosition(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    columnCount: Int,
+): DockPosition {
+    val occupied = resolvedDockPositions(dockedAppIds, persistedPositions, columnCount)
+        .values
+        .toSet()
+    val columns = columnCount.coerceAtLeast(1)
+    var row = 0
+    while (true) {
+        for (column in 0 until columns) {
+            val position = DockPosition(row, column)
+            if (position !in occupied) {
+                return position
+            }
+        }
+        row += 1
+    }
+}
+
+internal fun dockedAppIdsInGridRankOrder(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    columnCount: Int,
+    sortOrder: AppListSortOrder,
+): List<String> {
+    val uniqueIds = dockedAppIds.distinct()
+    val indexById = uniqueIds.withIndex().associate { (index, id) -> id to index }
+    val positions = resolvedDockPositions(uniqueIds, persistedPositions, columnCount)
+    return uniqueIds.sortedWith { left, right ->
+        val leftPosition = positions.getValue(left)
+        val rightPosition = positions.getValue(right)
+        val rowComparison = if (sortOrder.isReversed) {
+            rightPosition.row.compareTo(leftPosition.row)
+        } else {
+            leftPosition.row.compareTo(rightPosition.row)
+        }
+        if (rowComparison != 0) return@sortedWith rowComparison
+        val columnComparison = if (sortOrder.isReversed) {
+            rightPosition.column.compareTo(leftPosition.column)
+        } else {
+            leftPosition.column.compareTo(rightPosition.column)
+        }
+        if (columnComparison != 0) return@sortedWith columnComparison
+        (indexById[left] ?: 0).compareTo(indexById[right] ?: 0)
+    }
+}
+
 internal enum class NotificationPullDownBehavior {
     None,
     System,
@@ -181,6 +272,7 @@ internal data class LauncherUiState(
     // pre-toggle behavior.
     val isShowDockedAppsInList: Boolean = true,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
+    val dockPositions: Map<String, DockPosition> = emptyMap(),
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing
