@@ -44,7 +44,7 @@ class AppsListScrollResetTest {
         initialState: LauncherUiState,
         searchPlaceholderSuffix: String = "",
     ): androidx.compose.runtime.MutableState<LauncherUiState> {
-        val stateHolder = mutableStateOf(initialState)
+        val stateHolder = mutableStateOf(initialState.copy(isFreshAppLoadComplete = true))
         composeRule.setContent {
             val state by stateHolder
             TypeLauncherTheme {
