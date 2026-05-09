@@ -227,6 +227,7 @@ internal fun HomeScreen(
                 AppsCard(
                     apps = state.filteredApps,
                     isLoading = state.isLoadingApps,
+                    overflowChevronsReady = state.isFreshAppLoadComplete,
                     dockLimit = Int.MAX_VALUE,
                     isIconOnly = state.isAppListIconOnly,
                     iconSizeDp = dockIconSizeDp,
@@ -1057,6 +1058,7 @@ private suspend fun ScrollState.scrollOneHorizontalPage(backward: Boolean, viewp
 private fun AppListOverflowChevronBox(
     canScrollUp: Boolean,
     canScrollDown: Boolean,
+    chevronsReady: Boolean,
     chevronContentDescription: String,
     onScrollPageUp: () -> Unit,
     onScrollPageDown: () -> Unit,
@@ -1065,28 +1067,65 @@ private fun AppListOverflowChevronBox(
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         content()
-        if (canScrollUp) {
-            OverflowScrollChevron(
-                icon = Icons.Filled.KeyboardArrowUp,
-                contentDescription = chevronContentDescription,
-                alignment = Alignment.TopCenter,
-                yEdgeOffset = -VerticalScrollChevronEdgeOffset,
-                testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
-                tapTargetWidth = VerticalScrollChevronTapTargetSize,
-                onClick = onScrollPageUp,
-            )
+        if (chevronsReady && canScrollUp) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = -VerticalScrollChevronEdgeOffset),
+            ) {
+                AppListOverflowChevron(
+                    icon = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = chevronContentDescription,
+                    testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+                    onClick = onScrollPageUp,
+                )
+            }
         }
-        if (canScrollDown) {
-            OverflowScrollChevron(
-                icon = Icons.Filled.KeyboardArrowDown,
-                contentDescription = chevronContentDescription,
-                alignment = Alignment.BottomCenter,
-                yEdgeOffset = VerticalScrollChevronEdgeOffset,
-                testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
-                tapTargetWidth = VerticalScrollChevronTapTargetSize,
-                onClick = onScrollPageDown,
-            )
+        if (chevronsReady && canScrollDown) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = VerticalScrollChevronEdgeOffset),
+            ) {
+                AppListOverflowChevron(
+                    icon = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = chevronContentDescription,
+                    testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
+                    onClick = onScrollPageDown,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun AppListOverflowChevron(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(VerticalScrollChevronTapTargetSize)
+            .pointerInput(onClick) {
+                detectTapGestures(onTap = { onClick() })
+            }
+            .semantics {
+                role = Role.Button
+                this.contentDescription = contentDescription
+                onClick {
+                    onClick()
+                    true
+                }
+            }
+            .testTag(testTag),
+        contentAlignment = Alignment.Center,
+    ) {
+        ChevronIcon(
+            icon = icon,
+            contentDescription = contentDescription,
+        )
     }
 }
 
@@ -1185,6 +1224,7 @@ private val VerticalScrollChevronTapTargetSize = 32.dp
 private fun AppsCard(
     apps: List<InstalledApp>,
     isLoading: Boolean = false,
+    overflowChevronsReady: Boolean = true,
     dockLimit: Int,
     isIconOnly: Boolean,
     iconSizeDp: Int,
@@ -1215,6 +1255,15 @@ private fun AppsCard(
             onAppListBoundsChanged(null)
         }
     }
+    val chevronLayoutKey = remember(apps, isIconOnly, reverseLayout) {
+        AppListChevronLayoutKey(
+            appIds = apps.map { it.id },
+            isIconOnly = isIconOnly,
+            reverseLayout = reverseLayout,
+        )
+    }
+    var measuredChevronLayoutKey by remember { mutableStateOf<AppListChevronLayoutKey?>(null) }
+    val isCurrentAppSetMeasured = measuredChevronLayoutKey == chevronLayoutKey
     SectionCard(modifier.testTag(APPS_CARD_TAG)) {
         if (isLoading) {
             Box(
@@ -1244,10 +1293,14 @@ private fun AppsCard(
                 // respectively.
                 val canScrollUp = if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward
                 val canScrollDown = if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward
+                val chevronsReady = overflowChevronsReady &&
+                    isCurrentAppSetMeasured &&
+                    gridState.layoutInfo.viewportSize.height > 0
                 val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
+                    chevronsReady = chevronsReady,
                     chevronContentDescription = chevronDescription,
                     onScrollPageUp = {
                         scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
@@ -1264,7 +1317,10 @@ private fun AppsCard(
                         highlightFirst = highlightFirst,
                         reverseLayout = reverseLayout,
                         state = gridState,
-                        onBoundsChanged = onAppListBoundsChanged,
+                        onBoundsChanged = { bounds ->
+                            onAppListBoundsChanged(bounds)
+                            measuredChevronLayoutKey = chevronLayoutKey
+                        },
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -1280,10 +1336,14 @@ private fun AppsCard(
                 LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
                 val canScrollUp = if (reverseLayout) listState.canScrollForward else listState.canScrollBackward
                 val canScrollDown = if (reverseLayout) listState.canScrollBackward else listState.canScrollForward
+                val chevronsReady = overflowChevronsReady &&
+                    isCurrentAppSetMeasured &&
+                    listState.layoutInfo.viewportSize.height > 0
                 val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
+                    chevronsReady = chevronsReady,
                     chevronContentDescription = chevronDescription,
                     onScrollPageUp = {
                         scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
@@ -1302,6 +1362,7 @@ private fun AppsCard(
                                 onAppListBoundsChanged(
                                     Rect(coords.positionInRoot(), coords.size.toSize()),
                                 )
+                                measuredChevronLayoutKey = chevronLayoutKey
                             }
                             .testTag(APPS_LIST_TAG),
                     ) {
@@ -1326,6 +1387,12 @@ private fun AppsCard(
         }
     }
 }
+
+private data class AppListChevronLayoutKey(
+    val appIds: List<String>,
+    val isIconOnly: Boolean,
+    val reverseLayout: Boolean,
+)
 
 private suspend fun LazyGridState.scrollOneVisualPage(up: Boolean, reverseLayout: Boolean) {
     val direction = visualPageScrollDirection(up = up, reverseLayout = reverseLayout)

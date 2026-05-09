@@ -2,6 +2,8 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -22,7 +24,8 @@ import org.robolectric.annotation.Config
  * off-screen below, and on the top edge once the user has scrolled past the
  * first row. Visibility is driven by `LazyListState.canScrollForward` /
  * `canScrollBackward`, so a list that fits the viewport shows neither
- * chevron.
+ * chevron once the fresh app load is complete and the lazy viewport has been
+ * measured.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -40,8 +43,51 @@ class AppsListChevronTest {
             launchWithLauncherApps = false,
         )
 
-    private fun renderHome(state: LauncherUiState) {
+    private fun renderHome(
+        state: LauncherUiState,
+        markFreshLoadComplete: Boolean = true,
+    ) {
         composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = if (markFreshLoadComplete) state.copy(isFreshAppLoadComplete = true) else state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+    }
+
+    private fun renderMutableHome(initialState: LauncherUiState): androidx.compose.runtime.MutableState<LauncherUiState> {
+        val stateHolder = mutableStateOf(initialState)
+        composeRule.setContent {
+            val state by stateHolder
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = state,
@@ -76,6 +122,7 @@ class AppsListChevronTest {
                 )
             }
         }
+        return stateHolder
     }
 
     @Test
@@ -89,6 +136,71 @@ class AppsListChevronTest {
         composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun appsListOverflow_warmCacheHidesChevronUntilFreshLoadCompletes() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        val stateHolder = renderMutableHome(
+            LauncherUiState(
+                filteredApps = apps,
+                isLoadingApps = false,
+                isFreshAppLoadComplete = false,
+            ),
+        )
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertDoesNotExist()
+
+        stateHolder.value = stateHolder.value.copy(isFreshAppLoadComplete = true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_shrinkingAppSetHidesChevronAfterFreshLoad() {
+        val cachedApps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        val freshApps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
+        val stateHolder = renderMutableHome(
+            LauncherUiState(
+                filteredApps = cachedApps,
+                isLoadingApps = false,
+                isFreshAppLoadComplete = true,
+            ),
+        )
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
+
+        stateHolder.value = stateHolder.value.copy(filteredApps = freshApps)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun appsListOverflow_coldLoadHidesChevronUntilAppsPublish() {
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        val stateHolder = renderMutableHome(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                isLoadingApps = true,
+                isFreshAppLoadComplete = false,
+            ),
+        )
+
+        composeRule.onNodeWithTag(APPS_LOADING_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertDoesNotExist()
+
+        stateHolder.value = stateHolder.value.copy(
+            filteredApps = apps,
+            isLoadingApps = false,
+            isFreshAppLoadComplete = true,
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
     }
 
     @Test
