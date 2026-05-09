@@ -76,10 +76,12 @@ class LauncherViewModelShowDockedInListTest {
         idle()
 
         assertFalse(viewModel.uiState.value.isShowDockedAppsInList)
-        assertEquals(
-            listOf("Maps"),
-            viewModel.uiState.value.filteredApps.map { it.name },
-        )
+        // The real Type Launcher activity from the manifest also surfaces via
+        // `queryIntentActivities`, so we assert what's filtered out (Mail)
+        // rather than the full set.
+        val names = viewModel.uiState.value.filteredApps.map { it.name }
+        assertFalse("Docked Mail should be hidden from list, got $names", "Mail" in names)
+        assertTrue("Non-docked Maps should remain visible, got $names", "Maps" in names)
     }
 
     @Test

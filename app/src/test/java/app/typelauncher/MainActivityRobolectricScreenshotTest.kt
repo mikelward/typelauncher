@@ -1372,6 +1372,10 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun dockingApp_addsItToDockAndOffersUndock() {
+        // The default `Show docked apps` toggle keeps Calculator visible in
+        // the main list after docking; turn it off so the assertions below
+        // can verify the dedup path.
+        composeRule.activity.viewModel.setShowDockedAppsInList(false)
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Calculator").performClick()
@@ -1389,6 +1393,9 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun dockLongPress_showsAppInfoUndockAndResetRankActions() {
+        // Opt out of "Show docked apps" so the post-dock assertion sees the
+        // dedup path; the long-press menu is independent of the toggle.
+        composeRule.activity.viewModel.setShowDockedAppsInList(false)
         composeRule.activity.viewModel.setQuery("calculator")
         composeRule.activity.viewModel.launchApp(composeRule.activity.viewModel.uiState.value.filteredApps.single())
         composeRule.activity.viewModel.toggleDock(
@@ -1495,6 +1502,10 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun launchActiveApp_fallsBackToDockedMatchWhenMainListHasNone() {
         val viewModel = composeRule.activity.viewModel
+        // The docked-fallback path is only reached when the main list is
+        // empty, which requires the dock to dedup against the list — opt out
+        // of the default "Show docked apps" toggle so the fallback exercises.
+        viewModel.setShowDockedAppsInList(false)
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
@@ -1521,6 +1532,10 @@ class MainActivityRobolectricScreenshotTest {
         // resolve. Dock fallback should use `displayName` so it matches the
         // same way the typed-search results do.
         val viewModel = composeRule.activity.viewModel
+        // Force the dedup path so the docked-fallback gets exercised; with
+        // the default "Show docked apps" toggle on, the renamed entry would
+        // surface in `filteredApps` directly and the fallback never runs.
+        viewModel.setShowDockedAppsInList(false)
         val target = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(target, maxDockedApps = 6)
         viewModel.renameApp(target, "Numbers")
