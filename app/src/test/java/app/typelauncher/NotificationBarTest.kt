@@ -103,7 +103,7 @@ class NotificationBarTest {
                         notifyingApps = notifying,
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -157,7 +157,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -204,7 +204,7 @@ class NotificationBarTest {
                         notifyingApps = emptyList(),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = false,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -257,7 +257,7 @@ class NotificationBarTest {
                         notifyingApps = listOf(mail),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -322,7 +322,7 @@ class NotificationBarTest {
                         notifyingApps = listOf(mail),
                         isNotificationBarOpen = true,
                         hasNotificationAccess = true,
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -429,7 +429,7 @@ class NotificationBarTest {
                 dockedApps = docked,
                 notifyingApps = notifying,
                 hasNotificationAccess = true,
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
             ),
         )
         composeRule.setContent {
@@ -534,7 +534,7 @@ class NotificationBarTest {
         composeRule.waitForIdle()
 
         state.value = state.value.copy(
-            keyboardReservationBottomPx = 900,
+            keyboardReservation = KeyboardReservation(bottomPx = 900),
             isNotificationBarOpen = true,
         )
         composeRule.waitForIdle()
@@ -552,7 +552,7 @@ class NotificationBarTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         recentApps = listOf(fakeApp(name = "Mail", packageName = "com.example.mail")),
-                        keyboardReservationBottomPx = 900,
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
                         isKeyboardAutoShown = true,
                     ),
                     onQueryChanged = {},
@@ -605,7 +605,7 @@ class NotificationBarTest {
             LauncherUiState(
                 filteredApps = emptyList(),
                 recentApps = listOf(fakeApp(name = "Mail", packageName = "com.example.mail")),
-                keyboardReservationBottomPx = 900,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
                 isKeyboardAutoShown = true,
                 isRecentsOpen = true,
             ),

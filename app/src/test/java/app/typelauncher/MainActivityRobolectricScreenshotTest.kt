@@ -1173,7 +1173,7 @@ class MainActivityRobolectricScreenshotTest {
         repeat(2) { shadowOf(composeRule.activity).nextStartedActivity }
         assertEquals("Browser", viewModel.uiState.value.filteredApps.first().name)
 
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calendar").performClick()
@@ -1260,7 +1260,7 @@ class MainActivityRobolectricScreenshotTest {
             maxDockedApps = 6,
         )
         viewModel.launchApp(viewModel.uiState.value.dockedApps.first { it.name == "Calculator" })
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
 
@@ -1492,7 +1492,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         composeRule.waitForIdle()
 
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
@@ -1507,7 +1507,7 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun openRecentsPanel_withNoLaunchesYet_showsEmptyHint() {
-        composeRule.activity.viewModel.setKeyboardReservationBottomPx(900)
+        composeRule.activity.viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         composeRule.activity.viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
@@ -1524,7 +1524,7 @@ class MainActivityRobolectricScreenshotTest {
         // Drain the launch intent that recorded the recents entry so the next
         // assertion picks up the click intent, not the seeding one.
         shadowOf(composeRule.activity).nextStartedActivity
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
@@ -1545,7 +1545,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         composeRule.waitForIdle()
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
@@ -1573,7 +1573,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         composeRule.waitForIdle()
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
@@ -1591,7 +1591,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun openingSettings_closesRecentsPanel() {
         val viewModel = composeRule.activity.viewModel
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
         assertTrue(viewModel.uiState.value.isRecentsOpen)
@@ -1609,7 +1609,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         composeRule.waitForIdle()
 
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
@@ -1623,7 +1623,7 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         composeRule.waitForIdle()
         composeRule.mainClock.advanceTimeBy(1_600)
         composeRule.waitForIdle()
@@ -1643,7 +1643,7 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setDockEnabled(false)
         composeRule.waitForIdle()
         composeRule.mainClock.advanceTimeBy(1_600)
@@ -1844,7 +1844,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.launchApp(app)
         }
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         composeRule.waitForIdle()
         composeRule.mainClock.advanceTimeBy(1_600)
         composeRule.waitForIdle()
@@ -1861,7 +1861,7 @@ class MainActivityRobolectricScreenshotTest {
     fun recentsWithoutOverflow_hidesScrollChevrons() {
         val viewModel = composeRule.activity.viewModel
         viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" })
-        viewModel.setKeyboardReservationBottomPx(900)
+        viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         composeRule.waitForIdle()
         composeRule.mainClock.advanceTimeBy(1_600)
         composeRule.waitForIdle()

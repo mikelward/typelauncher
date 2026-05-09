@@ -149,7 +149,7 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
-            keyboardReservationBottomPx = dockSettingsStore.keyboardReservationBottomPx,
+            keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
@@ -496,13 +496,16 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
     }
 
-    fun setKeyboardReservationBottomPx(bottomPx: Int) {
-        val coerced = bottomPx.coerceAtLeast(0)
-        if (_uiState.value.keyboardReservationBottomPx == coerced) return
-        dockSettingsStore.keyboardReservationBottomPx = coerced
-        _uiState.update { it.copy(keyboardReservationBottomPx = coerced) }
+    fun setKeyboardReservation(reservation: KeyboardReservation) {
+        val coerced = reservation.copy(bottomPx = reservation.bottomPx.coerceAtLeast(0))
+        if (_uiState.value.keyboardReservation == coerced) return
+        dockSettingsStore.keyboardReservation = coerced
+        _uiState.update { it.copy(keyboardReservation = coerced) }
         refreshFilteredApps()
-        LauncherDebugLog.event("setKeyboardReservationBottomPx=$coerced")
+        LauncherDebugLog.event(
+            "setKeyboardReservation bottomPx=${coerced.bottomPx} source=${coerced.source} " +
+                "config=${coerced.configFingerprint}",
+        )
     }
 
     fun requestShowKeyboardOnHomeResume() {

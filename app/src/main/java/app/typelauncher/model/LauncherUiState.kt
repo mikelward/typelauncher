@@ -57,6 +57,70 @@ internal enum class ThemeMode {
     Dark,
 }
 
+/**
+ * Distinguishes a keyboard reservation that has been confirmed by a real
+ * visible IME from one that only ever came in via `WindowInsets.imeAnimationTarget`.
+ *
+ * Animation-target-only readings can briefly land above the keyboard's settled
+ * height during multi-stage opens; they are good enough to seed Home's first
+ * frame with keyboard-height geometry, but not authoritative enough to shrink
+ * an already-cached entry value. A [VisibleIme] reading has been observed
+ * with `WindowInsets.isImeVisible == true`, so it represents an actually
+ * laid-out keyboard.
+ */
+internal enum class KeyboardReservationSource {
+    AnimationTarget,
+    VisibleIme,
+}
+
+/**
+ * Configuration context a [KeyboardReservation] was measured under.
+ *
+ * The persisted reservation is only safe to apply when these properties
+ * match the current configuration: orientation, screen size, and density
+ * change the keyboard's pixel height, and the navigation-bar inset is part
+ * of the reservation arithmetic itself (Home subtracts it before using the
+ * cached value). When any of them differ — rotation, fold/unfold,
+ * gesture/3-button nav switch, density change — the reservation is treated
+ * as 0 so a stale, too-large value cannot survive the configuration change.
+ *
+ * `null` represents a legacy persisted reservation written before the
+ * configuration fingerprint was recorded; it is treated as a wildcard so
+ * upgrade installs still benefit from the cached value on the first cold
+ * start, and is replaced on the next IME observation.
+ */
+@Immutable
+internal data class KeyboardReservationConfig(
+    val orientation: Int,
+    val screenWidthDp: Int,
+    val screenHeightDp: Int,
+    val densityDpi: Int,
+    val navBottomPx: Int,
+)
+
+/**
+ * Persisted keyboard reservation. See [LauncherUiState.keyboardReservation].
+ */
+@Immutable
+internal data class KeyboardReservation(
+    val bottomPx: Int = 0,
+    val configFingerprint: KeyboardReservationConfig? = null,
+    val source: KeyboardReservationSource = KeyboardReservationSource.AnimationTarget,
+) {
+    /**
+     * Returns true when this reservation is safe to apply under [current].
+     *
+     * A null persisted [configFingerprint] is treated as a wildcard so
+     * upgrade installs aren't penalised on the first cold start after
+     * adopting the fingerprint. Once the next IME observation lands a
+     * non-null fingerprint, subsequent matches are strict.
+     */
+    fun appliesUnder(current: KeyboardReservationConfig): Boolean {
+        val fingerprint = configFingerprint ?: return true
+        return fingerprint == current
+    }
+}
+
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
 // so without this annotation `HomeScreen(state = …)` (and every child
@@ -113,10 +177,18 @@ internal data class LauncherUiState(
     // `MainActivity` applies `stateAlwaysHidden` so the keyboard stays down
     // until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
-    // Last keyboard bottom inset observed while the IME was opening. Home uses
-    // it as a pre-show reservation so the first frame can use keyboard-height
-    // geometry before Android reports the next IME animation target.
-    val keyboardReservationBottomPx: Int = 0,
+    // Last keyboard bottom inset observed while the IME was opening, paired
+    // with the configuration it was measured under and the source that
+    // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show
+    // reservation so the first frame can use keyboard-height geometry before
+    // Android reports the next IME animation target. The config fingerprint
+    // makes the reservation shrink-safe across rotations / nav-mode / IME
+    // changes — Home only seeds from the cached value when the persisted
+    // configuration matches the current one. The source distinguishes a
+    // height confirmed by a real visible IME from one that only ever came in
+    // as an animation target, so within-entry shrinks are gated on a
+    // visible-IME confirmation.
+    val keyboardReservation: KeyboardReservation = KeyboardReservation(),
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,
