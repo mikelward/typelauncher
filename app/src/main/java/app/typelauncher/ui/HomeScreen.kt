@@ -506,6 +506,7 @@ private fun DockCard(
                         dockIconSizeDp = dockIconSizeDp,
                         isDragged = draggedAppId == app.id,
                         dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
+                        modifier = Modifier.weight(1f),
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -547,7 +548,7 @@ private fun DockCard(
             // full: once users have a full row or multiple rows they've learned
             // the long-press gesture and don't need the nudge.
             if (dockedApps.size < dockIconCount.coerceAtLeast(1)) {
-                DockAddButton(dockIconSizeDp = dockIconSizeDp)
+                DockAddButton(dockIconSizeDp = dockIconSizeDp, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -1911,6 +1912,7 @@ private fun DockedAppButton(
     dockIconSizeDp: Int,
     isDragged: Boolean,
     dragOffset: Offset,
+    modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1935,7 +1937,7 @@ private fun DockedAppButton(
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
     Box(
-        modifier = Modifier
+        modifier = modifier
             // onGloballyPositioned sits outside the graphicsLayer so it
             // reports the icon's static slot centre, not its translated
             // visual centre — that's what the parent compares against.
@@ -1957,13 +1959,14 @@ private fun DockedAppButton(
                     alpha = 0.85f
                 }
             },
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .semantics { contentDescription = app.displayName }
-                .size((dockIconSizeDp + 8).dp)
+                .padding(4.dp)
                 .testTag("$DOCK_APP_TAG:${app.displayName}"),
-            contentAlignment = Alignment.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_APP_ICON_TAG)
         }
@@ -2055,14 +2058,14 @@ private fun DockedAppButton(
 }
 
 @Composable
-private fun DockAddButton(dockIconSizeDp: Int) {
+private fun DockAddButton(dockIconSizeDp: Int, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val hint = stringResource(R.string.dock_add_button_hint)
     val description = stringResource(R.string.dock_add_button_description)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .testTag(DOCK_ADD_BUTTON_TAG)
-            .size((dockIconSizeDp + 8).dp),
+            .padding(4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Surface(

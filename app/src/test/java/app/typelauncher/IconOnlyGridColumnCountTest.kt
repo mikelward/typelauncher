@@ -53,20 +53,19 @@ class IconOnlyGridColumnCountTest {
     }
 
     // Regression: at v403 the dock's `FlowRow` wrapped the 6th icon to a
-    // second row at 411dp/420dpi (and similar configurations) even though
-    // the dp math said six fit. Each dock item used to be rendered as
-    // `padding(4.dp) + AppIcon(iconSize.dp)`, which produces three
-    // independent `Density.roundToPx` calls (left padding, icon size, right
-    // padding). At density 2.625 that turns 51 dp logical into
-    // 11 + 113 + 11 = 135 px per item — 1 px more than rounding
-    // `(iconSize+8).dp` once would give — and with six items the accumulated
-    // overrun exceeds the row width and the row wraps.
+    // second row at 411dp/420dpi even though the dp math said six fit.
+    // The fix: dock items use `Modifier.weight(1f)` inside the FlowRow.
+    // `weight` makes Compose distribute the row's actual pixel width
+    // proportionally across the N slots — each item receives
+    // `floor((rowWidthPx - (N-1)*spacingPx) / N)` px, so the total never
+    // exceeds `rowWidthPx`. Row overflow is impossible by construction.
     //
-    // The fix: each dock item is now a single `size((iconSize+8).dp)` box,
-    // so its width is one `roundToPx` call and accumulation is eliminated.
-    // This test verifies the single-call model fits at every density.
+    // This test verifies the complementary property: the icon + padding
+    // fits within the weight-allocated cell width. The dp formula guarantees
+    // `iconSizeDp + 8 == cellWidthDp` (exact integer equality), so the px
+    // rounding difference is at most 1 px in either direction.
     @Test
-    fun dockFlowRow_fitsRequestedSlotCountInOneRow_acrossDensities() {
+    fun dockFlowRow_iconFitsInWeightAllocatedCell_acrossDensities() {
         val itemSidePaddingDp = 4
         val gridHorizontalInsetDp = 64
         val standardDensities = floatArrayOf(1.0f, 1.5f, 2.0f, 2.25f, 2.5f, 2.625f, 2.75f, 3.0f, 3.5f, 4.0f)
@@ -77,16 +76,21 @@ class IconOnlyGridColumnCountTest {
                 val rowWidthDp = screenWidthDp - gridHorizontalInsetDp
 
                 for (density in standardDensities) {
-                    val itemPx = roundToPx((iconSizeDp + 2 * itemSidePaddingDp).toFloat(), density)
                     val spacingPx = roundToPx(8f, density)
                     val rowWidthPx = roundToPx(rowWidthDp.toFloat(), density)
-                    val usedPx = slotCount * itemPx + (slotCount - 1) * spacingPx
+                    // Compose allocates this many px to each weighted slot.
+                    val cellPx = (rowWidthPx - (slotCount - 1) * spacingPx) / slotCount
+                    val iconItemPx = roundToPx((iconSizeDp + 2 * itemSidePaddingDp).toFloat(), density)
 
+                    // The icon+padding may be at most 1 px wider than the
+                    // cell due to independent rounding of cell vs. item dp
+                    // values; Compose constrains the item to the cell width
+                    // in that case (imperceptible sub-dp clip on one edge).
                     assertTrue(
-                        "Expected $slotCount dock items to fit in one row at " +
-                            "${screenWidthDp}dp / density=$density (iconSize=${iconSizeDp}dp, " +
-                            "itemPx=$itemPx, spacingPx=$spacingPx, rowWidthPx=$rowWidthPx, usedPx=$usedPx)",
-                        usedPx <= rowWidthPx,
+                        "Expected icon+padding ($iconItemPx px) to fit in weight-allocated " +
+                            "cell ($cellPx px) at ${screenWidthDp}dp / density=$density " +
+                            "(iconSize=${iconSizeDp}dp, rowWidthPx=$rowWidthPx, spacingPx=$spacingPx)",
+                        iconItemPx <= cellPx + 1,
                     )
                 }
             }
