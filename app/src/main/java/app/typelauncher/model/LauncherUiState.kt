@@ -175,6 +175,11 @@ internal data class LauncherUiState(
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
     val isAppListIconOnly: Boolean = false,
+    // When true (the default), docked apps stay visible in the typed-search
+    // app list in addition to the dock row. When false, the dock dedupes
+    // itself out of the main list to free vertical space — the launcher's
+    // pre-toggle behavior.
+    val isShowDockedAppsInList: Boolean = true,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
     // When true (default), the search field auto-focuses on launch and

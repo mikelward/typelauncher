@@ -813,6 +813,11 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun appListIconOnlySettingShowsDockStyleIconsWithoutNames() {
         val viewModel = composeRule.activity.viewModel
+        // This test compares a non-docked app's icon to the docked Calculator
+        // icon, so it relies on Calculator NOT appearing in the main list.
+        // Opt out of the default "show docked apps" toggle to restore the
+        // dedup behavior this test was originally written against.
+        viewModel.setShowDockedAppsInList(false)
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
@@ -826,10 +831,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        // Calculator is docked, so it's excluded from the main list entirely
-        // and only renders in the dock row. Compare a non-docked app's icon
-        // to the docked Calculator icon to verify icon-only mode matches the
-        // dock's icon size.
+        // Calculator is docked and the show-docked-in-list toggle is off, so
+        // it's excluded from the main list and only renders in the dock row.
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertDoesNotExist()
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
@@ -1066,8 +1069,11 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockedAppsAreExcludedFromUnfilteredListWhileDockEnabled() {
+    fun dockedAppsAreExcludedFromUnfilteredListWhenShowDockedInListDisabled() {
         val viewModel = composeRule.activity.viewModel
+        // The default keeps docked apps in the main list; opt out to verify
+        // the dedup path that hides them from the list while the dock is on.
+        viewModel.setShowDockedAppsInList(false)
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         viewModel.setQuery("calculator")
@@ -1077,6 +1083,24 @@ class MainActivityRobolectricScreenshotTest {
 
         assertEquals(
             listOf("Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
+            viewModel.uiState.value.filteredApps.map { it.name },
+        )
+    }
+
+    @Test
+    fun dockedAppsRemainInUnfilteredListByDefault() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
+        composeRule.waitForIdle()
+
+        // Default (`isShowDockedAppsInList = true`) keeps Calculator visible
+        // in the main list as well as on the dock row.
+        assertEquals(
+            listOf("Calculator", "Browser", "Calendar", "Camera", "Clock", "Files", "Settings", "Type Launcher", "Work Calendar"),
             viewModel.uiState.value.filteredApps.map { it.name },
         )
     }
