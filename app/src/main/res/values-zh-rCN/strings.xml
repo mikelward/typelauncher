@@ -98,6 +98,7 @@
     <string name="settings_app_list_sort_option_name">名称 ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">名称 ↑</string>
     <string name="settings_dock_enabled_title">显示程序坞</string>
+    <string name="settings_show_docked_apps_in_list_title">显示程序坞应用</string>
     <string name="settings_keyboard_auto_show_title">自动显示键盘</string>
     <string name="settings_show_agenda_title">显示日程</string>
     <string name="settings_theme_title">主题</string>

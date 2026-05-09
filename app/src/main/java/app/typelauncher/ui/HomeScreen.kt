@@ -2090,6 +2090,7 @@ internal fun SettingsScreen(
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
+    onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
@@ -2222,6 +2223,24 @@ internal fun SettingsScreen(
                     checked = state.isDockEnabled,
                     onCheckedChange = onDockEnabledChanged,
                     modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_docked_apps_in_list_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isShowDockedAppsInList,
+                    onCheckedChange = onShowDockedAppsInListChanged,
+                    enabled = state.isDockEnabled,
+                    modifier = Modifier.testTag(SHOW_DOCKED_APPS_IN_LIST_SWITCH_TAG),
                 )
             }
             Row(

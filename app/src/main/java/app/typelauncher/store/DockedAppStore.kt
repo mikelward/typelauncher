@@ -92,6 +92,20 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * When true (the default), docked apps remain visible in the typed-search
+     * app list in addition to the dock row. When false, the dock acts as a
+     * deduplicating shortcut surface and docked apps are hidden from the main
+     * list to free vertical space — the launcher's pre-toggle behavior.
+     */
+    var isShowDockedAppsInList: Boolean
+        get() = sharedPreferences.getBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, true)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, value)
+                .apply()
+        }
+
     var appListSortOrder: AppListSortOrder
         get() = sharedPreferences.getString(KEY_APP_LIST_SORT_ORDER, null)
             ?.let { name -> runCatching { AppListSortOrder.valueOf(name) }.getOrNull() }
@@ -231,6 +245,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
+        const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"

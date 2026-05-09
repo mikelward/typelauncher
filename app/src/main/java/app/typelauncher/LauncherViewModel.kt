@@ -156,6 +156,7 @@ internal class LauncherViewModel(
             widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
+            isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             dockIconCount = dockSettingsStore.dockIconCount,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
@@ -1283,6 +1284,13 @@ internal class LauncherViewModel(
         logState("setAppListIconOnly")
     }
 
+    fun setShowDockedAppsInList(isShown: Boolean) {
+        dockSettingsStore.isShowDockedAppsInList = isShown
+        _uiState.update { it.copy(isShowDockedAppsInList = isShown) }
+        refreshLists()
+        logState("setShowDockedAppsInList=$isShown")
+    }
+
     fun setAppListSortOrder(sortOrder: AppListSortOrder) {
         dockSettingsStore.appListSortOrder = sortOrder
         _uiState.update { it.copy(appListSortOrder = sortOrder) }
@@ -1397,15 +1405,17 @@ internal class LauncherViewModel(
      * Returns the IDs of apps that should be omitted from the main app list
      * because they already render on another always-visible surface. Docked
      * apps are hidden while the dock UI is on (the dock row already shows
-     * them). Secondary bars such as recents and notifications do not dedupe
-     * from the app list.
+     * them) unless the user has opted into [LauncherUiState.isShowDockedAppsInList],
+     * which keeps docked apps visible in the typed-search list as well.
+     * Secondary bars such as recents and notifications do not dedupe from the
+     * app list.
      */
     private fun excludedFromAppList(
         state: LauncherUiState,
         dockedIds: List<String>,
     ): Set<String> {
         val excluded = mutableSetOf<String>()
-        if (state.isDockEnabled) excluded.addAll(dockedIds)
+        if (state.isDockEnabled && !state.isShowDockedAppsInList) excluded.addAll(dockedIds)
         return excluded
     }
 
