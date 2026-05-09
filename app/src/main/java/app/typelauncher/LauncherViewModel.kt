@@ -67,6 +67,15 @@ internal class LauncherViewModel(
     private var sessionTappedPlayUpdateVersionCode: Int? = null
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
+    // Set when the icon-picker callback fires before the cold-start
+    // `loadInstalledApps()` coroutine has populated [installedApps] — the
+    // launcher can be rebuilt from saved-instance after a full process
+    // death while the document picker is foreground, and the rebuilt
+    // session has no cached metadata to look the picked app up against.
+    // Drained inside the same fresh-load coroutine that publishes
+    // `isFreshAppLoadComplete = true`, so the override is applied as soon
+    // as the authoritative app list lands instead of being silently dropped.
+    private var pendingIconOverrideRequest: Pair<String, Uri>? = null
     private var agendaVersion = 0
     // Set the first time the UI signals that Home is fully drawn and the soft
     // keyboard is up (or a fallback timeout has elapsed). Gates the deferred
@@ -293,6 +302,12 @@ internal class LauncherViewModel(
                 )
             }
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+            // Replay any icon-pick that arrived during the cold-start window
+            // (e.g. picker callback fired after a process-death recreation
+            // before this load finished). Has to happen *after*
+            // `installedApps = loadedApps` so the lookup runs against the
+            // freshly-loaded list rather than the empty / cached-metadata one.
+            drainPendingIconOverrideRequest()
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
             if (reloadPendingDuringColdStart) {
                 reloadPendingDuringColdStart = false
@@ -979,11 +994,36 @@ internal class LauncherViewModel(
      */
     fun setAppIconOverride(appId: String, sourceUri: Uri) {
         val app = installedApps.firstOrNull { it.id == appId }
-        if (app == null) {
-            LauncherDebugLog.event("setAppIconOverride dropped: id=$appId not found")
+        if (app != null) {
+            setAppIconOverrideInternal(app, sourceUri)
             return
         }
-        setAppIconOverrideInternal(app, sourceUri)
+        // The cold-start `loadInstalledApps()` coroutine populates
+        // [installedApps] asynchronously. After a full process death while
+        // the picker is foreground, the rebuilt session can register the
+        // activity-result callback (and replay the saved id) before that
+        // load completes — and on a *first* run there's no cached metadata
+        // either, so [installedApps] is genuinely empty. Queue the request
+        // and let the cold-start drain replay it; only no-op once we know
+        // the fresh load has landed and the id legitimately doesn't resolve.
+        if (!_uiState.value.isFreshAppLoadComplete) {
+            LauncherDebugLog.event("setAppIconOverride deferred: id=$appId pending fresh load")
+            pendingIconOverrideRequest = appId to sourceUri
+            return
+        }
+        LauncherDebugLog.event("setAppIconOverride dropped: id=$appId not found")
+    }
+
+    private fun drainPendingIconOverrideRequest() {
+        val request = pendingIconOverrideRequest ?: return
+        pendingIconOverrideRequest = null
+        val (appId, uri) = request
+        val app = installedApps.firstOrNull { it.id == appId }
+        if (app == null) {
+            LauncherDebugLog.event("setAppIconOverride drained dropped: id=$appId not found in fresh load")
+            return
+        }
+        setAppIconOverrideInternal(app, uri)
     }
 
     private fun setAppIconOverrideInternal(app: InstalledApp, sourceUri: Uri) {
