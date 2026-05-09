@@ -963,6 +963,30 @@ internal class LauncherViewModel(
      * disk.
      */
     fun setAppIconOverride(app: InstalledApp, sourceUri: Uri) {
+        setAppIconOverrideInternal(app, sourceUri)
+    }
+
+    /**
+     * Id-based overload used by the icon-picker callback in
+     * `TypeLauncherApp`. The picker activity runs out-of-process and may
+     * survive a launcher recreation or full process death; the picker
+     * callback only carries an `InstalledApp.id` (round-tripped through
+     * `rememberSaveable`), so the ViewModel does the lookup against the
+     * authoritative installed-app list. Drops the request silently if the
+     * id no longer resolves — for example if the package was uninstalled
+     * while the picker was foreground — rather than racing the user with
+     * an icon override against a since-vanished package.
+     */
+    fun setAppIconOverride(appId: String, sourceUri: Uri) {
+        val app = installedApps.firstOrNull { it.id == appId }
+        if (app == null) {
+            LauncherDebugLog.event("setAppIconOverride dropped: id=$appId not found")
+            return
+        }
+        setAppIconOverrideInternal(app, sourceUri)
+    }
+
+    private fun setAppIconOverrideInternal(app: InstalledApp, sourceUri: Uri) {
         LauncherDebugLog.event("setAppIconOverride package=${app.packageName} scheme=${sourceUri.scheme}")
         viewModelScope.launch {
             val savedFile = withContext(ioDispatcher) {
