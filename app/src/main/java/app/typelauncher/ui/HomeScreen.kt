@@ -567,6 +567,7 @@ private fun DockCard(
                             DockAddButton(
                                 dockIconSizeDp = dockIconSizeDp,
                                 modifier = Modifier.weight(1f),
+                                onReportSlotCenter = { center -> slotCenters[position] = center },
                             )
                         } else {
                             EmptyDockSlot(
@@ -2071,12 +2072,26 @@ private fun EmptyDockSlot(
 }
 
 @Composable
-private fun DockAddButton(dockIconSizeDp: Int, modifier: Modifier = Modifier) {
+private fun DockAddButton(
+    dockIconSizeDp: Int,
+    modifier: Modifier = Modifier,
+    onReportSlotCenter: ((Offset) -> Unit)? = null,
+) {
     val context = LocalContext.current
     val hint = stringResource(R.string.dock_add_button_hint)
     val description = stringResource(R.string.dock_add_button_description)
     Box(
         modifier = modifier
+            .height((dockIconSizeDp + 8).dp)
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInParent()
+                onReportSlotCenter?.invoke(
+                    Offset(
+                        pos.x + coords.size.width / 2f,
+                        pos.y + coords.size.height / 2f,
+                    ),
+                )
+            }
             .testTag(DOCK_ADD_BUTTON_TAG)
             .padding(4.dp),
         contentAlignment = Alignment.Center,

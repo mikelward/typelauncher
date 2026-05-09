@@ -119,6 +119,36 @@ class DockReorderCarouselTest {
     }
 
     @Test
+    fun dockDragTargetsReportedAddButtonSlot() {
+        val app = fakeApp("App01").copy(isDocked = true)
+        val docked = listOf(app)
+        val positions = mapOf(app.id to DockPosition(0, 0))
+        val slotCenters = mapOf(
+            DockPosition(0, 0) to Offset(50f, 50f),
+            // In the UI this is the visible + add-button cell when the first
+            // row is under-filled; it must participate in drag targeting the
+            // same way an EmptyDockSlot does.
+            DockPosition(0, 1) to Offset(150f, 50f),
+        )
+        var movedTo: DockPosition? = null
+        var updatedOffset = Offset.Zero
+
+        handleDockDrag(
+            delta = Offset(80f, 0f),
+            draggedAppId = app.id,
+            currentDockedApps = docked,
+            currentDockPositions = positions,
+            slotCenters = slotCenters,
+            onReorder = { _, row, column -> movedTo = DockPosition(row, column) },
+            currentOffset = Offset.Zero,
+            setOffset = { updatedOffset = it },
+        )
+
+        assertEquals(DockPosition(row = 0, column = 1), movedTo)
+        assertEquals(Offset(-20f, 0f), updatedOffset)
+    }
+
+    @Test
     fun dockDragTargetsNearestVerticalSparseSlot() {
         val docked = listOf(
             fakeApp("App01").copy(isDocked = true),
