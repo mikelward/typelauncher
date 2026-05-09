@@ -910,6 +910,9 @@ private fun SwipeNavigationBox(
     fun playQueuedHomeSettleSwipe(settledPage: Int, pageWidthPx: Float) {
         val dragDirection = queuedHomeSettleSwipeDirection ?: return
         queuedHomeSettleSwipeDirection = null
+        // Replay from Home's settled page, not from the page that was active
+        // when the settling animation began, so one gesture can still move at
+        // most one page from the visible Home start point.
         val targetPage = (settledPage + dragDirection)
             .coerceIn(0, LauncherScreen.carouselPageCount - 1)
         if (targetPage == settledPage) return
