@@ -235,15 +235,23 @@ internal data class LauncherUiState(
 // suffer the same accumulation because it distributes the row's actual
 // pixel width across `floor((avail+spacing)/(minCell+spacing))` columns.
 //
-// The slack is only applied to the icon size calculation. The slot-range
-// computation (`dockSlotCountForIconSize`) deliberately doesn't include it
-// because the lower bound of the range is set by `MAX_DOCK_APP_ICON_SIZE_DP`
-// — at the maximum icon size the user can't pick fewer slots to make
-// icons bigger, and adding the slack there would let the user pick a slot
-// count whose icon size is clamped to MAX, which would diverge from the
-// apps list `Adaptive` grid (e.g. on a 440dp screen the slider would let
-// the user request 3 dock icons while the app list still adapts to 4 cells
-// of the same MAX-sized icon).
+// The slack applies asymmetrically to the slot-range bounds:
+//
+// - The **lower** bound (driven by `MAX_DOCK_APP_ICON_SIZE_DP`) is computed
+//   without slack. At the maximum icon size the user can't pick fewer slots
+//   to make icons bigger; adding slack here would let the user pick a slot
+//   count whose icon size is clamped to MAX, which would diverge from the
+//   apps list `Adaptive` grid — e.g. on a 440dp screen the slider would
+//   advertise 3 dock icons while the app list still adapts to 4 cells of
+//   the same MAX-sized icon.
+//
+// - The **upper** bound (driven by `MIN_DOCK_APP_ICON_SIZE_DP`) is computed
+//   *with* the slack so the iconSize formula can still shrink icons to
+//   absorb rounding. Without it, the slack subtraction in
+//   `dockIconSizeForSlotCount` is consumed by the clamp-to-MIN floor and
+//   the row no longer fits at typical densities — e.g. on a 392dp screen
+//   the dp math says six 40-dp icons fit, but at density 2.625 the rendered
+//   row needs 867 px in 861 px of available width.
 private const val DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP = 1
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
@@ -263,8 +271,11 @@ internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
 }
 
 internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
+    val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
     val minSlotCount = dockSlotCountForIconSize(screenWidthDp, MAX_DOCK_APP_ICON_SIZE_DP)
-    val maxSlotCount = dockSlotCountForIconSize(screenWidthDp, MIN_DOCK_APP_ICON_SIZE_DP)
+    val maxSlotCount = ((availableWidthDp + DOCK_ITEM_SPACING_DP) /
+        (MIN_DOCK_APP_ICON_SIZE_DP + DOCK_ITEM_HORIZONTAL_PADDING_DP + DOCK_ITEM_SPACING_DP +
+            DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP)).coerceAtLeast(1)
     return minSlotCount..maxSlotCount
 }
 
