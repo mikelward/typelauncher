@@ -740,7 +740,7 @@ internal class LauncherViewModel(
         // happens to sit first in the row regardless of the query.
         val state = _uiState.value
         val target = state.filteredApps.firstOrNull()
-            ?: state.dockedApps.firstOrNull { app -> app.name.launcherMatchTier(trimmedQuery) != null }
+            ?: state.dockedApps.firstOrNull { app -> app.displayName.launcherMatchTier(trimmedQuery) != null }
                 ?.takeIf { state.isDockEnabled }
         target?.let(::launchApp)
     }
