@@ -2091,28 +2091,33 @@ private fun DockAddButton(
                         pos.y + coords.size.height / 2f,
                     ),
                 )
-            }
-            .testTag(DOCK_ADD_BUTTON_TAG)
-            .padding(4.dp),
+            },
         contentAlignment = Alignment.Center,
     ) {
-        Surface(
+        Box(
             modifier = Modifier
-                .size(dockIconSizeDp.dp)
-                .semantics {
-                    contentDescription = description
-                    role = Role.Button
-                }
-                .clickable { Toast.makeText(context, hint, Toast.LENGTH_LONG).show() },
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant,
+                .testTag(DOCK_ADD_BUTTON_TAG)
+                .padding(4.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = null,
-                modifier = Modifier.padding((dockIconSizeDp * 0.25f).dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Surface(
+                modifier = Modifier
+                    .size(dockIconSizeDp.dp)
+                    .semantics {
+                        contentDescription = description
+                        role = Role.Button
+                    }
+                    .clickable { Toast.makeText(context, hint, Toast.LENGTH_LONG).show() },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                    modifier = Modifier.padding((dockIconSizeDp * 0.25f).dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
