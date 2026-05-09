@@ -851,8 +851,18 @@ private fun SwipeNavigationBox(
     var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
+    var queuedHomeSettleSwipeDirection by remember { mutableStateOf<Int?>(null) }
     val currentOnCarouselTransitioningChanged by rememberUpdatedState(onCarouselTransitioningChanged)
     fun setCarouselTransition(next: CarouselTransitionState) {
+        val nextTargetsHome = when (next) {
+            is CarouselTransitionState.UserAnimating -> next.targetLauncherPage.screen == LauncherScreen.Home
+            is CarouselTransitionState.ExternalAnimating -> next.targetLauncherPage.screen == LauncherScreen.Home
+            is CarouselTransitionState.AwaitingAck -> next.expectedPage.screen == LauncherScreen.Home
+            CarouselTransitionState.Idle -> true
+        }
+        if (!nextTargetsHome) {
+            queuedHomeSettleSwipeDirection = null
+        }
         val wasTransitioning = carouselTransition != CarouselTransitionState.Idle
         carouselTransition = next
         val nowTransitioning = next != CarouselTransitionState.Idle
@@ -896,6 +906,31 @@ private fun SwipeNavigationBox(
             carouselOffsetPx = value
         }
         carouselOffsetPx = targetOffsetPx
+    }
+    fun playQueuedHomeSettleSwipe(settledPage: Int, pageWidthPx: Float) {
+        val dragDirection = queuedHomeSettleSwipeDirection ?: return
+        queuedHomeSettleSwipeDirection = null
+        val targetPage = (settledPage + dragDirection)
+            .coerceIn(0, LauncherScreen.carouselPageCount - 1)
+        if (targetPage == settledPage) return
+        val targetLauncherPage = LauncherScreen.fromCarouselPage(
+            targetPage,
+            widgetPageCount = widgetPageCount,
+            isAgendaEnabled,
+        )
+        setCarouselTransition(CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage))
+        hideKeyboardForCarouselPage(targetLauncherPage.screen)
+        carouselAnimationJob = coroutineScope.launch {
+            val targetOffsetPx = if (targetPage > settledPage) -pageWidthPx else pageWidthPx
+            animateCarouselOffsetTo(targetOffsetPx)
+            if (carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)) {
+                currentPage = targetPage
+                carouselOffsetPx = 0f
+                awaitPageAck(targetPage, targetLauncherPage)
+            } else {
+                carouselOffsetPx = 0f
+            }
+        }
     }
     // Hold off on composing carousel pages other than the visible one until the
     // first frame has rendered. The visible page is what triggers the soft
@@ -1036,6 +1071,43 @@ private fun SwipeNavigationBox(
                     } while (event.changes.any { it.pressed })
 
                     if (!carouselClaimed) {
+                        val homeSettleTargetPage = when (val transition = carouselTransition) {
+                            is CarouselTransitionState.UserAnimating ->
+                                transition.targetPage.takeIf { transition.targetLauncherPage.screen == LauncherScreen.Home }
+                            is CarouselTransitionState.ExternalAnimating ->
+                                transition.targetPage.takeIf { transition.targetLauncherPage.screen == LauncherScreen.Home }
+                            is CarouselTransitionState.AwaitingAck ->
+                                transition.settledPage.takeIf { transition.expectedPage.screen == LauncherScreen.Home }
+                            CarouselTransitionState.Idle -> null
+                        }
+                        if (owner == LauncherGestureOwner.HorizontalLauncher &&
+                            !dockDraggedDuringGesture &&
+                            homeSettleTargetPage != null
+                        ) {
+                            val releaseVelocity = velocityTracker.calculateVelocity().x
+                            val dragDirection = when {
+                                rawDragX < 0f -> 1
+                                rawDragX > 0f -> -1
+                                else -> 0
+                            }
+                            val velocityOpposesDrag = dragDirection != 0 &&
+                                abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
+                                sign(releaseVelocity) == -sign(rawDragX)
+                            val distanceCommits = abs(rawDragX) >= launcherSwipeCommitDistancePx
+                            val flingCommits = dragDirection != 0 &&
+                                abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
+                                sign(releaseVelocity) == sign(rawDragX)
+                            if (dragDirection != 0 &&
+                                !velocityOpposesDrag &&
+                                (distanceCommits || flingCommits)
+                            ) {
+                                queuedHomeSettleSwipeDirection = dragDirection
+                                LauncherDebugLog.event(
+                                    "SwipeNavigationBox queued Home-settle swipe direction=$dragDirection " +
+                                        "targetPage=$homeSettleTargetPage rawDragX=$rawDragX",
+                                )
+                            }
+                        }
                         return@awaitEachGesture
                     }
 
@@ -1205,6 +1277,9 @@ private fun SwipeNavigationBox(
                     if (statePage == transition.expectedPage) {
                         allowSwipeWithUnackedScreen = false
                         setCarouselTransition(CarouselTransitionState.Idle)
+                        if (statePage.screen == LauncherScreen.Home) {
+                            playQueuedHomeSettleSwipe(transition.settledPage, pageWidthPx)
+                        }
                     }
                     return@LaunchedEffect
                 }
@@ -1238,6 +1313,9 @@ private fun SwipeNavigationBox(
                     currentPage = targetPage
                     carouselOffsetPx = 0f
                     setCarouselTransition(CarouselTransitionState.Idle)
+                    if (statePage.screen == LauncherScreen.Home) {
+                        playQueuedHomeSettleSwipe(targetPage, pageWidthPx)
+                    }
                 }
             } else {
                 setCarouselTransition(CarouselTransitionState.Idle)
