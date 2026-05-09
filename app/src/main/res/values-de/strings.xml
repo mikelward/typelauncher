@@ -51,6 +51,16 @@
     <string name="edit_app_dialog_choose_icon">Symbol auswählen</string>
     <string name="edit_app_dialog_clear_icon">Standardsymbol verwenden</string>
     <string name="edit_app_dialog_pick_icon_unavailable">Keine App zum Auswählen eines Symbols verfügbar</string>
+    <string name="edit_app_dialog_badge_label">Abzeichen</string>
+    <string name="edit_app_dialog_choose_badge">Abzeichen auswählen</string>
+    <string name="edit_app_dialog_badge_default_label">Standard</string>
+    <string name="badge_picker_title">Abzeichen auswählen</string>
+    <string name="badge_picker_default">Standard</string>
+    <string name="badge_preset_home">Zuhause</string>
+    <string name="badge_preset_work">Arbeit</string>
+    <string name="badge_preset_school">Schule</string>
+    <string name="badge_preset_travel">Reise</string>
+    <string name="badge_preset_world">Welt</string>
     <string name="widgets_add_button_description">Widget hinzufügen</string>
     <string name="widgets_picker_title">Widget hinzufügen</string>
     <string name="widgets_picker_subtitle">Widget für den Startbildschirm auswählen</string>

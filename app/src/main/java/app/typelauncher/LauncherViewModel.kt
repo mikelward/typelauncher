@@ -53,6 +53,7 @@ internal class LauncherViewModel(
     private val dockedAppStore = DockedAppStore(app)
     private val hiddenAppStore = HiddenAppStore(app)
     private val renamedAppStore = RenamedAppStore(app)
+    private val customBadgeStore = CustomBadgeStore(app)
     private val iconOverrideStore = IconOverrideStore(app)
     private val widgetStore = WidgetStore(app)
     private val dockSettingsStore = DockSettingsStore(app)
@@ -988,6 +989,40 @@ internal class LauncherViewModel(
     }
 
     /**
+     * Sets a user-chosen corner-badge glyph for [app] that overrides the
+     * auto-derived country/regional badge. Pass an empty / blank string to
+     * clear the override (the app reverts to whatever the disambiguator pass
+     * computed, or no badge at all). The override is keyed by [InstalledApp.
+     * id] and persists across package upgrades but not fresh installs, the
+     * same way [renameApp] is keyed.
+     */
+    fun setAppBadge(app: InstalledApp, glyph: String?) {
+        val trimmed = glyph?.trim().orEmpty()
+        val effective: String? = if (trimmed.isEmpty()) {
+            LauncherDebugLog.event("setAppBadge clear package=${app.packageName}")
+            customBadgeStore.clear(app.id)
+            null
+        } else {
+            LauncherDebugLog.event("setAppBadge package=${app.packageName} length=${trimmed.length}")
+            customBadgeStore.setBadge(app.id, trimmed)
+            trimmed
+        }
+        // Mirror the override onto the master installed-app list so the next
+        // render of any list derived from `installedApps` sees the new badge
+        // before `markVisibility` next runs (parallels the in-place patch in
+        // `renameApp` so the dialog can stay open and reflect the change).
+        installedApps = installedApps.map { existing ->
+            if (existing.id == app.id && existing.customBadge != effective) {
+                existing.copy(customBadge = effective)
+            } else {
+                existing
+            }
+        }
+        refreshLists()
+        logState("setAppBadge")
+    }
+
+    /**
      * Replaces the launcher icon for [app] with the user-supplied image at
      * [sourceUri] (PNG, JPEG, WEBP, or SVG). The bytes are copied into
      * `filesDir/icon_overrides/` so the override survives package upgrades
@@ -1609,9 +1644,25 @@ internal class LauncherViewModel(
         return collected
             .applyDisambiguators()
             .applyRenameOverrides()
+            .applyCustomBadges()
             .applyIconOverrides()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
+
+    /**
+     * Mirror persisted [CustomBadgeStore] entries onto each [InstalledApp]
+     * in the freshly-loaded list so the badge override is visible on the
+     * very first frame after a cold start. Same rationale as
+     * [applyRenameOverrides]: `markVisibility` later re-applies the same
+     * value, but it runs after `filterByName`, so without this pass the
+     * first paint would briefly show the auto-disambiguator badge before
+     * the user-chosen one takes over.
+     */
+    private fun List<InstalledApp>.applyCustomBadges(): List<InstalledApp> =
+        map { app ->
+            val customBadge = customBadgeStore.customBadgeFor(app.id)
+            if (app.customBadge == customBadge) app else app.copy(customBadge = customBadge)
+        }
 
     /**
      * Mirror persisted [RenamedAppStore] entries onto each [InstalledApp] in
@@ -1738,12 +1789,14 @@ internal class LauncherViewModel(
             val isDocked = dockedAppStore.contains(app.id)
             val isHidden = hiddenAppStore.contains(app.id)
             val customName = renamedAppStore.customNameFor(app.id)
+            val customBadge = customBadgeStore.customBadgeFor(app.id)
             val overrideFile = iconOverrideStore.iconFileFor(app.id)
             val customIconPath = overrideFile?.absolutePath
             val customIconVersion = overrideFile?.lastModified() ?: 0L
             if (app.isDocked == isDocked &&
                 app.isHidden == isHidden &&
                 app.customName == customName &&
+                app.customBadge == customBadge &&
                 app.customIconPath == customIconPath &&
                 app.customIconVersion == customIconVersion
             ) {
@@ -1753,6 +1806,7 @@ internal class LauncherViewModel(
                     isDocked = isDocked,
                     isHidden = isHidden,
                     customName = customName,
+                    customBadge = customBadge,
                     customIconPath = customIconPath,
                     customIconVersion = customIconVersion,
                 )
