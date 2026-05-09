@@ -307,7 +307,15 @@ internal class LauncherViewModel(
             // before this load finished). Has to happen *after*
             // `installedApps = loadedApps` so the lookup runs against the
             // freshly-loaded list rather than the empty / cached-metadata one.
-            drainPendingIconOverrideRequest()
+            //
+            // Skip the drain when a package event landed during cold start:
+            // the snapshot we just loaded predates the event, so the queued
+            // id might still resolve to an `InstalledApp` the upcoming
+            // reload will drop. The deferred `scheduleReload` below kicks
+            // off a fresh load and drains there instead.
+            if (!reloadPendingDuringColdStart) {
+                drainPendingIconOverrideRequest()
+            }
             LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
             if (reloadPendingDuringColdStart) {
                 reloadPendingDuringColdStart = false
@@ -392,6 +400,14 @@ internal class LauncherViewModel(
             }
             installedApps = loadedApps
             refreshLists()
+            // Replay any icon-pick that was queued because cold-start
+            // hadn't finished — `scheduleReload` runs both for ordinary
+            // package events post-load and for the deferred-during-cold-
+            // start replay. In the latter case the queued pick lands on
+            // the post-reload list rather than on the stale cold-start
+            // snapshot, which avoids writing an override file for a
+            // package the reload would have dropped.
+            drainPendingIconOverrideRequest()
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
             LauncherDebugLog.event("scheduleReload complete reason=$reason apps=${loadedApps.size}")
         }
