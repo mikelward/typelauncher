@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">Encontre um app na lista acima,\npressione e segure e toque em Dock</string>
     <string name="dock_recents_empty_hint">Nenhum app recente ainda</string>
     <string name="dock_recents_description">Apps recentes</string>
-    <string name="dock_scroll_more_hint">Role para ver mais apps no dock</string>
     <string name="dock_recents_scroll_more_hint">Role para ver mais apps recentes</string>
     <string name="apps_list_scroll_more_hint">Role para ver mais apps</string>
     <string name="notification_listener_service_label">Notificações do Type Launcher</string>

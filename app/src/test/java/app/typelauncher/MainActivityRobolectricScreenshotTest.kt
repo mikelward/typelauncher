@@ -304,8 +304,13 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
     }
 
+    // The dock no longer has horizontal scroll, so a left swipe on it has
+    // nothing to consume and should propagate straight through to the
+    // carousel's nested-scroll connection — paging Home → Widgets in one
+    // gesture instead of the previous two-step "scroll dock to edge first,
+    // then swipe again to page" choreography.
     @Test
-    fun swipingDockPastEndAdvancesCarousel() {
+    fun swipingDockPagesCarousel() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
@@ -313,19 +318,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
         val startPage = carousel.carouselVirtualPage()
-
-        composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
-        composeRule.waitForIdle()
-
-        assertEquals(startPage, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
-        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
-
-        // The launcher only takes over if the row is already at its edge when
-        // the gesture starts; scrolling to the edge mid-gesture stays with the row.
-        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
 
         composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
@@ -1802,33 +1794,105 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(ThemeMode.Light, viewModel.uiState.value.themeMode)
     }
 
+    // The dock wraps to additional rows so every docked app stays visible
+    // without horizontal scrolling. Under the default 4 icons per row this
+    // means 8 docked apps render as a 2-row grid; all eight icons must be
+    // present in the composition tree.
     @Test
-    fun dockOverflow_showsEndChevronHint() {
+    fun dockWrapsToTwoRowsWhenAppsExceedRowWidth() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
-        saveScreenshot("compose_dock_overflow_chevron_robolectric.png")
+        assertEquals(8, viewModel.uiState.value.dockedApps.size)
+        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        viewModel.uiState.value.dockedApps.forEach { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").assertIsDisplayed()
+        }
+        // The dock with 2 rows is taller than the same dock with 1 row would
+        // be: at least one icon-height plus one inter-row gap separates the
+        // top of the first icon from the top of an icon on the second row.
+        val firstRowFirst = composeRule.onNodeWithTag(
+            "$DOCK_APP_TAG:${viewModel.uiState.value.dockedApps[0].displayName}",
+        ).getBoundsInRoot()
+        val secondRowFirst = composeRule.onNodeWithTag(
+            "$DOCK_APP_TAG:${viewModel.uiState.value.dockedApps[4].displayName}",
+        ).getBoundsInRoot()
+        assertTrue(
+            "second row should sit below the first (firstTop=${firstRowFirst.top}, secondTop=${secondRowFirst.top})",
+            secondRowFirst.top.value > firstRowFirst.bottom.value - 1f,
+        )
+
+        saveScreenshot("compose_dock_two_rows_robolectric.png")
     }
 
+    // Regression-shaped invariant: the home layout reserves at least two
+    // rows of the apps list above the dock no matter how many apps are
+    // docked, so a heavy dock collection cannot starve the app list.
     @Test
-    fun dockOverflow_placesEndChevronAtOuterCardEdge() {
+    fun dockReservesAtLeastTwoAppListRows_evenWithManyDockedApps() {
+        val viewModel = composeRule.activity.viewModel
+        // Force icons-per-row to 1 so each docked app takes a full row at
+        // the maximum icon size (80dp). With the 9 seeded fake apps that
+        // gives ~864dp of natural dock height — well over the cap on the
+        // 914dp test viewport, exercising the "apps list keeps ≥2 rows"
+        // floor without needing the test to fabricate dozens more apps via
+        // the Robolectric package-manager shim.
+        viewModel.setDockVisibleIconCount(1)
+        composeRule.waitForIdle()
+        viewModel.uiState.value.filteredApps.forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        val dockedCount = viewModel.uiState.value.dockedApps.size
+        // The seed registers 8 fake apps + the real launcher activity from
+        // the manifest = 9. Six is plenty to exceed the cap at 1 icon per
+        // row; the lower bound just guards against the seed shrinking.
+        assertTrue("expected ≥6 docked apps (was=$dockedCount)", dockedCount >= 6)
+        val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val appsCardHeight = appsCardBounds.bottom - appsCardBounds.top
+        assertTrue(
+            "apps card should retain ≥100dp of height (was=$appsCardHeight)",
+            appsCardHeight.value >= 100f,
+        )
+    }
+
+    // The trailing + button shows whenever the wrapped dock grid has at
+    // least one empty cell, so users can keep adding apps without first
+    // having to top up to the next row boundary.
+    @Test
+    fun dockAddButton_visibleWhenFinalRowHasEmptySlot() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(5).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        // 5 docked apps × 4 icons per row = 1 full row + a second row with
+        // 1 app, leaving 3 empty cells; the + must occupy one of them.
+        assertEquals(5, viewModel.uiState.value.dockedApps.size)
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+    }
+
+    // When the user has filled every cell in the wrapped grid (an exact
+    // multiple of icons-per-row), the + button drops out so adding an app
+    // does not force an otherwise-empty extra row solely for the
+    // affordance.
+    @Test
+    fun dockAddButton_hiddenWhenGridIsFull() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
         }
         composeRule.waitForIdle()
 
-        val dockCardBounds = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
-        val chevronBounds = composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).getBoundsInRoot()
-        assertTrue(
-            "end chevron should sit at the card edge (card=${dockCardBounds.right}, chevron=${chevronBounds.right})",
-            kotlin.math.abs((chevronBounds.right - dockCardBounds.right).value) <= 1f,
-        )
+        // 8 docked apps × 4 icons per row = 2 full rows, no empty cells.
+        assertEquals(8, viewModel.uiState.value.dockedApps.size)
+        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -1886,16 +1950,6 @@ class MainActivityRobolectricScreenshotTest {
             widthPx = 1121,
             heightPx = 2400,
         )
-    }
-
-    @Test
-    fun dockWithoutOverflow_hidesScrollChevrons() {
-        val viewModel = composeRule.activity.viewModel
-        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
     }
 
     @Test

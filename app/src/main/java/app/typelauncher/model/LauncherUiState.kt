@@ -14,7 +14,13 @@ internal const val MAX_DOCK_ICON_COUNT = 8
 internal const val DEFAULT_DOCK_SCREEN_WIDTH_DP = 411
 private const val DOCK_HORIZONTAL_PADDING_DP = 64
 private const val DOCK_ITEM_HORIZONTAL_PADDING_DP = 8
-private const val DOCK_ITEM_SPACING_DP = 8
+internal const val DOCK_ITEM_SPACING_DP = 8
+
+// Floor on the apps list while the dock is allowed to grow vertically. The
+// home screen's custom layout reserves at least this many app-row heights
+// (each ≈ dockIconSizeDp + 2 * DOCK_ITEM_SPACING_DP) above the dock so a
+// large docked-app collection cannot squeeze the apps list to nothing.
+internal const val APP_LIST_MIN_VISIBLE_ROWS = 2
 
 internal enum class AppListSortOrder {
     Usage,

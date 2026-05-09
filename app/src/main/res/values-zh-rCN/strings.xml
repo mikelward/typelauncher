@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">在上方列表中找到一个应用，\n长按然后点按“程序坞”</string>
     <string name="dock_recents_empty_hint">还没有最近使用的应用</string>
     <string name="dock_recents_description">最近使用的应用</string>
-    <string name="dock_scroll_more_hint">滚动以查看更多程序坞应用</string>
     <string name="dock_recents_scroll_more_hint">滚动以查看更多最近使用的应用</string>
     <string name="apps_list_scroll_more_hint">滚动以查看更多应用</string>
     <string name="notification_listener_service_label">Type Launcher 通知</string>

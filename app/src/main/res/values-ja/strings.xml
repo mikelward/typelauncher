@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">上のリストでアプリを見つけ、\n長押しして「ドック」をタップ</string>
     <string name="dock_recents_empty_hint">最近使ったアプリはまだありません</string>
     <string name="dock_recents_description">最近使ったアプリ</string>
-    <string name="dock_scroll_more_hint">スクロールしてドックのアプリをさらに表示</string>
     <string name="dock_recents_scroll_more_hint">スクロールして最近のアプリをさらに表示</string>
     <string name="apps_list_scroll_more_hint">スクロールしてアプリをさらに表示</string>
     <string name="notification_listener_service_label">Type Launcher 通知</string>

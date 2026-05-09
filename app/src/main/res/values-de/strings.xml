@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">Suche eine App in der Liste oben,\nlang drücken und dann Dock tippen</string>
     <string name="dock_recents_empty_hint">Noch keine aktuellen Apps</string>
     <string name="dock_recents_description">Aktuelle Apps</string>
-    <string name="dock_scroll_more_hint">Scrollen für mehr Dock-Apps</string>
     <string name="dock_recents_scroll_more_hint">Scrollen für mehr aktuelle Apps</string>
     <string name="apps_list_scroll_more_hint">Scrollen für mehr Apps</string>
     <string name="notification_listener_service_label">Type Launcher-Benachrichtigungen</string>

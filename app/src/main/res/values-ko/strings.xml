@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">위 목록에서 앱을 찾아\n길게 누른 다음 독을 누르세요</string>
     <string name="dock_recents_empty_hint">아직 최근 앱이 없습니다</string>
     <string name="dock_recents_description">최근 앱</string>
-    <string name="dock_scroll_more_hint">스크롤하여 독 앱 더 보기</string>
     <string name="dock_recents_scroll_more_hint">스크롤하여 최근 앱 더 보기</string>
     <string name="apps_list_scroll_more_hint">스크롤하여 앱 더 보기</string>
     <string name="notification_listener_service_label">Type Launcher 알림</string>

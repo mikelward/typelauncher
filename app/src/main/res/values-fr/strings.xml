@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">Trouvez une application dans la liste ci-dessus,\nappuyez longuement puis appuyez sur Dock</string>
     <string name="dock_recents_empty_hint">Pas encore d\'applications récentes</string>
     <string name="dock_recents_description">Applications récentes</string>
-    <string name="dock_scroll_more_hint">Faire défiler pour plus d\'applications dans le dock</string>
     <string name="dock_recents_scroll_more_hint">Faire défiler pour plus d\'applications récentes</string>
     <string name="apps_list_scroll_more_hint">Faire défiler pour plus d\'applications</string>
     <string name="notification_listener_service_label">Notifications de Type Launcher</string>

@@ -672,28 +672,6 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun dockOverflow_endChevronTapPagesRowWithCompactTarget() {
-        val dockedApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)).copy(isDocked = true) }
-        renderHome(LauncherUiState(filteredApps = emptyList(), dockedApps = dockedApps))
-
-        val chevronBounds = composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).getBoundsInRoot()
-        assertTrue((chevronBounds.right - chevronBounds.left).value <= 33f)
-        assertTrue((chevronBounds.bottom - chevronBounds.top).value <= 33f)
-        val firstBefore = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
-
-        composeRule.onNodeWithTag(DOCK_LIST_TAG).performTouchInput {
-            val position = Offset(x = width - 1f, y = height / 2f)
-            down(position)
-            up()
-        }
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(DOCK_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
-        val firstAfter = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
-        assertTrue(firstAfter.left < firstBefore.left)
-    }
-
-    @Test
     fun recentsOverflow_startChevronTapPagesRowWithCompactTarget() {
         val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(
@@ -752,21 +730,17 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun dockOverflow_tapDirectlyOnEndChevronPagesRow() {
+    fun dockGrowsToFitDockedAppsWithoutHorizontalScroll() {
         val dockedApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)).copy(isDocked = true) }
         renderHome(LauncherUiState(filteredApps = emptyList(), dockedApps = dockedApps))
 
-        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
-        val firstBefore = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
-
-        composeRule.onNodeWithTag(DOCK_SCROLL_END_CHEVRON_TAG).performTouchInput {
-            down(Offset(width / 2f, height / 2f))
-            up()
+        // With 12 docked apps and the default 4 icons per row, every app
+        // must be in the composition tree on initial render — the dock
+        // wraps to multiple rows instead of hiding overflow behind a
+        // sideways scroller.
+        for (i in 1..12) {
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:App%02d".format(i)).assertIsDisplayed()
         }
-        composeRule.waitForIdle()
-
-        val firstAfter = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
-        assertTrue(firstAfter.left < firstBefore.left)
     }
 
     @Test

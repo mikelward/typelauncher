@@ -15,7 +15,6 @@
     <string name="dock_add_button_hint">Find an app in the list above,\nlong press then tap Dock</string>
     <string name="dock_recents_empty_hint">No recent apps yet</string>
     <string name="dock_recents_description">Recent apps</string>
-    <string name="dock_scroll_more_hint">Scroll for more dock apps</string>
     <string name="dock_recents_scroll_more_hint">Scroll for more recent apps</string>
     <string name="apps_list_scroll_more_hint">Scroll for more apps</string>
     <string name="notification_listener_service_label">Type Launcher notifications</string>
