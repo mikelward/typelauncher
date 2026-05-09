@@ -1497,6 +1497,33 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun launchActiveApp_dockedFallback_matchesAgainstRenameOverride() {
+        // Regression: the dock-fallback matcher used to read `app.name` (the
+        // system label), so renaming a docked app and pressing Enter on a
+        // query that only matched the override returned no target — the
+        // visible icon showed the new label, but the fallback failed to
+        // resolve. Dock fallback should use `displayName` so it matches the
+        // same way the typed-search results do.
+        val viewModel = composeRule.activity.viewModel
+        val target = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
+        viewModel.toggleDock(target, maxDockedApps = 6)
+        viewModel.renameApp(target, "Numbers")
+        composeRule.waitForIdle()
+
+        viewModel.setQuery("numb")
+        composeRule.waitForIdle()
+        // The dock excludes the target from filteredApps while the dock UI
+        // is on, so this exercises the docked-fallback path specifically.
+        assertEquals(emptyList<String>(), viewModel.uiState.value.filteredApps.map { it.name })
+
+        viewModel.launchActiveApp()
+        composeRule.waitForIdle()
+
+        val launched = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals("app.typelauncher.fake1", launched.component?.packageName)
+    }
+
+    @Test
     fun dockingMoreAppsThanFit_keepsAllDockedAppsScrollable() {
         val viewModel = composeRule.activity.viewModel
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
