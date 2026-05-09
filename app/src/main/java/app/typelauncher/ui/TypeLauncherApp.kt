@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -169,18 +170,24 @@ internal fun TypeLauncherApp(
     // per resume.
 
     val context = LocalContext.current
-    // The system file picker runs out-of-process, so the result lands in this
-    // composable's scope rather than the dialog's. The pending app id is held
-    // here so the chosen URI can be routed back to the right `InstalledApp`
-    // without making the picker callback re-look up by id from `state`.
-    var pendingIconPickApp by remember { mutableStateOf<InstalledApp?>(null) }
+    // The system file picker runs out-of-process and the launcher activity
+    // can be recreated — or, in extreme cases, reclaimed for a full process
+    // death — while the picker is foreground (configuration change, system
+    // memory pressure). `rememberSaveable` round-trips the pending app id
+    // through the saved-instance bundle so when `OpenDocument` redelivers
+    // the URI on the rebuilt `Activity`, we can still route it back to the
+    // right `InstalledApp` instead of silently dropping the user's pick.
+    // The id (a `String`) is saveable; resolving it against the live
+    // installed-app list at delivery time also keeps a stale `InstalledApp`
+    // instance from pinning a since-uninstalled package.
+    var pendingIconPickAppId by rememberSaveable { mutableStateOf<String?>(null) }
     val iconPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        val targetApp = pendingIconPickApp
-        pendingIconPickApp = null
-        if (uri != null && targetApp != null) {
-            viewModel.setAppIconOverride(targetApp, uri)
+        val targetId = pendingIconPickAppId
+        pendingIconPickAppId = null
+        if (uri != null && targetId != null) {
+            viewModel.setAppIconOverride(targetId, uri)
         }
     }
 
@@ -196,11 +203,11 @@ internal fun TypeLauncherApp(
         onResetRank = viewModel::resetRank,
         onRenameApp = viewModel::renameApp,
         onSetAppIconOverride = { app ->
-            pendingIconPickApp = app
+            pendingIconPickAppId = app.id
             try {
                 iconPickerLauncher.launch(ICON_PICKER_MIME_TYPES)
             } catch (_: ActivityNotFoundException) {
-                pendingIconPickApp = null
+                pendingIconPickAppId = null
                 Toast.makeText(
                     context,
                     R.string.edit_app_dialog_pick_icon_unavailable,

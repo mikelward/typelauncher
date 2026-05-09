@@ -95,6 +95,44 @@ class LauncherViewModelIconOverrideTest {
     }
 
     @Test
+    fun setAppIconOverrideByIdLooksUpInstalledAppAndApplies() {
+        // Mirrors the post-recreation path: the picker callback only carries
+        // an `appId` (round-tripped via `rememberSaveable`) and the ViewModel
+        // resolves it to the live `InstalledApp` before applying. Without the
+        // id-based overload the result URI would be silently dropped after a
+        // configuration change while the picker is foreground.
+        seedApp("ChatGPT", "com.openai.chatgpt")
+        val viewModel = freshlyLoaded()
+        val target = viewModel.uiState.value.filteredApps.single { it.name == "ChatGPT" }
+
+        viewModel.setAppIconOverride(target.id, stagePngOverride(target.id))
+        idle()
+
+        val patched = viewModel.uiState.value.filteredApps.single { it.id == target.id }
+        assertNotNull(patched.customIconPath)
+    }
+
+    @Test
+    fun setAppIconOverrideByIdDropsRequestForUnknownId() {
+        // Defends the picker callback against a race where the chosen package
+        // is uninstalled while the picker is foreground: the saved id no
+        // longer resolves, so the override must not land on someone else.
+        seedApp("ChatGPT", "com.openai.chatgpt")
+        val viewModel = freshlyLoaded()
+        val before = viewModel.uiState.value.filteredApps
+
+        viewModel.setAppIconOverride("0:com.removed/Main", stagePngOverride("0:com.removed/Main"))
+        idle()
+
+        val after = viewModel.uiState.value.filteredApps
+        assertTrue(
+            "no app should have grown a customIconPath after a no-op id-based set",
+            after.all { it.customIconPath == null },
+        )
+        assertEquals(before.size, after.size)
+    }
+
+    @Test
     fun setAppIconOverrideSurvivesProcessRestart() {
         seedApp("ChatGPT", "com.openai.chatgpt")
         val initial = freshlyLoaded()
