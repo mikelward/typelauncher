@@ -51,6 +51,16 @@
     <string name="edit_app_dialog_choose_icon">Elegir icono</string>
     <string name="edit_app_dialog_clear_icon">Usar icono predeterminado</string>
     <string name="edit_app_dialog_pick_icon_unavailable">Ninguna app disponible para elegir un icono</string>
+    <string name="edit_app_dialog_badge_label">Distintivo</string>
+    <string name="edit_app_dialog_choose_badge">Elegir distintivo</string>
+    <string name="edit_app_dialog_badge_default_label">Predeterminado</string>
+    <string name="badge_picker_title">Elegir distintivo</string>
+    <string name="badge_picker_default">Predeterminado</string>
+    <string name="badge_preset_home">Hogar</string>
+    <string name="badge_preset_work">Trabajo</string>
+    <string name="badge_preset_school">Escuela</string>
+    <string name="badge_preset_travel">Viaje</string>
+    <string name="badge_preset_world">Mundo</string>
     <string name="widgets_add_button_description">Añadir widget</string>
     <string name="widgets_picker_title">Añadir widget</string>
     <string name="widgets_picker_subtitle">Elige un widget para la pantalla de inicio</string>

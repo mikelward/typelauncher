@@ -51,6 +51,16 @@
     <string name="edit_app_dialog_choose_icon">选择图标</string>
     <string name="edit_app_dialog_clear_icon">使用默认图标</string>
     <string name="edit_app_dialog_pick_icon_unavailable">没有可用于选择图标的应用</string>
+    <string name="edit_app_dialog_badge_label">徽章</string>
+    <string name="edit_app_dialog_choose_badge">选择徽章</string>
+    <string name="edit_app_dialog_badge_default_label">默认</string>
+    <string name="badge_picker_title">选择徽章</string>
+    <string name="badge_picker_default">默认</string>
+    <string name="badge_preset_home">家</string>
+    <string name="badge_preset_work">工作</string>
+    <string name="badge_preset_school">学校</string>
+    <string name="badge_preset_travel">旅行</string>
+    <string name="badge_preset_world">世界</string>
     <string name="widgets_add_button_description">添加小部件</string>
     <string name="widgets_picker_title">添加小部件</string>
     <string name="widgets_picker_subtitle">选择主屏幕的小部件</string>

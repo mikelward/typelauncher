@@ -166,6 +166,7 @@ internal fun HomeScreen(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
@@ -241,6 +242,7 @@ internal fun HomeScreen(
                     onRenameApp = onRenameApp,
                     onSetAppIconOverride = onSetAppIconOverride,
                     onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
                     onAppListBoundsChanged = onAppListBoundsChanged,
                 )
@@ -264,6 +266,7 @@ internal fun HomeScreen(
                     onRenameApp = onRenameApp,
                     onSetAppIconOverride = onSetAppIconOverride,
                     onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
                     onDragStateChanged = onDockDragChanged,
                 )
@@ -465,6 +468,7 @@ private fun DockCard(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
 ) {
@@ -532,6 +536,7 @@ private fun DockCard(
                                     onRenameApp = onRenameApp,
                                     onSetAppIconOverride = onSetAppIconOverride,
                                     onClearAppIconOverride = onClearAppIconOverride,
+                                    onSetAppBadge = onSetAppBadge,
                                     onHideApp = onHideApp,
                                     onReportSlotCenter = { center -> slotCenters[position] = center },
                                     onDragStart = {
@@ -1247,6 +1252,7 @@ private fun AppsCard(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onAppListBoundsChanged: (Rect?) -> Unit = {},
 ) {
@@ -1328,6 +1334,7 @@ private fun AppsCard(
                         onRenameApp = onRenameApp,
                         onSetAppIconOverride = onSetAppIconOverride,
                         onClearAppIconOverride = onClearAppIconOverride,
+                        onSetAppBadge = onSetAppBadge,
                         onHideApp = onHideApp,
                     )
                 }
@@ -1378,6 +1385,7 @@ private fun AppsCard(
                                 onRenameApp = onRenameApp,
                                 onSetAppIconOverride = onSetAppIconOverride,
                                 onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
                             )
                         }
@@ -1431,6 +1439,7 @@ private fun IconOnlyAppGrid(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -1465,6 +1474,7 @@ private fun IconOnlyAppGrid(
                 onRenameApp = onRenameApp,
                 onSetAppIconOverride = onSetAppIconOverride,
                 onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
             )
         }
@@ -1484,6 +1494,7 @@ private fun IconOnlyAppButton(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -1535,6 +1546,7 @@ private fun IconOnlyAppButton(
             onRenameApp = onRenameApp,
             onSetAppIconOverride = onSetAppIconOverride,
             onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
         )
     }
@@ -1552,6 +1564,7 @@ private fun AppRow(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val highlightColor = selectionHighlightColor()
@@ -1597,6 +1610,7 @@ private fun AppRow(
             onRenameApp = onRenameApp,
             onSetAppIconOverride = onSetAppIconOverride,
             onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
         )
     }
@@ -1614,6 +1628,7 @@ private fun AppActionsMenu(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
 ) {
     // Boolean rather than the InstalledApp itself so dialog visibility doesn't
@@ -1687,6 +1702,7 @@ private fun AppActionsMenu(
             onClearIcon = {
                 onClearAppIconOverride(app)
             },
+            onSetBadge = { glyph -> onSetAppBadge(app, glyph) },
             onDismiss = { editDialogVisible = false },
         )
     }
@@ -1722,6 +1738,7 @@ internal fun EditAppDialog(
     onRestoreDefaults: () -> Unit,
     onPickIcon: () -> Unit,
     onClearIcon: () -> Unit,
+    onSetBadge: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Low-level `Dialog` + custom `Surface` rather than `AlertDialog`: the
@@ -1747,6 +1764,7 @@ internal fun EditAppDialog(
                 onRestoreDefaults = onRestoreDefaults,
                 onPickIcon = onPickIcon,
                 onClearIcon = onClearIcon,
+                onSetBadge = onSetBadge,
                 onDismiss = onDismiss,
             )
         }
@@ -1771,9 +1789,11 @@ internal fun EditAppDialogContent(
     onRestoreDefaults: () -> Unit,
     onPickIcon: () -> Unit,
     onClearIcon: () -> Unit,
+    onSetBadge: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var text by remember(app.id) { mutableStateOf(app.customName ?: app.name) }
+    var badgePickerVisible by remember { mutableStateOf(false) }
     val hasOverride = !app.customName.isNullOrBlank()
     val hasIconOverride = app.customIconPath != null
     Column(
@@ -1818,6 +1838,10 @@ internal fun EditAppDialogContent(
                 }
             }
         }
+        EditAppDialogBadgeRow(
+            app = app,
+            onChooseBadge = { badgePickerVisible = true },
+        )
         TextField(
             value = text,
             onValueChange = { text = it },
@@ -1865,6 +1889,86 @@ internal fun EditAppDialogContent(
                 modifier = Modifier.testTag(EDIT_APP_DIALOG_SAVE_TAG),
             ) {
                 Text(stringResource(R.string.edit_app_dialog_save))
+            }
+        }
+    }
+    if (badgePickerVisible) {
+        BadgePickerDialog(
+            currentBadge = app.customBadge,
+            onPickBadge = { glyph ->
+                onSetBadge(glyph)
+            },
+            onDismiss = { badgePickerVisible = false },
+        )
+    }
+}
+
+/**
+ * Single row inside [EditAppDialogContent] that previews the app's current
+ * corner badge (or a "Default" placeholder when none is set) and exposes a
+ * "Choose badge" button. Tapping the button opens [BadgePickerDialog]. The
+ * row sits below the icon row so the user reads "icon, then badge, then
+ * label" — the same top-to-bottom order as the corner-badge stacking on
+ * the rendered launcher tile.
+ */
+@Composable
+private fun EditAppDialogBadgeRow(
+    app: InstalledApp,
+    onChooseBadge: () -> Unit,
+) {
+    val customBadgeGlyph = app.customBadge?.takeIf { it.isNotEmpty() }
+    val previewGlyph = customBadgeGlyph
+        ?: app.effectiveDisambiguator
+            ?.takeIf { it.isNotEmpty() }
+            ?.let(::disambiguatorBadge)
+            ?.glyph
+    val defaultLabel = stringResource(R.string.edit_app_dialog_badge_default_label)
+    val previewLabel = previewGlyph ?: defaultLabel
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(EDIT_APP_DIALOG_BADGE_ROW_TAG),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .testTag(EDIT_APP_DIALOG_BADGE_PREVIEW_TAG)
+                .semantics {
+                    contentDescription =
+                        "${app.displayName} badge: $previewLabel"
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (previewGlyph != null) {
+                Text(
+                    text = previewGlyph,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Text(
+                    text = defaultLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.edit_app_dialog_badge_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            TextButton(
+                onClick = onChooseBadge,
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_CHOOSE_BADGE_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_choose_badge))
             }
         }
     }
@@ -1980,6 +2084,7 @@ private fun DockedAppButton(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onReportSlotCenter: (Offset) -> Unit,
     onDragStart: () -> Unit,
@@ -2112,6 +2217,7 @@ private fun DockedAppButton(
             onRenameApp = onRenameApp,
             onSetAppIconOverride = onSetAppIconOverride,
             onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
         )
     }
@@ -2210,6 +2316,7 @@ internal fun SettingsScreen(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
@@ -2425,6 +2532,7 @@ internal fun SettingsScreen(
             onRenameApp = onRenameApp,
             onSetAppIconOverride = onSetAppIconOverride,
             onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
         )
     }
@@ -2896,6 +3004,7 @@ private fun SettingsPreview(
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
@@ -2927,6 +3036,7 @@ private fun SettingsPreview(
             onRenameApp = onRenameApp,
             onSetAppIconOverride = onSetAppIconOverride,
             onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
         )
         // Forced access-granted so the preview shows the compact secondary bar
@@ -2958,6 +3068,7 @@ private fun SettingsPreview(
                 onRenameApp = onRenameApp,
                 onSetAppIconOverride = onSetAppIconOverride,
                 onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
             )
         }
@@ -3003,24 +3114,22 @@ private fun AppIcon(
                 )
             }
         }
-        app.effectiveDisambiguator?.takeIf { it.isNotEmpty() }?.let { label ->
-            disambiguatorBadge(label)?.let { badge ->
-                val flagSp = (APP_ICON_CORNER_BADGE_SIZE_DP - 2).sp
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
-                        .semantics { contentDescription = "${app.displayName} ${badge.contentDescription}" }
-                        .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = badge.glyph,
-                        fontSize = flagSp,
-                        lineHeight = flagSp,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+        appCornerBadge(app)?.let { badge ->
+            val flagSp = (APP_ICON_CORNER_BADGE_SIZE_DP - 2).sp
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
+                    .semantics { contentDescription = "${app.displayName} ${badge.contentDescription}" }
+                    .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = badge.glyph,
+                    fontSize = flagSp,
+                    lineHeight = flagSp,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }
@@ -3030,6 +3139,19 @@ private data class DisambiguatorBadge(
     val glyph: String,
     val contentDescription: String,
 )
+
+// Picks the corner-badge glyph to render for [app]: a user-chosen
+// [InstalledApp.customBadge] always wins (so a flag the user picked from the
+// badge picker overrides whatever the auto-disambiguator computed), and the
+// fallback runs the existing `effectiveDisambiguator` -> `disambiguatorBadge`
+// pipeline so the auto-detected country / regional badges still render for
+// apps the user hasn't customised.
+private fun appCornerBadge(app: InstalledApp): DisambiguatorBadge? {
+    app.customBadge?.takeIf { it.isNotEmpty() }?.let { glyph ->
+        return DisambiguatorBadge(glyph, "badge")
+    }
+    return app.effectiveDisambiguator?.takeIf { it.isNotEmpty() }?.let(::disambiguatorBadge)
+}
 
 private fun disambiguatorBadge(label: String): DisambiguatorBadge? {
     val normalized = label.trim().uppercase()
@@ -3041,11 +3163,6 @@ private fun disambiguatorBadge(label: String): DisambiguatorBadge? {
         }?.let { code -> DisambiguatorBadge(countryFlag(code), "flag") }
     }
 }
-
-private fun countryFlag(countryCode: String): String =
-    countryCode.map { codePoint ->
-        Character.toChars(REGIONAL_INDICATOR_BASE + (codePoint - 'A')).concatToString()
-    }.joinToString(separator = "")
 
 @Composable
 private fun selectionHighlightColor(): Color =
@@ -3069,5 +3186,3 @@ private const val NOTIFICATION_BADGE_SIZE_DP = 12
 // Play update badge dot — same "presence" treatment as the notification dot,
 // scaled down for the smaller search-field gear icon.
 private const val PLAY_UPDATE_BADGE_SIZE_DP = 8
-private const val INTL_GLOBE = "\uD83C\uDF10"
-private const val REGIONAL_INDICATOR_BASE = 0x1F1E6

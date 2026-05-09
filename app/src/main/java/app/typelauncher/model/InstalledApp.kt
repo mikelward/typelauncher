@@ -25,6 +25,7 @@ internal data class InstalledApp(
     val isQuietMode: Boolean = false,
     val disambiguator: String? = null,
     val customName: String? = null,
+    val customBadge: String? = null,
     val customIconPath: String? = null,
     // Bumped (typically to the override file's `lastModified()` timestamp)
     // every time the user re-uploads an icon for this app. Folded into

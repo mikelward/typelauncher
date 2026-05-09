@@ -46,6 +46,7 @@ class EditAppDialogScreenshotTest {
                     onRestoreDefaults = {},
                     onPickIcon = {},
                     onClearIcon = {},
+                    onSetBadge = {},
                     onDismiss = {},
                 )
             }
@@ -74,6 +75,7 @@ class EditAppDialogScreenshotTest {
                     onRestoreDefaults = {},
                     onPickIcon = {},
                     onClearIcon = {},
+                    onSetBadge = {},
                     onDismiss = {},
                 )
             }
@@ -95,6 +97,7 @@ class EditAppDialogScreenshotTest {
                     onRestoreDefaults = {},
                     onPickIcon = {},
                     onClearIcon = {},
+                    onSetBadge = {},
                     onDismiss = {},
                 )
             }
@@ -122,6 +125,7 @@ class EditAppDialogScreenshotTest {
                     onRestoreDefaults = {},
                     onPickIcon = {},
                     onClearIcon = {},
+                    onSetBadge = {},
                     onDismiss = {},
                 )
             }

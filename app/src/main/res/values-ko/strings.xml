@@ -51,6 +51,16 @@
     <string name="edit_app_dialog_choose_icon">아이콘 선택</string>
     <string name="edit_app_dialog_clear_icon">기본 아이콘 사용</string>
     <string name="edit_app_dialog_pick_icon_unavailable">아이콘을 선택할 수 있는 앱이 없습니다</string>
+    <string name="edit_app_dialog_badge_label">배지</string>
+    <string name="edit_app_dialog_choose_badge">배지 선택</string>
+    <string name="edit_app_dialog_badge_default_label">기본값</string>
+    <string name="badge_picker_title">배지 선택</string>
+    <string name="badge_picker_default">기본값</string>
+    <string name="badge_preset_home">집</string>
+    <string name="badge_preset_work">직장</string>
+    <string name="badge_preset_school">학교</string>
+    <string name="badge_preset_travel">여행</string>
+    <string name="badge_preset_world">세계</string>
     <string name="widgets_add_button_description">위젯 추가</string>
     <string name="widgets_picker_title">위젯 추가</string>
     <string name="widgets_picker_subtitle">홈 화면에 추가할 위젯 선택</string>

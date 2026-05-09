@@ -51,6 +51,16 @@
     <string name="edit_app_dialog_choose_icon">アイコンを選択</string>
     <string name="edit_app_dialog_clear_icon">既定のアイコンを使用</string>
     <string name="edit_app_dialog_pick_icon_unavailable">アイコンを選べるアプリがありません</string>
+    <string name="edit_app_dialog_badge_label">バッジ</string>
+    <string name="edit_app_dialog_choose_badge">バッジを選択</string>
+    <string name="edit_app_dialog_badge_default_label">既定</string>
+    <string name="badge_picker_title">バッジを選択</string>
+    <string name="badge_picker_default">既定</string>
+    <string name="badge_preset_home">自宅</string>
+    <string name="badge_preset_work">仕事</string>
+    <string name="badge_preset_school">学校</string>
+    <string name="badge_preset_travel">旅行</string>
+    <string name="badge_preset_world">世界</string>
     <string name="widgets_add_button_description">ウィジェットを追加</string>
     <string name="widgets_picker_title">ウィジェットを追加</string>
     <string name="widgets_picker_subtitle">ホーム画面のウィジェットを選択</string>
