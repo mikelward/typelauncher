@@ -180,7 +180,14 @@ internal fun HomeScreen(
     onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
-    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
+    // Coerce against the current screen's slot range. The persisted count
+    // can outlive the configuration it was set under (e.g. saved at 411dp
+    // and now resumed in 392dp portrait, or carried across a fold/unfold
+    // that narrows the window), so a stale value would otherwise drive
+    // `dockIconSizeForSlotCount` past the row's actual capacity. Settings
+    // already coerces; matching here keeps Home's render in lock-step.
+    val dockIconCount = state.dockIconCount.coerceIn(dockSlotCountRange(configuration.screenWidthDp))
+    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
     // Custom Layout (not Column) so the dock's max-height constraint is
     // derived from the actual measured search-card height in the same
     // measurement pass. A `Column { weight(1f) }` plus state-tracked search
@@ -249,7 +256,7 @@ internal fun HomeScreen(
                 DockCard(
                     dockedApps = state.dockedApps,
                     dockIconSizeDp = dockIconSizeDp,
-                    dockIconCount = state.dockIconCount,
+                    dockIconCount = dockIconCount,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
@@ -317,7 +324,10 @@ internal fun HomeKeyboardTray(
     onRequestNotificationAccess: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
-    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, state.dockIconCount)
+    // See `HomeScreen` — the persisted slot count can outlive the
+    // configuration it was set under, so coerce before sizing.
+    val dockIconCount = state.dockIconCount.coerceIn(dockSlotCountRange(configuration.screenWidthDp))
+    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -2304,6 +2314,7 @@ internal fun SettingsScreen(
         SettingsPreview(
             state = state,
             dockIconSizeDp = dockIconSizeDp,
+            dockIconCount = dockIconCount,
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
@@ -2774,6 +2785,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
 private fun SettingsPreview(
     state: LauncherUiState,
     dockIconSizeDp: Int,
+    dockIconCount: Int,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -2832,7 +2844,7 @@ private fun SettingsPreview(
             DockCard(
                 dockedApps = state.dockedApps,
                 dockIconSizeDp = dockIconSizeDp,
-                dockIconCount = state.dockIconCount,
+                dockIconCount = dockIconCount,
                 modifier = Modifier.height(previewHeight),
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
