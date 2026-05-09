@@ -119,75 +119,42 @@ class DockReorderCarouselTest {
     }
 
     @Test
-    fun dragReorderingDockedApp_canMoveVerticallyToSparseSlot() {
+    fun dockDragTargetsNearestVerticalSparseSlot() {
         val docked = listOf(
             fakeApp("App01").copy(isDocked = true),
             fakeApp("App02").copy(isDocked = true),
             fakeApp("App03").copy(isDocked = true),
             fakeApp("App04").copy(isDocked = true),
+            fakeApp("App05").copy(isDocked = true),
         )
-        var positions by mutableStateOf(
-            docked.mapIndexed { index, app -> app.id to DockPosition(row = 0, column = index) }.toMap(),
+        val positions = docked.mapIndexed { index, app ->
+            app.id to DockPosition(row = index / 4, column = index % 4)
+        }.toMap()
+        val slotCenters = mapOf(
+            DockPosition(0, 0) to Offset(50f, 50f),
+            DockPosition(0, 1) to Offset(150f, 50f),
+            DockPosition(0, 2) to Offset(250f, 50f),
+            DockPosition(0, 3) to Offset(350f, 50f),
+            DockPosition(1, 0) to Offset(50f, 150f),
+            DockPosition(1, 1) to Offset(150f, 150f),
+            DockPosition(1, 2) to Offset(250f, 150f),
+            DockPosition(1, 3) to Offset(350f, 150f),
         )
-        var state by mutableStateOf(
-            LauncherUiState(
-                filteredApps = emptyList(),
-                dockedApps = docked,
-                dockPositions = positions,
-            ),
-        )
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = state,
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onReorderDock = { appId, row, column ->
-                        positions = positions + (appId to DockPosition(row, column))
-                        state = state.copy(dockPositions = positions)
-                    },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                )
-            }
-        }
-        composeRule.waitForIdle()
+        var movedTo: DockPosition? = null
+        var updatedOffset = Offset.Zero
 
-        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
-            val start = Offset(width / 2f, height / 2f)
-            down(start)
-            move(longPressMs + 100)
-            moveBy(Offset(0f, 220f))
-            moveBy(Offset(0f, 220f))
-            up()
-        }
-        composeRule.waitForIdle()
+        handleDockDrag(
+            delta = Offset(0f, 80f),
+            draggedAppId = docked[0].id,
+            currentDockedApps = docked,
+            currentDockPositions = positions,
+            slotCenters = slotCenters,
+            onReorder = { _, row, column -> movedTo = DockPosition(row, column) },
+            currentOffset = Offset.Zero,
+            setOffset = { updatedOffset = it },
+        )
 
-        assertEquals(DockPosition(row = 1, column = 0), positions.getValue(docked[0].id))
+        assertEquals(DockPosition(row = 1, column = 0), movedTo)
+        assertEquals(Offset(0f, -20f), updatedOffset)
     }
 }

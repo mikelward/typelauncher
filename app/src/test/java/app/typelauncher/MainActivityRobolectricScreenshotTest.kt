@@ -36,6 +36,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.swipeLeft
@@ -1420,23 +1421,31 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockRow_centersIconsWhenTheyFitOnOneScreen() {
+    fun dockRowKeepsSparseSlotsWhenUnderfilled() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
-        // The dock row contains the app icon and the "+" add button; centering
-        // is measured across the whole content block (left of first item to
-        // right of last item), not just around the single app icon.
         val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
         val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot()
         val addButtonBounds = composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).getBoundsInRoot()
-        val leftGap = dockIconBounds.left - dockListBounds.left
-        val rightGap = dockListBounds.right - addButtonBounds.right
-        // Allow a 1dp tolerance for sub-pixel rounding when the row width is odd.
+        val gap = DOCK_ITEM_SPACING_DP.dp
+        val cellWidth = (
+            (dockListBounds.right - dockListBounds.left) -
+                gap * (viewModel.uiState.value.dockIconCount - 1)
+            ) / viewModel.uiState.value.dockIconCount
+        val firstSlotCenter = dockListBounds.left + cellWidth / 2f
+        val secondSlotCenter = dockListBounds.left + cellWidth * 1.5f + gap
+        val dockIconCenter = dockIconBounds.left + (dockIconBounds.right - dockIconBounds.left) / 2f
+        val addButtonCenter = addButtonBounds.left + (addButtonBounds.right - addButtonBounds.left) / 2f
+
         assertTrue(
-            "dock content block should be centered (leftGap=$leftGap, rightGap=$rightGap)",
-            kotlin.math.abs((leftGap - rightGap).value) <= 1f,
+            "docked app should stay in the first sparse slot",
+            kotlin.math.abs((dockIconCenter - firstSlotCenter).value) <= 1f,
+        )
+        assertTrue(
+            "add button should stay in the next sparse slot",
+            kotlin.math.abs((addButtonCenter - secondSlotCenter).value) <= 1f,
         )
     }
 
