@@ -993,25 +993,27 @@ internal class LauncherViewModel(
      * an icon override against a since-vanished package.
      */
     fun setAppIconOverride(appId: String, sourceUri: Uri) {
-        val app = installedApps.firstOrNull { it.id == appId }
-        if (app != null) {
-            setAppIconOverrideInternal(app, sourceUri)
-            return
-        }
-        // The cold-start `loadInstalledApps()` coroutine populates
-        // [installedApps] asynchronously. After a full process death while
-        // the picker is foreground, the rebuilt session can register the
-        // activity-result callback (and replay the saved id) before that
-        // load completes — and on a *first* run there's no cached metadata
-        // either, so [installedApps] is genuinely empty. Queue the request
-        // and let the cold-start drain replay it; only no-op once we know
-        // the fresh load has landed and the id legitimately doesn't resolve.
+        // Queue *every* cold-start pick — even when the cached-metadata
+        // prefill already has [appId] — until the authoritative
+        // `loadInstalledApps()` result lands. The cache can disagree with
+        // the fresh load: a package uninstalled during the picker's
+        // foreground window still appears in cached metadata, and an
+        // override applied here would persist to disk even though the
+        // fresh load drops the app. Deferring keeps the override file
+        // from being written for a now-defunct InstalledApp; the drain
+        // resolves against the post-load list and either applies cleanly
+        // or logs a "dropped" event.
         if (!_uiState.value.isFreshAppLoadComplete) {
             LauncherDebugLog.event("setAppIconOverride deferred: id=$appId pending fresh load")
             pendingIconOverrideRequest = appId to sourceUri
             return
         }
-        LauncherDebugLog.event("setAppIconOverride dropped: id=$appId not found")
+        val app = installedApps.firstOrNull { it.id == appId }
+        if (app == null) {
+            LauncherDebugLog.event("setAppIconOverride dropped: id=$appId not found")
+            return
+        }
+        setAppIconOverrideInternal(app, sourceUri)
     }
 
     private fun drainPendingIconOverrideRequest() {
