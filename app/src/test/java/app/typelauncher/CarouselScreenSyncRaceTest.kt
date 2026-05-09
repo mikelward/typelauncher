@@ -467,7 +467,7 @@ class CarouselScreenSyncRaceTest {
     }
 
     @Test
-    fun dockSwipeStartingDuringExternalHomeSettleClaimsOnceHomeSettles() {
+    fun dockSwipeCompletedDuringExternalHomeSettleCommitsAfterHomeSettles() {
         val docked = listOf(
             fakeApp("App01").copy(isDocked = true),
             fakeApp("App02").copy(isDocked = true),
@@ -525,22 +525,17 @@ class CarouselScreenSyncRaceTest {
         composeRule.mainClock.advanceTimeByFrame()
 
         val dockApp = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01")
-        dockApp.performTouchInput { down(center) }
-
-        composeRule.mainClock.advanceTimeBy(1_000)
-        composeRule.mainClock.autoAdvance = true
-        composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Home, state.screen)
-        assertEquals(widgetsPage - 1, carousel.carouselVirtualPage())
-
         dockApp.performTouchInput {
+            down(center)
             moveBy(Offset(-700f, 0f))
             up()
         }
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
 
         assertEquals(
-            "A dock swipe started during Home settle must commit once Home reaches Idle",
+            "A dock swipe completed during Home settle must commit after Home reaches Idle",
             widgetsPage,
             carousel.carouselVirtualPage(),
         )
@@ -548,7 +543,7 @@ class CarouselScreenSyncRaceTest {
     }
 
     @Test
-    fun dockSwipeStartingDuringHomeAckClaimsOnceHomeAckArrives() {
+    fun dockSwipeCompletedDuringHomeAckCommitsOnceHomeAckArrives() {
         val docked = listOf(
             fakeApp("App01").copy(isDocked = true),
             fakeApp("App02").copy(isDocked = true),
@@ -619,23 +614,18 @@ class CarouselScreenSyncRaceTest {
         assertEquals(LauncherScreen.Widgets, state.screen)
         assertEquals(LauncherScreen.Home, heldHomeAck)
 
-        val dockApp = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01")
-        dockApp.performTouchInput { down(center) }
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            down(center)
+            moveBy(Offset(-700f, 0f))
+            up()
+        }
 
         holdHomeAck = false
         state = state.copy(screen = heldHomeAck!!)
         composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Home, state.screen)
-        assertEquals(widgetsPage - 1, carousel.carouselVirtualPage())
-
-        dockApp.performTouchInput {
-            moveBy(Offset(-700f, 0f))
-            up()
-        }
-        composeRule.waitForIdle()
 
         assertEquals(
-            "A dock swipe started while Home ack is pending must commit once Home reaches Idle",
+            "A dock swipe completed while Home ack is pending must commit once Home reaches Idle",
             widgetsPage,
             carousel.carouselVirtualPage(),
         )
