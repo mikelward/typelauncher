@@ -51,6 +51,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -81,11 +82,21 @@ private const val LAUNCHER_SWIPE_COMMIT_DISTANCE_DP = 96
 
 // Release velocity (in dp/s) above which a fling commits even if the raw drag
 // distance is below the commit distance. Lets a quick flick still advance a page.
-private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 700f
+// 500 matches AOSP Launcher3's FLING_THRESHOLD_VELOCITY and sits between
+// ViewPager2's 400 and the looser end of the platform fling-detection range.
+private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 500f
 
 // If at release the velocity is in the opposite direction of the net drag and
 // faster than this, treat the gesture as cancelled — the user pulled and then
 // pulled back, so they don't want to commit.
+//
+// TODO: re-evaluate this 200 dp/s threshold now that the fling-commit bar is
+// 500 dp/s (Launcher3-aligned). The cancel rule is unique to us — Launcher3
+// follows the most recent input direction instead — and at the new fling bar a
+// fast-pull-then-twitch-back at 500+ dp/s reverse can block a page that the
+// same gesture would have committed under the old 800 dp/s fling bar. If
+// users report "I flicked but it stayed put," widening the cancel band (say
+// 350 dp/s) or scaling it relative to the fling bar are both reasonable.
 private const val CAROUSEL_BACKWARD_VELOCITY_CANCEL_DP_PER_SEC = 200f
 
 // AwaitingAck should be effectively instantaneous; this timeout is a bug-report
@@ -1015,7 +1026,7 @@ private fun SwipeNavigationBox(
                     var claimGestureStartPage = 0
                     var anchorRawDragX = 0f
                     val velocityTracker = VelocityTracker()
-                    velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
+                    velocityTracker.addPointerInputChange(downChange)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
@@ -1023,7 +1034,17 @@ private fun SwipeNavigationBox(
                             val rawDelta = change.positionChangeIgnoreConsumed()
                             rawDragX += rawDelta.x
                             rawDragY += rawDelta.y
-                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            // Use addPointerInputChange so the tracker also sees
+                            // change.historical — the intermediate samples Android's
+                            // input dispatcher batches into one event when a frame
+                            // stalls. Without these, a janky frame near release
+                            // (notably AppWidgetHostView first-inflation during a
+                            // swipe to a widget page) collapses real finger motion
+                            // into a single low-rate slope and can either drop the
+                            // release velocity below the fling bar or fit a noisy
+                            // slope opposite the drag, spuriously firing the
+                            // backward-velocity cancel.
+                            velocityTracker.addPointerInputChange(change)
                             if (isDockDraggingState.value) {
                                 dockDraggedDuringGesture = true
                             }
@@ -1068,7 +1089,7 @@ private fun SwipeNavigationBox(
                                     // valid post-claim drag, even though the
                                     // commit decision uses effectiveDragX.
                                     velocityTracker.resetTracking()
-                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                    velocityTracker.addPointerInputChange(change)
                                 }
                             }
                             if (carouselClaimed) {
@@ -1211,14 +1232,14 @@ private fun SwipeNavigationBox(
                     // VerticalLauncher.
                     var dockDraggedDuringGesture = false
                     val velocityTracker = VelocityTracker()
-                    velocityTracker.addPosition(downChange.uptimeMillis, downChange.position)
+                    velocityTracker.addPointerInputChange(downChange)
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
                             val delta = change.positionChangeIgnoreConsumed()
                             rawDragX += delta.x
                             rawDragY += delta.y
-                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            velocityTracker.addPointerInputChange(change)
                             if (isDockDraggingState.value) {
                                 dockDraggedDuringGesture = true
                             }
