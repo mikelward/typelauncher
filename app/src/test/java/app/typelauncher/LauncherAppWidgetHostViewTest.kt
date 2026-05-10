@@ -14,7 +14,8 @@ class LauncherAppWidgetHostViewTest {
 
     @Test
     fun setAppWidget_removesDefaultPadding() {
-        val view = LauncherAppWidgetHostView(context)
+        val host = LauncherAppWidgetHost(context, hostId = 0)
+        val view = LauncherAppWidgetHostView(context, host = host)
 
         view.setAppWidget(42, null)
 
