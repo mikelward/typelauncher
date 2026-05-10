@@ -650,6 +650,76 @@ class CarouselScreenSyncRaceTest {
         assertEquals(LauncherScreen.Widgets, state.screen)
     }
 
+    @Test
+    fun swipeAfterReturnToHomeWithStaleWidgetPageIndexStillCommits() {
+        // Regression: state.currentWidgetPage is preserved when the user
+        // navigates back to Home, so after Widgets[1] -> tap app -> Home
+        // button, state holds (screen=Home, currentWidgetPage=1). The
+        // carousel's claim check used to compare full LauncherPages, so
+        // LauncherPage(Home, 1) (upstream) never equalled LauncherPage(Home,
+        // 0) (local fromCarouselPage), and every horizontal swipe was
+        // silently dropped after that point.
+        var state by mutableStateOf(
+            LauncherUiState(
+                screen = LauncherScreen.Home,
+                currentWidgetPage = 1,
+                widgetPages = listOf(emptyList(), emptyList()),
+                isAgendaEnabled = false,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowWidgets = { pageIndex ->
+                        state = state.copy(screen = LauncherScreen.Widgets, currentWidgetPage = pageIndex)
+                    },
+                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val homePage = carousel.carouselVirtualPage()
+
+        carousel.performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "Stale state.currentWidgetPage on Home must not block the claim check",
+            homePage + 1,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(0, state.currentWidgetPage)
+    }
+
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
         fetchSemanticsNode().config[CarouselVirtualPageKey]
 }

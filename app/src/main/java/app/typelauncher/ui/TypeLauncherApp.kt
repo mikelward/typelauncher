@@ -900,7 +900,7 @@ private fun SwipeNavigationBox(
                 expectedPage = targetLauncherPage,
             ),
         )
-        if (currentLauncherPage != targetLauncherPage) {
+        if (!sameVisiblePage(currentLauncherPage, targetLauncherPage)) {
             dispatchSettledPage(targetLauncherPage)
         } else {
             setCarouselTransition(CarouselTransitionState.Idle)
@@ -1052,7 +1052,7 @@ private fun SwipeNavigationBox(
                                     carouselTransition == CarouselTransitionState.Idle &&
                                         carouselAnimationJob?.isActive != true &&
                                         carouselOffsetPx == 0f &&
-                                        (currentLauncherPage == candidateLauncherPage ||
+                                        (sameVisiblePage(currentLauncherPage, candidateLauncherPage) ||
                                             allowSwipeWithUnackedScreen)
                                 if (canStartCarouselGesture) {
                                     carouselClaimed = true
@@ -1119,7 +1119,6 @@ private fun SwipeNavigationBox(
                                         "targetPage=$settleTargetPage rawDragX=$rawDragX",
                                 )
                             }
-                        }
                         return@awaitEachGesture
                     }
 
@@ -1286,7 +1285,7 @@ private fun SwipeNavigationBox(
             }
             when (val transition = carouselTransition) {
                 is CarouselTransitionState.AwaitingAck -> {
-                    if (statePage == transition.expectedPage) {
+                    if (sameVisiblePage(statePage, transition.expectedPage)) {
                         allowSwipeWithUnackedScreen = false
                         setCarouselTransition(CarouselTransitionState.Idle)
                         playQueuedSettleSwipe(transition.settledPage, pageWidthPx)
@@ -1301,7 +1300,11 @@ private fun SwipeNavigationBox(
             if (carouselAnimationJob?.isActive == true || carouselOffsetPx != 0f) {
                 return@LaunchedEffect
             }
-            if (statePage == LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)) {
+            if (sameVisiblePage(
+                    statePage,
+                    LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled),
+                )
+            ) {
                 allowSwipeWithUnackedScreen = false
             }
             val targetPage = LauncherScreen.closestCarouselPage(
@@ -1413,6 +1416,20 @@ private data class QueuedSettleSwipe(
     val direction: Int,
     val settleTargetPage: Int,
 )
+
+// Two LauncherPages refer to the same visible carousel page if their screens
+// match and (when on Widgets) their widget page indices match. Home and Agenda
+// don't have multi-page representations on the carousel, so a stale
+// state.currentWidgetPage from a prior Widgets visit must not be allowed to
+// make `LauncherPage(Home, n)` look different from `LauncherPage(Home, 0)` —
+// that mismatch silently drops every horizontal swipe at the claim check
+// after the user navigates back to Home with a non-zero last-widget-page
+// index (e.g. Widgets[1] → tap app → Home button → swipe).
+private fun sameVisiblePage(a: LauncherPage, b: LauncherPage): Boolean {
+    if (a.screen != b.screen) return false
+    if (a.screen != LauncherScreen.Widgets) return true
+    return a.widgetPageIndex == b.widgetPageIndex
+}
 
 internal enum class LauncherGestureOwner {
     Undecided,
