@@ -125,6 +125,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
@@ -2315,15 +2316,6 @@ internal fun SettingsScreen(
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
-    onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onRenameApp: (InstalledApp, String) -> Unit,
-    onSetAppIconOverride: (InstalledApp) -> Unit = {},
-    onClearAppIconOverride: (InstalledApp) -> Unit = {},
-    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
-    onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
     onOpenPlayUpdate: () -> Unit,
@@ -2531,15 +2523,6 @@ internal fun SettingsScreen(
             state = state,
             dockIconSizeDp = dockIconSizeDp,
             dockIconCount = dockIconCount,
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onRenameApp = onRenameApp,
-            onSetAppIconOverride = onSetAppIconOverride,
-            onClearAppIconOverride = onClearAppIconOverride,
-            onSetAppBadge = onSetAppBadge,
-            onHideApp = onHideApp,
         )
     }
     if (hiddenAppsDialogVisible) {
@@ -3074,15 +3057,6 @@ private fun SettingsPreview(
     state: LauncherUiState,
     dockIconSizeDp: Int,
     dockIconCount: Int,
-    onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onRenameApp: (InstalledApp, String) -> Unit,
-    onSetAppIconOverride: (InstalledApp) -> Unit = {},
-    onClearAppIconOverride: (InstalledApp) -> Unit = {},
-    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
-    onHideApp: (InstalledApp) -> Unit,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
@@ -3093,72 +3067,116 @@ private fun SettingsPreview(
     val fixedBarCount = 1 + (if (state.isDockEnabled) 1 else 0) + 1
     val appListHeight =
         totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
+    // The preview is visual-only on every interaction surface:
+    //   - clearAndSetSemantics on the wrapper strips the cards' descendant
+    //     semantics from the MERGED tree, so TalkBack, Switch Access,
+    //     keyboard / D-pad navigation, and tests calling performClick()
+    //     against the merged tree can't reach the descendants' click /
+    //     long-press / combinedClickable actions at all. This also blocks
+    //     long-press menus and the Edit-app dialog from being armed via
+    //     accessibility, which the no-op-callback approach alone could
+    //     not — the long-press handlers in AppsCard / DockedAppButton
+    //     set local state (menuExpanded, editDialogVisible) before any
+    //     callback fires, so blocking the callback isn't enough.
+    //   - The descendants still exist in the UNMERGED tree, which is what
+    //     the existing settings-preview screenshot tests rely on — they
+    //     query APPS_CARD_TAG, DOCK_CARD_TAG, NOTIFICATION_BAR_CARD_TAG,
+    //     DOCK_RECENTS_CARD_TAG, DOCK_APP_ICON_TAG with
+    //     useUnmergedTree = true. Future preview tests must follow that
+    //     same convention.
+    //   - Every card callback is also wired to a no-op as defense in
+    //     depth: a test that opts into the unmerged tree and calls
+    //     performClick() still hits a no-op rather than the live
+    //     launcher state.
+    //   - The transparent overlay sibling below claims the touch hit path
+    //     on top of the cards so their inner LazyColumns / clickables /
+    //     long-press handlers never see pointer events at all. The overlay
+    //     never consumes, which lets the settings page's outer
+    //     verticalScroll still drive vertical drags that start inside the
+    //     preview region.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics {},
     ) {
-        AppsCard(
-            apps = state.filteredApps,
-            dockLimit = Int.MAX_VALUE,
-            isIconOnly = state.isAppListIconOnly,
-            iconSizeDp = dockIconSizeDp,
-            highlightFirst = state.query.isNotBlank(),
-            reverseLayout = state.appListSortOrder.isReversed,
-            scrollResetKey = state.query,
-            modifier = Modifier.height(appListHeight),
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onRenameApp = onRenameApp,
-            onSetAppIconOverride = onSetAppIconOverride,
-            onClearAppIconOverride = onClearAppIconOverride,
-            onSetAppBadge = onSetAppBadge,
-            onHideApp = onHideApp,
-        )
-        // Forced access-granted so the preview shows the compact secondary bar
-        // instead of the taller permission CTA.
-        NotificationBarCard(
-            notifyingApps = state.notifyingApps,
-            isVisible = true,
-            hasNotificationAccess = true,
-            dockIconSizeDp = dockIconSizeDp,
-            modifier = Modifier.height(previewHeight),
-            onLaunchApp = onLaunchApp,
-            onDismissNotifications = {},
-            onOpenNotificationSettings = {},
-            onRequestNotificationAccess = {},
-            onDismiss = {},
-        )
-        if (state.isDockEnabled) {
-            DockCard(
-                dockedApps = state.dockedApps,
-                dockPositions = state.dockPositions,
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
+        ) {
+            AppsCard(
+                apps = state.filteredApps,
+                dockLimit = Int.MAX_VALUE,
+                isIconOnly = state.isAppListIconOnly,
+                iconSizeDp = dockIconSizeDp,
+                highlightFirst = state.query.isNotBlank(),
+                reverseLayout = state.appListSortOrder.isReversed,
+                scrollResetKey = state.query,
+                modifier = Modifier.height(appListHeight),
+                onLaunchApp = {},
+                onOpenAppInfo = {},
+                onToggleDock = { _, _ -> },
+                onResetRank = {},
+                onRenameApp = { _, _ -> },
+                onSetAppIconOverride = {},
+                onClearAppIconOverride = {},
+                onSetAppBadge = { _, _ -> },
+                onHideApp = {},
+            )
+            // Forced access-granted so the preview shows the compact secondary bar
+            // instead of the taller permission CTA.
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = true,
+                hasNotificationAccess = true,
                 dockIconSizeDp = dockIconSizeDp,
-                dockIconCount = dockIconCount,
                 modifier = Modifier.height(previewHeight),
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onReorderDock = { _, _, _ -> },
-                onResetRank = onResetRank,
-                onRenameApp = onRenameApp,
-                onSetAppIconOverride = onSetAppIconOverride,
-                onClearAppIconOverride = onClearAppIconOverride,
-                onSetAppBadge = onSetAppBadge,
-                onHideApp = onHideApp,
+                onLaunchApp = {},
+                onDismissNotifications = {},
+                onOpenNotificationSettings = {},
+                onRequestNotificationAccess = {},
+                onDismiss = {},
+            )
+            if (state.isDockEnabled) {
+                DockCard(
+                    dockedApps = state.dockedApps,
+                    dockPositions = state.dockPositions,
+                    dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = dockIconCount,
+                    modifier = Modifier.height(previewHeight),
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onReorderDock = { _, _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onSetAppIconOverride = {},
+                    onClearAppIconOverride = {},
+                    onSetAppBadge = { _, _ -> },
+                    onHideApp = {},
+                )
+            }
+            // Mirror Home: recents is always a secondary bar, independent of the dock.
+            RecentsCard(
+                recentApps = state.recentApps,
+                isVisible = true,
+                dockIconSizeDp = dockIconSizeDp,
+                modifier = Modifier.height(previewHeight),
+                onLaunchApp = {},
+                onOpenAppInfo = {},
+                onToggleDock = { _, _ -> },
+                onDismissRecent = {},
             )
         }
-        // Mirror Home: recents is always a secondary bar, independent of the dock.
-        RecentsCard(
-            recentApps = state.recentApps,
-            isVisible = true,
-            dockIconSizeDp = dockIconSizeDp,
-            modifier = Modifier.height(previewHeight),
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onDismissRecent = {},
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        do {
+                            val event = awaitPointerEvent()
+                        } while (event.changes.any { it.pressed })
+                    }
+                },
         )
     }
 }
