@@ -35,7 +35,7 @@ class CarouselScreenSyncRaceTest {
         )
 
     @Test
-    fun secondSwipeBeforeWidgetsAckDoesNotAdvancePastWidgets() {
+    fun secondSwipeBeforeWidgetsAckQueuesAndAdvancesToAgendaAfterAck() {
         var state by mutableStateOf(LauncherUiState())
         var holdWidgetsAck = true
         var heldWidgetsAck: LauncherScreen? = null
@@ -96,27 +96,25 @@ class CarouselScreenSyncRaceTest {
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
 
+        // Pager has not moved past Widgets yet — the second swipe is queued
+        // against the Widgets settle target, not consumed in flight.
         assertEquals(LauncherScreen.Home, state.screen)
-        assertEquals(
-            "A second swipe before Widgets is acknowledged must not advance to Agenda",
-            startPage + 1,
-            carousel.carouselVirtualPage(),
-        )
+        assertEquals(startPage + 1, carousel.carouselVirtualPage())
 
         holdWidgetsAck = false
         state = state.copy(screen = heldWidgetsAck!!)
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Widgets, state.screen)
         assertEquals(
-            "Acknowledging Widgets must keep the pager on Widgets",
-            startPage + 1,
+            "Once Widgets is acknowledged, the queued swipe replays one page from Widgets to Agenda",
+            startPage + 2,
             carousel.carouselVirtualPage(),
         )
+        assertEquals(LauncherScreen.Agenda, state.screen)
     }
 
     @Test
-    fun secondSwipeBeforeAgendaAckDoesNotAdvanceToHome() {
+    fun secondSwipeBeforeAgendaAckQueuesAndWrapsToHomeAfterAck() {
         var state by mutableStateOf(LauncherUiState(screen = LauncherScreen.Widgets))
         var heldAgendaAck: LauncherScreen? = null
         composeRule.setContent {
@@ -168,18 +166,20 @@ class CarouselScreenSyncRaceTest {
         carousel.performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals(
-            "A second swipe before Agenda is acknowledged must not advance to Home",
-            widgetsPage + 1,
-            carousel.carouselVirtualPage(),
-        )
+        // While Agenda is still pending ack, the queued swipe has not yet
+        // replayed — the pager is still parked on the Agenda virtual page.
+        assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
         assertEquals(LauncherScreen.Widgets, state.screen)
 
         state = state.copy(screen = heldAgendaAck!!)
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Agenda, state.screen)
-        assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
+        assertEquals(
+            "Once Agenda is acknowledged, the queued swipe replays one page from Agenda and wraps to the next Home",
+            widgetsPage + 2,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherScreen.Home, state.screen)
     }
 
     @Test
@@ -247,7 +247,7 @@ class CarouselScreenSyncRaceTest {
     }
 
     @Test
-    fun userSwipeDuringExternalAnimationDoesNotChangeExternalTarget() {
+    fun userSwipeDuringExternalAnimationQueuesAndAdvancesPastTarget() {
         var state by mutableStateOf(LauncherUiState())
         composeRule.setContent {
             TypeLauncherTheme {
@@ -298,11 +298,11 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            "A user swipe during external Home -> Widgets animation must not continue to Agenda",
-            homePage + 1,
+            "A user swipe during external Home -> Widgets settle queues and replays one page from Widgets to Agenda",
+            homePage + 2,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherScreen.Agenda, state.screen)
     }
 
     @Test

@@ -855,17 +855,22 @@ private fun SwipeNavigationBox(
     var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
-    var queuedHomeSettleSwipeDirection by remember { mutableStateOf<Int?>(null) }
+    var queuedSettleSwipe by remember { mutableStateOf<QueuedSettleSwipe?>(null) }
     val currentOnCarouselTransitioningChanged by rememberUpdatedState(onCarouselTransitioningChanged)
     fun setCarouselTransition(next: CarouselTransitionState) {
-        val nextTargetsHome = when (next) {
-            is CarouselTransitionState.UserAnimating -> next.targetLauncherPage.screen == LauncherScreen.Home
-            is CarouselTransitionState.ExternalAnimating -> next.targetLauncherPage.screen == LauncherScreen.Home
-            is CarouselTransitionState.AwaitingAck -> next.expectedPage.screen == LauncherScreen.Home
-            CarouselTransitionState.Idle -> true
+        // Drop the queue if the carousel retargets to a different settled page
+        // than the one the queued direction was recorded against — replaying
+        // against an unrelated landing point would commit to a page the user
+        // never set up.
+        val nextTargetPage = when (next) {
+            is CarouselTransitionState.UserAnimating -> next.targetPage
+            is CarouselTransitionState.ExternalAnimating -> next.targetPage
+            is CarouselTransitionState.AwaitingAck -> next.settledPage
+            CarouselTransitionState.Idle -> null
         }
-        if (!nextTargetsHome) {
-            queuedHomeSettleSwipeDirection = null
+        val queuedTarget = queuedSettleSwipe?.settleTargetPage
+        if (queuedTarget != null && nextTargetPage != null && queuedTarget != nextTargetPage) {
+            queuedSettleSwipe = null
         }
         val wasTransitioning = carouselTransition != CarouselTransitionState.Idle
         carouselTransition = next
@@ -911,12 +916,12 @@ private fun SwipeNavigationBox(
         }
         carouselOffsetPx = targetOffsetPx
     }
-    fun playQueuedHomeSettleSwipe(settledPage: Int, pageWidthPx: Float) {
-        val dragDirection = queuedHomeSettleSwipeDirection ?: return
-        queuedHomeSettleSwipeDirection = null
-        // Replay from Home's settled page, not from the page that was active
-        // when the settling animation began, so one gesture can still move at
-        // most one page from the visible Home start point.
+    fun playQueuedSettleSwipe(settledPage: Int, pageWidthPx: Float) {
+        val dragDirection = queuedSettleSwipe?.direction ?: return
+        queuedSettleSwipe = null
+        // Replay from the carousel's settled page, not from the page that was
+        // active when the settling animation began, so one gesture still
+        // advances at most one page from the visible settled start point.
         val targetPage = (settledPage + dragDirection)
             .coerceIn(0, LauncherScreen.carouselPageCount - 1)
         if (targetPage == settledPage) return
@@ -1078,18 +1083,15 @@ private fun SwipeNavigationBox(
                     } while (event.changes.any { it.pressed })
 
                     if (!carouselClaimed) {
-                        val homeSettleTargetPage = when (val transition = carouselTransition) {
-                            is CarouselTransitionState.UserAnimating ->
-                                transition.targetPage.takeIf { transition.targetLauncherPage.screen == LauncherScreen.Home }
-                            is CarouselTransitionState.ExternalAnimating ->
-                                transition.targetPage.takeIf { transition.targetLauncherPage.screen == LauncherScreen.Home }
-                            is CarouselTransitionState.AwaitingAck ->
-                                transition.settledPage.takeIf { transition.expectedPage.screen == LauncherScreen.Home }
+                        val settleTargetPage = when (val transition = carouselTransition) {
+                            is CarouselTransitionState.UserAnimating -> transition.targetPage
+                            is CarouselTransitionState.ExternalAnimating -> transition.targetPage
+                            is CarouselTransitionState.AwaitingAck -> transition.settledPage
                             CarouselTransitionState.Idle -> null
                         }
                         if (owner == LauncherGestureOwner.HorizontalLauncher &&
                             !dockDraggedDuringGesture &&
-                            homeSettleTargetPage != null
+                            settleTargetPage != null
                         ) {
                             val releaseVelocity = velocityTracker.calculateVelocity().x
                             val dragDirection = when {
@@ -1108,10 +1110,13 @@ private fun SwipeNavigationBox(
                                 !velocityOpposesDrag &&
                                 (distanceCommits || flingCommits)
                             ) {
-                                queuedHomeSettleSwipeDirection = dragDirection
+                                queuedSettleSwipe = QueuedSettleSwipe(
+                                    direction = dragDirection,
+                                    settleTargetPage = settleTargetPage,
+                                )
                                 LauncherDebugLog.event(
-                                    "SwipeNavigationBox queued Home-settle swipe direction=$dragDirection " +
-                                        "targetPage=$homeSettleTargetPage rawDragX=$rawDragX",
+                                    "SwipeNavigationBox queued settle swipe direction=$dragDirection " +
+                                        "targetPage=$settleTargetPage rawDragX=$rawDragX",
                                 )
                             }
                         }
@@ -1284,9 +1289,7 @@ private fun SwipeNavigationBox(
                     if (statePage == transition.expectedPage) {
                         allowSwipeWithUnackedScreen = false
                         setCarouselTransition(CarouselTransitionState.Idle)
-                        if (statePage.screen == LauncherScreen.Home) {
-                            playQueuedHomeSettleSwipe(transition.settledPage, pageWidthPx)
-                        }
+                        playQueuedSettleSwipe(transition.settledPage, pageWidthPx)
                     }
                     return@LaunchedEffect
                 }
@@ -1320,9 +1323,7 @@ private fun SwipeNavigationBox(
                     currentPage = targetPage
                     carouselOffsetPx = 0f
                     setCarouselTransition(CarouselTransitionState.Idle)
-                    if (statePage.screen == LauncherScreen.Home) {
-                        playQueuedHomeSettleSwipe(targetPage, pageWidthPx)
-                    }
+                    playQueuedSettleSwipe(targetPage, pageWidthPx)
                 }
             } else {
                 setCarouselTransition(CarouselTransitionState.Idle)
@@ -1406,6 +1407,11 @@ private sealed interface CarouselTransitionState {
 private data class CarouselPageConfig(
     val widgetPageCount: Int,
     val isAgendaEnabled: Boolean,
+)
+
+private data class QueuedSettleSwipe(
+    val direction: Int,
+    val settleTargetPage: Int,
 )
 
 internal enum class LauncherGestureOwner {
