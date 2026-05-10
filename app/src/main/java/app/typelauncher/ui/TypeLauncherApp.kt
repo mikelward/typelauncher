@@ -623,8 +623,7 @@ internal fun TypeLauncherApp(
                     // updates during recomposition, which is one frame later.
                     val isDockDraggingState = remember { mutableStateOf(false) }
                     SwipeNavigationBox(
-                        screen = state.screen,
-                        currentWidgetPage = state.currentWidgetPage,
+                        destination = state.destination,
                         widgetPageCount = state.widgetPages.size,
                         isAgendaEnabled = state.isAgendaEnabled,
                         isSecondaryTrayVisible = secondaryBarsVisible,
@@ -760,8 +759,7 @@ private fun HomeReadySignal(
 
 @Composable
 private fun SwipeNavigationBox(
-    screen: LauncherScreen,
-    currentWidgetPage: Int,
+    destination: LauncherDestination,
     widgetPageCount: Int,
     isAgendaEnabled: Boolean,
     isSecondaryTrayVisible: Boolean,
@@ -783,8 +781,8 @@ private fun SwipeNavigationBox(
     // launcher-level action. Reaching a child edge mid-gesture does not hand
     // the same drag to the carousel/pull handlers; the next gesture can claim
     // from that already-at-edge state.
-    val currentScreen by rememberUpdatedState(screen)
-    val currentLauncherPage by rememberUpdatedState(LauncherPage(screen, currentWidgetPage.coerceAtLeast(0)))
+    val currentScreen by rememberUpdatedState(destination.screen)
+    val currentLauncherPage by rememberUpdatedState(destination.toLauncherPage())
     val currentSecondaryTrayVisible by rememberUpdatedState(isSecondaryTrayVisible)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
@@ -829,7 +827,7 @@ private fun SwipeNavigationBox(
     var currentPage by remember {
         mutableStateOf(
             LauncherScreen.initialCarouselPage(
-                page = LauncherPage(screen, currentWidgetPage),
+                page = destination.toLauncherPage(),
                 widgetPageCount = widgetPageCount,
                 isAgendaEnabled = isAgendaEnabled,
             ),
@@ -900,7 +898,7 @@ private fun SwipeNavigationBox(
                 expectedPage = targetLauncherPage,
             ),
         )
-        if (!sameVisiblePage(currentLauncherPage, targetLauncherPage)) {
+        if (currentLauncherPage != targetLauncherPage) {
             dispatchSettledPage(targetLauncherPage)
         } else {
             setCarouselTransition(CarouselTransitionState.Idle)
@@ -1052,7 +1050,7 @@ private fun SwipeNavigationBox(
                                     carouselTransition == CarouselTransitionState.Idle &&
                                         carouselAnimationJob?.isActive != true &&
                                         carouselOffsetPx == 0f &&
-                                        (sameVisiblePage(currentLauncherPage, candidateLauncherPage) ||
+                                        (currentLauncherPage == candidateLauncherPage ||
                                             allowSwipeWithUnackedScreen)
                                 if (canStartCarouselGesture) {
                                     carouselClaimed = true
@@ -1271,8 +1269,8 @@ private fun SwipeNavigationBox(
             },
     ) {
         val pageWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-        val statePage = LauncherPage(screen, currentWidgetPage.coerceAtLeast(0))
-        LaunchedEffect(screen, currentWidgetPage, pageWidthPx, isAgendaEnabled, widgetPageCount) {
+        val statePage = destination.toLauncherPage()
+        LaunchedEffect(destination, pageWidthPx, isAgendaEnabled, widgetPageCount) {
             val newConfig = CarouselPageConfig(widgetPageCount = widgetPageCount, isAgendaEnabled = isAgendaEnabled)
             if (carouselPageConfig != newConfig) {
                 currentPage = LauncherScreen.reanchoredCarouselPage(
@@ -1286,7 +1284,7 @@ private fun SwipeNavigationBox(
             }
             when (val transition = carouselTransition) {
                 is CarouselTransitionState.AwaitingAck -> {
-                    if (sameVisiblePage(statePage, transition.expectedPage)) {
+                    if (statePage == transition.expectedPage) {
                         allowSwipeWithUnackedScreen = false
                         setCarouselTransition(CarouselTransitionState.Idle)
                         playQueuedSettleSwipe(transition.settledPage, pageWidthPx)
@@ -1301,11 +1299,7 @@ private fun SwipeNavigationBox(
             if (carouselAnimationJob?.isActive == true || carouselOffsetPx != 0f) {
                 return@LaunchedEffect
             }
-            if (sameVisiblePage(
-                    statePage,
-                    LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled),
-                )
-            ) {
+            if (statePage == LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)) {
                 allowSwipeWithUnackedScreen = false
             }
             val targetPage = LauncherScreen.closestCarouselPage(
@@ -1417,20 +1411,6 @@ private data class QueuedSettleSwipe(
     val direction: Int,
     val settleTargetPage: Int,
 )
-
-// Two LauncherPages refer to the same visible carousel page if their screens
-// match and (when on Widgets) their widget page indices match. Home and Agenda
-// don't have multi-page representations on the carousel, so a stale
-// state.currentWidgetPage from a prior Widgets visit must not be allowed to
-// make `LauncherPage(Home, n)` look different from `LauncherPage(Home, 0)` —
-// that mismatch silently drops every horizontal swipe at the claim check
-// after the user navigates back to Home with a non-zero last-widget-page
-// index (e.g. Widgets[1] → tap app → Home button → swipe).
-private fun sameVisiblePage(a: LauncherPage, b: LauncherPage): Boolean {
-    if (a.screen != b.screen) return false
-    if (a.screen != LauncherScreen.Widgets) return true
-    return a.widgetPageIndex == b.widgetPageIndex
-}
 
 internal enum class LauncherGestureOwner {
     Undecided,

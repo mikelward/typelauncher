@@ -226,7 +226,12 @@ internal data class KeyboardReservation(
 // `state.copy(...)`, so the immutability contract holds.
 @Immutable
 internal data class LauncherUiState(
-    val screen: LauncherScreen = LauncherScreen.Home,
+    val destination: LauncherDestination = LauncherDestination.Home,
+    // Widget-page index to restore when the user returns to Widgets via
+    // `showWidgets()` with no argument. Updated whenever destination becomes
+    // Widgets(N) and clamped against `widgetPages` when the page list
+    // changes; never read by carousel-sync logic, only by the restore path.
+    val lastWidgetPage: Int = 0,
     val query: String = "",
     val filteredApps: List<InstalledApp> = emptyList(),
     val dockedApps: List<InstalledApp> = emptyList(),
@@ -257,7 +262,6 @@ internal data class LauncherUiState(
     val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
-    val currentWidgetPage: Int = 0,
     val widgetHeights: Map<Int, Int> = emptyMap(),
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
@@ -313,7 +317,23 @@ internal data class LauncherUiState(
     val isHomeReady: Boolean = false,
     val isDefaultLauncher: Boolean = false,
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
-)
+) {
+    // Backwards-compatible projections for readers that don't care about the
+    // sealed shape — pattern-matching on `destination` is preferred for new
+    // code, but a flat `state.screen` check is fine for "is the user on
+    // Home/Widgets/Agenda right now?" reads.
+    val screen: LauncherScreen
+        get() = destination.screen
+
+    // The widget page index the user is currently viewing on Widgets, or the
+    // last page they were on if they're not on Widgets right now. Used by
+    // restore-on-return paths and by render-time "is this the active widget
+    // page?" checks; the carousel-sync claim path goes through
+    // `destination.toLauncherPage()` and never reads this so a stale-while-
+    // off-Widgets value can't poison the equality check.
+    val currentWidgetPage: Int
+        get() = (destination as? LauncherDestination.Widgets)?.pageIndex ?: lastWidgetPage
+}
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)

@@ -105,7 +105,7 @@ class CarouselKeyboardTest {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
             LauncherUiState(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(),
                 filteredApps = emptyList(),
                 isKeyboardAutoShown = true,
             ),
@@ -139,7 +139,7 @@ class CarouselKeyboardTest {
         val docked = listOf(fakeApp(name = "Docked").copy(isDocked = true))
         var state by mutableStateOf(
             LauncherUiState(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(),
                 filteredApps = apps,
                 dockedApps = docked,
                 keyboardReservation = KeyboardReservation(bottomPx = 900),
@@ -342,7 +342,7 @@ class CarouselKeyboardTest {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
             LauncherUiState(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(),
                 filteredApps = emptyList(),
                 isAgendaEnabled = false,
                 isKeyboardAutoShown = true,
@@ -407,9 +407,9 @@ class CarouselKeyboardTest {
                         onAppListIconOnlyChanged = {},
                         onDockVisibleIconCountChanged = {},
                         onAppListSortOrderChanged = {},
-                        onShowAgenda = { onStateChanged(state.copy(screen = LauncherScreen.Agenda)) },
-                        onShowWidgets = { onStateChanged(state.copy(screen = LauncherScreen.Widgets)) },
-                        onShowHome = { onStateChanged(state.copy(screen = LauncherScreen.Home)) },
+                        onShowAgenda = { onStateChanged(state.copy(destination = LauncherDestination.Agenda)) },
+                        onShowWidgets = { onStateChanged(state.copy(destination = LauncherDestination.Widgets())) },
+                        onShowHome = { onStateChanged(state.copy(destination = LauncherDestination.Home)) },
                         appWidgetHost = null,
                         appWidgetManager = null,
                         onAddWidget = {},

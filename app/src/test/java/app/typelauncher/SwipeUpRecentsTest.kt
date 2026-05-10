@@ -486,7 +486,7 @@ class SwipeUpRecentsTest {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        screen = LauncherScreen.Agenda,
+                        destination = LauncherDestination.Agenda,
                         agenda = AgendaUiState.Empty,
                     ),
                     onQueryChanged = {},

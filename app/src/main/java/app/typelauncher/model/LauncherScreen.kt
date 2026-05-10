@@ -139,6 +139,37 @@ internal data class LauncherPage(
         get() = widgetPageIndex.coerceAtLeast(0)
 }
 
+// The user-facing carousel page identity. Unlike LauncherPage (a flat
+// (screen, widgetPageIndex) pair), the sealed shape makes "Home with widget
+// page index 1" unrepresentable, so a leftover widget index can't poison
+// equality checks the way it did before PR #294. State stores this; readers
+// pattern-match on it when the screen kind matters; the carousel goes
+// through `toLauncherPage()` to talk to the existing visible-page math.
+internal sealed class LauncherDestination {
+    data object Home : LauncherDestination()
+    data object Agenda : LauncherDestination()
+    data class Widgets(val pageIndex: Int = 0) : LauncherDestination()
+
+    val screen: LauncherScreen
+        get() = when (this) {
+            Home -> LauncherScreen.Home
+            Agenda -> LauncherScreen.Agenda
+            is Widgets -> LauncherScreen.Widgets
+        }
+
+    fun toLauncherPage(): LauncherPage = when (this) {
+        Home -> LauncherPage(LauncherScreen.Home)
+        Agenda -> LauncherPage(LauncherScreen.Agenda)
+        is Widgets -> LauncherPage(LauncherScreen.Widgets, pageIndex)
+    }
+}
+
+internal fun LauncherPage.toDestination(): LauncherDestination = when (screen) {
+    LauncherScreen.Home -> LauncherDestination.Home
+    LauncherScreen.Agenda -> LauncherDestination.Agenda
+    LauncherScreen.Widgets -> LauncherDestination.Widgets(clampedWidgetPageIndex)
+}
+
 private fun LauncherPage.visibleCarouselPage(visiblePages: List<LauncherPage>): LauncherPage {
     if (screen != LauncherScreen.Widgets) {
         return visiblePages.firstOrNull { page -> page.screen == screen } ?: LauncherPage(LauncherScreen.Home)

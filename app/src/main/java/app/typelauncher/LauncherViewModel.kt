@@ -503,21 +503,26 @@ internal class LauncherViewModel(
             return
         }
         _uiState.update {
-            it.copy(screen = LauncherScreen.Agenda, isRecentsOpen = false, isNotificationBarOpen = false)
+            it.copy(
+                destination = LauncherDestination.Agenda,
+                isRecentsOpen = false,
+                isNotificationBarOpen = false,
+            )
         }
         logState("showAgenda")
         loadAgendaAsync(reason = "showAgenda", traceName = "agenda_load")
     }
 
     fun showWidgets() {
-        showWidgets(_uiState.value.currentWidgetPage)
+        showWidgets(_uiState.value.lastWidgetPage)
     }
 
     fun showWidgets(pageIndex: Int) {
         _uiState.update { state ->
+            val clamped = pageIndex.coerceInWidgetPages(state.widgetPages)
             state.copy(
-                screen = LauncherScreen.Widgets,
-                currentWidgetPage = pageIndex.coerceInWidgetPages(state.widgetPages),
+                destination = LauncherDestination.Widgets(clamped),
+                lastWidgetPage = clamped,
                 isRecentsOpen = false,
                 isNotificationBarOpen = false,
             )
@@ -581,9 +586,10 @@ internal class LauncherViewModel(
             addToNewPageAfterSelection = addToNewPageAfterSelection,
         )
         _uiState.update {
+            val clamped = pageIndex.coerceInWidgetPages(it.widgetPages)
             it.copy(
-                screen = LauncherScreen.Widgets,
-                currentWidgetPage = pageIndex.coerceInWidgetPages(it.widgetPages),
+                destination = LauncherDestination.Widgets(clamped),
+                lastWidgetPage = clamped,
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = true,
                 availableWidgets = emptyList(),
@@ -613,7 +619,7 @@ internal class LauncherViewModel(
     }
 
     fun showHome() {
-        _uiState.update { it.copy(screen = LauncherScreen.Home) }
+        _uiState.update { it.copy(destination = LauncherDestination.Home) }
         logState("showHome")
     }
 
@@ -621,7 +627,7 @@ internal class LauncherViewModel(
         pendingWidgetPlacement = null
         _uiState.update {
             it.copy(
-                screen = LauncherScreen.Home,
+                destination = LauncherDestination.Home,
                 isSettingsOpen = false,
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
@@ -1188,9 +1194,10 @@ internal class LauncherViewModel(
         pendingWidgetPlacement = null
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
+            val clamped = targetPage.coerceInWidgetPages(widgetPages)
             it.copy(
-                screen = LauncherScreen.Widgets,
-                currentWidgetPage = targetPage.coerceInWidgetPages(widgetPages),
+                destination = LauncherDestination.Widgets(clamped),
+                lastWidgetPage = clamped,
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 widgetIds = widgetStore.widgetIds,
@@ -1219,7 +1226,7 @@ internal class LauncherViewModel(
         agendaVersion++
         _uiState.update {
             it.copy(
-                screen = LauncherScreen.Agenda,
+                destination = LauncherDestination.Agenda,
                 agenda = if (events.isEmpty()) AgendaUiState.Empty else AgendaUiState.Events(events),
             )
         }
@@ -1235,11 +1242,12 @@ internal class LauncherViewModel(
         widgetStore.remove(appWidgetId)
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
+            val clamped = it.currentWidgetPage.coerceInWidgetPages(widgetPages)
             it.copy(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(clamped),
+                lastWidgetPage = clamped,
                 widgetIds = widgetStore.widgetIds,
                 widgetPages = widgetPages,
-                currentWidgetPage = it.currentWidgetPage.coerceInWidgetPages(widgetPages),
                 widgetHeights = widgetStore.customHeights,
             )
         }
@@ -1370,15 +1378,12 @@ internal class LauncherViewModel(
     fun setAgendaEnabled(isEnabled: Boolean) {
         dockSettingsStore.isAgendaEnabled = isEnabled
         _uiState.update { state ->
+            val onAgenda = state.destination is LauncherDestination.Agenda
             state.copy(
                 isAgendaEnabled = isEnabled,
-                screen = if (!isEnabled && state.screen == LauncherScreen.Agenda) {
-                    LauncherScreen.Home
-                } else {
-                    state.screen
-                },
-                isRecentsOpen = state.isRecentsOpen && state.screen != LauncherScreen.Agenda,
-                isNotificationBarOpen = state.isNotificationBarOpen && state.screen != LauncherScreen.Agenda,
+                destination = if (!isEnabled && onAgenda) LauncherDestination.Home else state.destination,
+                isRecentsOpen = state.isRecentsOpen && !onAgenda,
+                isNotificationBarOpen = state.isNotificationBarOpen && !onAgenda,
             )
         }
         logState("setAgendaEnabled=$isEnabled")
@@ -1770,7 +1775,8 @@ internal class LauncherViewModel(
         )
         _uiState.update {
             it.copy(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(it.currentWidgetPage),
+                lastWidgetPage = it.currentWidgetPage,
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = false,
                 availableWidgets = availableWidgets,
