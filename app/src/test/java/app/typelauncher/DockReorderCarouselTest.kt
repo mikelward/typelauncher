@@ -76,13 +76,13 @@ class DockReorderCarouselTest {
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {
                         showAgendaCount += 1
-                        state = state.copy(screen = LauncherScreen.Agenda)
+                        state = state.copy(destination = LauncherDestination.Agenda)
                     },
                     onShowWidgets = {
                         showWidgetsCount += 1
-                        state = state.copy(screen = LauncherScreen.Widgets)
+                        state = state.copy(destination = LauncherDestination.Widgets())
                     },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},

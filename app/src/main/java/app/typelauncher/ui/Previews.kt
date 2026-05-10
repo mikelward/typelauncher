@@ -94,7 +94,7 @@ private fun HomeRunningLargeFontPreview() {
 private fun AgendaPermissionDarkPreview() {
     TypeLauncherTheme(dynamicColor = false) {
         TypeLauncherApp(
-            state = LauncherUiState(screen = LauncherScreen.Agenda, agenda = AgendaUiState.PermissionRequired),
+            state = LauncherUiState(destination = LauncherDestination.Agenda, agenda = AgendaUiState.PermissionRequired),
             onQueryChanged = {},
             onClearQuery = {},
             onLaunchActiveApp = {},
@@ -134,7 +134,7 @@ private fun AgendaPermissionDarkPreview() {
 private fun AgendaEmptyRtlPreview() {
     TypeLauncherTheme(dynamicColor = false) {
         TypeLauncherApp(
-            state = LauncherUiState(screen = LauncherScreen.Agenda, agenda = AgendaUiState.Empty),
+            state = LauncherUiState(destination = LauncherDestination.Agenda, agenda = AgendaUiState.Empty),
             onQueryChanged = {},
             onClearQuery = {},
             onLaunchActiveApp = {},
@@ -175,7 +175,7 @@ private fun AgendaEventsPreview() {
     TypeLauncherTheme(dynamicColor = false) {
         TypeLauncherApp(
             state = LauncherUiState(
-                screen = LauncherScreen.Agenda,
+                destination = LauncherDestination.Agenda,
                 agenda = AgendaUiState.Events(
                     listOf(
                         AgendaEvent(

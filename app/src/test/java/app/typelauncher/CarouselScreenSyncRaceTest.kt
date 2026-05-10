@@ -60,15 +60,15 @@ class CarouselScreenSyncRaceTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
                     onShowWidgets = {
                         if (!holdWidgetsAck) {
-                            state = state.copy(screen = LauncherScreen.Widgets)
+                            state = state.copy(destination = LauncherDestination.Widgets())
                         } else {
                             heldWidgetsAck = LauncherScreen.Widgets
                         }
                     },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -102,7 +102,7 @@ class CarouselScreenSyncRaceTest {
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
 
         holdWidgetsAck = false
-        state = state.copy(screen = heldWidgetsAck!!)
+        state = state.copy(destination = LauncherDestination.Widgets())
         composeRule.waitForIdle()
 
         assertEquals(
@@ -115,7 +115,7 @@ class CarouselScreenSyncRaceTest {
 
     @Test
     fun secondSwipeBeforeAgendaAckQueuesAndWrapsToHomeAfterAck() {
-        var state by mutableStateOf(LauncherUiState(screen = LauncherScreen.Widgets))
+        var state by mutableStateOf(LauncherUiState(destination = LauncherDestination.Widgets()))
         var heldAgendaAck: LauncherScreen? = null
         composeRule.setContent {
             TypeLauncherTheme {
@@ -139,8 +139,8 @@ class CarouselScreenSyncRaceTest {
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = { heldAgendaAck = LauncherScreen.Agenda },
-                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -171,7 +171,7 @@ class CarouselScreenSyncRaceTest {
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
         assertEquals(LauncherScreen.Widgets, state.screen)
 
-        state = state.copy(screen = heldAgendaAck!!)
+        state = state.copy(destination = LauncherDestination.Agenda)
         composeRule.waitForIdle()
 
         assertEquals(
@@ -184,7 +184,7 @@ class CarouselScreenSyncRaceTest {
 
     @Test
     fun ackTimeoutUnlocksSwipeFromSettledPage() {
-        var state by mutableStateOf(LauncherUiState(screen = LauncherScreen.Widgets))
+        var state by mutableStateOf(LauncherUiState(destination = LauncherDestination.Widgets()))
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
@@ -209,8 +209,8 @@ class CarouselScreenSyncRaceTest {
                     // Simulate a broken callback path: the pager asks for Agenda,
                     // but the model never acknowledges it.
                     onShowAgenda = {},
-                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -270,9 +270,9 @@ class CarouselScreenSyncRaceTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
-                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -289,7 +289,7 @@ class CarouselScreenSyncRaceTest {
         val homePage = carousel.carouselVirtualPage()
 
         composeRule.mainClock.autoAdvance = false
-        state = state.copy(screen = LauncherScreen.Widgets)
+        state = state.copy(destination = LauncherDestination.Widgets())
         composeRule.mainClock.advanceTimeByFrame()
 
         // Drive the swipe with explicit down/moveBy/up so the gesture
@@ -315,7 +315,7 @@ class CarouselScreenSyncRaceTest {
 
     @Test
     fun staleHomeUpdateBeforeAgendaAckDoesNotSnapAwayFromAgenda() {
-        var state by mutableStateOf(LauncherUiState(screen = LauncherScreen.Widgets))
+        var state by mutableStateOf(LauncherUiState(destination = LauncherDestination.Widgets()))
         var heldAgendaAck: LauncherScreen? = null
         composeRule.setContent {
             TypeLauncherTheme {
@@ -339,8 +339,8 @@ class CarouselScreenSyncRaceTest {
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = { heldAgendaAck = LauncherScreen.Agenda },
-                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -363,7 +363,7 @@ class CarouselScreenSyncRaceTest {
         assertEquals(LauncherScreen.Widgets, state.screen)
         assertEquals(LauncherScreen.Agenda, heldAgendaAck)
 
-        state = state.copy(screen = LauncherScreen.Home)
+        state = state.copy(destination = LauncherDestination.Home)
         composeRule.waitForIdle()
 
         assertEquals(
@@ -372,7 +372,7 @@ class CarouselScreenSyncRaceTest {
             carousel.carouselVirtualPage(),
         )
 
-        state = state.copy(screen = heldAgendaAck!!)
+        state = state.copy(destination = LauncherDestination.Agenda)
         composeRule.waitForIdle()
 
         assertEquals(LauncherScreen.Agenda, state.screen)
@@ -413,15 +413,15 @@ class CarouselScreenSyncRaceTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
                     onShowWidgets = {
                         if (!holdWidgetsAck) {
-                            state = state.copy(screen = LauncherScreen.Widgets)
+                            state = state.copy(destination = LauncherDestination.Widgets())
                         } else {
                             heldWidgetsAck = LauncherScreen.Widgets
                         }
                     },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -452,7 +452,7 @@ class CarouselScreenSyncRaceTest {
         // Release the ack mid-gesture so the carousel transitions to Idle
         // before the user's drag and release events arrive.
         holdWidgetsAck = false
-        state = state.copy(screen = heldWidgetsAck!!)
+        state = state.copy(destination = LauncherDestination.Widgets())
         composeRule.waitForIdle()
         assertEquals(LauncherScreen.Widgets, state.screen)
 
@@ -484,7 +484,7 @@ class CarouselScreenSyncRaceTest {
         )
         var state by mutableStateOf(
             LauncherUiState(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(),
                 filteredApps = emptyList(),
                 dockedApps = docked,
             ),
@@ -513,10 +513,10 @@ class CarouselScreenSyncRaceTest {
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {
                         showAgendaCount += 1
-                        state = state.copy(screen = LauncherScreen.Agenda)
+                        state = state.copy(destination = LauncherDestination.Agenda)
                     },
-                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},
@@ -533,7 +533,7 @@ class CarouselScreenSyncRaceTest {
         val widgetsPage = carousel.carouselVirtualPage()
 
         composeRule.mainClock.autoAdvance = false
-        state = state.copy(screen = LauncherScreen.Home)
+        state = state.copy(destination = LauncherDestination.Home)
         composeRule.mainClock.advanceTimeByFrame()
 
         val dockApp = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01")
@@ -565,7 +565,7 @@ class CarouselScreenSyncRaceTest {
         )
         var state by mutableStateOf(
             LauncherUiState(
-                screen = LauncherScreen.Widgets,
+                destination = LauncherDestination.Widgets(),
                 filteredApps = emptyList(),
                 dockedApps = docked,
             ),
@@ -596,12 +596,12 @@ class CarouselScreenSyncRaceTest {
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {
                         showAgendaCount += 1
-                        state = state.copy(screen = LauncherScreen.Agenda)
+                        state = state.copy(destination = LauncherDestination.Agenda)
                     },
-                    onShowWidgets = { state = state.copy(screen = LauncherScreen.Widgets) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
                     onShowHome = {
                         if (!holdHomeAck) {
-                            state = state.copy(screen = LauncherScreen.Home)
+                            state = state.copy(destination = LauncherDestination.Home)
                         } else {
                             heldHomeAck = LauncherScreen.Home
                         }
@@ -638,7 +638,7 @@ class CarouselScreenSyncRaceTest {
         }
 
         holdHomeAck = false
-        state = state.copy(screen = heldHomeAck!!)
+        state = state.copy(destination = LauncherDestination.Home)
         composeRule.waitForIdle()
 
         assertEquals(
@@ -651,18 +651,20 @@ class CarouselScreenSyncRaceTest {
     }
 
     @Test
-    fun swipeAfterReturnToHomeWithStaleWidgetPageIndexStillCommits() {
-        // Regression: state.currentWidgetPage is preserved when the user
-        // navigates back to Home, so after Widgets[1] -> tap app -> Home
-        // button, state holds (screen=Home, currentWidgetPage=1). The
-        // carousel's claim check used to compare full LauncherPages, so
-        // LauncherPage(Home, 1) (upstream) never equalled LauncherPage(Home,
-        // 0) (local fromCarouselPage), and every horizontal swipe was
-        // silently dropped after that point.
+    fun swipeAfterReturnToHomeWithStaleLastWidgetPageStillCommits() {
+        // Regression: a non-zero `lastWidgetPage` (preserved when the user
+        // navigates back to Home from Widgets[1] so `showWidgets()` can
+        // restore the page) must not leak into the carousel claim check.
+        // Pre-LauncherDestination, state stored screen + currentWidgetPage as
+        // independent fields, so on Home with currentWidgetPage=1 the claim
+        // check compared LauncherPage(Home, 1) against LauncherPage(Home, 0)
+        // and every horizontal swipe was silently dropped after that point.
+        // Now destination=Home builds LauncherPage(Home, 0) by construction
+        // — the stale index lives in lastWidgetPage instead.
         var state by mutableStateOf(
             LauncherUiState(
-                screen = LauncherScreen.Home,
-                currentWidgetPage = 1,
+                destination = LauncherDestination.Home,
+                lastWidgetPage = 1,
                 widgetPages = listOf(emptyList(), emptyList()),
                 isAgendaEnabled = false,
             ),
@@ -688,11 +690,11 @@ class CarouselScreenSyncRaceTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(screen = LauncherScreen.Agenda) },
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
                     onShowWidgets = { pageIndex ->
-                        state = state.copy(screen = LauncherScreen.Widgets, currentWidgetPage = pageIndex)
+                        state = state.copy(destination = LauncherDestination.Widgets(pageIndex))
                     },
-                    onShowHome = { state = state.copy(screen = LauncherScreen.Home) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = null,
                     appWidgetManager = null,
                     onAddWidget = {},

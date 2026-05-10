@@ -106,9 +106,10 @@ internal fun Window.debugSummary(): String =
         "decor=${decorView.width}x${decorView.height} visibility=${decorView.visibility}"
 
 internal fun LauncherUiState.debugSummary(): String =
-    "screen=$screen settingsOpen=$isSettingsOpen queryLength=${query.length} " +
+    "destination=$destination lastWidgetPage=$lastWidgetPage " +
+        "settingsOpen=$isSettingsOpen queryLength=${query.length} " +
         "filtered=${filteredApps.size} docked=${dockedApps.size} widgets=${widgetIds.size} " +
-        "widgetPages=${widgetPages.size} currentWidgetPage=$currentWidgetPage " +
+        "widgetPages=${widgetPages.size} " +
         "addingWidget=$isAddingWidget loadingAvailableWidgets=$isLoadingAvailableWidgets " +
         "availableWidgets=${availableWidgets.size} " +
         "agenda=${agenda::class.simpleName} agendaEnabled=$isAgendaEnabled dockEnabled=$isDockEnabled " +

@@ -645,7 +645,7 @@ class NotificationBarTest {
                     onShowAgenda = {},
                     onShowWidgets = {
                         screenState.value = screenState.value.copy(
-                            screen = LauncherScreen.Widgets,
+                            destination = LauncherDestination.Widgets(),
                             isRecentsOpen = false,
                         )
                     },
