@@ -802,7 +802,7 @@ class SwipeUpRecentsTest {
         // absorbed by the row's horizontalScroll. The leftover motion flows
         // up to the launcher's vertical/horizontal arbitrator (the tray now
         // lives inside the carousel's pointerInput) and commits a Home →
-        // Widgets page change once it crosses the 96 dp distance / 800 dp/s
+        // Widgets page change once it crosses the 96 dp distance / 700 dp/s
         // fling threshold — same rule that keeps an in-row scroll from
         // accidentally flipping pages.
         var widgetsCount = 0

@@ -81,7 +81,7 @@ private const val LAUNCHER_SWIPE_COMMIT_DISTANCE_DP = 96
 
 // Release velocity (in dp/s) above which a fling commits even if the raw drag
 // distance is below the commit distance. Lets a quick flick still advance a page.
-private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 800f
+private const val CAROUSEL_FLING_COMMIT_VELOCITY_DP_PER_SEC = 700f
 
 // If at release the velocity is in the opposite direction of the net drag and
 // faster than this, treat the gesture as cancelled — the user pulled and then
