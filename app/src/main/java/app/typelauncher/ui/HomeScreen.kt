@@ -2151,11 +2151,12 @@ private fun DockedAppButton(
                     role = Role.Button,
                     onClick = { onLaunchApp(app) },
                 )
-                // Long-press arms a drag. If the finger crosses the 8 dp slop
-                // (in either axis) the parent gets onDragStart / onDrag /
-                // onDragEnd and the icon "lifts" via the graphicsLayer above;
-                // releasing without crossing the slop opens the
-                // AppActionsMenu instead. Once the long-press fires we
+                // Long-press opens the AppActionsMenu immediately (the menu
+                // appears at the long-press timeout, not on release) and
+                // simultaneously arms a drag. If the finger crosses the 8 dp
+                // slop (in either axis) the menu is dismissed and the parent
+                // gets onDragStart / onDrag / onDragEnd while the icon "lifts"
+                // via the graphicsLayer above. Once the long-press fires we
                 // consume every pointer change so the carousel's horizontal
                 // pager can't snatch the gesture mid-reorder.
                 .pointerInput(app.id) {
@@ -2165,6 +2166,7 @@ private fun DockedAppButton(
                             ?: return@awaitEachGesture
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         longPress.consume()
+                        menuExpanded = true
                         var dragging = false
                         var totalDelta = Offset.Zero
                         while (true) {
@@ -2174,8 +2176,6 @@ private fun DockedAppButton(
                             if (!change.pressed) {
                                 if (dragging) {
                                     latestOnDragEnd()
-                                } else {
-                                    menuExpanded = true
                                 }
                                 change.consume()
                                 break
@@ -2184,6 +2184,9 @@ private fun DockedAppButton(
                             totalDelta += delta
                             if (!dragging && totalDelta.getDistance() > slopPx) {
                                 dragging = true
+                                // The user is reordering, not browsing the
+                                // menu — close it so the drag isn't obscured.
+                                menuExpanded = false
                                 latestOnDragStart()
                                 // Carry the full pre-slop displacement into
                                 // the first dispatch so the icon snaps to
