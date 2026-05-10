@@ -645,6 +645,16 @@ internal fun TypeLauncherApp(
                         onRequestShowKeyboard = onRequestShowKeyboard,
                         onSwipeDown = onSwipeDown,
                         onCarouselTransitioningChanged = { isCarouselTransitioning = it },
+                        onWidgetsAboutToWarm = {
+                            // Stop the host synchronously so the next
+                            // recomposition's AndroidView factory mounts under
+                            // a paused host. No isHomeReady check: by the time
+                            // a user has dragged and committed a horizontal
+                            // swipe, the launcher is well past cold start;
+                            // even if it wasn't, stopListening on a
+                            // not-yet-listening host is a no-op.
+                            runCatching { appWidgetHost?.stopListening() }
+                        },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
                         isDockDraggingState = isDockDraggingState,
                         secondaryTray = {
@@ -822,6 +832,7 @@ private fun SwipeNavigationBox(
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
     onCarouselTransitioningChanged: (Boolean) -> Unit = {},
+    onWidgetsAboutToWarm: () -> Unit = {},
     isDockDraggingState: State<Boolean> = mutableStateOf(false),
     secondaryTray: @Composable BoxScope.() -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
@@ -914,6 +925,7 @@ private fun SwipeNavigationBox(
     // here so `playQueuedSettleSwipe` below can also read/write it.
     var widgetsWarmed by remember { mutableStateOf(false) }
     val currentOnCarouselTransitioningChanged by rememberUpdatedState(onCarouselTransitioningChanged)
+    val currentOnWidgetsAboutToWarm by rememberUpdatedState(onWidgetsAboutToWarm)
     fun setCarouselTransition(next: CarouselTransitionState) {
         // Drop the queue if the carousel retargets to a different settled page
         // than the one the queued direction was recorded against — replaying
@@ -993,6 +1005,12 @@ private fun SwipeNavigationBox(
         // widgetsWarmed or the incoming widget page stays empty for the
         // whole replay animation.
         if (!widgetsWarmed && targetLauncherPage.screen == LauncherScreen.Widgets) {
+            // Stop the host imperatively *before* flipping the warm gate so
+            // the AndroidView factory that mounts on the next recomposition
+            // (createView + setAppWidget) runs after listening is already
+            // off — the LaunchedEffect-driven stop fires on a later tick and
+            // could otherwise lose this race on the first cold-warm swipe.
+            currentOnWidgetsAboutToWarm()
             widgetsWarmed = true
         }
         setCarouselTransition(CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage))
@@ -1251,13 +1269,17 @@ private fun SwipeNavigationBox(
                         // or provider side effects (weather location lookup,
                         // calendar query, network fetch). The widget-host
                         // pause is keyed on `isCarouselTransitioning` (set
-                        // immediately below), so the AndroidView factory that
-                        // runs on the next frame is cheap — createView +
-                        // setAppWidget do not trigger system RemoteViews push
-                        // while paused. The system push is queued and flushes
-                        // on settle when the pause resumes, so widget content
-                        // paints just after the carousel translate finishes.
+                        // immediately below); we additionally call
+                        // onWidgetsAboutToWarm() to stop the host imperatively
+                        // *before* flipping the warm gate, so the AndroidView
+                        // factory mounted on the next recomposition runs after
+                        // listening is already off. Without the imperative
+                        // stop, the LaunchedEffect-driven stop could fire on
+                        // a later tick than the AndroidView factory's
+                        // createView + setAppWidget, letting a first
+                        // RemoteViews push land mid-settle.
                         if (!widgetsWarmed && targetLauncherPage.screen == LauncherScreen.Widgets) {
+                            currentOnWidgetsAboutToWarm()
                             widgetsWarmed = true
                         }
                         setCarouselTransition(
