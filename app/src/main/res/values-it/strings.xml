@@ -134,7 +134,7 @@
     <string name="settings_hidden_apps_unhide_description">Mostra %1$s</string>
     <string name="bug_report_chooser_title">Condividi segnalazione bug</string>
     <string name="bug_report_consent_dialog_title">Inviare la segnalazione bug?</string>
-    <string name="bug_report_consent_dialog_body">Questa segnalazione include uno screenshot della schermata attuale oltre alle impostazioni del launcher, all\'elenco delle app installate e all\'attività recente nell\'app per aiutare a diagnosticare il problema. Potrai rivederla e modificarla nella tua app di condivisione prima di inviarla.</string>
+    <string name="bug_report_consent_dialog_body">Questa segnalazione include uno screenshot della schermata attuale oltre alle impostazioni del launcher, all\'elenco delle app installate e all\'attività recente nell\'app per aiutare a diagnosticare il problema. Potrai rivederla e modificarla prima di inviarla.</string>
     <string name="bug_report_consent_dialog_dont_show_again">Non mostrare più</string>
     <string name="bug_report_consent_dialog_confirm">Continua</string>
     <string name="bug_report_consent_dialog_cancel">Annulla</string>

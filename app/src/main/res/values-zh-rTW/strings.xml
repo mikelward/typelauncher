@@ -134,7 +134,7 @@
     <string name="settings_hidden_apps_unhide_description">取消隱藏 %1$s</string>
     <string name="bug_report_chooser_title">分享錯誤報告</string>
     <string name="bug_report_consent_dialog_title">傳送錯誤報告？</string>
-    <string name="bug_report_consent_dialog_body">此報告會包含目前畫面的螢幕截圖，以及您的啟動器設定、已安裝應用程式清單和最近的應用程式活動，以協助診斷問題。傳送前您可以在分享應用程式中檢視並編輯內容。</string>
+    <string name="bug_report_consent_dialog_body">此報告會包含目前畫面的螢幕截圖，以及您的啟動器設定、已安裝應用程式清單和最近的應用程式活動，以協助診斷問題。傳送前您可以檢視並編輯內容。</string>
     <string name="bug_report_consent_dialog_dont_show_again">不再顯示</string>
     <string name="bug_report_consent_dialog_confirm">繼續</string>
     <string name="bug_report_consent_dialog_cancel">取消</string>

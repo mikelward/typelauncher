@@ -134,7 +134,7 @@
     <string name="settings_hidden_apps_unhide_description">Mostrar %1$s</string>
     <string name="bug_report_chooser_title">Compartilhar relatório de bug</string>
     <string name="bug_report_consent_dialog_title">Enviar relatório de bug?</string>
-    <string name="bug_report_consent_dialog_body">Este relatório inclui uma captura de tela da tela atual, além das configurações do launcher, da lista de apps instalados e da atividade recente no app para ajudar a diagnosticar o problema. Você poderá revisá-lo e editá-lo no app de compartilhamento antes de enviar.</string>
+    <string name="bug_report_consent_dialog_body">Este relatório inclui uma captura de tela da tela atual, além das configurações do launcher, da lista de apps instalados e da atividade recente no app para ajudar a diagnosticar o problema. Você poderá revisá-lo e editá-lo antes de enviar.</string>
     <string name="bug_report_consent_dialog_dont_show_again">Não mostrar novamente</string>
     <string name="bug_report_consent_dialog_confirm">Continuar</string>
     <string name="bug_report_consent_dialog_cancel">Cancelar</string>
