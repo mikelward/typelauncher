@@ -990,7 +990,6 @@ private fun SwipeNavigationBox(
             .pointerInput(
                 scrollConsumptionTracker,
                 touchSlopPx,
-                launcherSwipeCommitDistancePx,
                 flingCommitVelocityPxPerSec,
                 backwardVelocityCancelPxPerSec,
                 widgetPageCount,
@@ -1133,7 +1132,7 @@ private fun SwipeNavigationBox(
                             val velocityOpposesDrag = dragDirection != 0 &&
                                 abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
                                 sign(releaseVelocity) == -sign(rawDragX)
-                            val distanceCommits = abs(rawDragX) >= launcherSwipeCommitDistancePx
+                            val distanceCommits = abs(rawDragX) >= pageWidthPx / 2f
                             val flingCommits = dragDirection != 0 &&
                                 abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
                                 sign(releaseVelocity) == sign(rawDragX)
