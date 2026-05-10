@@ -637,6 +637,19 @@ internal fun TypeLauncherApp(
                         onRequestShowKeyboard = onRequestShowKeyboard,
                         onSwipeDown = onSwipeDown,
                         onCarouselTransitioningChanged = { isCarouselTransitioning = it },
+                        // Park UI-thread RemoteViews.apply() while the carousel
+                        // is in motion. The host stays listening, so the
+                        // provider's background data fetch (location lookup,
+                        // calendar query, network) runs during the drag and
+                        // its result lands in the host's pending slot. On
+                        // gesture end the host flushes parked RemoteViews so
+                        // the fresh content paints in one pass after settle.
+                        onCarouselGestureClaimed = {
+                            (appWidgetHost as? LauncherAppWidgetHost)?.deferRemoteViewsApply = true
+                        },
+                        onCarouselGestureEnded = {
+                            (appWidgetHost as? LauncherAppWidgetHost)?.deferRemoteViewsApply = false
+                        },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
                         isDockDraggingState = isDockDraggingState,
                         secondaryTray = {
@@ -775,6 +788,8 @@ private fun SwipeNavigationBox(
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
     onCarouselTransitioningChanged: (Boolean) -> Unit = {},
+    onCarouselGestureClaimed: () -> Unit = {},
+    onCarouselGestureEnded: () -> Unit = {},
     isDockDraggingState: State<Boolean> = mutableStateOf(false),
     secondaryTray: @Composable BoxScope.() -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
@@ -857,7 +872,18 @@ private fun SwipeNavigationBox(
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
     var queuedSettleSwipe by remember { mutableStateOf<QueuedSettleSwipe?>(null) }
+    // Session-sticky flag that unlocks composition of the offscreen widget
+    // slots in the carousel's [-1, 0, +1] window. Flipped only when a
+    // gesture has been *claimed* by the carousel toward a Widgets target —
+    // both in the direct claim path and in the queued-settle replay path.
+    // A cancelled drag (pull-back before the carousel claims the gesture)
+    // never flips it, so accidental gestures do not trigger AppWidgetHost
+    // bindings or provider side effects. Declared here so
+    // `playQueuedSettleSwipe` below can also read/write it.
+    var widgetsWarmed by remember { mutableStateOf(false) }
     val currentOnCarouselTransitioningChanged by rememberUpdatedState(onCarouselTransitioningChanged)
+    val currentOnCarouselGestureClaimed by rememberUpdatedState(onCarouselGestureClaimed)
+    val currentOnCarouselGestureEnded by rememberUpdatedState(onCarouselGestureEnded)
     fun setCarouselTransition(next: CarouselTransitionState) {
         // Drop the queue if the carousel retargets to a different settled page
         // than the one the queued direction was recorded against — replaying
@@ -931,17 +957,28 @@ private fun SwipeNavigationBox(
             widgetPageCount = widgetPageCount,
             isAgendaEnabled,
         )
+        // A queued settle swipe is a committed page change replayed from
+        // the prior settle; mirror the direct claim path so the same warm
+        // and host defer-apply behaviour applies to it.
+        if (targetLauncherPage.screen == LauncherScreen.Widgets) {
+            widgetsWarmed = true
+        }
+        currentOnCarouselGestureClaimed()
         setCarouselTransition(CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage))
         hideKeyboardForCarouselPage(targetLauncherPage.screen)
         carouselAnimationJob = coroutineScope.launch {
-            val targetOffsetPx = if (targetPage > settledPage) -pageWidthPx else pageWidthPx
-            animateCarouselOffsetTo(targetOffsetPx)
-            if (carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)) {
-                currentPage = targetPage
-                carouselOffsetPx = 0f
-                awaitPageAck(targetPage, targetLauncherPage)
-            } else {
-                carouselOffsetPx = 0f
+            try {
+                val targetOffsetPx = if (targetPage > settledPage) -pageWidthPx else pageWidthPx
+                animateCarouselOffsetTo(targetOffsetPx)
+                if (carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)) {
+                    currentPage = targetPage
+                    carouselOffsetPx = 0f
+                    awaitPageAck(targetPage, targetLauncherPage)
+                } else {
+                    carouselOffsetPx = 0f
+                }
+            } finally {
+                currentOnCarouselGestureEnded()
             }
         }
     }
@@ -955,16 +992,6 @@ private fun SwipeNavigationBox(
         withFrameNanos { }
         offscreenPagesReady = true
     }
-    // Lazy widget pre-warm: once the user proves horizontal intent toward a
-    // widget page, allow widget pages to compose so AppWidgetHostView inflation
-    // (and the first RemoteViews apply, plus any provider side effects like a
-    // weather widget's location lookup) begin before the swipe lands rather
-    // than mid-translate. Sticky for the session — only the first swipe toward
-    // widgets pays the inflation cost. Stays false if the user never swipes
-    // toward widgets, so cold starts without widget interaction don't trigger
-    // provider work.
-    var widgetsWarmed by remember { mutableStateOf(false) }
-
     LaunchedEffect(carouselTransition) {
         val transition = carouselTransition as? CarouselTransitionState.AwaitingAck ?: return@LaunchedEffect
         delay(CAROUSEL_ACK_TIMEOUT_MS)
@@ -1013,6 +1040,14 @@ private fun SwipeNavigationBox(
                     // gesture, including the release event.
                     var dockDraggedDuringGesture = false
                     var carouselClaimed = false
+                    // Set true once the post-release animation has been
+                    // launched — that coroutine's `finally` then owns
+                    // `currentOnCarouselGestureEnded()`. If the pointer
+                    // stream is cancelled (composition disposed, another
+                    // window steals input) before the launch fires, the
+                    // awaitEachGesture-level `finally` calls it instead so
+                    // the host's defer-apply window doesn't stick true.
+                    var releaseAnimationLaunched = false
                     // Captured at the moment the carousel claims this gesture
                     // (which can be later than first-down if the gesture began
                     // during a settle). Anchoring rawDragX and re-reading the
@@ -1026,6 +1061,7 @@ private fun SwipeNavigationBox(
                     var anchorRawDragX = 0f
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPointerInputChange(downChange)
+                    try {
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Final)
                         event.changes.forEach { change ->
@@ -1057,27 +1093,6 @@ private fun SwipeNavigationBox(
                                     touchSlopPx = touchSlopPx,
                                 )
                             }
-                            if (!widgetsWarmed &&
-                                owner == LauncherGestureOwner.HorizontalLauncher &&
-                                !dockDraggedDuringGesture
-                            ) {
-                                // Check the adjacent page in the swipe direction.
-                                // fromCarouselPage uses floorMod, so when agenda is
-                                // disabled and the user is on Home, both directions
-                                // land on a Widgets page (right = Widgets[0], left =
-                                // Widgets[last] via wraparound). With agenda enabled,
-                                // a leftward swipe from Home lands on Agenda and is
-                                // (correctly) ignored here.
-                                val adjacentPage = if (rawDragX < 0f) currentPage + 1 else currentPage - 1
-                                val candidate = LauncherScreen.fromCarouselPage(
-                                    adjacentPage,
-                                    widgetPageCount = widgetPageCount,
-                                    isAgendaEnabled = isAgendaEnabled,
-                                )
-                                if (candidate.screen == LauncherScreen.Widgets) {
-                                    widgetsWarmed = true
-                                }
-                            }
                             if (!carouselClaimed &&
                                 owner == LauncherGestureOwner.HorizontalLauncher &&
                                 !dockDraggedDuringGesture
@@ -1096,6 +1111,29 @@ private fun SwipeNavigationBox(
                                             allowSwipeWithUnackedScreen)
                                 if (canStartCarouselGesture) {
                                     carouselClaimed = true
+                                    // Warm widgets and start the
+                                    // UI-thread defer-apply window now,
+                                    // both atomically with the claim.
+                                    // Direction-toward-widgets check via
+                                    // `candidateLauncherPage + drag sign`:
+                                    // fromCarouselPage uses floorMod, so
+                                    // when agenda is off the wraparound
+                                    // from Home also lands on Widgets in
+                                    // either direction. The provider's
+                                    // background data fetch can run
+                                    // during the drag while listening
+                                    // stays on; only the UI-thread
+                                    // RemoteViews.apply() is parked.
+                                    val claimAdjacentPage = if (rawDragX < 0f) candidatePage + 1 else candidatePage - 1
+                                    val claimDirectionTarget = LauncherScreen.fromCarouselPage(
+                                        claimAdjacentPage,
+                                        widgetPageCount = widgetPageCount,
+                                        isAgendaEnabled = isAgendaEnabled,
+                                    )
+                                    if (claimDirectionTarget.screen == LauncherScreen.Widgets) {
+                                        widgetsWarmed = true
+                                    }
+                                    currentOnCarouselGestureClaimed()
                                     claimGestureStartPage = candidatePage
                                     // Anchor at rawDragX *before* this event's delta
                                     // so the first claimed event still moves the
@@ -1218,20 +1256,39 @@ private fun SwipeNavigationBox(
                         hideKeyboardForCarouselPage(targetLauncherPage.screen)
                     }
                     carouselAnimationJob = coroutineScope.launch {
-                        val targetOffsetPx = when {
-                            targetPage > gestureStartPage -> -pageWidthPx
-                            targetPage < gestureStartPage -> pageWidthPx
-                            else -> 0f
+                        try {
+                            val targetOffsetPx = when {
+                                targetPage > gestureStartPage -> -pageWidthPx
+                                targetPage < gestureStartPage -> pageWidthPx
+                                else -> 0f
+                            }
+                            animateCarouselOffsetTo(targetOffsetPx)
+                            if (willChangePage &&
+                                carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)
+                            ) {
+                                currentPage = targetPage
+                                carouselOffsetPx = 0f
+                                awaitPageAck(targetPage, targetLauncherPage)
+                            } else {
+                                carouselOffsetPx = 0f
+                            }
+                        } finally {
+                            // Always lift the host's defer-apply window so a
+                            // cancelled-mid-animation job (next gesture
+                            // preempting this one) still flushes parked
+                            // RemoteViews.
+                            currentOnCarouselGestureEnded()
                         }
-                        animateCarouselOffsetTo(targetOffsetPx)
-                        if (willChangePage &&
-                            carouselTransition == CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage)
-                        ) {
-                            currentPage = targetPage
-                            carouselOffsetPx = 0f
-                            awaitPageAck(targetPage, targetLauncherPage)
-                        } else {
-                            carouselOffsetPx = 0f
+                    }
+                    releaseAnimationLaunched = true
+                    } finally {
+                        // If the pointer stream was cancelled after claim
+                        // but before the release-animation launch, the
+                        // launch's finally never ran. Lift the defer-apply
+                        // window here. The `!releaseAnimationLaunched`
+                        // guard avoids double-firing on the normal path.
+                        if (carouselClaimed && !releaseAnimationLaunched) {
+                            currentOnCarouselGestureEnded()
                         }
                     }
                 }

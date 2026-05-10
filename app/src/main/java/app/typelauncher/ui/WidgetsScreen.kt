@@ -588,22 +588,30 @@ private fun HostedWidgetCard(
             .onSizeChanged { measuredSize = it }
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
     ) {
-        // TODO: investigate widget rendering jank during a Home -> Widgets swipe.
-        // Symptoms: a frame stalls while the carousel is mid-translate, biasing
-        // the gesture's velocity tracker (now mitigated in
-        // SwipeNavigationBox by feeding change.historical samples). Suspected
-        // root causes, in order: (1) first-time AppWidgetHostView inflation +
-        // initial RemoteViews apply on first reveal of each widget page after
-        // process start — happens on the UI thread inside this AndroidView
-        // factory; (2) provider self-invalidations (clock ticks, calendar
-        // refreshes, weather updates) landing during the swipe and forcing
-        // measure/draw work; (3) RemoteViews layouts that don't promote to a
-        // hardware layer, so the graphicsLayer translation can't cheaply
-        // re-translate a cached RenderNode. Worth trying: warm widget hosts in
-        // an idle frame after launcher startup (drop offscreenPagesReady
-        // gating earlier for widget pages specifically), or pre-rasterize
-        // widgets into an offscreen layer while a horizontal carousel
-        // transition is in flight.
+        // Widget rendering jank during a Home -> Widgets swipe was traced to
+        // three causes; the remaining open item is hardware-layer promotion.
+        // (1) First-time AppWidgetHostView inflation + initial RemoteViews
+        // apply on first reveal — addressed by SwipeNavigationBox's
+        // `widgetsWarmed` gate (composes widget pages only after the
+        // carousel claims a horizontal gesture toward Widgets) plus
+        // LauncherAppWidgetHost.deferRemoteViewsApply, which parks the
+        // UI-thread RemoteViews.apply() while the carousel is in motion
+        // and flushes on settle. The provider's background data fetch
+        // still runs during the drag (host stays listening), so by the
+        // time the deferral lifts the latest RemoteViews are ready and
+        // paint in one pass after settle. (2) Provider self-invalidations
+        // (clock ticks, calendar refreshes, weather updates) landing during
+        // the swipe — same defer-apply pipe handles them: queued in the
+        // host, flushed on settle. Velocity tracker bias from any single
+        // stalled drag frame is additionally mitigated by feeding
+        // change.historical samples into the tracker. (3) Open: RemoteViews
+        // layouts don't promote to a hardware layer, so the graphicsLayer
+        // translation can't cheaply re-translate a cached RenderNode.
+        // Worth trying: wrap each hosted widget in
+        // `Modifier.graphicsLayer { compositingStrategy =
+        // CompositingStrategy.Offscreen }` so the carousel translation
+        // re-blits a cached RenderNode at the cost of width × height × 4 B
+        // of extra GPU memory per widget.
         AndroidView(
             factory = { context ->
                 appWidgetHost.createView(context, widgetId, providerInfo).apply {
