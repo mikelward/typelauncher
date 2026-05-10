@@ -964,6 +964,15 @@ private fun SwipeNavigationBox(
         withFrameNanos { }
         offscreenPagesReady = true
     }
+    // Lazy widget pre-warm: once the user proves horizontal intent toward a
+    // widget page, allow widget pages to compose so AppWidgetHostView inflation
+    // (and the first RemoteViews apply, plus any provider side effects like a
+    // weather widget's location lookup) begin before the swipe lands rather
+    // than mid-translate. Sticky for the session — only the first swipe toward
+    // widgets pays the inflation cost. Stays false if the user never swipes
+    // toward widgets, so cold starts without widget interaction don't trigger
+    // provider work.
+    var widgetsWarmed by remember { mutableStateOf(false) }
 
     LaunchedEffect(carouselTransition) {
         val transition = carouselTransition as? CarouselTransitionState.AwaitingAck ?: return@LaunchedEffect
@@ -1056,6 +1065,24 @@ private fun SwipeNavigationBox(
                                     consumedDragY = consumed.y,
                                     touchSlopPx = touchSlopPx,
                                 )
+                            }
+                            if (!widgetsWarmed && owner == LauncherGestureOwner.HorizontalLauncher) {
+                                // Check the adjacent page in the swipe direction.
+                                // fromCarouselPage uses floorMod, so when agenda is
+                                // disabled and the user is on Home, both directions
+                                // land on a Widgets page (right = Widgets[0], left =
+                                // Widgets[last] via wraparound). With agenda enabled,
+                                // a leftward swipe from Home lands on Agenda and is
+                                // (correctly) ignored here.
+                                val adjacentPage = if (rawDragX < 0f) currentPage + 1 else currentPage - 1
+                                val candidate = LauncherScreen.fromCarouselPage(
+                                    adjacentPage,
+                                    widgetPageCount = widgetPageCount,
+                                    isAgendaEnabled = isAgendaEnabled,
+                                )
+                                if (candidate.screen == LauncherScreen.Widgets) {
+                                    widgetsWarmed = true
+                                }
                             }
                             if (!carouselClaimed &&
                                 owner == LauncherGestureOwner.HorizontalLauncher &&
@@ -1377,7 +1404,12 @@ private fun SwipeNavigationBox(
                     .fillMaxSize()
                     .graphicsLayer { this.translationX = baseTranslationPx + carouselOffsetPx },
             ) {
-                if (page == currentPage || launcherPage == statePage || offscreenPagesReady) {
+                val isWidgetPage = launcherPage.screen == LauncherScreen.Widgets
+                if (page == currentPage ||
+                    launcherPage == statePage ||
+                    offscreenPagesReady ||
+                    (isWidgetPage && widgetsWarmed)
+                ) {
                     content(launcherPage, page == currentPage)
                 }
             }
