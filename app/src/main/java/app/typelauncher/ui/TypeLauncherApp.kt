@@ -1405,11 +1405,14 @@ private fun SwipeNavigationBox(
                     .graphicsLayer { this.translationX = baseTranslationPx + carouselOffsetPx },
             ) {
                 val isWidgetPage = launcherPage.screen == LauncherScreen.Widgets
-                if (page == currentPage ||
-                    launcherPage == statePage ||
-                    offscreenPagesReady ||
-                    (isWidgetPage && widgetsWarmed)
-                ) {
+                // Widget pages bypass offscreenPagesReady entirely — they
+                // gate on widgetsWarmed instead, so the AndroidView factory
+                // (and its provider side effects like a weather widget's
+                // location lookup) does not run on cold start for users who
+                // never swipe to widgets. Non-widget pages keep the original
+                // first-frame gate.
+                val offscreenComposeAllowed = if (isWidgetPage) widgetsWarmed else offscreenPagesReady
+                if (page == currentPage || launcherPage == statePage || offscreenComposeAllowed) {
                     content(launcherPage, page == currentPage)
                 }
             }
