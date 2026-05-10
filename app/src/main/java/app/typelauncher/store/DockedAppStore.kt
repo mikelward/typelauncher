@@ -297,6 +297,19 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * When true, the bug-report consent dialog is suppressed and Settings →
+     * "Report bug" shares immediately. Set by the "Don't show this again"
+     * checkbox on the consent dialog itself.
+     */
+    var isBugReportConsentSuppressed: Boolean
+        get() = sharedPreferences.getBoolean(KEY_BUG_REPORT_CONSENT_SUPPRESSED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_BUG_REPORT_CONSENT_SUPPRESSED, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -316,6 +329,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KEYBOARD_RESERVATION_SOURCE = "keyboard_reservation_source"
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"
     }
 }
 
