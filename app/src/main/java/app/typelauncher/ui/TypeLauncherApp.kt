@@ -1066,7 +1066,10 @@ private fun SwipeNavigationBox(
                                     touchSlopPx = touchSlopPx,
                                 )
                             }
-                            if (!widgetsWarmed && owner == LauncherGestureOwner.HorizontalLauncher) {
+                            if (!widgetsWarmed &&
+                                owner == LauncherGestureOwner.HorizontalLauncher &&
+                                !dockDraggedDuringGesture
+                            ) {
                                 // Check the adjacent page in the swipe direction.
                                 // fromCarouselPage uses floorMod, so when agenda is
                                 // disabled and the user is on Home, both directions
