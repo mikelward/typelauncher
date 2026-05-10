@@ -491,6 +491,10 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         viewModel.removeWidget(appWidgetId)
         deletePendingWidget(appWidgetId)
+        // Drop the persisted size cache entry so the widget_size_cache
+        // SharedPreferences file doesn't accumulate dead widget IDs over
+        // the device's lifetime as users add and remove widgets.
+        appWidgetHost.forgetWidgetSize(appWidgetId)
     }
 
     private fun requestDefaultLauncher() {

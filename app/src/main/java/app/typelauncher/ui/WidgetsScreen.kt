@@ -638,7 +638,20 @@ private fun HostedWidgetCard(
                 widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
                     // Use the public min/max overload — the SizeF list
                     // variant is @hide in AOSP and not part of the SDK.
-                    view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                    // Routes through `applyAppWidgetSizeIfChanged` so a
+                    // layout pass that produces the same dimensions as
+                    // last time (the typical case — same device, same
+                    // persisted widget height) skips the binder IPC and
+                    // avoids waking the provider via
+                    // `onAppWidgetOptionsChanged`. Cache is persisted, so
+                    // the first layout pass after a cold start short-
+                    // circuits too whenever the size is unchanged.
+                    val launcherHost = appWidgetHost as? LauncherAppWidgetHost
+                    if (launcherHost != null) {
+                        launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
+                    } else {
+                        view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                    }
                 }
                 if (view is LauncherAppWidgetHostView) {
                     view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
