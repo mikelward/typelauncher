@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Build
-import android.util.SizeF
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
@@ -613,14 +612,9 @@ private fun HostedWidgetCard(
                 // to their zero/empty layout, which appears as a blank widget
                 // card even though the host view occupies the full height.
                 widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
-                    // Pass both the legacy min/max bundle (via the SizeF list
-                    // overload, which writes the min/max keys too) and the
-                    // API 31+ OPTION_APPWIDGET_SIZES list. Adaptive providers
-                    // prefer the SizeF list when present.
-                    view.updateAppWidgetSize(
-                        null,
-                        listOf(SizeF(widthDp.toFloat(), heightDp.toFloat())),
-                    )
+                    // Use the public min/max overload — the SizeF list
+                    // variant is @hide in AOSP and not part of the SDK.
+                    view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
                 }
                 if (view is LauncherAppWidgetHostView) {
                     view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
