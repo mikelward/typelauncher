@@ -153,6 +153,37 @@ class LauncherAppWidgetHostDeferApplyTest {
     }
 
     @Test
+    fun deferredNullRemoteViews_stillFlushes() {
+        // AppWidgetHostView.updateAppWidget(null) is itself a meaningful
+        // operation — it switches the view back to default/error content
+        // (provider unavailable, etc.). A deferred null must not be
+        // mistaken for "no queued update" and silently dropped.
+        val host = newHost(9)
+        val view = RecordingHostView(context, host)
+        host.deferRemoteViewsApply = true
+        view.updateAppWidget(null)
+
+        host.deferRemoteViewsApply = false
+
+        assertEquals("null update flushes through to applyRemoteViewsImmediate", listOf<RemoteViews?>(null), view.applied)
+    }
+
+    @Test
+    fun deferredRemoteViewsThenNull_flushesNull() {
+        // Provider sends a populated update, then a null (e.g. a refresh
+        // failure) — only the latest should land on flush.
+        val host = newHost(10)
+        val view = RecordingHostView(context, host)
+        host.deferRemoteViewsApply = true
+        view.updateAppWidget(rv())
+        view.updateAppWidget(null)
+
+        host.deferRemoteViewsApply = false
+
+        assertEquals(listOf<RemoteViews?>(null), view.applied)
+    }
+
+    @Test
     fun setterIdempotentWhenSameValue() {
         val host = newHost(8)
         val view = RecordingHostView(context, host)

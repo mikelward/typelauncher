@@ -79,9 +79,15 @@ internal open class LauncherAppWidgetHostView(
     // Holds the latest RemoteViews delivered while the host's defer flag was
     // set. Overwriting on every push is intentional — only the latest needs
     // to paint when the deferral lifts; intermediate updates are typically
-    // the same content with newer timestamps.
+    // the same content with newer timestamps. The companion `hasPendingUpdate`
+    // disambiguates "queued a null update" (provider sent null to switch the
+    // view back to its default/error content — a meaningful operation that
+    // must still flush) from "no update queued."
     @VisibleForTesting
     internal var pendingRemoteViews: RemoteViews? = null
+        private set
+    @VisibleForTesting
+    internal var hasPendingUpdate: Boolean = false
         private set
     private val checkLongPress = Runnable {
         if (parent != null && !hasPerformedLongPress) {
@@ -104,16 +110,22 @@ internal open class LauncherAppWidgetHostView(
         if (host.deferRemoteViewsApply) {
             // Park the latest RemoteViews. The provider's background fetch
             // already ran in its own process; we just postpone the
-            // UI-thread `apply()` until the carousel has settled.
+            // UI-thread `apply()` until the carousel has settled. Tracked
+            // via `hasPendingUpdate` because `null` is itself a meaningful
+            // value — it tells the host view to render the default/error
+            // content — and must flush like any other update.
             pendingRemoteViews = remoteViews
+            hasPendingUpdate = true
             return
         }
         applyRemoteViewsImmediate(remoteViews)
     }
 
     fun applyDeferredRemoteViews() {
-        val queued = pendingRemoteViews ?: return
+        if (!hasPendingUpdate) return
+        val queued = pendingRemoteViews
         pendingRemoteViews = null
+        hasPendingUpdate = false
         applyRemoteViewsImmediate(queued)
     }
 
