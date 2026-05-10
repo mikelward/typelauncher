@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
@@ -197,6 +198,84 @@ class DockReorderCarouselTest {
         assertNotNull("vertical drag must trigger a reorder to row 1", target)
         assertEquals("dragged app id", docked[0].id, target!!.first)
         assertEquals("dragged app must land in a lower row", 1, target.second)
+    }
+
+    // Regression: starting a drag on a docked icon used to grow the dock card
+    // by one extra empty row (the rowCount calculation in DockCard added
+    // `+ 1` whenever `draggedAppId != null`). The dock should keep its
+    // resting layout while the user lifts an icon — dock rows are added by
+    // docking more apps (or via the `+` add button), not by dragging.
+    @Test
+    fun dragReorderingDockedApp_doesNotAddExtraRow() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+        )
+        val state = LauncherUiState(filteredApps = emptyList(), dockedApps = docked)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onReorderDock = { _, _, _ -> },
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val restingHeight = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().height
+
+        // Start the drag but don't release: down → wait past long-press → move
+        // a few pixels past the touch slop to arm the lift, then check the
+        // dock card height. Compose's injection scope keeps the pointer down
+        // across performTouchInput calls until an explicit up()/cancel().
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            down(Offset(width / 2f, height / 2f))
+            move(longPressMs + 100)
+            moveBy(Offset(0f, 20f))
+        }
+        composeRule.waitForIdle()
+
+        val draggingHeight = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().height
+        assertEquals(
+            "dock height must not grow when a drag is in flight",
+            restingHeight.value,
+            draggingHeight.value,
+            0.5f,
+        )
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput { up() }
+        composeRule.waitForIdle()
     }
 
     @Test

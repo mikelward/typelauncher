@@ -490,7 +490,7 @@ private fun DockCard(
     val columns = dockIconCount.coerceAtLeast(1)
     val occupiedPositions = resolvedPositions.values.toSet()
     val maxOccupiedRow = occupiedPositions.maxOfOrNull { position -> position.row } ?: 0
-    val rowCount = (maxOccupiedRow + 1 + if (draggedAppId != null) 1 else 0).coerceAtLeast(1)
+    val rowCount = (maxOccupiedRow + 1).coerceAtLeast(1)
     val appByPosition = dockedApps.mapNotNull { app ->
         resolvedPositions[app.id]?.let { position -> position to app }
     }.toMap()
