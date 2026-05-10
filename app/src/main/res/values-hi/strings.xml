@@ -134,7 +134,7 @@
     <string name="settings_hidden_apps_unhide_description">%1$s को अनछिपाएं</string>
     <string name="bug_report_chooser_title">बग रिपोर्ट साझा करें</string>
     <string name="bug_report_consent_dialog_title">बग रिपोर्ट भेजें?</string>
-    <string name="bug_report_consent_dialog_body">समस्या का पता लगाने में मदद के लिए इस रिपोर्ट में आपकी लॉन्चर सेटिंग्स, इंस्टॉल किए गए ऐप्स की सूची और हाल की इन-ऐप गतिविधि शामिल है. भेजने से पहले आप इसे अपने शेयर ऐप में देख और संपादित कर सकेंगे.</string>
+    <string name="bug_report_consent_dialog_body">समस्या का पता लगाने में मदद के लिए इस रिपोर्ट में मौजूदा स्क्रीन का स्क्रीनशॉट, आपकी लॉन्चर सेटिंग्स, इंस्टॉल किए गए ऐप्स की सूची और हाल की इन-ऐप गतिविधि शामिल है. भेजने से पहले आप इसे अपने शेयर ऐप में देख और संपादित कर सकेंगे.</string>
     <string name="bug_report_consent_dialog_dont_show_again">फिर से न दिखाएं</string>
     <string name="bug_report_consent_dialog_confirm">जारी रखें</string>
     <string name="bug_report_consent_dialog_cancel">रद्द करें</string>
