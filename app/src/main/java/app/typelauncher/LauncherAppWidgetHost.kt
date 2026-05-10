@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
+import android.content.SharedPreferences
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -12,7 +13,77 @@ import androidx.annotation.VisibleForTesting
 import java.util.WeakHashMap
 import kotlin.math.abs
 
+private const val WIDGET_SIZE_CACHE_PREFS = "widget_size_cache"
+private const val WIDGET_SIZE_KEY_FORMAT = "size:%d"
+// Persisted as "WIDTHxHEIGHT" so the format is human-readable in prefs
+// dumps and trivial to parse without pulling in JSON.
+private const val WIDGET_SIZE_VALUE_FORMAT = "%dx%d"
+
 internal class LauncherAppWidgetHost(context: Context, hostId: Int) : AppWidgetHost(context, hostId) {
+    // Last size hint sent to each widget via updateAppWidgetSize, in dp.
+    // Persisted across process restarts so the very first layout pass on a
+    // cold start can short-circuit a redundant binder IPC + provider
+    // `onAppWidgetOptionsChanged` wake when the size hasn't changed since
+    // last session — typical case, since widget heights are persisted in
+    // the WidgetStore and the page width is determined by the device.
+    private val sizePrefs: SharedPreferences =
+        context.applicationContext.getSharedPreferences(WIDGET_SIZE_CACHE_PREFS, Context.MODE_PRIVATE)
+    private val cachedSizes: MutableMap<Int, IntPairDp> = loadCachedSizes()
+
+    /**
+     * Calls [AppWidgetHostView.updateAppWidgetSize] only when [widthDp]
+     * and [heightDp] differ from the last value cached for [widgetId].
+     * Caches and persists the new size on miss.
+     *
+     * The size hint is fired from [HostedWidgetCard]'s `update` lambda on
+     * every layout pass, but the actual measured size rarely changes
+     * between passes. Skipping the redundant IPC saves: (a) one binder
+     * round-trip into AppWidgetService, (b) a wake of the provider
+     * process via `onAppWidgetOptionsChanged`, and (c) any
+     * provider-initiated work (re-layout decisions, sometimes data
+     * fetches) that the spurious options-changed event would have
+     * triggered.
+     */
+    fun applyAppWidgetSizeIfChanged(
+        view: AppWidgetHostView,
+        widgetId: Int,
+        widthDp: Int,
+        heightDp: Int,
+    ) {
+        val incoming = IntPairDp(widthDp, heightDp)
+        val previous = cachedSizes[widgetId]
+        if (previous == incoming) return
+        view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+        cachedSizes[widgetId] = incoming
+        sizePrefs.edit().putString(sizeKey(widgetId), incoming.serialize()).apply()
+    }
+
+    /**
+     * Drop the cache entry for a widget that's been removed. Avoids
+     * unbounded growth of the prefs file as users add/remove widgets
+     * over the device's lifetime.
+     */
+    fun forgetWidgetSize(widgetId: Int) {
+        if (cachedSizes.remove(widgetId) != null) {
+            sizePrefs.edit().remove(sizeKey(widgetId)).apply()
+        }
+    }
+
+    private fun loadCachedSizes(): MutableMap<Int, IntPairDp> {
+        val out = mutableMapOf<Int, IntPairDp>()
+        for ((rawKey, rawValue) in sizePrefs.all) {
+            val widgetId = rawKey.removePrefix("size:").toIntOrNull() ?: continue
+            val pair = (rawValue as? String)?.let(IntPairDp::parse) ?: continue
+            out[widgetId] = pair
+        }
+        return out
+    }
+
+    @VisibleForTesting
+    internal fun cachedSizeForTest(widgetId: Int): IntPairDp? = cachedSizes[widgetId]
+
+    private fun sizeKey(widgetId: Int): String = WIDGET_SIZE_KEY_FORMAT.format(widgetId)
+
     // Tracks every host view bound to us so flipping `deferRemoteViewsApply`
     // can fan out the queued RemoteViews flush. WeakHashMap because a view
     // detached from the carousel (page removed, host destroyed) shouldn't
@@ -170,3 +241,47 @@ internal open class LauncherAppWidgetHostView(
         removeCallbacks(checkLongPress)
     }
 }
+
+/**
+ * Two dp dimensions packed into a single value object, used for the
+ * widget size cache. Not [androidx.compose.ui.unit.IntSize] because
+ * that's a Compose-layer type and `LauncherAppWidgetHost` lives below
+ * the UI layer; not Android's [android.util.Size] because we want a
+ * lightweight serialisable record without the platform's framework
+ * surface.
+ */
+internal data class IntPairDp(val widthDp: Int, val heightDp: Int) {
+    fun serialize(): String = WIDGET_SIZE_VALUE_FORMAT.format(widthDp, heightDp)
+
+    companion object {
+        fun parse(serialized: String): IntPairDp? {
+            val parts = serialized.split('x', limit = 2)
+            if (parts.size != 2) return null
+            val w = parts[0].toIntOrNull() ?: return null
+            val h = parts[1].toIntOrNull() ?: return null
+            return IntPairDp(w, h)
+        }
+    }
+}
+
+// TODO(widget UX, follow-ups to PR #306): two further improvements were
+// scoped during the defer-apply discussion but deferred to keep this
+// change minimal.
+//   (a) Background pre-warm at idle. After `state.isHomeReady` fires
+//       (and a small additional delay so the IME and apps list have
+//       settled), trigger `widgetsWarmed = true` programmatically without
+//       the defer-apply window so the very first session swipe shows
+//       fully-loaded widgets. Costs: every cold start now wakes every
+//       widget provider regardless of whether the user navigates to
+//       widgets, plus a few MB of host-view memory held for the session.
+//       Worth throttling to one or two adjacent widget pages so the cost
+//       is proportional to "things the user is likely to swipe to first."
+//   (b) Persisted screenshot snapshot. Capture each
+//       `AppWidgetHostView`'s rendered bitmap on `RemoteViews` apply,
+//       save to internal storage keyed by widget ID, and paint it as a
+//       placeholder behind the live host view on next mount until the
+//       first real `RemoteViews` lands. Eliminates the "blank cards then
+//       fresh" moment on cold-start swipes entirely. Privacy-sensitive
+//       (snapshots may contain calendar entries, weather location,
+//       message previews) so warrants explicit on-device-only treatment
+//       and a staleness/invalidation policy before shipping.
