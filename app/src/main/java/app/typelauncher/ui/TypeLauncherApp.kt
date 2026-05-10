@@ -1088,8 +1088,19 @@ private fun SwipeNavigationBox(
                                     // satisfy flingCommits, or oppose-cancel a
                                     // valid post-claim drag, even though the
                                     // commit decision uses effectiveDragX.
+                                    //
+                                    // Intentionally use addPosition here, not
+                                    // addPointerInputChange: the latter would
+                                    // re-add change.historical, and on a claim
+                                    // that fires inside a batched move event
+                                    // those historical samples are by definition
+                                    // pre-claim — exactly what resetTracking
+                                    // just discarded. The next event's historical
+                                    // samples are all post-claim, so subsequent
+                                    // calls in the loop use addPointerInputChange
+                                    // normally.
                                     velocityTracker.resetTracking()
-                                    velocityTracker.addPointerInputChange(change)
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
                                 }
                             }
                             if (carouselClaimed) {
