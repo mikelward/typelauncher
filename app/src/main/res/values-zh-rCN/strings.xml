@@ -134,7 +134,7 @@
     <string name="settings_hidden_apps_unhide_description">取消隐藏 %1$s</string>
     <string name="bug_report_chooser_title">分享错误报告</string>
     <string name="bug_report_consent_dialog_title">发送错误报告？</string>
-    <string name="bug_report_consent_dialog_body">此报告包含您的启动器设置、已安装应用列表和最近的应用内活动，以帮助诊断问题。发送前您可以在分享应用中查看并编辑内容。</string>
+    <string name="bug_report_consent_dialog_body">此报告包含当前屏幕的截图，以及您的启动器设置、已安装应用列表和最近的应用内活动，以帮助诊断问题。发送前您可以在分享应用中查看并编辑内容。</string>
     <string name="bug_report_consent_dialog_dont_show_again">不再显示</string>
     <string name="bug_report_consent_dialog_confirm">继续</string>
     <string name="bug_report_consent_dialog_cancel">取消</string>

@@ -134,7 +134,7 @@
     <string name="settings_hidden_apps_unhide_description">%1$s einblenden</string>
     <string name="bug_report_chooser_title">Fehlerbericht teilen</string>
     <string name="bug_report_consent_dialog_title">Fehlerbericht senden?</string>
-    <string name="bug_report_consent_dialog_body">Der Bericht enthält deine Launcher-Einstellungen, die Liste der installierten Apps und kürzliche In-App-Aktivität, um das Problem zu diagnostizieren. Du kannst ihn in deiner Teilen-App vor dem Senden prüfen und bearbeiten.</string>
+    <string name="bug_report_consent_dialog_body">Der Bericht enthält einen Screenshot des aktuellen Bildschirms sowie deine Launcher-Einstellungen, die Liste der installierten Apps und kürzliche In-App-Aktivität, um das Problem zu diagnostizieren. Du kannst ihn in deiner Teilen-App vor dem Senden prüfen und bearbeiten.</string>
     <string name="bug_report_consent_dialog_dont_show_again">Nicht mehr anzeigen</string>
     <string name="bug_report_consent_dialog_confirm">Weiter</string>
     <string name="bug_report_consent_dialog_cancel">Abbrechen</string>
