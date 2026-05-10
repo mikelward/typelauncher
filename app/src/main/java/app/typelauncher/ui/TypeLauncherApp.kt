@@ -1165,7 +1165,7 @@ private fun SwipeNavigationBox(
                     val velocityOpposesDrag = dragDirection != 0 &&
                         abs(releaseVelocity) >= backwardVelocityCancelPxPerSec &&
                         sign(releaseVelocity) == -sign(effectiveDragX)
-                    val distanceCommits = abs(effectiveDragX) >= launcherSwipeCommitDistancePx
+                    val distanceCommits = abs(effectiveDragX) >= pageWidthPx / 2f
                     val flingCommits = dragDirection != 0 &&
                         abs(releaseVelocity) >= flingCommitVelocityPxPerSec &&
                         sign(releaseVelocity) == sign(effectiveDragX)
