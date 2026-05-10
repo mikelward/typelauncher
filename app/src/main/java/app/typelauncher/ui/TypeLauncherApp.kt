@@ -1119,6 +1119,7 @@ private fun SwipeNavigationBox(
                                         "targetPage=$settleTargetPage rawDragX=$rawDragX",
                                 )
                             }
+                        }
                         return@awaitEachGesture
                     }
 
