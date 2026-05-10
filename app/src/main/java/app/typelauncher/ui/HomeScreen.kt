@@ -208,7 +208,7 @@ internal fun HomeScreen(
             // Index 0: search card (always present).
             SearchCard(
                 query = state.query,
-                autoShowKeyboard = state.isKeyboardAutoShown && state.screen == LauncherScreen.Home,
+                autoShowKeyboard = state.isKeyboardAutoShown && state.destination is LauncherDestination.Home,
                 showPlayUpdateBadge = state.playUpdate.showBadge,
                 placeholderSuffix = searchPlaceholderSuffix,
                 keyboardShowRequests = keyboardShowRequests,

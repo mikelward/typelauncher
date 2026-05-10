@@ -556,7 +556,7 @@ internal class LauncherViewModel(
     fun requestShowKeyboardOnHomeResume() {
         val state = _uiState.value
         if (
-            state.screen == LauncherScreen.Home &&
+            state.destination is LauncherDestination.Home &&
             !state.isSettingsOpen &&
             !state.isAddingWidget &&
             state.isKeyboardAutoShown
@@ -564,7 +564,7 @@ internal class LauncherViewModel(
             requestShowKeyboard()
         } else {
             LauncherDebugLog.event(
-                "requestShowKeyboardOnHomeResume skipped screen=${state.screen} " +
+                "requestShowKeyboardOnHomeResume skipped destination=${state.destination} " +
                     "settings=${state.isSettingsOpen} addingWidget=${state.isAddingWidget} " +
                     "autoShown=${state.isKeyboardAutoShown}",
             )
@@ -578,7 +578,7 @@ internal class LauncherViewModel(
     }
 
     fun showWidgetPicker(
-        pageIndex: Int = _uiState.value.currentWidgetPage,
+        pageIndex: Int = _uiState.value.lastWidgetPage,
         addToNewPageAfterSelection: Boolean = false,
     ) {
         pendingWidgetPlacement = PendingWidgetPlacement(
@@ -639,7 +639,7 @@ internal class LauncherViewModel(
     }
 
     fun refreshPermissionDrivenUi() {
-        LauncherDebugLog.event("refreshPermissionDrivenUi screen=${_uiState.value.screen}")
+        LauncherDebugLog.event("refreshPermissionDrivenUi destination=${_uiState.value.destination}")
         val isDefaultLauncher = app.getSystemService<RoleManager>()?.isRoleHeld(RoleManager.ROLE_HOME) ?: false
         val hasNotificationAccess = ActiveNotifications.hasListenerAccess(app)
         _uiState.update {
@@ -648,7 +648,7 @@ internal class LauncherViewModel(
                 hasNotificationAccess = hasNotificationAccess,
             )
         }
-        if (_uiState.value.screen == LauncherScreen.Agenda) {
+        if (_uiState.value.destination is LauncherDestination.Agenda) {
             refreshAgenda()
         }
     }
@@ -1174,7 +1174,7 @@ internal class LauncherViewModel(
 
     fun addWidget(appWidgetId: Int) {
         val placement = pendingWidgetPlacement ?: PendingWidgetPlacement(
-            pageIndex = _uiState.value.currentWidgetPage,
+            pageIndex = _uiState.value.lastWidgetPage,
             addToNewPageAfterSelection = false,
         )
         val targetPage = if (placement.addToNewPageAfterSelection) {
@@ -1242,7 +1242,8 @@ internal class LauncherViewModel(
         widgetStore.remove(appWidgetId)
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
-            val clamped = it.currentWidgetPage.coerceInWidgetPages(widgetPages)
+            val current = (it.destination as? LauncherDestination.Widgets)?.pageIndex ?: it.lastWidgetPage
+            val clamped = current.coerceInWidgetPages(widgetPages)
             it.copy(
                 destination = LauncherDestination.Widgets(clamped),
                 lastWidgetPage = clamped,
@@ -1769,14 +1770,15 @@ internal class LauncherViewModel(
     }
 
     private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
+        val pageIndex = _uiState.value.lastWidgetPage
         pendingWidgetPlacement = PendingWidgetPlacement(
-            pageIndex = _uiState.value.currentWidgetPage,
+            pageIndex = pageIndex,
             addToNewPageAfterSelection = false,
         )
         _uiState.update {
             it.copy(
-                destination = LauncherDestination.Widgets(it.currentWidgetPage),
-                lastWidgetPage = it.currentWidgetPage,
+                destination = LauncherDestination.Widgets(pageIndex),
+                lastWidgetPage = pageIndex,
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = false,
                 availableWidgets = availableWidgets,

@@ -36,7 +36,7 @@ class CarouselKeyboardTest {
 
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals("initial Home should use the same one-shot search auto-show path", 1, keyboard.showCount)
         assertEquals("initial Home auto-show must not immediately hide the keyboard", 0, keyboard.hideCount)
     }
@@ -50,7 +50,7 @@ class CarouselKeyboardTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
         assertEquals(1, keyboard.hideCount)
     }
 
@@ -63,7 +63,7 @@ class CarouselKeyboardTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Agenda, state.screen)
+        assertEquals(LauncherDestination.Agenda, state.destination)
         assertEquals(1, keyboard.hideCount)
     }
 
@@ -76,7 +76,7 @@ class CarouselKeyboardTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
         assertEquals(1, keyboard.hideCount)
     }
 
@@ -90,12 +90,12 @@ class CarouselKeyboardTest {
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals(2, keyboard.showCount)
         assertEquals("returning Home should not hide after re-showing the keyboard", 1, keyboard.hideCount)
     }
@@ -120,13 +120,13 @@ class CarouselKeyboardTest {
             },
         )
         composeRule.waitForIdle()
-        assertEquals("widgets precondition", LauncherScreen.Widgets, state.screen)
+        assertEquals("widgets precondition", LauncherDestination.Widgets(0), state.destination)
         assertEquals("keyboard must stay hidden while Widgets is settled", 0, keyboard.showCount)
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals("keyboard.show should wait until Home is the acknowledged screen", 0, showCountWhenHomeAcked)
         assertEquals("Home ack should trigger one keyboard.show", 1, keyboard.showCount)
         assertEquals("Home ack must not hide the keyboard after showing", 0, keyboard.hideCount)
@@ -350,12 +350,12 @@ class CarouselKeyboardTest {
         )
         renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
         composeRule.waitForIdle()
-        assertEquals("widgets precondition", LauncherScreen.Widgets, state.screen)
+        assertEquals("widgets precondition", LauncherDestination.Widgets(0), state.destination)
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals("two-page carousel must not double-compose a keyboard show", 1, keyboard.showCount)
         assertEquals("two-page return Home must not hide after showing the keyboard", 0, keyboard.hideCount)
     }
@@ -370,12 +370,12 @@ class CarouselKeyboardTest {
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals(0, keyboard.showCount)
     }
 
