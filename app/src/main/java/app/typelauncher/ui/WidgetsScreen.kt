@@ -588,6 +588,22 @@ private fun HostedWidgetCard(
             .onSizeChanged { measuredSize = it }
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
     ) {
+        // TODO: investigate widget rendering jank during a Home -> Widgets swipe.
+        // Symptoms: a frame stalls while the carousel is mid-translate, biasing
+        // the gesture's velocity tracker (now mitigated in
+        // SwipeNavigationBox by feeding change.historical samples). Suspected
+        // root causes, in order: (1) first-time AppWidgetHostView inflation +
+        // initial RemoteViews apply on first reveal of each widget page after
+        // process start — happens on the UI thread inside this AndroidView
+        // factory; (2) provider self-invalidations (clock ticks, calendar
+        // refreshes, weather updates) landing during the swipe and forcing
+        // measure/draw work; (3) RemoteViews layouts that don't promote to a
+        // hardware layer, so the graphicsLayer translation can't cheaply
+        // re-translate a cached RenderNode. Worth trying: warm widget hosts in
+        // an idle frame after launcher startup (drop offscreenPagesReady
+        // gating earlier for widget pages specifically), or pre-rasterize
+        // widgets into an offscreen layer while a horizontal carousel
+        // transition is in flight.
         AndroidView(
             factory = { context ->
                 appWidgetHost.createView(context, widgetId, providerInfo).apply {
