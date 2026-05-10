@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.util.SizeF
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
@@ -56,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -66,6 +68,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import androidx.compose.ui.viewinterop.AndroidView
@@ -578,10 +581,12 @@ private fun HostedWidgetCard(
         mutableFloatStateOf((customHeightDp?.toFloat() ?: defaultHeightDp.value))
     }
     val effectiveHeightDp = if (isResizing) resizeHeightDp.dp else (customHeightDp?.dp ?: defaultHeightDp)
+    var measuredSize by remember(widgetId) { mutableStateOf(IntSize.Zero) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(effectiveHeightDp)
+            .onSizeChanged { measuredSize = it }
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
     ) {
         AndroidView(
@@ -599,6 +604,24 @@ private fun HostedWidgetCard(
                 }
             },
             update = { view ->
+                // Push the host view's measured size to the provider via
+                // AppWidgetManager options. Adaptive widgets — Google Clock's
+                // world clocks, calendar agendas, and other layouts that scale
+                // their content to the available space — read these options
+                // from getAppWidgetOptions() to decide what to render. Without
+                // them the options bundle stays empty and providers fall back
+                // to their zero/empty layout, which appears as a blank widget
+                // card even though the host view occupies the full height.
+                widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
+                    // Pass both the legacy min/max bundle (via the SizeF list
+                    // overload, which writes the min/max keys too) and the
+                    // API 31+ OPTION_APPWIDGET_SIZES list. Adaptive providers
+                    // prefer the SizeF list when present.
+                    view.updateAppWidgetSize(
+                        null,
+                        listOf(SizeF(widthDp.toFloat(), heightDp.toFloat())),
+                    )
+                }
                 if (view is LauncherAppWidgetHostView) {
                     view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
                 } else {
@@ -700,6 +723,21 @@ internal fun widgetCardHeight(minHeightPx: Int, targetCellHeight: Int, density: 
     val fromMinHeight = with(density) { minHeightPx.toDp() }
     val fromCells = (targetCellHeight * WIDGET_CELL_HEIGHT_DP).dp
     return maxOf(fromMinHeight, fromCells, WIDGET_MIN_HEIGHT_DP.dp)
+}
+
+internal data class WidgetSizeHintDp(val widthDp: Int, val heightDp: Int)
+
+/**
+ * Converts a hosted widget's measured pixel size into the dp values reported
+ * to the provider via `AppWidgetHostView.updateAppWidgetSize`. Returns `null`
+ * for `IntSize.Zero`, so the caller skips the framework call before the host
+ * view has been laid out.
+ */
+internal fun widgetSizeHintDp(sizePx: IntSize, density: Density): WidgetSizeHintDp? {
+    if (sizePx == IntSize.Zero) return null
+    val widthDp = with(density) { sizePx.width.toDp().value.toInt() }
+    val heightDp = with(density) { sizePx.height.toDp().value.toInt() }
+    return WidgetSizeHintDp(widthDp, heightDp)
 }
 
 private val AppWidgetProviderInfo.targetCellHeightCompat: Int
