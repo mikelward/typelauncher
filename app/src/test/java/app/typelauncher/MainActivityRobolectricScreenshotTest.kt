@@ -200,7 +200,7 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         viewModel.showAgenda()
         composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Agenda, viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Agenda, viewModel.uiState.value.destination)
 
         composeRule.activity.runOnUiThread {
             composeRule.activity.handleLauncherIntent(
@@ -209,7 +209,7 @@ class MainActivityRobolectricScreenshotTest {
         }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Home, viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
@@ -228,7 +228,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertFalse(viewModel.uiState.value.isSettingsOpen)
-        assertEquals(LauncherScreen.Home, viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Home, viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
@@ -237,37 +237,37 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Agenda, composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Home, composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Agenda, composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Home, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Home, composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
@@ -281,14 +281,14 @@ class MainActivityRobolectricScreenshotTest {
 
         val afterFirstSwipePage = carousel.carouselVirtualPage()
         assertEquals(startPage + 1, afterFirstSwipePage)
-        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeLeft(durationMillis = 1) }
         composeRule.waitForIdle()
 
         assertEquals(afterFirstSwipePage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Agenda, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Agenda, composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
     }
 
@@ -301,7 +301,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, composeRule.activity.viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), composeRule.activity.viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
     }
 
@@ -324,7 +324,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
     }
 
@@ -370,7 +370,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(listOf(existingWidgets, listOf(999)), viewModel.uiState.value.widgetPages)
-        assertEquals(1, viewModel.uiState.value.currentWidgetPage)
+        assertEquals(LauncherDestination.Widgets(1), viewModel.uiState.value.destination)
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:999").assertIsDisplayed()
     }
 
@@ -387,7 +387,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(listOf(listOf(42, 43)), viewModel.uiState.value.widgetPages)
-        assertEquals(0, viewModel.uiState.value.currentWidgetPage)
+        assertEquals(LauncherDestination.Widgets(0), viewModel.uiState.value.destination)
     }
 
     @Test
@@ -1052,7 +1052,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Widgets, viewModel.uiState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), viewModel.uiState.value.destination)
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertDoesNotExist()
     }

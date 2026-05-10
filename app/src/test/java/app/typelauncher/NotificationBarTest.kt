@@ -676,6 +676,6 @@ class NotificationBarTest {
 
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Widgets, screenState.value.screen)
+        assertEquals(LauncherDestination.Widgets(0), screenState.value.destination)
     }
 }

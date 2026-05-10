@@ -1,141 +1,94 @@
-# Carousel Page Identity — Refactor Options
+# Screens, pages, and the carousel
 
-The launcher's carousel state is identified two different ways at once:
+The launcher's home surface is a horizontally-paged carousel that cycles through a small ordered list of pages: a Home page, zero or more widget pages, and (optionally) an Agenda page. This doc covers the data model that backs that surface and the runtime mechanics that turn touch events into page changes.
 
-- **Upstream** (`LauncherUiState`): `state.screen: LauncherScreen` plus `state.currentWidgetPage: Int`. Two fields that are only jointly meaningful when `screen == Widgets`. Off-Widgets, `currentWidgetPage` is stale data preserved so a return to Widgets lands on the last page.
-- **Carousel** (`SwipeNavigationBox`): `currentPage: Int`, a virtual index near `Int.MAX_VALUE / 2` that maps via `floorMod(_, visiblePages.size)` to the visible carousel page list `[Home, Widgets[0], …, Widgets[N-1], Agenda?]`.
+## Three layers, kept distinct on purpose
 
-The two representations are bridged by `LauncherPage(screen, widgetPageIndex)`. PR #294 fixed a bug where stale `currentWidgetPage = 1` on Home made `LauncherPage(Home, 1) ≠ LauncherPage(Home, 0)` at the carousel claim check, dropping every horizontal swipe after Widgets[N>0] → tap app → Home button. The current fix patches four comparison sites with a `sameVisiblePage(a, b)` helper.
+There are three things that look related but mean different things, and the code keeps them separate:
 
-This doc captures three structural options for replacing that patch with something more durable.
+1. **`LauncherScreen`** (`model/LauncherScreen.kt`) — an enum: `Home`, `Widgets`, `Agenda`. The *kind* of a page. Used by the page-math helpers (`fromCarouselPage`, `closestCarouselPage`, `visibleCarouselPages`) and as the `screen` field of `LauncherPage`. It does not appear in `LauncherUiState`.
 
-## Option A — zero `currentWidgetPage` off-Widgets
+2. **`LauncherPage`** (`model/LauncherScreen.kt`) — `data class LauncherPage(val screen: LauncherScreen, val widgetPageIndex: Int = 0)`. The bridge type used inside the carousel's page-math: it answers "what page does this carousel slot show?" by carrying the screen kind plus, when on Widgets, which widget page. The widget index is meaningful only when `screen == Widgets`; the rest of the time it's defaulted to `0`.
 
-Add `state.lastWidgetPage: Int` that survives screen changes. `state.currentWidgetPage` becomes a *live* value: it's the active widget page when on Widgets, and `0` everywhere else.
+3. **`LauncherDestination`** (`model/LauncherScreen.kt`) — sealed: `Home` / `Agenda` / `Widgets(pageIndex: Int = 0)`. The user-facing destination, and the **source of truth in state**. The sealed shape makes "Home with widget index 1" unrepresentable, so a leftover widget index can't poison equality.
 
-- `showHome()` and `showAgenda()` and `returnToLauncherHome()` set `currentWidgetPage = 0` (and snapshot the prior value into `lastWidgetPage` if the previous screen was Widgets).
-- `showWidgets()` (no-arg) reads `lastWidgetPage` to pick the page.
-- `showWidgets(pageIndex)` writes `currentWidgetPage = pageIndex` as today.
+The relationship: `LauncherDestination` is what state stores and what callers reason about. `LauncherPage` is a flat projection used by the carousel's index math (and by `LauncherDestination.toLauncherPage()`). `LauncherScreen` is the projection of either onto its kind. Everything that matters at the boundary — the carousel's "are we synced?" check, screen-kind branching in the ViewModel, log lines — reads `state.destination`.
 
-After this, every `LauncherPage(screen, currentWidgetPage)` constructed off-Widgets is `LauncherPage(_, 0)`, so `sameVisiblePage` is unnecessary — `==` is correct. Delete the helper, revert the four callsites to `==`.
-
-**Touches:** `LauncherUiState`, `LauncherViewModel` (4 mutators), `LauncherDebugLog`, a handful of unit tests that hand-build state, `TypeLauncherApp.kt` (revert `sameVisiblePage` callsites + delete helper).
-
-**Fixes:**
-- The PR #294 bug class.
-- Any future caller that constructs `LauncherPage(screen, state.currentWidgetPage)` for any purpose — they all see `0` off-Widgets, so equality is consistent everywhere it's used.
-- Debug logs no longer show stale `currentWidgetPage=1` when `screen=Home`; the field reflects ground truth.
-
-**Doesn't fix:**
-- The data type `LauncherPage` is unchanged — anyone building a `LauncherPage(Home, 1)` by hand (e.g. in a test) still produces a value that's "wrong but valid." Convention only, not type-enforced.
-
-**Pros:**
-- Makes `state` self-consistent. The invariant "off-Widgets ⇒ index is 0" is enforced by the state mutators rather than per-comparison helpers.
-- Smallest change that lets us delete `sameVisiblePage` with confidence.
-- Restoration semantics ("return to Widgets lands on the last page") become explicit via `lastWidgetPage` instead of an implicit "the field happens to retain its prior value."
-- Reversible — if we later move to B, this is a clean intermediate step.
-
-**Cons:**
-- Adds a field (`lastWidgetPage`). Two pieces of widget-page state to keep in sync via the mutators.
-- Every screen-changing entry point has to remember to snapshot. Easy to miss on a new entry point — though the snapshot is a one-liner and is wrong-on-write rather than wrong-on-read, so failures show up loudly (the user lands on widget page 0 instead of the last page) instead of silently dropping gestures.
-- Modest test churn — fixtures that explicitly set `currentWidgetPage` while on Home will need updating.
-
-## Option B — sealed `LauncherDestination`
-
-Replace `state.screen: LauncherScreen` and `state.currentWidgetPage: Int` with a single sealed type:
+## State
 
 ```kotlin
-sealed class LauncherDestination {
-    data object Home : LauncherDestination()
-    data object Agenda : LauncherDestination()
-    data class Widgets(val pageIndex: Int) : LauncherDestination()
-}
+@Immutable
+internal data class LauncherUiState(
+    val destination: LauncherDestination = LauncherDestination.Home,
+    val lastWidgetPage: Int = 0,
+    // …other unrelated fields…
+)
 ```
 
-Plus `state.lastWidgetPage: Int` (same role as in A) for restore.
+Two page-state fields:
 
-The carousel's bridge type `LauncherPage` either disappears (carousel reads `LauncherDestination` directly) or stays as a thin layer that's now constructed only from `LauncherDestination`, so `LauncherPage(Home, 1)` is unrepresentable.
+- **`destination`** — the user's current location. Pattern-match on it (`when (val d = state.destination) { is Widgets -> d.pageIndex; … }`) when you need the kind or the widget page. Use `state.destination is LauncherDestination.Home` for "is the user on Home right now?" — `Home` and `Agenda` are `data object`s and `Widgets` is a `data class`, so equality and `is` checks both work and stay stable across recompositions.
 
-**Touches:** `LauncherUiState`, `LauncherViewModel` (every read of `state.screen` or `state.currentWidgetPage` — ~30+ sites), `LauncherDebugLog`, screen-rendering composables that switch on `state.screen`, snapshot tests, anywhere screen state is persisted or restored. Largest refactor of the three.
+- **`lastWidgetPage`** — the page index to restore when the user returns to Widgets via `showWidgets()` with no argument. Survives screen changes; updated whenever the destination becomes `Widgets(N)` (via `showWidgets(N)`, `showWidgetPicker`, `addWidget`, `removeWidget`'s clamp). `LauncherViewModel.showWidgets()` (no-arg) reads this to decide where to land.
 
-**Fixes:**
-- Same as A, plus:
-- The data type itself enforces the invariant. "Home with widget index 1" is a *type error*, not a convention. Future variant-specific fields (e.g. an Agenda date filter, a Widgets edit-mode flag) get the same protection for free.
-- Removes the question "what does `widgetPageIndex` mean on Home?" entirely — it doesn't exist on Home.
+There is no `state.screen` and no `state.currentWidgetPage` — the projections deleted in PR #297 forced every reader to be explicit about whether they want the sealed-shape check, the live widget page (`(destination as? Widgets)?.pageIndex`), or the remembered restore page (`lastWidgetPage`).
 
-**Doesn't fix:**
-- Nothing structural. This is the strongest option.
+## How the carousel turns indices into pages
 
-**Pros:**
-- Type-system guarantee, not a convention. The bug class is *closed*, not patched.
-- Pattern matching at every read site (`when (destination) { Home -> …; Agenda -> …; is Widgets -> destination.pageIndex }`) is more idiomatic Kotlin and harder to forget than a flat `screen + index` pair.
-- Sets up the codebase for adding more variant-specific state cleanly.
+The carousel ( `SwipeNavigationBox` in `ui/TypeLauncherApp.kt`) is built around an ordered list of visible pages and a virtual integer index that walks it cyclically:
 
-**Cons:**
-- Largest blast radius. Touches Settings, the `@Preview`s in `Previews.kt`, every test that builds a fixture with `screen = LauncherScreen.Home`, persistence (if `LauncherUiState` is `@Parcelize`d or saved-state-backed), debug log formatting.
-- Migration is mechanical but tedious — every `if (state.screen == Home)` becomes `if (state.destination == LauncherDestination.Home)`, every `state.copy(screen = …, currentWidgetPage = …)` becomes a destination-aware constructor.
-- Higher risk of merge conflicts with in-flight branches.
+- **`visibleCarouselPages(widgetPageCount, isAgendaEnabled): List<LauncherPage>`** returns the live ordering, e.g. `[Home, Widgets[0], Widgets[1], Agenda]` (or `[Home, Widgets[0]]` if Agenda is disabled and there's one widget page). Order is hardcoded today.
 
-## Option C — drop `LauncherPage` from the carousel-sync comparison
+- **`currentPage: Int`** is the carousel's local position — a virtual index near `Int.MAX_VALUE / 2`. The starting offset (`firstVirtualCarouselPage`) is a trick: by parking far from `0` and `Int.MAX_VALUE`, both forward and backward swipes can advance `currentPage` by ±1 without ever hitting a clamp, so the user can drag in either direction indefinitely. `Math.floorMod(currentPage, visiblePages.size)` collapses that virtual index back to a position in the visible list.
 
-Leave `LauncherUiState` and `LauncherPage` as-is. Change only the carousel's "are we synced with upstream?" check, in `TypeLauncherApp.kt`. Compare via virtual page integers:
+- **Conversions**: `fromCarouselPage(currentPage, …)` projects the virtual index to a `LauncherPage` via the modulo above. `closestCarouselPage(currentPage, target, …)` goes the other way: it finds the nearest virtual index whose modular position matches the target's slot in `visiblePages`, taking the smaller of the forward or backward delta.
 
-```kotlin
-// Old (current, after PR #294):
-sameVisiblePage(currentLauncherPage, candidateLauncherPage)
+The carousel renders three slots — `currentPage - 1`, `currentPage`, `currentPage + 1` — translated by `carouselOffsetPx` to follow the user's finger. During a settle, only the slot the user is leaving and the slot they're moving to actually change content; the third sits offstage.
 
-// C:
-LauncherScreen.closestCarouselPage(
-    currentPage = currentPage,
-    page = currentLauncherPage,
-    widgetPageCount,
-    isAgendaEnabled,
-) == currentPage
+## Gesture lifecycle and the transition state machine
+
+A horizontal gesture goes through a small state machine in `SwipeNavigationBox` so that "user dragged" and "upstream told us to be on Widgets" don't fight:
+
+```
+Idle ──user swipe (commits)──▶ UserAnimating ──animation done──▶ AwaitingAck ──state.destination == expected──▶ Idle
+                                                                       │
+                                                                       └──1.5 s timeout──▶ Idle (allowSwipeWithUnackedScreen)
+Idle ──state.destination changes externally──▶ ExternalAnimating ──animation done──▶ Idle
 ```
 
-`closestCarouselPage` internally normalizes `LauncherPage(Home, 1)` to `LauncherPage(Home, 0)` via `visibleCarouselPage(visiblePages)`, so the answer is correct: "the carousel is already where upstream wants" ⇒ integer match. Apply at all four sites. Delete `sameVisiblePage`.
+- **`Idle`**: the carousel and upstream agree on the page. New gestures can claim.
+- **`UserAnimating(targetPage, targetLauncherPage)`**: the user committed a swipe; we're animating `carouselOffsetPx` to land on the next slot. While here, gestures are ignored.
+- **`AwaitingAck(settledPage, expectedPage)`**: animation finished, `currentPage` advanced, and we've dispatched `onShowAgenda` / `onShowWidgets(N)` / `onShowHome` upstream. We wait for `state.destination` to come back matching `expectedPage` before going `Idle`. If 1.5 s elapses with no ack, we flip `allowSwipeWithUnackedScreen = true` and force `Idle` so the user isn't stuck — the next swipe will work even though state is technically out of sync.
+- **`ExternalAnimating(targetPage)`**: `state.destination` changed without a gesture (e.g. `MainActivity.onNewIntent` calls `returnToLauncherHome` after Home button). We animate the carousel to catch up, then go straight to `Idle` — no ack is needed because upstream already moved.
 
-**Touches:** `TypeLauncherApp.kt` only. ~6 line net change.
+The two animating states look almost identical but only `UserAnimating` goes through `AwaitingAck`. That asymmetry is the one bit of cleverness: when the user drives the change, we wait for state to confirm; when state drives the change, we just chase it.
 
-**Fixes:**
-- The PR #294 bug class *for the carousel*. The four comparison sites no longer flow through `LauncherPage`'s compound `==`.
-- Removes the helper + the discipline of "remember to use `sameVisiblePage`, not `==`."
-- Replaces equality-on-a-struct-that's-secretly-variant-dependent with a semantically direct integer comparison ("does upstream want me to be exactly at my current virtual page?").
+### Settle queue
 
-**Doesn't fix:**
-- `state.currentWidgetPage = 1` while `state.screen = Home` is *still possible* — the data is still inconsistent, just no longer poisons the carousel. Today's readers (`LauncherViewModel.kt:513` for restore, `1171/1768` for widget ops on the current page) all happen on-Widgets so they're correct in practice, but nothing prevents a future reader from breaking.
-- `LauncherPage` itself still has the trap. Anyone constructing `LauncherPage(Home, 1)` for a non-carousel purpose has the same problem.
-- Debug logs and persistence still emit the stale `currentWidgetPage=1` on Home.
+If the user swipes again while one of the animating states is in flight, the second swipe is queued (`QueuedSettleSwipe(direction, settleTargetPage)`) rather than dropped. When the in-flight settle reaches `Idle`, the queue replays as a single one-page step from the settled position, so a fast double-swipe goes Home → Widgets → Agenda instead of stalling at Widgets. The queue is dropped if the in-flight target retargets mid-flight (e.g. another external state change races in).
 
-**Pros:**
-- Minimum blast radius. Single file. No state migration, no test fixture changes.
-- The replacement comparison is *more direct* than equality of `LauncherPage` — "is my virtual page where upstream wants?" is exactly the question the claim check is asking.
-- `closestCarouselPage` already has heavy test coverage from ExternalAnimating paths, so we inherit that confidence.
-- Leaves the door open to A or B later — they're still strict improvements on top.
+## How a screen change actually flows
 
-**Cons:**
-- Doesn't add a new safety net — replaces one local fix (`sameVisiblePage`) with another. Cleanup, not hardening.
-- Marginal cost per check: `closestCarouselPage` builds a 3–6 element `List<LauncherPage>` per call. Negligible at touch-event rates, but not literally free.
-- Leaves the upstream inconsistency latent. If someone later adds a broken reader, we discover it as a new bug rather than being structurally protected.
-- The pattern `closestCarouselPage(p, x) == p` is slightly indirect — needs a one-line comment explaining "this equation means upstream wants us to be exactly here, i.e. synced."
+Putting the layers together, a swipe Home → Widgets[0] looks like this:
 
-## Comparison
+1. **Pointer events** reach the carousel's `pointerInput` (`Final` pass, after children get a chance). The gesture is classified as `HorizontalLauncher` once it crosses touch slop without a child consuming horizontal scroll. The claim check then asks: is the carousel `Idle`, no animation in flight, `carouselOffsetPx == 0`, and `currentLauncherPage == candidateLauncherPage`? If so, claim.
+2. **Drag**: each subsequent event updates `carouselOffsetPx` and the slots translate.
+3. **Release**: if `effectiveDragX` exceeds the commit distance or the fling-velocity threshold, commit. Set `UserAnimating(currentPage + 1, targetLauncherPage)`, hide the keyboard for the new screen, and animate the offset to one full page width.
+4. **Animation completes**: bump `currentPage += 1`, reset `carouselOffsetPx`, transition to `AwaitingAck(currentPage, targetLauncherPage)`. Dispatch `onShowWidgets(0)` upstream, which calls `LauncherViewModel.showWidgets(0)`, which writes `state.destination = LauncherDestination.Widgets(0)` (and `lastWidgetPage = 0`).
+5. **Ack arrives**: `LaunchedEffect` re-runs because `state.destination` changed; sees `statePage == transition.expectedPage`, sets `allowSwipeWithUnackedScreen = false`, transitions to `Idle`, and replays any queued swipe.
 
-| | A: zero off-Widgets | B: sealed destination | C: virtual-page compare |
-|---|---|---|---|
-| Bug class closed at data-model level | Convention (mutators) | Type-enforced | No |
-| `sameVisiblePage` deletable | Yes | Yes | Yes |
-| `LauncherPage` data class still trap-prone | Yes (off-Widgets value can still be hand-built) | No (unrepresentable) | Yes |
-| Upstream `currentWidgetPage` always meaningful | Yes | Yes (no such field) | No |
-| Files touched | UiState, ViewModel, DebugLog, tests, TypeLauncherApp | UiState, ViewModel, every screen reader (~30+), tests, persistence, Previews | TypeLauncherApp only |
-| Lines of net change | ~50 | ~300+ | ~6 |
-| Safety floor moved | Yes | Yes (most) | No |
-| Reversibility | Easy | Hard once landed | Trivial |
+The corresponding convert-and-compare conversation between the layers:
 
-## Recommendation
+- The carousel's `currentLauncherPage` comes from `state.destination.toLauncherPage()` — for Home it's `LauncherPage(Home, 0)` regardless of `lastWidgetPage`.
+- The carousel's `candidateLauncherPage` (what the carousel thinks it's showing right now) comes from `LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)`.
+- `currentLauncherPage == candidateLauncherPage` is the synced check. Plain `==` is correct because `destination.toLauncherPage()` produces a canonical `LauncherPage(Home, 0)` for every Home destination — there's no off-Widgets stale index that could make two synced states look different.
 
-**A** is the best balance for "make the gestures and navigation more predictable and less buggy." It's the smallest change that actually closes the bug class at the data-model level (via mutator-enforced convention), deletes `sameVisiblePage` cleanly, and is a natural stepping-stone to B if we later want type-system enforcement.
+## Why the model looks this way
 
-**B** is the right answer if we expect more variant-specific fields (per-screen edit mode, per-screen filter state, etc.) — pay the migration cost once, get the protection forever.
+Two specific traps shaped the design:
 
-**C** is right when the priority is "minimum change to delete `sameVisiblePage` cleanly" without committing to upstream state-model work. Pure cleanup, no new safety floor — choose it knowing it's an aesthetic improvement, not a structural one.
+- **The widget-index trap (closed by the sealed type).** Before PR #294/#296, state held `screen: LauncherScreen` and `currentWidgetPage: Int` as separate fields, and `currentWidgetPage` was preserved across screen changes so `showWidgets()` could restore the user's last widget page. That made `LauncherPage(Home, 1)` representable, and the carousel's claim check (which compared `LauncherPage` values) silently dropped every horizontal swipe after Widgets[1] → tap app → Home. `LauncherDestination` makes the bad combination unrepresentable, and `lastWidgetPage` lives separately as the explicit restore-memory field.
+
+- **Position vs. identity.** State stores the destination's *identity* (Home/Agenda/Widgets-N), not its *position* in `visibleCarouselPages`. If the visible list ever became reorderable (e.g. agenda between two widget pages), the identity stays stable while the position would shift. `closestCarouselPage` and `fromCarouselPage` already do identity↔index conversion at the boundary; the carousel's animation stays purely index-based.
+
+Things still phrased as positions on purpose: the carousel's `currentPage` (a virtual index), `lastWidgetPage` (an index into the widget pages because widget pages aren't separately identified yet), and the `pageIndex` inside `Widgets(pageIndex)`. These are positions that name themselves as such; they're not pretending to be identities.

@@ -155,7 +155,7 @@ internal fun TypeLauncherApp(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(
-        state.screen,
+        state.destination,
         state.isSettingsOpen,
         state.isLoadingApps,
         state.isFreshAppLoadComplete,
@@ -317,8 +317,8 @@ internal fun TypeLauncherApp(
     onSwipeDown: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
-    LaunchedEffect(state.screen, state.isSettingsOpen, state.isAppListIconOnly) {
-        LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.screen}")
+    LaunchedEffect(state.destination, state.isSettingsOpen, state.isAppListIconOnly) {
+        LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.destination}")
     }
     HomeReadySignal(
         // Gate on the fresh load, not the spinner: on a warm start with cached
@@ -386,7 +386,7 @@ internal fun TypeLauncherApp(
         // switch starts fresh rather than carrying forward a now-incorrect
         // pixel height.
         var entryKeyboardBottomPx by remember(
-            state.screen,
+            state.destination,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
             currentConfigFingerprint,
@@ -407,14 +407,14 @@ internal fun TypeLauncherApp(
         // the just-reset `hasSeenVisibleImeThisEntry = false` would block
         // the shrink branch for the rest of the entry.
         var hasSeenVisibleImeThisEntry by remember(
-            state.screen,
+            state.destination,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
             currentConfigFingerprint,
         ) { mutableStateOf(imeVisible) }
         LaunchedEffect(
             imeVisible,
-            state.screen,
+            state.destination,
             state.isSettingsOpen,
             state.isKeyboardAutoShown,
             currentConfigFingerprint,
@@ -531,10 +531,10 @@ internal fun TypeLauncherApp(
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
         val routeSecondaryBarsToKeyboardTray = stableTypingGeometryAvailable && keyboardReservationPx > 0
-        var hasSeenImeForHomeEntry by remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown) {
+        var hasSeenImeForHomeEntry by remember(state.destination, state.isSettingsOpen, state.isKeyboardAutoShown) {
             mutableStateOf(!state.isKeyboardAutoShown)
         }
-        var autoKeyboardWaitElapsed by remember(state.screen, state.isSettingsOpen, state.isKeyboardAutoShown) {
+        var autoKeyboardWaitElapsed by remember(state.destination, state.isSettingsOpen, state.isKeyboardAutoShown) {
             mutableStateOf(!state.isKeyboardAutoShown)
         }
         LaunchedEffect(routeSecondaryBarsToKeyboardTray, imeVisible) {
@@ -554,18 +554,18 @@ internal fun TypeLauncherApp(
             !autoKeyboardWaitElapsed
         val forceShowSecondaryBars = state.isNotificationBarOpen || state.isRecentsOpen
         // While the carousel is animating away from Home (or back into it), the
-        // soft keyboard has already been asked to hide but `state.screen` is
-        // still `Home` until the animation acks. Without this gate the tray
+        // soft keyboard has already been asked to hide but `state.destination`
+        // is still `Home` until the animation acks. Without this gate the tray
         // would render for the duration of the carousel animation, then vanish
         // once the page change dispatches — visible as a 220ms jank.
         var isCarouselTransitioning by remember { mutableStateOf(false) }
         val secondaryBarsVisible = routeSecondaryBarsToKeyboardTray &&
-            state.screen == LauncherScreen.Home &&
+            state.destination is LauncherDestination.Home &&
             !imeVisible &&
             !isCarouselTransitioning &&
             (!waitingForAutoKeyboard || forceShowSecondaryBars)
         LaunchedEffect(
-            state.screen,
+            state.destination,
             keyboardReserveSource,
             keyboardReservationPx,
             imeVisible,
@@ -575,7 +575,7 @@ internal fun TypeLauncherApp(
             navBottomPx,
         ) {
             LauncherDebugLog.event(
-                "KeyboardReservation screen=${state.screen} source=$keyboardReserveSource " +
+                "KeyboardReservation destination=${state.destination} source=$keyboardReserveSource " +
                     "reservePx=$keyboardReservationPx imeVisible=$imeVisible imeBottomPx=$imeBottomPx " +
                     "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx navBottomPx=$navBottomPx",
             )
@@ -694,7 +694,8 @@ internal fun TypeLauncherApp(
                                 page.widgetPageIndex.coerceIn(0, state.widgetPages.lastIndex.coerceAtLeast(0)),
                             ) { emptyList() },
                             availableWidgets = state.availableWidgets,
-                            isAddingWidget = state.isAddingWidget && state.currentWidgetPage == page.widgetPageIndex,
+                            isAddingWidget = state.isAddingWidget &&
+                                (state.destination as? LauncherDestination.Widgets)?.pageIndex == page.widgetPageIndex,
                             isLoadingAvailableWidgets = state.isLoadingAvailableWidgets,
                             appWidgetHost = appWidgetHost,
                             appWidgetManager = appWidgetManager,

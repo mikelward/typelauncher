@@ -87,7 +87,7 @@ class CarouselScreenSyncRaceTest {
         carousel.performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals(LauncherScreen.Widgets, heldWidgetsAck)
 
         composeRule.mainClock.autoAdvance = false
@@ -98,7 +98,7 @@ class CarouselScreenSyncRaceTest {
 
         // Pager has not moved past Widgets yet — the second swipe is queued
         // against the Widgets settle target, not consumed in flight.
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals(startPage + 1, carousel.carouselVirtualPage())
 
         holdWidgetsAck = false
@@ -110,7 +110,7 @@ class CarouselScreenSyncRaceTest {
             startPage + 2,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Agenda, state.screen)
+        assertEquals(LauncherDestination.Agenda, state.destination)
     }
 
     @Test
@@ -160,7 +160,7 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
         assertEquals(LauncherScreen.Agenda, heldAgendaAck)
 
         carousel.performTouchInput { swipeLeft() }
@@ -169,7 +169,7 @@ class CarouselScreenSyncRaceTest {
         // While Agenda is still pending ack, the queued swipe has not yet
         // replayed — the pager is still parked on the Agenda virtual page.
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
 
         state = state.copy(destination = LauncherDestination.Agenda)
         composeRule.waitForIdle()
@@ -179,7 +179,7 @@ class CarouselScreenSyncRaceTest {
             widgetsPage + 2,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
     }
 
     @Test
@@ -230,7 +230,7 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
 
         composeRule.mainClock.advanceTimeBy(1_600)
         composeRule.waitForIdle()
@@ -243,7 +243,7 @@ class CarouselScreenSyncRaceTest {
             widgetsPage + 2,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
     }
 
     @Test
@@ -310,7 +310,7 @@ class CarouselScreenSyncRaceTest {
             homePage + 2,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Agenda, state.screen)
+        assertEquals(LauncherDestination.Agenda, state.destination)
     }
 
     @Test
@@ -360,7 +360,7 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
         assertEquals(LauncherScreen.Agenda, heldAgendaAck)
 
         state = state.copy(destination = LauncherDestination.Home)
@@ -375,7 +375,7 @@ class CarouselScreenSyncRaceTest {
         state = state.copy(destination = LauncherDestination.Agenda)
         composeRule.waitForIdle()
 
-        assertEquals(LauncherScreen.Agenda, state.screen)
+        assertEquals(LauncherDestination.Agenda, state.destination)
         assertEquals(widgetsPage + 1, carousel.carouselVirtualPage())
     }
 
@@ -442,7 +442,7 @@ class CarouselScreenSyncRaceTest {
         carousel.performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
         assertEquals(homePage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
         assertEquals(LauncherScreen.Widgets, heldWidgetsAck)
 
         // Touch down while AwaitingAck — the previous behaviour latched
@@ -454,7 +454,7 @@ class CarouselScreenSyncRaceTest {
         holdWidgetsAck = false
         state = state.copy(destination = LauncherDestination.Widgets())
         composeRule.waitForIdle()
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
 
         // Now drag past the 96 dp commit threshold (~252 px at this
         // qualifier) and release. The continuation of the swipe should
@@ -471,7 +471,7 @@ class CarouselScreenSyncRaceTest {
             homePage + 2,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Agenda, state.screen)
+        assertEquals(LauncherDestination.Agenda, state.destination)
     }
 
     @Test
@@ -552,7 +552,7 @@ class CarouselScreenSyncRaceTest {
             carousel.carouselVirtualPage(),
         )
         assertEquals("queued Home swipe must not continue past Widgets to Agenda", 0, showAgendaCount)
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
     }
 
     @Test
@@ -628,7 +628,7 @@ class CarouselScreenSyncRaceTest {
         }
         composeRule.waitForIdle()
         assertEquals(widgetsPage - 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
         assertEquals(LauncherScreen.Home, heldHomeAck)
 
         composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
@@ -647,7 +647,7 @@ class CarouselScreenSyncRaceTest {
             carousel.carouselVirtualPage(),
         )
         assertEquals("queued Home swipe must not continue past Widgets to Agenda", 0, showAgendaCount)
-        assertEquals(LauncherScreen.Widgets, state.screen)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
     }
 
     @Test
@@ -714,12 +714,11 @@ class CarouselScreenSyncRaceTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            "Stale state.currentWidgetPage on Home must not block the claim check",
+            "Stale lastWidgetPage on Home must not block the claim check",
             homePage + 1,
             carousel.carouselVirtualPage(),
         )
-        assertEquals(LauncherScreen.Widgets, state.screen)
-        assertEquals(0, state.currentWidgetPage)
+        assertEquals(LauncherDestination.Widgets(0), state.destination)
     }
 
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =

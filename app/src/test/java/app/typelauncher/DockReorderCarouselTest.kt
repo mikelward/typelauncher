@@ -117,7 +117,7 @@ class DockReorderCarouselTest {
 
         assertEquals("dock reorder must not page the carousel to Widgets", 0, showWidgetsCount)
         assertEquals("dock reorder must not page the carousel to Agenda", 0, showAgendaCount)
-        assertEquals(LauncherScreen.Home, state.screen)
+        assertEquals(LauncherDestination.Home, state.destination)
     }
 
     // Regression: the dock is laid out as a Column of per-row Rows. Slot
