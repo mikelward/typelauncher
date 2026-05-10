@@ -292,7 +292,15 @@ class CarouselScreenSyncRaceTest {
         state = state.copy(screen = LauncherScreen.Widgets)
         composeRule.mainClock.advanceTimeByFrame()
 
-        carousel.performTouchInput { swipeLeft(durationMillis = 1) }
+        // Drive the swipe with explicit down/moveBy/up so the gesture
+        // commits while the ExternalAnimating(Widgets) coroutine is still
+        // running — `swipeLeft(durationMillis = 1)` has been observed not
+        // to commit reliably with autoAdvance disabled.
+        carousel.performTouchInput {
+            down(center)
+            moveBy(Offset(-700f, 0f))
+            up()
+        }
         composeRule.mainClock.advanceTimeBy(1_000)
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
