@@ -133,4 +133,9 @@
     <string name="settings_hidden_apps_dialog_dismiss">完了</string>
     <string name="settings_hidden_apps_unhide_description">%1$s を再表示</string>
     <string name="bug_report_chooser_title">バグレポートを共有</string>
+    <string name="bug_report_consent_dialog_title">バグレポートを送信しますか？</string>
+    <string name="bug_report_consent_dialog_body">このレポートには問題の診断に役立てるため、ランチャーの設定、インストール済みアプリの一覧、最近のアプリ内の動作が含まれます。送信する前に共有アプリで確認・編集できます。</string>
+    <string name="bug_report_consent_dialog_dont_show_again">次回から表示しない</string>
+    <string name="bug_report_consent_dialog_confirm">続行</string>
+    <string name="bug_report_consent_dialog_cancel">キャンセル</string>
 </resources>

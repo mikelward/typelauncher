@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -71,6 +72,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -2825,8 +2827,14 @@ private fun ThemeMode.optionTag(): String =
 private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
+    var consentVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val dockSettings = remember(context) { DockSettingsStore(context) }
+    fun startBugReport() {
+        val activity = context.findActivity() ?: return
+        scope.launch { BugReport.share(activity) }
+    }
     Box {
         IconButton(
             onClick = { expanded = true },
@@ -2863,8 +2871,11 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
                 modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
                 onClick = {
                     expanded = false
-                    val activity = context.findActivity() ?: return@DropdownMenuItem
-                    scope.launch { BugReport.share(activity) }
+                    if (dockSettings.isBugReportConsentSuppressed) {
+                        startBugReport()
+                    } else {
+                        consentVisible = true
+                    }
                 },
             )
         }
@@ -2872,6 +2883,68 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
     if (aboutVisible) {
         AboutDialog(onDismiss = { aboutVisible = false })
     }
+    if (consentVisible) {
+        BugReportConsentDialog(
+            onDismiss = { consentVisible = false },
+            onConfirm = { suppressFuture ->
+                consentVisible = false
+                if (suppressFuture) {
+                    dockSettings.isBugReportConsentSuppressed = true
+                }
+                startBugReport()
+            },
+        )
+    }
+}
+
+@Composable
+internal fun BugReportConsentDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (suppressFuture: Boolean) -> Unit,
+) {
+    var dontShowAgain by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(BUG_REPORT_CONSENT_DIALOG_TAG),
+        title = { Text(stringResource(R.string.bug_report_consent_dialog_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.bug_report_consent_dialog_body))
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { dontShowAgain = !dontShowAgain }
+                        .testTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_ROW_TAG),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = dontShowAgain,
+                        onCheckedChange = { dontShowAgain = it },
+                        modifier = Modifier.testTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_CHECKBOX_TAG),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.bug_report_consent_dialog_dont_show_again))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(dontShowAgain) },
+                modifier = Modifier.testTag(BUG_REPORT_CONSENT_CONFIRM_TAG),
+            ) {
+                Text(stringResource(R.string.bug_report_consent_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(BUG_REPORT_CONSENT_CANCEL_TAG),
+            ) {
+                Text(stringResource(R.string.bug_report_consent_dialog_cancel))
+            }
+        },
+    )
 }
 
 @Composable

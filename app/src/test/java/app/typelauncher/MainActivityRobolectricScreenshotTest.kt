@@ -730,6 +730,87 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun reportBugAction_showsConsentDialogBeforeSharing() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DIALOG_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Send bug report?").assertIsDisplayed()
+        composeRule.onNodeWithText("Don't show this again").assertIsDisplayed()
+        saveScreenshot("compose_bug_report_consent_dialog_robolectric.png")
+
+        // No share intent should fire while the dialog is up.
+        assertEquals(null, shadowOf(composeRule.activity).nextStartedActivity)
+    }
+
+    @Test
+    fun reportBugConsentDialog_cancelDismissesWithoutSharing() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_CANCEL_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DIALOG_TAG).assertDoesNotExist()
+        assertEquals(null, shadowOf(composeRule.activity).nextStartedActivity)
+        assertFalse(
+            "consent suppression must not be persisted when the user cancels",
+            DockSettingsStore(composeRule.activity).isBugReportConsentSuppressed,
+        )
+    }
+
+    @Test
+    fun reportBugConsentDialog_continueWithoutCheckboxSharesAndDoesNotSuppress() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_CONFIRM_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DIALOG_TAG).assertDoesNotExist()
+        assertFalse(
+            "consent suppression must remain off when the checkbox isn't ticked",
+            DockSettingsStore(composeRule.activity).isBugReportConsentSuppressed,
+        )
+    }
+
+    @Test
+    fun reportBugConsentDialog_continueWithCheckboxPersistsSuppression() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_CHECKBOX_TAG).performClick()
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_CONFIRM_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DIALOG_TAG).assertDoesNotExist()
+        assertTrue(
+            "consent suppression must persist when the user ticks 'don't show again'",
+            DockSettingsStore(composeRule.activity).isBugReportConsentSuppressed,
+        )
+    }
+
+    @Test
+    fun reportBugAction_skipsConsentDialogWhenAlreadySuppressed() {
+        DockSettingsStore(composeRule.activity).isBugReportConsentSuppressed = true
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DIALOG_TAG).assertDoesNotExist()
+    }
+
+    @Test
     fun settingsOverflowAppInfoAction_opensAndroidAppInfoForLauncherPackage() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()

@@ -133,4 +133,9 @@
     <string name="settings_hidden_apps_dialog_dismiss">Done</string>
     <string name="settings_hidden_apps_unhide_description">Unhide %1$s</string>
     <string name="bug_report_chooser_title">Share bug report</string>
+    <string name="bug_report_consent_dialog_title">Send bug report?</string>
+    <string name="bug_report_consent_dialog_body">This report includes your launcher settings, list of installed apps, and recent in-app activity to help diagnose the issue. You\'ll be able to review and edit it in your share app before sending.</string>
+    <string name="bug_report_consent_dialog_dont_show_again">Don\'t show this again</string>
+    <string name="bug_report_consent_dialog_confirm">Continue</string>
+    <string name="bug_report_consent_dialog_cancel">Cancel</string>
 </resources>
