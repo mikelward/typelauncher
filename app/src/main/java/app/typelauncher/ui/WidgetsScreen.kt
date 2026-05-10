@@ -588,22 +588,34 @@ private fun HostedWidgetCard(
             .onSizeChanged { measuredSize = it }
             .testTag("$WIDGET_CARD_TAG:$widgetId"),
     ) {
-        // TODO: investigate widget rendering jank during a Home -> Widgets swipe.
-        // Symptoms: a frame stalls while the carousel is mid-translate, biasing
-        // the gesture's velocity tracker (now mitigated in
-        // SwipeNavigationBox by feeding change.historical samples). Suspected
-        // root causes, in order: (1) first-time AppWidgetHostView inflation +
-        // initial RemoteViews apply on first reveal of each widget page after
-        // process start — happens on the UI thread inside this AndroidView
-        // factory; (2) provider self-invalidations (clock ticks, calendar
-        // refreshes, weather updates) landing during the swipe and forcing
-        // measure/draw work; (3) RemoteViews layouts that don't promote to a
-        // hardware layer, so the graphicsLayer translation can't cheaply
-        // re-translate a cached RenderNode. Worth trying: warm widget hosts in
-        // an idle frame after launcher startup (drop offscreenPagesReady
-        // gating earlier for widget pages specifically), or pre-rasterize
-        // widgets into an offscreen layer while a horizontal carousel
-        // transition is in flight.
+        // Widget rendering jank during a Home -> Widgets swipe was traced to
+        // three causes; the remaining open item is hardware-layer promotion.
+        // (1) First-time AppWidgetHostView inflation + initial RemoteViews
+        // apply on first reveal — addressed by SwipeNavigationBox's
+        // `widgetsWarmed` gate, which composes widget pages only after a
+        // committed swipe lands on a Widgets target. The host pause is
+        // already active at commit time, so `createView` + `setAppWidget`
+        // during the settle animation are cheap (system RemoteViews push is
+        // gated on listening); the heavy paint happens right after settle
+        // when listening resumes, off the translate frames. 2nd+ swipes in
+        // a session are pre-inflated. Velocity tracker bias is additionally
+        // mitigated by feeding change.historical samples into the tracker.
+        // (2) Provider self-invalidations (clock
+        // ticks, calendar refreshes, weather updates) landing during the
+        // settle animation — addressed by stopListening/startListening
+        // around `isCarouselTransitioning` in TypeLauncherApp, so queued
+        // updates flush on settle instead of competing with the
+        // AndroidView factory work that runs on the same settle frames.
+        // Finger-down frames remain listening; change.historical samples
+        // mitigate any single stalled frame from biasing release velocity.
+        // (3) Open: RemoteViews
+        // layouts don't promote to a hardware layer, so the graphicsLayer
+        // translation can't cheaply re-translate a cached RenderNode. Worth
+        // trying: wrap each hosted widget in
+        // `Modifier.graphicsLayer { compositingStrategy =
+        // CompositingStrategy.Offscreen }` so the carousel translation
+        // re-blits a cached RenderNode at the cost of width × height × 4 B
+        // of extra GPU memory per widget.
         AndroidView(
             factory = { context ->
                 appWidgetHost.createView(context, widgetId, providerInfo).apply {

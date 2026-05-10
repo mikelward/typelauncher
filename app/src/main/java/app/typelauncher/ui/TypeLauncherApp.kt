@@ -61,7 +61,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -570,6 +573,11 @@ internal fun TypeLauncherApp(
         // would render for the duration of the carousel animation, then vanish
         // once the page change dispatches — visible as a 220ms jank.
         var isCarouselTransitioning by remember { mutableStateOf(false) }
+        WidgetHostCarouselPause(
+            appWidgetHost = appWidgetHost,
+            shouldPause = isCarouselTransitioning,
+            isHomeReady = state.isHomeReady,
+        )
         val secondaryBarsVisible = routeSecondaryBarsToKeyboardTray &&
             state.destination is LauncherDestination.Home &&
             !imeVisible &&
@@ -760,6 +768,45 @@ private fun HomeReadySignal(
     }
 }
 
+/**
+ * Pauses `AppWidgetHost.startListening` while `shouldPause` is true so a
+ * provider self-invalidation (clock tick, calendar/weather refresh) cannot
+ * land on a carousel settle frame and compete with the AndroidView factory
+ * `createView` + `setAppWidget` that runs there. Resumes on settle.
+ *
+ * `isHomeReady` gates the very first call: until the ViewModel publishes
+ * home-ready, `MainActivity.onStart` is intentionally deferring its own
+ * `AppWidgetHost.startListening` so AppWidgetService Binder work stays
+ * out of the cold-start critical path. `startListening` from this effect
+ * before then would bypass that deferral.
+ *
+ * The resume in the `finally` is itself gated on `Lifecycle.STARTED` so
+ * a transition that resolves while the activity is backgrounded (for
+ * example the ack-timeout `LaunchedEffect` firing after `onStop`) does
+ * not re-arm listening on a stopped host — `MainActivity.onStart` will
+ * resume when the user returns.
+ */
+@Composable
+internal fun WidgetHostCarouselPause(
+    appWidgetHost: AppWidgetHost?,
+    shouldPause: Boolean,
+    isHomeReady: Boolean,
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(shouldPause, appWidgetHost, isHomeReady) {
+        val host = appWidgetHost ?: return@LaunchedEffect
+        if (!shouldPause || !isHomeReady) return@LaunchedEffect
+        runCatching { host.stopListening() }
+        try {
+            awaitCancellation()
+        } finally {
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                runCatching { host.startListening() }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SwipeNavigationBox(
     destination: LauncherDestination,
@@ -857,6 +904,15 @@ private fun SwipeNavigationBox(
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
     var queuedSettleSwipe by remember { mutableStateOf<QueuedSettleSwipe?>(null) }
+    // Session-sticky flag that unlocks composition of the offscreen widget
+    // slots in the carousel's [-1, 0, +1] window. Flipped only when a swipe
+    // has *committed* to a Widgets target — both in the direct release path
+    // and in the queued-settle replay path. A cancelled drag (pull-back
+    // before commit thresholds) never flips it, so accidental gestures
+    // don't trigger AppWidgetHostView inflation or provider side effects
+    // (weather location lookup, calendar query, network fetch). Declared
+    // here so `playQueuedSettleSwipe` below can also read/write it.
+    var widgetsWarmed by remember { mutableStateOf(false) }
     val currentOnCarouselTransitioningChanged by rememberUpdatedState(onCarouselTransitioningChanged)
     fun setCarouselTransition(next: CarouselTransitionState) {
         // Drop the queue if the carousel retargets to a different settled page
@@ -931,6 +987,14 @@ private fun SwipeNavigationBox(
             widgetPageCount = widgetPageCount,
             isAgendaEnabled,
         )
+        // Same warm-on-commit gate as the direct release path: a queued
+        // settle swipe is a committed page change, so a first-of-session
+        // navigation toward Widgets via the queued path must also flip
+        // widgetsWarmed or the incoming widget page stays empty for the
+        // whole replay animation.
+        if (!widgetsWarmed && targetLauncherPage.screen == LauncherScreen.Widgets) {
+            widgetsWarmed = true
+        }
         setCarouselTransition(CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage))
         hideKeyboardForCarouselPage(targetLauncherPage.screen)
         carouselAnimationJob = coroutineScope.launch {
@@ -955,16 +1019,6 @@ private fun SwipeNavigationBox(
         withFrameNanos { }
         offscreenPagesReady = true
     }
-    // Lazy widget pre-warm: once the user proves horizontal intent toward a
-    // widget page, allow widget pages to compose so AppWidgetHostView inflation
-    // (and the first RemoteViews apply, plus any provider side effects like a
-    // weather widget's location lookup) begin before the swipe lands rather
-    // than mid-translate. Sticky for the session — only the first swipe toward
-    // widgets pays the inflation cost. Stays false if the user never swipes
-    // toward widgets, so cold starts without widget interaction don't trigger
-    // provider work.
-    var widgetsWarmed by remember { mutableStateOf(false) }
-
     LaunchedEffect(carouselTransition) {
         val transition = carouselTransition as? CarouselTransitionState.AwaitingAck ?: return@LaunchedEffect
         delay(CAROUSEL_ACK_TIMEOUT_MS)
@@ -1056,27 +1110,6 @@ private fun SwipeNavigationBox(
                                     consumedDragY = consumed.y,
                                     touchSlopPx = touchSlopPx,
                                 )
-                            }
-                            if (!widgetsWarmed &&
-                                owner == LauncherGestureOwner.HorizontalLauncher &&
-                                !dockDraggedDuringGesture
-                            ) {
-                                // Check the adjacent page in the swipe direction.
-                                // fromCarouselPage uses floorMod, so when agenda is
-                                // disabled and the user is on Home, both directions
-                                // land on a Widgets page (right = Widgets[0], left =
-                                // Widgets[last] via wraparound). With agenda enabled,
-                                // a leftward swipe from Home lands on Agenda and is
-                                // (correctly) ignored here.
-                                val adjacentPage = if (rawDragX < 0f) currentPage + 1 else currentPage - 1
-                                val candidate = LauncherScreen.fromCarouselPage(
-                                    adjacentPage,
-                                    widgetPageCount = widgetPageCount,
-                                    isAgendaEnabled = isAgendaEnabled,
-                                )
-                                if (candidate.screen == LauncherScreen.Widgets) {
-                                    widgetsWarmed = true
-                                }
                             }
                             if (!carouselClaimed &&
                                 owner == LauncherGestureOwner.HorizontalLauncher &&
@@ -1212,6 +1245,21 @@ private fun SwipeNavigationBox(
                     )
                     val willChangePage = committed && targetPage != gestureStartPage
                     if (willChangePage) {
+                        // Warm widget pages at commit (not at touch slop): a
+                        // cancelled gesture never lands here, so a swipe-and-
+                        // pull-back doesn't trigger AppWidgetHostView inflation
+                        // or provider side effects (weather location lookup,
+                        // calendar query, network fetch). The widget-host
+                        // pause is keyed on `isCarouselTransitioning` (set
+                        // immediately below), so the AndroidView factory that
+                        // runs on the next frame is cheap — createView +
+                        // setAppWidget do not trigger system RemoteViews push
+                        // while paused. The system push is queued and flushes
+                        // on settle when the pause resumes, so widget content
+                        // paints just after the carousel translate finishes.
+                        if (!widgetsWarmed && targetLauncherPage.screen == LauncherScreen.Widgets) {
+                            widgetsWarmed = true
+                        }
                         setCarouselTransition(
                             CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage),
                         )
