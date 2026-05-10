@@ -1004,16 +1004,21 @@ class MainActivityRobolectricScreenshotTest {
         // boundsInRoot returns CLIPPED bounds (Compose's localBoundingBoxOf
         // defaults clipBounds=true). Without performScrollTo both enabled and
         // disabled measurements clip to the visible viewport portion.
-        val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).performScrollTo().getBoundsInRoot()
+        // Settings preview wraps its cards in a clearAndSetSemantics {} Box
+        // so the cards' testTags are stripped from the merged tree — query
+        // them via useUnmergedTree = true.
+        val enabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG, useUnmergedTree = true)
+            .performScrollTo().getBoundsInRoot()
         val enabledPreviewHeight = enabledPreviewBounds.bottom - enabledPreviewBounds.top
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertExists()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator", useUnmergedTree = true).assertExists()
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_ENABLED_SWITCH_TAG).assertIsOff()
         assertEquals(false, viewModel.uiState.value.isDockEnabled)
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
-        val disabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).performScrollTo().getBoundsInRoot()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).assertDoesNotExist()
+        val disabledPreviewBounds = composeRule.onNodeWithTag(APPS_CARD_TAG, useUnmergedTree = true)
+            .performScrollTo().getBoundsInRoot()
         val disabledPreviewHeight = disabledPreviewBounds.bottom - disabledPreviewBounds.top
         assertTrue(
             "disabled dock preview gives dock space to the app list",
@@ -1073,16 +1078,20 @@ class MainActivityRobolectricScreenshotTest {
         // settings scroll), not the icon directly, because the icon sits
         // inside ScrollableIconRow's horizontalScroll — performScrollTo on
         // the icon would target the inner horizontal scroller, leaving the
-        // outer page where it was.
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).performScrollTo()
-        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
+        // outer page where it was. Settings preview wraps its cards in
+        // clearAndSetSemantics {} so query the testTags via the unmerged
+        // tree.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).performScrollTo()
+        val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator", useUnmergedTree = true)
+            .getBoundsInRoot()
         val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
         viewModel.setDockVisibleIconCount(6)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Icons per row: 6").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).performScrollTo()
-        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator").getBoundsInRoot()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).performScrollTo()
+        val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator", useUnmergedTree = true)
+            .getBoundsInRoot()
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
         assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 
@@ -1845,7 +1854,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Show recents").assertDoesNotExist()
-        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertExists()
+        // Settings preview wraps its cards in clearAndSetSemantics {} —
+        // descendants live only in the unmerged tree.
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG, useUnmergedTree = true).assertExists()
     }
 
     @Test
@@ -1856,8 +1867,46 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Pull down").assertDoesNotExist()
         composeRule.onNodeWithText("Bar below").assertDoesNotExist()
         composeRule.onNodeWithText("System shade").assertDoesNotExist()
-        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).performScrollTo().assertExists()
+        // Settings preview wraps its cards in clearAndSetSemantics {} —
+        // descendants live only in the unmerged tree.
+        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG, useUnmergedTree = true)
+            .performScrollTo().assertExists()
         saveScreenshot("compose_settings_secondary_bars_preview_robolectric.png")
+    }
+
+    @Test
+    fun settingsPreview_dockIcon_isNotInteractiveOnEitherSurface() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.toggleDock(
+            viewModel.uiState.value.filteredApps.first { it.name == "Calculator" },
+            maxDockedApps = 6,
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        // Drain any started intents accumulated from opening Settings.
+        while (shadowOf(composeRule.activity).nextStartedActivity != null) { /* drain */ }
+
+        // (1) Accessibility / semantics path. clearAndSetSemantics on the
+        // SettingsPreview wrapper strips the cards' descendants from the
+        // merged tree, so the dock-icon node must not exist there at all.
+        // This blocks TalkBack double-tap, Switch Access, keyboard / D-pad,
+        // and merged-tree performClick() from reaching DockedAppButton's
+        // clickable / combinedClickable / long-press semantics — the
+        // long-press path was important to block at the semantics layer
+        // because its handler arms `menuExpanded` / `editDialogVisible`
+        // before calling out to onOpenAppInfo, so a no-op callback alone
+        // wouldn't have stopped the action menu from popping over Settings.
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertDoesNotExist()
+        // (2) Defense-in-depth no-op callback. Even via the unmerged tree
+        // (which still surfaces the cards' click semantics), invoking the
+        // click action must not launch Calculator — the SettingsPreview
+        // wires every card callback to a no-op.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).performScrollTo()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(null, shadowOf(composeRule.activity).nextStartedActivity)
     }
 
     @Test
