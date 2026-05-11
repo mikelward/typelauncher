@@ -2350,13 +2350,12 @@ class MainActivityRobolectricScreenshotTest {
     // Regression: enabling the work dock used to cap *each* dock at half the
     // slot via `weight(1f, fill = false)`, which trimmed pixels off the
     // second row of a 2-row personal dock even when the combined natural
-    // height fit comfortably inside `dockMaxPx`. With both dock cards
-    // unweighted inside the wrapping Column, Compose now measures the
-    // personal dock first against the full slot budget and the work dock
-    // takes whatever fits below, so a 2-row personal dock + 1-row work
-    // dock that fits the budget renders both cards at their natural
-    // heights and the bottom-row icons sit fully inside the personal dock
-    // card.
+    // height fit comfortably inside `dockMaxPx`. The work dock is now pinned
+    // to a single icon row's height and the personal dock carries
+    // `weight(1f, fill = false)` so it gets all the slot space left below
+    // the work card, so a 2-row personal dock + 1-row work dock that fits
+    // the budget renders both cards at their natural heights and the
+    // bottom-row icons sit fully inside the personal dock card.
     @Test
     fun bothDocksRenderAtNaturalHeightWhenSlotBudgetAllows() {
         val viewModel = composeRule.activity.viewModel
@@ -2390,6 +2389,50 @@ class MainActivityRobolectricScreenshotTest {
             "second-row icon should be fully inside the personal dock card " +
                 "(iconBottom=${secondRowBounds.bottom}, cardBottom=${dockCardBounds.bottom})",
             secondRowBounds.bottom.value <= dockCardBounds.bottom.value + 0.5f,
+        )
+    }
+
+    // Regression for the work-dock-starvation edge case: with the original
+    // wrapper-Column shape and no weights, a heavily-docked personal dock
+    // could consume the entire `dockMaxPx` budget and leave the work card
+    // with zero height — collapsing it out of view despite the user having
+    // it enabled. The current shape pins the work card at a single icon
+    // row's height via `Modifier.heightIn`, so its rendered height stays
+    // bounded by that cap regardless of how many personal apps are docked.
+    @Test
+    fun workDockCard_staysAtOneRowEvenWithHeavilyDockedPersonalDock() {
+        val viewModel = composeRule.activity.viewModel
+        addPopularWorkApps(
+            listOf("Gmail" to "com.google.android.gm"),
+        )
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        // Pin every available app into the personal dock so the personal
+        // card's natural content exceeds the dock-slot budget and exercises
+        // the starvation case.
+        viewModel.uiState.value.filteredApps
+            .filter { app -> !app.isWorkApp }
+            .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
+        val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
+        val workHeight = workBounds.bottom.value - workBounds.top.value
+        // The cap is `dockIconSizeDp + 2 * SECTION_CARD_VERTICAL_PADDING_DP`.
+        // The test viewport is `w411dp-h914dp` with the default 4-slot dock,
+        // which `dockIconSizeForSlotCount` resolves to 56dp icons; adding
+        // 2 × 16dp of SectionCard padding gives an 88dp one-row cap. Allow a
+        // couple of dp of slack for sub-pixel rounding when measuring in
+        // root coordinates.
+        val expectedMaxDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount) + 2 * 16
+        assertTrue(
+            "work card should be capped at one row (height=${workHeight}dp, cap=${expectedMaxDp}dp)",
+            workHeight <= expectedMaxDp + 2f,
+        )
+        assertTrue(
+            "work card should have non-zero height (height=${workHeight}dp)",
+            workHeight > 0f,
         )
     }
 

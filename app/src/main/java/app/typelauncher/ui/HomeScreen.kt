@@ -259,15 +259,23 @@ internal fun HomeScreen(
                 Spacer(modifier = Modifier.fillMaxSize())
             }
             // Index 2: dock card OR a zero-size spacer when neither dock is
-            // visible. The wrapping `Column` lays both dock cards out
-            // unweighted with the shared `HOME_CARD_SPACING_DP` gap between
-            // them, matching the gap the outer Layout uses between every
-            // other pair of home cards. Compose measures unweighted children
-            // in source order with the remaining mainAxis space, so the
-            // personal dock takes its natural height first and the work dock
-            // takes whatever fits below — when the slot is tight the work
-            // dock absorbs the loss via its own `verticalScroll`, leaving
-            // the user-curated personal dock fully visible.
+            // visible. The wrapping `Column` lays both dock cards out with
+            // the shared `HOME_CARD_SPACING_DP` gap between them, matching
+            // the gap the outer Layout uses between every other pair of
+            // home cards.
+            //
+            // The work dock is capped at a single icon row's height via
+            // `Modifier.heightIn` — extra work apps scroll inside the card.
+            // The personal dock carries `Modifier.weight(1f, fill = false)`,
+            // so Compose measures the work dock first (its full one-row
+            // natural height) and gives the personal dock whatever the slot
+            // has left, falling back to the personal dock's natural height
+            // when there is slack. A heavily-docked personal can therefore
+            // never starve the work card to zero height, and a small
+            // personal dock does not stretch to fill the slot and crowd the
+            // apps list above. The personal dock's own `verticalScroll`
+            // handles the rare case where its natural content exceeds the
+            // remaining budget.
             if (isDockSlotPresent) {
                 Column(verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp)) {
                     if (state.isDockEnabled) {
@@ -276,6 +284,7 @@ internal fun HomeScreen(
                             dockPositions = state.dockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
+                            modifier = Modifier.weight(1f, fill = false),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
                             onToggleDock = onToggleDock,
@@ -295,6 +304,9 @@ internal fun HomeScreen(
                             dockPositions = state.workDockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
+                            modifier = Modifier.heightIn(
+                                max = (dockIconSizeDp + SECTION_CARD_VERTICAL_PADDING_DP * 2).dp,
+                            ),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
                             onToggleDock = onToggleWorkDock,
