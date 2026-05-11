@@ -2347,6 +2347,52 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertExists()
     }
 
+    // Regression: enabling the work dock used to cap *each* dock at half the
+    // slot via `weight(1f, fill = false)`, which trimmed pixels off the
+    // second row of a 2-row personal dock even when the combined natural
+    // height fit comfortably inside `dockMaxPx`. With both dock cards
+    // unweighted inside the wrapping Column, Compose now measures the
+    // personal dock first against the full slot budget and the work dock
+    // takes whatever fits below, so a 2-row personal dock + 1-row work
+    // dock that fits the budget renders both cards at their natural
+    // heights and the bottom-row icons sit fully inside the personal dock
+    // card.
+    @Test
+    fun bothDocksRenderAtNaturalHeightWhenSlotBudgetAllows() {
+        val viewModel = composeRule.activity.viewModel
+        addPopularWorkApps(
+            listOf("Gmail" to "com.google.android.gm"),
+        )
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        // Dock 8 apps so the personal dock spills onto a second row at the
+        // default 4-icon row width. `maxDockedApps = 1` keeps `toggleDock`
+        // from undocking what we just added on subsequent iterations.
+        viewModel.uiState.value.filteredApps
+            .filter { app -> !app.isWorkApp }
+            .take(8)
+            .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+
+        assertEquals(8, viewModel.uiState.value.dockedApps.size)
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
+
+        val dockCardBounds = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        val secondRowApp = viewModel.uiState.value.dockedApps[4]
+        val secondRowBounds = composeRule
+            .onNodeWithTag("$DOCK_APP_TAG:${secondRowApp.displayName}")
+            .getBoundsInRoot()
+        // The bottom-row icon must sit strictly inside the personal dock
+        // card's bottom edge — anything else means the card was capped
+        // before the second row finished rendering.
+        assertTrue(
+            "second-row icon should be fully inside the personal dock card " +
+                "(iconBottom=${secondRowBounds.bottom}, cardBottom=${dockCardBounds.bottom})",
+            secondRowBounds.bottom.value <= dockCardBounds.bottom.value + 0.5f,
+        )
+    }
+
     @Test
     fun workDockCard_isHiddenWhenWorkProfileIsPaused() {
         val viewModel = composeRule.activity.viewModel

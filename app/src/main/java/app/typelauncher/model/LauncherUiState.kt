@@ -16,6 +16,13 @@ private const val DOCK_HORIZONTAL_PADDING_DP = 64
 private const val DOCK_ITEM_HORIZONTAL_PADDING_DP = 8
 internal const val DOCK_ITEM_SPACING_DP = 8
 
+// Shared gap, in dp, between adjacent home-screen cards: search↔apps,
+// apps↔personal-dock, and personal-dock↔work-dock. Driving every card-to-card
+// gap from the same constant keeps the dock-to-app-list margin visually
+// identical to the personal-to-work dock margin regardless of which dock
+// cards are visible.
+internal const val HOME_CARD_SPACING_DP = 8
+
 // Floor on the apps list while the dock is allowed to grow vertically. The
 // home screen's custom layout reserves at least this many app-row heights
 // (each ≈ dockIconSizeDp + 2 * DOCK_ITEM_SPACING_DP) above the dock so a
