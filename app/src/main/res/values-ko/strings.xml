@@ -109,6 +109,8 @@
     <string name="settings_app_list_sort_option_name_reversed">이름 ↑</string>
     <string name="settings_dock_enabled_title">독 표시</string>
     <string name="settings_show_docked_apps_in_list_title">독 앱 표시</string>
+    <string name="settings_work_dock_enabled_title">업무용 독 표시</string>
+    <string name="settings_work_dock_disabled_toast">업무 프로필이 일시 중지됨</string>
     <string name="settings_keyboard_auto_show_title">키보드 자동 표시</string>
     <string name="settings_show_agenda_title">일정 표시</string>
     <string name="settings_theme_title">테마</string>

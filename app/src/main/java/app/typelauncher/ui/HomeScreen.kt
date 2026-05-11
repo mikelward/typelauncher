@@ -163,7 +163,9 @@ internal fun HomeScreen(
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
+    onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
     onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onReorderWorkDock: (String, Int, Int) -> Unit = { _, _, _ -> },
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
@@ -196,7 +198,12 @@ internal fun HomeScreen(
     // measurement order here — search → dock-with-cap → apps-with-remainder —
     // makes the apps-list minimum a hard constraint that the dock can never
     // squeeze, regardless of how many apps the user has docked.
-    val isDockSlotPresent = bodyReady && state.isDockEnabled
+    val showWorkDock = state.isWorkDockEnabled && state.isWorkProfileActive
+    // The dock slot is reserved whenever *either* dock has content to render.
+    // A user who turns off "Show dock" but keeps "Show work dock" on (with
+    // an active work profile) still gets a dock surface — the work card
+    // simply renders on its own without the personal card above it.
+    val isDockSlotPresent = bodyReady && (state.isDockEnabled || showWorkDock)
     Layout(
         modifier = Modifier
             .fillMaxSize()
@@ -253,25 +260,66 @@ internal fun HomeScreen(
             }
             // Index 2: dock card OR a zero-size spacer when the dock is
             // disabled or the home body isn't ready yet. Always emitted so
-            // index 2 is stable.
+            // index 2 is stable. When the work dock is enabled and the work
+            // profile is unpaused, the work dock card stacks directly below
+            // the personal dock inside the same slot — the custom layout
+            // measure pass only sees "the dock slot got taller," no other
+            // arithmetic changes.
             if (isDockSlotPresent) {
-                DockCard(
-                    dockedApps = state.dockedApps,
-                    dockPositions = state.dockPositions,
-                    dockIconSizeDp = dockIconSizeDp,
-                    dockIconCount = dockIconCount,
-                    onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onToggleDock = onToggleDock,
-                    onReorderDock = onReorderDock,
-                    onResetRank = onResetRank,
-                    onRenameApp = onRenameApp,
-                    onSetAppIconOverride = onSetAppIconOverride,
-                    onClearAppIconOverride = onClearAppIconOverride,
-                    onSetAppBadge = onSetAppBadge,
-                    onHideApp = onHideApp,
-                    onDragStateChanged = onDockDragChanged,
-                )
+                // Cap each dock's share of the slot at half via
+                // `weight(1f, fill = false)` so a tall personal dock with
+                // many docked apps can't swallow the entire `dockMaxPx`
+                // budget and crowd the work dock out. `fill = false` keeps
+                // each card at its natural height when the content is
+                // shorter than the share, so two small docks render
+                // compactly rather than each taking half the screen, and
+                // the unused space falls through to the apps list. When
+                // only one dock is rendered (the other branch is `false`)
+                // it has the slot to itself and takes the full
+                // `dockMaxPx`, matching the pre-work-dock behaviour.
+                Column(verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp)) {
+                    if (state.isDockEnabled) {
+                        DockCard(
+                            dockedApps = state.dockedApps,
+                            dockPositions = state.dockPositions,
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockIconCount = dockIconCount,
+                            modifier = Modifier.weight(1f, fill = false),
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onReorderDock = onReorderDock,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onDragStateChanged = onDockDragChanged,
+                        )
+                    }
+                    if (showWorkDock) {
+                        DockCard(
+                            dockedApps = state.workDockedApps,
+                            dockPositions = state.workDockPositions,
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockIconCount = dockIconCount,
+                            modifier = Modifier.weight(1f, fill = false),
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleWorkDock,
+                            onReorderDock = onReorderWorkDock,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onDragStateChanged = onDockDragChanged,
+                            tags = DockTestTags.Work,
+                        )
+                    }
+                }
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
@@ -455,6 +503,38 @@ private fun SearchCard(
     }
 }
 
+/**
+ * Set of test tags applied to the dock card and its slot contents.
+ * Two pre-defined values: [Personal] for the home dock and [Work] for the
+ * work-apps dock rendered below it. Lets a single [DockCard] implementation
+ * back both surfaces while keeping their screenshot tests addressable
+ * independently.
+ */
+internal data class DockTestTags(
+    val cardTag: String,
+    val listTag: String,
+    val appTag: String,
+    val appIconTag: String,
+    val addButtonTag: String,
+) {
+    companion object {
+        val Personal = DockTestTags(
+            cardTag = DOCK_CARD_TAG,
+            listTag = DOCK_LIST_TAG,
+            appTag = DOCK_APP_TAG,
+            appIconTag = DOCK_APP_ICON_TAG,
+            addButtonTag = DOCK_ADD_BUTTON_TAG,
+        )
+        val Work = DockTestTags(
+            cardTag = WORK_DOCK_CARD_TAG,
+            listTag = WORK_DOCK_LIST_TAG,
+            appTag = WORK_DOCK_APP_TAG,
+            appIconTag = WORK_DOCK_APP_ICON_TAG,
+            addButtonTag = WORK_DOCK_ADD_BUTTON_TAG,
+        )
+    }
+}
+
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
@@ -473,6 +553,7 @@ private fun DockCard(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
+    tags: DockTestTags = DockTestTags.Personal,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
     // the dragged icon's centre against every rendered slot, including empty
@@ -503,12 +584,12 @@ private fun DockCard(
         .firstOrNull { position -> position !in occupiedPositions }
     val showAddButton = draggedAppId == null && rowCount == 1 && firstEmptyPosition != null
 
-    SectionCard(modifier.testTag(DOCK_CARD_TAG)) {
+    SectionCard(modifier.testTag(tags.cardTag)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
-                .testTag(DOCK_LIST_TAG),
+                .testTag(tags.listTag),
             verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
         ) {
             for (row in 0 until rowCount) {
@@ -531,6 +612,8 @@ private fun DockCard(
                                     isDragged = draggedAppId == app.id,
                                     dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
                                     modifier = Modifier.weight(1f),
+                                    appTag = tags.appTag,
+                                    appIconTag = tags.appIconTag,
                                     onLaunchApp = onLaunchApp,
                                     onOpenAppInfo = onOpenAppInfo,
                                     onToggleDock = onToggleDock,
@@ -575,6 +658,7 @@ private fun DockCard(
                             DockAddButton(
                                 dockIconSizeDp = dockIconSizeDp,
                                 modifier = Modifier.weight(1f),
+                                addButtonTag = tags.addButtonTag,
                                 onReportSlotCenter = { center -> slotCenters[position] = center },
                             )
                         } else {
@@ -1651,7 +1735,14 @@ private fun AppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
+            text = {
+                Text(
+                    stringResource(
+                        if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
+                        else R.string.app_menu_dock,
+                    ),
+                )
+            },
             modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
@@ -2007,7 +2098,14 @@ private fun RecentAppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(if (app.isDocked) R.string.app_menu_undock else R.string.app_menu_dock)) },
+            text = {
+                Text(
+                    stringResource(
+                        if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
+                        else R.string.app_menu_dock,
+                    ),
+                )
+            },
             modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
@@ -2079,6 +2177,8 @@ private fun DockedAppButton(
     isDragged: Boolean,
     dragOffset: Offset,
     modifier: Modifier = Modifier,
+    appTag: String = DOCK_APP_TAG,
+    appIconTag: String = DOCK_APP_ICON_TAG,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -2137,10 +2237,10 @@ private fun DockedAppButton(
             modifier = Modifier
                 .semantics { contentDescription = app.displayName }
                 .size((dockIconSizeDp + 8).dp)
-                .testTag("$DOCK_APP_TAG:${app.displayName}"),
+                .testTag("$appTag:${app.displayName}"),
             contentAlignment = Alignment.Center,
         ) {
-            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_APP_ICON_TAG)
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
         }
         Box(
             modifier = Modifier
@@ -2258,6 +2358,7 @@ private fun EmptyDockSlot(
 private fun DockAddButton(
     dockIconSizeDp: Int,
     modifier: Modifier = Modifier,
+    addButtonTag: String = DOCK_ADD_BUTTON_TAG,
     onReportSlotCenter: ((Offset) -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -2279,7 +2380,7 @@ private fun DockAddButton(
     ) {
         Box(
             modifier = Modifier
-                .testTag(DOCK_ADD_BUTTON_TAG)
+                .testTag(addButtonTag)
                 .size((dockIconSizeDp + 8).dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -2305,6 +2406,51 @@ private fun DockAddButton(
     }
 }
 
+/**
+ * "Show work dock" settings row. Visible whenever a managed profile is
+ * present on the device (`isWorkProfileConfigured`). The switch is only
+ * interactable when the profile is currently unpaused — tapping or
+ * long-pressing the row while the profile is in quiet mode shows a transient
+ * "Work profile is off" toast instead of toggling, so the user can see the
+ * option exists but understands why it can't change right now.
+ */
+@Composable
+private fun WorkDockSettingsRow(
+    isWorkDockEnabled: Boolean,
+    isWorkProfileActive: Boolean,
+    onWorkDockEnabledChanged: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val disabledHint = stringResource(R.string.settings_work_dock_disabled_toast)
+    val showDisabledHint = {
+        Toast.makeText(context, disabledHint, Toast.LENGTH_SHORT).show()
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                enabled = !isWorkProfileActive,
+                onClick = { showDisabledHint() },
+                onLongClick = { showDisabledHint() },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_work_dock_enabled_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Switch(
+            checked = isWorkDockEnabled,
+            onCheckedChange = onWorkDockEnabledChanged,
+            enabled = isWorkProfileActive,
+            modifier = Modifier.testTag(WORK_DOCK_ENABLED_SWITCH_TAG),
+        )
+    }
+}
+
 @Composable
 internal fun SettingsScreen(
     state: LauncherUiState,
@@ -2315,6 +2461,7 @@ internal fun SettingsScreen(
     onAppListIconOnlyChanged: (Boolean) -> Unit,
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
+    onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
@@ -2454,8 +2601,21 @@ internal fun SettingsScreen(
                 Switch(
                     checked = state.isShowDockedAppsInList,
                     onCheckedChange = onShowDockedAppsInListChanged,
-                    enabled = state.isDockEnabled,
+                    // The flag controls the main-list dedup for both docks,
+                    // so keep the switch interactable whenever either dock
+                    // is actually rendered — otherwise a user with the
+                    // personal dock off and the work dock on would have no
+                    // way to make work-docked apps searchable again.
+                    enabled = state.isDockEnabled ||
+                        (state.isWorkDockEnabled && state.isWorkProfileActive),
                     modifier = Modifier.testTag(SHOW_DOCKED_APPS_IN_LIST_SWITCH_TAG),
+                )
+            }
+            if (state.isWorkProfileConfigured) {
+                WorkDockSettingsRow(
+                    isWorkDockEnabled = state.isWorkDockEnabled,
+                    isWorkProfileActive = state.isWorkProfileActive,
+                    onWorkDockEnabledChanged = onWorkDockEnabledChanged,
                 )
             }
             Row(

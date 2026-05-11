@@ -3,8 +3,11 @@ package app.typelauncher
 import android.content.Context
 import java.util.LinkedHashSet
 
-internal class DockedAppStore(context: Context) {
-    private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+internal class DockedAppStore(
+    context: Context,
+    preferencesName: String = DEFAULT_PREFERENCES_NAME,
+) {
+    private val sharedPreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
     private var dockedIds = sharedPreferences.getString(KEY_DOCKED_APP_IDS, "").orEmpty()
         .split(DOCKED_APP_ID_SEPARATOR)
         .filter { appId -> appId.isNotBlank() }
@@ -91,13 +94,14 @@ internal class DockedAppStore(context: Context) {
             .apply()
     }
 
-    private companion object {
-        const val PREFERENCES_NAME = "docked_apps"
-        const val KEY_DOCKED_APP_IDS = "docked_app_ids"
-        const val KEY_DOCKED_APP_POSITIONS = "docked_app_positions"
-        const val KEY_DOCK_PREFILLED = "dock_prefilled"
-        const val DOCKED_APP_ID_SEPARATOR = "\n"
-        const val DOCK_POSITION_FIELD_SEPARATOR = "\t"
+    companion object {
+        internal const val DEFAULT_PREFERENCES_NAME = "docked_apps"
+        internal const val WORK_PREFERENCES_NAME = "work_docked_apps"
+        private const val KEY_DOCKED_APP_IDS = "docked_app_ids"
+        private const val KEY_DOCKED_APP_POSITIONS = "docked_app_positions"
+        private const val KEY_DOCK_PREFILLED = "dock_prefilled"
+        private const val DOCKED_APP_ID_SEPARATOR = "\n"
+        private const val DOCK_POSITION_FIELD_SEPARATOR = "\t"
     }
 
     private fun String.parseDockPositions(): MutableMap<String, DockPosition> =
@@ -138,6 +142,14 @@ internal class DockSettingsStore(context: Context) {
         set(value) {
             sharedPreferences.edit()
                 .putInt(KEY_DOCK_ICON_COUNT, value.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT))
+                .apply()
+        }
+
+    var isWorkDockEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_WORK_DOCK_ENABLED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_WORK_DOCK_ENABLED, value)
                 .apply()
         }
 
@@ -314,6 +326,7 @@ internal class DockSettingsStore(context: Context) {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
+        const val KEY_WORK_DOCK_ENABLED = "work_dock_enabled"
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"

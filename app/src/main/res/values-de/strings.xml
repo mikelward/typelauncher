@@ -109,6 +109,8 @@
     <string name="settings_app_list_sort_option_name_reversed">Name ↑</string>
     <string name="settings_dock_enabled_title">Dock anzeigen</string>
     <string name="settings_show_docked_apps_in_list_title">Dock-Apps anzeigen</string>
+    <string name="settings_work_dock_enabled_title">Arbeits-Dock anzeigen</string>
+    <string name="settings_work_dock_disabled_toast">Arbeitsprofil ist pausiert</string>
     <string name="settings_keyboard_auto_show_title">Tastatur automatisch anzeigen</string>
     <string name="settings_show_agenda_title">Agenda anzeigen</string>
     <string name="settings_theme_title">Design</string>

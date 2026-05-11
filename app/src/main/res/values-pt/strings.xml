@@ -109,6 +109,8 @@
     <string name="settings_app_list_sort_option_name_reversed">Nome ↑</string>
     <string name="settings_dock_enabled_title">Mostrar dock</string>
     <string name="settings_show_docked_apps_in_list_title">Mostrar apps do dock</string>
+    <string name="settings_work_dock_enabled_title">Mostrar dock de trabalho</string>
+    <string name="settings_work_dock_disabled_toast">Perfil de trabalho pausado</string>
     <string name="settings_keyboard_auto_show_title">Mostrar teclado automaticamente</string>
     <string name="settings_show_agenda_title">Mostrar agenda</string>
     <string name="settings_theme_title">Tema</string>
