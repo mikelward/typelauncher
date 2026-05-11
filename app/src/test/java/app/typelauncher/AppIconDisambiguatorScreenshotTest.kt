@@ -110,12 +110,15 @@ class AppIconDisambiguatorScreenshotTest {
     private fun assertBadgeMatchesCornerSizeAndBottomLeft(iconTag: String, badgeTag: String) {
         val iconBounds = composeRule.onNodeWithTag(iconTag, useUnmergedTree = true).getBoundsInRoot()
         val badgeBounds = composeRule.onNodeWithTag(badgeTag, useUnmergedTree = true).getBoundsInRoot()
+        val iconWidth = (iconBounds.right - iconBounds.left).value
         val badgeWidth = (badgeBounds.right - badgeBounds.left).value
         val badgeHeight = (badgeBounds.bottom - badgeBounds.top).value
+        val expected = iconWidth * APP_ICON_CORNER_BADGE_FRACTION
         assertTrue(
-            "badge should match the ${APP_ICON_CORNER_BADGE_SIZE_DP}dp corner badge size, was ${badgeWidth}x$badgeHeight",
-            kotlin.math.abs(badgeWidth - APP_ICON_CORNER_BADGE_SIZE_DP) <= 1f &&
-                kotlin.math.abs(badgeHeight - APP_ICON_CORNER_BADGE_SIZE_DP) <= 1f,
+            "badge should be ${APP_ICON_CORNER_BADGE_FRACTION * 100}% of the ${iconWidth}dp icon " +
+                "(expected ${expected}dp), was ${badgeWidth}x$badgeHeight",
+            kotlin.math.abs(badgeWidth - expected) <= 1f &&
+                kotlin.math.abs(badgeHeight - expected) <= 1f,
         )
         assertTrue(
             "badge should sit on the icon's left edge (badge.left=${badgeBounds.left}, icon.left=${iconBounds.left})",
