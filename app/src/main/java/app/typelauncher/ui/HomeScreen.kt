@@ -264,18 +264,27 @@ internal fun HomeScreen(
             // the gap the outer Layout uses between every other pair of
             // home cards.
             //
-            // The work dock is capped at a single icon row's height via
-            // `Modifier.heightIn` — extra work apps scroll inside the card.
+            // The work dock is capped at a content-driven row count via
+            // `Modifier.heightIn`: one row when `workApps <= dockIconCount`,
+            // two rows once the user has docked more than `dockIconCount`
+            // work apps, and never taller than `MAX_WORK_DOCK_ROWS`
+            // regardless of how many apps land in the work dock — extra
+            // work apps scroll inside the card. The row count is derived
+            // from the work dock's own content only (not the personal dock,
+            // the apps list, or the viewport), so the work card never
+            // resizes in response to anything but the user adding or
+            // removing a work app.
+            //
             // The personal dock carries `Modifier.weight(1f, fill = false)`,
-            // so Compose measures the work dock first (its full one-row
-            // natural height) and gives the personal dock whatever the slot
-            // has left, falling back to the personal dock's natural height
-            // when there is slack. A heavily-docked personal can therefore
-            // never starve the work card to zero height, and a small
-            // personal dock does not stretch to fill the slot and crowd the
-            // apps list above. The personal dock's own `verticalScroll`
-            // handles the rare case where its natural content exceeds the
-            // remaining budget.
+            // so Compose measures the work dock first (against its capped
+            // height) and gives the personal dock whatever the slot has
+            // left, falling back to the personal dock's natural height when
+            // there is slack. A heavily-docked personal can therefore never
+            // starve the work card to zero height, and a small personal
+            // dock does not stretch to fill the slot and crowd the apps
+            // list above. The personal dock's own `verticalScroll` handles
+            // the rare case where its natural content exceeds the remaining
+            // budget.
             if (isDockSlotPresent) {
                 Column(verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp)) {
                     if (state.isDockEnabled) {
@@ -299,18 +308,19 @@ internal fun HomeScreen(
                         )
                     }
                     if (showWorkDock) {
+                        val workRows = ceil(
+                            state.workDockedApps.size.toFloat() / dockIconCount.coerceAtLeast(1),
+                        ).toInt().coerceIn(1, MAX_WORK_DOCK_ROWS)
+                        val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
+                        val workMaxHeightDp = workRows * workRowHeightDp +
+                            (workRows - 1) * DOCK_ITEM_SPACING_DP +
+                            SECTION_CARD_VERTICAL_PADDING_DP * 2
                         DockCard(
                             dockedApps = state.workDockedApps,
                             dockPositions = state.workDockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
-                            modifier = Modifier.heightIn(
-                                max = (
-                                    dockIconSizeDp +
-                                        DOCK_ITEM_VERTICAL_PADDING_DP +
-                                        SECTION_CARD_VERTICAL_PADDING_DP * 2
-                                    ).dp,
-                            ),
+                            modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
                             onToggleDock = onToggleWorkDock,

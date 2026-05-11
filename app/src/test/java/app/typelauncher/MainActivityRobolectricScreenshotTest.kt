@@ -2396,9 +2396,11 @@ class MainActivityRobolectricScreenshotTest {
     // wrapper-Column shape and no weights, a heavily-docked personal dock
     // could consume the entire `dockMaxPx` budget and leave the work card
     // with zero height — collapsing it out of view despite the user having
-    // it enabled. The current shape pins the work card at a single icon
-    // row's height via `Modifier.heightIn`, so its rendered height stays
-    // bounded by that cap regardless of how many personal apps are docked.
+    // it enabled. The current shape caps the work card at
+    // `MAX_WORK_DOCK_ROWS` icon rows via `Modifier.heightIn`, with the row
+    // count derived from `workApps` only. With one work app and the default
+    // 4-icon-per-row dock, that resolves to the one-row cap regardless of
+    // how many personal apps are docked.
     @Test
     fun workDockCard_staysAtOneRowEvenWithHeavilyDockedPersonalDock() {
         val viewModel = composeRule.activity.viewModel
@@ -2439,6 +2441,59 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue(
             "work card should have non-zero height (height=${workHeight}dp)",
             workHeight > 0f,
+        )
+    }
+
+    // Once the work dock holds more apps than fit on a single row at the
+    // current `dockIconCount`, the card grows to a second row instead of
+    // hiding the overflow behind a horizontal scroll the same as the
+    // personal dock would do. The cap is `MAX_WORK_DOCK_ROWS` rows, so
+    // even with many more work apps than two rows can hold the card stays
+    // bounded — the remainder scrolls inside the card's own
+    // `verticalScroll`.
+    @Test
+    fun workDockCard_expandsToSecondRowWhenWorkAppsExceedOneRow() {
+        val viewModel = composeRule.activity.viewModel
+        // Mark five seeded fake apps as work apps so the work dock has more
+        // than one row's worth of content at the default 4-icon-per-row
+        // width. Five is chosen because `dockIconCount` is 4 by default —
+        // five apps means exactly one slot bleeds onto a second row.
+        (0..4).forEach { i ->
+            viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake$i")
+        }
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        // The prefill's launchCount-tier finds nothing in fakes (no launch
+        // history) and the POPULAR_APP_PACKAGES-tier doesn't match either,
+        // so the work dock is empty after enabling. Dock every work app
+        // explicitly so we hit the 5-app shape.
+        viewModel.uiState.value.filteredApps
+            .filter { app -> app.isWorkApp && !app.isWorkDocked }
+            .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+
+        assertTrue(
+            "expected ≥5 work apps in work dock (was=${viewModel.uiState.value.workDockedApps.size})",
+            viewModel.uiState.value.workDockedApps.size >= 5,
+        )
+
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
+        val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
+        val workHeight = workBounds.bottom.value - workBounds.top.value
+        val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
+        val rowHeightDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
+        val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        val twoRowMaxDp =
+            2 * rowHeightDp + DOCK_ITEM_SPACING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        assertTrue(
+            "work card should grow past one row (height=${workHeight}dp, oneRow=${oneRowMaxDp}dp)",
+            workHeight > oneRowMaxDp + 2f,
+        )
+        assertTrue(
+            "work card should be capped at MAX_WORK_DOCK_ROWS=$MAX_WORK_DOCK_ROWS " +
+                "(height=${workHeight}dp, twoRow=${twoRowMaxDp}dp)",
+            workHeight <= twoRowMaxDp + 2f,
         )
     }
 
