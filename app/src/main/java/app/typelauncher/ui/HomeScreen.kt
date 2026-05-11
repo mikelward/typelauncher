@@ -1113,9 +1113,10 @@ private fun ScrollableIconRow(
             modifier = rowModifier
                 .pointerInput(showStartChevron, showEndChevron, viewportPx) {
                     detectTapGestures { offset ->
+                        val overhang = HorizontalScrollChevronIconRowOverhang.toPx()
                         when {
-                            showStartChevron && offset.x <= HorizontalScrollChevronTapTargetSize.toPx() -> pageBack()
-                            showEndChevron && offset.x >= size.width - HorizontalScrollChevronTapTargetSize.toPx() -> pageForward()
+                            showStartChevron && offset.x <= overhang -> pageBack()
+                            showEndChevron && offset.x >= size.width - overhang -> pageForward()
                         }
                     }
                 }
@@ -1345,6 +1346,16 @@ private fun ChevronIcon(
 
 private val HorizontalScrollChevronEdgeOffset = 18.dp
 private val HorizontalScrollChevronTapTargetSize = 32.dp
+// The chevron's own Box sits at offset(±HorizontalScrollChevronEdgeOffset)
+// and is HorizontalScrollChevronEdgeOffset wide, so it stays fully outside
+// the row. The visible icon uses requiredSize(HorizontalScrollChevronTapTargetSize)
+// and overflows back over the row's edge by (TapTargetSize − EdgeOffset) dp
+// on each side, anchoring the affordance to the icon strip. The row's own
+// pointerInput pages back/forward only when a tap lands in that overflow
+// band — past it, the tap is on an app icon, not on the chevron, and the
+// row leaves it alone so the app's own click handler can take it.
+private val HorizontalScrollChevronIconRowOverhang =
+    HorizontalScrollChevronTapTargetSize - HorizontalScrollChevronEdgeOffset
 private val VerticalScrollChevronEdgeOffset = 18.dp
 private val VerticalScrollChevronTapTargetSize = 32.dp
 
