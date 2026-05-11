@@ -2304,6 +2304,148 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_home_work_app_icon_robolectric.png")
     }
 
+    @Test
+    fun workDockCard_isHiddenByDefaultEvenWithActiveWorkProfile() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake8")
+        composeRule.waitForIdle()
+
+        // Default `isWorkDockEnabled = false` — even when a work profile is
+        // active, the work dock stays opted out until the user flips the
+        // setting. The personal dock card remains visible.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun workDockCard_rendersBelowPersonalDockWhenEnabledAndProfileActive() {
+        val viewModel = composeRule.activity.viewModel
+        // Seed two real `POPULAR_APP_PACKAGES` entries into the shadow
+        // PackageManager and flip them to work so the prefill's tier (c)
+        // popular-fallback path has something to land. The default fake
+        // seed uses `app.typelauncher.fakeN` packages that aren't in the
+        // popular list, so the prefill would otherwise leave the work
+        // dock empty.
+        addPopularWorkApps(
+            listOf(
+                "Gmail" to "com.google.android.gm",
+                "Calendar" to "com.google.android.calendar",
+            ),
+        )
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
+        val personalTop = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().top
+        val workTop = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot().top
+        assertTrue("work dock should sit below the personal dock", workTop > personalTop)
+        // Both popular packages landed via the prefill's popular-fallback
+        // tier, with the "+" hint preserved because the row isn't full.
+        composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Gmail").assertExists()
+        composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Calendar").assertExists()
+        composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertExists()
+    }
+
+    @Test
+    fun workDockCard_isHiddenWhenWorkProfileIsPaused() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake8")
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
+
+        // Flip the same work app into quiet mode — `isWorkProfileActive`
+        // becomes false and the card disappears without restarting the
+        // activity, mirroring `ACTION_MANAGED_PROFILE_UNAVAILABLE`.
+        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
+        // The personal dock is unaffected.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun workDockSettings_switchIsHiddenWhenNoWorkProfile() {
+        composeRule.activity.viewModel.openSettings()
+        composeRule.waitForIdle()
+
+        // No work-profile entries in the fake seed → no "Show work dock" row.
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun workDockSettings_switchIsDisabledWhenWorkProfilePaused() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.markAsPausedWorkAppForTest("app.typelauncher.fake8")
+        composeRule.waitForIdle()
+        viewModel.openSettings()
+        composeRule.waitForIdle()
+
+        // `isWorkProfileConfigured` true → row visible; `isWorkProfileActive`
+        // false → Switch reports disabled. Tapping the row surfaces the
+        // "Work profile is off" toast.
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun workDockSettings_switchIsInteractableWhenWorkProfileActive() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake8")
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+        viewModel.openSettings()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsEnabled()
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsOn()
+    }
+
+    /**
+     * Seeds extra launcher activities in the shadow `PackageManager` for the
+     * given `(label, packageName)` pairs and triggers a viewmodel reload so
+     * the personal copies land in `installedApps`, then clones each one as
+     * a work-profile entry via
+     * [LauncherViewModel.addWorkProfileCopyForTest]. This mirrors the
+     * on-device shape: a popular app like Gmail typically exists in both
+     * profiles, the personal copy stays in the main app list, and the work
+     * copy is what the work dock pins. The default fake seed only installs
+     * `app.typelauncher.fakeN` packages (none in `POPULAR_APP_PACKAGES`),
+     * so without this helper the prefill's tier (c) has nothing to land.
+     */
+    private fun addPopularWorkApps(apps: List<Pair<String, String>>) {
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val packageManager = shadowOf(
+            ApplicationProvider.getApplicationContext<android.content.Context>().packageManager,
+        )
+        apps.forEach { (label, packageName) ->
+            val componentName = ComponentName(packageName, "$packageName.LaunchActivity")
+            val resolveInfo = ResolveInfo().apply {
+                nonLocalizedLabel = label
+                activityInfo = ActivityInfo().apply {
+                    this.packageName = packageName
+                    name = componentName.className
+                }
+            }
+            @Suppress("DEPRECATION")
+            packageManager.addResolveInfoForIntent(launcherIntent, resolveInfo)
+            packageManager.addActivityIcon(
+                componentName,
+                ColorDrawable(OVERFLOW_ICON_COLORS[0]),
+            )
+        }
+        composeRule.activity.viewModel.reloadInstalledAppsForTest()
+        composeRule.waitForIdle()
+        val workUser = workUserHandle()
+        apps.forEach { (_, packageName) ->
+            composeRule.activity.viewModel.addWorkProfileCopyForTest(packageName, workUser)
+        }
+        composeRule.waitForIdle()
+    }
+
     private fun assertVisibleApps(vararg names: String) {
         val actual = composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name }
         assertEquals(names.toList(), actual)
@@ -2392,6 +2534,7 @@ class MainActivityRobolectricScreenshotTest {
                     val application = RuntimeEnvironment.getApplication()
                     listOf(
                         "docked_apps",
+                        "work_docked_apps",
                         "dock_settings",
                         "app_launch_stats",
                         "widgets",

@@ -51,6 +51,7 @@ internal class LauncherViewModel(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
+    private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
     private val hiddenAppStore = HiddenAppStore(app)
     private val renamedAppStore = RenamedAppStore(app)
     private val customBadgeStore = CustomBadgeStore(app)
@@ -159,6 +160,7 @@ internal class LauncherViewModel(
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             dockIconCount = dockSettingsStore.dockIconCount,
+            isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
@@ -237,6 +239,7 @@ internal class LauncherViewModel(
                     .applyIconOverrides()
                 _uiState.update { state ->
                     val dockedIds = dockedAppIdsForState(state)
+                    val workDockedIds = workDockedAppIdsForState(state)
                     val visibleApps = visibleInstalledApps()
                     val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                     state.copy(
@@ -251,6 +254,12 @@ internal class LauncherViewModel(
                             .filterDocked(dockedIds)
                             .markVisibility(),
                         dockPositions = dockedAppStore.dockedAppPositions,
+                        workDockedApps = visibleApps
+                            .filterDocked(workDockedIds)
+                            .markVisibility(),
+                        workDockPositions = workDockedAppStore.dockedAppPositions,
+                        isWorkProfileConfigured = installedApps.any { it.isWorkApp },
+                        isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                         recentApps = newRecentApps,
                         hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                         notifyingApps = visibleApps
@@ -280,8 +289,10 @@ internal class LauncherViewModel(
                 }
                 dockedAppStore.markPrefilled()
             }
+            maybePrefillWorkDock(loadedApps)
             _uiState.update { state ->
                 val dockedIds = dockedAppIdsForState(state)
+                val workDockedIds = workDockedAppIdsForState(state)
                 val visibleApps = visibleInstalledApps()
                 val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                 state.copy(
@@ -296,6 +307,12 @@ internal class LauncherViewModel(
                         .filterDocked(dockedIds)
                         .markVisibility(),
                     dockPositions = dockedAppStore.dockedAppPositions,
+                    workDockedApps = visibleApps
+                        .filterDocked(workDockedIds)
+                        .markVisibility(),
+                    workDockPositions = workDockedAppStore.dockedAppPositions,
+                    isWorkProfileConfigured = installedApps.any { it.isWorkApp },
+                    isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                     recentApps = newRecentApps,
                     hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                     notifyingApps = visibleApps
@@ -461,6 +478,50 @@ internal class LauncherViewModel(
                 app
             }
         }
+        refreshLists()
+    }
+
+    /**
+     * Test seam mirroring [markAsPausedWorkAppForTest] but for the
+     * profile-active branch: marks the matching personal-profile entry as
+     * `isWorkApp = true, isQuietMode = false` and re-derives the dependent
+     * lists. Used by the work-dock screenshot tests to flip
+     * `isWorkProfileActive` true without going through `LauncherApps` (which
+     * Robolectric's shadow cannot model for a real managed profile).
+     */
+    internal fun markAsActiveWorkAppForTest(packageName: String) {
+        installedApps = installedApps.map { app ->
+            if (app.packageName == packageName) {
+                app.copy(isWorkApp = true, isQuietMode = false)
+            } else {
+                app
+            }
+        }
+        refreshLists()
+    }
+
+    /**
+     * Test seam that adds a work-profile *clone* of the existing personal
+     * entry for [packageName], rather than flipping the personal entry's
+     * profile flag. Mirrors the on-device shape where popular apps (Gmail,
+     * Calendar, etc.) are installed in both profiles: the personal copy
+     * stays in the main app list, and the cloned work copy carries
+     * `isWorkApp = true` plus the supplied [workUser] handle so its
+     * [InstalledApp.id] is distinct from the personal copy's id (the id
+     * folds in `user.hashCode()`). No-op when no personal entry for the
+     * given package exists yet.
+     */
+    internal fun addWorkProfileCopyForTest(packageName: String, workUser: UserHandle) {
+        val personal = installedApps.firstOrNull { app ->
+            app.packageName == packageName && !app.isWorkApp
+        } ?: return
+        if (installedApps.any { app -> app.packageName == packageName && app.isWorkApp }) return
+        val clone = personal.copy(
+            user = workUser,
+            isWorkApp = true,
+            isQuietMode = false,
+        )
+        installedApps = installedApps + clone
         refreshLists()
     }
 
@@ -705,7 +766,7 @@ internal class LauncherViewModel(
     }
 
     private fun priorityIconCacheIds(): Set<String> {
-        val docked = dockedAppStore.dockedAppIds.toSet()
+        val docked = dockedAppStore.dockedAppIds.toSet() + workDockedAppStore.dockedAppIds.toSet()
         val topByLaunches = installedApps
             .asSequence()
             .map { app -> app.id to appLaunchStatsStore.launchCount(app.id) }
@@ -776,17 +837,21 @@ internal class LauncherViewModel(
             setQuery("")
             return
         }
-        // Docked apps are excluded from filteredApps while the dock is visible,
-        // so fall back to launching the first matching dock entry when no
-        // non-excluded match exists. The dock row is
-        // unfiltered by typed search, so the fallback re-runs the matcher
-        // here rather than reading state.dockedApps / state.recentApps in
-        // their displayed order — otherwise we would launch whichever app
+        // Docked apps are excluded from filteredApps while their dock is
+        // visible, so fall back to launching the first matching dock entry
+        // when no non-excluded match exists. The dock rows are unfiltered
+        // by typed search, so the fallback re-runs the matcher here rather
+        // than reading state.dockedApps / state.workDockedApps in their
+        // displayed order — otherwise we would launch whichever app
         // happens to sit first in the row regardless of the query.
+        // The work dock is checked after the personal dock so the personal
+        // copy of a shared app (e.g. Gmail) wins when both profiles have it.
         val state = _uiState.value
         val target = state.filteredApps.firstOrNull()
             ?: state.dockedApps.firstOrNull { app -> app.displayName.launcherMatchTier(trimmedQuery) != null }
                 ?.takeIf { state.isDockEnabled }
+            ?: state.workDockedApps.firstOrNull { app -> app.displayName.launcherMatchTier(trimmedQuery) != null }
+                ?.takeIf { state.isWorkDockEnabled && state.isWorkProfileActive }
         target?.let(::launchApp)
     }
 
@@ -861,15 +926,31 @@ internal class LauncherViewModel(
         startActivity(intent)
     }
 
+    /**
+     * Unified "Dock" / "Undock" toggle for the long-press menu. Routes based
+     * on the app's current membership so it always does the inverse of what
+     * the menu label says:
+     *  - already in the personal dock → undock from personal (regardless of
+     *    `isWorkApp`, since the user pinned it there before the work dock
+     *    existed and the menu shows "Undock");
+     *  - already in the work dock → undock from work;
+     *  - work app + work dock enabled + in neither dock → dock to work;
+     *  - otherwise → dock to personal.
+     */
     fun toggleDock(app: InstalledApp, maxDockedApps: Int) {
+        val state = _uiState.value
         LauncherDebugLog.event(
             "toggleDock package=${app.packageName} docked=${app.isDocked} " +
-                "currentDocked=${dockedAppStore.dockedAppIds.size} max=$maxDockedApps",
+                "workDocked=${app.isWorkDocked} workDockEnabled=${state.isWorkDockEnabled} " +
+                "max=$maxDockedApps",
         )
-        if (app.isDocked) {
-            dockedAppStore.undock(app.id)
-        } else {
-            dockedAppStore.dock(app.id, columnCount = _uiState.value.dockIconCount)
+        when {
+            app.isDocked -> dockedAppStore.undock(app.id)
+            app.isWorkDocked -> workDockedAppStore.undock(app.id)
+            app.isWorkApp && state.isWorkDockEnabled ->
+                workDockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+            else ->
+                dockedAppStore.dock(app.id, columnCount = state.dockIconCount)
         }
         refreshLists()
         logState("toggleDock")
@@ -887,6 +968,44 @@ internal class LauncherViewModel(
         )
         refreshLists()
         logState("reorderDockedApps")
+    }
+
+    /**
+     * Explicit work-dock toggle invoked from the long-press menu on a
+     * [WorkDockCard] entry. Operates only on the work-dock store, so the
+     * dual-pin edge case (a work app prefilled into the work dock while still
+     * being in the personal dock) un-docks from the work dock specifically —
+     * leaving the personal entry untouched. The general [toggleDock] picks
+     * the dock by app state, which is what the app-list menu wants but not
+     * what a work-dock-card menu wants when both flags are true.
+     */
+    fun toggleWorkDock(app: InstalledApp, maxDockedApps: Int) {
+        val state = _uiState.value
+        LauncherDebugLog.event(
+            "toggleWorkDock package=${app.packageName} workDocked=${app.isWorkDocked} " +
+                "max=$maxDockedApps",
+        )
+        if (app.isWorkDocked) {
+            workDockedAppStore.undock(app.id)
+        } else {
+            workDockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+        }
+        refreshLists()
+        logState("toggleWorkDock")
+    }
+
+    fun reorderWorkDockedApps(appId: String, row: Int, column: Int) {
+        val state = _uiState.value
+        LauncherDebugLog.event("reorderWorkDockedApps appId=$appId row=$row column=$column")
+        workDockedAppStore.move(
+            appId = appId,
+            row = row,
+            column = column,
+            columnCount = state.dockIconCount,
+            sortOrder = state.appListSortOrder,
+        )
+        refreshLists()
+        logState("reorderWorkDockedApps")
     }
 
     fun resetRank(app: InstalledApp) {
@@ -1406,10 +1525,33 @@ internal class LauncherViewModel(
         logState("setDockVisibleIconCount requested=$count")
     }
 
+    /**
+     * Toggles the "Show work dock" preference. When flipped on for the first
+     * time and a work profile is active, runs the work-dock prefill against
+     * the current installed-app list so the row paints with seeded icons on
+     * the very next composition rather than appearing empty. The prefill
+     * latches `hasBeenPrefilled` so a subsequent off → on toggle does not
+     * re-seed.
+     */
+    fun setWorkDockEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isWorkDockEnabled = isEnabled
+        // Update state *before* prefilling so `maybePrefillWorkDock`'s guard
+        // on `_uiState.value.isWorkDockEnabled` sees the new value. The
+        // previous order let the guard fire on the stale `false`, so toggling
+        // the switch on never seeded the store.
+        _uiState.update { it.copy(isWorkDockEnabled = isEnabled) }
+        if (isEnabled) {
+            maybePrefillWorkDock(installedApps)
+        }
+        refreshLists()
+        logState("setWorkDockEnabled=$isEnabled")
+    }
+
     private fun refreshLists() {
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
             val dockedIds = dockedAppIdsForState(state)
+            val workDockedIds = workDockedAppIdsForState(state)
             val visibleApps = visibleInstalledApps()
             // Compute the new recents list first so the exclusion sees the
             // post-filterRecent display list rather than `state.recentApps`,
@@ -1426,6 +1568,10 @@ internal class LauncherViewModel(
                 ).markVisibility(),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
+                workDockedApps = visibleApps.filterDocked(workDockedIds).markVisibility(),
+                workDockPositions = workDockedAppStore.dockedAppPositions,
+                isWorkProfileConfigured = installedApps.any { it.isWorkApp },
+                isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                 recentApps = newRecentApps,
                 hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
                 notifyingApps = visibleApps
@@ -1457,6 +1603,40 @@ internal class LauncherViewModel(
             columnCount = state.dockIconCount,
         )
 
+    private fun workDockedAppIdsForState(state: LauncherUiState): List<String> =
+        workDockedAppStore.dockedAppIdsFor(
+            sortOrder = state.appListSortOrder,
+            columnCount = state.dockIconCount,
+        )
+
+    /**
+     * Runs the one-time work-dock prefill the first time the user enables the
+     * work dock on a device that has a managed profile. Latched independently
+     * of the personal-dock prefill flag so toggling "Show work dock" off and
+     * back on does not re-prefill — and so a user who never enables the work
+     * dock never has anything written to the work store. Skips when the
+     * profile is currently paused (quiet mode), so the seed sees the apps the
+     * user actually has access to; the prefill retries on the next fresh load
+     * after the profile is resumed.
+     */
+    private fun maybePrefillWorkDock(loadedApps: List<InstalledApp>) {
+        if (!_uiState.value.isWorkDockEnabled) return
+        if (workDockedAppStore.hasBeenPrefilled) return
+        if (workDockedAppStore.dockedAppIds.isNotEmpty()) {
+            workDockedAppStore.markPrefilled()
+            return
+        }
+        if (loadedApps.none { it.isWorkApp && !it.isQuietMode }) return
+        prefillWorkDock(
+            installedApps = loadedApps,
+            personalDockedIds = dockedAppStore.dockedAppIds.toSet(),
+            appLaunchStatsStore = appLaunchStatsStore,
+            workDockStore = workDockedAppStore,
+            maxSlots = _uiState.value.dockIconCount,
+        )
+        workDockedAppStore.markPrefilled()
+    }
+
     /**
      * Returns the IDs of apps that should be omitted from the main app list
      * because they already render on another always-visible surface. Docked
@@ -1472,6 +1652,25 @@ internal class LauncherViewModel(
     ): Set<String> {
         val excluded = mutableSetOf<String>()
         if (state.isDockEnabled && !state.isShowDockedAppsInList) excluded.addAll(dockedIds)
+        // Re-derive `isWorkProfileActive` from the authoritative
+        // `installedApps` instead of reading `state.isWorkProfileActive`.
+        // The `_uiState.update { state -> ... }` lambdas compute the new
+        // value in the same `state.copy(...)` call that also produces the
+        // filtered list, so the `state` parameter visible to this function
+        // is the *old* snapshot and would skip the exclusion on the very
+        // frame the work dock first becomes visible (leaving a duplicate
+        // work-docked entry in the main list until the next refresh).
+        // `state.isDockEnabled` / `isShowDockedAppsInList` are persistent
+        // settings unaffected by package reloads, so they stay correct
+        // from `state`.
+        val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
+        if (
+            state.isWorkDockEnabled &&
+            isWorkProfileActive &&
+            !state.isShowDockedAppsInList
+        ) {
+            excluded.addAll(workDockedAppStore.dockedAppIds)
+        }
         return excluded
     }
 
@@ -1795,6 +1994,7 @@ internal class LauncherViewModel(
         // this O(n²) over the full installed-app list on every keystroke.
         map { app ->
             val isDocked = dockedAppStore.contains(app.id)
+            val isWorkDocked = workDockedAppStore.contains(app.id)
             val isHidden = hiddenAppStore.contains(app.id)
             val customName = renamedAppStore.customNameFor(app.id)
             val customBadge = customBadgeStore.customBadgeFor(app.id)
@@ -1802,6 +2002,7 @@ internal class LauncherViewModel(
             val customIconPath = overrideFile?.absolutePath
             val customIconVersion = overrideFile?.lastModified() ?: 0L
             if (app.isDocked == isDocked &&
+                app.isWorkDocked == isWorkDocked &&
                 app.isHidden == isHidden &&
                 app.customName == customName &&
                 app.customBadge == customBadge &&
@@ -1812,6 +2013,7 @@ internal class LauncherViewModel(
             } else {
                 app.copy(
                     isDocked = isDocked,
+                    isWorkDocked = isWorkDocked,
                     isHidden = isHidden,
                     customName = customName,
                     customBadge = customBadge,

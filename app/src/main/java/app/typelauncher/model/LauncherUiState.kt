@@ -277,6 +277,24 @@ internal data class LauncherUiState(
     val isShowDockedAppsInList: Boolean = true,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
+    // Secondary "work apps" dock rendered below the personal dock when a
+    // managed (work) profile is provisioned and unpaused. Independent
+    // persistence and enable toggle, but it intentionally shares
+    // [dockIconCount] with the personal dock so the two rows stay
+    // visually aligned and the user has a single slider to tune. The card
+    // is hidden entirely when the profile is in quiet mode
+    // (`isWorkProfileActive = false`).
+    val workDockedApps: List<InstalledApp> = emptyList(),
+    val workDockPositions: Map<String, DockPosition> = emptyMap(),
+    val isWorkDockEnabled: Boolean = false,
+    // True when at least one work-profile `InstalledApp` is present in the
+    // raw `installedApps` list, regardless of quiet mode. Drives whether the
+    // "Show work dock" settings row is visible at all.
+    val isWorkProfileConfigured: Boolean = false,
+    // True when at least one work-profile `InstalledApp` exists with
+    // `isQuietMode = false`. Drives whether the work dock renders on Home
+    // and whether the settings switch is interactable.
+    val isWorkProfileActive: Boolean = false,
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing

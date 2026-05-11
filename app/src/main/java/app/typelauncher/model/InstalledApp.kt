@@ -21,6 +21,7 @@ internal data class InstalledApp(
     val launchWithLauncherApps: Boolean,
     val iconCacheToken: String? = null,
     val isDocked: Boolean = false,
+    val isWorkDocked: Boolean = false,
     val isHidden: Boolean = false,
     val isQuietMode: Boolean = false,
     val disambiguator: String? = null,
