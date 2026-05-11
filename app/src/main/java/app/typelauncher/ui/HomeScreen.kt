@@ -420,9 +420,9 @@ internal fun HomeKeyboardTray(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
             .testTag(HOME_KEYBOARD_TRAY_TAG),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
     ) {
         NotificationBarCard(
             notifyingApps = state.notifyingApps,
