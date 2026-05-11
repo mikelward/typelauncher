@@ -36,6 +36,15 @@ internal const val HOME_CARD_SPACING_DP = 8
 // large docked-app collection cannot squeeze the apps list to nothing.
 internal const val APP_LIST_MIN_VISIBLE_ROWS = 2
 
+// Hard cap on the number of icon rows the work dock card renders before its
+// inner `verticalScroll` kicks in. The work card's height is derived from
+// `ceil(workApps / dockIconCount).coerceIn(1, MAX_WORK_DOCK_ROWS)`, so a
+// dockIconCount-sized work app collection fits in one row, anything larger
+// expands to a second row, and a much larger collection scrolls inside the
+// two-row card. Two rows is the upper bound that keeps the personal dock
+// from feeling crowded on a typical phone viewport.
+internal const val MAX_WORK_DOCK_ROWS = 2
+
 internal enum class AppListSortOrder {
     Usage,
     UsageReversed,
