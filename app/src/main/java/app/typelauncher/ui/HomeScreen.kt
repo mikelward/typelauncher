@@ -3213,11 +3213,12 @@ private fun AppIcon(
             }
         }
         appCornerBadge(app)?.let { badge ->
-            val flagSp = (APP_ICON_CORNER_BADGE_SIZE_DP - 2).sp
+            val badgeDp = (size.value * APP_ICON_CORNER_BADGE_FRACTION).dp
+            val flagSp = (badgeDp.value - 2f).sp
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .size(APP_ICON_CORNER_BADGE_SIZE_DP.dp)
+                    .size(badgeDp)
                     .semantics { contentDescription = "${app.displayName} ${badge.contentDescription}" }
                     .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
                 contentAlignment = Alignment.Center,
