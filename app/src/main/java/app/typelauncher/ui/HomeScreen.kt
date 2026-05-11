@@ -305,7 +305,11 @@ internal fun HomeScreen(
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
                             modifier = Modifier.heightIn(
-                                max = (dockIconSizeDp + SECTION_CARD_VERTICAL_PADDING_DP * 2).dp,
+                                max = (
+                                    dockIconSizeDp +
+                                        DOCK_ITEM_VERTICAL_PADDING_DP +
+                                        SECTION_CARD_VERTICAL_PADDING_DP * 2
+                                    ).dp,
                             ),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
@@ -2238,7 +2242,7 @@ private fun DockedAppButton(
         Box(
             modifier = Modifier
                 .semantics { contentDescription = app.displayName }
-                .size((dockIconSizeDp + 8).dp)
+                .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
                 .testTag("$appTag:${app.displayName}"),
             contentAlignment = Alignment.Center,
         ) {
@@ -2343,7 +2347,7 @@ private fun EmptyDockSlot(
 ) {
     Box(
         modifier = modifier
-            .height((dockIconSizeDp + 8).dp)
+            .height((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 onReportSlotCenter(
@@ -2368,7 +2372,7 @@ private fun DockAddButton(
     val description = stringResource(R.string.dock_add_button_description)
     Box(
         modifier = modifier
-            .height((dockIconSizeDp + 8).dp)
+            .height((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 onReportSlotCenter?.invoke(
@@ -2383,7 +2387,7 @@ private fun DockAddButton(
         Box(
             modifier = Modifier
                 .testTag(addButtonTag)
-                .size((dockIconSizeDp + 8).dp),
+                .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp),
             contentAlignment = Alignment.Center,
         ) {
             Surface(

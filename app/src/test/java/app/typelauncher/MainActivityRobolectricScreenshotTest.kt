@@ -2406,11 +2406,15 @@ class MainActivityRobolectricScreenshotTest {
             listOf("Gmail" to "com.google.android.gm"),
         )
         viewModel.setWorkDockEnabled(true)
+        // Force 1-icon-per-row on the personal dock so that every docked
+        // app takes a full row at the maximum icon size — 9 fake apps then
+        // give ~900dp of natural personal-dock height, far exceeding the
+        // ~600dp dock-slot budget on the 914dp test viewport. This is the
+        // shape that used to starve the work card to zero height under the
+        // earlier unweighted-Column layout.
+        viewModel.setDockVisibleIconCount(1)
         composeRule.waitForIdle()
 
-        // Pin every available app into the personal dock so the personal
-        // card's natural content exceeds the dock-slot budget and exercises
-        // the starvation case.
         viewModel.uiState.value.filteredApps
             .filter { app -> !app.isWorkApp }
             .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
@@ -2419,13 +2423,15 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
         val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
         val workHeight = workBounds.bottom.value - workBounds.top.value
-        // The cap is `dockIconSizeDp + 2 * SECTION_CARD_VERTICAL_PADDING_DP`.
+        // The cap is
+        // `dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP`.
         // The test viewport is `w411dp-h914dp` with the default 4-slot dock,
         // which `dockIconSizeForSlotCount` resolves to 56dp icons; adding
-        // 2 × 16dp of SectionCard padding gives an 88dp one-row cap. Allow a
-        // couple of dp of slack for sub-pixel rounding when measuring in
-        // root coordinates.
-        val expectedMaxDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount) + 2 * 16
+        // 8dp of per-icon tap-target padding and 2 × 16dp of SectionCard
+        // padding gives a 96dp one-row cap. Allow a couple of dp of slack
+        // for sub-pixel rounding when measuring in root coordinates.
+        val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
+        val expectedMaxDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP
         assertTrue(
             "work card should be capped at one row (height=${workHeight}dp, cap=${expectedMaxDp}dp)",
             workHeight <= expectedMaxDp + 2f,

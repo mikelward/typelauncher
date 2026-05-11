@@ -16,6 +16,13 @@ private const val DOCK_HORIZONTAL_PADDING_DP = 64
 private const val DOCK_ITEM_HORIZONTAL_PADDING_DP = 8
 internal const val DOCK_ITEM_SPACING_DP = 8
 
+// Per-slot tap-target padding added around every dock icon inside its row
+// (`DockedAppButton`, `EmptyDockSlot`, `DockAddButton` each render a
+// `dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP` tall box). Exposed so
+// callers that need to size a card around an integer number of dock rows
+// can derive the chrome height from the same constant the buttons use.
+internal const val DOCK_ITEM_VERTICAL_PADDING_DP = 8
+
 // Shared gap, in dp, between adjacent home-screen cards: search↔apps,
 // apps↔personal-dock, and personal-dock↔work-dock. Driving every card-to-card
 // gap from the same constant keeps the dock-to-app-list margin visually
