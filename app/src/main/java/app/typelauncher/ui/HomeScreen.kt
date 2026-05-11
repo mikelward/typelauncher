@@ -210,7 +210,7 @@ internal fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(bottom = primaryBottomPadding)
             .padding(innerPadding)
-            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+            .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
             .testTag(HOME_SCREEN_TAG),
         content = {
             // Index 0: search card (always present).
@@ -258,33 +258,24 @@ internal fun HomeScreen(
             } else {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
-            // Index 2: dock card OR a zero-size spacer when the dock is
-            // disabled or the home body isn't ready yet. Always emitted so
-            // index 2 is stable. When the work dock is enabled and the work
-            // profile is unpaused, the work dock card stacks directly below
-            // the personal dock inside the same slot — the custom layout
-            // measure pass only sees "the dock slot got taller," no other
-            // arithmetic changes.
+            // Index 2: dock card OR a zero-size spacer when neither dock is
+            // visible. The wrapping `Column` lays both dock cards out
+            // unweighted with the shared `HOME_CARD_SPACING_DP` gap between
+            // them, matching the gap the outer Layout uses between every
+            // other pair of home cards. Compose measures unweighted children
+            // in source order with the remaining mainAxis space, so the
+            // personal dock takes its natural height first and the work dock
+            // takes whatever fits below — when the slot is tight the work
+            // dock absorbs the loss via its own `verticalScroll`, leaving
+            // the user-curated personal dock fully visible.
             if (isDockSlotPresent) {
-                // Cap each dock's share of the slot at half via
-                // `weight(1f, fill = false)` so a tall personal dock with
-                // many docked apps can't swallow the entire `dockMaxPx`
-                // budget and crowd the work dock out. `fill = false` keeps
-                // each card at its natural height when the content is
-                // shorter than the share, so two small docks render
-                // compactly rather than each taking half the screen, and
-                // the unused space falls through to the apps list. When
-                // only one dock is rendered (the other branch is `false`)
-                // it has the slot to itself and takes the full
-                // `dockMaxPx`, matching the pre-work-dock behaviour.
-                Column(verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp)) {
                     if (state.isDockEnabled) {
                         DockCard(
                             dockedApps = state.dockedApps,
                             dockPositions = state.dockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
-                            modifier = Modifier.weight(1f, fill = false),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
                             onToggleDock = onToggleDock,
@@ -304,7 +295,6 @@ internal fun HomeScreen(
                             dockPositions = state.workDockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
-                            modifier = Modifier.weight(1f, fill = false),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
                             onToggleDock = onToggleWorkDock,
@@ -325,7 +315,7 @@ internal fun HomeScreen(
             }
         },
     ) { measurables, constraints ->
-        val spacingPx = 16.dp.roundToPx()
+        val spacingPx = HOME_CARD_SPACING_DP.dp.roundToPx()
         // Reserve at least APP_LIST_MIN_VISIBLE_ROWS rows for the apps list.
         // Each app-list row is ≈ dockIconSizeDp + 2 * DOCK_ITEM_SPACING_DP
         // (icon-only mode); text rows are 56dp regardless of icon size, and
