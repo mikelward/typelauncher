@@ -689,7 +689,12 @@ class SwipeUpRecentsTest {
         val oldestBefore = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
 
         composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput {
-            val position = Offset(x = 1f, y = height / 2f)
+            // x = 40 lands inside the row's first 32 dp tap zone (84 px at
+            // the test's 2.625 density) but past the chevron icon's 14 dp
+            // requiredSize-overflow into the row (~37 px), so the tap
+            // reaches the row's own pointerInput regardless of how Compose
+            // resolves hit-tests on the overflowed icon.
+            val position = Offset(x = 40f, y = height / 2f)
             down(position)
             up()
         }
