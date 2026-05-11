@@ -689,12 +689,14 @@ class SwipeUpRecentsTest {
         val oldestBefore = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
 
         composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput {
-            // x = 40 lands inside the row's first 32 dp tap zone (84 px at
-            // the test's 2.625 density) but past the chevron icon's 14 dp
-            // requiredSize-overflow into the row (~37 px), so the tap
-            // reaches the row's own pointerInput regardless of how Compose
-            // resolves hit-tests on the overflowed icon.
-            val position = Offset(x = 40f, y = height / 2f)
+            // x = 20 lands inside the chevron icon's 14 dp (~37 px at the
+            // test's 2.625 density) overflow into the row, which is the
+            // only band where the row's own pointerInput still pages back.
+            // Past that band the tap is on an app icon, not on the chevron,
+            // and the row leaves it alone — see
+            // `recentsOverflow_tapPastChevronOverhangDoesNotPageRow` for
+            // the inverse coverage.
+            val position = Offset(x = 20f, y = height / 2f)
             down(position)
             up()
         }
@@ -703,6 +705,45 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
         val oldestAfter = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
         assertTrue(oldestAfter.left < oldestBefore.left)
+    }
+
+    // A tap inside the row but past the chevron icon's visual overhang lands
+    // on an app icon — the row's first-N-dp page-back heuristic must NOT
+    // fire there, otherwise the user can't actually launch the leftmost
+    // visible app when the recents row has overflowed and is pinned to its
+    // end.
+    @Test
+    fun recentsOverflow_tapPastChevronOverhangDoesNotPageRow() {
+        val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                recentApps = recentApps,
+                isRecentsOpen = true,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
+            ),
+        )
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
+        val oldestBefore = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput {
+            // x = 80 is well past the chevron icon's 14 dp (~37 px) overhang
+            // and lands on the leftmost partially-visible app icon. The
+            // row's heuristic must leave this tap alone so the app receives
+            // its own click.
+            val position = Offset(x = 80f, y = height / 2f)
+            down(position)
+            up()
+        }
+        composeRule.waitForIdle()
+
+        // No page-back happened, so the rightmost app stays at the same
+        // bounds and the end chevron is still hidden.
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
+        val oldestAfter = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
+        assertEquals(oldestBefore.left, oldestAfter.left)
     }
 
     // Regression for the chevron sitting mostly outside the row's bounds: a real
