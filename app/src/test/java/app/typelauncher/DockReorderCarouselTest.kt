@@ -120,6 +120,99 @@ class DockReorderCarouselTest {
         assertEquals(LauncherDestination.Home, state.destination)
     }
 
+    // Regression: a small horizontal drift during the ~500 ms long-press wait
+    // (within the long-press cancel slop, so the long-press still fires) used
+    // to push the carousel's accumulated `rawDragX` close to its 8 dp claim
+    // threshold while the dock's own slop accounting only started counting
+    // after the long-press fired. A modest post-long-press move then crossed
+    // the carousel's threshold on an event where the dock had not yet seen
+    // its own slop crossed — so the carousel claimed the gesture and paged
+    // Home → Widgets/Agenda before the dock's `onDragStart` signalled the
+    // suppression latch. The fix arms the suppression latch the moment the
+    // long-press fires, not when slop is later crossed.
+    @Test
+    fun dragReorderingDockedApp_doesNotPageCarousel_afterPreLongPressDrift() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+        )
+        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked))
+        var showAgendaCount = 0
+        var showWidgetsCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {
+                        showAgendaCount += 1
+                        state = state.copy(destination = LauncherDestination.Agenda)
+                    },
+                    onShowWidgets = {
+                        showWidgetsCount += 1
+                        state = state.copy(destination = LauncherDestination.Widgets())
+                    },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            val start = Offset(width / 2f, height / 2f)
+            down(start)
+            // Tiny pre-long-press drift well below the long-press cancel slop
+            // (~21 px at 420 dpi). This bumps the carousel's accumulated
+            // rawDragX so it sits just under the carousel's 8 dp claim
+            // threshold, while the dock's own slop accounting still starts
+            // from zero after the long-press fires.
+            moveBy(Offset(13f, 0f))
+            move(longPressMs + 100)
+            // Small post-long-press move that, combined with the drift, pushes
+            // the carousel's rawDragX above its claim threshold (13 + 10 = 23
+            // px > 21 px touch slop) on an event where the dock's own
+            // totalDelta is only 10 px — still below the dock's 8 dp slop.
+            // Without the early-arm fix the carousel would claim on this event
+            // because isDockDraggingState is not yet set, and the follow-up
+            // 700 px move would then commit a page swipe.
+            moveBy(Offset(10f, 0f))
+            moveBy(Offset(700f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals("dock reorder after pre-long-press drift must not page Widgets", 0, showWidgetsCount)
+        assertEquals("dock reorder after pre-long-press drift must not page Agenda", 0, showAgendaCount)
+        assertEquals(LauncherDestination.Home, state.destination)
+    }
+
     // Regression: the dock is laid out as a Column of per-row Rows. Slot
     // centres used to be reported via `coords.positionInParent()`, which gives
     // each slot's position relative to its own per-row Row — so (row 0, col 0)

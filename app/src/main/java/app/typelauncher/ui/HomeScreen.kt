@@ -664,11 +664,6 @@ private fun DockCard(
                                     onDragStart = {
                                         draggedAppId = app.id
                                         dragOffset = Offset.Zero
-                                        // Tell the launcher's outer gesture surface that
-                                        // a reorder is in flight, so the carousel does
-                                        // not also try to claim the same horizontal
-                                        // motion and page Home → Widgets/Agenda.
-                                        latestOnDragStateChanged(true)
                                     },
                                     onDrag = { delta ->
                                         handleDockDrag(
@@ -687,8 +682,17 @@ private fun DockCard(
                                     onDragEnd = {
                                         draggedAppId = null
                                         dragOffset = Offset.Zero
-                                        latestOnDragStateChanged(false)
                                     },
+                                    // Tell the launcher's outer gesture surface that
+                                    // a reorder may be in flight from the moment the
+                                    // long-press fires, so the carousel does not also
+                                    // try to claim the same horizontal motion and page
+                                    // Home → Widgets/Agenda. Signalled here (not from
+                                    // onDragStart) so any pre-long-press drift that
+                                    // sits inside the long-press touch slop does not
+                                    // let the carousel cross its own claim threshold
+                                    // before the dock's slop accounting has restarted.
+                                    onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
                                 )
                             }
                         } else if (showAddButton && position == firstEmptyPosition) {
@@ -2240,6 +2244,7 @@ private fun DockedAppButton(
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
+    onLongPressArmed: (Boolean) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
@@ -2251,6 +2256,7 @@ private fun DockedAppButton(
     val latestOnDragStart by rememberUpdatedState(onDragStart)
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
     Box(
         modifier = modifier
             // onGloballyPositioned sits outside the graphicsLayer so it
@@ -2299,14 +2305,29 @@ private fun DockedAppButton(
                     role = Role.Button,
                     onClick = { onLaunchApp(app) },
                 )
-                // Long-press opens the AppActionsMenu immediately (the menu
-                // appears at the long-press timeout, not on release) and
-                // simultaneously arms a drag. If the finger crosses the 8 dp
-                // slop (in either axis) the menu is dismissed and the parent
-                // gets onDragStart / onDrag / onDragEnd while the icon "lifts"
-                // via the graphicsLayer above. Once the long-press fires we
-                // consume every pointer change so the carousel's horizontal
-                // pager can't snatch the gesture mid-reorder.
+                // Long-press fires haptic feedback and arms the dock for
+                // either a reorder (if the finger crosses 8 dp slop) or for
+                // opening the AppActionsMenu (if the user releases without
+                // crossing slop). The menu is intentionally not opened at
+                // the long-press timeout: `DropdownMenu` uses a `Popup` whose
+                // window remains touch-modal within its own bounds even with
+                // `focusable = false`, so the moment the user dragged their
+                // finger into the popup region Android would send the
+                // original window an `ACTION_CANCEL` and the drag would
+                // drop one slot in. Deferring the menu until release means
+                // the popup never exists while a reorder is in flight, so
+                // the drag survives until the finger actually lifts.
+                //
+                // `latestOnLongPressArmed(true)` runs the moment the
+                // long-press fires (before any slop accounting) so the
+                // carousel's gesture surface is suppressed from then on:
+                // small pre-long-press drift within the long-press touch
+                // slop can already push the carousel's accumulated rawDragX
+                // above its own 8 dp claim threshold, and without the early
+                // signal a small post-long-press move would let the carousel
+                // page Home → Widgets/Agenda before the dock's own slop
+                // accounting (which restarts at zero after long-press) had a
+                // chance to set the suppression latch.
                 .pointerInput(app.id) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -2314,37 +2335,40 @@ private fun DockedAppButton(
                             ?: return@awaitEachGesture
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         longPress.consume()
-                        menuExpanded = true
+                        latestOnLongPressArmed(true)
                         var dragging = false
                         var totalDelta = Offset.Zero
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id }
-                                ?: break
-                            if (!change.pressed) {
-                                if (dragging) {
-                                    latestOnDragEnd()
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                    ?: break
+                                if (!change.pressed) {
+                                    if (dragging) {
+                                        latestOnDragEnd()
+                                    } else {
+                                        menuExpanded = true
+                                    }
+                                    change.consume()
+                                    break
+                                }
+                                val delta = change.positionChange()
+                                totalDelta += delta
+                                if (!dragging && totalDelta.getDistance() > slopPx) {
+                                    dragging = true
+                                    latestOnDragStart()
+                                    // Carry the full pre-slop displacement into
+                                    // the first dispatch so the icon snaps to
+                                    // where the finger actually is, not back to
+                                    // its slot centre.
+                                    latestOnDrag(totalDelta)
+                                } else if (dragging) {
+                                    latestOnDrag(delta)
                                 }
                                 change.consume()
-                                break
                             }
-                            val delta = change.positionChange()
-                            totalDelta += delta
-                            if (!dragging && totalDelta.getDistance() > slopPx) {
-                                dragging = true
-                                // The user is reordering, not browsing the
-                                // menu — close it so the drag isn't obscured.
-                                menuExpanded = false
-                                latestOnDragStart()
-                                // Carry the full pre-slop displacement into
-                                // the first dispatch so the icon snaps to
-                                // where the finger actually is, not back to
-                                // its slot centre.
-                                latestOnDrag(totalDelta)
-                            } else if (dragging) {
-                                latestOnDrag(delta)
-                            }
-                            change.consume()
+                        } finally {
+                            latestOnLongPressArmed(false)
                         }
                     }
                 }
