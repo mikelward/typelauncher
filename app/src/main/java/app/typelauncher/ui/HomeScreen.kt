@@ -308,9 +308,30 @@ internal fun HomeScreen(
                         )
                     }
                     if (showWorkDock) {
-                        val workRows = ceil(
-                            state.workDockedApps.size.toFloat() / dockIconCount.coerceAtLeast(1),
-                        ).toInt().coerceIn(1, MAX_WORK_DOCK_ROWS)
+                        // Match `DockCard`'s own row-count calculation (which
+                        // is `maxOccupiedRow + 1` over the resolved-positions
+                        // map, not just `ceil(size / dockIconCount)`) so a
+                        // sparse persisted layout — e.g. four apps with one
+                        // pinned at row 1 — gets the two-row cap it actually
+                        // needs. Then clamp at `MAX_WORK_DOCK_ROWS`, and at
+                        // 1 on very short viewports where a two-row work
+                        // dock would crowd the personal dock out of the
+                        // slot. Every supported Android phone in normal
+                        // portrait is taller than the threshold; foldable
+                        // narrow modes and old compact phones fall back to
+                        // the previous single-row behaviour.
+                        val maxWorkRows = if (
+                            configuration.screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP
+                        ) {
+                            MAX_WORK_DOCK_ROWS
+                        } else {
+                            1
+                        }
+                        val workRows = dockRowCount(
+                            state.workDockedApps.map { app -> app.id },
+                            state.workDockPositions,
+                            dockIconCount,
+                        ).coerceAtMost(maxWorkRows)
                         val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
                         val workMaxHeightDp = workRows * workRowHeightDp +
                             (workRows - 1) * DOCK_ITEM_SPACING_DP +

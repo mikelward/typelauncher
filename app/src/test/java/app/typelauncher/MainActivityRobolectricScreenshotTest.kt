@@ -2497,6 +2497,68 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
+    // The cap has to reflect `DockCard`'s own row-count calculation
+    // (`maxOccupiedRow + 1` over the resolved positions, not just
+    // `ceil(size / dockIconCount)`), otherwise a sparse persisted layout —
+    // e.g. four apps with one parked at row 1 from when the dock had five —
+    // clips the row-1 icon behind the card's vertical scroll despite the
+    // dock visibly occupying two rows.
+    @Test
+    fun workDockCard_keepsTwoRowsForSparsePersistedPositions() {
+        val viewModel = composeRule.activity.viewModel
+        (0..4).forEach { i ->
+            viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake$i")
+        }
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        // Dock 5 work apps so the persisted positions span row 0 and row 1.
+        viewModel.uiState.value.filteredApps
+            .filter { app -> app.isWorkApp && !app.isWorkDocked }
+            .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+        assertTrue(viewModel.uiState.value.workDockedApps.size >= 5)
+
+        // Identify the lone row-1 app and a row-0 sibling, then undock the
+        // sibling so only 4 apps remain but the row-1 app keeps its
+        // persisted (row = 1) position. After this, `ceil(4 / 4) = 1` would
+        // wrongly cap at one row; the resolved-positions row count is 2.
+        val state = viewModel.uiState.value
+        val resolved = resolvedDockPositions(
+            state.workDockedApps.map { app -> app.id },
+            state.workDockPositions,
+            state.dockIconCount,
+        )
+        val row1Apps = state.workDockedApps.filter { app -> resolved[app.id]?.row == 1 }
+        val row0Apps = state.workDockedApps.filter { app -> resolved[app.id]?.row == 0 }
+        assertEquals("expected exactly one app on row 1", 1, row1Apps.size)
+        assertTrue("expected at least one app on row 0 to undock", row0Apps.isNotEmpty())
+
+        viewModel.toggleDock(row0Apps.first(), maxDockedApps = 1)
+        composeRule.waitForIdle()
+
+        assertEquals(4, viewModel.uiState.value.workDockedApps.size)
+
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
+        val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
+        val workHeight = workBounds.bottom.value - workBounds.top.value
+        val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
+        val rowHeightDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
+        val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        val twoRowMaxDp =
+            2 * rowHeightDp + DOCK_ITEM_SPACING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        assertTrue(
+            "sparse 4-app two-row work dock should render past one row " +
+                "(height=${workHeight}dp, oneRow=${oneRowMaxDp}dp)",
+            workHeight > oneRowMaxDp + 2f,
+        )
+        assertTrue(
+            "sparse work dock should stay within MAX_WORK_DOCK_ROWS=$MAX_WORK_DOCK_ROWS " +
+                "(height=${workHeight}dp, twoRow=${twoRowMaxDp}dp)",
+            workHeight <= twoRowMaxDp + 2f,
+        )
+    }
+
     @Test
     fun workDockCard_isHiddenWhenWorkProfileIsPaused() {
         val viewModel = composeRule.activity.viewModel
