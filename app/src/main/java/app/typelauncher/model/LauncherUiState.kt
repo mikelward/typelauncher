@@ -38,12 +38,23 @@ internal const val APP_LIST_MIN_VISIBLE_ROWS = 2
 
 // Hard cap on the number of icon rows the work dock card renders before its
 // inner `verticalScroll` kicks in. The work card's height is derived from
-// `ceil(workApps / dockIconCount).coerceIn(1, MAX_WORK_DOCK_ROWS)`, so a
+// `dockRowCount(workApps, ...).coerceAtMost(MAX_WORK_DOCK_ROWS)`, so a
 // dockIconCount-sized work app collection fits in one row, anything larger
 // expands to a second row, and a much larger collection scrolls inside the
 // two-row card. Two rows is the upper bound that keeps the personal dock
 // from feeling crowded on a typical phone viewport.
 internal const val MAX_WORK_DOCK_ROWS = 2
+
+// Below this screen height (in dp) the work dock is held to a single row
+// regardless of how many work apps the user has docked. On very short
+// viewports — old compact phones, fold/unfold transitional sizes — a
+// two-row work dock would eat into the personal dock's slot and starve
+// its icons (the symmetric flip of the heightIn cap from before). 600dp
+// is large enough to comfortably fit a two-row work dock plus a one-row
+// personal dock plus the apps-list floor; every supported Android phone
+// in normal portrait orientation is taller than that, and the few that
+// aren't still get the one-row work dock that previous versions shipped.
+internal const val SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP = 600
 
 internal enum class AppListSortOrder {
     Usage,
@@ -75,6 +86,26 @@ internal data class DockPosition(
     val row: Int,
     val column: Int,
 )
+
+/**
+ * Number of rows the dock card needs to render the given [dockedAppIds] with
+ * the given [persistedPositions] at the given [columnCount]. Mirrors the
+ * `(maxOccupiedRow + 1).coerceAtLeast(1)` calculation inside `DockCard`, so
+ * callers that need to size a layout slot around the dock (e.g. the
+ * work-dock height cap on `HomeScreen`) can ask the same question without
+ * recomputing the resolved-position table themselves. Returns at least 1
+ * even when the dock is empty so the card's chrome still has a row to
+ * surround.
+ */
+internal fun dockRowCount(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    columnCount: Int,
+): Int {
+    val resolved = resolvedDockPositions(dockedAppIds, persistedPositions, columnCount)
+    val maxRow = resolved.values.maxOfOrNull { position -> position.row } ?: 0
+    return (maxRow + 1).coerceAtLeast(1)
+}
 
 internal fun resolvedDockPositions(
     dockedAppIds: List<String>,
