@@ -689,14 +689,19 @@ class SwipeUpRecentsTest {
         val oldestBefore = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
 
         composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput {
-            // x = 20 lands inside the chevron icon's 14 dp (~37 px at the
-            // test's 2.625 density) overflow into the row, which is the
-            // only band where the row's own pointerInput still pages back.
-            // Past that band the tap is on an app icon, not on the chevron,
-            // and the row leaves it alone — see
-            // `recentsOverflow_tapPastChevronOverhangDoesNotPageRow` for
-            // the inverse coverage.
-            val position = Offset(x = 20f, y = height / 2f)
+            // Lands in the 21 px gap between App8 (partially visible from
+            // the left at viewport.x ≈ [-181, 29]) and App9 ([50, 260]) on
+            // the pinned-to-end recents row, AND inside the chevron icon's
+            // 14 dp (~37 px at the test's 2.625 density) overflow into the
+            // row — which is the only band where the row's own pointerInput
+            // still pages back. We need to avoid the app icons because their
+            // own combinedClickable would consume the tap first, and we
+            // need to stay under ~37 px so the new narrower heuristic still
+            // fires. Past the heuristic the tap is on an app icon (or
+            // gap between them), not on the chevron, and the row leaves it
+            // alone — see `recentsOverflow_tapPastChevronOverhangDoesNotPageRow`
+            // for the inverse coverage.
+            val position = Offset(x = 33f, y = height / 2f)
             down(position)
             up()
         }
