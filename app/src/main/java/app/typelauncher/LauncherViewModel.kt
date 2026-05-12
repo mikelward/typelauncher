@@ -254,10 +254,12 @@ internal class LauncherViewModel(
                             .filterDocked(dockedIds)
                             .markVisibility(),
                         dockPositions = dockedAppStore.dockedAppPositions,
+                        shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
                         workDockedApps = visibleApps
                             .filterDocked(workDockedIds)
                             .markVisibility(),
                         workDockPositions = workDockedAppStore.dockedAppPositions,
+                        shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                         isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                         isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                         recentApps = newRecentApps,
@@ -284,8 +286,17 @@ internal class LauncherViewModel(
             installedApps = loadedApps
             if (!dockedAppStore.hasBeenPrefilled) {
                 if (dockedAppStore.dockedAppIds.isEmpty()) {
-                    // Reserve one slot for the always-visible "+" add button.
+                    // Reserve one slot for the "+" add-button hint.
                     prefillDock(loadedApps, dockedAppStore, (_uiState.value.dockIconCount - 1).coerceAtLeast(0))
+                    // Order matters: `prefillDock` calls `dockedAppStore.dock`,
+                    // which clears the hint flag. Setting the flag here — after
+                    // prefill returns — means the flag survives any number of
+                    // prefill seeds and stays true until the first user dock.
+                    // Skipped on upgrade installs where `prefillDock` did not
+                    // run, so existing dock users never see the onboarding hint.
+                    dockedAppStore.setShowAddButtonHint(
+                        dockedAppStore.dockedAppIds.size < _uiState.value.dockIconCount,
+                    )
                 }
                 dockedAppStore.markPrefilled()
             }
@@ -307,10 +318,12 @@ internal class LauncherViewModel(
                         .filterDocked(dockedIds)
                         .markVisibility(),
                     dockPositions = dockedAppStore.dockedAppPositions,
+                    shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
                     workDockedApps = visibleApps
                         .filterDocked(workDockedIds)
                         .markVisibility(),
                     workDockPositions = workDockedAppStore.dockedAppPositions,
+                    shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                     isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                     isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                     recentApps = newRecentApps,
@@ -1568,8 +1581,10 @@ internal class LauncherViewModel(
                 ).markVisibility(),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
+                shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
                 workDockedApps = visibleApps.filterDocked(workDockedIds).markVisibility(),
                 workDockPositions = workDockedAppStore.dockedAppPositions,
+                shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                 isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                 isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                 recentApps = newRecentApps,
@@ -1633,6 +1648,14 @@ internal class LauncherViewModel(
             appLaunchStatsStore = appLaunchStatsStore,
             workDockStore = workDockedAppStore,
             maxSlots = _uiState.value.dockIconCount,
+        )
+        // Same ordering rule as the personal dock: set the hint flag *after*
+        // `prefillWorkDock` returns so its internal `dock()` seeds don't
+        // self-clear it. Typically false when tiers (a)/(b) contributed (they
+        // target the full row), true when only tier (c)'s popular fallback
+        // ran and reserved a slot.
+        workDockedAppStore.setShowAddButtonHint(
+            workDockedAppStore.dockedAppIds.size < _uiState.value.dockIconCount,
         )
         workDockedAppStore.markPrefilled()
     }

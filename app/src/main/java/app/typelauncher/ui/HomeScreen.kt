@@ -305,6 +305,7 @@ internal fun HomeScreen(
                             onSetAppBadge = onSetAppBadge,
                             onHideApp = onHideApp,
                             onDragStateChanged = onDockDragChanged,
+                            showAddButtonHint = state.shouldShowDockAddHint,
                         )
                     }
                     if (showWorkDock) {
@@ -354,6 +355,7 @@ internal fun HomeScreen(
                             onHideApp = onHideApp,
                             onDragStateChanged = onDockDragChanged,
                             tags = DockTestTags.Work,
+                            showAddButtonHint = state.shouldShowWorkDockAddHint,
                         )
                     }
                 }
@@ -591,6 +593,11 @@ private fun DockCard(
     onHideApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
     tags: DockTestTags = DockTestTags.Personal,
+    // Defaults to false so inert callsites (Settings preview, future
+    // screenshot-only renders) never advertise the onboarding affordance.
+    // The Home callsites pass `state.shouldShowDockAddHint` /
+    // `state.shouldShowWorkDockAddHint` explicitly.
+    showAddButtonHint: Boolean = false,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
     // the dragged icon's centre against every rendered slot, including empty
@@ -619,7 +626,10 @@ private fun DockCard(
         .asSequence()
         .flatMap { row -> (0 until columns).asSequence().map { column -> DockPosition(row, column) } }
         .firstOrNull { position -> position !in occupiedPositions }
-    val showAddButton = draggedAppId == null && rowCount == 1 && firstEmptyPosition != null
+    val showAddButton = showAddButtonHint &&
+        draggedAppId == null &&
+        rowCount == 1 &&
+        firstEmptyPosition != null
 
     SectionCard(modifier.testTag(tags.cardTag)) {
         Column(

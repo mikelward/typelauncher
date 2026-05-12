@@ -32,7 +32,13 @@ internal class DockedAppStore(
         }
         dockPositions[appId] = nextAvailableDockPosition(dockedIds.toList(), dockPositions, columnCount)
         dockedIds.add(appId)
-        save()
+        // The "+" add-button hint is a one-shot onboarding affordance set after
+        // prefill (LauncherViewModel.setShowAddButtonHint). Any successful dock
+        // — prefill's own seeds *or* a user-initiated `toggleDock` — clears it.
+        // Prefill calls this before the ViewModel turns the flag on, so it
+        // can't clear what was never set; the first user dock after prefill
+        // is the only path that actually flips it off.
+        save(clearShowAddButtonHint = true)
     }
 
     fun undock(appId: String) {
@@ -84,14 +90,31 @@ internal class DockedAppStore(
         sharedPreferences.edit().putBoolean(KEY_DOCK_PREFILLED, true).apply()
     }
 
-    private fun save() {
-        sharedPreferences.edit()
+    /**
+     * One-shot onboarding flag for the dock's "+" add-button hint. Defaults to
+     * `false`, so upgrade installs (and any state never reached via prefill)
+     * never advertise the hint. Set true by `LauncherViewModel` right after a
+     * fresh-install prefill that left an empty slot in the first row; cleared
+     * inside [dock] the first time the user adds an app to this dock.
+     */
+    val shouldShowAddButtonHint: Boolean
+        get() = sharedPreferences.getBoolean(KEY_SHOW_ADD_BUTTON_HINT, false)
+
+    fun setShowAddButtonHint(show: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_SHOW_ADD_BUTTON_HINT, show).apply()
+    }
+
+    private fun save(clearShowAddButtonHint: Boolean = false) {
+        val editor = sharedPreferences.edit()
             .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
             .putString(
                 KEY_DOCKED_APP_POSITIONS,
                 dockPositions.filterKeys { appId -> appId in dockedIds }.toPreferencesString(),
             )
-            .apply()
+        if (clearShowAddButtonHint) {
+            editor.putBoolean(KEY_SHOW_ADD_BUTTON_HINT, false)
+        }
+        editor.apply()
     }
 
     companion object {
@@ -100,6 +123,7 @@ internal class DockedAppStore(
         private const val KEY_DOCKED_APP_IDS = "docked_app_ids"
         private const val KEY_DOCKED_APP_POSITIONS = "docked_app_positions"
         private const val KEY_DOCK_PREFILLED = "dock_prefilled"
+        private const val KEY_SHOW_ADD_BUTTON_HINT = "show_add_button_hint"
         private const val DOCKED_APP_ID_SEPARATOR = "\n"
         private const val DOCK_POSITION_FIELD_SEPARATOR = "\t"
     }

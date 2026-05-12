@@ -3,6 +3,8 @@ package app.typelauncher
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -122,6 +124,44 @@ class DockedAppStoreTest {
 
         assertEquals(DockPosition(0, 1), store.dockedAppPositions["a"])
         assertEquals(DockPosition(0, 0), store.dockedAppPositions["b"])
+    }
+
+    @Test
+    fun shouldShowAddButtonHintDefaultsToFalse() {
+        assertFalse(DockedAppStore(context).shouldShowAddButtonHint)
+    }
+
+    @Test
+    fun setShowAddButtonHintPersistsAcrossInstances() {
+        DockedAppStore(context).setShowAddButtonHint(true)
+
+        assertTrue(DockedAppStore(context).shouldShowAddButtonHint)
+    }
+
+    @Test
+    fun dockClearsShowAddButtonHint() {
+        val store = DockedAppStore(context)
+        store.setShowAddButtonHint(true)
+
+        store.dock("a")
+
+        assertFalse(store.shouldShowAddButtonHint)
+        // Survives across instances — the clear was persisted, not just held
+        // in-process.
+        assertFalse(DockedAppStore(context).shouldShowAddButtonHint)
+    }
+
+    @Test
+    fun markPrefilledDoesNotAffectShowAddButtonHint() {
+        val store = DockedAppStore(context)
+        store.setShowAddButtonHint(true)
+
+        store.markPrefilled()
+
+        // The two flags share a SharedPreferences instance but live on
+        // independent keys, so latching one must not touch the other.
+        assertTrue(store.shouldShowAddButtonHint)
+        assertTrue(store.hasBeenPrefilled)
     }
 
     @Test
