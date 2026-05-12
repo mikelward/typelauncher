@@ -84,6 +84,39 @@ internal class DockedAppStore(
         sharedPreferences.edit().putBoolean(KEY_DOCK_PREFILLED, true).apply()
     }
 
+    /**
+     * True once the user has personally added an app to this dock via the
+     * long-press menu. Latched once and never cleared, so undocking back to
+     * empty does not bring the "+" empty-state hint back. Prefill paths do
+     * not set this — only [LauncherViewModel.toggleDock] /
+     * [LauncherViewModel.toggleWorkDock] in their add branches.
+     */
+    val hasUserDocked: Boolean
+        get() = sharedPreferences.getBoolean(KEY_USER_DOCKED, false)
+
+    fun markUserDocked() {
+        if (sharedPreferences.getBoolean(KEY_USER_DOCKED, false)) return
+        sharedPreferences.edit().putBoolean(KEY_USER_DOCKED, true).apply()
+    }
+
+    /**
+     * One-shot upgrade migration. The first time this store is read on a
+     * build that knows about [KEY_USER_DOCKED], persist a starting value
+     * based on whether the user already had dock contents from a previous
+     * build. Existing installs (non-empty dock from a previous build) latch
+     * true so the hint doesn't reappear as a re-onboarding surprise; fresh
+     * installs latch false so the hint stays visible across process
+     * restarts until the user actually docks something. Must run *before*
+     * this boot's prefill so a freshly-prefilled empty install is not
+     * mis-classified as an upgrade on the next boot.
+     */
+    fun migrateUserDockedFlag() {
+        if (sharedPreferences.contains(KEY_USER_DOCKED)) return
+        sharedPreferences.edit()
+            .putBoolean(KEY_USER_DOCKED, dockedIds.isNotEmpty())
+            .apply()
+    }
+
     private fun save() {
         sharedPreferences.edit()
             .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
@@ -100,6 +133,7 @@ internal class DockedAppStore(
         private const val KEY_DOCKED_APP_IDS = "docked_app_ids"
         private const val KEY_DOCKED_APP_POSITIONS = "docked_app_positions"
         private const val KEY_DOCK_PREFILLED = "dock_prefilled"
+        private const val KEY_USER_DOCKED = "user_docked"
         private const val DOCKED_APP_ID_SEPARATOR = "\n"
         private const val DOCK_POSITION_FIELD_SEPARATOR = "\t"
     }

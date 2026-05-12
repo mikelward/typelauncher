@@ -151,6 +151,21 @@ internal class LauncherViewModel(
     // checks this flag after publishing and triggers a reload if set.
     private var reloadPendingDuringColdStart = false
     private var pendingWidgetPlacement: PendingWidgetPlacement? = null
+
+    // One-shot upgrade migration for the "user has docked manually" flag.
+    // Declared before [_uiState] so Kotlin's property-initialization order
+    // (declaration order) puts the persisted starting value in place before
+    // cold-start composition reads it via the initial state — otherwise
+    // upgraders would see a one-frame "+" hint flash before [init] migrates.
+    // Must happen *before* this boot's prefill block too, so a freshly-
+    // installed empty dock cannot be mis-classified as an upgrade on the
+    // next boot (see [DockedAppStore.migrateUserDockedFlag]).
+    @Suppress("unused")
+    private val migrateUserDockedFlags: Unit = run {
+        dockedAppStore.migrateUserDockedFlag()
+        workDockedAppStore.migrateUserDockedFlag()
+    }
+
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
@@ -160,7 +175,11 @@ internal class LauncherViewModel(
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             dockIconCount = dockSettingsStore.dockIconCount,
+            // Reads the post-migration value because [migrateUserDockedFlags]
+            // is declared earlier in the class.
+            hasUserDockedPersonal = dockedAppStore.hasUserDocked,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
+            hasUserDockedWork = workDockedAppStore.hasUserDocked,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
@@ -254,10 +273,12 @@ internal class LauncherViewModel(
                             .filterDocked(dockedIds)
                             .markVisibility(),
                         dockPositions = dockedAppStore.dockedAppPositions,
+                        hasUserDockedPersonal = dockedAppStore.hasUserDocked,
                         workDockedApps = visibleApps
                             .filterDocked(workDockedIds)
                             .markVisibility(),
                         workDockPositions = workDockedAppStore.dockedAppPositions,
+                        hasUserDockedWork = workDockedAppStore.hasUserDocked,
                         isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                         isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                         recentApps = newRecentApps,
@@ -284,10 +305,9 @@ internal class LauncherViewModel(
             installedApps = loadedApps
             if (!dockedAppStore.hasBeenPrefilled) {
                 if (dockedAppStore.dockedAppIds.isEmpty()) {
-                    // Leave the last slot empty as a growth buffer. The "+"
-                    // hint itself only renders while the dock is empty, so
-                    // a prefilled row never carries the hint regardless of
-                    // this reservation.
+                    // Leave the last slot empty so the "+" empty-state hint
+                    // sits in it until the user takes their first dock-add
+                    // action (gated by `hasUserDocked`).
                     prefillDock(loadedApps, dockedAppStore, (_uiState.value.dockIconCount - 1).coerceAtLeast(0))
                 }
                 dockedAppStore.markPrefilled()
@@ -310,10 +330,12 @@ internal class LauncherViewModel(
                         .filterDocked(dockedIds)
                         .markVisibility(),
                     dockPositions = dockedAppStore.dockedAppPositions,
+                    hasUserDockedPersonal = dockedAppStore.hasUserDocked,
                     workDockedApps = visibleApps
                         .filterDocked(workDockedIds)
                         .markVisibility(),
                     workDockPositions = workDockedAppStore.dockedAppPositions,
+                    hasUserDockedWork = workDockedAppStore.hasUserDocked,
                     isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                     isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                     recentApps = newRecentApps,
@@ -950,10 +972,14 @@ internal class LauncherViewModel(
         when {
             app.isDocked -> dockedAppStore.undock(app.id)
             app.isWorkDocked -> workDockedAppStore.undock(app.id)
-            app.isWorkApp && state.isWorkDockEnabled ->
+            app.isWorkApp && state.isWorkDockEnabled -> {
                 workDockedAppStore.dock(app.id, columnCount = state.dockIconCount)
-            else ->
+                workDockedAppStore.markUserDocked()
+            }
+            else -> {
                 dockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+                dockedAppStore.markUserDocked()
+            }
         }
         refreshLists()
         logState("toggleDock")
@@ -992,6 +1018,7 @@ internal class LauncherViewModel(
             workDockedAppStore.undock(app.id)
         } else {
             workDockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+            workDockedAppStore.markUserDocked()
         }
         refreshLists()
         logState("toggleWorkDock")
@@ -1571,8 +1598,10 @@ internal class LauncherViewModel(
                 ).markVisibility(),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
+                hasUserDockedPersonal = dockedAppStore.hasUserDocked,
                 workDockedApps = visibleApps.filterDocked(workDockedIds).markVisibility(),
                 workDockPositions = workDockedAppStore.dockedAppPositions,
+                hasUserDockedWork = workDockedAppStore.hasUserDocked,
                 isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                 isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                 recentApps = newRecentApps,

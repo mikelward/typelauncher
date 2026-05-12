@@ -1546,8 +1546,11 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue("dock is below the apps list", dockTop > appsBottom)
     }
 
+    // Once the user has docked anything, the "+" hint is gone for good —
+    // undocking back to empty does not bring it back, because the user
+    // has already proven they know the gesture.
     @Test
-    fun undockingDockedApp_showsAddButtonWhenEmpty() {
+    fun undockingAfterUserDocked_keepsAddButtonHidden() {
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
@@ -1555,7 +1558,8 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.toggleDock(viewModel.uiState.value.dockedApps.single(), maxDockedApps = 6)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+        assertTrue("dock should be empty after undock", viewModel.uiState.value.dockedApps.isEmpty())
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -2342,11 +2346,12 @@ class MainActivityRobolectricScreenshotTest {
         val workTop = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot().top
         assertTrue("work dock should sit below the personal dock", workTop > personalTop)
         // Both popular packages landed via the prefill's popular-fallback
-        // tier. The "+" hint is suppressed once anything is in the work
-        // dock, even though tier (c) still leaves a trailing slot open.
+        // tier. The "+" hint is still in the row because prefill doesn't
+        // mark `hasUserDocked` — only an explicit user-initiated dock-add
+        // does — so a freshly-enabled work dock still teaches the gesture.
         composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Gmail").assertExists()
         composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Calendar").assertExists()
-        composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertExists()
     }
 
     // Regression: enabling the work dock used to cap *each* dock at half the

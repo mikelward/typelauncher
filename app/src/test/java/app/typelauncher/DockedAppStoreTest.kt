@@ -273,6 +273,60 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun hasUserDockedDefaultsToFalse() {
+        val store = DockedAppStore(context)
+
+        assertEquals(false, store.hasUserDocked)
+    }
+
+    @Test
+    fun markUserDockedLatchesAndPersists() {
+        DockedAppStore(context).markUserDocked()
+
+        assertEquals(true, DockedAppStore(context).hasUserDocked)
+    }
+
+    @Test
+    fun migrateUserDockedFlagWritesFalseOnEmptyStore() {
+        // Fresh install path: no contents at the migration moment means the
+        // user hasn't docked yet, so the "+" hint must keep showing across
+        // process restarts (the persisted false prevents the next boot from
+        // re-evaluating after prefill seeds the dock).
+        DockedAppStore(context).migrateUserDockedFlag()
+
+        val prefs = context.getSharedPreferences("docked_apps", android.content.Context.MODE_PRIVATE)
+        assertEquals(true, prefs.contains("user_docked"))
+        assertEquals(false, prefs.getBoolean("user_docked", true))
+    }
+
+    @Test
+    fun migrateUserDockedFlagLatchesTrueWhenStoreHasContent() {
+        // Upgrade-from-old-build path: the user already has dock contents
+        // from a build that didn't track this flag, so treat them as
+        // already knowing the gesture.
+        DockedAppStore(context).dock("a")
+
+        DockedAppStore(context).migrateUserDockedFlag()
+
+        assertEquals(true, DockedAppStore(context).hasUserDocked)
+    }
+
+    @Test
+    fun migrateUserDockedFlagIsIdempotentOnceWritten() {
+        // First migration with content present writes `true`. A subsequent
+        // call must not overwrite it even if the contents have since been
+        // cleared — the user has already been classified as knowing the
+        // gesture, and undocking back to empty mustn't reset them.
+        DockedAppStore(context).dock("a")
+        DockedAppStore(context).migrateUserDockedFlag()
+        DockedAppStore(context).undock("a")
+
+        DockedAppStore(context).migrateUserDockedFlag()
+
+        assertEquals(true, DockedAppStore(context).hasUserDocked)
+    }
+
+    @Test
     fun keyboardReservationClearsFingerprintWhenWrittenAsNull() {
         // Round-trip: writing a fingerprinted value then a null-fingerprint
         // value must drop the per-property keys so the next read does not

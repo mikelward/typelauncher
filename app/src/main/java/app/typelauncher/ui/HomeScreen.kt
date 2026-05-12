@@ -293,6 +293,7 @@ internal fun HomeScreen(
                             dockPositions = state.dockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
+                            hasUserDocked = state.hasUserDockedPersonal,
                             modifier = Modifier.weight(1f, fill = false),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
@@ -341,6 +342,7 @@ internal fun HomeScreen(
                             dockPositions = state.workDockPositions,
                             dockIconSizeDp = dockIconSizeDp,
                             dockIconCount = dockIconCount,
+                            hasUserDocked = state.hasUserDockedWork,
                             modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
                             onLaunchApp = onLaunchApp,
                             onOpenAppInfo = onOpenAppInfo,
@@ -578,6 +580,7 @@ private fun DockCard(
     dockPositions: Map<String, DockPosition>,
     dockIconSizeDp: Int,
     dockIconCount: Int,
+    hasUserDocked: Boolean,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -619,7 +622,14 @@ private fun DockCard(
         .asSequence()
         .flatMap { row -> (0 until columns).asSequence().map { column -> DockPosition(row, column) } }
         .firstOrNull { position -> position !in occupiedPositions }
-    val showAddButton = draggedAppId == null && dockedApps.isEmpty() && firstEmptyPosition != null
+    // The "+" empty-state hint shows until the user has personally docked
+    // something (latched in `hasUserDocked`), and never extends past the
+    // first row's capacity — once the dock holds `dockIconCount` apps the
+    // hint is suppressed even on fresh installs that haven't user-docked.
+    val showAddButton = draggedAppId == null &&
+        !hasUserDocked &&
+        dockedApps.size < dockIconCount &&
+        firstEmptyPosition != null
 
     SectionCard(modifier.testTag(tags.cardTag)) {
         Column(
@@ -3353,6 +3363,7 @@ private fun SettingsPreview(
                     dockPositions = state.dockPositions,
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
+                    hasUserDocked = state.hasUserDockedPersonal,
                     modifier = Modifier.height(previewHeight),
                     onLaunchApp = {},
                     onOpenAppInfo = {},

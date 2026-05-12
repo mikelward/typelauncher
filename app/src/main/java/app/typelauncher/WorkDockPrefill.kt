@@ -9,11 +9,10 @@ package app.typelauncher
  *  (c) `POPULAR_APP_PACKAGES` fallback against the work-profile copies.
  *
  * When tiers (a) and (b) both add nothing, tier (c) stops at `maxSlots - 1`
- * as a one-slot growth buffer — same convention as [prefillDock] on a fresh
- * personal-dock install. The "+" hint only shows while the dock is empty,
- * so this trailing slot is decorative rather than a hint reservation. When
- * (a) or (b) seed at least one entry, the prefill targets the full
- * `maxSlots` so the row is fully populated.
+ * so the trailing cell holds the "+" empty-state hint until the user takes
+ * their first work-dock-add action — same convention as [prefillDock] on a
+ * fresh personal-dock install. When (a) or (b) seed at least one entry,
+ * the prefill targets the full `maxSlots` so the row is fully populated.
  *
  * Work apps that are already in the personal dock are *copied* into the work
  * dock; [InstalledApp.id] includes the user-hash so personal and work entries
@@ -55,10 +54,9 @@ internal fun prefillWorkDock(
     }
 
     // (c) Popular-package fallback. When (a) and (b) both contributed
-    // nothing, leave one trailing slot empty as a growth buffer —
-    // matching the personal-dock convention in LauncherViewModel. The "+"
-    // hint only shows while the dock is empty, so the empty cell here no
-    // longer carries the hint after this fallback fires.
+    // nothing, leave one trailing slot empty so the "+" hint sits in it
+    // until the user takes their first work-dock-add action — matching
+    // the personal-dock convention in LauncherViewModel.
     if (workDockStore.dockedAppIds.size < target) {
         val popularTarget = if (workDockStore.dockedAppIds.isEmpty()) {
             (target - 1).coerceAtLeast(0)

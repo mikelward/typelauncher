@@ -289,6 +289,14 @@ internal data class LauncherUiState(
     val query: String = "",
     val filteredApps: List<InstalledApp> = emptyList(),
     val dockedApps: List<InstalledApp> = emptyList(),
+    // True once the user has personally docked an app into the personal dock
+    // (via the long-press → Dock action). Latched once and never reset.
+    // Drives whether the empty-state "+" hint renders in the dock row —
+    // it shows while this is false *and* the row has an empty slot, and
+    // hides forever after the first user-initiated dock-add or after the
+    // upgrade migration latches it on existing installs with prefilled or
+    // user-docked contents from a previous build.
+    val hasUserDockedPersonal: Boolean = false,
     // Apps the user has hidden via the long-press menu. They are excluded from
     // every launcher surface (search results, dock, recents) and only resurface
     // in the Settings "Manage hidden apps" dialog so the user can unhide them.
@@ -340,6 +348,10 @@ internal data class LauncherUiState(
     // (`isWorkProfileActive = false`).
     val workDockedApps: List<InstalledApp> = emptyList(),
     val workDockPositions: Map<String, DockPosition> = emptyMap(),
+    // Work-dock counterpart of [hasUserDockedPersonal]. Tracked separately so
+    // docking a personal app does not claim the user has learned how to add
+    // to the work dock; the two cards have independent empty-state hints.
+    val hasUserDockedWork: Boolean = false,
     val isWorkDockEnabled: Boolean = false,
     // True when at least one work-profile `InstalledApp` is present in the
     // raw `installedApps` list, regardless of quiet mode. Drives whether the
