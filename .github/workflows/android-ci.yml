@@ -200,11 +200,24 @@ jobs:
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
-        # files. We use the head commit's subject line verbatim — engineering
-        # detail lives in the body, which testers don't see here. See the
-        # "Commit messages" section in AGENTS.md for the wording convention.
-        # Play caps each locale at 500 chars; the subject is bounded well
-        # below that, but we truncate defensively.
+        # files. We walk the commits in this push newest-first and pick the
+        # first one whose subject is worth shipping as a "What's new" entry:
+        #   - skip `ci:`-prefixed housekeeping commits (e.g. snapshot
+        #     regenerations) — they describe CI plumbing, not user-visible
+        #     changes;
+        #   - skip pure docs-only commits (every changed path ends in `.md`),
+        #     since CLAUDE.md / SPEC.md / docs/* tweaks don't change what the
+        #     user sees. `PRIVACY.md` is the exception — it's the source for
+        #     the hosted privacy policy linked from the About dialog, so a
+        #     change there is genuinely user-facing and counts as a real
+        #     commit.
+        # If no commit in the push qualifies, sets PLAY_SKIP=true and the
+        # upload step below skips, so a push of only ci:/docs commits doesn't
+        # ship a redundant release. Engineering detail lives in the commit
+        # body, which testers don't see here — see the "Commit messages"
+        # section in CLAUDE.md for the wording convention. Play caps each
+        # locale at 500 chars; the subject is bounded well below that, but
+        # we truncate defensively.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
@@ -216,24 +229,71 @@ jobs:
           # expressions — without this the gate above would always evaluate to
           # empty and the step would silently skip.
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
+          set -euo pipefail
+
+          # On a first push to a branch (or after a force-reset that
+          # orphans the old tip) BEFORE_SHA is all-zeros or otherwise
+          # unreachable. There's no usable range to walk in that case, so
+          # fall back to just HEAD — walking the entire history reachable
+          # from HEAD would be both slow and meaningless.
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git rev-parse --quiet --verify "$BEFORE_SHA^{commit}" >/dev/null; then
+            shas=$(git log -1 --format=%H "$AFTER_SHA")
+          else
+            shas=$(git log --no-merges --format=%H "$BEFORE_SHA..$AFTER_SHA")
+          fi
+
+          subject=""
+          while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
+            s=$(git log -1 --format=%s "$sha")
+            case "$s" in
+              ci:*) continue ;;
+            esac
+            docs_only=true
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              case "$f" in
+                PRIVACY.md) docs_only=false; break ;;
+                *.md)       ;;
+                *)          docs_only=false; break ;;
+              esac
+            done < <(git diff-tree --no-commit-id --name-only -r "$sha")
+            if [ "$docs_only" = "true" ]; then
+              continue
+            fi
+            subject="$s"
+            break
+          done <<< "$shas"
+
+          if [ -z "$subject" ]; then
+            echo "No Play-worthy commits in this push (all ci: or docs-only); skipping Play upload."
+            echo "PLAY_SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           mkdir -p "${RUNNER_TEMP}/whatsnew"
-          printf '%s' "${COMMIT_MESSAGE}" \
-            | head -n 1 \
+          printf '%s' "$subject" \
             | head -c 500 \
             > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
           echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
 
       - name: Upload to Play Store internal track
         # Gated so it only runs on push to main with both the upload key and
-        # service account configured. See docs/play-store-internal-track.md
-        # for the Play Console / service-account setup the upload depends on.
+        # service account configured. Also skipped when the preceding step
+        # set PLAY_SKIP=true because every commit in this push was either
+        # `ci:`-prefixed or pure docs (see "Compose Play Store release
+        # notes"). See docs/play-store-internal-track.md for the Play
+        # Console / service-account setup the upload depends on.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
           env.RELEASE_KEYSTORE_FILE != '' &&
-          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+          env.PLAY_SERVICE_ACCOUNT_JSON != '' &&
+          env.PLAY_SKIP != 'true'
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         uses: r0adkll/upload-google-play@v1
