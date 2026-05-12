@@ -200,9 +200,11 @@ jobs:
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
-        # files. We synthesise an en-US file from the head commit message and
-        # build identifiers so testers see the same context they'd get from
-        # Firebase App Distribution. Play caps each locale at 500 chars.
+        # files. We use the head commit's subject line verbatim — engineering
+        # detail lives in the body, which testers don't see here. See the
+        # "Commit messages" section in AGENTS.md for the wording convention.
+        # Play caps each locale at 500 chars; the subject is bounded well
+        # below that, but we truncate defensively.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
@@ -217,12 +219,10 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           mkdir -p "${RUNNER_TEMP}/whatsnew"
-          {
-            printf '%s\n---\nBuild: %s · %s\n' \
-              "${COMMIT_MESSAGE}" \
-              "${{ github.run_number }}" \
-              "${{ github.sha }}"
-          } | head -c 500 > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
+          printf '%s' "${COMMIT_MESSAGE}" \
+            | head -n 1 \
+            | head -c 500 \
+            > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
           echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
 
       - name: Upload to Play Store internal track

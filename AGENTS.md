@@ -29,6 +29,14 @@ Android home screen launcher app (Kotlin, single `:app` module).
 - If the rebase produces conflicts, resolve them rather than abandoning the rebase or branching from an older base.
 - Never push commits authored on top of an out-of-date base when a fast-forward rebase onto `origin/main` was possible.
 
+## Commit messages
+
+- **The subject line ships verbatim to the Play Store internal track as the "What's new" entry for that release.** `.github/workflows/android-ci.yml` takes the first line of the head commit message on `main` and writes it to `whatsnew-en-US`; the body is dropped. So write the subject for end users, not for the next engineer reading `git log`.
+  - **Sentence case, plain English, no jargon.** "Fix drag and drop in the dock" — not "Arm dock carousel-suppression on long-press and defer the menu to release." Avoid internal symbol names (`pointerInput`, `RemoteViews`, `LauncherApps`), avoid mechanism-level detail ("suppress the latch when raw drag accumulates"), avoid commit-style imperatives that read as engineering notes ("Defer", "Gate", "Arm").
+  - **Keep it ≤ ~70 characters** so it isn't truncated in the Play Console preview or in `git log --oneline`. The CI step truncates to 500 chars defensively, but anything past ~80 looks bad in the Play "What's new" card on a phone.
+  - **Engineering detail goes in the body.** The full mechanism, the bug it fixes, the file:line of the regression — all of that belongs after the blank line, where reviewers and future bisecters will find it. The body is not size-constrained.
+  - **Squash-merging a PR**: the PR title becomes the subject line of the squash commit on `main`, which is what ships. Title the PR for end users by the same rule, and put the engineering detail in the PR description.
+
 ## Working with PRs
 
 - Use the `mcp__github__*` MCP tools for all GitHub operations. The `gh` CLI is not available in this sandbox.
