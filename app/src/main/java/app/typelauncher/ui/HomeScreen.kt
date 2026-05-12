@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -574,6 +576,7 @@ internal data class DockTestTags(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DockCard(
     dockedApps: List<InstalledApp>,
@@ -605,7 +608,6 @@ private fun DockCard(
     // the icons through a packed list.
     var draggedAppId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var menuAppId by remember { mutableStateOf<String?>(null) }
     val slotCenters = remember { mutableStateMapOf<DockPosition, Offset>() }
     val latestDockedApps by rememberUpdatedState(dockedApps)
     val resolvedPositions = resolvedDockPositions(
@@ -631,187 +633,110 @@ private fun DockCard(
         draggedAppId == null &&
         rowCount == 1 &&
         firstEmptyPosition != null
-    // The drag pointer loop lives on the Column (a stable composable that
-    // does not move when icons reorder), so it survives cross-row drags and
-    // multi-cell drags within a row. A per-icon pointerInput broke as soon
-    // as the dragged icon's `key(app.id)` block was relocated across the
-    // grid's nested Rows — the slot table reparented the group and Compose
-    // tore down the in-flight gesture coroutine, dropping the drag at the
-    // first cell boundary. State the coroutine needs is funnelled through
-    // rememberUpdatedState so the long-running loop always sees the freshest
-    // values without restarting on every recomposition.
-    val haptics = LocalHapticFeedback.current
-    val slopPx = with(LocalDensity.current) { 8.dp.toPx() }
-    var columnRootOffset by remember { mutableStateOf(Offset.Zero) }
-    val latestAppByPosition by rememberUpdatedState(appByPosition)
-    val latestResolvedPositions by rememberUpdatedState(resolvedPositions)
-    val latestRowCount by rememberUpdatedState(rowCount)
-    val latestColumns by rememberUpdatedState(columns)
-    val latestColumnRootOffset by rememberUpdatedState(columnRootOffset)
 
     SectionCard(modifier.testTag(tags.cardTag)) {
-        Column(
+        // Every dock slot is a direct sibling under one parent so each
+        // `key(slotKey)` movable group lives in the same Compose
+        // slot-table parent. That preserves per-icon `pointerInput`
+        // modifier nodes across mid-drag swaps: when an icon's keyed
+        // group moves to a different position in the grid, Compose
+        // recognises it as a sibling move and the in-flight gesture
+        // coroutine survives.
+        //
+        // Three layout details have to hold simultaneously for that
+        // sibling-move invariant to apply, and dropping any one of them
+        // re-introduces the "drag drops after one cell" bug:
+        //   1. `key()` wraps the whole `if/else` block, not just the
+        //      `if (app != null)` branch. With `key()` inside the
+        //      branch, the keyed group is parented to the per-iteration
+        //      replaceable group of the conditional, so any swap that
+        //      flips a slot between occupied and empty would be a
+        //      cross-parent move.
+        //   2. The for-loop is flat (one `for (slotIndex …)`), not
+        //      nested. The Compose compiler wraps each iteration of
+        //      the outer `for (row …)` loop in its own group, so
+        //      nested loops put row-0 keys and row-1 keys in different
+        //      parents and a cross-row drag falls back to remove + add.
+        //   3. The container is a single `FlowRow(maxItemsInEachRow =
+        //      columns)`, not `Column { for (row) Row { … } }`. Per-row
+        //      `Row` composables are also separate parents — same
+        //      cross-row breakage as (2).
+        //
+        // Empty slots use a position-keyed sentinel so the dragged
+        // icon's `app.id` key can never collide with a freshly-empty
+        // slot at the same iteration index.
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
-                .testTag(tags.listTag)
-                .onGloballyPositioned { coords ->
-                    columnRootOffset = coords.positionInRoot()
-                }
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        // Identify which icon was pressed by hit-testing the
-                        // down position against the rendered slot centres
-                        // (reported in root coordinates by each slot's
-                        // onGloballyPositioned). down.position is local to
-                        // this pointerInput, so translate it by the Column's
-                        // root offset before comparing.
-                        val pressRoot = latestColumnRootOffset + down.position
-                        val pressedSlot = slotCenters
-                            .filterKeys { slot ->
-                                slot.row in 0 until latestRowCount &&
-                                    slot.column in 0 until latestColumns
-                            }
-                            .minByOrNull { (_, center) -> (center - pressRoot).getDistance() }
-                            ?.key
-                        val pressedApp = pressedSlot?.let { latestAppByPosition[it] }
-                            ?: return@awaitEachGesture
-                        val longPress = awaitLongPressOrCancellation(down.id)
-                            ?: return@awaitEachGesture
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        longPress.consume()
-                        // Tell the launcher's outer gesture surface that a
-                        // reorder may be in flight from the moment the
-                        // long-press fires, so the carousel does not also
-                        // try to claim the same horizontal motion and page
-                        // Home → Widgets/Agenda. Signalled here (not when
-                        // slop is later crossed) so any pre-long-press drift
-                        // inside the long-press cancel slop does not let the
-                        // carousel cross its own claim threshold before the
-                        // dock's slop accounting has restarted.
-                        latestOnDragStateChanged(true)
-                        var dragging = false
-                        var totalDelta = Offset.Zero
-                        try {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == down.id }
-                                    ?: break
-                                if (!change.pressed) {
-                                    if (dragging) {
-                                        draggedAppId = null
-                                        dragOffset = Offset.Zero
-                                    } else {
-                                        // Long-press without crossing slop:
-                                        // open the action menu for the
-                                        // pressed icon. Deferred until
-                                        // release (not the long-press
-                                        // timeout) so the menu's popup
-                                        // window does not cancel an
-                                        // in-flight reorder by stealing the
-                                        // pointer mid-drag.
-                                        menuAppId = pressedApp.id
-                                    }
-                                    change.consume()
-                                    break
-                                }
-                                val delta = change.positionChange()
-                                totalDelta += delta
-                                if (!dragging && totalDelta.getDistance() > slopPx) {
-                                    dragging = true
-                                    draggedAppId = pressedApp.id
-                                    dragOffset = Offset.Zero
-                                    // Carry the full pre-slop displacement
-                                    // into the first dispatch so the icon
-                                    // snaps to where the finger actually is,
-                                    // not back to its slot centre.
-                                    handleDockDrag(
-                                        delta = totalDelta,
-                                        draggedAppId = pressedApp.id,
-                                        currentDockedApps = latestDockedApps,
-                                        currentDockPositions = latestResolvedPositions,
-                                        slotCenters = slotCenters.filterKeys { slot ->
-                                            slot.row in 0 until latestRowCount &&
-                                                slot.column in 0 until latestColumns
-                                        },
-                                        onReorder = latestOnReorderDock,
-                                        currentOffset = dragOffset,
-                                        setOffset = { dragOffset = it },
-                                    )
-                                } else if (dragging) {
-                                    handleDockDrag(
-                                        delta = delta,
-                                        draggedAppId = pressedApp.id,
-                                        currentDockedApps = latestDockedApps,
-                                        currentDockPositions = latestResolvedPositions,
-                                        slotCenters = slotCenters.filterKeys { slot ->
-                                            slot.row in 0 until latestRowCount &&
-                                                slot.column in 0 until latestColumns
-                                        },
-                                        onReorder = latestOnReorderDock,
-                                        currentOffset = dragOffset,
-                                        setOffset = { dragOffset = it },
-                                    )
-                                }
-                                change.consume()
-                            }
-                        } finally {
-                            latestOnDragStateChanged(false)
-                        }
-                    }
-                },
+                .testTag(tags.listTag),
+            horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
             verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            maxItemsInEachRow = columns,
         ) {
-            for (row in 0 until rowCount) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
-                ) {
-                    for (column in 0 until columns) {
-                        val position = DockPosition(row, column)
-                        val app = appByPosition[position]
-                        if (app != null) {
-                            key(app.id) {
-                                DockedAppButton(
-                                    app = app,
-                                    dockIconSizeDp = dockIconSizeDp,
-                                    isDragged = draggedAppId == app.id,
-                                    dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
-                                    modifier = Modifier.weight(1f),
-                                    appTag = tags.appTag,
-                                    appIconTag = tags.appIconTag,
-                                    menuExpanded = menuAppId == app.id,
-                                    onDismissMenu = {
-                                        if (menuAppId == app.id) menuAppId = null
+            for (slotIndex in 0 until rowCount * columns) {
+                val row = slotIndex / columns
+                val column = slotIndex % columns
+                val position = DockPosition(row, column)
+                val app = appByPosition[position]
+                val slotKey = app?.id ?: "dock-empty-${position.row}-${position.column}"
+                key(slotKey) {
+                    if (app != null) {
+                        DockedAppButton(
+                            app = app,
+                            dockIconSizeDp = dockIconSizeDp,
+                            isDragged = draggedAppId == app.id,
+                            dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
+                            modifier = Modifier.weight(1f),
+                            appTag = tags.appTag,
+                            appIconTag = tags.appIconTag,
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                            onDragStart = {
+                                draggedAppId = app.id
+                                dragOffset = Offset.Zero
+                            },
+                            onDrag = { delta ->
+                                handleDockDrag(
+                                    delta = delta,
+                                    draggedAppId = draggedAppId,
+                                    currentDockedApps = latestDockedApps,
+                                    currentDockPositions = resolvedPositions,
+                                    slotCenters = slotCenters.filterKeys { slot ->
+                                        slot.row in 0 until rowCount && slot.column in 0 until columns
                                     },
-                                    onRequestMenu = { menuAppId = app.id },
-                                    onLaunchApp = onLaunchApp,
-                                    onOpenAppInfo = onOpenAppInfo,
-                                    onToggleDock = onToggleDock,
-                                    onResetRank = onResetRank,
-                                    onRenameApp = onRenameApp,
-                                    onSetAppIconOverride = onSetAppIconOverride,
-                                    onClearAppIconOverride = onClearAppIconOverride,
-                                    onSetAppBadge = onSetAppBadge,
-                                    onHideApp = onHideApp,
-                                    onReportSlotCenter = { center -> slotCenters[position] = center },
+                                    onReorder = latestOnReorderDock,
+                                    currentOffset = dragOffset,
+                                    setOffset = { dragOffset = it },
                                 )
-                            }
-                        } else if (showAddButton && position == firstEmptyPosition) {
-                            DockAddButton(
-                                dockIconSizeDp = dockIconSizeDp,
-                                modifier = Modifier.weight(1f),
-                                addButtonTag = tags.addButtonTag,
-                                onReportSlotCenter = { center -> slotCenters[position] = center },
-                            )
-                        } else {
-                            EmptyDockSlot(
-                                dockIconSizeDp = dockIconSizeDp,
-                                modifier = Modifier.weight(1f),
-                                onReportSlotCenter = { center -> slotCenters[position] = center },
-                            )
-                        }
+                            },
+                            onDragEnd = {
+                                draggedAppId = null
+                                dragOffset = Offset.Zero
+                            },
+                            onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                        )
+                    } else if (showAddButton && position == firstEmptyPosition) {
+                        DockAddButton(
+                            dockIconSizeDp = dockIconSizeDp,
+                            modifier = Modifier.weight(1f),
+                            addButtonTag = tags.addButtonTag,
+                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                        )
+                    } else {
+                        EmptyDockSlot(
+                            dockIconSizeDp = dockIconSizeDp,
+                            modifier = Modifier.weight(1f),
+                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                        )
                     }
                 }
             }
@@ -2334,9 +2259,6 @@ private fun DockedAppButton(
     modifier: Modifier = Modifier,
     appTag: String = DOCK_APP_TAG,
     appIconTag: String = DOCK_APP_ICON_TAG,
-    menuExpanded: Boolean,
-    onDismissMenu: () -> Unit,
-    onRequestMenu: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -2347,18 +2269,32 @@ private fun DockedAppButton(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onReportSlotCenter: (Offset) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onLongPressArmed: (Boolean) -> Unit = {},
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val slopPx = with(LocalDensity.current) { 8.dp.toPx() }
+    // Wrap the parent's drag callbacks in updated-state holders so the
+    // long-running pointerInput coroutine always invokes the freshest
+    // closure (recompositions reallocate the lambdas every frame).
     val latestOnReportSlotCenter by rememberUpdatedState(onReportSlotCenter)
+    val latestOnDragStart by rememberUpdatedState(onDragStart)
+    val latestOnDrag by rememberUpdatedState(onDrag)
+    val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
     Box(
         modifier = modifier
             // onGloballyPositioned sits outside the graphicsLayer so it
             // reports the icon's static slot centre, not its translated
             // visual centre — that's what the parent compares against.
             // positionInRoot() (not positionInParent()) puts every slot in
-            // one window-wide coordinate space; the dock is a Column of
-            // per-row Rows, so positionInParent() would give every row's
-            // first slot the same (≈0, ≈0) and the drag handler could not
-            // tell rows apart.
+            // one window-wide coordinate space; with the dock's slots laid
+            // out by FlowRow as siblings of one parent, positionInParent()
+            // would lose the per-row vertical offset and the drag handler
+            // could not tell rows apart on multi-row docks.
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 val center = Offset(
@@ -2397,21 +2333,97 @@ private fun DockedAppButton(
                     role = Role.Button,
                     onClick = { onLaunchApp(app) },
                 )
-                // Drag-to-reorder is detected by the DockCard's Column-level
-                // pointerInput, not here — the Column is a stable composable
-                // that does not get torn down when a `key(app.id)` block is
-                // relocated mid-drag across the grid's nested Rows, so the
-                // gesture coroutine survives cross-row and multi-cell drags.
+                // Long-press fires haptic feedback and arms the dock for
+                // either a reorder (if the finger crosses 8 dp slop) or for
+                // opening the AppActionsMenu (if the user releases without
+                // crossing slop). The menu is intentionally not opened at
+                // the long-press timeout: `DropdownMenu` uses a `Popup` whose
+                // window remains touch-modal within its own bounds even with
+                // `focusable = false`, so the moment the user dragged their
+                // finger into the popup region Android would send the
+                // original window an `ACTION_CANCEL` and the drag would
+                // drop one slot in. Deferring the menu until release means
+                // the popup never exists while a reorder is in flight, so
+                // the drag survives until the finger actually lifts.
                 //
-                // The accessibility long-click action stays per-button so
-                // TalkBack and keyboard/switch input still have a path into
-                // the AppActionsMenu (which is gated on `menuExpanded` from
-                // the parent).
+                // `latestOnLongPressArmed(true)` runs the moment the
+                // long-press fires (before any slop accounting) so the
+                // carousel's gesture surface is suppressed from then on:
+                // small pre-long-press drift within the long-press touch
+                // slop can already push the carousel's accumulated rawDragX
+                // above its own 8 dp claim threshold, and without the early
+                // signal a small post-long-press move would let the carousel
+                // page Home → Widgets/Agenda before the dock's own slop
+                // accounting (which restarts at zero after long-press) had a
+                // chance to set the suppression latch.
+                //
+                // The pointerInput is attached per-icon (not at the
+                // DockCard level) on purpose: the parent dock is a single
+                // FlowRow with every slot's `key(app.id)` keyed group as a
+                // direct sibling, so a slot swap mid-drag is recognised by
+                // Compose as a sibling move and this pointerInput modifier
+                // node — and its in-flight gesture coroutine — survive the
+                // recomposition. Hoisting drag detection up the tree
+                // would force a slot-centre hit-test on every press
+                // (problematic for taps in card padding or near empty
+                // cells); keeping it on the icon means the icon's
+                // `clickable` hit region is the natural press boundary.
+                .pointerInput(app.id) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val longPress = awaitLongPressOrCancellation(down.id)
+                            ?: return@awaitEachGesture
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longPress.consume()
+                        latestOnLongPressArmed(true)
+                        var dragging = false
+                        var totalDelta = Offset.Zero
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                    ?: break
+                                if (!change.pressed) {
+                                    if (dragging) {
+                                        latestOnDragEnd()
+                                    } else {
+                                        menuExpanded = true
+                                    }
+                                    change.consume()
+                                    break
+                                }
+                                val delta = change.positionChange()
+                                totalDelta += delta
+                                if (!dragging && totalDelta.getDistance() > slopPx) {
+                                    dragging = true
+                                    latestOnDragStart()
+                                    // Carry the full pre-slop displacement into
+                                    // the first dispatch so the icon snaps to
+                                    // where the finger actually is, not back to
+                                    // its slot centre.
+                                    latestOnDrag(totalDelta)
+                                } else if (dragging) {
+                                    latestOnDrag(delta)
+                                }
+                                change.consume()
+                            }
+                        } finally {
+                            latestOnLongPressArmed(false)
+                        }
+                    }
+                }
                 .semantics {
                     role = Role.Button
                     contentDescription = app.displayName
+                    // The pointerInput drag detector above only fires on
+                    // touch, so accessibility services / keyboard / switch
+                    // input would otherwise have no path to the long-press
+                    // menu. Re-expose it as a SemanticsAction so TalkBack's
+                    // "long press" gesture and equivalent non-touch entry
+                    // points still surface App info / Undock / Reset rank /
+                    // Hide on dock icons.
                     onLongClick(label = null) {
-                        onRequestMenu()
+                        menuExpanded = true
                         true
                     }
                 },
@@ -2420,7 +2432,7 @@ private fun DockedAppButton(
             expanded = menuExpanded,
             app = app,
             dockLimit = Int.MAX_VALUE,
-            onDismiss = onDismissMenu,
+            onDismiss = { menuExpanded = false },
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onResetRank = onResetRank,
