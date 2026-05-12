@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Process
 import android.view.ViewConfiguration
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -291,6 +292,264 @@ class DockReorderCarouselTest {
         assertNotNull("vertical drag must trigger a reorder to row 1", target)
         assertEquals("dragged app id", docked[0].id, target!!.first)
         assertEquals("dragged app must land in a lower row", 1, target.second)
+    }
+
+    // Regression: a single dock drag used to drop one cell into the gesture
+    // even after the popup-window cancellation was deferred. The cause was
+    // structural — `key(app.id) { DockedAppButton(...) }` sat *inside* the
+    // `if (app != null)` branch of a per-row `Row`'s nested for-loop, so
+    // the keyed group's parent slot changed every time a swap happened.
+    // Compose only matches-and-moves keyed groups within the same parent;
+    // a cross-parent move falls back to remove + add, which detaches the
+    // `DockedAppButton`'s `pointerInput` modifier node and cancels the
+    // in-flight gesture coroutine. The next pointer event then arrives at a
+    // freshly-restarted `awaitFirstDown` rather than the live drag.
+    //
+    // Reproducing the bug needs multiple separate pointer events with a
+    // recomposition between them, because the tear-down only manifests on
+    // the recomposition triggered by the first reorder. The existing
+    // `dragReorderingDockedApp_movesIconBetweenRows` packs the whole drag
+    // into one `moveBy`, so its `handleDockDrag` runs to completion inside
+    // one composition window and the coroutine never has to survive a
+    // recomposition; that test passes either way.
+    //
+    // The fix: a single `FlowRow(maxItemsInEachRow = columns)` parent, a
+    // flat for-loop, and `key()` hoisted over the whole `if/else` chain.
+    // With every keyed group under one parent at one slot-table depth, the
+    // swap is a sibling move, the modifier nodes survive, and the gesture
+    // coroutine sees every subsequent event.
+    @Test
+    fun dragReorderingDockedApp_continuesAcrossMultipleSlots() {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+            fakeApp("App03").copy(isDocked = true),
+            fakeApp("App04").copy(isDocked = true),
+        )
+        val positions = mutableStateMapOf(
+            docked[0].id to DockPosition(0, 0),
+            docked[1].id to DockPosition(0, 1),
+            docked[2].id to DockPosition(0, 2),
+            docked[3].id to DockPosition(0, 3),
+        )
+        val reorders = mutableListOf<Triple<String, Int, Int>>()
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                dockedApps = docked,
+                dockPositions = positions.toMap(),
+                dockIconCount = 4,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onReorderDock = { id, row, column ->
+                        reorders.add(Triple(id, row, column))
+                        val target = DockPosition(row, column)
+                        val previous = positions[id]
+                        val occupant = positions.entries
+                            .firstOrNull { (k, v) -> k != id && v == target }?.key
+                        positions[id] = target
+                        if (occupant != null && previous != null) {
+                            positions[occupant] = previous
+                        }
+                        val newDockedApps = docked.sortedWith(
+                            compareBy(
+                                { positions[it.id]?.row ?: 0 },
+                                { positions[it.id]?.column ?: 0 },
+                            ),
+                        )
+                        state = state.copy(
+                            dockedApps = newDockedApps,
+                            dockPositions = positions.toMap(),
+                        )
+                    },
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        // Three slow `moveBy` events (≈ slot pitch each at 420dpi w411dp)
+        // with `waitForIdle()` between them so each intermediate reorder
+        // commits and the FlowRow recomposes before the next event lands.
+        // Pre-fix the per-icon coroutine was torn down on the recomposition
+        // after the first reorder, so only one reorder ever made it to the
+        // log; the test asserts ≥ 2 to falsify "only one slot per
+        // long-press" without over-specifying which slots the rebase
+        // happens to land on.
+        val slotPitchPx = 300f
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            val start = Offset(width / 2f, height / 2f)
+            down(start)
+            move(longPressMs + 100)
+            moveBy(Offset(slotPitchPx, 0f))
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            moveBy(Offset(slotPitchPx, 0f))
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            moveBy(Offset(slotPitchPx, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(
+            "expected multi-slot drag to fire ≥ 2 reorders (got ${reorders.size}: $reorders)",
+            reorders.size >= 2,
+        )
+        assertTrue(
+            "dragged app should advance past the first neighbour, got ${positions[docked[0].id]}",
+            (positions[docked[0].id]?.column ?: 0) >= 2,
+        )
+    }
+
+    // Regression: extending the in-row continuity fix to multi-row docks.
+    // Even with `key()` hoisted over the if/else, a per-row `Row` parent
+    // (or an outer-iteration group from a nested for-loop) made the
+    // dragged icon's keyed group reparent across the row boundary, so
+    // cross-row drags still detached the `pointerInput` after one slot.
+    // The structural fix — single `FlowRow(maxItemsInEachRow = columns)`
+    // plus a flat `for (slotIndex)` loop — puts row-0 and row-1 keys at
+    // the same slot-table depth under one parent, so a row-0 → row-1
+    // swap is a sibling move and the gesture coroutine survives.
+    @Test
+    fun dragReorderingDockedApp_continuesAcrossRowBoundary() {
+        val docked = (0 until 8).map { index ->
+            fakeApp("App%02d".format(index + 1)).copy(isDocked = true)
+        }
+        val positions = mutableStateMapOf<String, DockPosition>().apply {
+            docked.forEachIndexed { index, app ->
+                put(app.id, DockPosition(row = index / 4, column = index % 4))
+            }
+        }
+        val reorders = mutableListOf<Triple<String, Int, Int>>()
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                dockedApps = docked,
+                dockPositions = positions.toMap(),
+                dockIconCount = 4,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onReorderDock = { id, row, column ->
+                        reorders.add(Triple(id, row, column))
+                        val target = DockPosition(row, column)
+                        val previous = positions[id]
+                        val occupant = positions.entries
+                            .firstOrNull { (k, v) -> k != id && v == target }?.key
+                        positions[id] = target
+                        if (occupant != null && previous != null) {
+                            positions[occupant] = previous
+                        }
+                        val newDockedApps = docked.sortedWith(
+                            compareBy(
+                                { positions[it.id]?.row ?: 0 },
+                                { positions[it.id]?.column ?: 0 },
+                            ),
+                        )
+                        state = state.copy(
+                            dockedApps = newDockedApps,
+                            dockPositions = positions.toMap(),
+                        )
+                    },
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        // Long-press App01 at (0, 0), drag down past the row boundary into
+        // row 1, settle, then drag right within row 1. Pre-fix the second
+        // event would arrive at a freshly-restarted `awaitFirstDown`
+        // (because the cross-row move detached the per-icon pointerInput
+        // on the first event) and only one reorder would fire.
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            val start = Offset(width / 2f, height / 2f)
+            down(start)
+            move(longPressMs + 100)
+            moveBy(Offset(0f, 280f))
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            moveBy(Offset(300f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(
+            "expected cross-row drag to fire ≥ 2 reorders (got ${reorders.size}: $reorders)",
+            reorders.size >= 2,
+        )
+        val finalPosition = positions[docked[0].id]
+        assertTrue(
+            "dragged app should have left row 0 (got $finalPosition)",
+            (finalPosition?.row ?: 0) >= 1,
+        )
     }
 
     // Regression: starting a drag on a docked icon used to grow the dock card
