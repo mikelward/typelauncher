@@ -119,11 +119,12 @@ internal class LauncherAppWidgetHost(context: Context, hostId: Int) : AppWidgetH
     /**
      * Invoked when a hosted widget's descendant view claims the scroll
      * gesture via [android.view.ViewParent.requestDisallowInterceptTouchEvent]
-     * (set true) or releases it on `ACTION_DOWN`/`ACTION_UP`/`ACTION_CANCEL`
-     * (set false). The carousel registers a listener to mirror the value
-     * into a Compose `MutableState` so its pointer-input arbitrator
-     * suppresses page swipes and notification-shade pull while the widget
-     * is consuming touches.
+     * (true), or at any gesture boundary the host view observes from
+     * `dispatchTouchEvent` (`ACTION_DOWN`/`ACTION_UP`/`ACTION_CANCEL`,
+     * dispatched as false). The carousel registers a listener to mirror
+     * the value into a Compose `MutableState` so its pointer-input
+     * arbitrator suppresses page swipes and notification-shade pull
+     * while the widget is consuming touches, and resets at gesture end.
      *
      * Mirrors the dock's `isDockDraggingState` signalling: a child view
      * inside an `AndroidView` consumes touches at the View layer, but the
@@ -236,12 +237,6 @@ internal open class LauncherAppWidgetHostView(
                 hasPerformedLongPress = false
                 removeCallbacks(checkLongPress)
                 postDelayed(checkLongPress, longPressTimeoutMs)
-                // Clear any latch left by the previous gesture so the
-                // carousel arbitrator starts the new gesture clean. A
-                // scrollable descendant calls
-                // `requestDisallowInterceptTouchEvent(true)` once it has
-                // crossed slop, which flips this back to true.
-                host.onChildScrollChange?.invoke(false)
             }
             MotionEvent.ACTION_MOVE -> {
                 if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
@@ -250,7 +245,6 @@ internal open class LauncherAppWidgetHostView(
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(checkLongPress)
-                host.onChildScrollChange?.invoke(false)
             }
         }
         if (hasPerformedLongPress) {
@@ -261,6 +255,29 @@ internal open class LauncherAppWidgetHostView(
     }
 
     /**
+     * Reset the widget-scroll latch at every gesture boundary. We do this
+     * from `dispatchTouchEvent` rather than `onInterceptTouchEvent`
+     * because once a scrollable descendant has called
+     * `requestDisallowInterceptTouchEvent(true)`, the framework stops
+     * calling `onInterceptTouchEvent` for the rest of that gesture —
+     * including the eventual `ACTION_UP`/`ACTION_CANCEL`. Without a
+     * `dispatchTouchEvent` hook the latch would stick true past gesture
+     * end and suppress the very next, unrelated gesture (which starts
+     * outside the widget and therefore never re-enters this host view).
+     * `ACTION_DOWN` is included so a gesture that starts inside another
+     * widget — or anywhere the framework happens to clear the disallow
+     * flag and route DOWN here — clears any residual state too.
+     */
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN,
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> host.onChildScrollChange?.invoke(false)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    /**
      * Scrollable views inside the hosted widget — RemoteViews-backed
      * `ListView`, `StackView`, `GridView`, etc. — call this on their
      * parent chain once they've crossed slop to tell ancestors to stop
@@ -268,6 +285,9 @@ internal open class LauncherAppWidgetHostView(
      * so the launcher's pointer-input arbitrator can suppress its own
      * horizontal page swipe and vertical pull-down-shade dispatch, then
      * delegate to `super` so the framework's intercept chain still works.
+     * The release of the latch is owned by `dispatchTouchEvent` —
+     * `requestDisallowInterceptTouchEvent(false)` is a routine call any
+     * ancestor can make and is not a reliable "gesture is ending" signal.
      */
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         if (disallowIntercept) {
