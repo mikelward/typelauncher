@@ -184,8 +184,13 @@ class WidgetScrollCarouselTest {
     fun horizontalDragWithWidgetClaim_doesNotPageCarousel() {
         // Horizontal scroll inside a widget (e.g. a swipeable gallery)
         // must not page Home → Widgets/Agenda. The slop crossing is
-        // horizontal so the carousel resolves owner = HorizontalLauncher
-        // before the widget claim flips.
+        // horizontal, so the carousel resolves owner = HorizontalLauncher
+        // *and arms `carouselClaimed = true` on the same event* — the
+        // widget's disallow signal arrives between this and the next
+        // event, after the claim. The fix has to cancel the post-claim
+        // commit, not just the unclaimed-fallback dispatch, or the page
+        // change still fires on release. This is the
+        // claim-before-widget-signal race Codex caught on the first push.
         val scenario = runScenario(
             initialDestination = LauncherDestination.Home,
             simulateWidgetClaim = true,
@@ -194,5 +199,23 @@ class WidgetScrollCarouselTest {
         )
         assertEquals("widget-claimed horizontal drag must not page Widgets", 0, scenario.showWidgetsCount)
         assertEquals("widget-claimed horizontal drag must not page Agenda", 0, scenario.showAgendaCount)
+    }
+
+    @Test
+    fun horizontalDragWithoutWidgetClaim_pagesCarousel() {
+        // Sanity check on the horizontal pull, mirroring the vertical
+        // sanity case: without the widget claim the same drag pages the
+        // carousel, so the suppression above isn't a permanent disable.
+        val scenario = runScenario(
+            initialDestination = LauncherDestination.Home,
+            simulateWidgetClaim = false,
+            slopOffset = Offset(-30f, 0f),
+            commitOffset = Offset(-700f, 0f),
+        )
+        assertEquals(
+            "without widget claim, horizontal drag on Home pages off Home",
+            1,
+            scenario.showWidgetsCount + scenario.showAgendaCount,
+        )
     }
 }
