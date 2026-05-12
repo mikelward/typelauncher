@@ -293,6 +293,132 @@ class DockReorderCarouselTest {
         assertEquals("dragged app must land in a lower row", 1, target.second)
     }
 
+    // Regression: a single dock drag used to stop one cell into the gesture
+    // because the drag's pointerInput lived on the per-icon `key(app.id)`
+    // composable, and the first reorder relocated that keyed group between
+    // its parent Rows (or even to a different column within the same Row).
+    // Compose tore down the gesture coroutine on the way through, so every
+    // subsequent move event landed on whichever icon now occupied the old
+    // slot — the user lifted their finger after the first cell and could
+    // not drag any further. Hoisting the gesture loop up to the DockCard's
+    // Column (a stable composable that never moves) keeps the coroutine
+    // alive across the recompositions triggered by each intermediate
+    // reorder, so a single drag can walk an icon through several cells.
+    //
+    // Reproducing the bug requires multiple separate `moveBy` events with
+    // state updates between them — a single big `moveBy` (as
+    // `dragReorderingDockedApp_movesIconBetweenRows` uses) only generates
+    // one pointer event and so the drag handler walks the cells inside one
+    // recomposition window, masking the tear-down.
+    @Test
+    fun dragReorderingDockedApp_continuesAcrossMultipleCells() {
+        val apps = listOf(
+            fakeApp("App01"),
+            fakeApp("App02"),
+            fakeApp("App03"),
+            fakeApp("App04"),
+        )
+        var dockPositions by mutableStateOf<Map<String, DockPosition>>(
+            apps.mapIndexed { index, app ->
+                app.id to DockPosition(row = 0, column = index)
+            }.toMap(),
+        )
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                dockedApps = apps.map { it.copy(isDocked = true) },
+                dockPositions = dockPositions,
+            ),
+        )
+        val reorderCalls = mutableListOf<Triple<String, Int, Int>>()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onReorderDock = { id, row, column ->
+                        reorderCalls += Triple(id, row, column)
+                        // Mirror the production rebuild: place the dragged
+                        // app at (row, column) and shuffle the displaced
+                        // app into the dragged app's previous slot.
+                        val current = dockPositions
+                        val previous = current[id]
+                        if (previous != null) {
+                            val target = DockPosition(row, column)
+                            val displaced = current.entries
+                                .firstOrNull { it.value == target && it.key != id }
+                            dockPositions = current.toMutableMap().apply {
+                                this[id] = target
+                                if (displaced != null) this[displaced.key] = previous
+                            }
+                            state = state.copy(dockPositions = dockPositions)
+                        }
+                    },
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        // Long-press App01, then walk the finger rightward through
+        // App02, App03, App04 via three separate move events. Between
+        // each event Compose has a chance to recompose on the prior
+        // reorder; the per-icon pointerInput used to die during one of
+        // those recompositions, leaving only the first reorder in the
+        // call log. The Column-level loop must produce all three.
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            val start = Offset(width / 2f, height / 2f)
+            down(start)
+            move(longPressMs + 100)
+            // 300 px ≈ 114 dp at 420 dpi — comfortably larger than the slot
+            // pitch (411 dp / 4 columns ≈ 103 dp) so each event crosses
+            // exactly one slot, but not so large that the drag handler
+            // skips a slot inside a single dispatch.
+            moveBy(Offset(300f, 0f))
+            moveBy(Offset(300f, 0f))
+            moveBy(Offset(300f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(
+            "drag must continue past the first cell — got reorders=$reorderCalls",
+            reorderCalls.size >= 2,
+        )
+        assertEquals(
+            "drag must walk App01 all the way to column 3",
+            DockPosition(row = 0, column = 3),
+            dockPositions[apps[0].id],
+        )
+    }
+
     // Regression: starting a drag on a docked icon used to grow the dock card
     // by one extra empty row (the rowCount calculation in DockCard added
     // `+ 1` whenever `draggedAppId != null`). The dock should keep its
