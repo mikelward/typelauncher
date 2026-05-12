@@ -1518,25 +1518,23 @@ class MainActivityRobolectricScreenshotTest {
 
         val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
         val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot()
-        val addButtonBounds = composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).getBoundsInRoot()
         val gap = DOCK_ITEM_SPACING_DP.dp
         val cellWidth = (
             (dockListBounds.right - dockListBounds.left) -
                 gap * (viewModel.uiState.value.dockIconCount - 1)
             ) / viewModel.uiState.value.dockIconCount
         val firstSlotCenter = dockListBounds.left + cellWidth / 2f
-        val secondSlotCenter = dockListBounds.left + cellWidth * 1.5f + gap
         val dockIconCenter = dockIconBounds.left + (dockIconBounds.right - dockIconBounds.left) / 2f
-        val addButtonCenter = addButtonBounds.left + (addButtonBounds.right - addButtonBounds.left) / 2f
 
         assertTrue(
             "docked app should stay in the first sparse slot",
             kotlin.math.abs((dockIconCenter - firstSlotCenter).value) <= 1f,
         )
-        assertTrue(
-            "add button should stay in the next sparse slot",
-            kotlin.math.abs((addButtonCenter - secondSlotCenter).value) <= 1f,
-        )
+        // The "+" hint goes away as soon as the user docks anything, so the
+        // remaining cells in this row are plain empty slots (no tag).
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
+
+        saveScreenshot("compose_dock_one_app_no_add_hint_robolectric.png")
     }
 
     @Test
@@ -2101,21 +2099,24 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_six_slots_one_row_robolectric.png")
     }
 
-    // The trailing + button shows only when there is exactly one row and
-    // it isn't full — once the user has filled a row or spanned multiple
-    // rows they've learned the long-press gesture and don't need the nudge.
+    // The trailing + button is purely an empty-dock affordance: as soon as
+    // any app is docked the hint goes away, even with empty slots left in
+    // the row, because the user has demonstrated they already know how to
+    // dock.
     @Test
-    fun dockAddButton_visibleWhenSingleRowHasEmptySlot() {
+    fun dockAddButton_hiddenAfterUserDocksFirstApp() {
         val viewModel = composeRule.activity.viewModel
-        viewModel.uiState.value.filteredApps.take(3).forEach { app ->
-            viewModel.toggleDock(app, maxDockedApps = 1)
-        }
+        // Empty dock → hint visible.
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+
+        viewModel.toggleDock(viewModel.uiState.value.filteredApps.first(), maxDockedApps = 1)
         composeRule.waitForIdle()
 
-        // 3 docked apps, 4 icons per row → 1 row, 1 empty slot; hint must show.
-        assertEquals(3, viewModel.uiState.value.dockedApps.size)
+        // Single docked app, 4 icons per row → 1 row, 3 empty slots, but the
+        // hint must already be gone.
+        assertEquals(1, viewModel.uiState.value.dockedApps.size)
         assertEquals(4, viewModel.uiState.value.dockIconCount)
-        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -2341,10 +2342,11 @@ class MainActivityRobolectricScreenshotTest {
         val workTop = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot().top
         assertTrue("work dock should sit below the personal dock", workTop > personalTop)
         // Both popular packages landed via the prefill's popular-fallback
-        // tier, with the "+" hint preserved because the row isn't full.
+        // tier. The "+" hint is suppressed once anything is in the work
+        // dock, even though tier (c) still leaves a trailing slot open.
         composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Gmail").assertExists()
         composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Calendar").assertExists()
-        composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertExists()
+        composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
     // Regression: enabling the work dock used to cap *each* dock at half the

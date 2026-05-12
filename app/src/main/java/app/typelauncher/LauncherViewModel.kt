@@ -284,7 +284,10 @@ internal class LauncherViewModel(
             installedApps = loadedApps
             if (!dockedAppStore.hasBeenPrefilled) {
                 if (dockedAppStore.dockedAppIds.isEmpty()) {
-                    // Reserve one slot for the always-visible "+" add button.
+                    // Leave the last slot empty as a growth buffer. The "+"
+                    // hint itself only renders while the dock is empty, so
+                    // a prefilled row never carries the hint regardless of
+                    // this reservation.
                     prefillDock(loadedApps, dockedAppStore, (_uiState.value.dockIconCount - 1).coerceAtLeast(0))
                 }
                 dockedAppStore.markPrefilled()

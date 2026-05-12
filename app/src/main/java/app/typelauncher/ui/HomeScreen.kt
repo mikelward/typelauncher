@@ -619,7 +619,7 @@ private fun DockCard(
         .asSequence()
         .flatMap { row -> (0 until columns).asSequence().map { column -> DockPosition(row, column) } }
         .firstOrNull { position -> position !in occupiedPositions }
-    val showAddButton = draggedAppId == null && rowCount == 1 && firstEmptyPosition != null
+    val showAddButton = draggedAppId == null && dockedApps.isEmpty() && firstEmptyPosition != null
 
     SectionCard(modifier.testTag(tags.cardTag)) {
         Column(
