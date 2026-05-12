@@ -116,6 +116,24 @@ internal class LauncherAppWidgetHost(context: Context, hostId: Int) : AppWidgetH
             if (!value) flushDeferredRemoteViews()
         }
 
+    /**
+     * Invoked when a hosted widget's descendant view claims the scroll
+     * gesture via [android.view.ViewParent.requestDisallowInterceptTouchEvent]
+     * (set true) or releases it on `ACTION_DOWN`/`ACTION_UP`/`ACTION_CANCEL`
+     * (set false). The carousel registers a listener to mirror the value
+     * into a Compose `MutableState` so its pointer-input arbitrator
+     * suppresses page swipes and notification-shade pull while the widget
+     * is consuming touches.
+     *
+     * Mirrors the dock's `isDockDraggingState` signalling: a child view
+     * inside an `AndroidView` consumes touches at the View layer, but the
+     * carousel reads raw deltas via `positionChangeIgnoreConsumed` and
+     * cannot see View-level consumption (Compose nested scroll only fires
+     * for Compose scrollables). A dedicated channel is the same fix that
+     * unblocked the dock long-press-drag-vs-carousel collision.
+     */
+    var onChildScrollChange: ((Boolean) -> Unit)? = null
+
     internal fun registerView(view: LauncherAppWidgetHostView) {
         views[view] = Unit
     }
@@ -218,6 +236,12 @@ internal open class LauncherAppWidgetHostView(
                 hasPerformedLongPress = false
                 removeCallbacks(checkLongPress)
                 postDelayed(checkLongPress, longPressTimeoutMs)
+                // Clear any latch left by the previous gesture so the
+                // carousel arbitrator starts the new gesture clean. A
+                // scrollable descendant calls
+                // `requestDisallowInterceptTouchEvent(true)` once it has
+                // crossed slop, which flips this back to true.
+                host.onChildScrollChange?.invoke(false)
             }
             MotionEvent.ACTION_MOVE -> {
                 if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
@@ -226,6 +250,7 @@ internal open class LauncherAppWidgetHostView(
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(checkLongPress)
+                host.onChildScrollChange?.invoke(false)
             }
         }
         if (hasPerformedLongPress) {
@@ -233,6 +258,22 @@ internal open class LauncherAppWidgetHostView(
             return true
         }
         return super.onInterceptTouchEvent(ev)
+    }
+
+    /**
+     * Scrollable views inside the hosted widget — RemoteViews-backed
+     * `ListView`, `StackView`, `GridView`, etc. — call this on their
+     * parent chain once they've crossed slop to tell ancestors to stop
+     * trying to intercept the gesture. We forward the signal to the host
+     * so the launcher's pointer-input arbitrator can suppress its own
+     * horizontal page swipe and vertical pull-down-shade dispatch, then
+     * delegate to `super` so the framework's intercept chain still works.
+     */
+    override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+        if (disallowIntercept) {
+            host.onChildScrollChange?.invoke(true)
+        }
+        super.requestDisallowInterceptTouchEvent(disallowIntercept)
     }
 
     override fun cancelLongPress() {

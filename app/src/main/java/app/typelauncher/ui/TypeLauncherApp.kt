@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -631,6 +632,27 @@ internal fun TypeLauncherApp(
                     // prop + rememberUpdatedState — the wrapper there only
                     // updates during recomposition, which is one frame later.
                     val isDockDraggingState = remember { mutableStateOf(false) }
+                    // Same trick for hosted widgets: scrollable RemoteViews
+                    // descendants call `requestDisallowInterceptTouchEvent(true)`
+                    // when they start consuming touches, and the host forwards
+                    // that signal through `LauncherAppWidgetHost.onChildScrollChange`.
+                    // The carousel's pointer-input arbitrator otherwise reads
+                    // raw deltas via `positionChangeIgnoreConsumed` and would
+                    // claim a vertical drag inside a widget as a page swipe or
+                    // pull-to-notification-shade gesture.
+                    val isWidgetScrollingState = remember { mutableStateOf(false) }
+                    DisposableEffect(appWidgetHost) {
+                        val host = appWidgetHost as? LauncherAppWidgetHost
+                        if (host == null) {
+                            onDispose {}
+                        } else {
+                            host.onChildScrollChange = { isWidgetScrollingState.value = it }
+                            onDispose {
+                                host.onChildScrollChange = null
+                                isWidgetScrollingState.value = false
+                            }
+                        }
+                    }
                     SwipeNavigationBox(
                         destination = state.destination,
                         widgetPageCount = state.widgetPages.size,
@@ -659,6 +681,7 @@ internal fun TypeLauncherApp(
                         },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
                         isDockDraggingState = isDockDraggingState,
+                        isWidgetScrollingState = isWidgetScrollingState,
                         secondaryTray = {
                             if (secondaryBarsVisible) {
                                 HomeKeyboardTray(
@@ -800,6 +823,7 @@ private fun SwipeNavigationBox(
     onCarouselGestureClaimed: () -> Unit = {},
     onCarouselGestureEnded: () -> Unit = {},
     isDockDraggingState: State<Boolean> = mutableStateOf(false),
+    isWidgetScrollingState: State<Boolean> = mutableStateOf(false),
     secondaryTray: @Composable BoxScope.() -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
 ) {
@@ -1048,6 +1072,14 @@ private fun SwipeNavigationBox(
                     // latch keeps the suppression in effect for the whole
                     // gesture, including the release event.
                     var dockDraggedDuringGesture = false
+                    // Same latch shape for widgets: a hosted widget's
+                    // scrollable descendant signals consumption via
+                    // `requestDisallowInterceptTouchEvent(true)`, which the
+                    // launcher's `LauncherAppWidgetHostView` forwards into
+                    // `isWidgetScrollingState`. ACTION_UP/CANCEL flip the
+                    // state back to false in the host view, so latching here
+                    // keeps the suppression in effect through the release.
+                    var widgetScrolledDuringGesture = false
                     var carouselClaimed = false
                     // Set true once the post-release animation has been
                     // launched — that coroutine's `finally` then owns
@@ -1092,6 +1124,9 @@ private fun SwipeNavigationBox(
                             if (isDockDraggingState.value) {
                                 dockDraggedDuringGesture = true
                             }
+                            if (isWidgetScrollingState.value) {
+                                widgetScrolledDuringGesture = true
+                            }
                             if (owner == LauncherGestureOwner.Undecided) {
                                 val consumed = scrollConsumptionTracker.totalConsumed - startConsumed
                                 owner = resolveLauncherGestureOwner(
@@ -1104,7 +1139,8 @@ private fun SwipeNavigationBox(
                             }
                             if (!carouselClaimed &&
                                 owner == LauncherGestureOwner.HorizontalLauncher &&
-                                !dockDraggedDuringGesture
+                                !dockDraggedDuringGesture &&
+                                !widgetScrolledDuringGesture
                             ) {
                                 val candidatePage = currentPage
                                 val candidateLauncherPage = LauncherScreen.fromCarouselPage(
@@ -1189,6 +1225,7 @@ private fun SwipeNavigationBox(
                         }
                         if (owner == LauncherGestureOwner.HorizontalLauncher &&
                             !dockDraggedDuringGesture &&
+                            !widgetScrolledDuringGesture &&
                             settleTargetPage != null
                         ) {
                             val releaseVelocity = velocityTracker.calculateVelocity().x
@@ -1328,6 +1365,16 @@ private fun SwipeNavigationBox(
                     // false. Matters for diagonal drags that resolve as
                     // VerticalLauncher.
                     var dockDraggedDuringGesture = false
+                    // Same latch shape for hosted widgets: a scrollable widget
+                    // descendant (RemoteViews ListView, StackView, etc.) calls
+                    // `requestDisallowInterceptTouchEvent(true)` mid-gesture,
+                    // and `LauncherAppWidgetHostView` flips
+                    // `isWidgetScrollingState` accordingly. Without this latch a
+                    // vertical drag inside a widget on the Widgets screen would
+                    // fall through to `swipeDownDispatch` and expand the system
+                    // notification shade; on Home it would open the launcher's
+                    // own pull-down notification bar.
+                    var widgetScrolledDuringGesture = false
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPointerInputChange(downChange)
                     do {
@@ -1339,6 +1386,9 @@ private fun SwipeNavigationBox(
                             velocityTracker.addPointerInputChange(change)
                             if (isDockDraggingState.value) {
                                 dockDraggedDuringGesture = true
+                            }
+                            if (isWidgetScrollingState.value) {
+                                widgetScrolledDuringGesture = true
                             }
                             if (owner == LauncherGestureOwner.Undecided) {
                                 val consumed = scrollConsumptionTracker.totalConsumed - startConsumed
@@ -1355,7 +1405,8 @@ private fun SwipeNavigationBox(
 
                     if (owner != LauncherGestureOwner.VerticalLauncher ||
                         startedInHomeAppList ||
-                        dockDraggedDuringGesture
+                        dockDraggedDuringGesture ||
+                        widgetScrolledDuringGesture
                     ) {
                         return@awaitEachGesture
                     }
