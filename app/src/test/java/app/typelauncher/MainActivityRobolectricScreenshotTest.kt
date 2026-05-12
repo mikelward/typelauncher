@@ -1516,26 +1516,24 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
+        // The first user dock clears the "+" hint, so the trailing add-button
+        // anchor that used to verify the second sparse slot is no longer
+        // rendered. The remaining check — the docked icon's center is pinned
+        // to the first sparse slot, not centered across the row — is what the
+        // sparse-row layout invariant is really about.
         val dockListBounds = composeRule.onNodeWithTag(DOCK_LIST_TAG).getBoundsInRoot()
         val dockIconBounds = composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").getBoundsInRoot()
-        val addButtonBounds = composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).getBoundsInRoot()
         val gap = DOCK_ITEM_SPACING_DP.dp
         val cellWidth = (
             (dockListBounds.right - dockListBounds.left) -
                 gap * (viewModel.uiState.value.dockIconCount - 1)
             ) / viewModel.uiState.value.dockIconCount
         val firstSlotCenter = dockListBounds.left + cellWidth / 2f
-        val secondSlotCenter = dockListBounds.left + cellWidth * 1.5f + gap
         val dockIconCenter = dockIconBounds.left + (dockIconBounds.right - dockIconBounds.left) / 2f
-        val addButtonCenter = addButtonBounds.left + (addButtonBounds.right - addButtonBounds.left) / 2f
 
         assertTrue(
             "docked app should stay in the first sparse slot",
             kotlin.math.abs((dockIconCenter - firstSlotCenter).value) <= 1f,
-        )
-        assertTrue(
-            "add button should stay in the next sparse slot",
-            kotlin.math.abs((addButtonCenter - secondSlotCenter).value) <= 1f,
         )
     }
 
@@ -1549,19 +1547,18 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun undockingDockedApp_showsAddButtonWhenEmpty() {
-        val viewModel = composeRule.activity.viewModel
-        val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
-        viewModel.toggleDock(calculator, maxDockedApps = 6)
-        composeRule.waitForIdle()
-        viewModel.toggleDock(viewModel.uiState.value.dockedApps.single(), maxDockedApps = 6)
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
-    }
-
-    @Test
     fun dockAddButton_showsFormattedDockingHintToast() {
+        // Sanity-check the precondition the rest of the test relies on: the
+        // fake-app fixture contains no `POPULAR_APP_PACKAGES` matches, so
+        // first-run prefill adds 0 apps and the ViewModel sets the hint flag
+        // true (`dockedAppIds.size = 0 < dockIconCount`). If a future fixture
+        // change adds a popular package, this assertion fails loudly here
+        // instead of silently turning the toast assertion into a no-op.
+        assertTrue(
+            "fresh-prefill fixture should set the dock-add hint flag",
+            composeRule.activity.viewModel.uiState.value.shouldShowDockAddHint,
+        )
+
         composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -2101,21 +2098,51 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_six_slots_one_row_robolectric.png")
     }
 
-    // The trailing + button shows only when there is exactly one row and
-    // it isn't full — once the user has filled a row or spanned multiple
-    // rows they've learned the long-press gesture and don't need the nudge.
+    // The "+" hint is a one-shot onboarding affordance: it appears after a
+    // first-run prefill that leaves a free slot, and disappears for good as
+    // soon as the user docks anything to that dock. The fake-app fixture has
+    // no POPULAR_APP_PACKAGES matches, so prefill adds 0 apps and the flag is
+    // set on the empty dock.
     @Test
-    fun dockAddButton_visibleWhenSingleRowHasEmptySlot() {
-        val viewModel = composeRule.activity.viewModel
-        viewModel.uiState.value.filteredApps.take(3).forEach { app ->
-            viewModel.toggleDock(app, maxDockedApps = 1)
-        }
+    fun dockAddButton_appearsAfterFreshPrefill() {
         composeRule.waitForIdle()
 
-        // 3 docked apps, 4 icons per row → 1 row, 1 empty slot; hint must show.
-        assertEquals(3, viewModel.uiState.value.dockedApps.size)
-        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        assertEquals(0, composeRule.activity.viewModel.uiState.value.dockedApps.size)
+        assertTrue(composeRule.activity.viewModel.uiState.value.shouldShowDockAddHint)
         composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun dockAddButton_hiddenAfterFirstUserDock() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertIsDisplayed()
+
+        viewModel.toggleDock(
+            viewModel.uiState.value.filteredApps.first { it.name == "Calculator" },
+            maxDockedApps = 6,
+        )
+        composeRule.waitForIdle()
+
+        assertEquals(1, viewModel.uiState.value.dockedApps.size)
+        assertFalse(viewModel.uiState.value.shouldShowDockAddHint)
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
+    }
+
+    // Upgrade-install path: a pre-prefill build's persisted dock + a
+    // hand-seeded `dock_prefilled = true` flag (mirroring what
+    // `LauncherViewModel`'s upgrade-skip branch latches) must NEVER advertise
+    // the hint, even though the first row has free slots.
+    @Test
+    fun dockAddButton_hiddenOnUpgradeInstall() {
+        composeRule.waitForIdle()
+
+        // The carve-out in `SeedLauncherStateRule` seeded a docked entry and
+        // set `dock_prefilled = true` *before* the activity started — the
+        // shape of state left behind when a user upgrades from a build that
+        // predates `prefillDock`. The flag default of `false` must hold.
+        assertFalse(composeRule.activity.viewModel.uiState.value.shouldShowDockAddHint)
+        composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -2771,6 +2798,21 @@ class MainActivityRobolectricScreenshotTest {
                             .getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
                             .edit()
                             .putBoolean("app_list_icon_only", true)
+                            .commit()
+                    }
+                    if (description.methodName == "dockAddButton_hiddenOnUpgradeInstall") {
+                        // Simulate an upgrade install: a docked entry + the
+                        // `dock_prefilled` flag latched. Mirrors what
+                        // `LauncherViewModel`'s cold-start sees on a device
+                        // that upgraded from a build pre-dating `prefillDock`.
+                        // The hint's `show_add_button_hint` key is left
+                        // unset so it returns its default `false`.
+                        application
+                            .getSharedPreferences("docked_apps", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("docked_app_ids", "upgrade-fixture-id")
+                            .putString("docked_app_positions", "upgrade-fixture-id\t0\t0")
+                            .putBoolean("dock_prefilled", true)
                             .commit()
                     }
                     base.evaluate()

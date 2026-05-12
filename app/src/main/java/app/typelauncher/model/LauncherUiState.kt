@@ -331,6 +331,11 @@ internal data class LauncherUiState(
     val isShowDockedAppsInList: Boolean = true,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
+    // True when the dock was prefilled on first run and the user has not yet
+    // docked anything; renders the "+" add-button onboarding hint in the first
+    // empty slot of the personal dock's first row. Cleared permanently on the
+    // first user dock to the personal dock.
+    val shouldShowDockAddHint: Boolean = false,
     // Secondary "work apps" dock rendered below the personal dock when a
     // managed (work) profile is provisioned and unpaused. Independent
     // persistence and enable toggle, but it intentionally shares
@@ -340,6 +345,8 @@ internal data class LauncherUiState(
     // (`isWorkProfileActive = false`).
     val workDockedApps: List<InstalledApp> = emptyList(),
     val workDockPositions: Map<String, DockPosition> = emptyMap(),
+    // Per-dock equivalent of [shouldShowDockAddHint] for the work dock.
+    val shouldShowWorkDockAddHint: Boolean = false,
     val isWorkDockEnabled: Boolean = false,
     // True when at least one work-profile `InstalledApp` is present in the
     // raw `installedApps` list, regardless of quiet mode. Drives whether the
