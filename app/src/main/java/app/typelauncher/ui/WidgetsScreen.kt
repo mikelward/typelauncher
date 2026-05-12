@@ -99,9 +99,9 @@ internal fun WidgetsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
-            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+            .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
             .testTag(widgetScreenTag),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
     ) {
         items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
             HostedWidgetCard(
