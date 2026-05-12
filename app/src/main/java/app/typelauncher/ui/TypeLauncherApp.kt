@@ -1206,13 +1206,27 @@ private fun SwipeNavigationBox(
                                     velocityTracker.addPosition(change.uptimeMillis, change.position)
                                 }
                             }
-                            if (carouselClaimed) {
+                            if (carouselClaimed && !widgetScrolledDuringGesture) {
                                 val effectiveDragX = rawDragX - anchorRawDragX
                                 val nextDisplayedDragX = effectiveDragX.coerceIn(-pageWidthPx, pageWidthPx)
                                 carouselOffsetPx = nextDisplayedDragX
                                 displayedDragX = nextDisplayedDragX
                                 change.consume()
                             }
+                            // Carousel claim → widget signal race: a horizontal
+                            // drag can cross the launcher's 8 dp slop and arm
+                            // `carouselClaimed = true` one event before a
+                            // hosted-widget descendant calls
+                            // `requestDisallowInterceptTouchEvent(true)`. Past
+                            // this point the post-claim drag block would
+                            // otherwise keep following the finger and the
+                            // release path would commit a page change even
+                            // though the gesture really belongs to the widget.
+                            // Freezing the offset above (and the commit check
+                            // at release below) is the targeted fix; the
+                            // existing `animateCarouselOffsetTo(0f)` in the
+                            // not-committed branch then snaps any pre-claim
+                            // visual offset back to the source page.
                         }
                     } while (event.changes.any { it.pressed })
 
@@ -1275,13 +1289,15 @@ private fun SwipeNavigationBox(
                         sign(releaseVelocity) == sign(effectiveDragX)
                     val committed = dragDirection != 0 &&
                         !velocityOpposesDrag &&
+                        !widgetScrolledDuringGesture &&
                         (distanceCommits || flingCommits)
 
                     LauncherDebugLog.event(
                         "SwipeNavigationBox horizontal release effectiveDragX=$effectiveDragX rawDragY=$rawDragY " +
                             "velocityX=$releaseVelocity " +
                             "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
-                            "velocityOpposes=$velocityOpposesDrag committed=$committed",
+                            "velocityOpposes=$velocityOpposesDrag " +
+                            "widgetScrolled=$widgetScrolledDuringGesture committed=$committed",
                     )
                     val targetPage = if (committed) {
                         (gestureStartPage + dragDirection)
