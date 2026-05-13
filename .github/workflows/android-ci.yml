@@ -126,18 +126,105 @@ jobs:
       - name: Run lint
         run: ./gradlew lint
 
+      - name: Select release notes subject
+        # Walks the commits in this push newest-first and picks the first
+        # one whose subject is worth shipping as a release note — to both
+        # Firebase App Distribution (testers' phones) and the Play Store
+        # internal track (Play Console "What's new"):
+        #   - skip `ci:`-prefixed housekeeping commits (e.g. snapshot
+        #     regenerations) — they describe CI plumbing, not user-visible
+        #     changes;
+        #   - skip commits whose every changed path is repo housekeeping —
+        #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or anything under
+        #     `.github/` (workflows, issue/PR templates, dependabot config).
+        #     `PRIVACY.md` is the explicit exception: it backs the hosted
+        #     privacy policy linked from the About dialog, so a change
+        #     there is genuinely user-facing and counts as a real commit.
+        # If no commit in the push qualifies, sets RELEASE_NOTES_SKIP=true
+        # and both the Firebase distribution and Play upload steps below
+        # skip — so a push of only ci: / docs / `.github` commits doesn't
+        # buzz testers' phones or ship a redundant Play release.
+        # Engineering detail lives in the commit body, which neither
+        # surface shows — see the "Commit messages" section in CLAUDE.md
+        # for the wording convention. Play caps each locale at 500 chars;
+        # the subject is bounded well below that, but we truncate
+        # defensively.
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # On a first push to a branch (or after a force-reset that
+          # orphans the old tip) BEFORE_SHA is all-zeros or otherwise
+          # unreachable. There's no usable range to walk in that case, so
+          # fall back to just HEAD — walking the entire history reachable
+          # from HEAD would be both slow and meaningless.
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git rev-parse --quiet --verify "$BEFORE_SHA^{commit}" >/dev/null; then
+            shas=$(git log -1 --format=%H "$AFTER_SHA")
+          else
+            shas=$(git log --no-merges --format=%H "$BEFORE_SHA..$AFTER_SHA")
+          fi
+
+          subject=""
+          while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
+            s=$(git log -1 --format=%s "$sha")
+            case "$s" in
+              ci:*) continue ;;
+            esac
+            relevant=false
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              case "$f" in
+                PRIVACY.md) relevant=true; break ;;
+                .github/*)  ;;
+                *.md)       ;;
+                *)          relevant=true; break ;;
+              esac
+            done < <(git diff-tree --no-commit-id --name-only -r "$sha")
+            if [ "$relevant" = "false" ]; then
+              continue
+            fi
+            subject="$s"
+            break
+          done <<< "$shas"
+
+          if [ -z "$subject" ]; then
+            echo "No release-worthy commits in this push (all ci: / docs / .github housekeeping); skipping Firebase distribution and Play upload."
+            echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          subject=$(printf '%s' "$subject" | head -c 500)
+          {
+            echo "RELEASE_NOTES_SUBJECT<<RELEASE_NOTES_EOF"
+            printf '%s\n' "$subject"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_ENV"
+
       - name: Distribute via Firebase App Distribution
         # On push to main only — feature-branch CI runs would otherwise spam
         # testers with WIP builds. Skipped when secrets aren't set so the build
-        # still finishes on a fresh repo / fork. Runs before the Play Store
-        # upload so a Play failure (e.g. quota, propagation) doesn't gate the
-        # faster Firebase channel testers actually rely on.
+        # still finishes on a fresh repo / fork. Also skipped when the
+        # preceding step set RELEASE_NOTES_SKIP=true because every commit in
+        # this push was either `ci:`-prefixed or pure docs / `.github` — see
+        # "Select release notes subject" — so we don't buzz testers' phones
+        # for a notification whose preview would read e.g. "ci: bump
+        # actions/checkout". Runs before the Play Store upload so a Play
+        # failure (e.g. quota, propagation) doesn't gate the faster Firebase
+        # channel testers actually rely on.
         if: |
           success() &&
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
           env.FIREBASE_APP_ID != '' &&
-          env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+          env.FIREBASE_SERVICE_ACCOUNT_JSON != '' &&
+          env.RELEASE_NOTES_SKIP != 'true'
         env:
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -151,10 +238,11 @@ jobs:
           groups: testers
           file: app/build/outputs/apk/debug/app-debug.apk
           # Push notification on the tester's phone shows the first ~60 chars
-          # of these notes, so put the most useful info first. Commit subject
-          # is normally that.
+          # of these notes, so put the most useful info first. The subject
+          # picked by "Select release notes subject" is what Play also ships
+          # as "What's new" — keeping the two surfaces in sync.
           releaseNotes: |
-            ${{ github.event.head_commit.message }}
+            ${{ env.RELEASE_NOTES_SUBJECT }}
             ---
             Build: ${{ github.run_number }} · ${{ github.sha }}
 
@@ -208,101 +296,45 @@ jobs:
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
-        # files. We walk the commits in this push newest-first and pick the
-        # first one whose subject is worth shipping as a "What's new" entry:
-        #   - skip `ci:`-prefixed housekeeping commits (e.g. snapshot
-        #     regenerations) — they describe CI plumbing, not user-visible
-        #     changes;
-        #   - skip commits whose every changed path is repo housekeeping —
-        #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or anything under
-        #     `.github/` (workflows, issue/PR templates, dependabot config).
-        #     `PRIVACY.md` is the explicit exception: it backs the hosted
-        #     privacy policy linked from the About dialog, so a change
-        #     there is genuinely user-facing and counts as a real commit.
-        # If no commit in the push qualifies, sets PLAY_SKIP=true and the
-        # upload step below skips, so a push of only ci: / docs / `.github`
-        # commits doesn't ship a redundant release. Engineering detail
-        # lives in the commit body, which testers don't see here — see the
-        # "Commit messages" section in CLAUDE.md for the wording
-        # convention. Play caps each locale at 500 chars; the subject is
-        # bounded well below that, but we truncate defensively.
+        # files. The subject was already picked upstream by "Select release
+        # notes subject" (and truncated to 500 chars, Play's per-locale cap);
+        # this step just writes it to disk in the layout the action expects.
+        # When that earlier step set RELEASE_NOTES_SKIP=true (every commit in
+        # the push was ci: / docs / `.github`) the gate below skips this and
+        # the upload step.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
           env.RELEASE_KEYSTORE_FILE != '' &&
-          env.PLAY_SERVICE_ACCOUNT_JSON != ''
+          env.PLAY_SERVICE_ACCOUNT_JSON != '' &&
+          env.RELEASE_NOTES_SKIP != 'true'
         env:
           # PLAY_SERVICE_ACCOUNT_JSON has to be redeclared here because GitHub
           # Actions step-level env doesn't propagate to neighbouring steps' if
           # expressions — without this the gate above would always evaluate to
           # empty and the step would silently skip.
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-
-          # On a first push to a branch (or after a force-reset that
-          # orphans the old tip) BEFORE_SHA is all-zeros or otherwise
-          # unreachable. There's no usable range to walk in that case, so
-          # fall back to just HEAD — walking the entire history reachable
-          # from HEAD would be both slow and meaningless.
-          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
-             || ! git rev-parse --quiet --verify "$BEFORE_SHA^{commit}" >/dev/null; then
-            shas=$(git log -1 --format=%H "$AFTER_SHA")
-          else
-            shas=$(git log --no-merges --format=%H "$BEFORE_SHA..$AFTER_SHA")
-          fi
-
-          subject=""
-          while IFS= read -r sha; do
-            [ -z "$sha" ] && continue
-            s=$(git log -1 --format=%s "$sha")
-            case "$s" in
-              ci:*) continue ;;
-            esac
-            relevant=false
-            while IFS= read -r f; do
-              [ -z "$f" ] && continue
-              case "$f" in
-                PRIVACY.md) relevant=true; break ;;
-                .github/*)  ;;
-                *.md)       ;;
-                *)          relevant=true; break ;;
-              esac
-            done < <(git diff-tree --no-commit-id --name-only -r "$sha")
-            if [ "$relevant" = "false" ]; then
-              continue
-            fi
-            subject="$s"
-            break
-          done <<< "$shas"
-
-          if [ -z "$subject" ]; then
-            echo "No Play-worthy commits in this push (all ci: / docs / .github housekeeping); skipping Play upload."
-            echo "PLAY_SKIP=true" >> "$GITHUB_ENV"
-            exit 0
-          fi
-
           mkdir -p "${RUNNER_TEMP}/whatsnew"
-          printf '%s' "$subject" \
-            | head -c 500 \
+          printf '%s' "${RELEASE_NOTES_SUBJECT}" \
             > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
           echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
 
       - name: Upload to Play Store internal track
         # Gated so it only runs on push to main with both the upload key and
-        # service account configured. Also skipped when the preceding step
-        # set PLAY_SKIP=true because every commit in this push was either
-        # `ci:`-prefixed or pure docs (see "Compose Play Store release
-        # notes"). See docs/play-store-internal-track.md for the Play
+        # service account configured. Also skipped when "Select release notes
+        # subject" set RELEASE_NOTES_SKIP=true because every commit in this
+        # push was either `ci:`-prefixed or pure docs / `.github` — no
+        # Play-worthy "What's new" entry exists, so shipping a release would
+        # be redundant. See docs/play-store-internal-track.md for the Play
         # Console / service-account setup the upload depends on.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
           env.RELEASE_KEYSTORE_FILE != '' &&
           env.PLAY_SERVICE_ACCOUNT_JSON != '' &&
-          env.PLAY_SKIP != 'true'
+          env.RELEASE_NOTES_SKIP != 'true'
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         uses: r0adkll/upload-google-play@v1
