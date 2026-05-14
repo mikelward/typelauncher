@@ -2,21 +2,35 @@ name: Android CI
 
 on:
   pull_request:
-    # Skip CI for documentation-only pushes (CLAUDE.md, SPEC.md, docs/*).
-    # PRIVACY.md is the explicit exception — it backs the hosted privacy
-    # policy linked from the About dialog, so a PRIVACY.md-only push still
-    # needs to build and (on main) ship a Play release. GitHub Actions
-    # honors `!` negation when it follows a positive pattern; PRIVACY.md
-    # is at the repo root.
+    # Skip CI for pushes whose every changed path is housekeeping that
+    # has no effect on the app build:
+    #   - documentation (CLAUDE.md, SPEC.md, docs/*), with PRIVACY.md
+    #     negated back in because it backs the hosted privacy policy
+    #     linked from the About dialog — a PRIVACY.md-only push still
+    #     needs to build and (on main) ship a Play release;
+    #   - any dotfile at the repo root (`.gitignore`, `.editorconfig`,
+    #     `.gitattributes`, …) or anything under any dotdir at the repo
+    #     root (`.claude/`, `.idea/`, `.vscode/`, `.cursor/`,
+    #     `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml`, …), with
+    #     `.github/workflows/**` negated back in so workflow edits
+    #     re-trigger CI and validate themselves.
+    # GitHub Actions evaluates paths-ignore with `dot: true` and honors
+    # `!` negation when it follows a positive pattern, applied in order.
     paths-ignore:
       - '**/*.md'
       - '!PRIVACY.md'
+      - '.*'
+      - '.*/**'
+      - '!.github/workflows/**'
   push:
     branches:
       - main
     paths-ignore:
       - '**/*.md'
       - '!PRIVACY.md'
+      - '.*'
+      - '.*/**'
+      - '!.github/workflows/**'
 
 permissions:
   contents: read
@@ -135,14 +149,16 @@ jobs:
         #     regenerations) — they describe CI plumbing, not user-visible
         #     changes;
         #   - skip commits whose every changed path is repo housekeeping —
-        #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or anything under
-        #     `.github/` (workflows, issue/PR templates, dependabot config).
-        #     `PRIVACY.md` is the explicit exception: it backs the hosted
-        #     privacy policy linked from the About dialog, so a change
-        #     there is genuinely user-facing and counts as a real commit.
+        #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or any dotfile /
+        #     dotdir at the repo root (`.github/` workflows + templates +
+        #     dependabot config, `.claude/` Claude Code workspace state,
+        #     `.gitignore`, `.editorconfig`, etc.). `PRIVACY.md` is the
+        #     explicit exception: it backs the hosted privacy policy
+        #     linked from the About dialog, so a change there is
+        #     genuinely user-facing and counts as a real commit.
         # If no commit in the push qualifies, sets RELEASE_NOTES_SKIP=true
         # and both the Firebase distribution and Play upload steps below
-        # skip — so a push of only ci: / docs / `.github` commits doesn't
+        # skip — so a push of only ci: / docs / dotfile commits doesn't
         # buzz testers' phones or ship a redundant Play release.
         # Engineering detail lives in the commit body, which neither
         # surface shows — see the "Commit messages" section in CLAUDE.md
@@ -180,9 +196,13 @@ jobs:
             relevant=false
             while IFS= read -r f; do
               [ -z "$f" ] && continue
+              # `case` patterns match `*` against `/` too, so `.*` skips
+              # any path whose first component starts with `.` — covers
+              # `.github/`, `.claude/`, `.gitignore`, `.editorconfig` etc.
+              # in one pattern.
               case "$f" in
                 PRIVACY.md) relevant=true; break ;;
-                .github/*)  ;;
+                .*)         ;;
                 *.md)       ;;
                 *)          relevant=true; break ;;
               esac
@@ -195,7 +215,7 @@ jobs:
           done <<< "$shas"
 
           if [ -z "$subject" ]; then
-            echo "No release-worthy commits in this push (all ci: / docs / .github housekeeping); skipping Firebase distribution and Play upload."
+            echo "No release-worthy commits in this push (all ci: / docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
             echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -212,9 +232,10 @@ jobs:
         # testers with WIP builds. Skipped when secrets aren't set so the build
         # still finishes on a fresh repo / fork. Also skipped when the
         # preceding step set RELEASE_NOTES_SKIP=true because every commit in
-        # this push was either `ci:`-prefixed or pure docs / `.github` — see
-        # "Select release notes subject" — so we don't buzz testers' phones
-        # for a notification whose preview would read e.g. "ci: bump
+        # this push was either `ci:`-prefixed or pure docs / dotfile
+        # housekeeping (`.github/`, `.claude/`, …) — see "Select release
+        # notes subject" — so we don't buzz testers' phones for a
+        # notification whose preview would read e.g. "ci: bump
         # actions/checkout". Runs before the Play Store upload so a Play
         # failure (e.g. quota, propagation) doesn't gate the faster Firebase
         # channel testers actually rely on.
@@ -299,9 +320,9 @@ jobs:
         # files. The subject was already picked upstream by "Select release
         # notes subject" (and truncated to 500 chars, Play's per-locale cap);
         # this step just writes it to disk in the layout the action expects.
-        # When that earlier step set RELEASE_NOTES_SKIP=true (every commit in
-        # the push was ci: / docs / `.github`) the gate below skips this and
-        # the upload step.
+        # When that earlier step set RELEASE_NOTES_SKIP=true (every commit
+        # in the push was ci: / docs / dotfile housekeeping) the gate below
+        # skips this and the upload step.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
@@ -325,10 +346,11 @@ jobs:
         # Gated so it only runs on push to main with both the upload key and
         # service account configured. Also skipped when "Select release notes
         # subject" set RELEASE_NOTES_SKIP=true because every commit in this
-        # push was either `ci:`-prefixed or pure docs / `.github` — no
-        # Play-worthy "What's new" entry exists, so shipping a release would
-        # be redundant. See docs/play-store-internal-track.md for the Play
-        # Console / service-account setup the upload depends on.
+        # push was either `ci:`-prefixed or pure docs / dotfile housekeeping
+        # (`.github/`, `.claude/`, …) — no Play-worthy "What's new" entry
+        # exists, so shipping a release would be redundant. See
+        # docs/play-store-internal-track.md for the Play Console /
+        # service-account setup the upload depends on.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
