@@ -259,39 +259,31 @@ jobs:
           }
 
           # Truncate against the full formatted output — bullet ("• "),
-          # newline separator, and the truncation marker all count
-          # toward MAX. Play's documented per-language cap is 500
-          # Unicode characters for the *entered* "What's new" text, so
-          # measuring anything less risks writing whatsnew-en-US over
-          # the cap and having the Play upload reject the release.
-          # Trial-format with each candidate added; back the last one
-          # out the moment the formatted result (plus the "…" marker
-          # we'd append if anything is dropped) exceeds MAX.
+          # newline separator, and (when appended) the "\n…" truncation
+          # marker all count toward MAX. Play's documented per-language
+          # cap is 500 Unicode characters for the *entered* "What's
+          # new" text, so measuring anything less risks writing
+          # whatsnew-en-US over the cap and having the Play upload
+          # reject the release.
+          #
+          # Greedy: trial-format each candidate prepended to the kept
+          # list and stop the moment the formatted result (without the
+          # marker) exceeds MAX. Reserving headroom for the marker on
+          # every iteration would force-drop a release-worthy commit
+          # whenever the last qualifying subject fits cleanly but
+          # "candidate + \n…" would not — the marker is a hint,
+          # not load-bearing, so we only append it at the end if it
+          # still fits after truncation.
           kept=()
           truncated=false
           for s in "${subjects[@]}"; do
             candidate=$(format_notes "${kept[@]}" "$s")
-            candidate_marked="${candidate}${TRUNC_MARK}"
-            # Once we've added at least one subject, any further
-            # candidate must still leave room for the truncation
-            # marker in case a later subject doesn't fit.
-            if [ "${#kept[@]}" -eq 0 ]; then
-              budget_check="$candidate"
-            else
-              budget_check="$candidate_marked"
-            fi
-            if [ "$(char_len "$budget_check")" -gt "$MAX" ]; then
+            if [ "$(char_len "$candidate")" -gt "$MAX" ]; then
               truncated=true
               break
             fi
             kept+=("$s")
           done
-          # If we walked the whole list without breaking, no truncation
-          # actually happened — clear the flag so the marker isn't
-          # appended unnecessarily.
-          if [ "${#kept[@]}" -eq "${#subjects[@]}" ]; then
-            truncated=false
-          fi
 
           if [ "${#kept[@]}" -eq 0 ]; then
             # First subject alone exceeds the cap; hard-truncate the
@@ -300,7 +292,13 @@ jobs:
             notes="${notes}…"
           else
             notes=$(format_notes "${kept[@]}")
-            if [ "$truncated" = true ]; then
+            # Append the marker only if (a) we actually dropped a
+            # subject and (b) appending the marker still keeps us
+            # under MAX. The marker is informational; we'd rather
+            # ship one more character of content than emit a marker
+            # that pushes the total over Play's cap.
+            if [ "$truncated" = true ] \
+              && [ "$(char_len "${notes}${TRUNC_MARK}")" -le "$MAX" ]; then
               notes="${notes}${TRUNC_MARK}"
             fi
           fi
