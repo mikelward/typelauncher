@@ -140,11 +140,11 @@ jobs:
       - name: Run lint
         run: ./gradlew lint
 
-      - name: Select release notes subject
-        # Walks the commits in this push newest-first and picks the first
-        # one whose subject is worth shipping as a release note — to both
-        # Firebase App Distribution (testers' phones) and the Play Store
-        # internal track (Play Console "What's new"):
+      - name: Build release notes
+        # Walks every commit in this push oldest-first and collects the
+        # subject line of each one worth shipping as a release note — to
+        # both Firebase App Distribution (testers' phones) and the Play
+        # Store internal track (Play Console "What's new"):
         #   - skip `ci:`-prefixed housekeeping commits (e.g. snapshot
         #     regenerations) — they describe CI plumbing, not user-visible
         #     changes;
@@ -156,15 +156,22 @@ jobs:
         #     explicit exception: it backs the hosted privacy policy
         #     linked from the About dialog, so a change there is
         #     genuinely user-facing and counts as a real commit.
-        # If no commit in the push qualifies, sets RELEASE_NOTES_SKIP=true
-        # and both the Firebase distribution and Play upload steps below
+        # The qualifying subjects are emitted as a "- "-bulleted list,
+        # oldest-first, when there is more than one; a single subject
+        # emits verbatim (so the common one-PR-per-push case looks
+        # identical to before in the Play "What's new" card). If no
+        # commit in the push qualifies, sets RELEASE_NOTES_SKIP=true and
+        # both the Firebase distribution and Play upload steps below
         # skip — so a push of only ci: / docs / dotfile commits doesn't
         # buzz testers' phones or ship a redundant Play release.
         # Engineering detail lives in the commit body, which neither
         # surface shows — see the "Commit messages" section in CLAUDE.md
-        # for the wording convention. Play caps each locale at 500 chars;
-        # the subject is bounded well below that, but we truncate
-        # defensively.
+        # for the wording convention. Play caps each locale at 500 bytes;
+        # if the bulleted list overflows we drop trailing bullets until
+        # it fits and append "\n..." so the user knows the tail was cut.
+        # If a single subject alone exceeds the cap (unlikely — subjects
+        # are conventionally ≤ ~70 chars) we hard-truncate to 497 bytes
+        # and append "...".
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main'
@@ -183,10 +190,10 @@ jobs:
              || ! git rev-parse --quiet --verify "$BEFORE_SHA^{commit}" >/dev/null; then
             shas=$(git log -1 --format=%H "$AFTER_SHA")
           else
-            shas=$(git log --no-merges --format=%H "$BEFORE_SHA..$AFTER_SHA")
+            shas=$(git log --reverse --no-merges --format=%H "$BEFORE_SHA..$AFTER_SHA")
           fi
 
-          subject=""
+          subjects=()
           while IFS= read -r sha; do
             [ -z "$sha" ] && continue
             s=$(git log -1 --format=%s "$sha")
@@ -210,20 +217,72 @@ jobs:
             if [ "$relevant" = "false" ]; then
               continue
             fi
-            subject="$s"
-            break
+            subjects+=("$s")
           done <<< "$shas"
 
-          if [ -z "$subject" ]; then
+          if [ "${#subjects[@]}" -eq 0 ]; then
             echo "No release-worthy commits in this push (all ci: / docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
             echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
             exit 0
           fi
 
-          subject=$(printf '%s' "$subject" | head -c 500)
+          MAX=500
+          TRUNC_MARK=$'\n...'
+
+          # One commit: emit the subject verbatim so the common
+          # one-PR-per-push case is byte-identical to the old behavior.
+          # More than one: prefix each line with "- " so the Play
+          # "What's new" card and Firebase release notes render as a
+          # list.
+          if [ "${#subjects[@]}" -eq 1 ]; then
+            USE_BULLETS=0
+          else
+            USE_BULLETS=1
+          fi
+
+          format_notes() {
+            if [ "$USE_BULLETS" -eq 0 ]; then
+              printf '%s' "$1"
+              return
+            fi
+            local first=1
+            for s in "$@"; do
+              if [ "$first" -eq 1 ]; then
+                printf '%s' "- $s"
+                first=0
+              else
+                printf '\n- %s' "$s"
+              fi
+            done
+          }
+
+          byte_len() {
+            printf '%s' "$1" | wc -c
+          }
+
+          notes=$(format_notes "${subjects[@]}")
+          if [ "$(byte_len "$notes")" -gt "$MAX" ]; then
+            kept=()
+            for s in "${subjects[@]}"; do
+              candidate=$(format_notes "${kept[@]}" "$s")
+              candidate_marked="${candidate}${TRUNC_MARK}"
+              if [ "$(byte_len "$candidate_marked")" -gt "$MAX" ]; then
+                break
+              fi
+              kept+=("$s")
+            done
+            if [ "${#kept[@]}" -eq 0 ]; then
+              notes=$(printf '%s' "${subjects[0]}" | head -c 497)
+              notes="${notes}..."
+            else
+              notes=$(format_notes "${kept[@]}")
+              notes="${notes}${TRUNC_MARK}"
+            fi
+          fi
+
           {
-            echo "RELEASE_NOTES_SUBJECT<<RELEASE_NOTES_EOF"
-            printf '%s\n' "$subject"
+            echo "RELEASE_NOTES<<RELEASE_NOTES_EOF"
+            printf '%s\n' "$notes"
             echo "RELEASE_NOTES_EOF"
           } >> "$GITHUB_ENV"
 
@@ -259,11 +318,14 @@ jobs:
           groups: testers
           file: app/build/outputs/apk/debug/app-debug.apk
           # Push notification on the tester's phone shows the first ~60 chars
-          # of these notes, so put the most useful info first. The subject
-          # picked by "Select release notes subject" is what Play also ships
-          # as "What's new" — keeping the two surfaces in sync.
+          # of these notes — for a multi-commit push that's the oldest
+          # qualifying commit's subject (the list is oldest-first; see
+          # "Build release notes" upstream). The full bulleted list is
+          # visible inside the Firebase tester app, and the same string
+          # is what Play ships as "What's new", so the two surfaces stay
+          # in sync.
           releaseNotes: |
-            ${{ env.RELEASE_NOTES_SUBJECT }}
+            ${{ env.RELEASE_NOTES }}
             ---
             Build: ${{ github.run_number }} · ${{ github.sha }}
 
@@ -317,12 +379,13 @@ jobs:
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
-        # files. The subject was already picked upstream by "Select release
-        # notes subject" (and truncated to 500 chars, Play's per-locale cap);
-        # this step just writes it to disk in the layout the action expects.
-        # When that earlier step set RELEASE_NOTES_SKIP=true (every commit
-        # in the push was ci: / docs / dotfile housekeeping) the gate below
-        # skips this and the upload step.
+        # files. The bulleted list of commit subjects was already built
+        # upstream by "Build release notes" (and truncated to Play's
+        # 500-byte per-locale cap); this step just writes it to disk in
+        # the layout the action expects. When that earlier step set
+        # RELEASE_NOTES_SKIP=true (every commit in the push was ci: /
+        # docs / dotfile housekeeping) the gate below skips this and the
+        # upload step.
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
@@ -338,14 +401,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${RUNNER_TEMP}/whatsnew"
-          printf '%s' "${RELEASE_NOTES_SUBJECT}" \
+          printf '%s' "${RELEASE_NOTES}" \
             > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
           echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
 
       - name: Upload to Play Store internal track
         # Gated so it only runs on push to main with both the upload key and
-        # service account configured. Also skipped when "Select release notes
-        # subject" set RELEASE_NOTES_SKIP=true because every commit in this
+        # service account configured. Also skipped when "Build release
+        # notes" set RELEASE_NOTES_SKIP=true because every commit in this
         # push was either `ci:`-prefixed or pure docs / dotfile housekeeping
         # (`.github/`, `.claude/`, …) — no Play-worthy "What's new" entry
         # exists, so shipping a release would be redundant. See
