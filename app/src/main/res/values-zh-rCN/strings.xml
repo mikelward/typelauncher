@@ -7,6 +7,11 @@
     <string name="play_update_banner_title">有新版本可用</string>
     <string name="play_update_banner_body">点按以从 Google Play 更新。</string>
     <string name="play_update_banner_update_button">更新</string>
+    <string name="play_update_banner_updating_title">正在更新…</string>
+    <string name="play_update_banner_updating_body">正在从 Google Play 下载。</string>
+    <string name="play_update_banner_downloaded_title">更新已就绪</string>
+    <string name="play_update_banner_downloaded_body">点按以重启并安装。</string>
+    <string name="play_update_banner_restart_button">重启</string>
     <string name="play_update_banner_dismiss_description">关闭更新横幅</string>
     <string name="installed_apps_list_label">已安装的应用</string>
     <string name="dock_apps_list_label">程序坞</string>

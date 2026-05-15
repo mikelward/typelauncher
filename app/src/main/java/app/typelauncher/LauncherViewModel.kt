@@ -28,6 +28,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.google.android.play.core.install.model.InstallStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -62,11 +63,10 @@ internal class LauncherViewModel(
     private val appMetadataStore = AppMetadataStore(app)
     private val iconSnapshotStore = IconSnapshotStore(app)
     private val playUpdateStore = PlayUpdateStore(app)
-    // Set when the user taps the Play update CTA. Suppresses the banner for the
-    // rest of this process; cleared on process restart, on a higher available
-    // version, or when Play reports no update is available.
-    private var sessionTappedPlayUpdate: Boolean = false
-    private var sessionTappedPlayUpdateVersionCode: Int? = null
+    // In-flight progress for the currently-known available version. Lets the
+    // banner reflect Play's flexible-update download state (Starting →
+    // Downloading → Downloaded) instead of just vanishing on first tap.
+    private var currentPlayUpdateProgress: UpdateProgress = UpdateProgress.Idle
     private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     // Set when the icon-picker callback fires before the cold-start
@@ -1397,29 +1397,32 @@ internal class LauncherViewModel(
         logState("closeSettings")
     }
 
-    fun setPlayUpdateAvailable(availableVersionCode: Int?) {
-        if (sessionTappedPlayUpdate && availableVersionCode != sessionTappedPlayUpdateVersionCode) {
-            sessionTappedPlayUpdate = false
-            sessionTappedPlayUpdateVersionCode = null
+    fun setPlayUpdateAvailable(availableVersionCode: Int?, installStatus: Int = InstallStatus.UNKNOWN) {
+        val previous = _uiState.value.playUpdate as? PlayUpdateState.Available
+        if (previous != null && previous.versionCode != availableVersionCode) {
+            // A different version is being offered (rare — typically a server-side
+            // rollout swap). Reset any in-flight progress so the new version is
+            // presented from a clean Idle state.
+            currentPlayUpdateProgress = UpdateProgress.Idle
         }
         val isPersistDismissed = availableVersionCode != null &&
             availableVersionCode == playUpdateStore.dismissedVersionCode
-        val isSessionDismissed = sessionTappedPlayUpdate &&
-            availableVersionCode == sessionTappedPlayUpdateVersionCode
+        val progress = progressForInstallStatus(installStatus, fallback = currentPlayUpdateProgress)
+        currentPlayUpdateProgress = progress
         _uiState.update { state ->
             state.copy(
                 playUpdate = PlayUpdateState.Available(
                     versionCode = availableVersionCode,
-                    isDismissed = isPersistDismissed || isSessionDismissed,
+                    isDismissed = isPersistDismissed,
+                    progress = progress,
                 ),
             )
         }
-        logState("setPlayUpdateAvailable=$availableVersionCode")
+        logState("setPlayUpdateAvailable=$availableVersionCode progress=$progress")
     }
 
     fun setPlayUpdateUnavailable() {
-        sessionTappedPlayUpdate = false
-        sessionTappedPlayUpdateVersionCode = null
+        currentPlayUpdateProgress = UpdateProgress.Idle
         _uiState.update { it.copy(playUpdate = PlayUpdateState.NotAvailable) }
         logState("setPlayUpdateUnavailable")
     }
@@ -1431,13 +1434,45 @@ internal class LauncherViewModel(
         logState("dismissPlayUpdate=${update.versionCode}")
     }
 
-    fun markPlayUpdateTapped() {
+    /**
+     * Drives the banner's in-flight status. Called when the user taps Update
+     * (Starting). When [progress] is `Idle` the banner falls back to the
+     * original "Update" CTA — used to recover from a cancelled Play sheet or
+     * a download failure.
+     */
+    fun setPlayUpdateProgress(progress: UpdateProgress) {
+        currentPlayUpdateProgress = progress
         val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
-        sessionTappedPlayUpdate = true
-        sessionTappedPlayUpdateVersionCode = update.versionCode
-        _uiState.update { it.copy(playUpdate = update.copy(isDismissed = true)) }
-        logState("markPlayUpdateTapped=${update.versionCode}")
+        if (update.progress == progress) return
+        _uiState.update { it.copy(playUpdate = update.copy(progress = progress)) }
+        logState("setPlayUpdateProgress=$progress")
     }
+
+    /**
+     * Bridge for `PlayUpdateChecker`'s `InstallStateUpdatedListener` — translates
+     * Play's raw [InstallStatus] code into our [UpdateProgress] state machine
+     * and applies it to the banner.
+     */
+    fun onPlayUpdateInstallStatus(installStatus: Int) {
+        setPlayUpdateProgress(progressForInstallStatus(installStatus, fallback = currentPlayUpdateProgress))
+    }
+
+    private fun progressForInstallStatus(installStatus: Int, fallback: UpdateProgress): UpdateProgress =
+        when (installStatus) {
+            InstallStatus.PENDING -> UpdateProgress.Starting
+            InstallStatus.DOWNLOADING -> UpdateProgress.Downloading
+            InstallStatus.DOWNLOADED -> UpdateProgress.Downloaded
+            InstallStatus.CANCELED, InstallStatus.FAILED -> UpdateProgress.Idle
+            InstallStatus.UNKNOWN -> if (fallback == UpdateProgress.Starting) {
+                // The Play sheet was dismissed without accepting — no listener
+                // fires in that case, so onResume's recheck sees UNKNOWN and we
+                // revert to Idle.
+                UpdateProgress.Idle
+            } else {
+                fallback
+            }
+            else -> fallback
+        }
 
     fun openPlayStoreListing() {
         LauncherDebugLog.event("openPlayStoreListing package=${app.packageName}")

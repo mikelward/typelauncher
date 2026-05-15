@@ -163,6 +163,7 @@ internal fun TypeLauncherApp(
     onRequestDefaultLauncher: () -> Unit,
     onSwipeDown: () -> Unit,
     onStartPlayUpdate: () -> Unit = {},
+    onCompletePlayUpdate: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -240,6 +241,7 @@ internal fun TypeLauncherApp(
         onCloseSettings = viewModel::closeSettings,
         onOpenLauncherAppInfo = viewModel::openLauncherAppInfo,
         onOpenPlayUpdate = onStartPlayUpdate,
+        onCompletePlayUpdate = onCompletePlayUpdate,
         onDismissPlayUpdate = viewModel::dismissPlayUpdate,
         onRequestDefaultLauncher = onRequestDefaultLauncher,
         onDockEnabledChanged = viewModel::setDockEnabled,
@@ -302,6 +304,7 @@ internal fun TypeLauncherApp(
     onCloseSettings: () -> Unit,
     onOpenLauncherAppInfo: () -> Unit = {},
     onOpenPlayUpdate: () -> Unit = {},
+    onCompletePlayUpdate: () -> Unit = {},
     onDismissPlayUpdate: () -> Unit = {},
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
@@ -621,6 +624,7 @@ internal fun TypeLauncherApp(
                         onUnhideApp = onUnhideApp,
                         onOpenLauncherAppInfo = onOpenLauncherAppInfo,
                         onOpenPlayUpdate = onOpenPlayUpdate,
+                        onCompletePlayUpdate = onCompletePlayUpdate,
                         onDismissPlayUpdate = onDismissPlayUpdate,
                     )
                 } else {

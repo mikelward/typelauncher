@@ -2581,6 +2581,7 @@ internal fun SettingsScreen(
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
     onOpenPlayUpdate: () -> Unit,
+    onCompletePlayUpdate: () -> Unit,
     onDismissPlayUpdate: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
@@ -2623,6 +2624,7 @@ internal fun SettingsScreen(
             playUpdate = state.playUpdate,
             buildSourceInfo = rememberBuildSourceInfo(),
             onOpenPlayUpdate = onOpenPlayUpdate,
+            onCompletePlayUpdate = onCompletePlayUpdate,
             onDismissPlayUpdate = onDismissPlayUpdate,
         )
         Button(
@@ -2814,12 +2816,15 @@ private fun SettingsBuildBannerSlot(
     playUpdate: PlayUpdateState,
     buildSourceInfo: BuildSourceInfo?,
     onOpenPlayUpdate: () -> Unit,
+    onCompletePlayUpdate: () -> Unit,
     onDismissPlayUpdate: () -> Unit,
 ) {
     val update = playUpdate as? PlayUpdateState.Available
     if (update?.shouldPrompt == true) {
         PlayUpdateBanner(
+            progress = update.progress,
             onOpenPlayUpdate = onOpenPlayUpdate,
+            onCompletePlayUpdate = onCompletePlayUpdate,
             onDismissPlayUpdate = onDismissPlayUpdate,
         )
     } else if (buildSourceInfo != null) {
@@ -2829,9 +2834,28 @@ private fun SettingsBuildBannerSlot(
 
 @Composable
 private fun PlayUpdateBanner(
+    progress: UpdateProgress,
     onOpenPlayUpdate: () -> Unit,
+    onCompletePlayUpdate: () -> Unit,
     onDismissPlayUpdate: () -> Unit,
 ) {
+    val isInFlight = progress is UpdateProgress.Starting || progress is UpdateProgress.Downloading
+    val isDownloaded = progress is UpdateProgress.Downloaded
+    val cardOnClick: () -> Unit = when {
+        isDownloaded -> onCompletePlayUpdate
+        isInFlight -> ({})
+        else -> onOpenPlayUpdate
+    }
+    val titleRes = when (progress) {
+        UpdateProgress.Starting, UpdateProgress.Downloading -> R.string.play_update_banner_updating_title
+        UpdateProgress.Downloaded -> R.string.play_update_banner_downloaded_title
+        UpdateProgress.Idle -> R.string.play_update_banner_title
+    }
+    val bodyRes = when (progress) {
+        UpdateProgress.Starting, UpdateProgress.Downloading -> R.string.play_update_banner_updating_body
+        UpdateProgress.Downloaded -> R.string.play_update_banner_downloaded_body
+        UpdateProgress.Idle -> R.string.play_update_banner_body
+    }
     SectionCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -2841,7 +2865,7 @@ private fun PlayUpdateBanner(
             .fillMaxWidth()
             .testTag(PLAY_UPDATE_BANNER_TAG)
             .semantics { role = Role.Button }
-            .clickable(onClick = onOpenPlayUpdate),
+            .clickable(enabled = !isInFlight, onClick = cardOnClick),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2850,31 +2874,54 @@ private fun PlayUpdateBanner(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.play_update_banner_title),
+                    text = stringResource(titleRes),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = stringResource(R.string.play_update_banner_body),
+                    text = stringResource(bodyRes),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            TextButton(
-                onClick = onOpenPlayUpdate,
-                modifier = Modifier.testTag(PLAY_UPDATE_BANNER_UPDATE_TAG),
-            ) {
-                Text(stringResource(R.string.play_update_banner_update_button))
+            when {
+                isInFlight -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .testTag(PLAY_UPDATE_BANNER_PROGRESS_TAG),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                isDownloaded -> {
+                    TextButton(
+                        onClick = onCompletePlayUpdate,
+                        modifier = Modifier.testTag(PLAY_UPDATE_BANNER_RESTART_TAG),
+                    ) {
+                        Text(stringResource(R.string.play_update_banner_restart_button))
+                    }
+                }
+                else -> {
+                    TextButton(
+                        onClick = onOpenPlayUpdate,
+                        modifier = Modifier.testTag(PLAY_UPDATE_BANNER_UPDATE_TAG),
+                    ) {
+                        Text(stringResource(R.string.play_update_banner_update_button))
+                    }
+                }
             }
-            IconButton(
-                onClick = onDismissPlayUpdate,
-                modifier = Modifier
-                    .testTag(PLAY_UPDATE_BANNER_DISMISS_TAG)
-                    .zIndex(1f),
-            ) {
-                Icon(
-                    Icons.Filled.Clear,
-                    contentDescription = stringResource(R.string.play_update_banner_dismiss_description),
-                )
+            if (!isInFlight) {
+                IconButton(
+                    onClick = onDismissPlayUpdate,
+                    modifier = Modifier
+                        .testTag(PLAY_UPDATE_BANNER_DISMISS_TAG)
+                        .zIndex(1f),
+                ) {
+                    Icon(
+                        Icons.Filled.Clear,
+                        contentDescription = stringResource(R.string.play_update_banner_dismiss_description),
+                    )
+                }
             }
         }
     }

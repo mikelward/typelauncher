@@ -7,6 +7,11 @@
     <string name="play_update_banner_title">नया वर्शन उपलब्ध है</string>
     <string name="play_update_banner_body">Google Play से अपडेट करने के लिए टैप करें.</string>
     <string name="play_update_banner_update_button">अपडेट करें</string>
+    <string name="play_update_banner_updating_title">अपडेट हो रहा है…</string>
+    <string name="play_update_banner_updating_body">Google Play से डाउनलोड हो रहा है.</string>
+    <string name="play_update_banner_downloaded_title">अपडेट तैयार है</string>
+    <string name="play_update_banner_downloaded_body">पुनः शुरू करके इंस्टॉल करने के लिए टैप करें.</string>
+    <string name="play_update_banner_restart_button">पुनः शुरू करें</string>
     <string name="play_update_banner_dismiss_description">अपडेट बैनर खारिज करें</string>
     <string name="installed_apps_list_label">इंस्टॉल किए गए ऐप्स</string>
     <string name="dock_apps_list_label">डॉक</string>

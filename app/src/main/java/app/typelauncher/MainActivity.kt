@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
                 ),
             )[LauncherViewModel::class.java]
         }
+        playUpdateChecker.setInstallStatusListener(viewModel::onPlayUpdateInstallStatus)
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         // Apply the persisted keyboard-auto-show preference before setContent
         // so the cold-start IME state matches the setting on the very first
@@ -166,6 +167,7 @@ class MainActivity : ComponentActivity() {
                         onRequestDefaultLauncher = ::requestDefaultLauncher,
                         onSwipeDown = ::expandNotificationShade,
                         onStartPlayUpdate = ::startPlayUpdate,
+                        onCompletePlayUpdate = ::completePlayUpdate,
                         searchPlaceholderSuffix = searchPlaceholderSuffix(),
                     )
                 }
@@ -223,10 +225,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startPlayUpdate() {
-        viewModel.markPlayUpdateTapped()
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
         if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(this, PLAY_UPDATE_REQUEST_CODE)) {
+            // The in-app update flow could not be opened — fall back to the
+            // Play Store listing and clear the in-flight state so the banner
+            // can recover on next resume.
+            viewModel.setPlayUpdateProgress(UpdateProgress.Idle)
             viewModel.openPlayStoreListing()
         }
+    }
+
+    private fun completePlayUpdate() {
+        if (!::playUpdateChecker.isInitialized) return
+        playUpdateChecker.completeFlexibleUpdate()
     }
 
     override fun onPostResume() {
