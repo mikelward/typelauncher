@@ -259,21 +259,22 @@ jobs:
           }
 
           # Truncate against the full formatted output — bullet ("• "),
-          # newline separator, and (when appended) the "\n…" truncation
-          # marker all count toward MAX. Play's documented per-language
-          # cap is 500 Unicode characters for the *entered* "What's
-          # new" text, so measuring anything less risks writing
+          # newline separator, and the "\n…" truncation marker all
+          # count toward MAX. Play's documented per-language cap is
+          # 500 Unicode characters for the *entered* "What's new"
+          # text, so measuring anything less risks writing
           # whatsnew-en-US over the cap and having the Play upload
           # reject the release.
           #
-          # Greedy: trial-format each candidate prepended to the kept
-          # list and stop the moment the formatted result (without the
-          # marker) exceeds MAX. Reserving headroom for the marker on
-          # every iteration would force-drop a release-worthy commit
-          # whenever the last qualifying subject fits cleanly but
-          # "candidate + \n…" would not — the marker is a hint,
-          # not load-bearing, so we only append it at the end if it
-          # still fits after truncation.
+          # Two-phase: (1) greedy-add subjects until the formatted
+          # output (no marker yet) would exceed MAX, then (2) if any
+          # subject was dropped, append the "\n…" marker so the user
+          # can tell the list was cut. The marker is load-bearing —
+          # a truncated list must always end in it — so if the
+          # marker pushes us back over MAX we drop trailing subjects
+          # until there is room. In the rare edge case where the
+          # very first subject is 499-500 chars formatted and cannot
+          # coexist with the marker, hard-truncate it.
           kept=()
           truncated=false
           for s in "${subjects[@]}"; do
@@ -292,13 +293,20 @@ jobs:
             notes="${notes}…"
           else
             notes=$(format_notes "${kept[@]}")
-            # Append the marker only if (a) we actually dropped a
-            # subject and (b) appending the marker still keeps us
-            # under MAX. The marker is informational; we'd rather
-            # ship one more character of content than emit a marker
-            # that pushes the total over Play's cap.
-            if [ "$truncated" = true ] \
-              && [ "$(char_len "${notes}${TRUNC_MARK}")" -le "$MAX" ]; then
+            if [ "$truncated" = true ]; then
+              # Drop trailing subjects until the marker fits.
+              while [ "$(char_len "${notes}${TRUNC_MARK}")" -gt "$MAX" ] \
+                && [ "${#kept[@]}" -gt 0 ]; do
+                unset 'kept[${#kept[@]}-1]'
+                notes=$(format_notes "${kept[@]}")
+              done
+              if [ "${#kept[@]}" -eq 0 ]; then
+                # Subject 0 was 499-500 chars formatted on its own —
+                # it fit in the greedy phase but couldn't coexist
+                # with the marker. Hard-truncate the bullet line so
+                # the marker still has room.
+                notes=$(printf '%s' "• ${subjects[0]}" | cut -c 1-498)
+              fi
               notes="${notes}${TRUNC_MARK}"
             fi
           fi
