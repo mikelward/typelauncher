@@ -65,13 +65,16 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
         val info = updateInfo?.takeIf { it.isFlexibleUpdateAvailable() } ?: return false
         return try {
             registerInstallListener()
+            // The boolean return signals whether Play actually launched the
+            // confirmation flow — propagate it so MainActivity can clear the
+            // in-flight banner state on failure instead of leaving it stuck
+            // on "Updating…" with no listener event coming to recover.
             appUpdateManager.startUpdateFlowForResult(
                 info,
                 activity,
                 AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
                 requestCode,
             )
-            true
         } catch (exception: IntentSender.SendIntentException) {
             LauncherDebugLog.warning("Play update flow failed to start", exception)
             false
