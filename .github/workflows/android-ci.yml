@@ -166,15 +166,17 @@ jobs:
         # testers' phones or ship a redundant Play release.
         # Engineering detail lives in the commit body, which neither
         # surface shows — see the "Commit messages" section in CLAUDE.md
-        # for the wording convention. Play caps each locale at 500
-        # characters; the truncation budget here is measured against the
-        # summed character count of the subject strings alone, ignoring
-        # the bullet/newline formatting overhead. If the budget
-        # overflows we drop trailing subjects (oldest-first preserved at
-        # the head) until it fits and append "\n…" so the user knows the
-        # tail was cut. If a single subject alone exceeds the cap
-        # (unlikely — subjects are conventionally ≤ ~70 chars) we
-        # hard-truncate to 499 chars and append "…".
+        # for the wording convention. Play's documented per-language
+        # cap is 500 Unicode characters for the entered "What's new"
+        # text, so the truncation budget here is measured against the
+        # full formatted output — bullet ("• "), newline separators,
+        # and the "\n…" truncation marker all count toward MAX. If the
+        # budget overflows we drop trailing subjects (oldest-first
+        # preserved at the head) until it fits and append "\n…" so the
+        # user knows the tail was cut. If a single subject alone
+        # exceeds the cap (unlikely — subjects are conventionally ≤
+        # ~70 chars) we hard-truncate the bullet line to 499 chars
+        # and append "…".
         if: |
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main'
@@ -256,25 +258,40 @@ jobs:
             printf '%s' "$1" | wc -m
           }
 
-          # Truncate by summed subject-content length only — the bullet
-          # and newline overhead per line is ignored when measuring
-          # against MAX. Reserves 1 char of headroom so a trailing "…"
-          # marker stays inside the cap.
-          subjects_chars() {
-            local total=0
-            for s in "$@"; do
-              total=$(( total + $(char_len "$s") ))
-            done
-            printf '%s' "$total"
-          }
-
-          kept=("${subjects[@]}")
+          # Truncate against the full formatted output — bullet ("• "),
+          # newline separator, and the truncation marker all count
+          # toward MAX. Play's documented per-language cap is 500
+          # Unicode characters for the *entered* "What's new" text, so
+          # measuring anything less risks writing whatsnew-en-US over
+          # the cap and having the Play upload reject the release.
+          # Trial-format with each candidate added; back the last one
+          # out the moment the formatted result (plus the "…" marker
+          # we'd append if anything is dropped) exceeds MAX.
+          kept=()
           truncated=false
-          while [ "${#kept[@]}" -gt 0 ] \
-            && [ "$(subjects_chars "${kept[@]}")" -gt $((MAX - 1)) ]; do
-            unset 'kept[${#kept[@]}-1]'
-            truncated=true
+          for s in "${subjects[@]}"; do
+            candidate=$(format_notes "${kept[@]}" "$s")
+            candidate_marked="${candidate}${TRUNC_MARK}"
+            # Once we've added at least one subject, any further
+            # candidate must still leave room for the truncation
+            # marker in case a later subject doesn't fit.
+            if [ "${#kept[@]}" -eq 0 ]; then
+              budget_check="$candidate"
+            else
+              budget_check="$candidate_marked"
+            fi
+            if [ "$(char_len "$budget_check")" -gt "$MAX" ]; then
+              truncated=true
+              break
+            fi
+            kept+=("$s")
           done
+          # If we walked the whole list without breaking, no truncation
+          # actually happened — clear the flag so the marker isn't
+          # appended unnecessarily.
+          if [ "${#kept[@]}" -eq "${#subjects[@]}" ]; then
+            truncated=false
+          fi
 
           if [ "${#kept[@]}" -eq 0 ]; then
             # First subject alone exceeds the cap; hard-truncate the
