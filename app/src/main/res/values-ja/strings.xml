@@ -7,6 +7,11 @@
     <string name="play_update_banner_title">新しいバージョンが利用可能</string>
     <string name="play_update_banner_body">タップして Google Play から更新します。</string>
     <string name="play_update_banner_update_button">更新</string>
+    <string name="play_update_banner_updating_title">更新中…</string>
+    <string name="play_update_banner_updating_body">Google Play からダウンロード中。</string>
+    <string name="play_update_banner_downloaded_title">更新の準備ができました</string>
+    <string name="play_update_banner_downloaded_body">タップして再起動しインストールします。</string>
+    <string name="play_update_banner_restart_button">再起動</string>
     <string name="play_update_banner_dismiss_description">更新バナーを閉じる</string>
     <string name="installed_apps_list_label">インストール済みアプリ</string>
     <string name="dock_apps_list_label">ドック</string>

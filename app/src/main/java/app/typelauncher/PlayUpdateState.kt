@@ -12,8 +12,16 @@ internal sealed interface PlayUpdateState {
     data class Available(
         val versionCode: Int?,
         val isDismissed: Boolean = false,
+        val progress: UpdateProgress = UpdateProgress.Idle,
     ) : PlayUpdateState {
         override val shouldPrompt: Boolean
             get() = !isDismissed
     }
+}
+
+internal sealed interface UpdateProgress {
+    data object Idle : UpdateProgress
+    data object Starting : UpdateProgress
+    data object Downloading : UpdateProgress
+    data object Downloaded : UpdateProgress
 }

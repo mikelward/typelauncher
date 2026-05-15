@@ -604,7 +604,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun tappingPlayUpdateButtonHidesBannerForSession() {
+    fun tappingPlayUpdateShowsInFlightStateInsteadOfHidingBanner() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setPlayUpdateAvailable(123)
         composeRule.waitForIdle()
@@ -613,22 +613,59 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
 
-        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_UPDATE_TAG).performClick()
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
         composeRule.waitForIdle()
 
-        val tappedState = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
-        assertTrue("tapping Update should mark the banner dismissed for this session", tappedState.isDismissed)
-        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertDoesNotExist()
-        // Persisted dismissal stays untouched — that's what makes this a
-        // session-only suppression instead of the X dismiss flow.
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        // Tap-Update no longer session-dismisses; the banner stays visible and
+        // reflects the in-flight state.
+        assertFalse("Update tap must not session-dismiss the banner", state.isDismissed)
+        assertEquals(UpdateProgress.Starting, state.progress)
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Updating…").assertIsDisplayed()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_PROGRESS_TAG).assertIsDisplayed()
+        // The X dismiss disappears while a download is in flight — there's no
+        // sensible meaning for "dismiss" once Play has accepted the user's
+        // consent and started downloading.
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_DISMISS_TAG).assertDoesNotExist()
+        // Tap-Update must not write a persisted dismissal.
         assertEquals(0, PlayUpdateStore(composeRule.activity).dismissedVersionCode)
+        saveScreenshot("compose_settings_play_update_banner_starting_robolectric.png")
+    }
 
-        // Re-running the Play check (as `onResume` does) for the same version
-        // must keep the banner hidden so we don't immediately re-prompt the
-        // user after they returned from the Play Store / in-app update flow.
+    @Test
+    fun playUpdateBannerShowsDownloadingStateWhilePlayDownloadIsInFlight() {
+        val viewModel = composeRule.activity.viewModel
         viewModel.setPlayUpdateAvailable(123)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Downloading)
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Updating…").assertIsDisplayed()
+        composeRule.onNodeWithText("Downloading from Google Play.").assertIsDisplayed()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_PROGRESS_TAG).assertIsDisplayed()
+        saveScreenshot("compose_settings_play_update_banner_downloading_robolectric.png")
+    }
+
+    @Test
+    fun playUpdateBannerShowsRestartActionWhenDownloadFinishes() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setPlayUpdateAvailable(123)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Downloaded)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Update ready").assertIsDisplayed()
+        composeRule.onNodeWithText("Tap to restart and install.").assertIsDisplayed()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_RESTART_TAG).assertIsDisplayed()
+        // The dismiss X is back so a user who doesn't want to restart right
+        // now can snooze the version, same as the Idle state.
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_DISMISS_TAG).assertIsDisplayed()
+        saveScreenshot("compose_settings_play_update_banner_downloaded_robolectric.png")
     }
 
     @Test

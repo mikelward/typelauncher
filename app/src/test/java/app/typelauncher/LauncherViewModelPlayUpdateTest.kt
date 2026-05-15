@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.Context
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import com.google.android.play.core.install.model.InstallStatus
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -28,94 +29,165 @@ class LauncherViewModelPlayUpdateTest {
     }
 
     @Test
-    fun markPlayUpdateTappedHidesBannerForCurrentVersion() {
+    fun availableUpdateStartsInIdleProgress() {
         val viewModel = newViewModel()
-        viewModel.setPlayUpdateAvailable(101)
-        idle()
-        assertTrue((viewModel.uiState.value.playUpdate as PlayUpdateState.Available).shouldPrompt)
-
-        viewModel.markPlayUpdateTapped()
-        idle()
-
-        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
-        assertTrue("session-dismiss should mark isDismissed", state.isDismissed)
-        assertFalse("banner should not prompt after tap", state.shouldPrompt)
-    }
-
-    @Test
-    fun sessionDismissSurvivesRecheckOfSameVersion() {
-        val viewModel = newViewModel()
-        viewModel.setPlayUpdateAvailable(101)
-        viewModel.markPlayUpdateTapped()
-        idle()
-
-        // Simulates onResume re-running checkForUpdate while the user is back
-        // on the launcher without having actually updated.
         viewModel.setPlayUpdateAvailable(101)
         idle()
 
         val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
-        assertTrue("session-dismiss should survive a re-check of the same version", state.isDismissed)
+        assertTrue("banner should prompt when no in-flight progress", state.shouldPrompt)
+        assertEquals(UpdateProgress.Idle, state.progress)
     }
 
     @Test
-    fun sessionDismissClearsWhenHigherVersionBecomesAvailable() {
+    fun setProgressStartingKeepsBannerVisibleWithInFlightState() {
         val viewModel = newViewModel()
         viewModel.setPlayUpdateAvailable(101)
-        viewModel.markPlayUpdateTapped()
         idle()
 
-        viewModel.setPlayUpdateAvailable(102)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
         idle()
 
         val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
-        assertEquals(102, state.versionCode)
-        assertFalse("a newer version must re-surface the banner", state.isDismissed)
+        // The banner now stays visible after tap and reflects the in-flight
+        // download state instead of session-dismissing.
+        assertTrue(state.shouldPrompt)
+        assertFalse(state.isDismissed)
+        assertEquals(UpdateProgress.Starting, state.progress)
     }
 
     @Test
-    fun sessionDismissClearsWhenUpdateBecomesUnavailable() {
-        val viewModel = newViewModel()
-        viewModel.setPlayUpdateAvailable(101)
-        viewModel.markPlayUpdateTapped()
-        idle()
-
-        viewModel.setPlayUpdateUnavailable()
-        idle()
-        assertEquals(PlayUpdateState.NotAvailable, viewModel.uiState.value.playUpdate)
-
-        // After the update goes away and comes back (e.g. a server-side rollout
-        // pause/resume), the in-memory dismissal must not silently re-suppress.
-        viewModel.setPlayUpdateAvailable(101)
-        idle()
-        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
-        assertFalse("session-dismiss must not survive a NotAvailable transition", state.isDismissed)
-    }
-
-    @Test
-    fun markPlayUpdateTappedDoesNotPersistDismissal() {
+    fun setProgressDoesNotPersistDismissal() {
         val store = PlayUpdateStore(context)
         val before = store.dismissedVersionCode
         val viewModel = newViewModel()
         viewModel.setPlayUpdateAvailable(101)
 
-        viewModel.markPlayUpdateTapped()
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
         idle()
 
         assertEquals(
-            "tap must not write to the persisted dismissed version code",
+            "in-flight progress must not write to the persisted dismissed version code",
             before,
             store.dismissedVersionCode,
         )
     }
 
     @Test
-    fun markPlayUpdateTappedIsNoopWhenNoUpdateAvailable() {
+    fun setProgressIsNoopWhenNoUpdateAvailable() {
         val viewModel = newViewModel()
-        viewModel.markPlayUpdateTapped()
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
         idle()
 
         assertEquals(PlayUpdateState.NotAvailable, viewModel.uiState.value.playUpdate)
+    }
+
+    @Test
+    fun recheckPreservesInFlightProgressWhenInstallStatusUnknown() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADING)
+        idle()
+
+        // onResume re-checks with the same version; Play often reports UNKNOWN
+        // mid-download — we should preserve the in-flight state from the listener.
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.UNKNOWN)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Downloading, state.progress)
+    }
+
+    @Test
+    fun recheckRevertsStartingToIdleWhenPlaySheetWasCancelled() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
+        idle()
+
+        // User cancels the Play sheet — no listener event fires, but the next
+        // onResume recheck returns UNKNOWN. We revert to Idle so the user can
+        // tap Update again.
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.UNKNOWN)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Idle, state.progress)
+    }
+
+    @Test
+    fun recheckPromotesProgressFromDownloadingToDownloaded() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADING)
+        idle()
+
+        viewModel.setPlayUpdateProgress(UpdateProgress.Downloaded)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Downloaded, state.progress)
+        assertTrue("banner stays visible to surface the Restart action", state.shouldPrompt)
+    }
+
+    @Test
+    fun installStatusFailedResetsProgressToIdle() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Downloading)
+        idle()
+
+        viewModel.onPlayUpdateInstallStatus(InstallStatus.FAILED)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Idle, state.progress)
+    }
+
+    @Test
+    fun newerVersionResetsInFlightProgress() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADING)
+        idle()
+
+        viewModel.setPlayUpdateAvailable(102, InstallStatus.UNKNOWN)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(102, state.versionCode)
+        assertEquals(
+            "a newer available version must reset in-flight progress to Idle",
+            UpdateProgress.Idle,
+            state.progress,
+        )
+    }
+
+    @Test
+    fun unavailableClearsInFlightProgress() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADING)
+        viewModel.setPlayUpdateUnavailable()
+        idle()
+
+        viewModel.setPlayUpdateAvailable(101)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Idle, state.progress)
+    }
+
+    @Test
+    fun dismissPlayUpdateStillPersistsForCurrentVersion() {
+        val store = PlayUpdateStore(context)
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101)
+        idle()
+
+        viewModel.dismissPlayUpdate()
+        idle()
+
+        assertEquals(101, store.dismissedVersionCode)
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertTrue("X dismiss should persist for the current version", state.isDismissed)
+        assertFalse(state.shouldPrompt)
     }
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(

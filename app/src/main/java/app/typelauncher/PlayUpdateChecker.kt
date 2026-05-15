@@ -19,15 +19,17 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
 ) {
     private var updateInfo: AppUpdateInfo? = null
     private var installListenerRegistered = false
+    private var onInstallStatus: ((Int) -> Unit)? = null
     private val installListener = InstallStateUpdatedListener { state ->
-        if (state.installStatus() == InstallStatus.DOWNLOADED) {
-            LauncherDebugLog.event("Play update downloaded; completing flexible update")
-            appUpdateManager.completeUpdate()
-        }
+        onInstallStatus?.invoke(state.installStatus())
+    }
+
+    fun setInstallStatusListener(listener: (Int) -> Unit) {
+        onInstallStatus = listener
     }
 
     fun checkForUpdate(
-        onAvailable: (availableVersionCode: Int?) -> Unit,
+        onAvailable: (availableVersionCode: Int?, installStatus: Int) -> Unit,
         onUnavailable: () -> Unit,
     ) {
         if (!BuildConfig.PLAY_UPDATE_CHECKS_ENABLED) {
@@ -37,9 +39,16 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
         }
         appUpdateManager.appUpdateInfo
             .addOnSuccessListener { info ->
-                if (info.isFlexibleUpdateAvailable()) {
+                if (info.isFlexibleUpdateAvailable() || info.isFlexibleUpdateInProgress()) {
                     updateInfo = info
-                    onAvailable(info.availableVersionCode())
+                    // After process death mid-download, `startUpdate` has not
+                    // been called this process — register the listener now so
+                    // we still see live PENDING / DOWNLOADING / DOWNLOADED
+                    // transitions instead of relying only on onResume polls.
+                    if (info.isFlexibleUpdateInProgress()) {
+                        registerInstallListener()
+                    }
+                    onAvailable(info.availableVersionCode(), info.installStatus())
                 } else {
                     updateInfo = null
                     onUnavailable()
@@ -72,6 +81,11 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
         }
     }
 
+    fun completeFlexibleUpdate() {
+        LauncherDebugLog.event("Play update: completing flexible update on user request")
+        appUpdateManager.completeUpdate()
+    }
+
     private fun registerInstallListener() {
         if (installListenerRegistered) return
         appUpdateManager.registerListener(installListener)
@@ -83,3 +97,8 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
 private fun AppUpdateInfo.isFlexibleUpdateAvailable(): Boolean =
     updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
         isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
+
+private fun AppUpdateInfo.isFlexibleUpdateInProgress(): Boolean =
+    updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS &&
+        installStatus() != InstallStatus.UNKNOWN &&
+        installStatus() != InstallStatus.INSTALLED

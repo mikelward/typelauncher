@@ -7,6 +7,11 @@
     <string name="play_update_banner_title">Nova versão disponível</string>
     <string name="play_update_banner_body">Toque para atualizar pelo Google Play.</string>
     <string name="play_update_banner_update_button">Atualizar</string>
+    <string name="play_update_banner_updating_title">Atualizando…</string>
+    <string name="play_update_banner_updating_body">Baixando pelo Google Play.</string>
+    <string name="play_update_banner_downloaded_title">Atualização pronta</string>
+    <string name="play_update_banner_downloaded_body">Toque para reiniciar e instalar.</string>
+    <string name="play_update_banner_restart_button">Reiniciar</string>
     <string name="play_update_banner_dismiss_description">Dispensar banner de atualização</string>
     <string name="installed_apps_list_label">Apps instalados</string>
     <string name="dock_apps_list_label">Dock</string>

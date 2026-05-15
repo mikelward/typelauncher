@@ -30,6 +30,7 @@ class SettingsScreenTest {
                     onUnhideApp = {},
                     onOpenLauncherAppInfo = {},
                     onOpenPlayUpdate = {},
+                    onCompletePlayUpdate = {},
                     onDismissPlayUpdate = {},
                 )
             }

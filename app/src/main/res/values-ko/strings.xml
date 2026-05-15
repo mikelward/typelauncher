@@ -7,6 +7,11 @@
     <string name="play_update_banner_title">새 버전 사용 가능</string>
     <string name="play_update_banner_body">탭하여 Google Play에서 업데이트하세요.</string>
     <string name="play_update_banner_update_button">업데이트</string>
+    <string name="play_update_banner_updating_title">업데이트 중…</string>
+    <string name="play_update_banner_updating_body">Google Play에서 다운로드 중.</string>
+    <string name="play_update_banner_downloaded_title">업데이트 준비 완료</string>
+    <string name="play_update_banner_downloaded_body">탭하여 다시 시작하고 설치하세요.</string>
+    <string name="play_update_banner_restart_button">다시 시작</string>
     <string name="play_update_banner_dismiss_description">업데이트 배너 닫기</string>
     <string name="installed_apps_list_label">설치된 앱</string>
     <string name="dock_apps_list_label">독</string>
