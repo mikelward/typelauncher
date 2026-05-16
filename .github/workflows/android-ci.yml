@@ -32,29 +32,45 @@ on:
       - '.*/**'
       - '!.github/workflows/**'
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+# No workflow-level permissions — each job declares the least-privilege
+# scope it needs. Workflow-level `pull-requests: write` would also leak
+# into the screenshot job and the deploy job, neither of which posts
+# back to the PR.
 
 jobs:
   build:
     name: Build and unit test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Used by "Print failing test details" to post a comment on the
+      # originating PR when `./gradlew test` fails. The comments API
+      # path (/repos/{r}/issues/{n}/comments) is satisfied by
+      # `pull-requests: write` when the target is a PR — no separate
+      # `issues: write` needed.
+      pull-requests: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+        with:
+          # PRs run in `pull_request` (not `pull_request_target`), so a
+          # malicious commit can't write to main's cache directly — but
+          # it CAN poison its own branch's cache, which a follow-up run
+          # on that branch (or a rebase / force-push retry by the
+          # reviewer) will silently consume. Lock PRs to read-only;
+          # only main pushes write the shared cache.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Materialize debug keystore
         # Decode the checked-in-only-as-a-secret debug keystore so CI-built APKs
@@ -128,7 +144,7 @@ jobs:
         # failure means re-running locally — and "fix it blindly" loops
         # waste an iteration each time.
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: unit-test-reports
           path: |
@@ -139,6 +155,144 @@ jobs:
 
       - name: Run lint
         run: ./gradlew lint
+
+  connected-tests:
+    name: Keyboard screenshot unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Run Robolectric keyboard screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run launcher icon snapshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.LauncherIconScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run app-icon disambiguator screenshot tests
+        # Renders the regional-disambiguator badge ("US"/"UK"/"INTL") on
+        # representative app icons so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the badge.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconDisambiguatorScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run edit-app dialog screenshot tests
+        # Renders EditAppDialogContent in the no-override and
+        # with-override states so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the rename dialog.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.EditAppDialogScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Print failing test details
+        if: failure()
+        run: |
+          shopt -s nullglob globstar
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Upload Roborazzi screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: roborazzi-screenshots
+          path: app/src/test/snapshots/images/
+
+      - name: Upload screenshot test reports
+        # JUnit XMLs and HTML reports for the screenshot suite — uploaded
+        # even on failure so a CI-only crash leaves diagnostic output
+        # behind. Pairs with the same step in the build job.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: screenshot-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  deploy:
+    name: Distribute and release
+    # Production deployment job. Gated three ways:
+    #   1. `if:` — only runs on push to main, not on PRs or other branches.
+    #   2. `environment: production` — secrets used here
+    #      (FIREBASE_SERVICE_ACCOUNT_JSON, RELEASE_KEYSTORE_*,
+    #      PLAY_SERVICE_ACCOUNT_JSON) live in the `production`
+    #      environment with deployment protection rules. Configure the
+    #      environment in repo Settings → Environments → production:
+    #      restrict deployment branches to `main` and optionally
+    #      require a reviewer. This makes the boundary enforced by
+    #      GitHub, not just by the `if:` above (a malicious workflow
+    #      edit on an internal branch can change `if:` but cannot
+    #      bypass an environment protection rule).
+    #   3. `needs:` — only runs after build and connected-tests
+    #      both pass. A failing screenshot test on main now blocks the
+    #      release; the previous setup would have shipped anyway.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, connected-tests]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+
+      - name: Materialize debug keystore
+        # The Firebase distribution APK is a debug build (so testers
+        # can side-load over previous installs), signed with the
+        # shared debug keystore so successive Firebase releases install
+        # as updates. Duplicated from the build job because deploy
+        # runs on a separate runner.
+        if: env.DEBUG_KEYSTORE_BASE64 != ''
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
+          echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
+
+      - name: Materialize google-services.json
+        if: env.GOOGLE_SERVICES_JSON != ''
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
+
+      - name: Build debug APK for Firebase distribution
+        env:
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
+          DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
+        run: ./gradlew assembleDebug
 
       - name: Build release notes
         # Walks every commit in this push oldest-first and collects the
@@ -179,9 +333,6 @@ jobs:
         # exceeds the cap (unlikely — subjects are conventionally ≤
         # ~70 chars) we hard-truncate the bullet line to 499 chars
         # and append "…".
-        if: |
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
         env:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
@@ -314,35 +465,38 @@ jobs:
             fi
           fi
 
+          # Use a random heredoc terminator so a crafted commit subject
+          # can't include the literal terminator on a line of its own
+          # and inject arbitrary entries into $GITHUB_ENV. `openssl` is
+          # preinstalled on ubuntu-latest. See
+          # https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+          delim="RELEASE_NOTES_EOF_$(openssl rand -hex 16)"
           {
-            echo "RELEASE_NOTES<<RELEASE_NOTES_EOF"
+            printf 'RELEASE_NOTES<<%s\n' "$delim"
             printf '%s\n' "$notes"
-            echo "RELEASE_NOTES_EOF"
+            printf '%s\n' "$delim"
           } >> "$GITHUB_ENV"
 
       - name: Distribute via Firebase App Distribution
-        # On push to main only — feature-branch CI runs would otherwise spam
-        # testers with WIP builds. Skipped when secrets aren't set so the build
-        # still finishes on a fresh repo / fork. Also skipped when the
-        # preceding step set RELEASE_NOTES_SKIP=true because every commit in
-        # this push was either `ci:`-prefixed, `test:`-prefixed, or pure
-        # docs / dotfile housekeeping (`.github/`, `.claude/`, …) — see
-        # "Build release notes" — so we don’t buzz testers’ phones for a
-        # notification whose preview would read e.g. "ci: bump
-        # actions/checkout". Runs before the Play Store upload so a Play
-        # failure (e.g. quota, propagation) doesn't gate the faster Firebase
-        # channel testers actually rely on.
+        # Skipped when secrets aren't set so the build still finishes on a
+        # fresh repo / fork. Also skipped when the preceding step set
+        # RELEASE_NOTES_SKIP=true because every commit in this push was
+        # either `ci:`-prefixed, `test:`-prefixed, or pure docs / dotfile
+        # housekeeping (`.github/`, `.claude/`, …) — see "Build release
+        # notes" — so we don't buzz testers' phones for a notification
+        # whose preview would read e.g. "ci: bump actions/checkout". Runs
+        # before the Play Store upload so a Play failure (e.g. quota,
+        # propagation) doesn't gate the faster Firebase channel testers
+        # actually rely on.
         if: |
           success() &&
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
           env.FIREBASE_APP_ID != '' &&
           env.FIREBASE_SERVICE_ACCOUNT_JSON != '' &&
           env.RELEASE_NOTES_SKIP != 'true'
         env:
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6  # v1.7.1
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -370,10 +524,7 @@ jobs:
         # the manual seed upload Play Console requires for new listings, then
         # add PLAY_SERVICE_ACCOUNT_JSON later to enable the automated upload.
         # See docs/play-store-internal-track.md.
-        if: |
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
-          env.RELEASE_KEYSTORE_BASE64 != ''
+        if: env.RELEASE_KEYSTORE_BASE64 != ''
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
@@ -386,10 +537,7 @@ jobs:
         # Play service account is set up). Release signing config only attaches
         # when RELEASE_KEYSTORE_FILE is set (see app/build.gradle.kts), so
         # without the keystore Play would reject the AAB anyway.
-        if: |
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
-          env.RELEASE_KEYSTORE_FILE != ''
+        if: env.RELEASE_KEYSTORE_FILE != ''
         env:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
@@ -400,11 +548,8 @@ jobs:
         # Lets us download the signed AAB from the Actions UI for the one-time
         # manual seed upload to Play Console. Useful indefinitely afterwards
         # too if a release ever needs to be inspected or re-uploaded by hand.
-        if: |
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
-          env.RELEASE_KEYSTORE_FILE != ''
-        uses: actions/upload-artifact@v4
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: app-release-aab
           path: app/build/outputs/bundle/release/app-release.aab
@@ -421,8 +566,6 @@ jobs:
         # docs / dotfile housekeeping) the gate below skips this and the
         # upload step.
         if: |
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
           env.RELEASE_KEYSTORE_FILE != '' &&
           env.PLAY_SERVICE_ACCOUNT_JSON != '' &&
           env.RELEASE_NOTES_SKIP != 'true'
@@ -440,23 +583,21 @@ jobs:
           echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
 
       - name: Upload to Play Store internal track
-        # Gated so it only runs on push to main with both the upload key and
-        # service account configured. Also skipped when "Build release
-        # notes" set RELEASE_NOTES_SKIP=true because every commit in this
-        # push was either `ci:`-prefixed, `test:`-prefixed, or pure docs / dotfile housekeeping
-        # (`.github/`, `.claude/`, …) — no Play-worthy "What's new" entry
-        # exists, so shipping a release would be redundant. See
-        # docs/play-store-internal-track.md for the Play Console /
-        # service-account setup the upload depends on.
+        # Gated so it only runs with both the upload key and service account
+        # configured. Also skipped when "Build release notes" set
+        # RELEASE_NOTES_SKIP=true because every commit in this push was
+        # either `ci:`-prefixed, `test:`-prefixed, or pure docs / dotfile
+        # housekeeping (`.github/`, `.claude/`, …) — no Play-worthy
+        # "What's new" entry exists, so shipping a release would be
+        # redundant. See docs/play-store-internal-track.md for the Play
+        # Console / service-account setup the upload depends on.
         if: |
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
           env.RELEASE_KEYSTORE_FILE != '' &&
           env.PLAY_SERVICE_ACCOUNT_JSON != '' &&
           env.RELEASE_NOTES_SKIP != 'true'
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@eb49699984a39f23558439581660aa6f088acfd6  # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.typelauncher
@@ -464,73 +605,3 @@ jobs:
           track: internal
           status: completed
           whatsNewDirectory: ${{ env.PLAY_WHATSNEW_DIR }}
-
-  connected-tests:
-    name: Keyboard screenshot unit tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Run Robolectric keyboard screenshot tests
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
-
-      - name: Run launcher icon snapshot tests
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.LauncherIconScreenshotTest" -Proborazzi.test.record=true
-
-      - name: Run app-icon disambiguator screenshot tests
-        # Renders the regional-disambiguator badge ("US"/"UK"/"INTL") on
-        # representative app icons so the PR `roborazzi-screenshots`
-        # artifact captures visual changes to the badge.
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconDisambiguatorScreenshotTest" -Proborazzi.test.record=true
-
-      - name: Run edit-app dialog screenshot tests
-        # Renders EditAppDialogContent in the no-override and
-        # with-override states so the PR `roborazzi-screenshots`
-        # artifact captures visual changes to the rename dialog.
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.EditAppDialogScreenshotTest" -Proborazzi.test.record=true
-
-      - name: Print failing test details
-        if: failure()
-        run: |
-          shopt -s nullglob globstar
-          for xml in app/build/test-results/**/TEST-*.xml; do
-            if grep -q "<\(failure\|error\)" "$xml"; then
-              echo "::group::$xml"
-              cat "$xml"
-              echo "::endgroup::"
-            fi
-          done
-
-      - name: Upload Roborazzi screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: roborazzi-screenshots
-          path: app/src/test/snapshots/images/
-
-      - name: Upload screenshot test reports
-        # JUnit XMLs and HTML reports for the screenshot suite — uploaded
-        # even on failure so a CI-only crash leaves diagnostic output
-        # behind. Pairs with the same step in the build job.
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshot-test-reports
-          path: |
-            app/build/reports/tests/
-            app/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 1
