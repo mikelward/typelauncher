@@ -148,6 +148,8 @@ jobs:
         #   - skip `ci:`-prefixed housekeeping commits (e.g. snapshot
         #     regenerations) — they describe CI plumbing, not user-visible
         #     changes;
+        #   - skip `test:`-prefixed commits — they add or update tests
+        #     only and carry no user-visible change worth announcing;
         #   - skip commits whose every changed path is repo housekeeping —
         #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or any dotfile /
         #     dotdir at the repo root (`.github/` workflows + templates +
@@ -203,7 +205,8 @@ jobs:
             [ -z "$sha" ] && continue
             s=$(git log -1 --format=%s "$sha")
             case "$s" in
-              ci:*) continue ;;
+              ci:*)   continue ;;
+              test:*) continue ;;
             esac
             relevant=false
             while IFS= read -r f; do
@@ -226,7 +229,7 @@ jobs:
           done <<< "$shas"
 
           if [ "${#subjects[@]}" -eq 0 ]; then
-            echo "No release-worthy commits in this push (all ci: / docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
+            echo "No release-worthy commits in this push (all ci: / test: / docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
             echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -322,9 +325,9 @@ jobs:
         # testers with WIP builds. Skipped when secrets aren't set so the build
         # still finishes on a fresh repo / fork. Also skipped when the
         # preceding step set RELEASE_NOTES_SKIP=true because every commit in
-        # this push was either `ci:`-prefixed or pure docs / dotfile
-        # housekeeping (`.github/`, `.claude/`, …) — see "Select release
-        # notes subject" — so we don't buzz testers' phones for a
+        # this push was either `ci:`-prefixed, `test:`-prefixed, or pure
+        # docs / dotfile housekeeping (`.github/`, `.claude/`, …) — see
+        # "Build release notes" — so we don’t buzz testers’ phones for a
         # notification whose preview would read e.g. "ci: bump
         # actions/checkout". Runs before the Play Store upload so a Play
         # failure (e.g. quota, propagation) doesn't gate the faster Firebase
@@ -440,7 +443,7 @@ jobs:
         # Gated so it only runs on push to main with both the upload key and
         # service account configured. Also skipped when "Build release
         # notes" set RELEASE_NOTES_SKIP=true because every commit in this
-        # push was either `ci:`-prefixed or pure docs / dotfile housekeeping
+        # push was either `ci:`-prefixed, `test:`-prefixed, or pure docs / dotfile housekeeping
         # (`.github/`, `.claude/`, …) — no Play-worthy "What's new" entry
         # exists, so shipping a release would be redundant. See
         # docs/play-store-internal-track.md for the Play Console /
