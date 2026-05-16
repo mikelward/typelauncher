@@ -59,6 +59,32 @@ class AppMetadataStoreTest {
     }
 
     @Test
+    fun preservesDisambiguator() {
+        // Regional siblings (Chase US / Chase UK, Amex US / UK / AU) need the
+        // disambiguator to round-trip so the badge is on screen for the very
+        // first frame of a warm start, ahead of the fresh LauncherApps load
+        // that recomputes it.
+        val app = personalApp(name = "Chase", packageName = "com.chase.sig.android")
+            .copy(disambiguator = "US")
+        AppMetadataStore(context).save(listOf(app))
+
+        assertEquals("US", AppMetadataStore(context).load().single().disambiguator)
+    }
+
+    @Test
+    fun loadsNullDisambiguatorFromOlderSnapshotWithoutField() {
+        // Existing on-device snapshots saved before the field was added must
+        // still load gracefully — the next fresh load recomputes the badge.
+        val legacy = """[{"name":"Chase","package":"com.chase.sig.android",""" +
+            """"component":"com.chase.sig.android/com.chase.sig.android.LaunchActivity",""" +
+            """"isWorkApp":false,"launchWithLauncherApps":true}]"""
+        context.getSharedPreferences("app_metadata", android.content.Context.MODE_PRIVATE)
+            .edit().putString("apps", legacy).commit()
+
+        assertEquals(null, AppMetadataStore(context).load().single().disambiguator)
+    }
+
+    @Test
     fun returnsEmptyListWhenNothingSaved() {
         val store = AppMetadataStore(context)
         assertEquals(emptyList<InstalledApp>(), store.load())

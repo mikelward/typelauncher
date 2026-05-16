@@ -234,7 +234,6 @@ internal class LauncherViewModel(
         if (cachedMetadata.isNotEmpty()) {
             androidTrace("launcher.metadata_prefill") {
                 installedApps = cachedMetadata
-                    .applyDisambiguators()
                     .applyRenameOverrides()
                     .applyIconOverrides()
                 _uiState.update { state ->
