@@ -597,11 +597,11 @@ jobs:
           env.RELEASE_NOTES_SKIP != 'true'
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-        uses: r0adkll/upload-google-play@eb49699984a39f23558439581660aa6f088acfd6  # v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5  # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.typelauncher
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
-          track: internal
+          tracks: internal
           status: completed
           whatsNewDirectory: ${{ env.PLAY_WHATSNEW_DIR }}
