@@ -294,6 +294,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.perf)
+    implementation(libs.firebase.analytics)
     implementation(libs.play.app.update)
     // Pure-Java SVG renderer (Maven Central, ASL 2.0). Used by `AppIconLoader`
     // to rasterise user-supplied SVG icon overrides at the requested target
