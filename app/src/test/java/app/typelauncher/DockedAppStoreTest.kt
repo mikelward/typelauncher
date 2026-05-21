@@ -115,6 +115,24 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun dockingAfterClearingTopRowDoesNotDisplaceSurvivors() {
+        val store = DockedAppStore(context)
+        listOf("a", "b", "c", "d", "e", "f", "g", "h")
+            .forEach { id -> store.dock(id, columnCount = 4) }
+        // a-d fill row 0, e-h fill row 1. Clearing the top row strands e-h at
+        // row 1 in the persisted map though they now render on row 0.
+        listOf("a", "b", "c", "d").forEach { id -> store.undock(id) }
+
+        store.dock("i", columnCount = 4)
+
+        val resolved = resolvedDockPositions(store.dockedAppIds, store.dockedAppPositions, columnCount = 4)
+        listOf("e", "f", "g", "h").forEach { id ->
+            assertEquals(0, resolved.getValue(id).row)
+        }
+        assertEquals(DockPosition(1, 0), resolved.getValue("i"))
+    }
+
+    @Test
     fun moveSwapsOccupiedGridPosition() {
         val store = DockedAppStore(context)
         store.dock("a", columnCount = 4)
