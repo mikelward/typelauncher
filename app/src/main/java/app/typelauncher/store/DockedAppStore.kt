@@ -30,6 +30,15 @@ internal class DockedAppStore(
         if (appId in dockedIds) {
             return
         }
+        // Re-resolve the persisted coordinates into their compacted form before
+        // picking the new slot. resolvedDockPositions collapses empty rows for
+        // rendering, so an app deleted from the top row leaves the survivors
+        // persisted at row >= 1 even though they render at row 0. Choosing the
+        // next slot against the raw sparse map would hand the new app a
+        // coordinate that collides with a survivor, displacing it on the next
+        // resolve. Compacting first keeps the persisted map and the new slot in
+        // the same coordinate space, matching what `move` already does.
+        dockPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columnCount).toMutableMap()
         dockPositions[appId] = nextAvailableDockPosition(dockedIds.toList(), dockPositions, columnCount)
         dockedIds.add(appId)
         // The "+" add-button hint is a one-shot onboarding affordance set after
