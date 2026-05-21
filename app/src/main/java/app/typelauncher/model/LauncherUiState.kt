@@ -140,7 +140,20 @@ internal fun resolvedDockPositions(
             result[appId] = fallback
         }
     }
-    return result
+    // Collapse fully-empty rows so the occupied rows are contiguous from row 0.
+    // Removing an app can strand the survivors at row >= 1 (e.g. clearing the
+    // top row leaves everything below it), and the dock renders maxRow + 1 rows
+    // — so without this remap a blank leading or interior row stays on screen
+    // with no UI to dismiss it. Column gaps within a row are preserved.
+    val rowRemap = result.values
+        .map { position -> position.row }
+        .distinct()
+        .sorted()
+        .withIndex()
+        .associate { (compactRow, originalRow) -> originalRow to compactRow }
+    return result.mapValues { (_, position) ->
+        DockPosition(rowRemap.getValue(position.row), position.column)
+    }
 }
 
 internal fun nextAvailableDockPosition(
