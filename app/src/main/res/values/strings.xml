@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>
     <string name="widgets_unavailable">Widget unavailable</string>
     <string name="widget_menu_resize">Resize</string>
+    <string name="widget_menu_move_up">Move up</string>
+    <string name="widget_menu_move_down">Move down</string>
     <string name="widget_menu_remove">Remove</string>
     <string name="widget_resize_handle_description">Drag to resize widget</string>
     <string name="navigate_to_agenda">Open agenda</string>

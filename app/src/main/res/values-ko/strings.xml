@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">위젯 선택기를 사용할 수 없습니다</string>
     <string name="widgets_unavailable">위젯을 사용할 수 없습니다</string>
     <string name="widget_menu_resize">크기 조절</string>
+    <string name="widget_menu_move_up">위로 이동</string>
+    <string name="widget_menu_move_down">아래로 이동</string>
     <string name="widget_menu_remove">삭제</string>
     <string name="widget_resize_handle_description">드래그하여 위젯 크기 조절</string>
     <string name="navigate_to_agenda">일정 열기</string>

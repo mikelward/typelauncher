@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">小工具選擇器無法使用</string>
     <string name="widgets_unavailable">小工具無法使用</string>
     <string name="widget_menu_resize">調整大小</string>
+    <string name="widget_menu_move_up">上移</string>
+    <string name="widget_menu_move_down">下移</string>
     <string name="widget_menu_remove">移除</string>
     <string name="widget_resize_handle_description">拖曳以調整小工具大小</string>
     <string name="navigate_to_agenda">開啟議程</string>

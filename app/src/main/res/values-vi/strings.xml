@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Bộ chọn tiện ích không khả dụng</string>
     <string name="widgets_unavailable">Tiện ích không khả dụng</string>
     <string name="widget_menu_resize">Đổi kích thước</string>
+    <string name="widget_menu_move_up">Di chuyển lên</string>
+    <string name="widget_menu_move_down">Di chuyển xuống</string>
     <string name="widget_menu_remove">Xóa</string>
     <string name="widget_resize_handle_description">Kéo để đổi kích thước tiện ích</string>
     <string name="navigate_to_agenda">Mở lịch trình</string>

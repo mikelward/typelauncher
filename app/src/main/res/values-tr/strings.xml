@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Pencere öğesi seçici kullanılamıyor</string>
     <string name="widgets_unavailable">Pencere öğesi kullanılamıyor</string>
     <string name="widget_menu_resize">Yeniden boyutlandır</string>
+    <string name="widget_menu_move_up">Yukarı taşı</string>
+    <string name="widget_menu_move_down">Aşağı taşı</string>
     <string name="widget_menu_remove">Kaldır</string>
     <string name="widget_resize_handle_description">Pencere öğesini yeniden boyutlandırmak için sürükle</string>
     <string name="navigate_to_agenda">Ajandayı aç</string>

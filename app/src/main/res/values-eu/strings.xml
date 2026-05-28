@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Widget hautatzailea ez dago eskuragarri</string>
     <string name="widgets_unavailable">Widgeta ez dago eskuragarri</string>
     <string name="widget_menu_resize">Aldatu tamaina</string>
+    <string name="widget_menu_move_up">Eraman gora</string>
+    <string name="widget_menu_move_down">Eraman behera</string>
     <string name="widget_menu_remove">Kendu</string>
     <string name="widget_resize_handle_description">Arrastatu widgetaren tamaina aldatzeko</string>
     <string name="navigate_to_agenda">Ireki agenda</string>

@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Selector de widget-uri indisponibil</string>
     <string name="widgets_unavailable">Widget indisponibil</string>
     <string name="widget_menu_resize">Redimensionează</string>
+    <string name="widget_menu_move_up">Mută în sus</string>
+    <string name="widget_menu_move_down">Mută în jos</string>
     <string name="widget_menu_remove">Elimină</string>
     <string name="widget_resize_handle_description">Trageți pentru a redimensiona widget-ul</string>
     <string name="navigate_to_agenda">Deschide agenda</string>

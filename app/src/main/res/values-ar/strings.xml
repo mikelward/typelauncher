@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">منتقي الأدوات غير متاح</string>
     <string name="widgets_unavailable">الأداة غير متاحة</string>
     <string name="widget_menu_resize">تغيير الحجم</string>
+    <string name="widget_menu_move_up">نقل لأعلى</string>
+    <string name="widget_menu_move_down">نقل لأسفل</string>
     <string name="widget_menu_remove">إزالة</string>
     <string name="widget_resize_handle_description">اسحب لتغيير حجم الأداة</string>
     <string name="navigate_to_agenda">فتح الأجندة</string>

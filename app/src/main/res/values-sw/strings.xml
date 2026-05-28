@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Kichaguzi cha wijeti hakipatikani</string>
     <string name="widgets_unavailable">Wijeti haipatikani</string>
     <string name="widget_menu_resize">Badilisha ukubwa</string>
+    <string name="widget_menu_move_up">Sogeza juu</string>
+    <string name="widget_menu_move_down">Sogeza chini</string>
     <string name="widget_menu_remove">Ondoa</string>
     <string name="widget_resize_handle_description">Buruta ili kubadilisha ukubwa wa wijeti</string>
     <string name="navigate_to_agenda">Fungua ratiba</string>

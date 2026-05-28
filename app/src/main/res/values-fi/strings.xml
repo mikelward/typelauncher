@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Widget-valitsin ei käytettävissä</string>
     <string name="widgets_unavailable">Widget ei käytettävissä</string>
     <string name="widget_menu_resize">Muuta kokoa</string>
+    <string name="widget_menu_move_up">Siirrä ylös</string>
+    <string name="widget_menu_move_down">Siirrä alas</string>
     <string name="widget_menu_remove">Poista</string>
     <string name="widget_resize_handle_description">Vedä muuttaaksesi widgetin kokoa</string>
     <string name="navigate_to_agenda">Avaa kalenteri</string>

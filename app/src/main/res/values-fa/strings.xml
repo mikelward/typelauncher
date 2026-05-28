@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">انتخابگر ابزارک در دسترس نیست</string>
     <string name="widgets_unavailable">ابزارک در دسترس نیست</string>
     <string name="widget_menu_resize">تغییر اندازه</string>
+    <string name="widget_menu_move_up">انتقال به بالا</string>
+    <string name="widget_menu_move_down">انتقال به پایین</string>
     <string name="widget_menu_remove">حذف</string>
     <string name="widget_resize_handle_description">برای تغییر اندازه ابزارک بکشید</string>
     <string name="navigate_to_agenda">باز کردن برنامه روزانه</string>

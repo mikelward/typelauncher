@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">વિજેટ પિકર ઉપલબ્ધ નથી</string>
     <string name="widgets_unavailable">વિજેટ ઉપલબ્ધ નથી</string>
     <string name="widget_menu_resize">કદ બદલો</string>
+    <string name="widget_menu_move_up">ઉપર ખસેડો</string>
+    <string name="widget_menu_move_down">નીચે ખસેડો</string>
     <string name="widget_menu_remove">દૂર કરો</string>
     <string name="widget_resize_handle_description">વિજેટનું કદ બદલવા ખેંચો</string>
     <string name="navigate_to_agenda">એજન્ડા ખોલો</string>

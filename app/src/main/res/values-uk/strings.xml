@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Вибір віджетів недоступний</string>
     <string name="widgets_unavailable">Віджет недоступний</string>
     <string name="widget_menu_resize">Змінити розмір</string>
+    <string name="widget_menu_move_up">Перемістити вгору</string>
+    <string name="widget_menu_move_down">Перемістити вниз</string>
     <string name="widget_menu_remove">Видалити</string>
     <string name="widget_resize_handle_description">Перетягніть, щоб змінити розмір віджета</string>
     <string name="navigate_to_agenda">Відкрити розклад</string>

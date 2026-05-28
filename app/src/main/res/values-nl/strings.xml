@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Widget-kiezer niet beschikbaar</string>
     <string name="widgets_unavailable">Widget niet beschikbaar</string>
     <string name="widget_menu_resize">Formaat wijzigen</string>
+    <string name="widget_menu_move_up">Omhoog verplaatsen</string>
+    <string name="widget_menu_move_down">Omlaag verplaatsen</string>
     <string name="widget_menu_remove">Verwijderen</string>
     <string name="widget_resize_handle_description">Sleep om widgetformaat te wijzigen</string>
     <string name="navigate_to_agenda">Agenda openen</string>

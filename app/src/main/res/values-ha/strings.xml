@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Babu mai zaɓen widget</string>
     <string name="widgets_unavailable">Babu widget</string>
     <string name="widget_menu_resize">Sauya girma</string>
+    <string name="widget_menu_move_up">Matsar sama</string>
+    <string name="widget_menu_move_down">Matsar ƙasa</string>
     <string name="widget_menu_remove">Cire</string>
     <string name="widget_resize_handle_description">Ja don sauya girman widget</string>
     <string name="navigate_to_agenda">Bude ajanda</string>

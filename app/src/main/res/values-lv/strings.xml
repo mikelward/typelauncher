@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Logrīku atlasītājs nav pieejams</string>
     <string name="widgets_unavailable">Logrīks nav pieejams</string>
     <string name="widget_menu_resize">Mainīt izmēru</string>
+    <string name="widget_menu_move_up">Pārvietot uz augšu</string>
+    <string name="widget_menu_move_down">Pārvietot uz leju</string>
     <string name="widget_menu_remove">Noņemt</string>
     <string name="widget_resize_handle_description">Velciet, lai mainītu logrīka izmēru</string>
     <string name="navigate_to_agenda">Atvērt darba kārtību</string>

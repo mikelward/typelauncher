@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Olùyàn wíjẹ́ẹ̀tì kò sí</string>
     <string name="widgets_unavailable">Wíjẹ́ẹ̀tì kò sí</string>
     <string name="widget_menu_resize">Yí ìwọ̀n padà</string>
+    <string name="widget_menu_move_up">Gbé sókè</string>
+    <string name="widget_menu_move_down">Gbé sísàlẹ̀</string>
     <string name="widget_menu_remove">Yọ kúrò</string>
     <string name="widget_resize_handle_description">Wọ́ láti yí ìwọ̀n wíjẹ́ẹ̀tì padà</string>
     <string name="navigate_to_agenda">Ṣí ètò ọjọ́</string>

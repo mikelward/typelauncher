@@ -472,6 +472,45 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun widgetLongPress_showsMoveActionsAndReordersWidget() {
+        val viewModel = composeRule.activity.viewModel
+        listOf(10, 20, 30).forEach(viewModel::addWidget)
+        viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        // A middle widget can move in both directions, so its menu offers both.
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:20").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:20").assertIsDisplayed()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:20").assertIsDisplayed()
+        saveScreenshot("compose_widget_move_menu_robolectric.png")
+
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:20").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(10, 30, 20), viewModel.uiState.value.widgetIds)
+    }
+
+    @Test
+    fun widgetLongPress_hidesMoveActionsAtPageEdges() {
+        val viewModel = composeRule.activity.viewModel
+        listOf(10, 20).forEach(viewModel::addWidget)
+        viewModel.showWidgets()
+        composeRule.waitForIdle()
+
+        // The top widget cannot move up; the bottom widget cannot move down.
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:10").assertDoesNotExist()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").assertIsDisplayed()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").performClick()
+        composeRule.waitForIdle()
+
+        // 10 is now at the bottom (order is [20, 10]); it can move up but not down.
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:10").assertIsDisplayed()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").assertDoesNotExist()
+    }
+
+    @Test
     fun typingInSearch_filtersInstalledAppsByNameSubstring() {
         composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")

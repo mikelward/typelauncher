@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">විජට් තේරුම නැත</string>
     <string name="widgets_unavailable">විජට් නැත</string>
     <string name="widget_menu_resize">ප්‍රමාණය වෙනස් කරන්න</string>
+    <string name="widget_menu_move_up">ඉහළට ගෙන යන්න</string>
+    <string name="widget_menu_move_down">පහළට ගෙන යන්න</string>
     <string name="widget_menu_remove">ඉවත් කරන්න</string>
     <string name="widget_resize_handle_description">විජට් ප්‍රමාණය වෙනස් කිරීමට අදින්න</string>
     <string name="navigate_to_agenda">න්‍යාය පත්‍රය විවෘත කරන්න</string>

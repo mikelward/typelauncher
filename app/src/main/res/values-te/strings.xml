@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">విడ్జెట్ పికర్ అందుబాటులో లేదు</string>
     <string name="widgets_unavailable">విడ్జెట్ అందుబాటులో లేదు</string>
     <string name="widget_menu_resize">పరిమాణం మార్చు</string>
+    <string name="widget_menu_move_up">పైకి జరుపు</string>
+    <string name="widget_menu_move_down">కిందికి జరుపు</string>
     <string name="widget_menu_remove">తీసివేయి</string>
     <string name="widget_resize_handle_description">విడ్జెట్ పరిమాణాన్ని మార్చడానికి లాగండి</string>
     <string name="navigate_to_agenda">అజెండాను తెరువు</string>

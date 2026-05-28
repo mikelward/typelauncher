@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Widget-velger ikke tilgjengelig</string>
     <string name="widgets_unavailable">Widget ikke tilgjengelig</string>
     <string name="widget_menu_resize">Endre størrelse</string>
+    <string name="widget_menu_move_up">Flytt opp</string>
+    <string name="widget_menu_move_down">Flytt ned</string>
     <string name="widget_menu_remove">Fjern</string>
     <string name="widget_resize_handle_description">Dra for å endre widget-størrelse</string>
     <string name="navigate_to_agenda">Åpne agenda</string>
