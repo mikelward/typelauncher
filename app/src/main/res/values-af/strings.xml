@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Legstukkieser nie beskikbaar nie</string>
     <string name="widgets_unavailable">Legstuk nie beskikbaar nie</string>
     <string name="widget_menu_resize">Verander grootte</string>
+    <string name="widget_menu_move_up">Skuif op</string>
+    <string name="widget_menu_move_down">Skuif af</string>
     <string name="widget_menu_remove">Verwyder</string>
     <string name="widget_resize_handle_description">Sleep om legstukgrootte te verander</string>
     <string name="navigate_to_agenda">Maak agenda oop</string>

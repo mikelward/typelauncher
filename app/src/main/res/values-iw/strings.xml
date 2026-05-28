@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">בורר הווידג\'טים לא זמין</string>
     <string name="widgets_unavailable">הווידג\'ט לא זמין</string>
     <string name="widget_menu_resize">שינוי גודל</string>
+    <string name="widget_menu_move_up">העברה למעלה</string>
+    <string name="widget_menu_move_down">העברה למטה</string>
     <string name="widget_menu_remove">הסרה</string>
     <string name="widget_resize_handle_description">גררו לשינוי גודל הווידג\'ט</string>
     <string name="navigate_to_agenda">פתיחת סדר היום</string>

@@ -27,7 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -89,6 +89,7 @@ internal fun WidgetsScreen(
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
+    onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
 ) {
     val listState = rememberLazyListState()
     val widgetScreenTag = if (isCurrentPage) WIDGETS_SCREEN_TAG else "$WIDGETS_SCREEN_TAG:offscreen"
@@ -103,14 +104,17 @@ internal fun WidgetsScreen(
             .testTag(widgetScreenTag),
         verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
     ) {
-        items(widgetIds, key = { widgetId -> widgetId }) { widgetId ->
+        itemsIndexed(widgetIds, key = { _, widgetId -> widgetId }) { index, widgetId ->
             HostedWidgetCard(
                 widgetId = widgetId,
                 appWidgetHost = appWidgetHost,
                 appWidgetManager = appWidgetManager,
                 customHeightDp = widgetHeights[widgetId],
+                canMoveUp = index > 0,
+                canMoveDown = index < widgetIds.lastIndex,
                 onRemoveWidget = onRemoveWidget,
                 onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
+                onMoveWidget = onMoveWidget,
             )
         }
         if (isAddingWidget) {
@@ -537,8 +541,11 @@ private fun HostedWidgetCard(
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     customHeightDp: Int?,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (Int) -> Unit,
+    onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
 ) {
     val providerInfo = remember(widgetId, appWidgetManager) {
         appWidgetManager?.getAppWidgetInfo(widgetId)
@@ -565,9 +572,12 @@ private fun HostedWidgetCard(
                 expanded = menuExpanded,
                 widgetId = widgetId,
                 showResize = false,
+                canMoveUp = canMoveUp,
+                canMoveDown = canMoveDown,
                 onDismiss = { menuExpanded = false },
                 onRemoveWidget = onRemoveWidget,
                 onStartResize = {},
+                onMoveWidget = onMoveWidget,
             )
         }
         return
@@ -667,12 +677,15 @@ private fun HostedWidgetCard(
         WidgetActionsMenu(
             expanded = menuExpanded,
             widgetId = widgetId,
+            canMoveUp = canMoveUp,
+            canMoveDown = canMoveDown,
             onDismiss = { menuExpanded = false },
             onRemoveWidget = onRemoveWidget,
             onStartResize = {
                 resizeHeightDp = effectiveHeightDp.value
                 isResizing = true
             },
+            onMoveWidget = onMoveWidget,
         )
         if (isResizing) {
             WidgetResizeHandle(
@@ -723,10 +736,13 @@ private fun WidgetResizeHandle(
 private fun WidgetActionsMenu(
     expanded: Boolean,
     widgetId: Int,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     showResize: Boolean = true,
     onDismiss: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onStartResize: () -> Unit,
+    onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (showResize) {
@@ -736,6 +752,26 @@ private fun WidgetActionsMenu(
                 onClick = {
                     onDismiss()
                     onStartResize()
+                },
+            )
+        }
+        if (canMoveUp) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.widget_menu_move_up)) },
+                modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
+                onClick = {
+                    onDismiss()
+                    onMoveWidget(widgetId, WidgetMoveDirection.UP)
+                },
+            )
+        }
+        if (canMoveDown) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.widget_menu_move_down)) },
+                modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
+                onClick = {
+                    onDismiss()
+                    onMoveWidget(widgetId, WidgetMoveDirection.DOWN)
                 },
             )
         }

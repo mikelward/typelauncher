@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Isikhethi sewijethi asitholakali</string>
     <string name="widgets_unavailable">Iwijethi ayitholakali</string>
     <string name="widget_menu_resize">Shintsha usayizi</string>
+    <string name="widget_menu_move_up">Khuphukela phezulu</string>
+    <string name="widget_menu_move_down">Yehlisela phansi</string>
     <string name="widget_menu_remove">Susa</string>
     <string name="widget_resize_handle_description">Hudula ukuze ushintshe usayizi wewijethi</string>
     <string name="navigate_to_agenda">Vula i-ajenda</string>

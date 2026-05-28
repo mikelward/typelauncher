@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">小部件选择器不可用</string>
     <string name="widgets_unavailable">小部件不可用</string>
     <string name="widget_menu_resize">调整大小</string>
+    <string name="widget_menu_move_up">上移</string>
+    <string name="widget_menu_move_down">下移</string>
     <string name="widget_menu_remove">移除</string>
     <string name="widget_resize_handle_description">拖动以调整小部件大小</string>
     <string name="navigate_to_agenda">打开日程</string>

@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Изборът на джаджи не е наличен</string>
     <string name="widgets_unavailable">Джаджата не е налична</string>
     <string name="widget_menu_resize">Промени размер</string>
+    <string name="widget_menu_move_up">Преместване нагоре</string>
+    <string name="widget_menu_move_down">Преместване надолу</string>
     <string name="widget_menu_remove">Премахни</string>
     <string name="widget_resize_handle_description">Плъзнете, за да преоразмерите джаджата</string>
     <string name="navigate_to_agenda">Отвори дневния ред</string>

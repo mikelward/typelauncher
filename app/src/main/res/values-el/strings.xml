@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Ο επιλογέας γραφικών στοιχείων δεν είναι διαθέσιμος</string>
     <string name="widgets_unavailable">Το γραφικό στοιχείο δεν είναι διαθέσιμο</string>
     <string name="widget_menu_resize">Αλλαγή μεγέθους</string>
+    <string name="widget_menu_move_up">Μετακίνηση πάνω</string>
+    <string name="widget_menu_move_down">Μετακίνηση κάτω</string>
     <string name="widget_menu_remove">Αφαίρεση</string>
     <string name="widget_resize_handle_description">Σύρετε για αλλαγή μεγέθους του γραφικού στοιχείου</string>
     <string name="navigate_to_agenda">Άνοιγμα ατζέντας</string>

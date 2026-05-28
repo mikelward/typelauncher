@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Výber widgetov nie je k dispozícii</string>
     <string name="widgets_unavailable">Widget nie je k dispozícii</string>
     <string name="widget_menu_resize">Zmeniť veľkosť</string>
+    <string name="widget_menu_move_up">Posunúť nahor</string>
+    <string name="widget_menu_move_down">Posunúť nadol</string>
     <string name="widget_menu_remove">Odstrániť</string>
     <string name="widget_resize_handle_description">Potiahnutím zmeníte veľkosť widgetu</string>
     <string name="navigate_to_agenda">Otvoriť agendu</string>

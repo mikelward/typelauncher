@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Widget-választó nem elérhető</string>
     <string name="widgets_unavailable">Widget nem elérhető</string>
     <string name="widget_menu_resize">Átméretezés</string>
+    <string name="widget_menu_move_up">Mozgatás felfelé</string>
+    <string name="widget_menu_move_down">Mozgatás lefelé</string>
     <string name="widget_menu_remove">Eltávolítás</string>
     <string name="widget_resize_handle_description">Húzza a widget átméretezéséhez</string>
     <string name="navigate_to_agenda">Napirend megnyitása</string>

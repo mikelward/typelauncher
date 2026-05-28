@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">ୱିଜେଟ୍ ପିକର୍ ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="widgets_unavailable">ୱିଜେଟ୍ ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="widget_menu_resize">ଆକାର ବଦଳାନ୍ତୁ</string>
+    <string name="widget_menu_move_up">ଉପରକୁ ନିଅନ୍ତୁ</string>
+    <string name="widget_menu_move_down">ତଳକୁ ନିଅନ୍ତୁ</string>
     <string name="widget_menu_remove">ହଟାନ୍ତୁ</string>
     <string name="widget_resize_handle_description">ୱିଜେଟ୍‌ର ଆକାର ବଦଳାଇବାକୁ ଟାଣନ୍ତୁ</string>
     <string name="navigate_to_agenda">ଏଜେଣ୍ଡା ଖୋଲନ୍ତୁ</string>

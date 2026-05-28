@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">ဝစ်ဂျက်ရွေးရန် မရရှိနိုင်ပါ</string>
     <string name="widgets_unavailable">ဝစ်ဂျက်မရရှိနိုင်ပါ</string>
     <string name="widget_menu_resize">အရွယ်အစားပြောင်းမည်</string>
+    <string name="widget_menu_move_up">အပေါ်သို့ ရွှေ့ရန်</string>
+    <string name="widget_menu_move_down">အောက်သို့ ရွှေ့ရန်</string>
     <string name="widget_menu_remove">ဖယ်ရှားမည်</string>
     <string name="widget_resize_handle_description">ဝစ်ဂျက်အရွယ်အစားပြောင်းရန် ဆွဲပါ</string>
     <string name="navigate_to_agenda">အစီအစဉ်ဖွင့်မည်</string>

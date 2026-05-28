@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">ຕົວເລືອກວິດເຈັດບໍ່ສາມາດໃຊ້ໄດ້</string>
     <string name="widgets_unavailable">ວິດເຈັດບໍ່ສາມາດໃຊ້ໄດ້</string>
     <string name="widget_menu_resize">ປ່ຽນຂະໜາດ</string>
+    <string name="widget_menu_move_up">ຍ້າຍຂຶ້ນ</string>
+    <string name="widget_menu_move_down">ຍ້າຍລົງ</string>
     <string name="widget_menu_remove">ລຶບ</string>
     <string name="widget_resize_handle_description">ລາກເພື່ອປ່ຽນຂະໜາດວິດເຈັດ</string>
     <string name="navigate_to_agenda">ເປີດກຳນົດການ</string>

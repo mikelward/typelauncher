@@ -3,6 +3,8 @@ package app.typelauncher
 import android.appwidget.AppWidgetManager
 import android.content.Context
 
+internal enum class WidgetMoveDirection { UP, DOWN }
+
 internal class WidgetStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private var pages = loadPages()
@@ -48,6 +50,30 @@ internal class WidgetStore(context: Context) {
 
     fun setCustomHeight(appWidgetId: Int, heightDp: Int) {
         sharedPreferences.edit().putInt(heightKey(appWidgetId), heightDp).apply()
+    }
+
+    /**
+     * Moves [appWidgetId] one slot up or down within the page it currently
+     * lives on. No-op if the widget is unknown or already at the page edge in
+     * the requested direction — moving widgets across pages is intentionally
+     * out of scope, so a widget at the top of a page cannot leave it via
+     * [WidgetMoveDirection.UP].
+     */
+    fun move(appWidgetId: Int, direction: WidgetMoveDirection) {
+        val pageIndex = pages.indexOfFirst { ids -> ids.contains(appWidgetId) }
+        if (pageIndex == -1) return
+        val page = pages[pageIndex]
+        val fromIndex = page.indexOf(appWidgetId)
+        val toIndex = when (direction) {
+            WidgetMoveDirection.UP -> fromIndex - 1
+            WidgetMoveDirection.DOWN -> fromIndex + 1
+        }
+        if (toIndex !in page.indices) return
+        val reorderedPage = page.toMutableList().apply {
+            this[fromIndex] = set(toIndex, this[fromIndex])
+        }
+        pages = pages.toMutableList().apply { this[pageIndex] = reorderedPage }
+        save()
     }
 
     private fun loadLegacyIds(): List<Int> =

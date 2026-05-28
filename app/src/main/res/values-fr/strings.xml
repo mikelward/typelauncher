@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Sélecteur de widgets non disponible</string>
     <string name="widgets_unavailable">Widget non disponible</string>
     <string name="widget_menu_resize">Redimensionner</string>
+    <string name="widget_menu_move_up">Déplacer vers le haut</string>
+    <string name="widget_menu_move_down">Déplacer vers le bas</string>
     <string name="widget_menu_remove">Supprimer</string>
     <string name="widget_resize_handle_description">Faire glisser pour redimensionner le widget</string>
     <string name="navigate_to_agenda">Ouvrir l\'agenda</string>

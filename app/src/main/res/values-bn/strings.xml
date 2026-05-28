@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">উইজেট পিকার উপলব্ধ নেই</string>
     <string name="widgets_unavailable">উইজেট উপলব্ধ নেই</string>
     <string name="widget_menu_resize">আকার পরিবর্তন করুন</string>
+    <string name="widget_menu_move_up">উপরে সরান</string>
+    <string name="widget_menu_move_down">নিচে সরান</string>
     <string name="widget_menu_remove">সরান</string>
     <string name="widget_resize_handle_description">উইজেটের আকার পরিবর্তন করতে টেনে আনুন</string>
     <string name="navigate_to_agenda">এজেন্ডা খুলুন</string>

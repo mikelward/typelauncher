@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">ವಿಜೆಟ್ ಪಿಕರ್ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="widgets_unavailable">ವಿಜೆಟ್ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="widget_menu_resize">ಗಾತ್ರ ಬದಲಿಸಿ</string>
+    <string name="widget_menu_move_up">ಮೇಲಕ್ಕೆ ಸರಿಸಿ</string>
+    <string name="widget_menu_move_down">ಕೆಳಕ್ಕೆ ಸರಿಸಿ</string>
     <string name="widget_menu_remove">ತೆಗೆದುಹಾಕಿ</string>
     <string name="widget_resize_handle_description">ವಿಜೆಟ್‌ನ ಗಾತ್ರವನ್ನು ಬದಲಿಸಲು ಎಳೆಯಿರಿ</string>
     <string name="navigate_to_agenda">ಅಜೆಂಡಾ ತೆರೆಯಿರಿ</string>

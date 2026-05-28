@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Pemilih widget tidak tersedia</string>
     <string name="widgets_unavailable">Widget tidak tersedia</string>
     <string name="widget_menu_resize">Ubah saiz</string>
+    <string name="widget_menu_move_up">Alih ke atas</string>
+    <string name="widget_menu_move_down">Alih ke bawah</string>
     <string name="widget_menu_remove">Buang</string>
     <string name="widget_resize_handle_description">Seret untuk mengubah saiz widget</string>
     <string name="navigate_to_agenda">Buka agenda</string>

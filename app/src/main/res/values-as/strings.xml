@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">উইজেট পিকাৰ উপলব্ধ নহয়</string>
     <string name="widgets_unavailable">উইজেট উপলব্ধ নহয়</string>
     <string name="widget_menu_resize">আকাৰ সলনি কৰক</string>
+    <string name="widget_menu_move_up">ওপৰলৈ নিয়ক</string>
+    <string name="widget_menu_move_down">তললৈ নিয়ক</string>
     <string name="widget_menu_remove">আঁতৰাওক</string>
     <string name="widget_resize_handle_description">উইজেটৰ আকাৰ সলনি কৰিবলৈ টানক</string>
     <string name="navigate_to_agenda">এজেণ্ডা খোলক</string>

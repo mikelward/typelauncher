@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">ウィジェット選択ツールを利用できません</string>
     <string name="widgets_unavailable">ウィジェットを利用できません</string>
     <string name="widget_menu_resize">サイズ変更</string>
+    <string name="widget_menu_move_up">上に移動</string>
+    <string name="widget_menu_move_down">下に移動</string>
     <string name="widget_menu_remove">削除</string>
     <string name="widget_resize_handle_description">ドラッグしてウィジェットのサイズを変更</string>
     <string name="navigate_to_agenda">アジェンダを開く</string>

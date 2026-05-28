@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Выбор виджетов недоступен</string>
     <string name="widgets_unavailable">Виджет недоступен</string>
     <string name="widget_menu_resize">Изменить размер</string>
+    <string name="widget_menu_move_up">Переместить вверх</string>
+    <string name="widget_menu_move_down">Переместить вниз</string>
     <string name="widget_menu_remove">Удалить</string>
     <string name="widget_resize_handle_description">Перетащите, чтобы изменить размер виджета</string>
     <string name="navigate_to_agenda">Открыть расписание</string>

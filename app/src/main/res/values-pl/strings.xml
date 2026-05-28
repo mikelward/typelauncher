@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">Selektor widżetów niedostępny</string>
     <string name="widgets_unavailable">Widżet niedostępny</string>
     <string name="widget_menu_resize">Zmień rozmiar</string>
+    <string name="widget_menu_move_up">Przenieś w górę</string>
+    <string name="widget_menu_move_down">Przenieś w dół</string>
     <string name="widget_menu_remove">Usuń</string>
     <string name="widget_resize_handle_description">Przeciągnij, aby zmienić rozmiar widżetu</string>
     <string name="navigate_to_agenda">Otwórz agendę</string>

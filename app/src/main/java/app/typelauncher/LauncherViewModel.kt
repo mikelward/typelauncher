@@ -1339,6 +1339,24 @@ internal class LauncherViewModel(
         logState("addWidget")
     }
 
+    fun moveWidget(appWidgetId: Int, direction: WidgetMoveDirection) {
+        LauncherDebugLog.event("moveWidget appWidgetId=$appWidgetId direction=$direction")
+        widgetStore.move(appWidgetId, direction)
+        _uiState.update {
+            val widgetPages = widgetStore.widgetPages
+            val current = (it.destination as? LauncherDestination.Widgets)?.pageIndex ?: it.lastWidgetPage
+            val clamped = current.coerceInWidgetPages(widgetPages)
+            it.copy(
+                destination = LauncherDestination.Widgets(clamped),
+                lastWidgetPage = clamped,
+                widgetIds = widgetStore.widgetIds,
+                widgetPages = widgetPages,
+                widgetHeights = widgetStore.customHeights,
+            )
+        }
+        logState("moveWidget")
+    }
+
     fun resizeWidget(appWidgetId: Int, heightDp: Int) {
         LauncherDebugLog.event("resizeWidget appWidgetId=$appWidgetId heightDp=$heightDp")
         widgetStore.setCustomHeight(appWidgetId, heightDp)

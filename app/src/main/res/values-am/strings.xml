@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">የዊጅት መራጭ አይገኝም</string>
     <string name="widgets_unavailable">ዊጅት አይገኝም</string>
     <string name="widget_menu_resize">መጠን ቀይር</string>
+    <string name="widget_menu_move_up">ወደ ላይ አንቀሳቅስ</string>
+    <string name="widget_menu_move_down">ወደ ታች አንቀሳቅስ</string>
     <string name="widget_menu_remove">አስወግድ</string>
     <string name="widget_resize_handle_description">የዊጅት መጠን ለመቀየር ይጎትቱ</string>
     <string name="navigate_to_agenda">አጀንዳን ክፈት</string>

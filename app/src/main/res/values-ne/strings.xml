@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">विजेट पिकर उपलब्ध छैन</string>
     <string name="widgets_unavailable">विजेट उपलब्ध छैन</string>
     <string name="widget_menu_resize">आकार बदल्नुहोस्</string>
+    <string name="widget_menu_move_up">माथि सार्नुहोस्</string>
+    <string name="widget_menu_move_down">तल सार्नुहोस्</string>
     <string name="widget_menu_remove">हटाउनुहोस्</string>
     <string name="widget_resize_handle_description">विजेटको आकार बदल्न तान्नुहोस्</string>
     <string name="navigate_to_agenda">कार्यसूची खोल्नुहोस्</string>

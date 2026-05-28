@@ -85,6 +85,8 @@
     <string name="widgets_picker_unavailable">ਵਿਜੇਟ ਪਿਕਰ ਉਪਲਬਧ ਨਹੀਂ</string>
     <string name="widgets_unavailable">ਵਿਜੇਟ ਉਪਲਬਧ ਨਹੀਂ</string>
     <string name="widget_menu_resize">ਆਕਾਰ ਬਦਲੋ</string>
+    <string name="widget_menu_move_up">ਉੱਪਰ ਲਿਜਾਓ</string>
+    <string name="widget_menu_move_down">ਹੇਠਾਂ ਲਿਜਾਓ</string>
     <string name="widget_menu_remove">ਹਟਾਓ</string>
     <string name="widget_resize_handle_description">ਵਿਜੇਟ ਦਾ ਆਕਾਰ ਬਦਲਣ ਲਈ ਖਿੱਚੋ</string>
     <string name="navigate_to_agenda">ਏਜੰਡਾ ਖੋਲ੍ਹੋ</string>
