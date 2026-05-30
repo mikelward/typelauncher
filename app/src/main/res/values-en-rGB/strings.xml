@@ -1,0 +1,7 @@
+<resources>
+    <!-- British English (en-GB) spelling overrides. Override-only: add a string
+         only when its spelling differs from the US English base in
+         values/strings.xml (e.g. colour, customise, behaviour, centre, grey,
+         dialogue, licence). Unlisted strings fall back to values/, which works
+         because values/ declares tools:locale="en" so en-r* regions inherit it. -->
+</resources>

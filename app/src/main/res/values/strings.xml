@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>

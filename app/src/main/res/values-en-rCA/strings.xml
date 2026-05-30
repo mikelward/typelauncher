@@ -1,0 +1,7 @@
+<resources>
+    <!-- Canadian English (en-CA) spelling overrides. Override-only: add a string
+         only when its spelling differs from the US English base in
+         values/strings.xml (e.g. colour, centre; note Canadian keeps some US
+         forms such as organize/recognize). Unlisted strings fall back to values/,
+         which works because values/ declares tools:locale="en" so en-r* inherit it. -->
+</resources>
