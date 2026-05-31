@@ -1,12 +1,14 @@
+# Ignore all dotfiles and dot-directories by default; allowlist below.
+.*
+!/.github
+!/.github/**
+!/.gitignore
+!.gitkeep
+
 *.iml
-.gradle
 /local.properties
-/.idea
-.DS_Store
 /build
 /captures
-.externalNativeBuild
-.cxx
 local.properties
 app/build
 *.keystore
