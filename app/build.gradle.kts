@@ -288,9 +288,15 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    // ComponentActivity's registerForActivityResult APIs (MainActivity) require
+    // a Fragment library >= 1.3.0 on the runtime classpath. Fragment is only
+    // ever pulled in transitively here; until it was removed, the View-based
+    // Material library up-leveled it past 1.3.0. Pin it directly so the
+    // InvalidFragmentVersionForActivityResult lint stays satisfied regardless
+    // of which transitive dependency contributes Fragment.
+    implementation(libs.androidx.fragment)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.material)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.perf)
