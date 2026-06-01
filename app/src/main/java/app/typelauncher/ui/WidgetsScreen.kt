@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.appwidget.AppWidgetHost
+import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
@@ -48,6 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -536,7 +538,7 @@ private fun AddWidgetCard(testTag: String, onAddWidget: () -> Unit) {
 }
 
 @Composable
-private fun HostedWidgetCard(
+internal fun HostedWidgetCard(
     widgetId: Int,
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
@@ -546,10 +548,17 @@ private fun HostedWidgetCard(
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (Int) -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
+    // Test seams (default null = production behavior). The hosted-view path
+    // needs a real AppWidgetHost binding, which doesn't resolve under
+    // Robolectric, so a test supplies the provider info directly and creates a
+    // stand-in host view instead of going through AppWidgetHost.createView.
+    providerInfoOverride: AppWidgetProviderInfo? = null,
+    createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
 ) {
-    val providerInfo = remember(widgetId, appWidgetManager) {
+    val resolvedProviderInfo = remember(widgetId, appWidgetManager) {
         appWidgetManager?.getAppWidgetInfo(widgetId)
     }
+    val providerInfo = providerInfoOverride ?: resolvedProviderInfo
     var menuExpanded by remember { mutableStateOf(false) }
     if (appWidgetHost == null || providerInfo == null) {
         Box {
@@ -622,58 +631,69 @@ private fun HostedWidgetCard(
         // CompositingStrategy.Offscreen }` so the carousel translation
         // re-blits a cached RenderNode at the cost of width × height × 4 B
         // of extra GPU memory per widget.
-        AndroidView(
-            factory = { context ->
-                appWidgetHost.createView(context, widgetId, providerInfo).apply {
-                    setAppWidget(widgetId, providerInfo)
-                    if (this is LauncherAppWidgetHostView) {
-                        setOnWidgetLongPressListener { menuExpanded = true }
+        // Key the host view on widgetId so two widgets from the same provider
+        // never share one AppWidgetHostView instance. Without the key, when a
+        // LazyColumn slot is recycled (scroll, reorder) the AndroidView's
+        // factory — the only place the host view is bound to an appWidgetId —
+        // is not re-run, so a recycled view keeps the previous widget's binding
+        // and both cards end up showing the same widget. The key forces the old
+        // AndroidView to be disposed and a fresh one created for the new id.
+        key(widgetId) {
+            AndroidView(
+                factory = { context ->
+                    val hostView = createWidgetView?.invoke(context, widgetId)
+                        ?: appWidgetHost.createView(context, widgetId, providerInfo)
+                    hostView.apply {
+                        setAppWidget(widgetId, providerInfo)
+                        if (this is LauncherAppWidgetHostView) {
+                            setOnWidgetLongPressListener { menuExpanded = true }
+                        } else {
+                            setOnLongClickListener {
+                                menuExpanded = true
+                                true
+                            }
+                        }
+                    }
+                },
+                update = { view ->
+                    // Push the host view's measured size to the provider via
+                    // AppWidgetManager options. Adaptive widgets — Google Clock's
+                    // world clocks, calendar agendas, and other layouts that scale
+                    // their content to the available space — read these options
+                    // from getAppWidgetOptions() to decide what to render. Without
+                    // them the options bundle stays empty and providers fall back
+                    // to their zero/empty layout, which appears as a blank widget
+                    // card even though the host view occupies the full height.
+                    widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
+                        // Use the public min/max overload — the SizeF list
+                        // variant is @hide in AOSP and not part of the SDK.
+                        // Routes through `applyAppWidgetSizeIfChanged` so a
+                        // layout pass that produces the same dimensions as
+                        // last time (the typical case — same device, same
+                        // persisted widget height) skips the binder IPC and
+                        // avoids waking the provider via
+                        // `onAppWidgetOptionsChanged`. Cache is persisted, so
+                        // the first layout pass after a cold start short-
+                        // circuits too whenever the size is unchanged.
+                        val launcherHost = appWidgetHost as? LauncherAppWidgetHost
+                        if (launcherHost != null) {
+                            launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
+                        } else {
+                            view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                        }
+                    }
+                    if (view is LauncherAppWidgetHostView) {
+                        view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
                     } else {
-                        setOnLongClickListener {
-                            menuExpanded = true
+                        view.setOnLongClickListener {
+                            if (!isResizing) menuExpanded = true
                             true
                         }
                     }
-                }
-            },
-            update = { view ->
-                // Push the host view's measured size to the provider via
-                // AppWidgetManager options. Adaptive widgets — Google Clock's
-                // world clocks, calendar agendas, and other layouts that scale
-                // their content to the available space — read these options
-                // from getAppWidgetOptions() to decide what to render. Without
-                // them the options bundle stays empty and providers fall back
-                // to their zero/empty layout, which appears as a blank widget
-                // card even though the host view occupies the full height.
-                widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
-                    // Use the public min/max overload — the SizeF list
-                    // variant is @hide in AOSP and not part of the SDK.
-                    // Routes through `applyAppWidgetSizeIfChanged` so a
-                    // layout pass that produces the same dimensions as
-                    // last time (the typical case — same device, same
-                    // persisted widget height) skips the binder IPC and
-                    // avoids waking the provider via
-                    // `onAppWidgetOptionsChanged`. Cache is persisted, so
-                    // the first layout pass after a cold start short-
-                    // circuits too whenever the size is unchanged.
-                    val launcherHost = appWidgetHost as? LauncherAppWidgetHost
-                    if (launcherHost != null) {
-                        launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
-                    } else {
-                        view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
-                    }
-                }
-                if (view is LauncherAppWidgetHostView) {
-                    view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
-                } else {
-                    view.setOnLongClickListener {
-                        if (!isResizing) menuExpanded = true
-                        true
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         WidgetActionsMenu(
             expanded = menuExpanded,
             widgetId = widgetId,
