@@ -24,22 +24,22 @@ class WidgetSizingTest {
     fun hostedWidgetHeight_usesLauncherFloorWhenProviderHeightIsShorter() {
         val density = Density(density = 3f)
 
-        assertEquals(96.dp, widgetCardHeight(minHeightPx = 120, targetCellHeight = 1, density))
+        assertEquals(64.dp, widgetCardHeight(minHeightPx = 120, targetCellHeight = 1, density))
     }
 
     @Test
     fun hostedWidgetHeight_usesCellHeightWhenLargerThanMinHeight() {
         val density = Density(density = 3f)
 
-        // 2 cells * 80dp = 160dp, which exceeds minHeight of 110dp (330px / 3)
-        assertEquals(160.dp, widgetCardHeight(minHeightPx = 330, targetCellHeight = 2, density))
+        // 2 cells * 64dp = 128dp, which exceeds minHeight of 110dp (330px / 3)
+        assertEquals(128.dp, widgetCardHeight(minHeightPx = 330, targetCellHeight = 2, density))
     }
 
     @Test
     fun hostedWidgetHeight_usesMinHeightWhenLargerThanCellHeight() {
         val density = Density(density = 3f)
 
-        // minHeight = 900px / 3 = 300dp, which exceeds 3 cells * 80dp = 240dp
+        // minHeight = 900px / 3 = 300dp, which exceeds 3 cells * 64dp = 192dp
         assertEquals(300.dp, widgetCardHeight(minHeightPx = 900, targetCellHeight = 3, density))
     }
 
