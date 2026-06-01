@@ -856,8 +856,8 @@ private fun widgetProviderCountLabel(providerCount: Int): String =
     }
 
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
-private const val WIDGET_MIN_HEIGHT_DP = 96
-private const val WIDGET_CELL_HEIGHT_DP = 80
+private const val WIDGET_MIN_HEIGHT_DP = 64
+private const val WIDGET_CELL_HEIGHT_DP = 64
 private const val WIDGET_RESIZE_HANDLE_HEIGHT_DP = 32
 private const val WIDGET_PROVIDER_PREVIEW_HEIGHT_DP = 120
 private const val GENERATED_WIDGET_PREVIEW_MIN_API = 35
