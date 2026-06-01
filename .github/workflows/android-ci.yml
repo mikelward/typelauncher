@@ -299,11 +299,13 @@ jobs:
         # subject line of each one worth shipping as a release note — to
         # both Firebase App Distribution (testers' phones) and the Play
         # Store internal track (Play Console "What's new"):
-        #   - skip `ci:`-prefixed housekeeping commits (e.g. snapshot
-        #     regenerations) — they describe CI plumbing, not user-visible
-        #     changes;
-        #   - skip `test:`-prefixed commits — they add or update tests
-        #     only and carry no user-visible change worth announcing;
+        #   - skip commits whose subject starts with a non-user-facing
+        #     prefix — `ci:` (CI plumbing, e.g. snapshot regenerations),
+        #     `docs:` (documentation), `internal:` (build config, deps,
+        #     and other plumbing with no user-visible effect), `refactor:`
+        #     (behavior-preserving code changes), and `test:` / `tests:`
+        #     (test-only changes). None describe a user-visible change
+        #     worth announcing;
         #   - skip commits whose every changed path is repo housekeeping —
         #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or any dotfile /
         #     dotdir at the repo root (`.github/` workflows + templates +
@@ -318,7 +320,8 @@ jobs:
         # release notes render with a consistent shape. If no commit in
         # the push qualifies, sets RELEASE_NOTES_SKIP=true and both the
         # Firebase distribution and Play upload steps below skip — so a
-        # push of only ci: / docs / dotfile commits doesn't buzz
+        # push of only prefixed (ci: / docs: / internal: / refactor: /
+        # test: / tests:) or docs / dotfile commits doesn't buzz
         # testers' phones or ship a redundant Play release.
         # Engineering detail lives in the commit body, which neither
         # surface shows — see the "Commit messages" section in CLAUDE.md
@@ -356,8 +359,12 @@ jobs:
             [ -z "$sha" ] && continue
             s=$(git log -1 --format=%s "$sha")
             case "$s" in
-              ci:*)   continue ;;
-              test:*) continue ;;
+              ci:*)       continue ;;
+              docs:*)     continue ;;
+              internal:*) continue ;;
+              refactor:*) continue ;;
+              test:*)     continue ;;
+              tests:*)    continue ;;
             esac
             relevant=false
             while IFS= read -r f; do
@@ -380,7 +387,7 @@ jobs:
           done <<< "$shas"
 
           if [ "${#subjects[@]}" -eq 0 ]; then
-            echo "No release-worthy commits in this push (all ci: / test: / docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
+            echo "No release-worthy commits in this push (all ci: / docs: / internal: / refactor: / test: / tests: prefixed or docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
             echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -481,10 +488,11 @@ jobs:
         # Skipped when secrets aren't set so the build still finishes on a
         # fresh repo / fork. Also skipped when the preceding step set
         # RELEASE_NOTES_SKIP=true because every commit in this push was
-        # either `ci:`-prefixed, `test:`-prefixed, or pure docs / dotfile
-        # housekeeping (`.github/`, `.claude/`, …) — see "Build release
-        # notes" — so we don't buzz testers' phones for a notification
-        # whose preview would read e.g. "ci: bump actions/checkout". Runs
+        # either prefixed (`ci:` / `docs:` / `internal:` / `refactor:` /
+        # `test:` / `tests:`) or pure docs / dotfile housekeeping
+        # (`.github/`, `.claude/`, …) — see "Build release notes" — so we
+        # don't buzz testers' phones for a notification whose preview
+        # would read e.g. "ci: bump actions/checkout". Runs
         # before the Play Store upload so a Play failure (e.g. quota,
         # propagation) doesn't gate the faster Firebase channel testers
         # actually rely on.
@@ -586,8 +594,9 @@ jobs:
         # Gated so it only runs with both the upload key and service account
         # configured. Also skipped when "Build release notes" set
         # RELEASE_NOTES_SKIP=true because every commit in this push was
-        # either `ci:`-prefixed, `test:`-prefixed, or pure docs / dotfile
-        # housekeeping (`.github/`, `.claude/`, …) — no Play-worthy
+        # either prefixed (`ci:` / `docs:` / `internal:` / `refactor:` /
+        # `test:` / `tests:`) or pure docs / dotfile housekeeping
+        # (`.github/`, `.claude/`, …) — no Play-worthy
         # "What's new" entry exists, so shipping a release would be
         # redundant. See docs/play-store-internal-track.md for the Play
         # Console / service-account setup the upload depends on.
