@@ -1,8 +1,10 @@
 package app.typelauncher
 
 import android.content.Context
+import android.content.ComponentName
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -13,6 +15,7 @@ import android.util.LruCache
 import androidx.compose.runtime.Composable
 import com.caverock.androidsvg.SVG
 import java.io.File
+import java.time.LocalDate
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -290,6 +293,14 @@ internal object AppIconLoader {
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
         val component = app.launchIntent.component ?: return null
+        // Date-aware calendar apps (Google Calendar et al.) ship 31 per-day icon
+        // drawables and expect the launcher to pick today's; the system's plain
+        // activity icon is the static default (Google Calendar's depicts the
+        // 31st). Try that selection first and fall back to the default icon when
+        // the app doesn't expose the metadata or anything goes wrong.
+        if (app.packageName in DYNAMIC_CALENDAR_PACKAGES) {
+            resolveDynamicCalendarIcon(context, app, component)?.let { return it }
+        }
         return if (app.launchWithLauncherApps) {
             // getBadgedIcon delegates to PackageManager.getUserBadgedIcon for
             // managed-profile activities, so on a Pixel the work icon comes
@@ -312,7 +323,64 @@ internal object AppIconLoader {
             }
         }
     }
+
+    /**
+     * Resolves the per-day launcher icon a date-aware calendar app advertises,
+     * mirroring AOSP Launcher3's `IconProvider`. The app declares a
+     * `<packageName>.dynamic_icons` meta-data entry on its launcher activity (or
+     * application) pointing to an array of 31 drawables — one per day of the
+     * month — and the launcher picks today's. Without this, the activity's
+     * default icon is a single static day (Google Calendar's depicts the 31st),
+     * which is why an un-aware launcher shows a stale date.
+     *
+     * Returns null — so [resolve] falls back to the default icon — when the app
+     * exposes no such metadata, the array or day drawable can't be found, or the
+     * package's resources aren't readable (e.g. a work-profile calendar the
+     * personal `PackageManager` can't reach). Runs on the IO dispatcher via
+     * [resolve], so the `PackageManager` / resource lookups are off the main
+     * thread.
+     */
+    private fun resolveDynamicCalendarIcon(
+        context: Context,
+        app: InstalledApp,
+        component: ComponentName,
+    ): Drawable? = try {
+        val packageManager = context.packageManager
+        val activityInfo = packageManager.getActivityInfo(component, PackageManager.GET_META_DATA)
+        val key = dynamicCalendarIconsMetadataKey(component.packageName)
+        val arrayResId = activityInfo.metaData?.getInt(key, 0)?.takeIf { it != 0 }
+            ?: packageManager.getApplicationInfo(component.packageName, PackageManager.GET_META_DATA)
+                .metaData?.getInt(key, 0)?.takeIf { it != 0 }
+            ?: return null
+        val resources = packageManager.getResourcesForApplication(activityInfo.applicationInfo)
+        val dayIconResId = resources.obtainTypedArray(arrayResId).use { dayIcons ->
+            val index = dynamicCalendarDayIndex(LocalDate.now())
+            if (index in 0 until dayIcons.length()) dayIcons.getResourceId(index, 0) else 0
+        }.takeIf { it != 0 } ?: return null
+        val raw = resources.getDrawableForDensity(
+            dayIconResId,
+            context.resources.displayMetrics.densityDpi,
+            null,
+        ) ?: return null
+        if (app.isWorkApp) packageManager.getUserBadgedIcon(raw, app.user) else raw
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    } catch (_: Resources.NotFoundException) {
+        null
+    }
 }
+
+// Meta-data key (the package name plus this suffix) a date-aware calendar app
+// declares to advertise its array of 31 per-day icon drawables, matching AOSP
+// Launcher3 — e.g. `com.google.android.calendar.dynamic_icons`.
+private const val CALENDAR_DYNAMIC_ICONS_METADATA_SUFFIX = ".dynamic_icons"
+
+internal fun dynamicCalendarIconsMetadataKey(packageName: String): String =
+    "$packageName$CALENDAR_DYNAMIC_ICONS_METADATA_SUFFIX"
+
+// Index into the 31-entry per-day icon array: day 1 maps to index 0. Months
+// with fewer than 31 days simply never request the unused trailing entries.
+internal fun dynamicCalendarDayIndex(date: LocalDate): Int = date.dayOfMonth - 1
 
 @Composable
 internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
