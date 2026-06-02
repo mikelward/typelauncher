@@ -356,23 +356,28 @@ internal object AppIconLoader {
             null
         } else {
             val resources = packageManager.getResourcesForApplication(component.packageName)
+            val dayOfMonth = LocalDate.now().dayOfMonth
             val dayIconResId = resources.obtainTypedArray(arrayResId).use { dayIcons ->
                 val index = dynamicCalendarDayIndex(LocalDate.now())
                 if (index in 0 until dayIcons.length()) dayIcons.getResourceId(index, 0) else 0
             }
-            if (dayIconResId == 0) {
+            val raw = if (dayIconResId == 0) {
                 null
             } else {
-                val raw = resources.getDrawableForDensity(
+                resources.getDrawableForDensity(
                     dayIconResId,
                     context.resources.displayMetrics.densityDpi,
                     null,
                 )
-                when {
-                    raw == null -> null
-                    app.isWorkApp -> packageManager.getUserBadgedIcon(raw, app.user)
-                    else -> raw
-                }
+            }
+            LauncherDebugLog.event(
+                "dynamicCalendarIcon: ${component.packageName} day=$dayOfMonth " +
+                    "arrayResId=$arrayResId dayResId=$dayIconResId resolved=${raw != null}",
+            )
+            when {
+                raw == null -> null
+                app.isWorkApp -> packageManager.getUserBadgedIcon(raw, app.user)
+                else -> raw
             }
         }
     } catch (_: PackageManager.NameNotFoundException) {

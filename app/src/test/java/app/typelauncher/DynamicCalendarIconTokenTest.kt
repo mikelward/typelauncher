@@ -1,8 +1,10 @@
 package app.typelauncher
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -65,5 +67,24 @@ class DynamicCalendarIconTokenTest {
             val token = dynamicCalendarIconToken(pkg, "12345", "2026-06-02")
             assertEquals("$pkg should be date-stamped", "12345|cal:2026-06-02", token)
         }
+    }
+
+    @Test
+    fun calendarIconIdIsRecognisedForSnapshotExclusion() {
+        // Google Calendar's launcher entry is an alias under its own package; the
+        // icon cache id embeds the flattened component, so the package/ prefix matches.
+        assertTrue(
+            isDynamicCalendarIconId(
+                "0:com.google.android.calendar/com.android.calendar.AllInOneActivity@123|cal:2026-06-02",
+            ),
+        )
+    }
+
+    @Test
+    fun ordinaryIconIdIsNotTreatedAsCalendar() {
+        assertFalse(isDynamicCalendarIconId("0:com.example.mail/com.example.mail.Main@123"))
+        // A package that merely starts with a calendar package name must not match —
+        // the component separator '/' has to follow the package name.
+        assertFalse(isDynamicCalendarIconId("0:com.google.android.calendarwidget/.Main@123"))
     }
 }
