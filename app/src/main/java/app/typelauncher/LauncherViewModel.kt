@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 
@@ -143,6 +144,23 @@ internal class LauncherViewModel(
         }
     }
     private var managedProfileReceiverRegistered = false
+    // Receiver for the date/time/timezone rollover broadcasts. Apps such as
+    // Google Calendar redraw their launcher icon to show the current date
+    // without bumping the package's `lastUpdateTime`, so the token-based cache
+    // key never changes on its own and a long-lived launcher process would keep
+    // painting yesterday's icon. At the midnight rollover (or a manual date /
+    // time / timezone change that shifts the local date) we reload the app
+    // list, which re-stamps the dynamic-calendar cache tokens for the new day
+    // (see `applyDynamicCalendarToken`) so the on-screen icon refreshes within a
+    // frame or two. The killed-overnight case is handled separately by the
+    // per-day cache key surviving into `IconSnapshotStore`.
+    private val dateChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.action ?: return
+            scheduleReload("dateChanged:$action")
+        }
+    }
+    private var dateChangedReceiverRegistered = false
     // Set when a `LauncherApps.Callback` event fires before the cold-start
     // fresh load has published its result. We don't run a reload concurrently
     // with cold-start (it could race the cold-start state update and lose),
@@ -236,6 +254,7 @@ internal class LauncherViewModel(
                 installedApps = cachedMetadata
                     .applyRenameOverrides()
                     .applyIconOverrides()
+                    .applyDynamicCalendarToken()
                 _uiState.update { state ->
                     val dockedIds = dockedAppIdsForState(state)
                     val workDockedIds = workDockedAppIdsForState(state)
@@ -357,6 +376,7 @@ internal class LauncherViewModel(
         }
         registerLauncherAppsCallback()
         registerManagedProfileReceiver()
+        registerDateChangedReceiver()
     }
 
     /**
@@ -403,6 +423,34 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("managedProfileReceiver registered")
         } catch (exception: RuntimeException) {
             LauncherDebugLog.warning("managedProfileReceiver register failed", exception)
+        }
+    }
+
+    /**
+     * Registers a runtime receiver for `ACTION_DATE_CHANGED` (fired at the
+     * midnight rollover and on a manual date set) plus `ACTION_TIME_CHANGED` /
+     * `ACTION_TIMEZONE_CHANGED` (clock and zone changes that can also shift the
+     * local date), so the launcher refreshes dynamic-calendar app icons such as
+     * Google Calendar when the day changes. Routes through `scheduleReload` so a
+     * reload re-stamps the calendar cache tokens (see `applyDynamicCalendarToken`)
+     * and shares the same coalescing + cold-start deferral as package events.
+     * All three are protected system broadcasts only the OS can send, so
+     * `RECEIVER_NOT_EXPORTED` is the correct flag (same as the managed-profile
+     * receiver). Idempotent.
+     */
+    private fun registerDateChangedReceiver() {
+        if (dateChangedReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        try {
+            app.registerReceiver(dateChangedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            dateChangedReceiverRegistered = true
+            LauncherDebugLog.event("dateChangedReceiver registered")
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.warning("dateChangedReceiver register failed", exception)
         }
     }
 
@@ -464,6 +512,15 @@ internal class LauncherViewModel(
                 LauncherDebugLog.warning("managedProfileReceiver unregister failed", exception)
             }
             managedProfileReceiverRegistered = false
+        }
+        if (dateChangedReceiverRegistered) {
+            try {
+                app.unregisterReceiver(dateChangedReceiver)
+                LauncherDebugLog.event("dateChangedReceiver unregistered")
+            } catch (exception: RuntimeException) {
+                LauncherDebugLog.warning("dateChangedReceiver unregister failed", exception)
+            }
+            dateChangedReceiverRegistered = false
         }
         super.onCleared()
     }
@@ -1857,6 +1914,28 @@ internal class LauncherViewModel(
         ).map { event -> event.copy(displayTime = event.formatTime(app)) }
     }
 
+    /**
+     * Folds the current local date into the `iconCacheToken` of every
+     * [DYNAMIC_CALENDAR_PACKAGES] app so its [InstalledApp.iconCacheId] — and
+     * therefore its `AppIconLoader` cache key and `IconSnapshotStore` file — is
+     * distinct per calendar day, forcing a fresh resolve when the day rolls over.
+     * Applied both to the freshly-loaded list and to the cold-start metadata
+     * prefill, so the prefill always reflects today regardless of which day the
+     * persisted token was stamped on: a same-day cold start still hits the
+     * snapshot, a cross-day cold start misses it and reloads today's dated icon
+     * rather than painting yesterday's. Apps with a user-supplied custom icon are
+     * left alone — that override is static, so there's nothing to refresh daily.
+     */
+    private fun List<InstalledApp>.applyDynamicCalendarToken(
+        today: String = currentLocalDateKey(),
+    ): List<InstalledApp> = map { app ->
+        if (app.customIconPath != null) return@map app
+        val stamped = dynamicCalendarIconToken(app.packageName, app.iconCacheToken, today)
+        if (app.iconCacheToken == stamped) app else app.copy(iconCacheToken = stamped)
+    }
+
+    private fun currentLocalDateKey(): String = LocalDate.now(ZoneId.systemDefault()).toString()
+
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
@@ -1926,6 +2005,7 @@ internal class LauncherViewModel(
             .applyRenameOverrides()
             .applyCustomBadges()
             .applyIconOverrides()
+            .applyDynamicCalendarToken()
             .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
     }
 
@@ -2164,6 +2244,37 @@ private fun ApplicationInfo.iconCacheToken(packageManager: PackageManager): Stri
         null
     }
     return packageInfo?.lastUpdateTime?.takeIf { time -> time > 0L }?.toString()
+}
+
+// Packages whose launcher icon redraws to show the current date without bumping
+// the package's `lastUpdateTime`. Their normal token-based cache key therefore
+// never changes on its own, so the launcher would keep painting a stale
+// (yesterday's) icon; `applyDynamicCalendarToken` folds the current local date
+// into their cache key instead. Extend this set as other date-aware calendar
+// apps are confirmed.
+internal val DYNAMIC_CALENDAR_PACKAGES = setOf(
+    "com.google.android.calendar", // Google Calendar
+    "com.samsung.android.calendar", // Samsung Calendar
+    "com.android.calendar", // AOSP / common OEM calendars
+)
+
+// Separator marking the date segment appended to a dynamic-calendar app's
+// `iconCacheToken`. Re-stamping strips any existing segment before appending the
+// new date, so the token can't accumulate one segment per day as it round-trips
+// through `AppMetadataStore`.
+private const val CALENDAR_TOKEN_SEPARATOR = "|cal:"
+
+/**
+ * Returns [baseToken] unchanged for an ordinary app. For a package in
+ * [DYNAMIC_CALENDAR_PACKAGES], strips any previously-appended date segment and
+ * appends [today] (an ISO local date such as `"2026-06-02"`), yielding a token
+ * that is distinct per calendar day so the app re-resolves its dated icon when
+ * the day rolls over.
+ */
+internal fun dynamicCalendarIconToken(packageName: String, baseToken: String?, today: String): String? {
+    if (packageName !in DYNAMIC_CALENDAR_PACKAGES) return baseToken
+    val base = baseToken?.substringBefore(CALENDAR_TOKEN_SEPARATOR)?.takeIf { it.isNotEmpty() }
+    return (base ?: "") + CALENDAR_TOKEN_SEPARATOR + today
 }
 
 private const val SETTINGS_QUERY = "settings"
