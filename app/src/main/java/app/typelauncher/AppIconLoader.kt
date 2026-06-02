@@ -327,11 +327,11 @@ internal object AppIconLoader {
     /**
      * Resolves the per-day launcher icon a date-aware calendar app advertises,
      * mirroring AOSP Launcher3's `IconProvider`. The app declares a
-     * `<packageName>.dynamic_icons` meta-data entry on its launcher activity (or
-     * application) pointing to an array of 31 drawables — one per day of the
-     * month — and the launcher picks today's. Without this, the activity's
-     * default icon is a single static day (Google Calendar's depicts the 31st),
-     * which is why an un-aware launcher shows a stale date.
+     * `<packageName>.dynamic_icons` meta-data entry pointing to an array of 31
+     * drawables — one per day of the month — and the launcher picks today's.
+     * Without this, the activity's default icon is a single static day (Google
+     * Calendar's depicts the 31st), which is why an un-aware launcher shows a
+     * stale date.
      *
      * Returns null — so [resolve] falls back to the default icon — when the app
      * exposes no such metadata, the array or day drawable can't be found, or the
@@ -346,28 +346,89 @@ internal object AppIconLoader {
         component: ComponentName,
     ): Drawable? = try {
         val packageManager = context.packageManager
-        val activityInfo = packageManager.getActivityInfo(component, PackageManager.GET_META_DATA)
         val key = dynamicCalendarIconsMetadataKey(component.packageName)
-        val arrayResId = activityInfo.metaData?.getInt(key, 0)?.takeIf { it != 0 }
-            ?: packageManager.getApplicationInfo(component.packageName, PackageManager.GET_META_DATA)
-                .metaData?.getInt(key, 0)?.takeIf { it != 0 }
-            ?: return null
-        val resources = packageManager.getResourcesForApplication(activityInfo.applicationInfo)
-        val dayIconResId = resources.obtainTypedArray(arrayResId).use { dayIcons ->
-            val index = dynamicCalendarDayIndex(LocalDate.now())
-            if (index in 0 until dayIcons.length()) dayIcons.getResourceId(index, 0) else 0
-        }.takeIf { it != 0 } ?: return null
-        val raw = resources.getDrawableForDensity(
-            dayIconResId,
-            context.resources.displayMetrics.densityDpi,
-            null,
-        ) ?: return null
-        if (app.isWorkApp) packageManager.getUserBadgedIcon(raw, app.user) else raw
+        val arrayResId = findDynamicCalendarArrayResId(packageManager, component, key)
+        if (arrayResId == 0) {
+            LauncherDebugLog.event(
+                "dynamicCalendarIcon: no '$key' metadata for ${component.packageName} " +
+                    "iconKeys=${dynamicCalendarMetadataKeysForLog(packageManager, component)}",
+            )
+            null
+        } else {
+            val resources = packageManager.getResourcesForApplication(component.packageName)
+            val dayIconResId = resources.obtainTypedArray(arrayResId).use { dayIcons ->
+                val index = dynamicCalendarDayIndex(LocalDate.now())
+                if (index in 0 until dayIcons.length()) dayIcons.getResourceId(index, 0) else 0
+            }
+            if (dayIconResId == 0) {
+                null
+            } else {
+                val raw = resources.getDrawableForDensity(
+                    dayIconResId,
+                    context.resources.displayMetrics.densityDpi,
+                    null,
+                )
+                when {
+                    raw == null -> null
+                    app.isWorkApp -> packageManager.getUserBadgedIcon(raw, app.user)
+                    else -> raw
+                }
+            }
+        }
     } catch (_: PackageManager.NameNotFoundException) {
         null
     } catch (_: Resources.NotFoundException) {
         null
     }
+
+    /**
+     * Finds the dynamic-calendar icon array resource id declared under [key],
+     * checking the launcher [component], then the application element, then every
+     * activity / activity-alias in the package. Google Calendar declares the
+     * metadata on its launcher **activity-alias**, and `getActivityInfo` on an
+     * alias does not reliably surface the alias's own metadata (it resolves
+     * toward the target activity, which has none) — so the package-wide scan is
+     * the path that actually finds it. Returns 0 when no component declares it.
+     */
+    internal fun findDynamicCalendarArrayResId(
+        packageManager: PackageManager,
+        component: ComponentName,
+        key: String,
+    ): Int {
+        runCatching {
+            packageManager.getActivityInfo(component, PackageManager.GET_META_DATA).metaData?.getInt(key, 0)
+        }.getOrNull()?.takeIf { it != 0 }?.let { return it }
+        runCatching {
+            packageManager.getApplicationInfo(component.packageName, PackageManager.GET_META_DATA)
+                .metaData?.getInt(key, 0)
+        }.getOrNull()?.takeIf { it != 0 }?.let { return it }
+        runCatching {
+            packageManager
+                .getPackageInfo(
+                    component.packageName,
+                    PackageManager.GET_ACTIVITIES or PackageManager.GET_META_DATA,
+                )
+                .activities.orEmpty()
+                .firstNotNullOfOrNull { activity -> activity.metaData?.getInt(key, 0)?.takeIf { it != 0 } }
+        }.getOrNull()?.let { return it }
+        return 0
+    }
+
+    // Diagnostic only: the metadata keys (filtered to icon/calendar/dynamic) the
+    // package actually declares, logged when the lookup misses so a future stale
+    // report shows what the calendar app exposes instead of guessing.
+    private fun dynamicCalendarMetadataKeysForLog(
+        packageManager: PackageManager,
+        component: ComponentName,
+    ): String = runCatching {
+        packageManager
+            .getPackageInfo(component.packageName, PackageManager.GET_ACTIVITIES or PackageManager.GET_META_DATA)
+            .activities.orEmpty()
+            .flatMap { activity -> activity.metaData?.keySet().orEmpty() }
+            .filter { it.contains("icon", true) || it.contains("calendar", true) || it.contains("dynamic", true) }
+            .distinct()
+            .joinToString()
+    }.getOrDefault("<unavailable>")
 }
 
 // Meta-data key (the package name plus this suffix) a date-aware calendar app
