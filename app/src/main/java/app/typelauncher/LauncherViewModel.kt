@@ -236,6 +236,11 @@ internal class LauncherViewModel(
                     traceBlock("icon_snapshot_restore") { trace ->
                         val snapshots = iconSnapshotStore.load()
                         for (snapshot in snapshots) {
+                            // Dynamic calendar icons are date-specific, so a snapshot
+                            // bitmap is stale the moment the day changes (or whenever a
+                            // prior build cached the wrong day). Skip them on restore so
+                            // the icon re-resolves fresh instead of painting a stale date.
+                            if (isDynamicCalendarIconId(snapshot.id)) continue
                             AppIconLoader.put(snapshot.id, snapshot.sizePx, snapshot.bitmap)
                         }
                         trace.incrementMetric("snapshot_count", snapshots.size.toLong())
@@ -847,7 +852,10 @@ internal class LauncherViewModel(
         val priorityIds = docked + topByLaunches
         return installedApps
             .asSequence()
-            .filter { app -> app.id in priorityIds }
+            // Never persist a dynamic calendar icon: it depicts a specific day, so a
+            // saved bitmap is wrong on any later day. Leaving it out means the next
+            // save also prunes a previously-saved (now stale) one off disk.
+            .filter { app -> app.id in priorityIds && app.packageName !in DYNAMIC_CALENDAR_PACKAGES }
             .map { app -> app.iconCacheId }
             .toSet()
     }
@@ -2276,6 +2284,18 @@ internal fun dynamicCalendarIconToken(packageName: String, baseToken: String?, t
     val base = baseToken?.substringBefore(CALENDAR_TOKEN_SEPARATOR)?.takeIf { it.isNotEmpty() }
     return (base ?: "") + CALENDAR_TOKEN_SEPARATOR + today
 }
+
+/**
+ * True when [iconCacheId] (e.g. `"0:com.google.android.calendar/…@token"`) belongs
+ * to a [DYNAMIC_CALENDAR_PACKAGES] package. Used to keep date-specific calendar
+ * icons out of `IconSnapshotStore` — both excluding them from a fresh save and
+ * skipping any already on disk when restoring — so they always re-resolve to
+ * today rather than painting a persisted (stale) day. Matches the `package/`
+ * component prefix so an unrelated package that merely starts with a calendar
+ * package name can't false-positive.
+ */
+internal fun isDynamicCalendarIconId(iconCacheId: String): Boolean =
+    DYNAMIC_CALENDAR_PACKAGES.any { pkg -> iconCacheId.contains("$pkg/") }
 
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
