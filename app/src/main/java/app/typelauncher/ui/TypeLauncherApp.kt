@@ -112,14 +112,15 @@ private const val CAROUSEL_ACK_TIMEOUT_MS = 1500L
 // the agenda load forever in those cases.
 private const val HOME_READY_IME_TIMEOUT_MS = 1500L
 
-// Debounce window applied before adopting an `imeAnimationTarget` reading as
-// the entry's typing geometry. Multi-stage IME opens (e.g. the suggestion
-// strip animating in then collapsing) can transiently report a larger target
-// than the keyboard ultimately settles at; persisting/locking that peak
-// leaves Home's bottom padding too tall for the rest of the entry. Since
-// each new value re-keys the LaunchedEffect and cancels the pending delay,
-// only a target that has been stable for this long is treated as authoritative.
-private const val IME_TARGET_DEBOUNCE_MS = 250L
+// Debounce window applied before persisting a grown keyboard height as the
+// cached reservation. The persist path keys on the *visible* IME bottom inset
+// (`WindowInsets.ime`), so a multi-stage IME open (e.g. the suggestion strip
+// animating in then collapsing) that momentarily reports a taller height never
+// reaches the persist call: the visible inset passes through the peak for only
+// a frame or two before resting, and each new value re-keys the LaunchedEffect
+// and cancels the pending delay. Only a height the keyboard holds still at for
+// this long is treated as authoritative.
+private const val IME_GROWTH_DEBOUNCE_MS = 250L
 
 // Debounce window applied before allowing a smaller settled IME reading to
 // shrink the entry's cached keyboard reservation. Within an entry the cache
@@ -471,62 +472,35 @@ internal fun TypeLauncherApp(
                 entryKeyboardBottomPx = candidate
             }
         }
-        // Debounce `imeAnimationTarget` before persisting it as the cached
-        // reservation. A rapid carousel double-swipe (Home → Widgets → Home,
-        // second swipe arriving before Widgets settles) drives a hide-then-
-        // show keyboard sequence whose intermediate `imeAnimationTarget`
-        // values can briefly land above the keyboard's settled height; the
-        // growth-only adoption LaunchedEffect above would then lock that peak
-        // into `entryKeyboardBottomPx` for the rest of the entry. Each new
-        // value re-keys this LaunchedEffect and cancels the pending delay, so
-        // only a target that has held still for the debounce window reaches
-        // `state.keyboardReservation`.
-        LaunchedEffect(imeTargetBottomPx, currentConfigFingerprint, imeVisible) {
-            if (imeTargetBottomPx <= currentConfigFingerprint.navBottomPx) return@LaunchedEffect
-            // Growth and first-write path: settle on a stable target.
-            delay(IME_TARGET_DEBOUNCE_MS)
-            val growthCandidate = KeyboardReservation(
-                bottomPx = imeTargetBottomPx,
-                configFingerprint = currentConfigFingerprint,
-                source = if (imeVisible) {
-                    KeyboardReservationSource.VisibleIme
-                } else {
-                    KeyboardReservationSource.AnimationTarget
-                },
-            )
-            val current = currentReservation
-            // Always overwrite on a configuration change so a stale
-            // fingerprint cannot survive. Otherwise grow-only at this
-            // shorter debounce — shrinks go through the longer
-            // [IME_SHRINK_DEBOUNCE_MS] gate below.
-            val configChanged = current.configFingerprint != currentConfigFingerprint
-            val grew = imeTargetBottomPx > current.bottomPx
-            val sourceUpgraded = imeTargetBottomPx == current.bottomPx &&
-                growthCandidate.source == KeyboardReservationSource.VisibleIme &&
-                current.source == KeyboardReservationSource.AnimationTarget
-            if (configChanged || grew || sourceUpgraded) {
-                onKeyboardReservationChanged(growthCandidate)
-            }
-        }
-        // Shrink-path persistence: only when the IME is actually visible
-        // (so the reading is ground-truthed, not just a settling target),
-        // and only after a longer debounce window so a transient inset
-        // dip during, say, an IME layout swap cannot pull the persisted
-        // value down before the keyboard settles back.
+        // Persist the keyboard's settled height, keyed on the *visible* IME
+        // bottom inset (`WindowInsets.ime`) rather than its animation target.
+        // A multi-stage open — the suggestion strip animating in then
+        // collapsing — makes `imeAnimationTarget` momentarily aim above the
+        // height the keyboard ultimately rests at. The previous target-keyed
+        // growth path debounced that target, but a target that holds steady
+        // above the settled height for the whole open animation (longer than
+        // the debounce) was persisted anyway, then adopted grow-biased into
+        // `entryKeyboardBottomPx` — floating the dock ~30dp above the keyboard
+        // for the rest of the entry on a quick carousel swipe-back. The
+        // visible inset only passes through that peak for a frame or two before
+        // settling, so each climbing/peaking value re-keys this effect and
+        // cancels the pending delay; only a height the keyboard actually holds
+        // still at survives the debounce. `imeVisible` is required so the
+        // reading is ground-truthed, not a still-settling target. Shrinks wait
+        // [IME_SHRINK_DEBOUNCE_MS] longer than growths so a transient inset dip
+        // during an IME layout swap cannot pull the reservation down before the
+        // keyboard settles back.
         LaunchedEffect(imeBottomPx, imeVisible, currentConfigFingerprint) {
             if (!imeVisible) return@LaunchedEffect
             if (imeBottomPx <= currentConfigFingerprint.navBottomPx) return@LaunchedEffect
-            val current = currentReservation
-            val sameConfig = current.configFingerprint == currentConfigFingerprint
-            if (sameConfig && imeBottomPx >= current.bottomPx) return@LaunchedEffect
-            delay(IME_SHRINK_DEBOUNCE_MS)
-            onKeyboardReservationChanged(
-                KeyboardReservation(
-                    bottomPx = imeBottomPx,
-                    configFingerprint = currentConfigFingerprint,
-                    source = KeyboardReservationSource.VisibleIme,
-                ),
-            )
+            val sameConfig = currentReservation.configFingerprint == currentConfigFingerprint
+            val shrinking = sameConfig && imeBottomPx < currentReservation.bottomPx
+            delay(if (shrinking) IME_SHRINK_DEBOUNCE_MS else IME_GROWTH_DEBOUNCE_MS)
+            resolveKeyboardReservation(
+                settledImeBottomPx = imeBottomPx,
+                config = currentConfigFingerprint,
+                current = currentReservation,
+            )?.let(onKeyboardReservationChanged)
         }
         val stableTypingGeometryAvailable = !state.isSettingsOpen &&
             state.isKeyboardAutoShown &&
