@@ -19,6 +19,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsAnimationCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -174,6 +177,64 @@ class MainActivity : ComponentActivity() {
             }
         }
         LauncherDebugLog.event("setContent returned")
+        installImeAnimationLogging()
+    }
+
+    /**
+     * Diagnostic-only: logs the IME `WindowInsetsAnimation` lifecycle so we can
+     * see the real shape and timing of keyboard animations on device — in
+     * particular whether a multi-stage open (the suggestion strip animating in
+     * then collapsing, e.g. the 905px→824px sequence in the dock-positioning
+     * bug report) is dispatched as one animation or two. `onStart`'s bounds
+     * report each animation's from/to bottom inset, which is exactly the signal
+     * that decides whether a `WindowInsetsAnimation.onEnd`-based reservation
+     * would settle on the right height or latch the transient peak.
+     *
+     * Installed on the decor view with `DISPATCH_MODE_CONTINUE_ON_SUBTREE` so it
+     * is a pure observer: the animation continues dispatching down to Compose's
+     * own inset-animation callback unchanged. `onProgress` is intentionally not
+     * logged — the per-frame inset shape is already captured by the
+     * `KeyboardReservation` events — so each animation adds only a few lines to
+     * the bounded debug-log ring buffer.
+     */
+    private fun installImeAnimationLogging() {
+        val imeType = WindowInsetsCompat.Type.ime()
+        ViewCompat.setWindowInsetsAnimationCallback(
+            window.decorView,
+            object : WindowInsetsAnimationCompat.Callback(
+                WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE,
+            ) {
+                override fun onPrepare(animation: WindowInsetsAnimationCompat) {
+                    if (animation.typeMask and imeType == 0) return
+                    LauncherDebugLog.event("ImeAnim onPrepare durationMs=${animation.durationMillis}")
+                }
+
+                override fun onStart(
+                    animation: WindowInsetsAnimationCompat,
+                    bounds: WindowInsetsAnimationCompat.BoundsCompat,
+                ): WindowInsetsAnimationCompat.BoundsCompat {
+                    if (animation.typeMask and imeType != 0) {
+                        LauncherDebugLog.event(
+                            "ImeAnim onStart fromBottomPx=${bounds.lowerBound.bottom} " +
+                                "toBottomPx=${bounds.upperBound.bottom} durationMs=${animation.durationMillis}",
+                        )
+                    }
+                    return bounds
+                }
+
+                override fun onProgress(
+                    insets: WindowInsetsCompat,
+                    runningAnimations: MutableList<WindowInsetsAnimationCompat>,
+                ): WindowInsetsCompat = insets
+
+                override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                    if (animation.typeMask and imeType == 0) return
+                    val settledBottomPx = ViewCompat.getRootWindowInsets(window.decorView)
+                        ?.getInsets(imeType)?.bottom ?: -1
+                    LauncherDebugLog.event("ImeAnim onEnd settledBottomPx=$settledBottomPx")
+                }
+            },
+        )
     }
 
     private fun searchPlaceholderSuffix(): String =
