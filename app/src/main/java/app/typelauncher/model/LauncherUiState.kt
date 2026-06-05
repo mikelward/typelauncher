@@ -285,6 +285,47 @@ internal data class KeyboardReservation(
     }
 }
 
+/**
+ * Decides what (if anything) to persist as the cached [KeyboardReservation]
+ * given a keyboard height the visible IME has actually settled at.
+ *
+ * The caller feeds this the *visible* IME bottom inset (`WindowInsets.ime`)
+ * after a debounce, never the animation target: a multi-stage open — the
+ * suggestion strip animating in then collapsing — makes the animation target
+ * momentarily aim above the height the keyboard ultimately rests at, and the
+ * visible inset only passes through that peak for a frame or two. Debouncing
+ * the visible inset means [settledImeBottomPx] is always a height the keyboard
+ * held still at, so the transient peak can never latch into the reservation
+ * and float the dock above the keyboard.
+ *
+ * Returns the reservation to persist, or `null` to leave the current value
+ * untouched. Both growth and shrink are emitted here; the caller gates them on
+ * different debounce windows (shrinks wait longer) because growth is far more
+ * disruptive than a one-off missed shrink. Every emitted reservation is
+ * [KeyboardReservationSource.VisibleIme]: it has been ground-truthed against a
+ * laid-out keyboard, so it is authoritative enough to shrink a cached value.
+ */
+internal fun resolveKeyboardReservation(
+    settledImeBottomPx: Int,
+    config: KeyboardReservationConfig,
+    current: KeyboardReservation,
+): KeyboardReservation? {
+    if (settledImeBottomPx <= config.navBottomPx) return null
+    val candidate = KeyboardReservation(
+        bottomPx = settledImeBottomPx,
+        configFingerprint = config,
+        source = KeyboardReservationSource.VisibleIme,
+    )
+    // A configuration change always overwrites so a stale fingerprint cannot
+    // survive; otherwise a different settled height (taller or shorter) is
+    // authoritative, and an equal height only rewrites to upgrade a previously
+    // animation-target-only reservation to a ground-truthed one.
+    if (current.configFingerprint != config) return candidate
+    if (settledImeBottomPx != current.bottomPx) return candidate
+    if (current.source == KeyboardReservationSource.AnimationTarget) return candidate
+    return null
+}
+
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
 // so without this annotation `HomeScreen(state = …)` (and every child
