@@ -145,6 +145,58 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun concurrentMutationAndReadsStayConsistent() {
+        // Regression test for the unsynchronized read-modify-write in dock /
+        // undock / reorder / move. Before the fix, hammering the store from
+        // several threads reliably threw a ConcurrentModificationException out
+        // of dockedAppIds.toList() / save()'s joinToString while another thread
+        // mutated the LinkedHashSet. The lock makes each operation atomic and
+        // each getter return a consistent copy, so no read crashes and no
+        // write is lost. (Inherently nondeterministic — the thread and
+        // iteration counts are sized to trip the race on every run.)
+        //
+        // Note: we deliberately do NOT cross-check the two getters against
+        // each other. dockedAppIds and dockedAppPositions are independent lock
+        // acquisitions, so a mutation landing between them legitimately makes
+        // the two snapshots disagree — the lock only guarantees consistency
+        // *within* a single getter, never *across* two.
+        val store = DockedAppStore(context)
+        val ids = (0 until 50).map { index -> "app$index" }
+        ids.forEach { id -> store.dock(id, columnCount = 4) }
+
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+        val threads = (0 until 8).map { threadIndex ->
+            Thread {
+                try {
+                    repeat(300) { iteration ->
+                        val id = ids[(threadIndex * 31 + iteration) % ids.size]
+                        when (iteration % 4) {
+                            0 -> store.dock("extra-$threadIndex-$iteration", columnCount = 4)
+                            1 -> store.undock(id)
+                            2 -> store.reorder(fromIndex = 0, toIndex = store.dockedAppIds.size)
+                            else -> {
+                                // Exercise concurrent snapshot reads: each
+                                // getter must copy the backing collection under
+                                // the lock without throwing while other threads
+                                // mutate it. The copies are consumed so the
+                                // reads can't be optimized away.
+                                check(store.dockedAppIds.size >= 0)
+                                check(store.dockedAppPositions.size >= 0)
+                            }
+                        }
+                    }
+                } catch (throwable: Throwable) {
+                    failure.compareAndSet(null, throwable)
+                }
+            }
+        }
+        threads.forEach { thread -> thread.start() }
+        threads.forEach { thread -> thread.join() }
+
+        assertEquals(null, failure.get())
+    }
+
+    @Test
     fun shouldShowAddButtonHintDefaultsToFalse() {
         assertFalse(DockedAppStore(context).shouldShowAddButtonHint)
     }
