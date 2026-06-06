@@ -65,7 +65,7 @@ internal data class InstalledApp(
             // Strip surrounding punctuation so a name like "Bank (US)" with a
             // "US" disambiguator doesn't render as "Bank (US) (US)".
             val nameTokens = name
-                .split(Regex("\\s+"))
+                .split(WHITESPACE_REGEX)
                 .map { it.trim('(', ')', '[', ']', '-', '–', '—').trim() }
             if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return name
             return "$name ($tag)"
