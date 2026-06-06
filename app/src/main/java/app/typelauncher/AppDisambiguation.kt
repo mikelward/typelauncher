@@ -78,6 +78,17 @@ private val COUNTRY_CODES: Set<String> = buildSet {
 // "INTL" badge so the user can tell the two apart in the icon grid.
 private val REGIONAL_MARKERS: Set<String> = setOf("intl")
 
+// Whitespace splitter shared by every label-token parse in this module. The
+// `(?U)` flag turns on UNICODE_CHARACTER_CLASS so `\s` matches the full Unicode
+// whitespace set — non-breaking space (U+00A0), narrow no-break space (U+202F),
+// ideographic space (U+3000), and friends — rather than just ASCII
+// `[ \t\n\x0B\f\r]`. This keeps the split consistent with Kotlin's
+// `String.trim()`, which strips Unicode whitespace via `Char.isWhitespace()`:
+// without it, an app label whose brand and tag are joined by a non-breaking
+// space survives `trim()` as a single token, so a trailing "(US)" tag would
+// never be recognised and the regional badge would silently vanish.
+internal val WHITESPACE_REGEX = Regex("""(?U)\s+""")
+
 /**
  * The "brand" component of an Android package name — the first component after
  * any recognised eTLD prefix. Returns null only for empty input. Examples:
@@ -109,10 +120,10 @@ private fun ambiguityKey(packageName: String, name: String): AmbiguityKey? {
 }
 
 private fun firstWord(name: String): String =
-    name.trim().split(Regex("\\s+")).firstOrNull().orEmpty()
+    name.trim().split(WHITESPACE_REGEX).firstOrNull().orEmpty()
 
 private fun nameSuffix(name: String): String {
-    val parts = name.trim().split(Regex("\\s+"), limit = 2)
+    val parts = name.trim().split(WHITESPACE_REGEX, limit = 2)
     return parts.getOrNull(1).orEmpty()
 }
 
@@ -222,7 +233,7 @@ private fun pickDisambiguator(remainingTail: List<String>): String {
 internal fun parseTrailingDisambiguatorTag(label: String): String? {
     val trimmed = label.trim()
     if (trimmed.isEmpty()) return null
-    val lastToken = trimmed.split(Regex("\\s+")).last()
+    val lastToken = trimmed.split(WHITESPACE_REGEX).last()
         .trim('(', ')', '[', ']', '-', '–', '—')
         .trim()
     if (lastToken.isEmpty()) return null

@@ -363,6 +363,41 @@ class AppDisambiguationTest {
         assertEquals(emptyMap<String, String>(), computeDisambiguators(tv))
     }
 
+    @Test
+    fun nonBreakingSpaceSeparatedTagDrivesBadge() {
+        // Some renamed labels (and copy/paste from rich-text sources) separate
+        // the brand from its tag with a non-breaking space rather than a plain
+        // space. `String.trim()` strips Unicode whitespace, so the parser must
+        // split on it too — otherwise "Chase\u00A0(US)" stays one token and the
+        // "(US)" tag goes unrecognised.
+        val app = personalApp("Chase", "com.chase.intl")
+            .copy(disambiguator = "INTL", customName = "Chase\u00A0(US)")
+        assertEquals("US", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun displayNameSuppressesRedundantSuffixSeparatedByNonBreakingSpace() {
+        // "Amex\u00A0UK" already contains the "UK" tag as a (NBSP-separated)
+        // token, so the disambiguator suffix must not be appended again.
+        val app = personalApp("Amex\u00A0UK", "com.americanexpress.uk")
+            .copy(disambiguator = "UK")
+        assertEquals("Amex\u00A0UK", app.displayName)
+    }
+
+    @Test
+    fun nonBreakingSpaceInNameStillGroupsAndBadges() {
+        // Grouping keys off the first whitespace-separated word and the country
+        // suffix; both must treat a non-breaking space as a separator so an
+        // "Acme\u00A0UK" label groups with plain "Acme" and earns its badge.
+        val apps = listOf(
+            personalApp("Acme", "com.acme.us"),
+            personalApp("Acme\u00A0UK", "com.acme.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals("US", disambig[apps[0].id])
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
     private fun personalApp(name: String, packageName: String): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
         return InstalledApp(
