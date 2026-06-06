@@ -398,6 +398,27 @@ class AppDisambiguationTest {
         assertEquals("UK", disambig[apps[1].id])
     }
 
+    @Test
+    fun splitOnWhitespaceHandlesUnicodeRunsAndLimit() {
+        // Plain ASCII whitespace.
+        assertEquals(listOf("Capital", "One"), "Capital One".splitOnWhitespace())
+        // Runs collapse; leading / trailing whitespace produces no empty tokens.
+        assertEquals(listOf("Capital", "One"), "  Capital\t\nOne  ".splitOnWhitespace())
+        // Non-breaking space (U+00A0) and narrow no-break space (U+202F) split
+        // too: Kotlin's Char.isWhitespace() treats them as whitespace, unlike a
+        // JVM regex `\s`. This is the whole reason the helper exists.
+        assertEquals(listOf("Chase", "(US)"), "Chase\u00A0(US)".splitOnWhitespace())
+        assertEquals(listOf("A", "B"), "A\u202FB".splitOnWhitespace())
+        // `limit` caps the token count and keeps the remainder verbatim.
+        assertEquals(
+            listOf("Capital", "One Premium"),
+            "Capital One Premium".splitOnWhitespace(limit = 2),
+        )
+        // Single token, and blank input yields an empty list.
+        assertEquals(listOf("Chase"), "Chase".splitOnWhitespace())
+        assertEquals(emptyList<String>(), "   ".splitOnWhitespace())
+    }
+
     private fun personalApp(name: String, packageName: String): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
         return InstalledApp(

@@ -78,19 +78,42 @@ private val COUNTRY_CODES: Set<String> = buildSet {
 // "INTL" badge so the user can tell the two apart in the icon grid.
 private val REGIONAL_MARKERS: Set<String> = setOf("intl")
 
-// Whitespace splitter shared by every label-token parse in this module. `\s`
-// alone matches only ASCII whitespace on the JVM, so `\p{Z}` (the Unicode
-// Separator general category) is unioned in to cover non-breaking space
-// (U+00A0), narrow no-break space (U+202F), ideographic space (U+3000), and
-// the rest of the Unicode space separators. This keeps the split consistent
-// with Kotlin's `String.trim()`, which strips Unicode whitespace via
-// `Char.isWhitespace()` / `isSpaceChar()`: without it, an app label whose
-// brand and tag are joined by a non-breaking space survives `trim()` as a
-// single token, so a trailing "(US)" tag would never be recognised and the
-// regional badge would silently vanish. Note: the `(?U)` inline flag does the
-// same job on the JVM but is a syntax error on Android's ICU regex engine, so
-// the explicit `[\s\p{Z}]` class is used instead — both engines accept it.
-internal val WHITESPACE_REGEX = Regex("""[\s\p{Z}]+""")
+// Whitespace splitter shared by every label-token parse in this module.
+//
+// We deliberately do NOT use a regex here. `java.util.regex` `\s` matches only
+// ASCII whitespace on the JVM but is Unicode-aware on Android's ICU-backed
+// engine, so the same pattern splits differently in unit tests (which run on
+// the host JVM) than it does on-device — and the `(?U)` flag that fixes the
+// JVM side is a syntax error on ICU. `Char.isWhitespace()` has identical,
+// well-defined Unicode behavior on both runtimes and is the exact predicate
+// `String.trim()` uses, so the split and any surrounding `trim()` agree by
+// construction and JVM unit tests faithfully predict device behavior. This
+// matters for labels whose brand and regional tag are joined by a non-breaking
+// space (U+00A0) and friends: they must split so a trailing "(US)" tag is
+// recognised rather than swallowed into a single token.
+//
+// Runs of whitespace collapse to a single split point and leading/trailing
+// whitespace yields no empty tokens (matching a trimmed split). When [limit]
+// is positive, at most that many tokens are returned and the final one holds
+// the unsplit remainder, mirroring `split(regex, limit)`.
+internal fun String.splitOnWhitespace(limit: Int = 0): List<String> {
+    require(limit >= 0) { "limit must be non-negative, was $limit" }
+    val tokens = mutableListOf<String>()
+    var i = 0
+    while (i < length) {
+        while (i < length && this[i].isWhitespace()) i++ // skip run between tokens
+        if (i >= length) break
+        if (limit > 0 && tokens.size == limit - 1) {
+            // Last allowed token holds the remainder verbatim, sans trailing ws.
+            tokens.add(substring(i).trimEnd())
+            return tokens
+        }
+        val start = i
+        while (i < length && !this[i].isWhitespace()) i++
+        tokens.add(substring(start, i))
+    }
+    return tokens
+}
 
 /**
  * The "brand" component of an Android package name — the first component after
@@ -123,10 +146,10 @@ private fun ambiguityKey(packageName: String, name: String): AmbiguityKey? {
 }
 
 private fun firstWord(name: String): String =
-    name.trim().split(WHITESPACE_REGEX).firstOrNull().orEmpty()
+    name.splitOnWhitespace().firstOrNull().orEmpty()
 
 private fun nameSuffix(name: String): String {
-    val parts = name.trim().split(WHITESPACE_REGEX, limit = 2)
+    val parts = name.splitOnWhitespace(limit = 2)
     return parts.getOrNull(1).orEmpty()
 }
 
@@ -234,9 +257,7 @@ private fun pickDisambiguator(remainingTail: List<String>): String {
  * auto-disambiguator computed from the original label.
  */
 internal fun parseTrailingDisambiguatorTag(label: String): String? {
-    val trimmed = label.trim()
-    if (trimmed.isEmpty()) return null
-    val lastToken = trimmed.split(WHITESPACE_REGEX).last()
+    val lastToken = (label.splitOnWhitespace().lastOrNull() ?: return null)
         .trim('(', ')', '[', ']', '-', '–', '—')
         .trim()
     if (lastToken.isEmpty()) return null
