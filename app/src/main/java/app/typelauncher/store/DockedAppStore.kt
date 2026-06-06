@@ -8,6 +8,23 @@ internal class DockedAppStore(
     preferencesName: String = DEFAULT_PREFERENCES_NAME,
 ) {
     private val sharedPreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+
+    // Guards every read and write of the in-memory dock state below. `dock`,
+    // `undock`, `reorder`, and `move` each read the current `dockedIds` /
+    // `dockPositions`, compute a new value, then write it back — a classic
+    // read-modify-write. Without a lock, two of these running concurrently
+    // (a user drag on the main thread racing a background reader, or any
+    // future off-main-thread caller) can lose one update, and a reader can
+    // observe `dockedIds` and `dockPositions` mid-mutation — half-applied
+    // state where the two maps disagree, or a `ConcurrentModificationException`
+    // thrown out of `toList()` / `joinToString` while another thread mutates
+    // the `LinkedHashSet`. Holding `lock` across each whole operation makes the
+    // mutations atomic and the snapshots returned by the getters internally
+    // consistent. Contention is effectively nil (dock edits are rare and
+    // user-driven), so the uncontended monitor acquisition adds no measurable
+    // cost to the main thread.
+    private val lock = Any()
+
     private var dockedIds = sharedPreferences.getString(KEY_DOCKED_APP_IDS, "").orEmpty()
         .split(DOCKED_APP_ID_SEPARATOR)
         .filter { appId -> appId.isNotBlank() }
@@ -16,19 +33,21 @@ internal class DockedAppStore(
         .parseDockPositions()
 
     val dockedAppIds: List<String>
-        get() = dockedIds.toList()
+        get() = synchronized(lock) { dockedIds.toList() }
 
     val dockedAppPositions: Map<String, DockPosition>
-        get() = dockPositions.toMap()
+        get() = synchronized(lock) { dockPositions.toMap() }
 
     fun dockedAppIdsFor(sortOrder: AppListSortOrder, columnCount: Int): List<String> =
-        dockedAppIdsInGridRankOrder(dockedAppIds, dockPositions, columnCount, sortOrder)
+        synchronized(lock) {
+            dockedAppIdsInGridRankOrder(dockedIds.toList(), dockPositions, columnCount, sortOrder)
+        }
 
-    fun contains(appId: String): Boolean = appId in dockedIds
+    fun contains(appId: String): Boolean = synchronized(lock) { appId in dockedIds }
 
-    fun dock(appId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) {
+    fun dock(appId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) = synchronized(lock) {
         if (appId in dockedIds) {
-            return
+            return@synchronized
         }
         // Re-resolve the persisted coordinates into their compacted form before
         // picking the new slot. resolvedDockPositions collapses empty rows for
@@ -50,18 +69,18 @@ internal class DockedAppStore(
         save(clearShowAddButtonHint = true)
     }
 
-    fun undock(appId: String) {
+    fun undock(appId: String) = synchronized(lock) {
         if (dockedIds.remove(appId)) {
             dockPositions.remove(appId)
             save()
         }
     }
 
-    fun reorder(fromIndex: Int, toIndex: Int) {
+    fun reorder(fromIndex: Int, toIndex: Int) = synchronized(lock) {
         val current = dockedIds.toList()
-        if (fromIndex !in current.indices) return
+        if (fromIndex !in current.indices) return@synchronized
         val clampedTo = toIndex.coerceIn(0, current.lastIndex)
-        if (fromIndex == clampedTo) return
+        if (fromIndex == clampedTo) return@synchronized
         val moved = current[fromIndex]
         val withoutMoved = current.subList(0, fromIndex) + current.subList(fromIndex + 1, current.size)
         val rebuilt = withoutMoved.subList(0, clampedTo) + moved + withoutMoved.subList(clampedTo, withoutMoved.size)
@@ -74,23 +93,24 @@ internal class DockedAppStore(
         save()
     }
 
-    fun move(appId: String, row: Int, column: Int, columnCount: Int, sortOrder: AppListSortOrder) {
-        if (appId !in dockedIds) return
-        val columns = columnCount.coerceAtLeast(1)
-        val target = DockPosition(row.coerceAtLeast(0), column.coerceIn(0, columns - 1))
-        val currentPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns)
-        val previous = currentPositions[appId]
-        val occupant = currentPositions.entries.firstOrNull { (id, position) ->
-            id != appId && position == target
-        }?.key
-        dockPositions[appId] = target
-        if (occupant != null && previous != null) {
-            dockPositions[occupant] = previous
+    fun move(appId: String, row: Int, column: Int, columnCount: Int, sortOrder: AppListSortOrder) =
+        synchronized(lock) {
+            if (appId !in dockedIds) return@synchronized
+            val columns = columnCount.coerceAtLeast(1)
+            val target = DockPosition(row.coerceAtLeast(0), column.coerceIn(0, columns - 1))
+            val currentPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns)
+            val previous = currentPositions[appId]
+            val occupant = currentPositions.entries.firstOrNull { (id, position) ->
+                id != appId && position == target
+            }?.key
+            dockPositions[appId] = target
+            if (occupant != null && previous != null) {
+                dockPositions[occupant] = previous
+            }
+            dockPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns).toMutableMap()
+            dockedIds = LinkedHashSet(dockedAppIdsInGridRankOrder(dockedIds.toList(), dockPositions, columns, sortOrder))
+            save()
         }
-        dockPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns).toMutableMap()
-        dockedIds = LinkedHashSet(dockedAppIdsInGridRankOrder(dockedIds.toList(), dockPositions, columns, sortOrder))
-        save()
-    }
 
     val hasBeenPrefilled: Boolean
         get() = sharedPreferences.getBoolean(KEY_DOCK_PREFILLED, false)
