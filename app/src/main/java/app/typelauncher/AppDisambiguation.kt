@@ -78,16 +78,19 @@ private val COUNTRY_CODES: Set<String> = buildSet {
 // "INTL" badge so the user can tell the two apart in the icon grid.
 private val REGIONAL_MARKERS: Set<String> = setOf("intl")
 
-// Whitespace splitter shared by every label-token parse in this module. The
-// `(?U)` flag turns on UNICODE_CHARACTER_CLASS so `\s` matches the full Unicode
-// whitespace set — non-breaking space (U+00A0), narrow no-break space (U+202F),
-// ideographic space (U+3000), and friends — rather than just ASCII
-// `[ \t\n\x0B\f\r]`. This keeps the split consistent with Kotlin's
-// `String.trim()`, which strips Unicode whitespace via `Char.isWhitespace()`:
-// without it, an app label whose brand and tag are joined by a non-breaking
-// space survives `trim()` as a single token, so a trailing "(US)" tag would
-// never be recognised and the regional badge would silently vanish.
-internal val WHITESPACE_REGEX = Regex("""(?U)\s+""")
+// Whitespace splitter shared by every label-token parse in this module. `\s`
+// alone matches only ASCII whitespace on the JVM, so `\p{Z}` (the Unicode
+// Separator general category) is unioned in to cover non-breaking space
+// (U+00A0), narrow no-break space (U+202F), ideographic space (U+3000), and
+// the rest of the Unicode space separators. This keeps the split consistent
+// with Kotlin's `String.trim()`, which strips Unicode whitespace via
+// `Char.isWhitespace()` / `isSpaceChar()`: without it, an app label whose
+// brand and tag are joined by a non-breaking space survives `trim()` as a
+// single token, so a trailing "(US)" tag would never be recognised and the
+// regional badge would silently vanish. Note: the `(?U)` inline flag does the
+// same job on the JVM but is a syntax error on Android's ICU regex engine, so
+// the explicit `[\s\p{Z}]` class is used instead — both engines accept it.
+internal val WHITESPACE_REGEX = Regex("""[\s\p{Z}]+""")
 
 /**
  * The "brand" component of an Android package name — the first component after
