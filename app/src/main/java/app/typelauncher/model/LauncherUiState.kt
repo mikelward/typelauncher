@@ -377,10 +377,10 @@ internal fun isWaitingForAutoKeyboard(
 
 /**
  * True when the Home secondary-bars tray may render into the reserved keyboard
- * slot. The tray never appears while the keyboard is visible / animating in or
- * while the auto-shown keyboard wait is pending; forced-open recents /
- * notifications state is intentionally applied only after these keyboard gates
- * have cleared.
+ * slot. The tray never appears while the keyboard is visible / animating in.
+ * The auto-shown keyboard wait normally keeps the tray hidden until the IME is
+ * seen (or the timeout elapses), but explicit recents / notification-bar opens
+ * are synchronous user state and must render immediately during that wait.
  */
 internal fun areSecondaryBarsVisible(
     secondaryBarsRouteToKeyboardTray: Boolean,
@@ -388,11 +388,12 @@ internal fun areSecondaryBarsVisible(
     isKeyboardShowingOrAnimatingIn: Boolean,
     isCarouselTransitioning: Boolean,
     isWaitingForAutoKeyboard: Boolean,
+    isForcedOpen: Boolean,
 ): Boolean = secondaryBarsRouteToKeyboardTray &&
     isHomeDestination &&
     !isKeyboardShowingOrAnimatingIn &&
     !isCarouselTransitioning &&
-    !isWaitingForAutoKeyboard
+    (!isWaitingForAutoKeyboard || isForcedOpen)
 
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
