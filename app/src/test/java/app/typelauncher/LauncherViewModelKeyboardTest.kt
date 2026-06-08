@@ -92,15 +92,20 @@ class LauncherViewModelKeyboardTest {
     }
 
     @Test
-    fun reArmAutoKeyboardWaitOnResume_bumpsGenerationOnHome() {
+    fun reArmAutoKeyboardWaitOnResume_closesOpenSecondaryTrayAndBumpsGenerationOnHome() {
         val viewModel = newViewModel()
+        viewModel.setRecentsOpen(true)
+        viewModel.setNotificationBarOpen(true)
         val generationBefore = viewModel.uiState.value.autoKeyboardWaitGeneration
 
         viewModel.reArmAutoKeyboardWaitOnResume()
         idle()
 
         // Resuming to Home (e.g. swipe-up-to-home) re-arms the wait synchronously
-        // so the tray does not flash on the first resumed frame.
+        // and clears any forced-open tray state so recents / notifications do
+        // not override the wait and flash on the first resumed frame.
+        assertEquals(false, viewModel.uiState.value.isRecentsOpen)
+        assertEquals(false, viewModel.uiState.value.isNotificationBarOpen)
         assertEquals(generationBefore + 1, viewModel.uiState.value.autoKeyboardWaitGeneration)
     }
 

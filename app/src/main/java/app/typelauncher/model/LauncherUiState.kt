@@ -375,6 +375,25 @@ internal fun isWaitingForAutoKeyboard(
     currentGeneration: Int,
 ): Boolean = secondaryBarsRouteToKeyboardTray && isKeyboardAutoShown && resolvedGeneration < currentGeneration
 
+/**
+ * True when the Home secondary-bars tray may render into the reserved keyboard
+ * slot. The tray never appears while the keyboard is visible / animating in or
+ * while the auto-shown keyboard wait is pending; forced-open recents /
+ * notifications state is intentionally applied only after these keyboard gates
+ * have cleared.
+ */
+internal fun areSecondaryBarsVisible(
+    secondaryBarsRouteToKeyboardTray: Boolean,
+    isHomeDestination: Boolean,
+    isKeyboardShowingOrAnimatingIn: Boolean,
+    isCarouselTransitioning: Boolean,
+    isWaitingForAutoKeyboard: Boolean,
+): Boolean = secondaryBarsRouteToKeyboardTray &&
+    isHomeDestination &&
+    !isKeyboardShowingOrAnimatingIn &&
+    !isCarouselTransitioning &&
+    !isWaitingForAutoKeyboard
+
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
 // so without this annotation `HomeScreen(state = …)` (and every child
