@@ -607,8 +607,8 @@ class NotificationBarTest {
     @Test
     fun bottomBarHidesWhenSwipingAwayFromHome() {
         // The open bar belongs to Home: swiping to a sibling page clears
-        // isRecentsOpen (via onShowWidgets), so the recents card is dropped from
-        // composition immediately rather than lingering through the slide.
+        // isRecentsOpen (via onShowWidgets), so once the page change settles the
+        // recents card animates out and is dropped from composition.
         val screenState = mutableStateOf(
             LauncherUiState(
                 filteredApps = emptyList(),
@@ -618,7 +618,6 @@ class NotificationBarTest {
                 isRecentsOpen = true,
             ),
         )
-        composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
@@ -659,20 +658,16 @@ class NotificationBarTest {
                 )
             }
         }
-        composeRule.mainClock.advanceTimeByFrame()
         composeRule.waitForIdle()
         // Precondition: the recents bar is visible while idle on Home.
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeLeft() }
-        // Step a couple of frames so the page-change commit is processed.
-        composeRule.mainClock.advanceTimeByFrame()
-        composeRule.mainClock.advanceTimeByFrame()
-
-        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
-
-        composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
+
+        // Once the page change settles, recents is closed (isRecentsOpen=false)
+        // and the card has animated out of composition.
         assertEquals(LauncherDestination.Widgets(0), screenState.value.destination)
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
     }
 }
