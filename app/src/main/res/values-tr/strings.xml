@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">İş profili duraklatıldı</string>
     <string name="settings_keyboard_auto_show_title">Klavyeyi otomatik göster</string>
     <string name="settings_show_agenda_title">Ajandayı göster</string>
+    <string name="settings_show_recents_title">Son kullanılanları göster</string>
+    <string name="settings_pull_down_title">Aşağı çek</string>
+    <string name="settings_pull_down_option_none">Yok</string>
+    <string name="settings_pull_down_option_system">Sistem paneli</string>
+    <string name="settings_pull_down_option_bar_below">Alttaki çubuk</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistem</string>
     <string name="settings_theme_option_light">Açık</string>

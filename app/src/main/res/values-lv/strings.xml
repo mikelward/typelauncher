@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Darba profils ir apturēts</string>
     <string name="settings_keyboard_auto_show_title">Rādīt tastatūru automātiski</string>
     <string name="settings_show_agenda_title">Rādīt darba kārtību</string>
+    <string name="settings_show_recents_title">Rādīt nesenos</string>
+    <string name="settings_pull_down_title">Vilkt uz leju</string>
+    <string name="settings_pull_down_option_none">Nav</string>
+    <string name="settings_pull_down_option_system">Sistēmas panelis</string>
+    <string name="settings_pull_down_option_bar_below">Josla apakšā</string>
     <string name="settings_theme_title">Motīvs</string>
     <string name="settings_theme_option_system">Sistēma</string>
     <string name="settings_theme_option_light">Gaišs</string>

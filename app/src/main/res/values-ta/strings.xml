@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">பணிச் சுயவிவரம் இடைநிறுத்தப்பட்டது</string>
     <string name="settings_keyboard_auto_show_title">விசைப்பலகையை தானாக காட்டு</string>
     <string name="settings_show_agenda_title">அஜெண்டாவைக் காட்டு</string>
+    <string name="settings_show_recents_title">சமீபத்தியவற்றைக் காட்டு</string>
+    <string name="settings_pull_down_title">கீழே இழுக்கவும்</string>
+    <string name="settings_pull_down_option_none">எதுவுமில்லை</string>
+    <string name="settings_pull_down_option_system">சிஸ்டம் ஷேட்</string>
+    <string name="settings_pull_down_option_bar_below">கீழுள்ள பட்டி</string>
     <string name="settings_theme_title">தீம்</string>
     <string name="settings_theme_option_system">கணினி</string>
     <string name="settings_theme_option_light">வெளிச்சம்</string>

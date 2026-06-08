@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Hồ sơ công việc đang tạm dừng</string>
     <string name="settings_keyboard_auto_show_title">Tự động hiển thị bàn phím</string>
     <string name="settings_show_agenda_title">Hiển thị lịch trình</string>
+    <string name="settings_show_recents_title">Hiển thị gần đây</string>
+    <string name="settings_pull_down_title">Kéo xuống</string>
+    <string name="settings_pull_down_option_none">Không có</string>
+    <string name="settings_pull_down_option_system">Bảng hệ thống</string>
+    <string name="settings_pull_down_option_bar_below">Thanh bên dưới</string>
     <string name="settings_theme_title">Giao diện</string>
     <string name="settings_theme_option_system">Hệ thống</string>
     <string name="settings_theme_option_light">Sáng</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Profilul de muncă este în pauză</string>
     <string name="settings_keyboard_auto_show_title">Afișează tastatura automat</string>
     <string name="settings_show_agenda_title">Afișează agenda</string>
+    <string name="settings_show_recents_title">Afișează recentele</string>
+    <string name="settings_pull_down_title">Trage în jos</string>
+    <string name="settings_pull_down_option_none">Niciuna</string>
+    <string name="settings_pull_down_option_system">Panou de sistem</string>
+    <string name="settings_pull_down_option_bar_below">Bară dedesubt</string>
     <string name="settings_theme_title">Temă</string>
     <string name="settings_theme_option_system">Sistem</string>
     <string name="settings_theme_option_light">Luminoasă</string>

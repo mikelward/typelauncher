@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">A munkahelyi profil szüneteltetve van</string>
     <string name="settings_keyboard_auto_show_title">Billentyűzet automatikus megjelenítése</string>
     <string name="settings_show_agenda_title">Napirend megjelenítése</string>
+    <string name="settings_show_recents_title">Legutóbbiak megjelenítése</string>
+    <string name="settings_pull_down_title">Húzás lefelé</string>
+    <string name="settings_pull_down_option_none">Nincs</string>
+    <string name="settings_pull_down_option_system">Rendszerpanel</string>
+    <string name="settings_pull_down_option_bar_below">Sáv alul</string>
     <string name="settings_theme_title">Téma</string>
     <string name="settings_theme_option_system">Rendszer</string>
     <string name="settings_theme_option_light">Világos</string>

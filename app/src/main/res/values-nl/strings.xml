@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Werkprofiel is gepauzeerd</string>
     <string name="settings_keyboard_auto_show_title">Toetsenbord automatisch tonen</string>
     <string name="settings_show_agenda_title">Agenda tonen</string>
+    <string name="settings_show_recents_title">Recente weergeven</string>
+    <string name="settings_pull_down_title">Omlaag trekken</string>
+    <string name="settings_pull_down_option_none">Geen</string>
+    <string name="settings_pull_down_option_system">Systeempaneel</string>
+    <string name="settings_pull_down_option_bar_below">Balk eronder</string>
     <string name="settings_theme_title">Thema</string>
     <string name="settings_theme_option_system">Systeem</string>
     <string name="settings_theme_option_light">Licht</string>

@@ -180,7 +180,8 @@ internal class LauncherViewModel(
             dockIconCount = dockSettingsStore.dockIconCount,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
-            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
+            isRecentsEnabled = dockSettingsStore.isRecentsEnabled,
+            notificationPullDownBehavior = dockSettingsStore.notificationPullDownBehavior,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
@@ -1632,6 +1633,13 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(appListSortOrder = sortOrder) }
         refreshLists()
         logState("setAppListSortOrder")
+    }
+
+    fun setRecentsEnabled(isEnabled: Boolean) {
+        if (_uiState.value.isRecentsEnabled == isEnabled) return
+        dockSettingsStore.isRecentsEnabled = isEnabled
+        _uiState.update { it.copy(isRecentsEnabled = isEnabled) }
+        logState("setRecentsEnabled=$isEnabled")
     }
 
     /**

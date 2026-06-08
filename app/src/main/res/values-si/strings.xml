@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">රැකියා පැතිකඩ විරාම කර ඇත</string>
     <string name="settings_keyboard_auto_show_title">යතුරුපුවරුව ස්වයංක්‍රීයව පෙන්වන්න</string>
     <string name="settings_show_agenda_title">න්‍යාය පත්‍රය පෙන්වන්න</string>
+    <string name="settings_show_recents_title">මෑත ඒවා පෙන්වන්න</string>
+    <string name="settings_pull_down_title">පහළට අදින්න</string>
+    <string name="settings_pull_down_option_none">කිසිවක් නැත</string>
+    <string name="settings_pull_down_option_system">පද්ධති පුවරුව</string>
+    <string name="settings_pull_down_option_bar_below">පහළ තීරුව</string>
     <string name="settings_theme_title">තේමාව</string>
     <string name="settings_theme_option_system">පද්ධතිය</string>
     <string name="settings_theme_option_light">ආලෝක</string>

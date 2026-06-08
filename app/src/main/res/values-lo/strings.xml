@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">ໂປຣໄຟລ໌ວຽກຖືກຢຸດຊົ່ວຄາວ</string>
     <string name="settings_keyboard_auto_show_title">ສະແດງແປ້ນພິມອັດຕະໂນມັດ</string>
     <string name="settings_show_agenda_title">ສະແດງກຳນົດການ</string>
+    <string name="settings_show_recents_title">ສະແດງລ່າສຸດ</string>
+    <string name="settings_pull_down_title">ດຶງລົງ</string>
+    <string name="settings_pull_down_option_none">ບໍ່ມີ</string>
+    <string name="settings_pull_down_option_system">ແຜງລະບົບ</string>
+    <string name="settings_pull_down_option_bar_below">ແຖບດ້ານລຸ່ມ</string>
     <string name="settings_theme_title">ຮູບແບບ</string>
     <string name="settings_theme_option_system">ລະບົບ</string>
     <string name="settings_theme_option_light">ສະຫວ່າງ</string>

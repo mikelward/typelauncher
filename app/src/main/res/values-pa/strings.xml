@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">ਵਰਕ ਪ੍ਰੋਫਾਈਲ ਰੋਕੀ ਗਈ ਹੈ</string>
     <string name="settings_keyboard_auto_show_title">ਕੀਬੋਰਡ ਆਪਣੇ ਆਪ ਦਿਖਾਓ</string>
     <string name="settings_show_agenda_title">ਏਜੰਡਾ ਦਿਖਾਓ</string>
+    <string name="settings_show_recents_title">ਹਾਲੀਆ ਦਿਖਾਓ</string>
+    <string name="settings_pull_down_title">ਹੇਠਾਂ ਖਿੱਚੋ</string>
+    <string name="settings_pull_down_option_none">ਕੋਈ ਨਹੀਂ</string>
+    <string name="settings_pull_down_option_system">ਸਿਸਟਮ ਸ਼ੇਡ</string>
+    <string name="settings_pull_down_option_bar_below">ਹੇਠਲੀ ਪੱਟੀ</string>
     <string name="settings_theme_title">ਥੀਮ</string>
     <string name="settings_theme_option_system">ਸਿਸਟਮ</string>
     <string name="settings_theme_option_light">ਹਲਕਾ</string>

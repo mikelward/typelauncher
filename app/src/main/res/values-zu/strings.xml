@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Iphrofayela yomsebenzi imisiwe</string>
     <string name="settings_keyboard_auto_show_title">Bonisa ikhibhodi ngokuzenzakalelayo</string>
     <string name="settings_show_agenda_title">Bonisa i-ajenda</string>
+    <string name="settings_show_recents_title">Bonisa zakamuva</string>
+    <string name="settings_pull_down_title">Donsela phansi</string>
+    <string name="settings_pull_down_option_none">Lutho</string>
+    <string name="settings_pull_down_option_system">Iphaneli yesistimu</string>
+    <string name="settings_pull_down_option_bar_below">Ibha ngezansi</string>
     <string name="settings_theme_title">Indikimba</string>
     <string name="settings_theme_option_system">Isistimu</string>
     <string name="settings_theme_option_light">Okukhanyayo</string>

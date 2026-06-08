@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">വർക്ക് പ്രൊഫൈൽ താൽക്കാലികമായി നിർത്തി</string>
     <string name="settings_keyboard_auto_show_title">കീബോർഡ് സ്വയമേവ കാണിക്കുക</string>
     <string name="settings_show_agenda_title">അജണ്ട കാണിക്കുക</string>
+    <string name="settings_show_recents_title">സമീപകാലത്തുള്ളവ കാണിക്കുക</string>
+    <string name="settings_pull_down_title">താഴേക്ക് വലിക്കുക</string>
+    <string name="settings_pull_down_option_none">ഒന്നുമില്ല</string>
+    <string name="settings_pull_down_option_system">സിസ്റ്റം ഷെയ്ഡ്</string>
+    <string name="settings_pull_down_option_bar_below">താഴെയുള്ള ബാർ</string>
     <string name="settings_theme_title">തീം</string>
     <string name="settings_theme_option_system">സിസ്റ്റം</string>
     <string name="settings_theme_option_light">ഇളം</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Profil kerja dijeda</string>
     <string name="settings_keyboard_auto_show_title">Tunjukkan papan kekunci secara automatik</string>
     <string name="settings_show_agenda_title">Tunjukkan agenda</string>
+    <string name="settings_show_recents_title">Tunjukkan terbaharu</string>
+    <string name="settings_pull_down_title">Tarik ke bawah</string>
+    <string name="settings_pull_down_option_none">Tiada</string>
+    <string name="settings_pull_down_option_system">Panel sistem</string>
+    <string name="settings_pull_down_option_bar_below">Bar di bawah</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistem</string>
     <string name="settings_theme_option_light">Cerah</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Darbo profilis sustabdytas</string>
     <string name="settings_keyboard_auto_show_title">Rodyti klaviatūrą automatiškai</string>
     <string name="settings_show_agenda_title">Rodyti darbotvarkę</string>
+    <string name="settings_show_recents_title">Rodyti naujausius</string>
+    <string name="settings_pull_down_title">Patraukti žemyn</string>
+    <string name="settings_pull_down_option_none">Nėra</string>
+    <string name="settings_pull_down_option_system">Sistemos skydelis</string>
+    <string name="settings_pull_down_option_bar_below">Juosta apačioje</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistemos</string>
     <string name="settings_theme_option_light">Šviesi</string>

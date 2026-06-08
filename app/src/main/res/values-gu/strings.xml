@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">વર્ક પ્રોફાઇલ થોભાવી છે</string>
     <string name="settings_keyboard_auto_show_title">કીબોર્ડ આપમેળે બતાવો</string>
     <string name="settings_show_agenda_title">એજન્ડા બતાવો</string>
+    <string name="settings_show_recents_title">તાજેતરના બતાવો</string>
+    <string name="settings_pull_down_title">નીચે ખેંચો</string>
+    <string name="settings_pull_down_option_none">કોઈ નહીં</string>
+    <string name="settings_pull_down_option_system">સિસ્ટમ શેડ</string>
+    <string name="settings_pull_down_option_bar_below">નીચેની પટ્ટી</string>
     <string name="settings_theme_title">થીમ</string>
     <string name="settings_theme_option_system">સિસ્ટમ</string>
     <string name="settings_theme_option_light">આછી</string>

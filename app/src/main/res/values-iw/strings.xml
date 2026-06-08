@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">פרופיל העבודה מושהה</string>
     <string name="settings_keyboard_auto_show_title">הצגת מקלדת אוטומטית</string>
     <string name="settings_show_agenda_title">הצגת סדר יום</string>
+    <string name="settings_show_recents_title">הצגת אחרונים</string>
+    <string name="settings_pull_down_title">משיכה למטה</string>
+    <string name="settings_pull_down_option_none">ללא</string>
+    <string name="settings_pull_down_option_system">לוח המערכת</string>
+    <string name="settings_pull_down_option_bar_below">סרגל למטה</string>
     <string name="settings_theme_title">ערכת נושא</string>
     <string name="settings_theme_option_system">מערכת</string>
     <string name="settings_theme_option_light">בהיר</string>

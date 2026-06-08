@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Arbeitsprofil ist pausiert</string>
     <string name="settings_keyboard_auto_show_title">Tastatur automatisch anzeigen</string>
     <string name="settings_show_agenda_title">Agenda anzeigen</string>
+    <string name="settings_show_recents_title">Zuletzt verwendet anzeigen</string>
+    <string name="settings_pull_down_title">Nach unten ziehen</string>
+    <string name="settings_pull_down_option_none">Keine</string>
+    <string name="settings_pull_down_option_system">System-Schatten</string>
+    <string name="settings_pull_down_option_bar_below">Leiste darunter</string>
     <string name="settings_theme_title">Design</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Hell</string>

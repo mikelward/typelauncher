@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">କାମ ପ୍ରୋଫାଇଲ୍ ସ୍ଥଗିତ ଅଛି</string>
     <string name="settings_keyboard_auto_show_title">କୀବୋର୍ଡ୍ ସ୍ୱୟଂଚାଳିତ ଭାବେ ଦେଖାନ୍ତୁ</string>
     <string name="settings_show_agenda_title">ଏଜେଣ୍ଡା ଦେଖାନ୍ତୁ</string>
+    <string name="settings_show_recents_title">ସମ୍ପ୍ରତିକ ଦେଖାନ୍ତୁ</string>
+    <string name="settings_pull_down_title">ତଳକୁ ଟାଣନ୍ତୁ</string>
+    <string name="settings_pull_down_option_none">କିଛି ନାହିଁ</string>
+    <string name="settings_pull_down_option_system">ସିଷ୍ଟମ ସେଡ୍</string>
+    <string name="settings_pull_down_option_bar_below">ତଳ ବାର୍</string>
     <string name="settings_theme_title">ଥିମ୍</string>
     <string name="settings_theme_option_system">ସିଷ୍ଟମ୍</string>
     <string name="settings_theme_option_light">ହାଲୁକା</string>

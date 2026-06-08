@@ -770,8 +770,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_TITLE_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("App list").assertIsDisplayed()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("Pull down").assertDoesNotExist()
-        composeRule.onNodeWithText("Show recents").assertDoesNotExist()
+        composeRule.onNodeWithText("Pull down").assertExists()
+        composeRule.onNodeWithText("Show recents").assertExists()
+        // The separate "Hide recents from app list" sub-toggle was not revived.
         composeRule.onNodeWithText("Hide recents from app list").assertDoesNotExist()
         composeRule.onNodeWithText("Show dock").assertExists()
         composeRule.onNodeWithText("Show agenda").assertExists()
@@ -1920,7 +1921,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsPreview_alwaysShowsRecentsSecondaryBar() {
+    fun settingsPreview_offersRecentsSwitchAndShowsPreviewBarWhenEnabled() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
@@ -1928,20 +1929,38 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Show recents").assertDoesNotExist()
+        // The Show recents switch is offered, and the preview renders the
+        // recents bar while recents is enabled (the default).
+        composeRule.onNodeWithTag(SHOW_RECENTS_SWITCH_TAG).assertExists()
         // Settings preview wraps its cards in clearAndSetSemantics {} —
         // descendants live only in the unmerged tree.
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG, useUnmergedTree = true).assertExists()
     }
 
     @Test
-    fun settingsPreview_alwaysShowsNotificationSecondaryBar() {
+    fun settingsPreview_recentsDisabled_dropsPreviewRecentsBar() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setRecentsEnabled(false)
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Pull down").assertDoesNotExist()
-        composeRule.onNodeWithText("Bar below").assertDoesNotExist()
-        composeRule.onNodeWithText("System shade").assertDoesNotExist()
+        // With recents turned off the preview drops the recents bar entirely.
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG, useUnmergedTree = true)
+            .assertDoesNotExist()
+        saveScreenshot("compose_settings_recents_disabled_preview_robolectric.png")
+    }
+
+    @Test
+    fun settingsPreview_offersPullDownControlAndShowsPreviewBarWhenEnabled() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // The Pull down control is offered; its default value is the
+        // in-launcher bar, so the preview renders the notification bar.
+        composeRule.onNodeWithTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG).assertExists()
         // Settings preview wraps its cards in clearAndSetSemantics {} —
         // descendants live only in the unmerged tree.
         composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG, useUnmergedTree = true)

@@ -102,11 +102,10 @@ class LauncherFilterOrderingTest {
 
     @Test
     fun filterByNameExcludesRecentsWhenCallerCombinesThemWithDocked() {
-        // The ViewModel composes the exclusion set: docked when the dock UI
-        // is on, plus recents when the always-on recents card is up and the
-        // user hasn't disabled the deduplication toggle. `filterByName` just
-        // honours whatever set it was given, so verifying the combined-set
-        // path here is what the caller cares about.
+        // `filterByName` honours whatever exclusion set the caller hands it,
+        // regardless of how that set was composed. This verifies the
+        // combined-set path (e.g. docked plus any other excluded ids) drops
+        // every excluded entry from the result.
         val docked = installedApp("ABC")
         val recent = installedApp("Calculator")
         val apps = listOf(docked, recent, installedApp("Camera"))

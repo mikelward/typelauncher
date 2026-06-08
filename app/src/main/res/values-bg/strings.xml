@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Служебният профил е спрян</string>
     <string name="settings_keyboard_auto_show_title">Автоматично показване на клавиатурата</string>
     <string name="settings_show_agenda_title">Покажи дневния ред</string>
+    <string name="settings_show_recents_title">Показване на скорошните</string>
+    <string name="settings_pull_down_title">Плъзгане надолу</string>
+    <string name="settings_pull_down_option_none">Няма</string>
+    <string name="settings_pull_down_option_system">Системен панел</string>
+    <string name="settings_pull_down_option_bar_below">Лента отдолу</string>
     <string name="settings_theme_title">Тема</string>
     <string name="settings_theme_option_system">Системна</string>
     <string name="settings_theme_option_light">Светла</string>

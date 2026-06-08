@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Arbejdsprofilen er sat på pause</string>
     <string name="settings_keyboard_auto_show_title">Vis tastatur automatisk</string>
     <string name="settings_show_agenda_title">Vis dagsorden</string>
+    <string name="settings_show_recents_title">Vis seneste</string>
+    <string name="settings_pull_down_title">Træk ned</string>
+    <string name="settings_pull_down_option_none">Ingen</string>
+    <string name="settings_pull_down_option_system">Systempanel</string>
+    <string name="settings_pull_down_option_bar_below">Bjælke nedenfor</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Lyst</string>

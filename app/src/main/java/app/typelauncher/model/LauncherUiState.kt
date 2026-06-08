@@ -403,6 +403,9 @@ internal data class LauncherUiState(
     // can't read the system task switcher, so this is a best-effort substitute.
     val recentApps: List<InstalledApp> = emptyList(),
     val isRecentsOpen: Boolean = false,
+    // Settings → "Show recents". When true (default), the recents card is
+    // offered in the secondary tray; when false it is dropped entirely.
+    val isRecentsEnabled: Boolean = true,
     // Apps with at least one active user-visible notification, sourced from the
     // bound NotificationListenerService. Empty unless the user has granted
     // notification access in Android settings. Rendered in the notification bar,
@@ -416,8 +419,12 @@ internal data class LauncherUiState(
     // Refreshed in `refreshPermissionDrivenUi` so flipping the toggle in
     // Android settings is picked up on the next resume.
     val hasNotificationAccess: Boolean = false,
-    // Legacy persisted pull-down action. The setting UI has been removed and
-    // runtime Home gestures always use the launcher notification bar first.
+    // Settings → "Pull down" action. BarBelow / BarAbove open the in-launcher
+    // notification bar as a first stage (a second pull opens the system shade);
+    // System opens Android's shade directly; None disables Home pull-down
+    // handling. BarBelow and BarAbove currently render identically (the bar
+    // always sits in the secondary tray); the dropdown exposes None / System /
+    // BarBelow, and BarAbove is kept only for persisted-value compatibility.
     val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),

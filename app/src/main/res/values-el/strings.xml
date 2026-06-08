@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Το προφίλ εργασίας είναι σε παύση</string>
     <string name="settings_keyboard_auto_show_title">Αυτόματη εμφάνιση πληκτρολογίου</string>
     <string name="settings_show_agenda_title">Εμφάνιση ατζέντας</string>
+    <string name="settings_show_recents_title">Εμφάνιση πρόσφατων</string>
+    <string name="settings_pull_down_title">Σύρετε προς τα κάτω</string>
+    <string name="settings_pull_down_option_none">Καμία</string>
+    <string name="settings_pull_down_option_system">Πλαίσιο συστήματος</string>
+    <string name="settings_pull_down_option_bar_below">Γραμμή από κάτω</string>
     <string name="settings_theme_title">Θέμα</string>
     <string name="settings_theme_option_system">Σύστημα</string>
     <string name="settings_theme_option_light">Φωτεινό</string>

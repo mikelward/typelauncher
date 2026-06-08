@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">ಕೆಲಸದ ಪ್ರೊಫೈಲ್ ವಿರಾಮಗೊಂಡಿದೆ</string>
     <string name="settings_keyboard_auto_show_title">ಕೀಬೋರ್ಡ್ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ತೋರಿಸಿ</string>
     <string name="settings_show_agenda_title">ಅಜೆಂಡಾ ತೋರಿಸಿ</string>
+    <string name="settings_show_recents_title">ಇತ್ತೀಚಿನವುಗಳನ್ನು ತೋರಿಸಿ</string>
+    <string name="settings_pull_down_title">ಕೆಳಗೆ ಎಳೆಯಿರಿ</string>
+    <string name="settings_pull_down_option_none">ಯಾವುದೂ ಇಲ್ಲ</string>
+    <string name="settings_pull_down_option_system">ಸಿಸ್ಟಂ ಶೇಡ್</string>
+    <string name="settings_pull_down_option_bar_below">ಕೆಳಗಿನ ಪಟ್ಟಿ</string>
     <string name="settings_theme_title">ಥೀಮ್</string>
     <string name="settings_theme_option_system">ಸಿಸ್ಟಮ್</string>
     <string name="settings_theme_option_light">ತಿಳಿ</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Pracovný profil je pozastavený</string>
     <string name="settings_keyboard_auto_show_title">Zobrazovať klávesnicu automaticky</string>
     <string name="settings_show_agenda_title">Zobraziť agendu</string>
+    <string name="settings_show_recents_title">Zobraziť nedávne</string>
+    <string name="settings_pull_down_title">Stiahnuť nadol</string>
+    <string name="settings_pull_down_option_none">Žiadne</string>
+    <string name="settings_pull_down_option_system">Systémový panel</string>
+    <string name="settings_pull_down_option_bar_below">Lišta dole</string>
     <string name="settings_theme_title">Motív</string>
     <string name="settings_theme_option_system">Systémový</string>
     <string name="settings_theme_option_light">Svetlý</string>

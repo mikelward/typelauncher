@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">A ti dáwọ́ profáìlì iṣẹ́ dúró</string>
     <string name="settings_keyboard_auto_show_title">Fihàn kíbọ́dù ní àlátinúdá</string>
     <string name="settings_show_agenda_title">Fihàn ètò ọjọ́</string>
+    <string name="settings_show_recents_title">Fi àwọn àìpẹ́ hàn</string>
+    <string name="settings_pull_down_title">Fa sísàlẹ̀</string>
+    <string name="settings_pull_down_option_none">Kò sí</string>
+    <string name="settings_pull_down_option_system">Pánẹ́ẹ̀lì ẹ̀rọ</string>
+    <string name="settings_pull_down_option_bar_below">Ọ̀pá nísàlẹ̀</string>
     <string name="settings_theme_title">Àkòrí</string>
     <string name="settings_theme_option_system">Ètò</string>
     <string name="settings_theme_option_light">Mọ́lẹ̀</string>

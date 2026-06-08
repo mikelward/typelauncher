@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">An dakatar da bayanin aiki</string>
     <string name="settings_keyboard_auto_show_title">Nuna madannai ta atomatik</string>
     <string name="settings_show_agenda_title">Nuna ajanda</string>
+    <string name="settings_show_recents_title">Nuna na baya-bayan nan</string>
+    <string name="settings_pull_down_title">Ja ƙasa</string>
+    <string name="settings_pull_down_option_none">Babu</string>
+    <string name="settings_pull_down_option_system">Allon tsarin</string>
+    <string name="settings_pull_down_option_bar_below">Sanduna a ƙasa</string>
     <string name="settings_theme_title">Jigo</string>
     <string name="settings_theme_option_system">Tsarin</string>
     <string name="settings_theme_option_light">Mai haske</string>

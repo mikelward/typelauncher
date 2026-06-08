@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">কামৰ প্ৰ\'ফাইল স্থগিত</string>
     <string name="settings_keyboard_auto_show_title">কীব\'ৰ্ড স্বয়ংক্ৰিয়ভাৱে দেখুৱাওক</string>
     <string name="settings_show_agenda_title">এজেণ্ডা দেখুৱাওক</string>
+    <string name="settings_show_recents_title">শেহতীয়া দেখুৱাওক</string>
+    <string name="settings_pull_down_title">তললৈ টানক</string>
+    <string name="settings_pull_down_option_none">একো নাই</string>
+    <string name="settings_pull_down_option_system">ছিষ্টেম শ্বেড</string>
+    <string name="settings_pull_down_option_bar_below">তলৰ বাৰ</string>
     <string name="settings_theme_title">থীম</string>
     <string name="settings_theme_option_system">ছিষ্টেম</string>
     <string name="settings_theme_option_light">পাতল</string>

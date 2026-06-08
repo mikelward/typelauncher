@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">कार्य प्रोफाइल थांबवली आहे</string>
     <string name="settings_keyboard_auto_show_title">कीबोर्ड आपोआप दाखवा</string>
     <string name="settings_show_agenda_title">अजेंडा दाखवा</string>
+    <string name="settings_show_recents_title">अलीकडील दाखवा</string>
+    <string name="settings_pull_down_title">खाली ओढा</string>
+    <string name="settings_pull_down_option_none">काहीही नाही</string>
+    <string name="settings_pull_down_option_system">सिस्टम शेड</string>
+    <string name="settings_pull_down_option_bar_below">खालची पट्टी</string>
     <string name="settings_theme_title">थीम</string>
     <string name="settings_theme_option_system">सिस्टम</string>
     <string name="settings_theme_option_light">हलका</string>

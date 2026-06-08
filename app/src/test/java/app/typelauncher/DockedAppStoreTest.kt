@@ -249,6 +249,22 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun recentsEnabledDefaultsToTrue() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(true, store.isRecentsEnabled)
+    }
+
+    @Test
+    fun recentsEnabledPersistsExplicitSelection() {
+        DockSettingsStore(context).isRecentsEnabled = false
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(false, reloaded.isRecentsEnabled)
+    }
+
+    @Test
     fun notificationPullDownBehaviorDefaultsToBarBelow() {
         val store = DockSettingsStore(context)
 

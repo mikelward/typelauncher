@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">အလုပ်ပရိုဖိုင် ခေတ္တရပ်ထားသည်</string>
     <string name="settings_keyboard_auto_show_title">ကီးဘုတ်အလိုအလျောက်ပြသမည်</string>
     <string name="settings_show_agenda_title">အစီအစဉ်ပြသမည်</string>
+    <string name="settings_show_recents_title">မကြာသေးမီများ ပြရန်</string>
+    <string name="settings_pull_down_title">အောက်သို့ဆွဲ</string>
+    <string name="settings_pull_down_option_none">မရှိ</string>
+    <string name="settings_pull_down_option_system">စနစ်ဘောင်</string>
+    <string name="settings_pull_down_option_bar_below">အောက်ဘား</string>
     <string name="settings_theme_title">အပြင်အဆင်</string>
     <string name="settings_theme_option_system">စနစ်</string>
     <string name="settings_theme_option_light">အလင်း</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">ប្រវត្តិរូបការងារត្រូវបានផ្អាក</string>
     <string name="settings_keyboard_auto_show_title">បង្ហាញក្តារចុចដោយស្វ័យប្រវត្តិ</string>
     <string name="settings_show_agenda_title">បង្ហាញកាលវិភាគ</string>
+    <string name="settings_show_recents_title">បង្ហាញថ្មីៗ</string>
+    <string name="settings_pull_down_title">ទាញចុះក្រោម</string>
+    <string name="settings_pull_down_option_none">គ្មាន</string>
+    <string name="settings_pull_down_option_system">ផ្ទាំងប្រព័ន្ធ</string>
+    <string name="settings_pull_down_option_bar_below">របារខាងក្រោម</string>
     <string name="settings_theme_title">រូបរាង</string>
     <string name="settings_theme_option_system">ប្រព័ន្ធ</string>
     <string name="settings_theme_option_light">ភ្លឺ</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Пословни профил је паузиран</string>
     <string name="settings_keyboard_auto_show_title">Аутоматски приказуј тастатуру</string>
     <string name="settings_show_agenda_title">Прикажи агенду</string>
+    <string name="settings_show_recents_title">Прикажи недавне</string>
+    <string name="settings_pull_down_title">Превуци надоле</string>
+    <string name="settings_pull_down_option_none">Ништа</string>
+    <string name="settings_pull_down_option_system">Системска табла</string>
+    <string name="settings_pull_down_option_bar_below">Трака испод</string>
     <string name="settings_theme_title">Тема</string>
     <string name="settings_theme_option_system">Системска</string>
     <string name="settings_theme_option_light">Светла</string>

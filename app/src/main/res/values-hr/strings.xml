@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Poslovni profil je pauziran</string>
     <string name="settings_keyboard_auto_show_title">Automatski prikaži tipkovnicu</string>
     <string name="settings_show_agenda_title">Prikaži agendu</string>
+    <string name="settings_show_recents_title">Prikaži nedavne</string>
+    <string name="settings_pull_down_title">Povuci prema dolje</string>
+    <string name="settings_pull_down_option_none">Nijedno</string>
+    <string name="settings_pull_down_option_system">Sistemska ploča</string>
+    <string name="settings_pull_down_option_bar_below">Traka ispod</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sustav</string>
     <string name="settings_theme_option_light">Svijetla</string>

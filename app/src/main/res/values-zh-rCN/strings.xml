@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">工作资料已暂停</string>
     <string name="settings_keyboard_auto_show_title">自动显示键盘</string>
     <string name="settings_show_agenda_title">显示日程</string>
+    <string name="settings_show_recents_title">显示最近使用</string>
+    <string name="settings_pull_down_title">下拉</string>
+    <string name="settings_pull_down_option_none">无</string>
+    <string name="settings_pull_down_option_system">系统通知栏</string>
+    <string name="settings_pull_down_option_bar_below">下方栏</string>
     <string name="settings_theme_title">主题</string>
     <string name="settings_theme_option_system">系统</string>
     <string name="settings_theme_option_light">浅色</string>

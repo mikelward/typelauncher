@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
     <string name="settings_show_agenda_title">Show agenda</string>
+    <string name="settings_show_recents_title">Show recents</string>
+    <string name="settings_pull_down_title">Pull down</string>
+    <string name="settings_pull_down_option_none">None</string>
+    <string name="settings_pull_down_option_system">System shade</string>
+    <string name="settings_pull_down_option_bar_below">Bar below</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Робочий профіль призупинено</string>
     <string name="settings_keyboard_auto_show_title">Автоматично показувати клавіатуру</string>
     <string name="settings_show_agenda_title">Показувати розклад</string>
+    <string name="settings_show_recents_title">Показувати нещодавні</string>
+    <string name="settings_pull_down_title">Потягнути вниз</string>
+    <string name="settings_pull_down_option_none">Немає</string>
+    <string name="settings_pull_down_option_system">Системна панель</string>
+    <string name="settings_pull_down_option_bar_below">Панель знизу</string>
     <string name="settings_theme_title">Тема</string>
     <string name="settings_theme_option_system">Системна</string>
     <string name="settings_theme_option_light">Світла</string>

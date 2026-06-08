@@ -228,6 +228,20 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Controls whether the recents bar is offered in the secondary tray.
+     * Defaults to true to preserve the existing always-visible recents row for
+     * current users. When false, the recents card is dropped from the tray; the
+     * notification bar (when enabled) and dock are unaffected.
+     */
+    var isRecentsEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_RECENTS_ENABLED, true)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_RECENTS_ENABLED, value)
+                .apply()
+        }
+
     var appListSortOrder: AppListSortOrder
         get() = sharedPreferences.getString(KEY_APP_LIST_SORT_ORDER, null)
             ?.let { name -> runCatching { AppListSortOrder.valueOf(name) }.getOrNull() }
@@ -382,6 +396,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_WORK_DOCK_ENABLED = "work_dock_enabled"
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
+        const val KEY_RECENTS_ENABLED = "recents_enabled"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"

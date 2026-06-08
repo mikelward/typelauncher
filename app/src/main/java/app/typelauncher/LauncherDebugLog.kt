@@ -117,6 +117,7 @@ internal fun LauncherUiState.debugSummary(): String =
         "sortOrder=$appListSortOrder keyboardReservation=${keyboardReservation.bottomPx}/${keyboardReservation.source} " +
         "loadingApps=$isLoadingApps " +
         "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady " +
-        "recents=${recentApps.size} recentsOpen=$isRecentsOpen " +
+        "recents=${recentApps.size} recentsOpen=$isRecentsOpen recentsEnabled=$isRecentsEnabled " +
+        "pullDown=$notificationPullDownBehavior " +
         "hidden=${hiddenApps.size} " +
         "themeMode=$themeMode playUpdate=${playUpdate::class.simpleName}"

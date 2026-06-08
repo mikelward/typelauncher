@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Työprofiili on tauolla</string>
     <string name="settings_keyboard_auto_show_title">Näytä näppäimistö automaattisesti</string>
     <string name="settings_show_agenda_title">Näytä kalenteri</string>
+    <string name="settings_show_recents_title">Näytä viimeisimmät</string>
+    <string name="settings_pull_down_title">Vedä alas</string>
+    <string name="settings_pull_down_option_none">Ei mitään</string>
+    <string name="settings_pull_down_option_system">Järjestelmäpaneeli</string>
+    <string name="settings_pull_down_option_bar_below">Palkki alla</string>
     <string name="settings_theme_title">Teema</string>
     <string name="settings_theme_option_system">Järjestelmä</string>
     <string name="settings_theme_option_light">Vaalea</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Tööprofiil on peatatud</string>
     <string name="settings_keyboard_auto_show_title">Kuva klaviatuur automaatselt</string>
     <string name="settings_show_agenda_title">Kuva päevakava</string>
+    <string name="settings_show_recents_title">Kuva hiljutised</string>
+    <string name="settings_pull_down_title">Tõmba alla</string>
+    <string name="settings_pull_down_option_none">Puudub</string>
+    <string name="settings_pull_down_option_system">Süsteemipaneel</string>
+    <string name="settings_pull_down_option_bar_below">Riba allpool</string>
     <string name="settings_theme_title">Teema</string>
     <string name="settings_theme_option_system">Süsteem</string>
     <string name="settings_theme_option_light">Hele</string>

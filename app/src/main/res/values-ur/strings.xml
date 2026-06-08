@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">ورک پروفائل روک دی گئی ہے</string>
     <string name="settings_keyboard_auto_show_title">کی بورڈ خودکار طور پر دکھائیں</string>
     <string name="settings_show_agenda_title">شیڈول دکھائیں</string>
+    <string name="settings_show_recents_title">حالیہ دکھائیں</string>
+    <string name="settings_pull_down_title">نیچے کھینچیں</string>
+    <string name="settings_pull_down_option_none">کوئی نہیں</string>
+    <string name="settings_pull_down_option_system">سسٹم پینل</string>
+    <string name="settings_pull_down_option_bar_below">نیچے کی پٹی</string>
     <string name="settings_theme_title">تھیم</string>
     <string name="settings_theme_option_system">سسٹم</string>
     <string name="settings_theme_option_light">ہلکا</string>

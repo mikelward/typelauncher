@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">پروفایل کاری متوقف شده است</string>
     <string name="settings_keyboard_auto_show_title">نمایش خودکار صفحه‌کلید</string>
     <string name="settings_show_agenda_title">نمایش برنامه روزانه</string>
+    <string name="settings_show_recents_title">نمایش اخیرها</string>
+    <string name="settings_pull_down_title">کشیدن به پایین</string>
+    <string name="settings_pull_down_option_none">هیچ‌کدام</string>
+    <string name="settings_pull_down_option_system">کشوی سیستم</string>
+    <string name="settings_pull_down_option_bar_below">نوار پایین</string>
     <string name="settings_theme_title">تم</string>
     <string name="settings_theme_option_system">سیستم</string>
     <string name="settings_theme_option_light">روشن</string>

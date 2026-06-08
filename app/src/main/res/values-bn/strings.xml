@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">ওয়ার্ক প্রোফাইল স্থগিত</string>
     <string name="settings_keyboard_auto_show_title">কীবোর্ড স্বয়ংক্রিয়ভাবে দেখান</string>
     <string name="settings_show_agenda_title">এজেন্ডা দেখান</string>
+    <string name="settings_show_recents_title">সাম্প্রতিক দেখান</string>
+    <string name="settings_pull_down_title">নিচে টানুন</string>
+    <string name="settings_pull_down_option_none">কোনোটি নয়</string>
+    <string name="settings_pull_down_option_system">সিস্টেম শেড</string>
+    <string name="settings_pull_down_option_bar_below">নিচের বার</string>
     <string name="settings_theme_title">থিম</string>
     <string name="settings_theme_option_system">সিস্টেম</string>
     <string name="settings_theme_option_light">হালকা</string>

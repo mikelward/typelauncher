@@ -428,26 +428,30 @@ internal fun HomeKeyboardTray(
             .testTag(HOME_KEYBOARD_TRAY_TAG),
         verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
     ) {
-        NotificationBarCard(
-            notifyingApps = state.notifyingApps,
-            isVisible = true,
-            hasNotificationAccess = state.hasNotificationAccess,
-            dockIconSizeDp = dockIconSizeDp,
-            onLaunchApp = onLaunchApp,
-            onDismissNotifications = onDismissNotifications,
-            onOpenNotificationSettings = onOpenNotificationSettings,
-            onRequestNotificationAccess = onRequestNotificationAccess,
-            onDismiss = { onSetNotificationBarOpen(false) },
-        )
-        RecentsCard(
-            recentApps = state.recentApps,
-            isVisible = true,
-            dockIconSizeDp = dockIconSizeDp,
-            onLaunchApp = onLaunchApp,
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onDismissRecent = onDismissRecent,
-        )
+        if (state.notificationPullDownBehavior.showsLauncherNotificationBar) {
+            NotificationBarCard(
+                notifyingApps = state.notifyingApps,
+                isVisible = true,
+                hasNotificationAccess = state.hasNotificationAccess,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onDismissNotifications = onDismissNotifications,
+                onOpenNotificationSettings = onOpenNotificationSettings,
+                onRequestNotificationAccess = onRequestNotificationAccess,
+                onDismiss = { onSetNotificationBarOpen(false) },
+            )
+        }
+        if (state.isRecentsEnabled) {
+            RecentsCard(
+                recentApps = state.recentApps,
+                isVisible = true,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onDismissRecent = onDismissRecent,
+            )
+        }
     }
 }
 
@@ -2577,6 +2581,8 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
+    onRecentsEnabledChanged: (Boolean) -> Unit = {},
+    onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
@@ -2764,6 +2770,39 @@ internal fun SettingsScreen(
                     checked = state.isAgendaEnabled,
                     onCheckedChange = onAgendaEnabledChanged,
                     modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_recents_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isRecentsEnabled,
+                    onCheckedChange = onRecentsEnabledChanged,
+                    modifier = Modifier.testTag(SHOW_RECENTS_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_pull_down_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                PullDownBehaviorDropdown(
+                    selected = state.notificationPullDownBehavior,
+                    onBehaviorChanged = onNotificationPullDownBehaviorChanged,
                 )
             }
             Row(
@@ -3071,6 +3110,65 @@ private fun AppListSortOrderDropdown(
                 onClick = {
                     expanded = false
                     onSortOrderChanged(AppListSortOrder.AlphabeticalReversed)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PullDownBehaviorDropdown(
+    selected: NotificationPullDownBehavior,
+    onBehaviorChanged: (NotificationPullDownBehavior) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    // BarAbove is kept for persisted-value compatibility but renders identically
+    // to BarBelow, so it collapses onto the single "Bar below" option here.
+    val selectedLabelRes = when (selected) {
+        NotificationPullDownBehavior.None -> R.string.settings_pull_down_option_none
+        NotificationPullDownBehavior.System -> R.string.settings_pull_down_option_system
+        NotificationPullDownBehavior.BarBelow,
+        NotificationPullDownBehavior.BarAbove,
+        -> R.string.settings_pull_down_option_bar_below
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_pull_down_option_none)) },
+                modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_OPTION_NONE_TAG),
+                onClick = {
+                    expanded = false
+                    onBehaviorChanged(NotificationPullDownBehavior.None)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_pull_down_option_system)) },
+                modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_OPTION_SYSTEM_TAG),
+                onClick = {
+                    expanded = false
+                    onBehaviorChanged(NotificationPullDownBehavior.System)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.settings_pull_down_option_bar_below)) },
+                modifier = Modifier.testTag(PULL_DOWN_BEHAVIOR_OPTION_BAR_BELOW_TAG),
+                onClick = {
+                    expanded = false
+                    onBehaviorChanged(NotificationPullDownBehavior.BarBelow)
                 },
             )
         }
@@ -3386,7 +3484,10 @@ private fun SettingsPreview(
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
-    val fixedBarCount = 1 + (if (state.isDockEnabled) 1 else 0) + 1
+    val showNotificationBarPreview = state.notificationPullDownBehavior.showsLauncherNotificationBar
+    val fixedBarCount = (if (showNotificationBarPreview) 1 else 0) +
+        (if (state.isDockEnabled) 1 else 0) +
+        (if (state.isRecentsEnabled) 1 else 0)
     val appListHeight =
         totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
     // The preview is visual-only on every interaction surface:
@@ -3446,18 +3547,20 @@ private fun SettingsPreview(
             )
             // Forced access-granted so the preview shows the compact secondary bar
             // instead of the taller permission CTA.
-            NotificationBarCard(
-                notifyingApps = state.notifyingApps,
-                isVisible = true,
-                hasNotificationAccess = true,
-                dockIconSizeDp = dockIconSizeDp,
-                modifier = Modifier.height(previewHeight),
-                onLaunchApp = {},
-                onDismissNotifications = {},
-                onOpenNotificationSettings = {},
-                onRequestNotificationAccess = {},
-                onDismiss = {},
-            )
+            if (showNotificationBarPreview) {
+                NotificationBarCard(
+                    notifyingApps = state.notifyingApps,
+                    isVisible = true,
+                    hasNotificationAccess = true,
+                    dockIconSizeDp = dockIconSizeDp,
+                    modifier = Modifier.height(previewHeight),
+                    onLaunchApp = {},
+                    onDismissNotifications = {},
+                    onOpenNotificationSettings = {},
+                    onRequestNotificationAccess = {},
+                    onDismiss = {},
+                )
+            }
             if (state.isDockEnabled) {
                 DockCard(
                     dockedApps = state.dockedApps,
@@ -3477,17 +3580,20 @@ private fun SettingsPreview(
                     onHideApp = {},
                 )
             }
-            // Mirror Home: recents is always a secondary bar, independent of the dock.
-            RecentsCard(
-                recentApps = state.recentApps,
-                isVisible = true,
-                dockIconSizeDp = dockIconSizeDp,
-                modifier = Modifier.height(previewHeight),
-                onLaunchApp = {},
-                onOpenAppInfo = {},
-                onToggleDock = { _, _ -> },
-                onDismissRecent = {},
-            )
+            // Mirror Home: recents is a secondary bar (independent of the dock),
+            // shown only when the user keeps it enabled.
+            if (state.isRecentsEnabled) {
+                RecentsCard(
+                    recentApps = state.recentApps,
+                    isVisible = true,
+                    dockIconSizeDp = dockIconSizeDp,
+                    modifier = Modifier.height(previewHeight),
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onDismissRecent = {},
+                )
+            }
         }
         Box(
             modifier = Modifier

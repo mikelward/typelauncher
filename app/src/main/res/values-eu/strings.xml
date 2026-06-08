@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Laneko profila pausatuta dago</string>
     <string name="settings_keyboard_auto_show_title">Erakutsi teklatua automatikoki</string>
     <string name="settings_show_agenda_title">Erakutsi agenda</string>
+    <string name="settings_show_recents_title">Erakutsi azkenak</string>
+    <string name="settings_pull_down_title">Tira behera</string>
+    <string name="settings_pull_down_option_none">Bat ere ez</string>
+    <string name="settings_pull_down_option_system">Sistemaren panela</string>
+    <string name="settings_pull_down_option_bar_below">Barra behean</string>
     <string name="settings_theme_title">Itxura</string>
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Argia</string>

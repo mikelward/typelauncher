@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">የሥራ መገለጫ ቆሟል</string>
     <string name="settings_keyboard_auto_show_title">ኪቦርድ በራስ-ሰር አሳይ</string>
     <string name="settings_show_agenda_title">አጀንዳ አሳይ</string>
+    <string name="settings_show_recents_title">የቅርብ ጊዜዎችን አሳይ</string>
+    <string name="settings_pull_down_title">ወደ ታች ጎትት</string>
+    <string name="settings_pull_down_option_none">ምንም</string>
+    <string name="settings_pull_down_option_system">የስርዓት ሼድ</string>
+    <string name="settings_pull_down_option_bar_below">ከታች ያለ አሞሌ</string>
     <string name="settings_theme_title">ገጽታ</string>
     <string name="settings_theme_option_system">ሥርዓት</string>
     <string name="settings_theme_option_light">ብሩህ</string>

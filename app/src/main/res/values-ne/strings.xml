@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">कार्य प्रोफाइल रोकिएको छ</string>
     <string name="settings_keyboard_auto_show_title">कुञ्जीपाटी स्वचालित रूपमा देखाउनुहोस्</string>
     <string name="settings_show_agenda_title">कार्यसूची देखाउनुहोस्</string>
+    <string name="settings_show_recents_title">हालैका देखाउनुहोस्</string>
+    <string name="settings_pull_down_title">तल तान्नुहोस्</string>
+    <string name="settings_pull_down_option_none">कुनै पनि होइन</string>
+    <string name="settings_pull_down_option_system">सिस्टम सेड</string>
+    <string name="settings_pull_down_option_bar_below">तलको पट्टी</string>
     <string name="settings_theme_title">थिम</string>
     <string name="settings_theme_option_system">प्रणाली</string>
     <string name="settings_theme_option_light">हल्का</string>

@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Naka-pause ang work profile</string>
     <string name="settings_keyboard_auto_show_title">Awtomatikong ipakita ang keyboard</string>
     <string name="settings_show_agenda_title">Ipakita ang agenda</string>
+    <string name="settings_show_recents_title">Ipakita ang mga kamakailan</string>
+    <string name="settings_pull_down_title">Hilahin pababa</string>
+    <string name="settings_pull_down_option_none">Wala</string>
+    <string name="settings_pull_down_option_system">Shade ng system</string>
+    <string name="settings_pull_down_option_bar_below">Bar sa ibaba</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Maliwanag</string>

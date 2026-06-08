@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">వర్క్ ప్రొఫైల్ నిలిపివేయబడింది</string>
     <string name="settings_keyboard_auto_show_title">కీబోర్డ్‌ను స్వయంచాలకంగా చూపించు</string>
     <string name="settings_show_agenda_title">అజెండాను చూపించు</string>
+    <string name="settings_show_recents_title">ఇటీవలివి చూపించు</string>
+    <string name="settings_pull_down_title">కిందికి లాగండి</string>
+    <string name="settings_pull_down_option_none">ఏదీ లేదు</string>
+    <string name="settings_pull_down_option_system">సిస్టమ్ షేడ్</string>
+    <string name="settings_pull_down_option_bar_below">కింది బార్</string>
     <string name="settings_theme_title">థీమ్</string>
     <string name="settings_theme_option_system">సిస్టమ్</string>
     <string name="settings_theme_option_light">కాంతి</string>

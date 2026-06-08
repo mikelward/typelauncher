@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Wasifu wa kazi umesitishwa</string>
     <string name="settings_keyboard_auto_show_title">Onyesha kibodi kiotomatiki</string>
     <string name="settings_show_agenda_title">Onyesha ratiba</string>
+    <string name="settings_show_recents_title">Onyesha za hivi karibuni</string>
+    <string name="settings_pull_down_title">Vuta chini</string>
+    <string name="settings_pull_down_option_none">Hakuna</string>
+    <string name="settings_pull_down_option_system">Paneli ya mfumo</string>
+    <string name="settings_pull_down_option_bar_below">Upau chini</string>
     <string name="settings_theme_title">Mandhari</string>
     <string name="settings_theme_option_system">Mfumo</string>
     <string name="settings_theme_option_light">Nyepesi</string>

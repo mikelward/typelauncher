@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Jobbprofilen är pausad</string>
     <string name="settings_keyboard_auto_show_title">Visa tangentbordet automatiskt</string>
     <string name="settings_show_agenda_title">Visa agenda</string>
+    <string name="settings_show_recents_title">Visa senaste</string>
+    <string name="settings_pull_down_title">Dra nedåt</string>
+    <string name="settings_pull_down_option_none">Ingen</string>
+    <string name="settings_pull_down_option_system">Systempanel</string>
+    <string name="settings_pull_down_option_bar_below">Fält nedanför</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Ljust</string>

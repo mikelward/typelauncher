@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Werkprofiel is gepouseer</string>
     <string name="settings_keyboard_auto_show_title">Wys sleutelbord outomaties</string>
     <string name="settings_show_agenda_title">Wys agenda</string>
+    <string name="settings_show_recents_title">Wys onlangse</string>
+    <string name="settings_pull_down_title">Trek af</string>
+    <string name="settings_pull_down_option_none">Geen</string>
+    <string name="settings_pull_down_option_system">Stelselskerm</string>
+    <string name="settings_pull_down_option_bar_below">Balk onder</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Stelsel</string>
     <string name="settings_theme_option_light">Lig</string>

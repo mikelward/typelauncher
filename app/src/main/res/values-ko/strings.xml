@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">업무 프로필이 일시 중지됨</string>
     <string name="settings_keyboard_auto_show_title">키보드 자동 표시</string>
     <string name="settings_show_agenda_title">일정 표시</string>
+    <string name="settings_show_recents_title">최근 앱 표시</string>
+    <string name="settings_pull_down_title">아래로 당기기</string>
+    <string name="settings_pull_down_option_none">없음</string>
+    <string name="settings_pull_down_option_system">시스템 그림자</string>
+    <string name="settings_pull_down_option_bar_below">아래 바</string>
     <string name="settings_theme_title">테마</string>
     <string name="settings_theme_option_system">시스템</string>
     <string name="settings_theme_option_light">밝게</string>

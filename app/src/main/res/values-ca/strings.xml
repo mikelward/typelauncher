@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Perfil de feina en pausa</string>
     <string name="settings_keyboard_auto_show_title">Mostra el teclat automàticament</string>
     <string name="settings_show_agenda_title">Mostra l\'agenda</string>
+    <string name="settings_show_recents_title">Mostra els recents</string>
+    <string name="settings_pull_down_title">Estira cap avall</string>
+    <string name="settings_pull_down_option_none">Cap</string>
+    <string name="settings_pull_down_option_system">Tauler del sistema</string>
+    <string name="settings_pull_down_option_bar_below">Barra a sota</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Clar</string>

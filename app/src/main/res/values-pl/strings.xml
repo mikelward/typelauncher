@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Profil służbowy jest wstrzymany</string>
     <string name="settings_keyboard_auto_show_title">Pokazuj klawiaturę automatycznie</string>
     <string name="settings_show_agenda_title">Pokaż agendę</string>
+    <string name="settings_show_recents_title">Pokaż ostatnie</string>
+    <string name="settings_pull_down_title">Przeciągnij w dół</string>
+    <string name="settings_pull_down_option_none">Brak</string>
+    <string name="settings_pull_down_option_system">Panel systemowy</string>
+    <string name="settings_pull_down_option_bar_below">Pasek poniżej</string>
     <string name="settings_theme_title">Motyw</string>
     <string name="settings_theme_option_system">Systemowy</string>
     <string name="settings_theme_option_light">Jasny</string>

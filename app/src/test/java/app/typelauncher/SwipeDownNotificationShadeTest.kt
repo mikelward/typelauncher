@@ -131,9 +131,9 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun swipingDownOnHomeWithLegacySystemBehavior_opensBarInsteadOfShade() {
-        // The Pull down setting was removed; old persisted values no longer
-        // change the first pull-down stage.
+    fun swipingDownOnHomeWithSystemBehavior_opensSystemShade() {
+        // "System shade" hands the pull straight to Android's shade instead of
+        // opening the in-launcher notification bar.
         var swipeDownCount = 0
         var notificationBarOpened = false
         composeRule.setContent {
@@ -180,12 +180,12 @@ class SwipeDownNotificationShadeTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
-        assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
+        assertEquals(1, swipeDownCount)
+        assertEquals(false, notificationBarOpened)
     }
 
     @Test
-    fun swipingDownOnHomeWithLegacyNoneBehavior_opensBarInsteadOfDoingNothing() {
+    fun swipingDownOnHomeWithNoneBehavior_doesNothing() {
         var swipeDownCount = 0
         var notificationBarOpened = false
         composeRule.setContent {
@@ -233,7 +233,7 @@ class SwipeDownNotificationShadeTest {
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
+        assertEquals(false, notificationBarOpened)
     }
 
     @Test

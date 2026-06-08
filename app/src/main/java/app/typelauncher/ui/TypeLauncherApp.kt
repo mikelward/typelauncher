@@ -256,6 +256,8 @@ internal fun TypeLauncherApp(
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
+        onRecentsEnabledChanged = viewModel::setRecentsEnabled,
+        onNotificationPullDownBehaviorChanged = viewModel::setNotificationPullDownBehavior,
         onThemeModeChanged = viewModel::setThemeMode,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
@@ -320,6 +322,8 @@ internal fun TypeLauncherApp(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
+    onRecentsEnabledChanged: (Boolean) -> Unit = {},
+    onNotificationPullDownBehaviorChanged: (NotificationPullDownBehavior) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -557,6 +561,10 @@ internal fun TypeLauncherApp(
                 keyboardSeenThisHomePresence = false
             }
         }
+        // Don't offer the tray if the user has turned off every bar it would
+        // host — an empty tray is just wasted space below the dock.
+        val anySecondaryBarEnabled = state.isRecentsEnabled ||
+            state.notificationPullDownBehavior.showsLauncherNotificationBar
         // While the carousel is animating away from Home (or back into it), the
         // soft keyboard has already been asked to hide but `state.destination`
         // is still `Home` until the animation acks. Without this gate the tray
@@ -573,14 +581,15 @@ internal fun TypeLauncherApp(
             imeTargetBottomPx = imeTargetBottomPx,
             navBottomPx = navBottomPx,
         )
-        val secondaryBarsVisible = areSecondaryBarsVisible(
-            secondaryBarsRouteToKeyboardTray = routeSecondaryBarsToKeyboardTray,
-            isHomeDestination = state.destination is LauncherDestination.Home,
-            isKeyboardShowingOrAnimatingIn = keyboardShowingOrAnimatingIn,
-            isCarouselTransitioning = isCarouselTransitioning,
-            keyboardSeenThisHomePresence = keyboardSeenThisHomePresence,
-            isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
-        )
+        val secondaryBarsVisible = anySecondaryBarEnabled &&
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = routeSecondaryBarsToKeyboardTray,
+                isHomeDestination = state.destination is LauncherDestination.Home,
+                isKeyboardShowingOrAnimatingIn = keyboardShowingOrAnimatingIn,
+                isCarouselTransitioning = isCarouselTransitioning,
+                keyboardSeenThisHomePresence = keyboardSeenThisHomePresence,
+                isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
+            )
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -600,6 +609,8 @@ internal fun TypeLauncherApp(
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
+                        onRecentsEnabledChanged = onRecentsEnabledChanged,
+                        onNotificationPullDownBehaviorChanged = onNotificationPullDownBehaviorChanged,
                         onThemeModeChanged = onThemeModeChanged,
                         onUnhideApp = onUnhideApp,
                         onOpenLauncherAppInfo = onOpenLauncherAppInfo,
@@ -642,6 +653,7 @@ internal fun TypeLauncherApp(
                         widgetPageCount = state.widgetPages.size,
                         isAgendaEnabled = state.isAgendaEnabled,
                         isSecondaryTrayVisible = secondaryBarsVisible,
+                        notificationPullDownBehavior = state.notificationPullDownBehavior,
                         onShowAgenda = onShowAgenda,
                         onShowWidgets = onShowWidgets,
                         onShowHome = onShowHome,
@@ -796,6 +808,7 @@ private fun SwipeNavigationBox(
     widgetPageCount: Int,
     isAgendaEnabled: Boolean,
     isSecondaryTrayVisible: Boolean,
+    notificationPullDownBehavior: NotificationPullDownBehavior,
     appListBoundsInRoot: Rect?,
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -820,6 +833,7 @@ private fun SwipeNavigationBox(
     val currentScreen by rememberUpdatedState(destination.screen)
     val currentLauncherPage by rememberUpdatedState(destination.toLauncherPage())
     val currentSecondaryTrayVisible by rememberUpdatedState(isSecondaryTrayVisible)
+    val currentNotificationBehavior by rememberUpdatedState(notificationPullDownBehavior)
     val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
@@ -839,11 +853,23 @@ private fun SwipeNavigationBox(
     val swipeDownDispatch = remember<() -> Unit> {
         {
             if (currentScreen == LauncherScreen.Home) {
-                if (currentSecondaryTrayVisible) {
-                    currentOnSwipeDown()
-                } else {
-                    currentKeyboard?.hide()
-                    currentSetBarOpen(true)
+                when (currentNotificationBehavior) {
+                    // Pull-down does nothing on Home.
+                    NotificationPullDownBehavior.None -> Unit
+                    // Hand the pull straight to Android's notification shade.
+                    NotificationPullDownBehavior.System -> currentOnSwipeDown()
+                    // Open the in-launcher notification bar as a first stage; a
+                    // second pull (tray already visible) expands the system shade.
+                    NotificationPullDownBehavior.BarBelow,
+                    NotificationPullDownBehavior.BarAbove,
+                    -> {
+                        if (currentSecondaryTrayVisible) {
+                            currentOnSwipeDown()
+                        } else {
+                            currentKeyboard?.hide()
+                            currentSetBarOpen(true)
+                        }
+                    }
                 }
             } else {
                 currentOnSwipeDown()

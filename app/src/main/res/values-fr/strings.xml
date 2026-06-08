@@ -120,6 +120,11 @@
     <string name="settings_work_dock_disabled_toast">Profil professionnel en pause</string>
     <string name="settings_keyboard_auto_show_title">Afficher le clavier automatiquement</string>
     <string name="settings_show_agenda_title">Afficher l\'agenda</string>
+    <string name="settings_show_recents_title">Afficher les récents</string>
+    <string name="settings_pull_down_title">Tirer vers le bas</string>
+    <string name="settings_pull_down_option_none">Aucun</string>
+    <string name="settings_pull_down_option_system">Ombre système</string>
+    <string name="settings_pull_down_option_bar_below">Barre en dessous</string>
     <string name="settings_theme_title">Thème</string>
     <string name="settings_theme_option_system">Système</string>
     <string name="settings_theme_option_light">Clair</string>
