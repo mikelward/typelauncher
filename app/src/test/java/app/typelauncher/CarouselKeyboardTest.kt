@@ -198,27 +198,19 @@ class CarouselKeyboardTest {
         val listBaseline = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val dockBaseline = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
 
-        state = state.copy(isRecentsOpen = false)
-        composeRule.waitForIdle()
-        val listTrayClosed = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
-
+        // Reservation jitter within the same entry (no real IME shown, so the
+        // grow-biased latch holds at the 900 entry value) must not resize or
+        // move the app list or dock. The recents bar stays open throughout so
+        // we isolate the reservation-latch behavior from the bar's own layout.
         state = state.copy(keyboardReservation = KeyboardReservation(bottomPx = 840))
         composeRule.waitForIdle()
         val listSmallerReservation = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
         val dockSmallerReservation = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
 
-        state = state.copy(isRecentsOpen = true)
-        composeRule.waitForIdle()
-        val listTrayReopened = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
-
         state = state.copy(keyboardReservation = KeyboardReservation(bottomPx = 900))
         composeRule.waitForIdle()
         val listRestoredReservation = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
 
-        assertTrue(
-            "Home app list bottom should ignore tray close when reservation is unchanged",
-            kotlin.math.abs((listBaseline.bottom - listTrayClosed.bottom).value) <= 1f,
-        )
         assertTrue(
             "Home app list bottom should ignore reservation jitter within the same Home entry",
             kotlin.math.abs((listBaseline.bottom - listSmallerReservation.bottom).value) <= 1f,
@@ -233,10 +225,6 @@ class CarouselKeyboardTest {
         assertTrue(
             "Dock bottom should ignore reservation jitter within the same Home entry",
             kotlin.math.abs((dockBaseline.bottom - dockSmallerReservation.bottom).value) <= 1f,
-        )
-        assertTrue(
-            "Home app list bottom should ignore tray reopen when reservation is unchanged",
-            kotlin.math.abs((listSmallerReservation.bottom - listTrayReopened.bottom).value) <= 1f,
         )
         assertTrue(
             "Home app list bottom should remain stable when reservation returns to its entry value",

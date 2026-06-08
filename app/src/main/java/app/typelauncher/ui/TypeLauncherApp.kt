@@ -12,13 +12,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.isImeVisible
@@ -39,7 +36,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -517,21 +513,24 @@ internal fun TypeLauncherApp(
         }
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
-        val routeSecondaryBarsToKeyboardTray = stableTypingGeometryAvailable && keyboardReservationPx > 0
-        // The recents / notifications tray fills the reserved keyboard slot only
-        // after the user has had the auto-shown keyboard on screen and dismissed
-        // it (or forced a bar open with a drag) — never by default while the
-        // keyboard is still pending on a Home entry (cold start, resume, or a
-        // carousel return to page zero). `keyboardSeenThisHomePresence` tracks
-        // whether the soft IME has been visible since the current Home presence
-        // began; the tray shows only once it has (and the keyboard is now gone).
+        // The keyboard's reserved bottom space exists only so the home layout
+        // does not reflow when the auto-shown keyboard animates in on view open
+        // (cold start / resume / carousel return). Once the user has actually
+        // seen the keyboard this Home presence and then dismissed it, the
+        // reservation is released so the apps list fills to the bottom — and a
+        // pull-up / pull-down bar lands flush at the bottom edge rather than
+        // floating above an empty reserved slot. `keyboardSeenThisHomePresence`
+        // tracks whether the soft IME has been visible since the current Home
+        // presence began; combined with "not currently showing / animating in"
+        // it means "dismissed", which is when we collapse the reservation.
         //
-        // The reset that prevents the launch flicker is driven by the *activity
+        // The reset that prevents a launch flicker is driven by the *activity
         // lifecycle*, not ViewModel state: a `StateFlow` update made in onResume
         // reaches Compose a frame or two late, so the first resumed frame would
-        // still see a stale "keyboard already seen" value and flash the tray in.
-        // The ON_RESUME observer writes the Compose flag synchronously during the
-        // lifecycle dispatch, before that first frame is drawn.
+        // still see a stale "keyboard already seen" value and collapse the
+        // reservation a frame early. The ON_RESUME observer writes the Compose
+        // flag synchronously during the lifecycle dispatch, before that first
+        // frame is drawn.
         var keyboardSeenThisHomePresence by remember { mutableStateOf(false) }
         LaunchedEffect(imeVisible) {
             if (imeVisible) keyboardSeenThisHomePresence = true
@@ -557,30 +556,25 @@ internal fun TypeLauncherApp(
                 keyboardSeenThisHomePresence = false
             }
         }
-        // While the carousel is animating away from Home (or back into it), the
-        // soft keyboard has already been asked to hide but `state.destination`
-        // is still `Home` until the animation acks. Without this gate the tray
-        // would render for the duration of the carousel animation, then vanish
-        // once the page change dispatches — visible as a 220ms jank.
-        var isCarouselTransitioning by remember { mutableStateOf(false) }
         // Gate on the animation target, not just `imeVisible`: while the
         // keyboard grows the visibility flag can lag a frame or two behind the
-        // animation (worst under gesture nav), and rendering the tray for those
-        // frames flickers the recents / notifications bars in as the launcher
-        // opens. See `isKeyboardShowingOrAnimatingIn`.
+        // animation (worst under gesture nav), and collapsing the reservation
+        // for those frames would reflow the layout as the launcher opens. See
+        // `isKeyboardShowingOrAnimatingIn`.
         val keyboardShowingOrAnimatingIn = isKeyboardShowingOrAnimatingIn(
             imeVisible = imeVisible,
             imeTargetBottomPx = imeTargetBottomPx,
             navBottomPx = navBottomPx,
         )
-        val secondaryBarsVisible = areSecondaryBarsVisible(
-            secondaryBarsRouteToKeyboardTray = routeSecondaryBarsToKeyboardTray,
-            isHomeDestination = state.destination is LauncherDestination.Home,
-            isKeyboardShowingOrAnimatingIn = keyboardShowingOrAnimatingIn,
-            isCarouselTransitioning = isCarouselTransitioning,
-            keyboardSeenThisHomePresence = keyboardSeenThisHomePresence,
-            isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
-        )
+        // Collapse the reserved keyboard space once the keyboard has been seen
+        // and dismissed this Home presence (see `keyboardSeenThisHomePresence`).
+        // Until then it stays reserved so the auto-shown keyboard does not cause
+        // a reflow on view open. The bottom bar takes its own real space inside
+        // `HomeScreen`'s layout, so when the keyboard is up the bar stacks above
+        // it (reservation present) and when the keyboard is gone the bar sits
+        // flush at the bottom (reservation collapsed).
+        val keyboardReservationCollapsed = keyboardSeenThisHomePresence && !keyboardShowingOrAnimatingIn
+        val effectiveKeyboardReservationDp = if (keyboardReservationCollapsed) 0.dp else keyboardReservationDp
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -641,7 +635,8 @@ internal fun TypeLauncherApp(
                         destination = state.destination,
                         widgetPageCount = state.widgetPages.size,
                         isAgendaEnabled = state.isAgendaEnabled,
-                        isSecondaryTrayVisible = secondaryBarsVisible,
+                        isRecentsOpen = state.isRecentsOpen,
+                        isNotificationBarOpen = state.isNotificationBarOpen,
                         onShowAgenda = onShowAgenda,
                         onShowWidgets = onShowWidgets,
                         onShowHome = onShowHome,
@@ -649,7 +644,6 @@ internal fun TypeLauncherApp(
                         onSetRecentsOpen = onSetRecentsOpen,
                         onRequestShowKeyboard = onRequestShowKeyboard,
                         onSwipeDown = onSwipeDown,
-                        onCarouselTransitioningChanged = { isCarouselTransitioning = it },
                         // Park UI-thread RemoteViews.apply() while the carousel
                         // is in motion. The host stays listening, so the
                         // provider's background data fetch (location lookup,
@@ -666,34 +660,13 @@ internal fun TypeLauncherApp(
                         appListBoundsInRoot = homeAppListBoundsInRoot,
                         isDockDraggingState = isDockDraggingState,
                         isWidgetScrollingState = isWidgetScrollingState,
-                        secondaryTray = {
-                            if (secondaryBarsVisible) {
-                                HomeKeyboardTray(
-                                    state = state,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .padding(bottom = innerPadding.calculateBottomPadding())
-                                        .height(keyboardReservationDp)
-                                        .fillMaxWidth()
-                                        .clipToBounds(),
-                                    onLaunchApp = onLaunchApp,
-                                    onOpenAppInfo = onOpenAppInfo,
-                                    onToggleDock = onToggleDock,
-                                    onDismissRecent = onDismissRecent,
-                                    onDismissNotifications = onDismissNotifications,
-                                    onOpenNotificationSettings = onOpenNotificationSettings,
-                                    onSetNotificationBarOpen = onSetNotificationBarOpen,
-                                    onRequestNotificationAccess = onRequestNotificationAccess,
-                                )
-                            }
-                        },
                     ) { page, isCurrentPage ->
                         when (page.screen) {
                             LauncherScreen.Home -> HomeScreen(
                                 state = state,
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
-                                primaryBottomPadding = keyboardReservationDp,
+                                primaryBottomPadding = effectiveKeyboardReservationDp,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
                                 onQueryChanged = onQueryChanged,
@@ -795,7 +768,8 @@ private fun SwipeNavigationBox(
     destination: LauncherDestination,
     widgetPageCount: Int,
     isAgendaEnabled: Boolean,
-    isSecondaryTrayVisible: Boolean,
+    isRecentsOpen: Boolean,
+    isNotificationBarOpen: Boolean,
     appListBoundsInRoot: Rect?,
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -809,7 +783,6 @@ private fun SwipeNavigationBox(
     onCarouselGestureEnded: () -> Unit = {},
     isDockDraggingState: State<Boolean> = mutableStateOf(false),
     isWidgetScrollingState: State<Boolean> = mutableStateOf(false),
-    secondaryTray: @Composable BoxScope.() -> Unit = {},
     content: @Composable (LauncherPage, Boolean) -> Unit,
 ) {
     // A pointer sequence locks once, shortly after touch slop, to either the
@@ -819,8 +792,10 @@ private fun SwipeNavigationBox(
     // from that already-at-edge state.
     val currentScreen by rememberUpdatedState(destination.screen)
     val currentLauncherPage by rememberUpdatedState(destination.toLauncherPage())
-    val currentSecondaryTrayVisible by rememberUpdatedState(isSecondaryTrayVisible)
-    val currentSetBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
+    val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
+    val currentNotificationBarOpen by rememberUpdatedState(isNotificationBarOpen)
+    val currentSetNotificationBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
+    val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
     val currentAppListBoundsInRoot by rememberUpdatedState(appListBoundsInRoot)
@@ -836,14 +811,25 @@ private fun SwipeNavigationBox(
     val currentKeyboard by rememberUpdatedState(keyboard)
     val focusManager = LocalFocusManager.current
     val currentFocusManager by rememberUpdatedState(focusManager)
+    // The bottom-bar state machine. Recents and the notification bar are
+    // mutually exclusive (enforced in the ViewModel), and they sit in the same
+    // bottom slot, so the two pull directions toggle between three states:
+    //
+    //            pull up                         pull down
+    //   None  -> open Recents            None  -> open Notifications
+    //   Recents -> re-show keyboard      Recents -> close (opposite gesture)
+    //   Notifications -> close           Notifications -> system shade
+    //
+    // i.e. the opposite gesture always hides an open bar, a second pull-up on
+    // recents re-shows the search keyboard, and a second pull-down on the
+    // notification bar falls through to the real system notification shade.
     val swipeDownDispatch = remember<() -> Unit> {
         {
             if (currentScreen == LauncherScreen.Home) {
-                if (currentSecondaryTrayVisible) {
-                    currentOnSwipeDown()
-                } else {
-                    currentKeyboard?.hide()
-                    currentSetBarOpen(true)
+                when {
+                    currentRecentsOpen -> currentSetRecentsOpen(false)
+                    currentNotificationBarOpen -> currentOnSwipeDown()
+                    else -> currentSetNotificationBarOpen(true)
                 }
             } else {
                 currentOnSwipeDown()
@@ -852,11 +838,13 @@ private fun SwipeNavigationBox(
     }
     val swipeUpDispatch = remember<() -> Unit> {
         {
-            // Pull-up only does anything on Home. If the notification bar is
-            // visible in the keyboard tray, the gesture asks the search field
-            // to grab focus and re-show the soft keyboard.
+            // Pull-up only does anything on Home.
             if (currentScreen == LauncherScreen.Home) {
-                currentRequestShowKeyboard()
+                when {
+                    currentNotificationBarOpen -> currentSetNotificationBarOpen(false)
+                    currentRecentsOpen -> currentRequestShowKeyboard()
+                    else -> currentSetRecentsOpen(true)
+                }
             }
         }
     }
@@ -1529,13 +1517,6 @@ private fun SwipeNavigationBox(
                 }
             }
         }
-        // The keyboard tray sits inside the carousel's pointerInput surface
-        // (rather than as a sibling overlay) so the existing vertical pull-up
-        // detector receives gestures that start on the tray. The tray draws
-        // last so it stays on top of the page Boxes, and it does not get the
-        // pages' graphicsLayer translationX, so it stays put during a
-        // horizontal carousel transition.
-        secondaryTray()
     }
 }
 

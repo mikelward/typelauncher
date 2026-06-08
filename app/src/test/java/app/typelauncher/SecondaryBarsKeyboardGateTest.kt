@@ -5,15 +5,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Coverage for [isKeyboardShowingOrAnimatingIn], the gate that keeps the
- * recents / notifications tray from rendering while the keyboard is on screen
- * or animating into view.
+ * Coverage for [isKeyboardShowingOrAnimatingIn], which decides whether the
+ * keyboard is on screen / animating in. It now drives the reserved-bottom-space
+ * collapse: the space stays reserved while the keyboard is showing or animating
+ * in (so the layout does not reflow on view open) and only releases once the
+ * keyboard is gone.
  *
  * The regression this guards: when the launcher opens and the keyboard grows,
  * `WindowInsets.isImeVisible` can momentarily still report `false` while the
  * keyboard is already animating up — most noticeably under system gesture
- * navigation. The old gate looked at `imeVisible` alone, so it rendered the
- * tray for those frames and flickered the bars in. The
+ * navigation. A gate that looked at `imeVisible` alone would collapse the
+ * reservation for those frames and reflow the layout. The
  * [keyboardAnimatingIn_whileVisibilityFlagStillFalse_countsAsShowing] case
  * pins the fix: an animation target above the nav bar means the keyboard is
  * coming even before the visibility flag flips.
@@ -75,119 +77,13 @@ class SecondaryBarsKeyboardGateTest {
     @Test
     fun keyboardAnimatingOut_targetBackBelowNav_isNotShowing() {
         // On the way out the animation target drops below the nav bar on the
-        // first frame, so the tray is free to fill the space the keyboard is
-        // vacating.
+        // first frame, so the reserved space is free to collapse as the keyboard
+        // vacates it.
         assertFalse(
             isKeyboardShowingOrAnimatingIn(
                 imeVisible = false,
                 imeTargetBottomPx = navBottomPx,
                 navBottomPx = navBottomPx,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsHiddenByDefault_onHomeEntryBeforeKeyboardSeen() {
-        // The core requirement: with auto-show on, the tray does not render on a
-        // Home entry (cold start / resume / carousel return) until the user has
-        // had the keyboard and dismissed it. Nothing forced open, keyboard not
-        // yet seen this presence → hidden.
-        assertFalse(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = false,
-                keyboardSeenThisHomePresence = false,
-                isForcedOpen = false,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsVisible_afterKeyboardSeenAndDismissed() {
-        // User had the keyboard this Home presence and dismissed it (not showing
-        // now) → the tray fills the freed slot.
-        assertTrue(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = false,
-                keyboardSeenThisHomePresence = true,
-                isForcedOpen = false,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsVisible_whenForcedOpen_evenBeforeKeyboardSeen() {
-        // A drag-opened bar shows immediately, regardless of the keyboard wait.
-        assertTrue(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = false,
-                keyboardSeenThisHomePresence = false,
-                isForcedOpen = true,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsHidden_whileKeyboardShowing_evenAfterSeen() {
-        assertFalse(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = true,
-                isCarouselTransitioning = false,
-                keyboardSeenThisHomePresence = true,
-                isForcedOpen = false,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsHidden_whileKeyboardShowing_evenWhenForcedOpen() {
-        assertFalse(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = true,
-                isCarouselTransitioning = false,
-                keyboardSeenThisHomePresence = true,
-                isForcedOpen = true,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsHidden_whileCarouselTransitioning() {
-        assertFalse(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = true,
-                keyboardSeenThisHomePresence = true,
-                isForcedOpen = false,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsHidden_whenNotRoutedToKeyboardSlot() {
-        // Auto-show off ⇒ no reserved keyboard slot ⇒ tray never renders.
-        assertFalse(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = false,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = false,
-                keyboardSeenThisHomePresence = true,
-                isForcedOpen = true,
             ),
         )
     }

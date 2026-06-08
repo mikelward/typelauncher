@@ -6,7 +6,7 @@ internal const val CAROUSEL_TAG = "carousel"
 internal val CarouselVirtualPageKey = SemanticsPropertyKey<Int>("CarouselVirtualPage")
 
 internal const val HOME_SCREEN_TAG = "home_screen"
-internal const val HOME_KEYBOARD_TRAY_TAG = "home_keyboard_tray"
+internal const val HOME_BOTTOM_BAR_TAG = "home_bottom_bar"
 internal const val WIDGETS_SCREEN_TAG = "widgets_screen"
 internal const val AGENDA_SCREEN_TAG = "agenda_screen"
 internal const val SEARCH_FIELD_TAG = "search_field"

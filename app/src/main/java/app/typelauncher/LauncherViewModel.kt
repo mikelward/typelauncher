@@ -666,8 +666,13 @@ internal class LauncherViewModel(
     }
 
     fun setRecentsOpen(isOpen: Boolean) {
-        if (_uiState.value.isRecentsOpen == isOpen) return
-        _uiState.update { it.copy(isRecentsOpen = isOpen) }
+        val state = _uiState.value
+        // The recents and notification bars share the single bottom-bar slot, so
+        // opening one closes the other — only ever one can be on screen.
+        if (state.isRecentsOpen == isOpen && (!isOpen || !state.isNotificationBarOpen)) return
+        _uiState.update {
+            it.copy(isRecentsOpen = isOpen, isNotificationBarOpen = if (isOpen) false else it.isNotificationBarOpen)
+        }
         logState("setRecentsOpen=$isOpen")
     }
 
@@ -718,12 +723,9 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Closes any force-opened secondary bar (recents / notifications) when the
-     * launcher is resumed to Home, so returning from another app starts with the
-     * tray hidden by default rather than carrying a stale open bar back. The
-     * "keyboard seen this Home presence" reset that prevents the tray flashing in
-     * before the re-shown keyboard lives in `TypeLauncherApp` and is driven by
-     * the activity lifecycle directly so it lands before the first resumed frame.
+     * Closes the open bottom bar (recents / notifications) when the launcher is
+     * resumed to Home, so returning from another app starts with a clean Home
+     * rather than carrying a stale open bar back.
      */
     fun closeSecondaryTrayOnResume() {
         val state = _uiState.value
@@ -731,7 +733,6 @@ internal class LauncherViewModel(
             state.destination is LauncherDestination.Home &&
             !state.isSettingsOpen &&
             !state.isAddingWidget &&
-            state.isKeyboardAutoShown &&
             (state.isRecentsOpen || state.isNotificationBarOpen)
         ) {
             _uiState.update {
@@ -742,8 +743,12 @@ internal class LauncherViewModel(
     }
 
     fun setNotificationBarOpen(isOpen: Boolean) {
-        if (_uiState.value.isNotificationBarOpen == isOpen) return
-        _uiState.update { it.copy(isNotificationBarOpen = isOpen) }
+        val state = _uiState.value
+        // Mutually exclusive with recents — see [setRecentsOpen].
+        if (state.isNotificationBarOpen == isOpen && (!isOpen || !state.isRecentsOpen)) return
+        _uiState.update {
+            it.copy(isNotificationBarOpen = isOpen, isRecentsOpen = if (isOpen) false else it.isRecentsOpen)
+        }
         logState("setNotificationBarOpen=$isOpen")
     }
 

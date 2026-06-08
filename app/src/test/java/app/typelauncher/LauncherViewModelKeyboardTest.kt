@@ -89,6 +89,29 @@ class LauncherViewModelKeyboardTest {
     }
 
     @Test
+    fun openingOneBottomBar_closesTheOther() {
+        val viewModel = newViewModel()
+
+        viewModel.setRecentsOpen(true)
+        idle()
+        assertEquals(true, viewModel.uiState.value.isRecentsOpen)
+        assertEquals(false, viewModel.uiState.value.isNotificationBarOpen)
+
+        // Opening the notification bar must close recents — only one bottom bar
+        // is ever on screen.
+        viewModel.setNotificationBarOpen(true)
+        idle()
+        assertEquals(false, viewModel.uiState.value.isRecentsOpen)
+        assertEquals(true, viewModel.uiState.value.isNotificationBarOpen)
+
+        // ...and back the other way.
+        viewModel.setRecentsOpen(true)
+        idle()
+        assertEquals(true, viewModel.uiState.value.isRecentsOpen)
+        assertEquals(false, viewModel.uiState.value.isNotificationBarOpen)
+    }
+
+    @Test
     fun closeSecondaryTrayOnResume_closesOpenTrayOnHome() {
         val viewModel = newViewModel()
         viewModel.setRecentsOpen(true)
