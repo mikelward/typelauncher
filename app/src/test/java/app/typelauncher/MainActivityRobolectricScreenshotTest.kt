@@ -1882,7 +1882,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun recentsSecondaryBar_staysVisibleWithoutDragGesture() {
+    fun recentsSecondaryBar_staysHiddenUntilForcedOpen() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
@@ -1892,13 +1892,16 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
         assertFalse(viewModel.uiState.value.isRecentsOpen)
 
-        // Recents is always a secondary bar once the keyboard reservation exists.
-        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
-        viewModel.setQuery("browser")
-        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        // With auto-show on, the recents bar never appears on its own — the
+        // keyboard owns the slot until the user dismisses it or drags the bar
+        // open. Robolectric never shows the IME, so it stays hidden.
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
+
+        // A drag (force-open) reveals it with the launched app.
+        viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:Calculator").assertIsDisplayed()
     }
 
     @Test
@@ -1908,8 +1911,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
         viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
         viewModel.setDockEnabled(false)
-        composeRule.waitForIdle()
-        composeRule.mainClock.advanceTimeBy(1_600)
+        viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
         // Dock is hidden, but the recents card still renders independently.
@@ -2316,8 +2318,7 @@ class MainActivityRobolectricScreenshotTest {
             viewModel.launchApp(app)
         }
         viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
-        composeRule.waitForIdle()
-        composeRule.mainClock.advanceTimeBy(1_600)
+        viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
@@ -2333,8 +2334,7 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" })
         viewModel.setKeyboardReservation(KeyboardReservation(bottomPx = 900))
-        composeRule.waitForIdle()
-        composeRule.mainClock.advanceTimeBy(1_600)
+        viewModel.setRecentsOpen(true)
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()

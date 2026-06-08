@@ -62,6 +62,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -528,47 +531,45 @@ internal fun TypeLauncherApp(
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
         val routeSecondaryBarsToKeyboardTray = stableTypingGeometryAvailable && keyboardReservationPx > 0
-        // The auto-shown keyboard owns the reserved slot, so the secondary tray
-        // stays hidden until that keyboard has been seen (or a give-up timeout
-        // elapses for a hardware keyboard / IME that never shows). Resolution is
-        // tracked as the generation the wait was last satisfied for, compared against
-        // `state.autoKeyboardWaitGeneration`: `waitingForAutoKeyboard` is a pure
-        // function of state, so a fresh generation re-arms the wait *synchronously* in
-        // the same recomposition rather than through a re-keyed latch (which
-        // proved too clock-sensitive to drive reliably). `LauncherDestination`
-        // `.Home` is a stable object, so swiping up from another app back to the
-        // launcher would otherwise carry a stale "already resolved" generation into
-        // the first resumed frame and flash the tray into the slot before the
-        // re-shown keyboard animates. The ViewModel bumps the generation from
-        // MainActivity.onResume(), showHome() (carousel return) and
-        // requestShowKeyboard() (pull-up) before the resumed frame is drawn.
-        var resolvedAutoKeyboardGeneration by remember { mutableStateOf(-1) }
-        // Resolve the wait the moment the IME is actually seen for the current
-        // generation. Keyed on the generation so a re-arm re-evaluates against an IME that
-        // is already on screen, not just on the next `imeVisible` edge.
-        LaunchedEffect(routeSecondaryBarsToKeyboardTray, imeVisible, state.autoKeyboardWaitGeneration) {
-            if (routeSecondaryBarsToKeyboardTray && imeVisible) {
-                resolvedAutoKeyboardGeneration = state.autoKeyboardWaitGeneration
-            }
+        // The recents / notifications tray fills the reserved keyboard slot only
+        // after the user has had the auto-shown keyboard on screen and dismissed
+        // it (or forced a bar open with a drag) — never by default while the
+        // keyboard is still pending on a Home entry (cold start, resume, or a
+        // carousel return to page zero). `keyboardSeenThisHomePresence` tracks
+        // whether the soft IME has been visible since the current Home presence
+        // began; the tray shows only once it has (and the keyboard is now gone).
+        //
+        // The reset that prevents the launch flicker is driven by the *activity
+        // lifecycle*, not ViewModel state: a `StateFlow` update made in onResume
+        // reaches Compose a frame or two late, so the first resumed frame would
+        // still see a stale "keyboard already seen" value and flash the tray in.
+        // The ON_RESUME observer writes the Compose flag synchronously during the
+        // lifecycle dispatch, before that first frame is drawn.
+        var keyboardSeenThisHomePresence by remember { mutableStateOf(false) }
+        LaunchedEffect(imeVisible) {
+            if (imeVisible) keyboardSeenThisHomePresence = true
         }
-        // Don't wait forever: a hardware keyboard (or an IME configured not to
-        // show for physical input) never makes the soft IME visible. Keyed on
-        // the generation so each re-arm restarts the give-up countdown from scratch
-        // instead of letting a stale deadline fire and flash the tray back.
-        LaunchedEffect(routeSecondaryBarsToKeyboardTray, state.autoKeyboardWaitGeneration, resolvedAutoKeyboardGeneration) {
-            if (routeSecondaryBarsToKeyboardTray && resolvedAutoKeyboardGeneration < state.autoKeyboardWaitGeneration) {
-                delay(HOME_READY_IME_TIMEOUT_MS)
-                if (resolvedAutoKeyboardGeneration < state.autoKeyboardWaitGeneration) {
-                    resolvedAutoKeyboardGeneration = state.autoKeyboardWaitGeneration
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                // Reset on ON_STOP (fully backgrounded) so the retained
+                // composition's first resumed frame is already hidden, and again
+                // on ON_RESUME so the reset lands synchronously before that frame
+                // even when the activity wasn't fully stopped.
+                if (event == Lifecycle.Event.ON_STOP || event == Lifecycle.Event.ON_RESUME) {
+                    keyboardSeenThisHomePresence = false
                 }
             }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
-        val waitingForAutoKeyboard = isWaitingForAutoKeyboard(
-            secondaryBarsRouteToKeyboardTray = routeSecondaryBarsToKeyboardTray,
-            isKeyboardAutoShown = state.isKeyboardAutoShown,
-            resolvedGeneration = resolvedAutoKeyboardGeneration,
-            currentGeneration = state.autoKeyboardWaitGeneration,
-        )
+        // Leaving Home (carousel to Widgets/Agenda, opening settings) ends the
+        // presence, so a return to page zero starts hidden again.
+        LaunchedEffect(state.destination, state.isSettingsOpen) {
+            if (state.destination !is LauncherDestination.Home || state.isSettingsOpen) {
+                keyboardSeenThisHomePresence = false
+            }
+        }
         // While the carousel is animating away from Home (or back into it), the
         // soft keyboard has already been asked to hide but `state.destination`
         // is still `Home` until the animation acks. Without this gate the tray
@@ -590,25 +591,22 @@ internal fun TypeLauncherApp(
             isHomeDestination = state.destination is LauncherDestination.Home,
             isKeyboardShowingOrAnimatingIn = keyboardShowingOrAnimatingIn,
             isCarouselTransitioning = isCarouselTransitioning,
-            isWaitingForAutoKeyboard = waitingForAutoKeyboard,
+            keyboardSeenThisHomePresence = keyboardSeenThisHomePresence,
             isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
         )
         // Diagnostic: log the secondary-bars decision and every input whenever
         // any of them changes, so a captured trace shows exactly which condition
-        // let the tray render on the flashing frame (e.g. waitingForAutoKeyboard
-        // false because the generation update lagged the first switched-to-home
-        // frame). Correlate with the MainActivity lifecycle callbacks.
+        // let the tray render on a flashing frame. Correlate with the
+        // MainActivity lifecycle callbacks.
         LaunchedEffect(
             secondaryBarsVisible,
             routeSecondaryBarsToKeyboardTray,
             state.destination,
             keyboardShowingOrAnimatingIn,
             isCarouselTransitioning,
-            waitingForAutoKeyboard,
+            keyboardSeenThisHomePresence,
             state.isRecentsOpen,
             state.isNotificationBarOpen,
-            state.autoKeyboardWaitGeneration,
-            resolvedAutoKeyboardGeneration,
             imeVisible,
             imeTargetBottomPx,
             navBottomPx,
@@ -619,9 +617,8 @@ internal fun TypeLauncherApp(
                     "home=${state.destination is LauncherDestination.Home} " +
                     "kbdShowingOrAnimating=$keyboardShowingOrAnimatingIn " +
                     "carouselTransitioning=$isCarouselTransitioning " +
-                    "waiting=$waitingForAutoKeyboard forcedOpen=${state.isRecentsOpen || state.isNotificationBarOpen} " +
+                    "keyboardSeen=$keyboardSeenThisHomePresence forcedOpen=${state.isRecentsOpen || state.isNotificationBarOpen} " +
                     "autoShown=${state.isKeyboardAutoShown} " +
-                    "gen=${state.autoKeyboardWaitGeneration} resolvedGen=$resolvedAutoKeyboardGeneration " +
                     "imeVisible=$imeVisible imeTargetBottomPx=$imeTargetBottomPx navBottomPx=$navBottomPx " +
                     "destination=${state.destination}",
             )

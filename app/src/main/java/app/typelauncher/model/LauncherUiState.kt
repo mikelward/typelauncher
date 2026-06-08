@@ -355,45 +355,27 @@ internal fun isKeyboardShowingOrAnimatingIn(
 ): Boolean = imeVisible || imeTargetBottomPx > navBottomPx
 
 /**
- * True while the auto-shown keyboard is still pending for the current Home
- * entry, so the recents / notifications tray must stay hidden out of the
- * reserved keyboard slot.
- *
- * The wait is resolved (the IME was seen, or the give-up timeout elapsed) for
- * [resolvedGeneration]; each re-arm bumps [LauncherUiState.autoKeyboardWaitGeneration]
- * past it ([currentGeneration]). Because this is a plain comparison rather than a
- * sticky latch, a re-arm turns the wait back on in the same recomposition,
- * which is what keeps the tray from flashing into the slot on the first
- * resumed frame (e.g. swiping up from another app) before the re-shown
- * keyboard animates. Only applies when the tray is routed to the keyboard
- * slot ([secondaryBarsRouteToKeyboardTray]) and auto-show is on.
- */
-internal fun isWaitingForAutoKeyboard(
-    secondaryBarsRouteToKeyboardTray: Boolean,
-    isKeyboardAutoShown: Boolean,
-    resolvedGeneration: Int,
-    currentGeneration: Int,
-): Boolean = secondaryBarsRouteToKeyboardTray && isKeyboardAutoShown && resolvedGeneration < currentGeneration
-
-/**
  * True when the Home secondary-bars tray may render into the reserved keyboard
- * slot. The tray never appears while the keyboard is visible / animating in.
- * The auto-shown keyboard wait normally keeps the tray hidden until the IME is
- * seen (or the timeout elapses), but explicit recents / notification-bar opens
- * are synchronous user state and must render immediately during that wait.
+ * slot. The tray never appears while the keyboard is visible / animating in,
+ * and — crucially — it is hidden by default on a Home entry: with the keyboard
+ * auto-shown, the tray fills the slot only once the user has had the keyboard
+ * on screen and dismissed it ([keyboardSeenThisHomePresence]), or has forced a
+ * bar open with a drag ([isForcedOpen]). That keeps cold start, resume, and a
+ * carousel return to page zero from flashing the bars in before the auto-shown
+ * keyboard takes the slot.
  */
 internal fun areSecondaryBarsVisible(
     secondaryBarsRouteToKeyboardTray: Boolean,
     isHomeDestination: Boolean,
     isKeyboardShowingOrAnimatingIn: Boolean,
     isCarouselTransitioning: Boolean,
-    isWaitingForAutoKeyboard: Boolean,
+    keyboardSeenThisHomePresence: Boolean,
     isForcedOpen: Boolean,
 ): Boolean = secondaryBarsRouteToKeyboardTray &&
     isHomeDestination &&
     !isKeyboardShowingOrAnimatingIn &&
     !isCarouselTransitioning &&
-    (!isWaitingForAutoKeyboard || isForcedOpen)
+    (keyboardSeenThisHomePresence || isForcedOpen)
 
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
@@ -486,17 +468,6 @@ internal data class LauncherUiState(
     // `MainActivity` applies `stateAlwaysHidden` so the keyboard stays down
     // until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
-    // Bumped every time the auto-shown keyboard is (re)requested — on returning
-    // to launcher home and on an explicit keyboard show request. The Home
-    // composable keys its "waiting for the auto-shown keyboard" latches on this
-    // so the wait re-arms *synchronously* on resume: `LauncherDestination.Home`
-    // is a stable object, so swiping up from another app back to the launcher
-    // would otherwise carry a stale "keyboard already seen" latch into the first
-    // resumed frame and flash the secondary tray into the slot before the
-    // re-shown keyboard animates. Driving the reset through state (set in the
-    // ViewModel before the frame is drawn) instead of an async event collector
-    // closes that one-or-two-frame race.
-    val autoKeyboardWaitGeneration: Int = 0,
     // Last keyboard bottom inset observed while the IME was opening, paired
     // with the configuration it was measured under and the source that
     // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show
