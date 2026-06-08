@@ -1882,6 +1882,43 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_recentsBar_pushesContentUpAndSitsFlushAtBottom() {
+        // With no reserved keyboard space (the keyboard is dismissed), opening
+        // the recents bar takes real space at the bottom: the dock shifts up to
+        // make room and the bar lands flush at the bottom edge — "everything
+        // moves up".
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setQuery("calculator")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.single())
+        viewModel.setQuery("calendar")
+        viewModel.launchApp(viewModel.uiState.value.filteredApps.first { it.name == "Calendar" })
+        composeRule.waitForIdle()
+
+        // With no keyboard reservation the dock is the flush bottom element, so
+        // its bottom edge marks where the layout ends.
+        val layoutBottom = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().bottom
+
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).assertIsDisplayed()
+        val dockBottomAfter = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot().bottom
+        val recentsBottom = composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).getBoundsInRoot().bottom
+        // The dock moved up to make room, and the recents bar now occupies the
+        // flush bottom slot the dock used to hold.
+        assertTrue(
+            "dock should shift up when recents opens (after=$dockBottomAfter, before=$layoutBottom)",
+            dockBottomAfter < layoutBottom,
+        )
+        assertTrue(
+            "recents bar should sit flush at the bottom (recents.bottom=$recentsBottom, layout.bottom=$layoutBottom)",
+            kotlin.math.abs((recentsBottom - layoutBottom).value) <= 2f,
+        )
+
+        saveScreenshot("compose_home_recents_bar_flush_bottom_robolectric.png")
+    }
+
+    @Test
     fun recentsSecondaryBar_staysHiddenUntilForcedOpen() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setQuery("calculator")

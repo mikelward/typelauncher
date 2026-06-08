@@ -354,29 +354,6 @@ internal fun isKeyboardShowingOrAnimatingIn(
     navBottomPx: Int,
 ): Boolean = imeVisible || imeTargetBottomPx > navBottomPx
 
-/**
- * True when the Home secondary-bars tray may render into the reserved keyboard
- * slot. The tray never appears while the keyboard is visible / animating in,
- * and — crucially — it is hidden by default on a Home entry: with the keyboard
- * auto-shown, the tray fills the slot only once the user has had the keyboard
- * on screen and dismissed it ([keyboardSeenThisHomePresence]), or has forced a
- * bar open with a drag ([isForcedOpen]). That keeps cold start, resume, and a
- * carousel return to page zero from flashing the bars in before the auto-shown
- * keyboard takes the slot.
- */
-internal fun areSecondaryBarsVisible(
-    secondaryBarsRouteToKeyboardTray: Boolean,
-    isHomeDestination: Boolean,
-    isKeyboardShowingOrAnimatingIn: Boolean,
-    isCarouselTransitioning: Boolean,
-    keyboardSeenThisHomePresence: Boolean,
-    isForcedOpen: Boolean,
-): Boolean = secondaryBarsRouteToKeyboardTray &&
-    isHomeDestination &&
-    !isKeyboardShowingOrAnimatingIn &&
-    !isCarouselTransitioning &&
-    (keyboardSeenThisHomePresence || isForcedOpen)
-
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
 // so without this annotation `HomeScreen(state = …)` (and every child
@@ -402,6 +379,11 @@ internal data class LauncherUiState(
     // includes apps the user launched from Type Launcher — third-party launchers
     // can't read the system task switcher, so this is a best-effort substitute.
     val recentApps: List<InstalledApp> = emptyList(),
+    // True once the user has pulled up on the home screen to reveal the recents
+    // bar at the bottom (where the dock was; everything else shifts up). Mutually
+    // exclusive with [isNotificationBarOpen] — only one bottom bar shows at a
+    // time. A pull-down closes it; a second pull-up re-shows the search keyboard.
+    // Reset on app launch / screen change / settings open / resume to Home.
     val isRecentsOpen: Boolean = false,
     // Apps with at least one active user-visible notification, sourced from the
     // bound NotificationListenerService. Empty unless the user has granted
@@ -409,8 +391,10 @@ internal data class LauncherUiState(
     // when [isNotificationBarOpen] is true.
     val notifyingApps: List<InstalledApp> = emptyList(),
     // True once the user has pulled down on the home screen to reveal the
-    // notification bar. A second pull-down expands the system shade. Reset on
-    // app launch / screen change / settings open.
+    // notification bar at the bottom (where the dock was; everything else shifts
+    // up). Mutually exclusive with [isRecentsOpen]. A pull-up closes it; a second
+    // pull-down expands the system shade. Reset on app launch / screen change /
+    // settings open / resume to Home.
     val isNotificationBarOpen: Boolean = false,
     // Whether the user has granted Type Launcher notification listener access.
     // Refreshed in `refreshPermissionDrivenUi` so flipping the toggle in

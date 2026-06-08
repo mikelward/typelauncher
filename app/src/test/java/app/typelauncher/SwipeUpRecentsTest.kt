@@ -144,7 +144,7 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHome_requestsShowKeyboardBecauseRecentsIsAlwaysSecondary() {
+    fun swipingUpOnHomeWithNothingOpen_opensRecents() {
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
         var swipeDownCount = 0
@@ -190,8 +190,9 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        assertNull(recentsTarget)
-        assertEquals(1, requestShowKeyboardCount)
+        // First pull-up with nothing open reveals the recents bar.
+        assertEquals(true, recentsTarget)
+        assertEquals(0, requestShowKeyboardCount)
         // Pull-up must never trigger the pull-down dispatch path.
         assertEquals(0, swipeDownCount)
     }
@@ -251,63 +252,7 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithSecondaryTrayVisible_requestsShowKeyboardOnFirstPull() {
-        // Recents is now always a secondary bar, so pull-up always means
-        // "bring the keyboard back" rather than first opening recents.
-        var recentsTarget: Boolean? = null
-        var requestShowKeyboardCount = 0
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetRecentsOpen = { recentsTarget = it },
-                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = {},
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
-        composeRule.waitForIdle()
-
-        // Recents is already visible via the persistent setting, so the first
-        // pull-up should skip the recents stage and ask for the keyboard.
-        assertNull(recentsTarget)
-        assertEquals(1, requestShowKeyboardCount)
-    }
-
-    @Test
-    fun swipingUpOnHomeWithNotificationBarOpen_requestsShowKeyboard() {
+    fun swipingUpOnHomeWithNotificationBarOpen_closesNotificationBar() {
         var notificationBarOpened: Boolean? = null
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
@@ -317,7 +262,6 @@ class SwipeUpRecentsTest {
                     state = LauncherUiState(
                         filteredApps = emptyList(),
                         isNotificationBarOpen = true,
-                        isRecentsOpen = true,
                         keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
                     onQueryChanged = {},
@@ -359,25 +303,27 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        assertNull(notificationBarOpened)
+        // Opposite-direction gesture hides the open bar — pull-up closes the
+        // notification bar rather than re-showing the keyboard or opening recents.
+        assertEquals(false, notificationBarOpened)
         assertNull(recentsTarget)
-        assertEquals(1, requestShowKeyboardCount)
+        assertEquals(0, requestShowKeyboardCount)
     }
 
     @Test
-    fun pullingUpOnKeyboardTrayRequestsShowKeyboard() {
-        // The keyboard tray (recents/notifications) is rendered inside the
+    fun pullingUpOnBottomBarRequestsShowKeyboard() {
+        // The bottom bar (recents/notifications) is rendered inside the
         // carousel's pointerInput surface, so the existing vertical pull-up
-        // detector should pick up gestures that start on the tray. Without
-        // this hookup, a pull-up that starts on a notification icon or the
-        // recents row never reaches the launcher.
+        // detector should pick up gestures that start on the bar. Without
+        // this hookup, a pull-up that starts on the recents row never reaches
+        // the launcher. With recents already open, a pull-up re-shows the IME.
         var requestShowKeyboardCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
                         filteredApps = emptyList(),
-                        isNotificationBarOpen = true,
+                        recentApps = listOf(fakeApp(name = "Recent")),
                         isRecentsOpen = true,
                         keyboardReservation = KeyboardReservation(bottomPx = 900),
                     ),
@@ -415,8 +361,8 @@ class SwipeUpRecentsTest {
             }
         }
 
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(HOME_BOTTOM_BAR_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(HOME_BOTTOM_BAR_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
         assertEquals(1, requestShowKeyboardCount)
@@ -608,7 +554,7 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun recentsUsesKeyboardTray_whenKeyboardReservationExists() {
+    fun openingRecents_pushesDockUpAndLandsAtBottom() {
         val apps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
         val dockedApps = listOf(fakeApp(name = "Docked").copy(isDocked = true))
         val recentApps = listOf(fakeApp(name = "Recent"))
@@ -656,19 +602,21 @@ class SwipeUpRecentsTest {
             }
         }
         composeRule.waitForIdle()
-        val appsBefore = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val dockBefore = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
 
         state.value = state.value.copy(isRecentsOpen = true)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
-        val appsAfter = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        composeRule.onNodeWithTag(HOME_BOTTOM_BAR_TAG).assertIsDisplayed()
         val dockAfter = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
         val recentsBounds = composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).getBoundsInRoot()
-        assertEquals(appsBefore, appsAfter)
-        assertEquals(dockBefore, dockAfter)
-        assertTrue("recents tray should appear below the fixed dock", recentsBounds.top >= dockAfter.bottom)
+        // The recents bar takes real space at the bottom, so the dock shifts up
+        // to make room — "everything moves up" — and the bar sits below the dock.
+        assertTrue(
+            "opening recents should push the dock up (dock.top ${dockAfter.top} < before ${dockBefore.top})",
+            dockAfter.top < dockBefore.top,
+        )
+        assertTrue("recents bar should appear below the dock", recentsBounds.top >= dockAfter.bottom)
     }
 
     @Test

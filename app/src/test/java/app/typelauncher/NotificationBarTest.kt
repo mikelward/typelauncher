@@ -424,7 +424,7 @@ class NotificationBarTest {
     }
 
     @Test
-    fun notificationBarUsesKeyboardTray_whenKeyboardReservationExists() {
+    fun openingNotificationBar_pushesDockUpAndLandsAtBottom() {
         val apps = (1..12).map { index ->
             fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
         }
@@ -475,23 +475,25 @@ class NotificationBarTest {
             }
         }
         composeRule.waitForIdle()
-        val appsBefore = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val dockBefore = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
 
         state.value = state.value.copy(isNotificationBarOpen = true)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
-        val appsAfter = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        composeRule.onNodeWithTag(HOME_BOTTOM_BAR_TAG).assertIsDisplayed()
         val dockAfter = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
         val barBounds = composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).getBoundsInRoot()
-        assertEquals(appsBefore, appsAfter)
-        assertEquals(dockBefore, dockAfter)
-        assertTrue("notification tray should appear below the fixed dock", barBounds.top >= dockAfter.bottom)
+        // The notification bar takes real space at the bottom, so the dock
+        // shifts up to make room and the bar sits below the dock.
+        assertTrue(
+            "opening the notification bar should push the dock up (dock.top ${dockAfter.top} < before ${dockBefore.top})",
+            dockAfter.top < dockBefore.top,
+        )
+        assertTrue("notification bar should appear below the dock", barBounds.top >= dockAfter.bottom)
     }
 
     @Test
-    fun notificationBarUsesKeyboardTray_whenReservationArrivesAfterFirstComposition() {
+    fun notificationBarShows_whenOpenedAfterFirstComposition() {
         val apps = (1..12).map { index ->
             fakeApp(name = "App%02d".format(index), packageName = "com.example.app$index")
         }
@@ -542,18 +544,18 @@ class NotificationBarTest {
         }
         composeRule.waitForIdle()
 
-        state.value = state.value.copy(
-            keyboardReservation = KeyboardReservation(bottomPx = 900),
-            isNotificationBarOpen = true,
-        )
+        state.value = state.value.copy(isNotificationBarOpen = true)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(HOME_BOTTOM_BAR_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG).assertIsDisplayed()
     }
 
     @Test
-    fun secondaryTrayStaysHiddenWhileAutoKeyboardIsExpected() {
+    fun closedBottomBar_showsNoCard() {
+        // With neither bar opened by a gesture, the bottom-bar slot collapses
+        // and no recents / notification card is composed — regardless of the
+        // auto-shown keyboard, which no longer drives the bars.
         composeRule.mainClock.autoAdvance = false
         composeRule.setContent {
             TypeLauncherTheme {
@@ -598,19 +600,15 @@ class NotificationBarTest {
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
         composeRule.mainClock.autoAdvance = true
     }
 
     @Test
-    fun secondaryTrayHidesImmediatelyWhenSwipingAwayFromHome() {
-        // Repro: keyboard is up on Home, user swipes to a sibling page. The
-        // carousel hides the IME on commit but the page doesn't ack until the
-        // 220ms slide finishes — without the carousel-transitioning gate the
-        // tray flashes in for that whole window. This test exercises the same
-        // code path with a force-shown tray (recents open) so we can assert
-        // suppression takes effect on the same frame as commit, without
-        // depending on a real IME.
+    fun bottomBarHidesWhenSwipingAwayFromHome() {
+        // The open bar belongs to Home: swiping to a sibling page clears
+        // isRecentsOpen (via onShowWidgets), so the recents card is dropped from
+        // composition immediately rather than lingering through the slide.
         val screenState = mutableStateOf(
             LauncherUiState(
                 filteredApps = emptyList(),
@@ -663,16 +661,15 @@ class NotificationBarTest {
         }
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.waitForIdle()
-        // Precondition: the tray is visible while idle on Home with recents open.
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+        // Precondition: the recents bar is visible while idle on Home.
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeLeft() }
-        // Step a couple of frames so commit is processed but the 220ms
-        // animation has not finished and the page change has not acked yet.
+        // Step a couple of frames so the page-change commit is processed.
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.mainClock.advanceTimeByFrame()
 
-        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
 
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()

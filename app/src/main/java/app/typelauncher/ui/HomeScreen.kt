@@ -364,6 +364,24 @@ internal fun HomeScreen(
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
+            // Index 3: the bottom bar (recents OR notifications, mutually
+            // exclusive). Always emitted so the measurable count is stable;
+            // both cards collapse to zero height when closed, so a closed bar
+            // lays out identically to having no bar at all. When a bar opens it
+            // takes the bottom-most slot and the search / apps / dock above it
+            // all shift up to make room — "everything moves up".
+            HomeBottomBar(
+                state = state,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onDismissRecent = onDismissRecent,
+                onDismissNotifications = onDismissNotifications,
+                onOpenNotificationSettings = onOpenNotificationSettings,
+                onSetNotificationBarOpen = onSetNotificationBarOpen,
+                onRequestNotificationAccess = onRequestNotificationAccess,
+            )
         },
     ) { measurables, constraints ->
         val spacingPx = HOME_CARD_SPACING_DP.dp.roundToPx()
@@ -379,8 +397,20 @@ internal fun HomeScreen(
             constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
         )
         val belowSearch = (constraints.maxHeight - search.height - spacingPx).coerceAtLeast(0)
+
+        // Bottom bar first: it owns the bottom-most slot, so the dock and apps
+        // list lay out against whatever it leaves. Capped — like the dock — so
+        // it can never squeeze the apps list below its minimum visible rows.
+        // Closed bars measure to zero, collapsing this back to the no-bar layout.
+        val barMaxPx = (belowSearch - appListMinPx - spacingPx).coerceAtLeast(0)
+        val bar = measurables[3].measure(
+            constraints.copy(minHeight = 0, maxHeight = barMaxPx),
+        )
+        val barSpacingPx = if (bar.height > 0) spacingPx else 0
+        val belowBar = (belowSearch - bar.height - barSpacingPx).coerceAtLeast(0)
+
         val dockMaxPx = if (isDockSlotPresent) {
-            (belowSearch - appListMinPx - spacingPx).coerceAtLeast(0)
+            (belowBar - appListMinPx - spacingPx).coerceAtLeast(0)
         } else {
             0
         }
@@ -388,7 +418,7 @@ internal fun HomeScreen(
             constraints.copy(minHeight = 0, maxHeight = dockMaxPx),
         )
         val dockSpacingPx = if (dock.height > 0) spacingPx else 0
-        val appHeight = (belowSearch - dock.height - dockSpacingPx).coerceAtLeast(0)
+        val appHeight = (belowBar - dock.height - dockSpacingPx).coerceAtLeast(0)
         val apps = measurables[1].measure(
             constraints.copy(minHeight = appHeight, maxHeight = appHeight),
         )
@@ -396,16 +426,31 @@ internal fun HomeScreen(
         layout(constraints.maxWidth, constraints.maxHeight) {
             search.place(0, 0)
             apps.place(0, search.height + spacingPx)
+            var y = search.height + spacingPx + apps.height
             if (dock.height > 0) {
-                dock.place(0, search.height + spacingPx + apps.height + spacingPx)
+                dock.place(0, y + spacingPx)
+                y += spacingPx + dock.height
+            }
+            if (bar.height > 0) {
+                bar.place(0, y + spacingPx)
             }
         }
     }
 }
 
+/**
+ * The home screen's bottom bar: the recents bar (revealed by a pull-up) or the
+ * notification bar (revealed by a pull-down). The two are mutually exclusive —
+ * [LauncherUiState.isRecentsOpen] and [LauncherUiState.isNotificationBarOpen]
+ * are never both true — so at most one card is expanded at a time. Each card
+ * animates itself open/closed via its own `AnimatedVisibility`; when both are
+ * closed the bar collapses to zero height and the home layout above it fills
+ * the space.
+ */
 @Composable
-internal fun HomeKeyboardTray(
+internal fun HomeBottomBar(
     state: LauncherUiState,
+    dockIconSizeDp: Int,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -416,21 +461,14 @@ internal fun HomeKeyboardTray(
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
 ) {
-    val configuration = LocalConfiguration.current
-    // See `HomeScreen` — the persisted slot count can outlive the
-    // configuration it was set under, so coerce before sizing.
-    val dockIconCount = state.dockIconCount.coerceIn(dockSlotCountRange(configuration.screenWidthDp))
-    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
-            .testTag(HOME_KEYBOARD_TRAY_TAG),
-        verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
+            .testTag(HOME_BOTTOM_BAR_TAG),
     ) {
         NotificationBarCard(
             notifyingApps = state.notifyingApps,
-            isVisible = true,
+            isVisible = state.isNotificationBarOpen,
             hasNotificationAccess = state.hasNotificationAccess,
             dockIconSizeDp = dockIconSizeDp,
             onLaunchApp = onLaunchApp,
@@ -441,7 +479,7 @@ internal fun HomeKeyboardTray(
         )
         RecentsCard(
             recentApps = state.recentApps,
-            isVisible = true,
+            isVisible = state.isRecentsOpen,
             dockIconSizeDp = dockIconSizeDp,
             onLaunchApp = onLaunchApp,
             onOpenAppInfo = onOpenAppInfo,

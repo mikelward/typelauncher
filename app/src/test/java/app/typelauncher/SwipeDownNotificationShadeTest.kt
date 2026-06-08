@@ -13,7 +13,7 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -237,7 +237,10 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun swipingDownOnHomeWithNotificationBarClosed_hidesKeyboard() {
+    fun swipingDownToOpenNotificationBar_doesNotHideKeyboard() {
+        // The notification bar takes its own space at the bottom and stacks
+        // above the keyboard rather than replacing it, so opening it must not
+        // dismiss the IME.
         var hideCalled = false
         val fakeKeyboard = object : SoftwareKeyboardController {
             override fun show() {}
@@ -289,7 +292,64 @@ class SwipeDownNotificationShadeTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
-        assertTrue("keyboard hide was called when notification bar opened", hideCalled)
+        assertFalse("opening the notification bar must not hide the keyboard", hideCalled)
+    }
+
+    @Test
+    fun swipingDownOnHomeWithRecentsOpen_closesRecents() {
+        var recentsTarget: Boolean? = null
+        var notificationBarOpened: Boolean? = null
+        var swipeDownCount = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        isRecentsOpen = true,
+                    ),
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    onSetRecentsOpen = { recentsTarget = it },
+                    onSetNotificationBarOpen = { notificationBarOpened = it },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                    onSwipeDown = { swipeDownCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        // Opposite-direction gesture hides the open bar; recents does not fall
+        // through to the system shade.
+        assertEquals(false, recentsTarget)
+        assertNull(notificationBarOpened)
+        assertEquals(0, swipeDownCount)
     }
 
     @Test
