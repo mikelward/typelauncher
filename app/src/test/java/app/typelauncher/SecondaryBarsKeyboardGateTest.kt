@@ -85,4 +85,57 @@ class SecondaryBarsKeyboardGateTest {
             ),
         )
     }
+
+    @Test
+    fun reArmedGeneration_isWaitingForKeyboard() {
+        // The regression: returning to the launcher bumps the generation past the
+        // last resolved one. The wait must turn back on so the tray stays hidden
+        // until the re-shown keyboard appears, instead of flashing into the slot.
+        assertTrue(
+            isWaitingForAutoKeyboard(
+                secondaryBarsRouteToKeyboardTray = true,
+                isKeyboardAutoShown = true,
+                resolvedGeneration = 0,
+                currentGeneration = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun resolvedGenerationCaughtUp_isNotWaiting() {
+        // Keyboard seen (or timed out) for the current generation — the tray is free
+        // to fill the slot once the user dismisses the keyboard.
+        assertFalse(
+            isWaitingForAutoKeyboard(
+                secondaryBarsRouteToKeyboardTray = true,
+                isKeyboardAutoShown = true,
+                resolvedGeneration = 1,
+                currentGeneration = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun autoShowOff_isNotWaiting() {
+        assertFalse(
+            isWaitingForAutoKeyboard(
+                secondaryBarsRouteToKeyboardTray = true,
+                isKeyboardAutoShown = false,
+                resolvedGeneration = 0,
+                currentGeneration = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun trayNotRoutedToKeyboardSlot_isNotWaiting() {
+        assertFalse(
+            isWaitingForAutoKeyboard(
+                secondaryBarsRouteToKeyboardTray = false,
+                isKeyboardAutoShown = true,
+                resolvedGeneration = 0,
+                currentGeneration = 1,
+            ),
+        )
+    }
 }
