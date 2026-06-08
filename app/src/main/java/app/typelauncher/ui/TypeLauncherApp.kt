@@ -509,24 +509,11 @@ internal fun TypeLauncherApp(
             state.isKeyboardAutoShown &&
             entryKeyboardBottomPx > navBottomPx
         val shouldUseTypingGeometry = stableTypingGeometryAvailable
-        val keyboardReserveSource: String
         val keyboardBottomPx = when {
-            shouldUseTypingGeometry -> {
-                keyboardReserveSource = "typingCache"
-                entryKeyboardBottomPx
-            }
-            imeTargetBottomPx > navBottomPx -> {
-                keyboardReserveSource = "target"
-                imeTargetBottomPx
-            }
-            imeVisible -> {
-                keyboardReserveSource = "animatedIme"
-                imeBottomPx
-            }
-            else -> {
-                keyboardReserveSource = "none"
-                0
-            }
+            shouldUseTypingGeometry -> entryKeyboardBottomPx
+            imeTargetBottomPx > navBottomPx -> imeTargetBottomPx
+            imeVisible -> imeBottomPx
+            else -> 0
         }
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
@@ -594,51 +581,6 @@ internal fun TypeLauncherApp(
             keyboardSeenThisHomePresence = keyboardSeenThisHomePresence,
             isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
         )
-        // Diagnostic: log the secondary-bars decision and every input whenever
-        // any of them changes, so a captured trace shows exactly which condition
-        // let the tray render on a flashing frame. Correlate with the
-        // MainActivity lifecycle callbacks.
-        LaunchedEffect(
-            secondaryBarsVisible,
-            routeSecondaryBarsToKeyboardTray,
-            state.destination,
-            keyboardShowingOrAnimatingIn,
-            isCarouselTransitioning,
-            keyboardSeenThisHomePresence,
-            state.isRecentsOpen,
-            state.isNotificationBarOpen,
-            imeVisible,
-            imeTargetBottomPx,
-            navBottomPx,
-        ) {
-            LauncherDebugLog.event(
-                "SecondaryBars visible=$secondaryBarsVisible " +
-                    "route=$routeSecondaryBarsToKeyboardTray " +
-                    "home=${state.destination is LauncherDestination.Home} " +
-                    "kbdShowingOrAnimating=$keyboardShowingOrAnimatingIn " +
-                    "carouselTransitioning=$isCarouselTransitioning " +
-                    "keyboardSeen=$keyboardSeenThisHomePresence forcedOpen=${state.isRecentsOpen || state.isNotificationBarOpen} " +
-                    "autoShown=${state.isKeyboardAutoShown} " +
-                    "imeVisible=$imeVisible imeTargetBottomPx=$imeTargetBottomPx navBottomPx=$navBottomPx " +
-                    "destination=${state.destination}",
-            )
-        }
-        LaunchedEffect(
-            state.destination,
-            keyboardReserveSource,
-            keyboardReservationPx,
-            imeVisible,
-            imeBottomPx,
-            imeTargetBottomPx,
-            entryKeyboardBottomPx,
-            navBottomPx,
-        ) {
-            LauncherDebugLog.event(
-                "KeyboardReservation destination=${state.destination} source=$keyboardReserveSource " +
-                    "reservePx=$keyboardReservationPx imeVisible=$imeVisible imeBottomPx=$imeBottomPx " +
-                    "imeTargetBottomPx=$imeTargetBottomPx entryKeyboardBottomPx=$entryKeyboardBottomPx navBottomPx=$navBottomPx",
-            )
-        }
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
