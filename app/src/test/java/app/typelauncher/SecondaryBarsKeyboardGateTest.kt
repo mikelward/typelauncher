@@ -148,6 +148,7 @@ class SecondaryBarsKeyboardGateTest {
                 isKeyboardShowingOrAnimatingIn = false,
                 isCarouselTransitioning = false,
                 isWaitingForAutoKeyboard = false,
+                isForcedOpen = false,
             ),
         )
     }
@@ -161,15 +162,15 @@ class SecondaryBarsKeyboardGateTest {
                 isKeyboardShowingOrAnimatingIn = true,
                 isCarouselTransitioning = false,
                 isWaitingForAutoKeyboard = false,
+                isForcedOpen = false,
             ),
         )
     }
 
     @Test
     fun secondaryBarsHidden_whileWaitingForAutoKeyboard() {
-        // A forced-open tray state must not override the auto-keyboard wait; the
-        // keyboard owns this slot from the resumed frame until it appears (or the
-        // wait times out).
+        // Without an explicit tray open, the keyboard owns this slot from the
+        // resumed frame until it appears (or the wait times out).
         assertFalse(
             areSecondaryBarsVisible(
                 secondaryBarsRouteToKeyboardTray = true,
@@ -177,7 +178,41 @@ class SecondaryBarsKeyboardGateTest {
                 isKeyboardShowingOrAnimatingIn = false,
                 isCarouselTransitioning = false,
                 isWaitingForAutoKeyboard = true,
+                isForcedOpen = false,
             ),
         )
     }
+
+
+    @Test
+    fun secondaryBarsHidden_whileKeyboardShowing_evenWhenForcedOpen() {
+        assertFalse(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = true,
+                isCarouselTransitioning = false,
+                isWaitingForAutoKeyboard = true,
+                isForcedOpen = true,
+            ),
+        )
+    }
+
+    @Test
+    fun secondaryBarsVisible_whileWaitingForAutoKeyboard_whenForcedOpen() {
+        // Explicit recents / notifications opens are synchronous state and must
+        // not be suppressed for the whole give-up timeout while the auto-shown
+        // keyboard wait is pending.
+        assertTrue(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                isWaitingForAutoKeyboard = true,
+                isForcedOpen = true,
+            ),
+        )
+    }
+
 }

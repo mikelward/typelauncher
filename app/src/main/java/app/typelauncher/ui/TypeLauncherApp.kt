@@ -591,6 +591,7 @@ internal fun TypeLauncherApp(
             isKeyboardShowingOrAnimatingIn = keyboardShowingOrAnimatingIn,
             isCarouselTransitioning = isCarouselTransitioning,
             isWaitingForAutoKeyboard = waitingForAutoKeyboard,
+            isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
         )
         LaunchedEffect(
             state.destination,
