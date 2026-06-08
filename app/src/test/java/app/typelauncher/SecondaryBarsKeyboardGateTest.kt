@@ -87,102 +87,67 @@ class SecondaryBarsKeyboardGateTest {
     }
 
     @Test
-    fun reArmedGeneration_isWaitingForKeyboard() {
-        // The regression: returning to the launcher bumps the generation past the
-        // last resolved one. The wait must turn back on so the tray stays hidden
-        // until the re-shown keyboard appears, instead of flashing into the slot.
-        assertTrue(
-            isWaitingForAutoKeyboard(
-                secondaryBarsRouteToKeyboardTray = true,
-                isKeyboardAutoShown = true,
-                resolvedGeneration = 0,
-                currentGeneration = 1,
-            ),
-        )
-    }
-
-    @Test
-    fun resolvedGenerationCaughtUp_isNotWaiting() {
-        // Keyboard seen (or timed out) for the current generation — the tray is free
-        // to fill the slot once the user dismisses the keyboard.
+    fun secondaryBarsHiddenByDefault_onHomeEntryBeforeKeyboardSeen() {
+        // The core requirement: with auto-show on, the tray does not render on a
+        // Home entry (cold start / resume / carousel return) until the user has
+        // had the keyboard and dismissed it. Nothing forced open, keyboard not
+        // yet seen this presence → hidden.
         assertFalse(
-            isWaitingForAutoKeyboard(
-                secondaryBarsRouteToKeyboardTray = true,
-                isKeyboardAutoShown = true,
-                resolvedGeneration = 1,
-                currentGeneration = 1,
-            ),
-        )
-    }
-
-    @Test
-    fun autoShowOff_isNotWaiting() {
-        assertFalse(
-            isWaitingForAutoKeyboard(
-                secondaryBarsRouteToKeyboardTray = true,
-                isKeyboardAutoShown = false,
-                resolvedGeneration = 0,
-                currentGeneration = 1,
-            ),
-        )
-    }
-
-    @Test
-    fun trayNotRoutedToKeyboardSlot_isNotWaiting() {
-        assertFalse(
-            isWaitingForAutoKeyboard(
-                secondaryBarsRouteToKeyboardTray = false,
-                isKeyboardAutoShown = true,
-                resolvedGeneration = 0,
-                currentGeneration = 1,
-            ),
-        )
-    }
-
-    @Test
-    fun secondaryBarsVisible_whenKeyboardGatesClear() {
-        assertTrue(
             areSecondaryBarsVisible(
                 secondaryBarsRouteToKeyboardTray = true,
                 isHomeDestination = true,
                 isKeyboardShowingOrAnimatingIn = false,
                 isCarouselTransitioning = false,
-                isWaitingForAutoKeyboard = false,
+                keyboardSeenThisHomePresence = false,
                 isForcedOpen = false,
             ),
         )
     }
 
     @Test
-    fun secondaryBarsHidden_whileKeyboardShowing() {
+    fun secondaryBarsVisible_afterKeyboardSeenAndDismissed() {
+        // User had the keyboard this Home presence and dismissed it (not showing
+        // now) → the tray fills the freed slot.
+        assertTrue(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                keyboardSeenThisHomePresence = true,
+                isForcedOpen = false,
+            ),
+        )
+    }
+
+    @Test
+    fun secondaryBarsVisible_whenForcedOpen_evenBeforeKeyboardSeen() {
+        // A drag-opened bar shows immediately, regardless of the keyboard wait.
+        assertTrue(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                keyboardSeenThisHomePresence = false,
+                isForcedOpen = true,
+            ),
+        )
+    }
+
+    @Test
+    fun secondaryBarsHidden_whileKeyboardShowing_evenAfterSeen() {
         assertFalse(
             areSecondaryBarsVisible(
                 secondaryBarsRouteToKeyboardTray = true,
                 isHomeDestination = true,
                 isKeyboardShowingOrAnimatingIn = true,
                 isCarouselTransitioning = false,
-                isWaitingForAutoKeyboard = false,
+                keyboardSeenThisHomePresence = true,
                 isForcedOpen = false,
             ),
         )
     }
-
-    @Test
-    fun secondaryBarsHidden_whileWaitingForAutoKeyboard() {
-        // Without an explicit tray open, the keyboard owns this slot from the
-        // resumed frame until it appears (or the wait times out).
-        assertFalse(
-            areSecondaryBarsVisible(
-                secondaryBarsRouteToKeyboardTray = true,
-                isHomeDestination = true,
-                isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = false,
-                isWaitingForAutoKeyboard = true,
-                isForcedOpen = false,
-            ),
-        )
-    }
-
 
     @Test
     fun secondaryBarsHidden_whileKeyboardShowing_evenWhenForcedOpen() {
@@ -192,27 +157,38 @@ class SecondaryBarsKeyboardGateTest {
                 isHomeDestination = true,
                 isKeyboardShowingOrAnimatingIn = true,
                 isCarouselTransitioning = false,
-                isWaitingForAutoKeyboard = true,
+                keyboardSeenThisHomePresence = true,
                 isForcedOpen = true,
             ),
         )
     }
 
     @Test
-    fun secondaryBarsVisible_whileWaitingForAutoKeyboard_whenForcedOpen() {
-        // Explicit recents / notifications opens are synchronous state and must
-        // not be suppressed for the whole give-up timeout while the auto-shown
-        // keyboard wait is pending.
-        assertTrue(
+    fun secondaryBarsHidden_whileCarouselTransitioning() {
+        assertFalse(
             areSecondaryBarsVisible(
                 secondaryBarsRouteToKeyboardTray = true,
                 isHomeDestination = true,
                 isKeyboardShowingOrAnimatingIn = false,
-                isCarouselTransitioning = false,
-                isWaitingForAutoKeyboard = true,
-                isForcedOpen = true,
+                isCarouselTransitioning = true,
+                keyboardSeenThisHomePresence = true,
+                isForcedOpen = false,
             ),
         )
     }
 
+    @Test
+    fun secondaryBarsHidden_whenNotRoutedToKeyboardSlot() {
+        // Auto-show off ⇒ no reserved keyboard slot ⇒ tray never renders.
+        assertFalse(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = false,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                keyboardSeenThisHomePresence = true,
+                isForcedOpen = true,
+            ),
+        )
+    }
 }
