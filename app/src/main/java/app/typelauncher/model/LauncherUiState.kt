@@ -326,6 +326,34 @@ internal fun resolveKeyboardReservation(
     return null
 }
 
+/**
+ * True when the soft keyboard is on screen *or* animating into view, so the
+ * secondary bars (recents / notifications) that live in the reserved keyboard
+ * tray must not render.
+ *
+ * `WindowInsets.isImeVisible` on its own is not enough to gate the tray:
+ * while the keyboard is growing, its visibility flag can momentarily still
+ * read `false` — most noticeably under system gesture navigation, where the
+ * insets-dispatch order leaves a frame or two in which `imeVisible == false`
+ * but the keyboard is already animating up. The tray would then render for
+ * those frames and vanish once the flag caught up, flickering the bars in as
+ * the launcher opens. `WindowInsets.imeAnimationTarget` jumps to the
+ * keyboard's full height on the first frame of the show animation, so it
+ * leads the visibility flag and closes that gap.
+ *
+ * The animation target is compared against the navigation-bar inset rather
+ * than zero because a hidden keyboard's target bottom collapses to (at most)
+ * the nav bar; only a target taller than the nav bar means a real keyboard is
+ * coming. On the way *out* the target drops back below the nav bar on the
+ * first frame of the hide animation, so the tray is free to fill the space
+ * the keyboard is vacating.
+ */
+internal fun isKeyboardShowingOrAnimatingIn(
+    imeVisible: Boolean,
+    imeTargetBottomPx: Int,
+    navBottomPx: Int,
+): Boolean = imeVisible || imeTargetBottomPx > navBottomPx
+
 // Compose can't infer stability through the transitive Drawable / Intent /
 // UserHandle references carried by `WidgetProvider` and `InstalledApp`,
 // so without this annotation `HomeScreen(state = …)` (and every child
