@@ -593,6 +593,39 @@ internal fun TypeLauncherApp(
             isWaitingForAutoKeyboard = waitingForAutoKeyboard,
             isForcedOpen = state.isRecentsOpen || state.isNotificationBarOpen,
         )
+        // Diagnostic: log the secondary-bars decision and every input whenever
+        // any of them changes, so a captured trace shows exactly which condition
+        // let the tray render on the flashing frame (e.g. waitingForAutoKeyboard
+        // false because the generation update lagged the first switched-to-home
+        // frame). Correlate with the MainActivity lifecycle callbacks.
+        LaunchedEffect(
+            secondaryBarsVisible,
+            routeSecondaryBarsToKeyboardTray,
+            state.destination,
+            keyboardShowingOrAnimatingIn,
+            isCarouselTransitioning,
+            waitingForAutoKeyboard,
+            state.isRecentsOpen,
+            state.isNotificationBarOpen,
+            state.autoKeyboardWaitGeneration,
+            resolvedAutoKeyboardGeneration,
+            imeVisible,
+            imeTargetBottomPx,
+            navBottomPx,
+        ) {
+            LauncherDebugLog.event(
+                "SecondaryBars visible=$secondaryBarsVisible " +
+                    "route=$routeSecondaryBarsToKeyboardTray " +
+                    "home=${state.destination is LauncherDestination.Home} " +
+                    "kbdShowingOrAnimating=$keyboardShowingOrAnimatingIn " +
+                    "carouselTransitioning=$isCarouselTransitioning " +
+                    "waiting=$waitingForAutoKeyboard forcedOpen=${state.isRecentsOpen || state.isNotificationBarOpen} " +
+                    "autoShown=${state.isKeyboardAutoShown} " +
+                    "gen=${state.autoKeyboardWaitGeneration} resolvedGen=$resolvedAutoKeyboardGeneration " +
+                    "imeVisible=$imeVisible imeTargetBottomPx=$imeTargetBottomPx navBottomPx=$navBottomPx " +
+                    "destination=${state.destination}",
+            )
+        }
         LaunchedEffect(
             state.destination,
             keyboardReserveSource,
