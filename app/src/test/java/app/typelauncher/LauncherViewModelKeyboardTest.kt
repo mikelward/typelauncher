@@ -72,6 +72,22 @@ class LauncherViewModelKeyboardTest {
         requests.cancel()
     }
 
+    @Test
+    fun requestShowKeyboard_closesOpenSecondaryTray() {
+        val viewModel = newViewModel()
+        viewModel.setRecentsOpen(true)
+        viewModel.setNotificationBarOpen(true)
+
+        viewModel.requestShowKeyboard()
+        idle()
+
+        // The keyboard owns the reserved slot, so requesting it must close a
+        // user-opened tray immediately rather than letting it linger over the
+        // keyboard's grow.
+        assertEquals(false, viewModel.uiState.value.isRecentsOpen)
+        assertEquals(false, viewModel.uiState.value.isNotificationBarOpen)
+    }
+
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
