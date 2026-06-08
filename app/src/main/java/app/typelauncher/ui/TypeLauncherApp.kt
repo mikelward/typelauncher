@@ -556,9 +556,19 @@ internal fun TypeLauncherApp(
         // would render for the duration of the carousel animation, then vanish
         // once the page change dispatches — visible as a 220ms jank.
         var isCarouselTransitioning by remember { mutableStateOf(false) }
+        // Gate on the animation target, not just `imeVisible`: while the
+        // keyboard grows the visibility flag can lag a frame or two behind the
+        // animation (worst under gesture nav), and rendering the tray for those
+        // frames flickers the recents / notifications bars in as the launcher
+        // opens. See `isKeyboardShowingOrAnimatingIn`.
+        val keyboardShowingOrAnimatingIn = isKeyboardShowingOrAnimatingIn(
+            imeVisible = imeVisible,
+            imeTargetBottomPx = imeTargetBottomPx,
+            navBottomPx = navBottomPx,
+        )
         val secondaryBarsVisible = routeSecondaryBarsToKeyboardTray &&
             state.destination is LauncherDestination.Home &&
-            !imeVisible &&
+            !keyboardShowingOrAnimatingIn &&
             !isCarouselTransitioning &&
             (!waitingForAutoKeyboard || forceShowSecondaryBars)
         LaunchedEffect(
