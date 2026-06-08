@@ -739,7 +739,13 @@ internal class LauncherViewModel(
             !state.isAddingWidget &&
             state.isKeyboardAutoShown
         ) {
-            _uiState.update { it.copy(autoKeyboardWaitGeneration = it.autoKeyboardWaitGeneration + 1) }
+            _uiState.update {
+                it.copy(
+                    isRecentsOpen = false,
+                    isNotificationBarOpen = false,
+                    autoKeyboardWaitGeneration = it.autoKeyboardWaitGeneration + 1,
+                )
+            }
             LauncherDebugLog.event("reArmAutoKeyboardWaitOnResume generation bumped")
         }
     }

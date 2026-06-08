@@ -138,4 +138,62 @@ class SecondaryBarsKeyboardGateTest {
             ),
         )
     }
+
+    @Test
+    fun secondaryBarsVisible_whenKeyboardGatesClear() {
+        assertTrue(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                isWaitingForAutoKeyboard = false,
+                isSecondaryTrayForcedOpen = false,
+            ),
+        )
+    }
+
+    @Test
+    fun secondaryBarsHidden_whileKeyboardShowing() {
+        assertFalse(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = true,
+                isCarouselTransitioning = false,
+                isWaitingForAutoKeyboard = false,
+                isSecondaryTrayForcedOpen = true,
+            ),
+        )
+    }
+
+    @Test
+    fun secondaryBarsHidden_whileWaitingForAutoKeyboardWithoutForcedOpenState() {
+        assertFalse(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                isWaitingForAutoKeyboard = true,
+                isSecondaryTrayForcedOpen = false,
+            ),
+        )
+    }
+
+    @Test
+    fun secondaryBarsVisible_whileWaitingForAutoKeyboardWithForcedOpenState() {
+        // Explicit tray opens and tests that compose Home with a forced tray
+        // state should not wait for the hardware-keyboard give-up timeout.
+        assertTrue(
+            areSecondaryBarsVisible(
+                secondaryBarsRouteToKeyboardTray = true,
+                isHomeDestination = true,
+                isKeyboardShowingOrAnimatingIn = false,
+                isCarouselTransitioning = false,
+                isWaitingForAutoKeyboard = true,
+                isSecondaryTrayForcedOpen = true,
+            ),
+        )
+    }
 }

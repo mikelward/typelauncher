@@ -569,7 +569,6 @@ internal fun TypeLauncherApp(
             resolvedGeneration = resolvedAutoKeyboardGeneration,
             currentGeneration = state.autoKeyboardWaitGeneration,
         )
-        val forceShowSecondaryBars = state.isNotificationBarOpen || state.isRecentsOpen
         // While the carousel is animating away from Home (or back into it), the
         // soft keyboard has already been asked to hide but `state.destination`
         // is still `Home` until the animation acks. Without this gate the tray
@@ -586,11 +585,15 @@ internal fun TypeLauncherApp(
             imeTargetBottomPx = imeTargetBottomPx,
             navBottomPx = navBottomPx,
         )
-        val secondaryBarsVisible = routeSecondaryBarsToKeyboardTray &&
-            state.destination is LauncherDestination.Home &&
-            !keyboardShowingOrAnimatingIn &&
-            !isCarouselTransitioning &&
-            (!waitingForAutoKeyboard || forceShowSecondaryBars)
+        val forceShowSecondaryBars = state.isNotificationBarOpen || state.isRecentsOpen
+        val secondaryBarsVisible = areSecondaryBarsVisible(
+            secondaryBarsRouteToKeyboardTray = routeSecondaryBarsToKeyboardTray,
+            isHomeDestination = state.destination is LauncherDestination.Home,
+            isKeyboardShowingOrAnimatingIn = keyboardShowingOrAnimatingIn,
+            isCarouselTransitioning = isCarouselTransitioning,
+            isWaitingForAutoKeyboard = waitingForAutoKeyboard,
+            isSecondaryTrayForcedOpen = forceShowSecondaryBars,
+        )
         LaunchedEffect(
             state.destination,
             keyboardReserveSource,
