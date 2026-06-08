@@ -672,6 +672,13 @@ internal class LauncherViewModel(
     }
 
     fun requestShowKeyboard() {
+        // The soft keyboard owns the reserved slot, so an explicit request to
+        // show it closes any user-opened tray (recents / notifications) right
+        // away — otherwise the force-shown bar lingers over the keyboard's grow
+        // for the frame or two before its insets register. The auto-show-on-
+        // resume path already clears these via returnToLauncherHome(); this also
+        // covers a pull-up that requests the keyboard straight from an open tray.
+        _uiState.update { it.copy(isRecentsOpen = false, isNotificationBarOpen = false) }
         val emitted = _keyboardShowRequests.tryEmit(Unit)
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
     }

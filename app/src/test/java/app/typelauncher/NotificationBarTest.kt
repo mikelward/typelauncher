@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -598,6 +599,74 @@ class NotificationBarTest {
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.waitForIdle()
 
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
+        composeRule.mainClock.autoAdvance = true
+    }
+
+    @Test
+    fun secondaryTrayReHidesWhenKeyboardIsReRequested() {
+        // Returning to the launcher (press Home → window refocus) re-requests
+        // the auto-shown keyboard but does not re-key the tray's "waiting for
+        // the keyboard" state, because `LauncherDestination.Home` is a stable
+        // object. Without re-arming on the show request, the tray that was
+        // resting in the freed slot would stay put and flash over the re-shown
+        // keyboard's grow. Robolectric never makes the IME visible, so the
+        // give-up timeout stands in for "keyboard gone / slot free": after it
+        // the tray shows, and a fresh show request must hide it again.
+        val showRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = LauncherUiState(
+                        filteredApps = emptyList(),
+                        recentApps = listOf(fakeApp(name = "Mail", packageName = "com.example.mail")),
+                        keyboardReservation = KeyboardReservation(bottomPx = 900),
+                        isKeyboardAutoShown = true,
+                    ),
+                    keyboardShowRequests = showRequests,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+
+        // Let the auto-keyboard wait time out so the tray fills the empty slot.
+        composeRule.mainClock.advanceTimeBy(2_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertIsDisplayed()
+
+        // A fresh show request re-arms the wait; one frame is far short of the
+        // timeout, so the tray stays hidden waiting for the re-shown keyboard.
+        showRequests.tryEmit(Unit)
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag(HOME_KEYBOARD_TRAY_TAG).assertDoesNotExist()
         composeRule.mainClock.autoAdvance = true
     }

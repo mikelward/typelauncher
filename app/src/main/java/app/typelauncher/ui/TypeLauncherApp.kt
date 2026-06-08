@@ -539,6 +539,29 @@ internal fun TypeLauncherApp(
                 hasSeenImeForHomeEntry = true
             }
         }
+        // Re-arm the "waiting for the auto-shown keyboard" gate every time the
+        // keyboard is (re)requested. `LauncherDestination.Home` is a stable
+        // `data object`, so returning to the launcher (press Home → window
+        // refocus → requestShowKeyboardOnHomeResume) does not re-key the
+        // remembers above: the surviving `hasSeenImeForHomeEntry` (and a fired
+        // `autoKeyboardWaitElapsed`) from the previous visit would make the tray
+        // treat the freshly-requested keyboard as "already seen" and flash into
+        // the slot for the frame or two before the re-shown keyboard starts
+        // animating — the immediate launch flicker, worst under gesture
+        // navigation. Resetting both on each show request makes the tray wait
+        // for the keyboard again, exactly as it does on a cold start. Keyed on
+        // the same reset keys as the remembers so a re-key recaptures the fresh
+        // backing state instead of writing to a stale one.
+        LaunchedEffect(state.destination, state.isSettingsOpen, state.isKeyboardAutoShown) {
+            keyboardShowRequests.collect {
+                hasSeenImeForHomeEntry = false
+                autoKeyboardWaitElapsed = false
+            }
+        }
+        // Don't wait forever: a hardware keyboard (or an IME configured not to
+        // show for physical input) never makes the soft IME visible, so
+        // `hasSeenImeForHomeEntry` would never flip. After the timeout the tray
+        // is allowed to fill the slot the absent keyboard left empty.
         LaunchedEffect(routeSecondaryBarsToKeyboardTray, hasSeenImeForHomeEntry, autoKeyboardWaitElapsed) {
             if (routeSecondaryBarsToKeyboardTray && !hasSeenImeForHomeEntry && !autoKeyboardWaitElapsed) {
                 delay(HOME_READY_IME_TIMEOUT_MS)
