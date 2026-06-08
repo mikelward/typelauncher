@@ -212,6 +212,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         LauncherDebugLog.activityCallback(this, "MainActivity.onResume")
+        // Re-arm the auto-keyboard wait before the resumed frame is drawn, so
+        // returning to the launcher (e.g. swipe-up-to-home from another app)
+        // keeps the secondary tray hidden until the keyboard re-shows rather than
+        // flashing it into the slot on the stale "keyboard already seen" latch.
+        viewModel.reArmAutoKeyboardWaitOnResume()
         viewModel.refreshPermissionDrivenUi()
         checkPlayUpdate()
     }

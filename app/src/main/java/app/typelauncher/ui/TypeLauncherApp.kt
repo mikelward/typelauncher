@@ -528,50 +528,47 @@ internal fun TypeLauncherApp(
         val keyboardReservationPx = max(keyboardBottomPx - navBottomPx, 0)
         val keyboardReservationDp = with(density) { keyboardReservationPx.toDp() }
         val routeSecondaryBarsToKeyboardTray = stableTypingGeometryAvailable && keyboardReservationPx > 0
-        var hasSeenImeForHomeEntry by remember(state.destination, state.isSettingsOpen, state.isKeyboardAutoShown) {
-            mutableStateOf(!state.isKeyboardAutoShown)
-        }
-        var autoKeyboardWaitElapsed by remember(state.destination, state.isSettingsOpen, state.isKeyboardAutoShown) {
-            mutableStateOf(!state.isKeyboardAutoShown)
-        }
-        LaunchedEffect(routeSecondaryBarsToKeyboardTray, imeVisible) {
+        // The auto-shown keyboard owns the reserved slot, so the secondary tray
+        // stays hidden until that keyboard has been seen (or a give-up timeout
+        // elapses for a hardware keyboard / IME that never shows). Resolution is
+        // tracked as the generation the wait was last satisfied for, compared against
+        // `state.autoKeyboardWaitGeneration`: `waitingForAutoKeyboard` is a pure
+        // function of state, so a fresh generation re-arms the wait *synchronously* in
+        // the same recomposition rather than through a re-keyed latch (which
+        // proved too clock-sensitive to drive reliably). `LauncherDestination`
+        // `.Home` is a stable object, so swiping up from another app back to the
+        // launcher would otherwise carry a stale "already resolved" generation into
+        // the first resumed frame and flash the tray into the slot before the
+        // re-shown keyboard animates. The ViewModel bumps the generation from
+        // MainActivity.onResume(), showHome() (carousel return) and
+        // requestShowKeyboard() (pull-up) before the resumed frame is drawn.
+        var resolvedAutoKeyboardGeneration by remember { mutableStateOf(-1) }
+        // Resolve the wait the moment the IME is actually seen for the current
+        // generation. Keyed on the generation so a re-arm re-evaluates against an IME that
+        // is already on screen, not just on the next `imeVisible` edge.
+        LaunchedEffect(routeSecondaryBarsToKeyboardTray, imeVisible, state.autoKeyboardWaitGeneration) {
             if (routeSecondaryBarsToKeyboardTray && imeVisible) {
-                hasSeenImeForHomeEntry = true
-            }
-        }
-        // Re-arm the "waiting for the auto-shown keyboard" gate every time the
-        // keyboard is (re)requested. `LauncherDestination.Home` is a stable
-        // `data object`, so returning to the launcher (press Home → window
-        // refocus → requestShowKeyboardOnHomeResume) does not re-key the
-        // remembers above: the surviving `hasSeenImeForHomeEntry` (and a fired
-        // `autoKeyboardWaitElapsed`) from the previous visit would make the tray
-        // treat the freshly-requested keyboard as "already seen" and flash into
-        // the slot for the frame or two before the re-shown keyboard starts
-        // animating — the immediate launch flicker, worst under gesture
-        // navigation. Resetting both on each show request makes the tray wait
-        // for the keyboard again, exactly as it does on a cold start. Keyed on
-        // the same reset keys as the remembers so a re-key recaptures the fresh
-        // backing state instead of writing to a stale one.
-        LaunchedEffect(state.destination, state.isSettingsOpen, state.isKeyboardAutoShown) {
-            keyboardShowRequests.collect {
-                hasSeenImeForHomeEntry = false
-                autoKeyboardWaitElapsed = false
+                resolvedAutoKeyboardGeneration = state.autoKeyboardWaitGeneration
             }
         }
         // Don't wait forever: a hardware keyboard (or an IME configured not to
-        // show for physical input) never makes the soft IME visible, so
-        // `hasSeenImeForHomeEntry` would never flip. After the timeout the tray
-        // is allowed to fill the slot the absent keyboard left empty.
-        LaunchedEffect(routeSecondaryBarsToKeyboardTray, hasSeenImeForHomeEntry, autoKeyboardWaitElapsed) {
-            if (routeSecondaryBarsToKeyboardTray && !hasSeenImeForHomeEntry && !autoKeyboardWaitElapsed) {
+        // show for physical input) never makes the soft IME visible. Keyed on
+        // the generation so each re-arm restarts the give-up countdown from scratch
+        // instead of letting a stale deadline fire and flash the tray back.
+        LaunchedEffect(routeSecondaryBarsToKeyboardTray, state.autoKeyboardWaitGeneration, resolvedAutoKeyboardGeneration) {
+            if (routeSecondaryBarsToKeyboardTray && resolvedAutoKeyboardGeneration < state.autoKeyboardWaitGeneration) {
                 delay(HOME_READY_IME_TIMEOUT_MS)
-                autoKeyboardWaitElapsed = true
+                if (resolvedAutoKeyboardGeneration < state.autoKeyboardWaitGeneration) {
+                    resolvedAutoKeyboardGeneration = state.autoKeyboardWaitGeneration
+                }
             }
         }
-        val waitingForAutoKeyboard = routeSecondaryBarsToKeyboardTray &&
-            state.isKeyboardAutoShown &&
-            !hasSeenImeForHomeEntry &&
-            !autoKeyboardWaitElapsed
+        val waitingForAutoKeyboard = isWaitingForAutoKeyboard(
+            secondaryBarsRouteToKeyboardTray = routeSecondaryBarsToKeyboardTray,
+            isKeyboardAutoShown = state.isKeyboardAutoShown,
+            resolvedGeneration = resolvedAutoKeyboardGeneration,
+            currentGeneration = state.autoKeyboardWaitGeneration,
+        )
         val forceShowSecondaryBars = state.isNotificationBarOpen || state.isRecentsOpen
         // While the carousel is animating away from Home (or back into it), the
         // soft keyboard has already been asked to hide but `state.destination`

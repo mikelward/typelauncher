@@ -678,7 +678,15 @@ internal class LauncherViewModel(
         // for the frame or two before its insets register. The auto-show-on-
         // resume path already clears these via returnToLauncherHome(); this also
         // covers a pull-up that requests the keyboard straight from an open tray.
-        _uiState.update { it.copy(isRecentsOpen = false, isNotificationBarOpen = false) }
+        // Bumping the generation re-arms Home's "waiting for the auto-shown keyboard"
+        // latches so the tray waits for the keyboard instead of flashing in.
+        _uiState.update {
+            it.copy(
+                isRecentsOpen = false,
+                isNotificationBarOpen = false,
+                autoKeyboardWaitGeneration = it.autoKeyboardWaitGeneration + 1,
+            )
+        }
         val emitted = _keyboardShowRequests.tryEmit(Unit)
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
     }
@@ -710,6 +718,29 @@ internal class LauncherViewModel(
                     "settings=${state.isSettingsOpen} addingWidget=${state.isAddingWidget} " +
                     "autoShown=${state.isKeyboardAutoShown}",
             )
+        }
+    }
+
+    /**
+     * Re-arms Home's "waiting for the auto-shown keyboard" gate when the
+     * launcher is resumed to Home, so the secondary tray waits for the re-shown
+     * keyboard instead of flashing in on the first resumed frame (e.g. swiping
+     * up from another app). Driven from `MainActivity.onResume()` — an actual
+     * foreground transition — rather than `returnToLauncherHome()`: a launcher-
+     * entry intent delivered while the activity is already focused (re-selecting
+     * Home while on Home) is not a resume, so it bumps no generation and the tray is
+     * not blanked for the timeout when no keyboard is actually re-shown.
+     */
+    fun reArmAutoKeyboardWaitOnResume() {
+        val state = _uiState.value
+        if (
+            state.destination is LauncherDestination.Home &&
+            !state.isSettingsOpen &&
+            !state.isAddingWidget &&
+            state.isKeyboardAutoShown
+        ) {
+            _uiState.update { it.copy(autoKeyboardWaitGeneration = it.autoKeyboardWaitGeneration + 1) }
+            LauncherDebugLog.event("reArmAutoKeyboardWaitOnResume generation bumped")
         }
     }
 
@@ -761,13 +792,32 @@ internal class LauncherViewModel(
     }
 
     fun showHome() {
-        _uiState.update { it.copy(destination = LauncherDestination.Home) }
+        _uiState.update {
+            if (it.destination is LauncherDestination.Home) {
+                it
+            } else {
+                // Returning to Home (e.g. carousel swipe-back) re-shows the
+                // auto keyboard, so re-arm the tray's wait — keyed off an actual
+                // transition so settling on Home doesn't bump it repeatedly.
+                it.copy(
+                    destination = LauncherDestination.Home,
+                    autoKeyboardWaitGeneration = it.autoKeyboardWaitGeneration + 1,
+                )
+            }
+        }
         logState("showHome")
     }
 
     fun returnToLauncherHome() {
         pendingWidgetPlacement = null
         _uiState.update {
+            // A launcher-entry intent delivered while the launcher is already
+            // focused on Widgets/Agenda fires no onResume/onWindowFocusChanged,
+            // so re-arm the tray's wait here when it actually moves to Home (the
+            // keyboard auto-shows on that transition). An already-on-Home intent
+            // does not bump, so re-selecting Home while on Home can't blank the
+            // tray.
+            val enteringHome = it.destination !is LauncherDestination.Home
             it.copy(
                 destination = LauncherDestination.Home,
                 isSettingsOpen = false,
@@ -775,6 +825,11 @@ internal class LauncherViewModel(
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
                 isNotificationBarOpen = false,
+                autoKeyboardWaitGeneration = if (enteringHome) {
+                    it.autoKeyboardWaitGeneration + 1
+                } else {
+                    it.autoKeyboardWaitGeneration
+                },
             )
         }
         logState("returnToLauncherHome")

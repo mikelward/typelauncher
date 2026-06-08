@@ -73,19 +73,102 @@ class LauncherViewModelKeyboardTest {
     }
 
     @Test
-    fun requestShowKeyboard_closesOpenSecondaryTray() {
+    fun requestShowKeyboard_closesOpenSecondaryTrayAndReArmsWait() {
         val viewModel = newViewModel()
         viewModel.setRecentsOpen(true)
         viewModel.setNotificationBarOpen(true)
+        val generationBefore = viewModel.uiState.value.autoKeyboardWaitGeneration
 
         viewModel.requestShowKeyboard()
         idle()
 
         // The keyboard owns the reserved slot, so requesting it must close a
         // user-opened tray immediately rather than letting it linger over the
-        // keyboard's grow.
+        // keyboard's grow, and bump the generation so Home re-arms its auto-keyboard
+        // wait and the tray does not flash in before the keyboard re-shows.
         assertEquals(false, viewModel.uiState.value.isRecentsOpen)
         assertEquals(false, viewModel.uiState.value.isNotificationBarOpen)
+        assertEquals(generationBefore + 1, viewModel.uiState.value.autoKeyboardWaitGeneration)
+    }
+
+    @Test
+    fun reArmAutoKeyboardWaitOnResume_bumpsGenerationOnHome() {
+        val viewModel = newViewModel()
+        val generationBefore = viewModel.uiState.value.autoKeyboardWaitGeneration
+
+        viewModel.reArmAutoKeyboardWaitOnResume()
+        idle()
+
+        // Resuming to Home (e.g. swipe-up-to-home) re-arms the wait synchronously
+        // so the tray does not flash on the first resumed frame.
+        assertEquals(generationBefore + 1, viewModel.uiState.value.autoKeyboardWaitGeneration)
+    }
+
+    @Test
+    fun reArmAutoKeyboardWaitOnResume_skipsWhenAutoShowDisabled() {
+        val viewModel = newViewModel()
+        viewModel.setKeyboardAutoShown(false)
+        idle()
+        val generationBefore = viewModel.uiState.value.autoKeyboardWaitGeneration
+
+        viewModel.reArmAutoKeyboardWaitOnResume()
+        idle()
+
+        assertEquals(generationBefore, viewModel.uiState.value.autoKeyboardWaitGeneration)
+    }
+
+    @Test
+    fun reArmAutoKeyboardWaitOnResume_skipsOffHome() {
+        val viewModel = newViewModel()
+        viewModel.showWidgets()
+        idle()
+        val generationBefore = viewModel.uiState.value.autoKeyboardWaitGeneration
+
+        viewModel.reArmAutoKeyboardWaitOnResume()
+        idle()
+
+        // Resuming onto a non-Home page must not re-arm Home's tray wait.
+        assertEquals(generationBefore, viewModel.uiState.value.autoKeyboardWaitGeneration)
+    }
+
+    @Test
+    fun returnToLauncherHome_reArmsWaitOnlyWhenTransitioningToHome() {
+        val viewModel = newViewModel()
+        viewModel.showWidgets()
+        idle()
+        val generationOffHome = viewModel.uiState.value.autoKeyboardWaitGeneration
+
+        // A launcher-entry intent while focused off-Home moves to Home and the
+        // keyboard auto-shows, so the wait must re-arm even without onResume.
+        viewModel.returnToLauncherHome()
+        idle()
+        val generationAfterReturn = viewModel.uiState.value.autoKeyboardWaitGeneration
+        assertEquals(generationOffHome + 1, generationAfterReturn)
+
+        // Re-selecting Home while already on Home re-shows no keyboard, so it
+        // must not re-arm (and blank) the tray.
+        viewModel.returnToLauncherHome()
+        idle()
+        assertEquals(generationAfterReturn, viewModel.uiState.value.autoKeyboardWaitGeneration)
+    }
+
+    @Test
+    fun showHome_reArmsWaitOnTransitionButNotWhenAlreadyHome() {
+        val viewModel = newViewModel()
+        viewModel.showWidgets()
+        idle()
+        val generationOnWidgets = viewModel.uiState.value.autoKeyboardWaitGeneration
+
+        // Carousel swipe-back to Home re-shows the keyboard, so re-arm the wait.
+        viewModel.showHome()
+        idle()
+        val generationAfterReturn = viewModel.uiState.value.autoKeyboardWaitGeneration
+        assertEquals(generationOnWidgets + 1, generationAfterReturn)
+
+        // Settling on Home again must not keep bumping the generation.
+        viewModel.showHome()
+        idle()
+        assertEquals(generationAfterReturn, viewModel.uiState.value.autoKeyboardWaitGeneration)
     }
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
