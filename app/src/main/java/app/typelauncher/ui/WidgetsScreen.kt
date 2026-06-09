@@ -53,6 +53,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,6 +78,9 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun WidgetsScreen(
@@ -568,14 +572,22 @@ internal fun HostedWidgetCard(
     // nothing re-runs the `remember` above and the "unavailable" card stays
     // stuck until a full recomposition. While unavailable, re-query on each
     // resume; the effect leaves composition (and stops querying) as soon as the
-    // provider resolves. Bounded to unavailable cards only, so the per-resume
-    // IPC never touches healthy widgets.
+    // provider resolves, so it's bounded to unavailable cards only. The
+    // re-query is `AppWidgetManager.getAppWidgetInfo`, a Binder IPC, so it runs
+    // on a background dispatcher and publishes back to Compose rather than
+    // blocking the resume / first-frame path on the main thread.
     if (providerInfoOverride == null && resolvedProviderInfo == null && appWidgetManager != null) {
         val lifecycleOwner = LocalLifecycleOwner.current
+        val scope = rememberCoroutineScope()
         DisposableEffect(lifecycleOwner, widgetId, appWidgetManager) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    resolvedProviderInfo = appWidgetManager.getAppWidgetInfo(widgetId)
+                    scope.launch {
+                        val info = withContext(Dispatchers.IO) { appWidgetManager.getAppWidgetInfo(widgetId) }
+                        // Only publish a real resolution; staying null is a
+                        // no-op (no recomposition, observer stays armed).
+                        if (info != null) resolvedProviderInfo = info
+                    }
                 }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
