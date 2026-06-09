@@ -110,26 +110,64 @@ private fun AgendaEventsCard(
     val today = LocalDate.now(zone)
     SectionCard(modifier.testTag(AGENDA_EVENTS_TAG)) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            var lastDate: LocalDate? = null
-            events.forEach { event ->
-                val eventDate = event.localDate(zone, today)
-                if (eventDate != lastDate) {
-                    lastDate = eventDate
-                    val label = formatDayLabel(context, eventDate, today, zone)
-                    item(key = "header:$eventDate") {
-                        DayHeader(label = label, date = eventDate)
+            buildAgendaListEntries(events, zone, today).forEach { entry ->
+                when (entry) {
+                    is AgendaListEntry.DayHeader -> item(key = "header:${entry.date}") {
+                        DayHeader(
+                            label = formatDayLabel(context, entry.date, today, zone),
+                            date = entry.date,
+                        )
                     }
-                }
-                // CalendarContract.Instances returns one row per occurrence of
-                // a recurring event; eventId alone is not unique across
-                // instances, so the key also includes beginMillis to keep
-                // LazyColumn keys distinct.
-                item(key = "event:${event.eventId}:${event.beginMillis}") {
-                    AgendaEventRow(event = event, onOpenAgendaEvent = onOpenAgendaEvent)
+                    // CalendarContract.Instances returns one row per occurrence
+                    // of a recurring event; eventId alone is not unique across
+                    // instances, so the key also includes beginMillis to keep
+                    // LazyColumn keys distinct.
+                    is AgendaListEntry.EventRow -> item(
+                        key = "event:${entry.event.eventId}:${entry.event.beginMillis}",
+                    ) {
+                        AgendaEventRow(event = entry.event, onOpenAgendaEvent = onOpenAgendaEvent)
+                    }
                 }
             }
         }
     }
+}
+
+internal sealed interface AgendaListEntry {
+    data class DayHeader(val date: LocalDate) : AgendaListEntry
+    data class EventRow(val event: AgendaEvent) : AgendaListEntry
+}
+
+/**
+ * Flattens the agenda's event list into the day-header / event-row sequence
+ * the LazyColumn renders. A header is emitted whenever an event's group date
+ * differs from the previous event's, so the day-group dates must be
+ * nondecreasing in list order or the same date produces two headers — and
+ * duplicate `header:<date>` LazyColumn keys crash the agenda screen.
+ *
+ * [AgendaEventOrganizer.forNow] orders the list as all-day events first
+ * (grouped under today) followed by timed events sorted by start time, which
+ * includes still-ongoing events that began before today. Grouping those by
+ * raw start date would emit today's header, then yesterday's, then today's
+ * again — so an ongoing event's group date is clamped to today, which is
+ * also where users expect a happening-now event to appear.
+ */
+internal fun buildAgendaListEntries(
+    events: List<AgendaEvent>,
+    zone: ZoneId,
+    today: LocalDate,
+): List<AgendaListEntry> {
+    val entries = mutableListOf<AgendaListEntry>()
+    var lastDate: LocalDate? = null
+    events.forEach { event ->
+        val eventDate = event.groupDate(zone, today)
+        if (eventDate != lastDate) {
+            lastDate = eventDate
+            entries += AgendaListEntry.DayHeader(eventDate)
+        }
+        entries += AgendaListEntry.EventRow(event)
+    }
+    return entries
 }
 
 @Composable
@@ -209,8 +247,17 @@ internal fun formatTimeForRow(rawTime: String): String {
     return "$before \u2013 $after"
 }
 
-private fun AgendaEvent.localDate(zone: ZoneId, today: LocalDate): LocalDate =
-    if (isAllDay) today else Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate()
+private fun AgendaEvent.groupDate(zone: ZoneId, today: LocalDate): LocalDate =
+    if (isAllDay) {
+        today
+    } else {
+        // Clamp to today: a timed event whose start date is in the past is
+        // still on the list only because it is ongoing (the organizer drops
+        // events that already ended), and it belongs under the "Today"
+        // header. See [buildAgendaListEntries] for the duplicate-header
+        // crash the clamp also prevents.
+        maxOf(Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate(), today)
+    }
 
 private fun formatDayLabel(
     context: android.content.Context,
