@@ -143,11 +143,11 @@ internal fun List<InstalledApp>.filterByName(
             AppListSortOrder.Usage -> candidates.sortedWith(
                 dockedFirst
                     .thenByDescending { app -> launchCounts[app.id] ?: 0 }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.displayName },
+                    .thenBy(DISPLAY_NAME_ORDER) { app -> app.displayName },
             )
             AppListSortOrder.Alphabetical -> candidates.sortedWith(
                 dockedFirst
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.displayName },
+                    .thenBy(DISPLAY_NAME_ORDER) { app -> app.displayName },
             )
             else -> candidates
         }
@@ -156,9 +156,9 @@ internal fun List<InstalledApp>.filterByName(
         val withinTier = when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> dockedFirstByPair
                 .thenByDescending { (app, _) -> launchCounts[app.id] ?: 0 }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.displayName }
+                .thenBy(DISPLAY_NAME_ORDER) { (app, _) -> app.displayName }
             AppListSortOrder.Alphabetical -> dockedFirstByPair
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { (app, _) -> app.displayName }
+                .thenBy(DISPLAY_NAME_ORDER) { (app, _) -> app.displayName }
             else -> dockedFirstByPair
         }
         candidates
@@ -233,7 +233,7 @@ internal fun List<InstalledApp>.filterNotifying(notifyingPackages: Map<String, L
     return filter { app -> "${app.user.hashCode()}:${app.packageName}" in notifyingPackages }
         .sortedWith(
             compareBy<InstalledApp> { app -> notifyingPackages["${app.user.hashCode()}:${app.packageName}"] ?: 0L }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.displayName },
+                .thenBy(DISPLAY_NAME_ORDER) { app -> app.displayName },
         )
 }
 
