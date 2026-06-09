@@ -1167,7 +1167,20 @@ internal class LauncherViewModel(
      * registered for the package.
      */
     fun openNotificationSettingsFor(app: InstalledApp) {
-        LauncherDebugLog.event("openNotificationSettingsFor package=${app.packageName}")
+        LauncherDebugLog.event("openNotificationSettingsFor package=${app.packageName} work=${app.isWorkApp}")
+        // ACTION_APP_NOTIFICATION_SETTINGS carries only a package name and
+        // Settings resolves it against the current (personal) user — there is
+        // no cross-profile variant. Routing a work-profile app through it
+        // opens the *personal* copy's notification settings (or a
+        // not-installed package), so the user toggles channels that have no
+        // effect on the notifications they came from. The honest fallback is
+        // the app-info screen, which `openAppInfo` already dispatches into
+        // the correct profile via `LauncherApps.startAppDetailsActivity`;
+        // notification settings are one tap away from there.
+        if (app.isWorkApp) {
+            openAppInfo(app)
+            return
+        }
         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, app.packageName)
         try {
