@@ -79,6 +79,24 @@ class IconOverrideStoreTest {
     }
 
     @Test
+    fun indexedLookupsStayConsistentAcrossInterleavedMutations() {
+        // The store answers `iconFileFor` / `overriddenAppIds` from an
+        // in-memory index after the first directory scan (so per-keystroke
+        // lookups don't hit the disk); every mutation after the seed must
+        // keep that index in lockstep with the directory.
+        val store = IconOverrideStore(context)
+        store.setIcon("0:com.alpha/A", "1".byteInputStream(), "png")
+        assertNotNull(store.iconFileFor("0:com.alpha/A"))
+
+        store.setIcon("0:com.beta/B", "2".byteInputStream(), "svg")
+        store.clear("0:com.alpha/A")
+
+        assertNull(store.iconFileFor("0:com.alpha/A"))
+        assertEquals(setOf("0:com.beta/B"), store.overriddenAppIds())
+        assertEquals("2", store.iconFileFor("0:com.beta/B")!!.readText())
+    }
+
+    @Test
     fun setIconSurvivesProcessRestart() {
         IconOverrideStore(context).setIcon("0:com.example/Main", "BYTES".byteInputStream(), "png")
         val reloaded = IconOverrideStore(context).iconFileFor("0:com.example/Main")
