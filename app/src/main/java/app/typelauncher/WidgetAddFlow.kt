@@ -45,6 +45,22 @@ internal class WidgetAddFlow(
         pendingWidgetId = appWidgetId
     }
 
+    /**
+     * Re-seeds [pendingWidgetId] after the host activity is recreated (rotation,
+     * theme change, process death) mid-flight. The bind/configure result is
+     * re-delivered to the new activity instance, but a freshly-constructed
+     * [WidgetAddFlow] has lost the in-flight ID — without restoring it the
+     * configure-result fallback can't recover the ID when the result intent
+     * omits `EXTRA_APPWIDGET_ID`, and a startup orphan sweep would mistake the
+     * still-pending allocation for a leak and delete it. Restored from the
+     * activity's saved instance state; a no-op for [AppWidgetManager.INVALID_APPWIDGET_ID].
+     */
+    fun restorePendingWidgetId(appWidgetId: Int) {
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            pendingWidgetId = appWidgetId
+        }
+    }
+
     /** `bindAppWidgetIdIfAllowed` succeeded without the system dialog. */
     fun onBindAllowed(appWidgetId: Int) {
         configureOrAdd(appWidgetId)

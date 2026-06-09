@@ -146,6 +146,33 @@ class WidgetAddFlowTest {
     }
 
     @Test
+    fun restorePendingWidgetIdRecoversInFlightIdAcrossRecreation() {
+        // Rotation / theme change mid-configure builds a fresh WidgetAddFlow;
+        // restoring the saved pending ID lets the re-delivered configure result
+        // add the widget even when the result intent omits the extra (and keeps
+        // the startup orphan sweep from deleting the still-pending allocation).
+        val flow = flow(hasConfigureActivity = true)
+
+        flow.restorePendingWidgetId(42)
+        assertEquals(42, flow.pendingWidgetId)
+
+        flow.onConfigureResult(success = true, resultWidgetId = null)
+
+        assertEquals(listOf(42), added)
+        assertEquals(emptyList<Int>(), deleted)
+        assertEquals(AppWidgetManager.INVALID_APPWIDGET_ID, flow.pendingWidgetId)
+    }
+
+    @Test
+    fun restorePendingWidgetIdIgnoresInvalidId() {
+        val flow = flow(hasConfigureActivity = true)
+
+        flow.restorePendingWidgetId(AppWidgetManager.INVALID_APPWIDGET_ID)
+
+        assertEquals(AppWidgetManager.INVALID_APPWIDGET_ID, flow.pendingWidgetId)
+    }
+
+    @Test
     fun successfulConfigureFlowAddsAndClearsPending() {
         val flow = flow(hasConfigureActivity = true)
 
