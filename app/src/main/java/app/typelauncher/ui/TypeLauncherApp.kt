@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1493,27 +1494,41 @@ private fun SwipeNavigationBox(
             )
         }
         listOf(currentPage - 1, currentPage, currentPage + 1).forEach { page ->
-            val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount, isAgendaEnabled)
-            // Read `carouselOffsetPx` inside the graphicsLayer lambda so the
-            // per-frame drag/settle updates run at the layer phase only — if
-            // the read happened in the composable body, every frame of a
-            // swipe would recompose all three page Boxes.
-            val baseTranslationPx = (page - currentPage) * pageWidthPx
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { this.translationX = baseTranslationPx + carouselOffsetPx },
-            ) {
-                val isWidgetPage = launcherPage.screen == LauncherScreen.Widgets
-                // Widget pages bypass offscreenPagesReady entirely — they
-                // gate on widgetsWarmed instead, so the AndroidView factory
-                // (and its provider side effects like a weather widget's
-                // location lookup) does not run on cold start for users who
-                // never swipe to widgets. Non-widget pages keep the original
-                // first-frame gate.
-                val offscreenComposeAllowed = if (isWidgetPage) widgetsWarmed else offscreenPagesReady
-                if (page == currentPage || launcherPage == statePage || offscreenComposeAllowed) {
-                    content(launcherPage, page == currentPage)
+            // key(page) gives each virtual page a movable identity. Without
+            // it the three Boxes match positionally across recompositions,
+            // so when `currentPage` advances the slot contents shift by one
+            // and Compose rebuilds every page from scratch at settle — the
+            // page the user just swiped to (already composed and inflated in
+            // the neighbor slot during the drag) was discarded and re-created
+            // in the center slot, re-paying AppWidgetHostView inflation on
+            // every settle onto a widget page (defeating the widgetsWarmed
+            // warm-keep) and bleeding rememberLazyListState between
+            // *different* widget pages that happened to land in the same
+            // slot. With the key, a page's subtree slides between slots and
+            // only the page that left the [-1, 0, +1] window is disposed.
+            key(page) {
+                val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount, isAgendaEnabled)
+                // Read `carouselOffsetPx` inside the graphicsLayer lambda so the
+                // per-frame drag/settle updates run at the layer phase only — if
+                // the read happened in the composable body, every frame of a
+                // swipe would recompose all three page Boxes.
+                val baseTranslationPx = (page - currentPage) * pageWidthPx
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { this.translationX = baseTranslationPx + carouselOffsetPx },
+                ) {
+                    val isWidgetPage = launcherPage.screen == LauncherScreen.Widgets
+                    // Widget pages bypass offscreenPagesReady entirely — they
+                    // gate on widgetsWarmed instead, so the AndroidView factory
+                    // (and its provider side effects like a weather widget's
+                    // location lookup) does not run on cold start for users who
+                    // never swipe to widgets. Non-widget pages keep the original
+                    // first-frame gate.
+                    val offscreenComposeAllowed = if (isWidgetPage) widgetsWarmed else offscreenPagesReady
+                    if (page == currentPage || launcherPage == statePage || offscreenComposeAllowed) {
+                        content(launcherPage, page == currentPage)
+                    }
                 }
             }
         }
