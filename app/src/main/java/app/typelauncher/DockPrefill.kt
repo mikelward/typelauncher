@@ -53,8 +53,8 @@ internal val POPULAR_APP_PACKAGES = listOf(
     "com.venmo",
     "com.squareup.cash",
     "com.ubercab",
-    "com.uber.eats",
-    "com.doordash.consumer",
+    "com.ubercab.eats",
+    "com.dd.doordash",
     // Finance
     "com.robinhood.android",
     "com.coinbase.android",
