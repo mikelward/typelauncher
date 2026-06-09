@@ -197,6 +197,12 @@ jobs:
         # artifact captures visual changes to the rename dialog.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.EditAppDialogScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run badge picker dialog screenshot tests
+        # Renders BadgePickerDialogContent so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the badge tiles (e.g. their
+        # corner radius).
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.BadgePickerDialogScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

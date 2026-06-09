@@ -238,9 +238,9 @@ private fun FlagCell(
     Box(
         modifier = Modifier
             .size(48.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(2.dp, borderColor, RoundedCornerShape(10.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .testTag("$BADGE_PICKER_FLAG_TILE_TAG:${option.key}")
             .semantics { contentDescription = label },
