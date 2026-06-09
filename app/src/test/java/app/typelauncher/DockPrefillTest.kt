@@ -44,6 +44,22 @@ class DockPrefillTest {
     }
 
     @Test
+    fun prefillMatchesRealUberEatsAndDoorDashPackageNames() {
+        // Regression test for two prefill candidates that never matched: the
+        // list carried "com.uber.eats" and "com.doordash.consumer", but the
+        // shipped apps are com.ubercab.eats and com.dd.doordash.
+        val store = DockedAppStore(context)
+        val apps = listOf(
+            installedApp("com.ubercab.eats"),
+            installedApp("com.dd.doordash"),
+        )
+
+        prefillDock(apps, store, maxSlots = 4)
+
+        assertEquals(2, store.dockedAppIds.size)
+    }
+
+    @Test
     fun prefillRespectsMaxSlots() {
         val store = DockedAppStore(context)
         val apps = listOf(
