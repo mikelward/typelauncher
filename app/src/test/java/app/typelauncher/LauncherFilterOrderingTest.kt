@@ -472,6 +472,31 @@ class LauncherFilterOrderingTest {
         assertEquals(listOf("Cool", "Door", "Foo"), filtered.map { it.name })
     }
 
+    @Test
+    fun alphabeticalSortCollatesAccentedNamesWithTheirBaseLetter() {
+        // Regression test for String.CASE_INSENSITIVE_ORDER comparing
+        // case-folded UTF-16 code units: "École" and "Über" sorted after
+        // "Zoom" because É (U+00C9) and Ü (U+00DC) follow Z (U+005A). A
+        // locale-aware collator keeps accented letters next to their base
+        // letter.
+        val apps = listOf(
+            installedApp("Zoom"),
+            installedApp("École"),
+            installedApp("Ebay"),
+            installedApp("Über"),
+            installedApp("Uno"),
+        )
+
+        val sorted = apps.filterByName(
+            query = "",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+            sortOrder = AppListSortOrder.Alphabetical,
+        )
+
+        assertEquals(listOf("Ebay", "École", "Über", "Uno", "Zoom"), sorted.map { it.name })
+    }
+
     private fun installedApp(name: String): InstalledApp {
         val packageName = "app.${name.lowercase().replace(' ', '.')}"
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
