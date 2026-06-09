@@ -2,9 +2,11 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.test.assertIsDisplayed
@@ -16,6 +18,7 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.LayoutDirection
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
@@ -44,8 +47,20 @@ class SwipeUpRecentsTest {
             launchWithLauncherApps = false,
         )
 
-    private fun renderHome(state: LauncherUiState) {
+    private fun renderHome(
+        state: LauncherUiState,
+        layoutDirection: LayoutDirection = LayoutDirection.Ltr,
+    ) {
         composeRule.setContent {
+            CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+                renderHomeContent(state)
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    @Composable
+    private fun renderHomeContent(state: LauncherUiState) {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = state,
@@ -79,8 +94,6 @@ class SwipeUpRecentsTest {
                     onOpenAgendaEvent = {},
                 )
             }
-        }
-        composeRule.waitForIdle()
     }
 
     private class CountingKeyboardController : SoftwareKeyboardController {
@@ -658,6 +671,43 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
         val oldestAfter = composeRule.onNodeWithTag("$DOCK_RECENTS_APP_TAG:App12").getBoundsInRoot()
         assertTrue(oldestAfter.left < oldestBefore.left)
+    }
+
+    // Under RTL the start chevron renders at the *physical right*
+    // (Alignment.CenterStart is logical), but pointer coordinates are
+    // physical — the in-row tap band used to compare raw offset.x against
+    // the logical chevron flags, so the band by the visible start chevron
+    // did nothing and the band on the opposite edge paged the wrong way.
+    @Test
+    fun recentsOverflow_rtlStartChevronBandAtPhysicalRightPagesRow() {
+        val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                recentApps = recentApps,
+                isRecentsOpen = true,
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
+            ),
+            layoutDirection = LayoutDirection.Rtl,
+        )
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_START_CHEVRON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(DOCK_RECENTS_LIST_TAG).performTouchInput {
+            // The mirror image of the LTR x = 33 band tap in
+            // recentsOverflow_startChevronTapPagesRowWithCompactTarget: the
+            // start chevron's overhang band sits at the physical right edge
+            // under RTL.
+            val position = Offset(x = width - 33f, y = height / 2f)
+            down(position)
+            up()
+        }
+        composeRule.waitForIdle()
+
+        // Paging back from the pinned end reveals newer entries, so the end
+        // chevron appears.
+        composeRule.onNodeWithTag(DOCK_RECENTS_SCROLL_END_CHEVRON_TAG).assertIsDisplayed()
     }
 
     // A tap inside the row but past the chevron icon's visual overhang lands

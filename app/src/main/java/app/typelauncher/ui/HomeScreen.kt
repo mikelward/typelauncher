@@ -121,6 +121,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -140,6 +141,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.PopupProperties
@@ -1192,6 +1194,7 @@ private fun ScrollableIconRow(
         // chevron when the row content actually fits.
         val viewportPx = constraints.maxWidth
         val scope = rememberCoroutineScope()
+        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
         val pageBack: () -> Unit = {
             scope.launch { scrollState.scrollOneHorizontalPage(backward = true, viewportPx = viewportPx) }
         }
@@ -1200,12 +1203,19 @@ private fun ScrollableIconRow(
         }
         Row(
             modifier = rowModifier
-                .pointerInput(showStartChevron, showEndChevron, viewportPx) {
+                .pointerInput(showStartChevron, showEndChevron, viewportPx, isRtl) {
                     detectTapGestures { offset ->
                         val overhang = HorizontalScrollChevronIconRowOverhang.toPx()
+                        // Pointer x is physical (left origin) while the
+                        // chevron flags and Alignment.CenterStart/CenterEnd
+                        // placement are logical, so under RTL the start
+                        // chevron renders at the physical right. Compare in
+                        // logical space or the two tap bands act inverted
+                        // (and the lone end chevron's band does nothing).
+                        val logicalX = if (isRtl) size.width - offset.x else offset.x
                         when {
-                            showStartChevron && offset.x <= overhang -> pageBack()
-                            showEndChevron && offset.x >= size.width - overhang -> pageForward()
+                            showStartChevron && logicalX <= overhang -> pageBack()
+                            showEndChevron && logicalX >= size.width - overhang -> pageForward()
                         }
                     }
                 }
@@ -3588,9 +3598,9 @@ private fun SettingsPreview(
     }
 }
 
-@Composable
 // Internal (not private) so the corner-badge font-scale regression test can
 // compose the icon directly under a fontScale-overridden Density.
+@Composable
 internal fun AppIcon(
     app: InstalledApp,
     size: androidx.compose.ui.unit.Dp,
