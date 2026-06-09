@@ -103,6 +103,17 @@ internal class DockedAppStore(
             val occupant = currentPositions.entries.firstOrNull { (id, position) ->
                 id != appId && position == target
             }?.key
+            // Rebase the persisted map onto the compacted view before mutating.
+            // `previous`, `occupant`, and `target` are all coordinates in the
+            // compacted space the user sees, while the persisted map can still
+            // hold sparse rows left behind by `undock` (it only removes the
+            // entry). Writing compacted coordinates into the sparse map mixes
+            // the two spaces: a bystander still persisted at a stale row keeps
+            // that row, and because the moved/swapped apps now occupy the rows
+            // in between, the row-collapse pass in `resolvedDockPositions`
+            // can no longer repair it — the bystander is stranded on its own
+            // row and the corruption is saved. Compact-first matches `dock`.
+            dockPositions = currentPositions.toMutableMap()
             dockPositions[appId] = target
             if (occupant != null && previous != null) {
                 dockPositions[occupant] = previous
