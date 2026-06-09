@@ -141,7 +141,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
@@ -3590,7 +3589,9 @@ private fun SettingsPreview(
 }
 
 @Composable
-private fun AppIcon(
+// Internal (not private) so the corner-badge font-scale regression test can
+// compose the icon directly under a fontScale-overridden Density.
+internal fun AppIcon(
     app: InstalledApp,
     size: androidx.compose.ui.unit.Dp,
     testTag: String = APP_ICON_TAG,
@@ -3619,7 +3620,12 @@ private fun AppIcon(
         }
         appCornerBadge(app)?.let { badge ->
             val badgeDp = (size.value * APP_ICON_CORNER_BADGE_FRACTION).dp
-            val flagSp = (badgeDp.value - 2f).sp
+            // Convert through the density so the glyph stays locked to the
+            // dp-sized badge box. A bare `.sp` of the same number scales
+            // with the user's font-scale setting, so at accessibility font
+            // sizes the flag/emoji rendered up to 2x the unclipped box and
+            // spilled across the app icon.
+            val flagSp = with(LocalDensity.current) { (badgeDp - 2.dp).toSp() }
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
