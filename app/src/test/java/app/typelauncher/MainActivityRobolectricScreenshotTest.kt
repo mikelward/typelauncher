@@ -1421,6 +1421,18 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appActionsMenu_rendersRoundedMaterialSurface() {
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calc")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calculator").assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        saveScreenshot("compose_app_actions_menu_robolectric.png")
+    }
+
+    @Test
     fun appActionsMenuAppInfo_opensAndroidAppInfoForThatApp() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calendar")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").performTouchInput { longClick() }

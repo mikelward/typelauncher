@@ -76,7 +76,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1839,13 +1838,13 @@ private fun AppActionsMenu(
     // re-evaluate identity-based equality on every parent recomposition; the
     // dialog reads `app` directly from this composable's parameter.
     var editDialogVisible by remember { mutableStateOf(false) }
-    DropdownMenu(
+    LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
         properties = AppActionsMenuPopupProperties,
     ) {
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_app_info)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
             modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
@@ -1854,7 +1853,7 @@ private fun AppActionsMenu(
         )
         DropdownMenuItem(
             text = {
-                Text(
+                LauncherMenuItemText(
                     stringResource(
                         if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
                         else R.string.app_menu_dock,
@@ -1868,7 +1867,7 @@ private fun AppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_reset_rank)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_reset_rank)) },
             modifier = Modifier.testTag("$RESET_RANK_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
@@ -1876,7 +1875,7 @@ private fun AppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_edit)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_edit)) },
             modifier = Modifier.testTag("$EDIT_APP_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
@@ -1884,7 +1883,7 @@ private fun AppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_hide)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_hide)) },
             modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismiss()
@@ -2202,13 +2201,13 @@ private fun RecentAppActionsMenu(
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
 ) {
-    DropdownMenu(
+    LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissMenu,
         properties = AppActionsMenuPopupProperties,
     ) {
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_app_info)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
             modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
@@ -2217,7 +2216,7 @@ private fun RecentAppActionsMenu(
         )
         DropdownMenuItem(
             text = {
-                Text(
+                LauncherMenuItemText(
                     stringResource(
                         if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
                         else R.string.app_menu_dock,
@@ -2231,7 +2230,7 @@ private fun RecentAppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_dismiss)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_dismiss)) },
             modifier = Modifier.testTag("$DISMISS_RECENT_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
@@ -2258,13 +2257,13 @@ private fun NotifyingAppActionsMenu(
     onDismissNotifications: (InstalledApp) -> Unit,
     onOpenNotificationSettings: (InstalledApp) -> Unit,
 ) {
-    DropdownMenu(
+    LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissMenu,
         properties = AppActionsMenuPopupProperties,
     ) {
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_dismiss)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_dismiss)) },
             modifier = Modifier.testTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
@@ -2272,7 +2271,7 @@ private fun NotifyingAppActionsMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.app_menu_settings)) },
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_settings)) },
             modifier = Modifier.testTag("$NOTIFICATION_SETTINGS_ACTION_TAG:${app.displayName}"),
             onClick = {
                 onDismissMenu()
@@ -3026,13 +3025,13 @@ private fun AppListLayoutDropdown(
                 contentDescription = null,
             )
         }
-        DropdownMenu(
+        LauncherDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier.testTag(APP_LIST_LAYOUT_DROPDOWN_MENU_TAG),
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_list_layout_option_text)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_text)) },
                 modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_TEXT_TAG),
                 onClick = {
                     expanded = false
@@ -3040,7 +3039,7 @@ private fun AppListLayoutDropdown(
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_list_layout_option_icons)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icons)) },
                 modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG),
                 onClick = {
                     expanded = false
@@ -3074,13 +3073,13 @@ private fun AppListSortOrderDropdown(
                 contentDescription = null,
             )
         }
-        DropdownMenu(
+        LauncherDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier.testTag(APP_LIST_SORT_DROPDOWN_MENU_TAG),
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_list_sort_option_usage)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_usage)) },
                 modifier = Modifier.testTag(APP_LIST_SORT_OPTION_USAGE_TAG),
                 onClick = {
                     expanded = false
@@ -3088,7 +3087,7 @@ private fun AppListSortOrderDropdown(
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_list_sort_option_usage_reversed)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_usage_reversed)) },
                 modifier = Modifier.testTag(APP_LIST_SORT_OPTION_USAGE_REVERSED_TAG),
                 onClick = {
                     expanded = false
@@ -3096,7 +3095,7 @@ private fun AppListSortOrderDropdown(
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_list_sort_option_name)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_name)) },
                 modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_TAG),
                 onClick = {
                     expanded = false
@@ -3104,7 +3103,7 @@ private fun AppListSortOrderDropdown(
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_list_sort_option_name_reversed)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_name_reversed)) },
                 modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_REVERSED_TAG),
                 onClick = {
                     expanded = false
@@ -3133,14 +3132,14 @@ private fun ThemeModeDropdown(
                 contentDescription = null,
             )
         }
-        DropdownMenu(
+        LauncherDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier.testTag(THEME_MODE_DROPDOWN_MENU_TAG),
         ) {
             ThemeMode.entries.forEach { mode ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(mode.labelRes())) },
+                    text = { LauncherMenuItemText(stringResource(mode.labelRes())) },
                     modifier = Modifier.testTag(mode.optionTag()),
                     onClick = {
                         expanded = false
@@ -3188,13 +3187,13 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
                 contentDescription = stringResource(R.string.settings_overflow_button_description),
             )
         }
-        DropdownMenu(
+        LauncherDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier.testTag(SETTINGS_OVERFLOW_MENU_TAG),
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_about_action)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_about_action)) },
                 modifier = Modifier.testTag(SETTINGS_ABOUT_ACTION_TAG),
                 onClick = {
                     expanded = false
@@ -3202,7 +3201,7 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_app_info_action)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_info_action)) },
                 modifier = Modifier.testTag(SETTINGS_APP_INFO_ACTION_TAG),
                 onClick = {
                     expanded = false
@@ -3210,7 +3209,7 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
                 },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.settings_report_bug_action)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_report_bug_action)) },
                 modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
                 onClick = {
                     expanded = false

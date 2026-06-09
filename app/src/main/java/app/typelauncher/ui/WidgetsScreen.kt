@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -764,10 +763,10 @@ private fun WidgetActionsMenu(
     onStartResize: () -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    LauncherDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (showResize) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.widget_menu_resize)) },
+                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_resize)) },
                 modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
                 onClick = {
                     onDismiss()
@@ -777,7 +776,7 @@ private fun WidgetActionsMenu(
         }
         if (canMoveUp) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.widget_menu_move_up)) },
+                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_up)) },
                 modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
                 onClick = {
                     onDismiss()
@@ -787,7 +786,7 @@ private fun WidgetActionsMenu(
         }
         if (canMoveDown) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.widget_menu_move_down)) },
+                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_down)) },
                 modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
                 onClick = {
                     onDismiss()
@@ -796,7 +795,7 @@ private fun WidgetActionsMenu(
             )
         }
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.widget_menu_remove)) },
+            text = { LauncherMenuItemText(stringResource(R.string.widget_menu_remove)) },
             modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
             onClick = {
                 onDismiss()
