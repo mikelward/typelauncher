@@ -15,10 +15,14 @@ import java.io.InputStream
  *
  * The on-disk layout is the source of truth: each override is stored under
  * `filesDir/icon_overrides/<base64Url(appId)>.<extension>` and the directory
- * listing is the index. Keeping a separate SharedPreferences map alongside the
- * files would only invite drift between the two stores; since [iconFileFor] is
- * called once per app during launcher load (cheap directory scan, single-digit
- * milliseconds at expected sizes) the no-index trade-off is fine.
+ * listing seeds an in-memory index on first use. The index exists because
+ * [iconFileFor] is no longer a once-per-load call: `markVisibility` consults
+ * it for every app in every refreshed list — on the main thread, on every
+ * keystroke — so a per-call directory scan multiplied out to
+ * O(apps × dirEntries) disk reads per keystroke. One scan per process plus
+ * map updates in [setIcon] / [clear] keeps lookups allocation- and I/O-free;
+ * drift with the directory is not a concern because every mutation goes
+ * through this class.
  *
  * The [extension] in the filename is mirrored from the user's chosen file so
  * the icon loader can pick the right decoder (AndroidSVG for `.svg`, the
@@ -31,13 +35,26 @@ import java.io.InputStream
 internal class IconOverrideStore(context: Context) {
     private val directory: File = File(context.filesDir, DIRECTORY_NAME)
 
-    fun iconFileFor(appId: String): File? {
-        if (!directory.isDirectory) return null
-        val prefix = encodeId(appId) + "."
-        return directory.listFiles { file ->
-            file.isFile && file.name.startsWith(prefix) && !file.name.endsWith(TMP_SUFFIX)
-        }?.firstOrNull()
+    // appId → override file, lazily seeded from one directory scan. Guarded
+    // by `lock`: lookups run on the main thread while `setIcon` runs on the
+    // IO dispatcher.
+    private val lock = Any()
+    private var index: MutableMap<String, File>? = null
+
+    private fun index(): MutableMap<String, File> {
+        index?.let { return it }
+        val built = mutableMapOf<String, File>()
+        directory.listFiles().orEmpty().forEach { file ->
+            if (!file.isFile || file.name.endsWith(TMP_SUFFIX)) return@forEach
+            val stem = file.name.substringBeforeLast('.', missingDelimiterValue = "")
+            val id = if (stem.isEmpty()) null else decodeId(stem)
+            if (id != null) built[id] = file
+        }
+        index = built
+        return built
     }
+
+    fun iconFileFor(appId: String): File? = synchronized(lock) { index()[appId] }
 
     /**
      * Streams the contents of [source] into a new override file for [appId]
@@ -72,6 +89,7 @@ internal class IconOverrideStore(context: Context) {
                 }
                 tmp.delete()
             }
+            synchronized(lock) { index()[appId] = target }
             return target
         } catch (t: Throwable) {
             tmp.delete()
@@ -80,6 +98,7 @@ internal class IconOverrideStore(context: Context) {
     }
 
     fun clear(appId: String) {
+        synchronized(lock) { index().remove(appId) }
         if (!directory.isDirectory) return
         val prefix = encodeId(appId) + "."
         directory.listFiles { file -> file.name.startsWith(prefix) }
@@ -87,19 +106,11 @@ internal class IconOverrideStore(context: Context) {
     }
 
     /**
-     * Snapshot of every app id that currently has an override, recovered by
-     * decoding the filenames in the directory. Used by [LauncherViewModel] at
-     * cold start to mirror overrides onto the in-memory installed-app list
-     * before the first frame renders.
+     * Snapshot of every app id that currently has an override. Used by
+     * [LauncherViewModel] at cold start to mirror overrides onto the
+     * in-memory installed-app list before the first frame renders.
      */
-    fun overriddenAppIds(): Set<String> {
-        if (!directory.isDirectory) return emptySet()
-        return directory.listFiles().orEmpty().mapNotNullTo(mutableSetOf()) { file ->
-            if (!file.isFile || file.name.endsWith(TMP_SUFFIX)) return@mapNotNullTo null
-            val stem = file.name.substringBeforeLast('.', missingDelimiterValue = "")
-            if (stem.isEmpty()) null else decodeId(stem)
-        }
-    }
+    fun overriddenAppIds(): Set<String> = synchronized(lock) { index().keys.toSet() }
 
     private fun encodeId(id: String): String =
         Base64.encodeToString(id.toByteArray(Charsets.UTF_8), BASE64_FLAGS)
