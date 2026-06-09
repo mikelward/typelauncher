@@ -9,16 +9,39 @@ class WidgetAddFlowTest {
     private val added = mutableListOf<Int>()
     private val deleted = mutableListOf<Int>()
 
-    private fun flow(hasConfigureActivity: Boolean) = WidgetAddFlow(
+    private fun flow(configureLaunch: WidgetAddFlow.ConfigureLaunch) = WidgetAddFlow(
         launchConfigure = { appWidgetId ->
-            if (hasConfigureActivity) {
+            if (configureLaunch == WidgetAddFlow.ConfigureLaunch.Launched) {
                 launched += appWidgetId
             }
-            hasConfigureActivity
+            configureLaunch
         },
         addWidget = { appWidgetId -> added += appWidgetId },
         deleteWidget = { appWidgetId -> deleted += appWidgetId },
     )
+
+    private fun flow(hasConfigureActivity: Boolean) = flow(
+        if (hasConfigureActivity) {
+            WidgetAddFlow.ConfigureLaunch.Launched
+        } else {
+            WidgetAddFlow.ConfigureLaunch.NotNeeded
+        },
+    )
+
+    @Test
+    fun configureLaunchFailureDeletesBoundWidget() {
+        // The host-mediated configure launch can still fail (provider
+        // uninstalled in a race, OEM oddities); the bound ID must be freed
+        // rather than added half-configured or leaked.
+        val flow = flow(WidgetAddFlow.ConfigureLaunch.Failed)
+
+        flow.onBindStarted(42)
+        flow.onBindAllowed(42)
+
+        assertEquals(listOf(42), deleted)
+        assertEquals(emptyList<Int>(), added)
+        assertEquals(AppWidgetManager.INVALID_APPWIDGET_ID, flow.pendingWidgetId)
+    }
 
     @Test
     fun directBindWithoutConfigureAddsImmediately() {
