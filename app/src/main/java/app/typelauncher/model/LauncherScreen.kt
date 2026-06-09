@@ -139,6 +139,19 @@ internal data class LauncherPage(
         get() = widgetPageIndex.coerceAtLeast(0)
 }
 
+/**
+ * Stable composition key for a carousel destination. The carousel `key`s its
+ * page slots with this so the same destination is never composed twice (with
+ * two visible pages the -1 and +1 slots alias to one destination) and so a
+ * page's state follows the destination across slots and full wraparound
+ * loops rather than being tied to a virtual page index.
+ */
+internal fun LauncherPage.carouselContentKey(): String = when (screen) {
+    LauncherScreen.Home -> "home"
+    LauncherScreen.Agenda -> "agenda"
+    LauncherScreen.Widgets -> "widgets:$clampedWidgetPageIndex"
+}
+
 // The user-facing carousel page identity. Unlike LauncherPage (a flat
 // (screen, widgetPageIndex) pair), the sealed shape makes "Home with widget
 // page index 1" unrepresentable, so a leftover widget index can't poison
