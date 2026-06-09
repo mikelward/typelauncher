@@ -21,7 +21,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -109,6 +108,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -3650,13 +3650,25 @@ private fun disambiguatorBadge(label: String): DisambiguatorBadge? {
     }
 }
 
+// The highlight palette must follow the launcher's selected theme, not the
+// device night mode: the Settings `Theme` override is applied purely by
+// TypeLauncherTheme's color-scheme choice (Configuration.uiMode is never
+// touched), so `isSystemInDarkTheme()` would paint the light-palette
+// highlight into a forced-dark app list and vice versa. Deriving dark-ness
+// from the active scheme's background tracks whatever theme is actually
+// rendered. Internal (not private) so the theme-mismatch regression test can
+// read the resolved colors.
 @Composable
-private fun selectionHighlightColor(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF274C7A) else Color(0xFFCFE2FF)
+internal fun selectionHighlightColor(): Color =
+    if (isDarkColorScheme()) Color(0xFF274C7A) else Color(0xFFCFE2FF)
 
 @Composable
-private fun selectionHighlightOnColor(): Color =
-    if (isSystemInDarkTheme()) Color(0xFFE6EEFA) else Color(0xFF0B2A5B)
+internal fun selectionHighlightOnColor(): Color =
+    if (isDarkColorScheme()) Color(0xFFE6EEFA) else Color(0xFF0B2A5B)
+
+@Composable
+private fun isDarkColorScheme(): Boolean =
+    MaterialTheme.colorScheme.background.luminance() < 0.5f
 
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
