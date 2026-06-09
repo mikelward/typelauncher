@@ -1,5 +1,7 @@
 package app.typelauncher
 
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.UserHandle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -16,14 +18,40 @@ import android.service.notification.StatusBarNotification
  * payload. If access is revoked the system unbinds this service and the bar
  * stops updating; the next time the user grants access [onListenerConnected]
  * fires and the snapshot refreshes.
+ *
+ * Refreshes run debounced on a dedicated background thread. The listener
+ * callbacks arrive on the process main looper — the launcher's UI thread — and
+ * `activeNotifications` is a synchronous binder call that deserializes every
+ * active `StatusBarNotification` (full payloads: extras, icons, RemoteViews).
+ * Doing that inline meant one main-thread IPC per notification posted or
+ * removed *device-wide*, which during a group-chat burst or sync storm landed
+ * repeatedly while the user might be mid-scroll. The debounce additionally
+ * collapses a burst of callbacks into a single snapshot read; the bar dot
+ * appearing [NotificationSnapshotScheduler.DEBOUNCE_MS] later is imperceptible.
  */
 internal class TypeLauncherNotificationListenerService : NotificationListenerService() {
+    private var refreshThread: HandlerThread? = null
+    private var scheduler: NotificationSnapshotScheduler? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        val thread = HandlerThread("notification-snapshot").apply { start() }
+        refreshThread = thread
+        scheduler = NotificationSnapshotScheduler(Handler(thread.looper)) { refreshSnapshot() }
+    }
+
+    override fun onDestroy() {
+        scheduler = null
+        refreshThread?.quitSafely()
+        refreshThread = null
+        super.onDestroy()
+    }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         LauncherDebugLog.event("NotificationListenerService.onListenerConnected")
         NotificationDismisser.attach(this)
-        refreshSnapshot()
+        scheduler?.schedule()
     }
 
     override fun onListenerDisconnected() {
@@ -33,11 +61,11 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        refreshSnapshot()
+        scheduler?.schedule()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        refreshSnapshot()
+        scheduler?.schedule()
     }
 
     /**
@@ -109,6 +137,31 @@ internal class TypeLauncherNotificationListenerService : NotificationListenerSer
         if (notification.isOngoing) return false
         if ((notification.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY) != 0) return false
         return true
+    }
+}
+
+/**
+ * Debounces snapshot refreshes onto [handler]'s thread. Every [schedule]
+ * within a [debounceMs] window replaces the pending refresh, so a burst of
+ * posted/removed callbacks costs one `activeNotifications` binder read after
+ * the burst instead of one per callback — and none of them run on the
+ * caller's (main) thread. Extracted from the service so the coalescing and
+ * thread-hopping are unit-testable without a bound listener.
+ */
+internal class NotificationSnapshotScheduler(
+    private val handler: Handler,
+    private val debounceMs: Long = DEBOUNCE_MS,
+    private val refresh: () -> Unit,
+) {
+    private val runnable = Runnable { refresh() }
+
+    fun schedule() {
+        handler.removeCallbacks(runnable)
+        handler.postDelayed(runnable, debounceMs)
+    }
+
+    companion object {
+        const val DEBOUNCE_MS = 100L
     }
 }
 
