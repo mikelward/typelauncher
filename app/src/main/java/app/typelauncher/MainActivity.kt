@@ -24,6 +24,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -158,7 +159,7 @@ class MainActivity : ComponentActivity() {
                 this,
                 LauncherViewModel.factory(
                     app = application,
-                    workPackages = intent?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)?.toSet().orEmpty(),
+                    workPackages = testWorkPackages(intent),
                 ),
             )[LauncherViewModel::class.java]
         }
@@ -214,8 +215,24 @@ class MainActivity : ComponentActivity() {
 
     private fun searchPlaceholderSuffix(): String =
         System.getProperty(TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY)
-            ?: intent.getStringExtra(TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA)
+            ?: testIntentExtra(TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA)
             ?: BuildConfig.SEARCH_PLACEHOLDER_SUFFIX
+
+    // Test-only intent extras are honored solely in debug builds. The launcher
+    // activity is exported (it's the HOME entry point), so in a release build
+    // any installed app could fire an Intent carrying TEST_WORK_PACKAGES and
+    // make the launcher render fake work-profile state for the session. Gating
+    // on BuildConfig.DEBUG keeps the instrumentation/Robolectric seams (both run
+    // against the debug build) while closing that surface in production.
+    private fun testWorkPackages(intent: Intent?): Set<String> =
+        if (BuildConfig.DEBUG) {
+            intent?.getStringArrayExtra(TEST_WORK_PACKAGES_EXTRA)?.toSet().orEmpty()
+        } else {
+            emptySet()
+        }
+
+    private fun testIntentExtra(name: String): String? =
+        if (BuildConfig.DEBUG) intent.getStringExtra(name) else null
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -306,6 +323,13 @@ class MainActivity : ComponentActivity() {
         // host's IPC binding if we get here without an onStop (e.g. process killed in
         // foreground and then re-attached). stopListening is idempotent.
         stopListeningSafely()
+        // Each activity instance owns its own PlayUpdateChecker, so drop its
+        // install-state listener here or the AppUpdateManager would retain a
+        // dead listener (capturing this activity's ViewModel) on every
+        // recreation. Idempotent if the listener was never registered.
+        if (::playUpdateChecker.isInitialized) {
+            playUpdateChecker.unregisterInstallListener()
+        }
         super.onDestroy()
     }
 
@@ -404,6 +428,46 @@ class MainActivity : ComponentActivity() {
                 LauncherDebugLog.event(
                     "home ready before STARTED; AppWidgetHost listener will start on next onStart",
                 )
+            }
+            reconcileOrphanedWidgets()
+        }
+    }
+
+    // True once the one-shot orphaned-widget sweep has run this process, so it
+    // can't repeat if home-ready re-emits.
+    private var hasReconciledWidgets = false
+
+    /**
+     * One-shot startup sweep of widget IDs the host has allocated but the
+     * launcher no longer tracks — leaked by crashes / process death mid-add and
+     * by the historical configure-cancel bug — deleting each so its bound
+     * instance is released. Runs off the main thread (the host ID query and
+     * deletes are Binder IPCs) and after home-ready so it never competes with
+     * the cold-start app load. Deferred to here, not `onCreate`, because the
+     * persisted widget set is already published in `uiState` by then.
+     */
+    private fun reconcileOrphanedWidgets() {
+        if (hasReconciledWidgets || !::appWidgetHost.isInitialized) return
+        hasReconciledWidgets = true
+        lifecycleScope.launch(Dispatchers.IO) {
+            val allocatedIds = runCatching { appWidgetHost.appWidgetIds }.getOrElse { exception ->
+                LauncherDebugLog.warning("widget reconciliation: failed to read allocated ids", exception)
+                return@launch
+            }
+            val orphans = orphanedAllocatedWidgetIds(
+                allocatedIds = allocatedIds,
+                knownWidgetIds = viewModel.uiState.value.widgetIds,
+                pendingWidgetId = widgetAddFlow.pendingWidgetId,
+            )
+            if (orphans.isEmpty()) return@launch
+            LauncherDebugLog.event("widget reconciliation deleting ${orphans.size} orphaned ids=$orphans")
+            orphans.forEach { id ->
+                runCatching {
+                    appWidgetHost.deleteAppWidgetId(id)
+                    appWidgetHost.forgetWidgetSize(id)
+                }.onFailure { exception ->
+                    LauncherDebugLog.warning("widget reconciliation: failed to delete orphaned id=$id", exception)
+                }
             }
         }
     }
@@ -544,7 +608,14 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("requestDefaultLauncher")
         val intent = getSystemService<RoleManager>()?.createRequestRoleIntent(RoleManager.ROLE_HOME)
             ?: Intent(Settings.ACTION_HOME_SETTINGS)
-        requestDefaultLauncherLauncher.launch(intent)
+        try {
+            requestDefaultLauncherLauncher.launch(intent)
+        } catch (exception: ActivityNotFoundException) {
+            // Some OEM builds ship no activity for ROLE_HOME's request intent
+            // or for ACTION_HOME_SETTINGS — launching it unguarded crashed the
+            // launcher. Swallow the miss so the prompt just no-ops instead.
+            LauncherDebugLog.warning("requestDefaultLauncher no activity for home settings", exception)
+        }
     }
 
     private fun expandNotificationShade() {

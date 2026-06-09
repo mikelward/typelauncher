@@ -6,6 +6,7 @@ import android.os.Process
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -135,6 +136,32 @@ class AppLaunchStatsStoreRecentsTest {
 
         val reloaded = AppLaunchStatsStore(context)
         assertEquals(listOf("b"), reloaded.recentAppIds)
+    }
+
+    @Test
+    fun concurrentRecordAndRemoveKeepStateConsistent() {
+        // recordLaunch and removeRecent each do a read-modify-write of the
+        // recents list; if they don't hold the lock across the whole operation,
+        // a removeRecent that snapshots the list before a concurrent
+        // recordLaunch can write back a stale list — resurrecting a removed app
+        // or dropping a freshly recorded one, and breaking the no-duplicates /
+        // cap invariants. Hammer both from several threads and assert the list
+        // stays well-formed.
+        val store = AppLaunchStatsStore(context)
+        val threads = (0 until 8).map { worker ->
+            Thread {
+                repeat(50) { i ->
+                    store.recordLaunch("app${worker}_$i")
+                    if (i > 0) store.removeRecent("app${worker}_${i - 1}")
+                }
+            }
+        }
+        threads.forEach(Thread::start)
+        threads.forEach(Thread::join)
+
+        val recents = store.recentAppIds
+        assertEquals("recents must never contain duplicates", recents.size, recents.toSet().size)
+        assertTrue("recents must stay within the cap", recents.size <= 16)
     }
 
     @Test

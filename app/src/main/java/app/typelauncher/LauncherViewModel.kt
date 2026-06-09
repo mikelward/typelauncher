@@ -1616,12 +1616,19 @@ internal class LauncherViewModel(
             startActivity(marketIntent)
         } catch (exception: ActivityNotFoundException) {
             LauncherDebugLog.warning("openPlayStoreListing market intent unavailable", exception)
-            startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse("https://play.google.com/store/apps/details?id=${app.packageName}"),
-                ),
-            )
+            try {
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=${app.packageName}"),
+                    ),
+                )
+            } catch (browserException: ActivityNotFoundException) {
+                // No Play Store *and* no browser (stripped-down OEM / kiosk
+                // builds) — launching the web fallback unguarded crashed the
+                // launcher. Nothing more to fall back to, so just log it.
+                LauncherDebugLog.warning("openPlayStoreListing web fallback unavailable", browserException)
+            }
         }
     }
 

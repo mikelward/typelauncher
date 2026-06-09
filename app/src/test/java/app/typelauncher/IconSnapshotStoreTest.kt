@@ -127,6 +127,35 @@ class IconSnapshotStoreTest {
     }
 
     @Test
+    fun concurrentSavesLeaveAConsistentSnapshotSet() {
+        // Two rapid onStops each launch a save on Dispatchers.IO; without
+        // serialization their prune + per-file writes interleave and can leave
+        // a half-written or wrongly-pruned set on disk. Hammer the same set from
+        // many threads and assert the directory always reloads to exactly that
+        // set with intact pixels and no leftover .tmp files.
+        val store = IconSnapshotStore(context)
+        val snapshots = listOf(
+            IconSnapshotStore.Snapshot("0:app.a/.Launch", 16, solidColorBitmap(16, 16, Color.RED).asImageBitmap()),
+            IconSnapshotStore.Snapshot("0:app.b/.Launch", 16, solidColorBitmap(16, 16, Color.GREEN).asImageBitmap()),
+            IconSnapshotStore.Snapshot("0:app.c/.Launch", 16, solidColorBitmap(16, 16, Color.BLUE).asImageBitmap()),
+        )
+
+        val threads = (0 until 8).map {
+            Thread { repeat(25) { store.save(snapshots) } }
+        }
+        threads.forEach(Thread::start)
+        threads.forEach(Thread::join)
+
+        val loaded = IconSnapshotStore(context).load()
+        assertEquals(snapshots.map { it.id }.toSet(), loaded.map { it.id }.toSet())
+        loaded.forEach { assertNotNull(it.bitmap) }
+        assertTrue(
+            "no leftover .tmp files",
+            directory.listFiles().orEmpty().none { it.name.endsWith(".tmp") },
+        )
+    }
+
+    @Test
     fun roundTripsIdsContainingFilesystemSensitiveCharacters() {
         // InstalledApp.id includes a colon and a slash via ComponentName.flattenToString,
         // so the on-disk encoding has to keep the round-trip lossless.
