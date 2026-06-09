@@ -37,6 +37,11 @@ private const val APP_WIDGET_HOST_ID = 1024
 private const val PLAY_UPDATE_REQUEST_CODE = 42
 // Safe alongside ActivityResultRegistry codes, which start at 0x00010000.
 private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
+// Persists WidgetAddFlow.pendingWidgetId across activity recreation so a
+// bind/configure in flight when the user rotates / changes theme is not
+// mistaken for an orphan by the startup sweep, and so the configure-result
+// fallback can still recover the ID when the result intent omits the extra.
+private const val KEY_PENDING_WIDGET_ID = "app.typelauncher.PENDING_WIDGET_ID"
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
@@ -152,6 +157,10 @@ class MainActivity : ComponentActivity() {
             appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
             appWidgetManager = AppWidgetManager.getInstance(this)
         }
+        // Re-seed the in-flight add ID before anything (the orphan sweep, a
+        // re-delivered configure result) can act on a stale INVALID value.
+        savedInstanceState?.getInt(KEY_PENDING_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+            ?.let { widgetAddFlow.restorePendingWidgetId(it) }
         playUpdateChecker = PlayUpdateChecker(application)
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         androidTrace("launcher.viewmodel_init") {
@@ -474,6 +483,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         LauncherDebugLog.event("MainActivity.onSaveInstanceState beforeSuper outState=${outState.debugSummary()}")
+        // Carry the in-flight add ID across recreation; see KEY_PENDING_WIDGET_ID.
+        outState.putInt(KEY_PENDING_WIDGET_ID, widgetAddFlow.pendingWidgetId)
         super.onSaveInstanceState(outState)
         LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=${outState.debugSummary()}")
     }
