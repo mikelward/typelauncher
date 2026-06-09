@@ -96,6 +96,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -2044,7 +2045,11 @@ internal fun EditAppDialogContent(
     onSetBadge: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var text by remember(app.id) { mutableStateOf(app.customName ?: app.name) }
+    // rememberSaveable so a configuration change (rotation, dark-mode toggle,
+    // font-scale change) while the dialog is open keeps the user's typed text
+    // instead of resetting it to the app's current name. Keyed on app.id so
+    // reusing the slot for a different app still resets to that app's name.
+    var text by rememberSaveable(app.id) { mutableStateOf(app.customName ?: app.name) }
     var badgePickerVisible by remember { mutableStateOf(false) }
     val hasOverride = !app.customName.isNullOrBlank()
     val hasIconOverride = app.customIconPath != null

@@ -55,25 +55,32 @@ internal class AppLaunchStatsStore(context: Context) {
         get() = synchronized(lock) { cachedRecentAppIds }
 
     fun recordLaunch(appId: String) {
-        val (updatedRecents, updatedLaunchCount) = synchronized(lock) {
+        // Hold the lock across the full read-modify-write *including* the
+        // SharedPreferences edit so two concurrent launches can't interleave a
+        // stale in-memory state with a newer persisted string (or vice versa).
+        // `apply()` only schedules the disk write and dispatches the change
+        // listener asynchronously on the main-thread Looper, so it never
+        // re-enters this lock synchronously — no deadlock.
+        synchronized(lock) {
             val updatedRecents = (listOf(appId) + cachedRecentAppIds.filterNot { id -> id == appId })
                 .take(MAX_RECENT_APP_IDS)
             val updatedLaunchCount = (launchCounts[appId] ?: 0) + 1
             launchCounts[appId] = updatedLaunchCount
             cachedRecentAppIds = updatedRecents
-            updatedRecents to updatedLaunchCount
+            sharedPreferences.edit()
+                .putInt(appId.toLaunchCountKey(), updatedLaunchCount)
+                .putString(KEY_RECENT_APP_IDS, updatedRecents.joinToString(RECENT_APP_ID_SEPARATOR))
+                .apply()
         }
-        sharedPreferences.edit()
-            .putInt(appId.toLaunchCountKey(), updatedLaunchCount)
-            .putString(KEY_RECENT_APP_IDS, updatedRecents.joinToString(RECENT_APP_ID_SEPARATOR))
-            .apply()
     }
 
     fun resetLaunchCount(appId: String) {
-        synchronized(lock) { launchCounts.remove(appId) }
-        sharedPreferences.edit()
-            .remove(appId.toLaunchCountKey())
-            .apply()
+        synchronized(lock) {
+            launchCounts.remove(appId)
+            sharedPreferences.edit()
+                .remove(appId.toLaunchCountKey())
+                .apply()
+        }
     }
 
     /**
@@ -83,13 +90,14 @@ internal class AppLaunchStatsStore(context: Context) {
      * No-op if the app isn't in the list.
      */
     fun removeRecent(appId: String) {
-        val current = recentAppIds
-        if (appId !in current) return
-        val updated = current.filterNot { it == appId }
-        synchronized(lock) { cachedRecentAppIds = updated }
-        sharedPreferences.edit()
-            .putString(KEY_RECENT_APP_IDS, updated.joinToString(RECENT_APP_ID_SEPARATOR))
-            .apply()
+        synchronized(lock) {
+            if (appId !in cachedRecentAppIds) return
+            val updated = cachedRecentAppIds.filterNot { it == appId }
+            cachedRecentAppIds = updated
+            sharedPreferences.edit()
+                .putString(KEY_RECENT_APP_IDS, updated.joinToString(RECENT_APP_ID_SEPARATOR))
+                .apply()
+        }
     }
 
     private fun String.toLaunchCountKey(): String = "$KEY_LAUNCH_COUNT_PREFIX$this"

@@ -69,12 +69,21 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
             // confirmation flow — propagate it so MainActivity can clear the
             // in-flight banner state on failure instead of leaving it stuck
             // on "Updating…" with no listener event coming to recover.
-            appUpdateManager.startUpdateFlowForResult(
+            val launched = appUpdateManager.startUpdateFlowForResult(
                 info,
                 activity,
                 AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
                 requestCode,
             )
+            if (launched) {
+                // An AppUpdateInfo is single-use: once handed to
+                // startUpdateFlowForResult it can't drive a second flow. If the
+                // user cancels the Play sheet and taps Update again, reusing the
+                // consumed token throws — so drop it here and let onResume's
+                // checkForUpdate re-fetch a fresh one before the next attempt.
+                updateInfo = null
+            }
+            launched
         } catch (exception: IntentSender.SendIntentException) {
             LauncherDebugLog.warning("Play update flow failed to start", exception)
             false
@@ -95,6 +104,19 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
         installListenerRegistered = true
     }
 
+    /**
+     * Unregisters the install-state listener from the [AppUpdateManager].
+     * MainActivity owns one checker per activity instance and creates a fresh
+     * one on every recreation (rotation, theme change, process restore), so
+     * without this the manager would accumulate a dead listener — capturing the
+     * old activity's callback — on every recreation. Call from `onDestroy`.
+     * Idempotent: a no-op if the listener was never registered.
+     */
+    fun unregisterInstallListener() {
+        if (!installListenerRegistered) return
+        appUpdateManager.unregisterListener(installListener)
+        installListenerRegistered = false
+    }
 }
 
 private fun AppUpdateInfo.isFlexibleUpdateAvailable(): Boolean =

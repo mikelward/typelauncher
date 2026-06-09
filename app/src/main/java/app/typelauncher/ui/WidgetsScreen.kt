@@ -47,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -73,6 +74,9 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 internal fun WidgetsScreen(
@@ -554,10 +558,30 @@ internal fun HostedWidgetCard(
     providerInfoOverride: AppWidgetProviderInfo? = null,
     createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
 ) {
-    val resolvedProviderInfo = remember(widgetId, appWidgetManager) {
-        appWidgetManager?.getAppWidgetInfo(widgetId)
+    var resolvedProviderInfo by remember(widgetId, appWidgetManager) {
+        mutableStateOf(appWidgetManager?.getAppWidgetInfo(widgetId))
     }
     val providerInfo = providerInfoOverride ?: resolvedProviderInfo
+    // A provider can be unresolvable when the card first composes (its app was
+    // uninstalled, or its work profile is locked) and become resolvable later
+    // (reinstall, profile unlock) without the widget set changing — which means
+    // nothing re-runs the `remember` above and the "unavailable" card stays
+    // stuck until a full recomposition. While unavailable, re-query on each
+    // resume; the effect leaves composition (and stops querying) as soon as the
+    // provider resolves. Bounded to unavailable cards only, so the per-resume
+    // IPC never touches healthy widgets.
+    if (providerInfoOverride == null && resolvedProviderInfo == null && appWidgetManager != null) {
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner, widgetId, appWidgetManager) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    resolvedProviderInfo = appWidgetManager.getAppWidgetInfo(widgetId)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+    }
     var menuExpanded by remember { mutableStateOf(false) }
     if (appWidgetHost == null || providerInfo == null) {
         Box {

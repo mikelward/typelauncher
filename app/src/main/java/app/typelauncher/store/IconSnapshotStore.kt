@@ -30,12 +30,19 @@ import java.nio.ByteOrder
 internal class IconSnapshotStore(context: Context) {
     private val directory: File = File(context.filesDir, DIRECTORY_NAME)
 
-    fun load(): List<Snapshot> {
+    // Serializes the directory mutations in [save] (and the [load] read) so two
+    // saves racing between rapid `onStop`s can't interleave their prune +
+    // per-file writes and leave a half-written or wrongly-pruned snapshot set
+    // on disk. Saves run on `Dispatchers.IO`, so a blocking monitor is fine
+    // here — the contended case is two background saves, never the main thread.
+    private val lock = Any()
+
+    fun load(): List<Snapshot> = synchronized(lock) {
         if (!directory.isDirectory) return emptyList()
-        return directory.listFiles().orEmpty().mapNotNull(::readSnapshot)
+        directory.listFiles().orEmpty().mapNotNull(::readSnapshot)
     }
 
-    fun save(snapshots: Collection<Snapshot>) {
+    fun save(snapshots: Collection<Snapshot>): Unit = synchronized(lock) {
         if (snapshots.isEmpty()) {
             // An empty save still prunes orphans, but we don't create the directory just
             // to delete nothing from it.

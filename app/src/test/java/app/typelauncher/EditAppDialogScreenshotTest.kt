@@ -7,8 +7,11 @@ import android.graphics.Canvas
 import android.os.Process
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTextReplacement
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -137,6 +140,35 @@ class EditAppDialogScreenshotTest {
             .assertIsDisplayed()
 
         captureSnapshot("compose_edit_app_dialog_with_icon_override_robolectric.png")
+    }
+
+    @Test
+    fun renameFieldKeepsTypedTextAcrossConfigurationChange() {
+        // Rotating (or any configuration change) while the rename dialog is open
+        // must not throw away the user's half-typed name. The field state is
+        // `rememberSaveable`, so emulating a saved-instance-state restore should
+        // bring the typed text back — a plain `remember` would reset it to the
+        // app's current name.
+        val restorationTester = StateRestorationTester(composeRule)
+        restorationTester.setContent {
+            TypeLauncherTheme {
+                EditAppDialogContent(
+                    app = installedApp(name = "ChatGPT", packageName = "com.openai.chatgpt"),
+                    onSave = {},
+                    onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
+                    onSetBadge = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FIELD_TAG).performTextReplacement("My Custom Name")
+        composeRule.waitForIdle()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FIELD_TAG).assertTextContains("My Custom Name")
     }
 
     private fun installedApp(name: String, packageName: String): InstalledApp {
