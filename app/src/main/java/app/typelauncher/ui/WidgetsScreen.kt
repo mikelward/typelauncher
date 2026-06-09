@@ -561,6 +561,10 @@ internal fun HostedWidgetCard(
     // stand-in host view instead of going through AppWidgetHost.createView.
     providerInfoOverride: AppWidgetProviderInfo? = null,
     createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
+    // Starts the card in resize mode. Test seam: the production entry point
+    // is the long-press menu's Resize item, which Robolectric can't drive
+    // through the host view's View-level long-press detection.
+    initiallyResizing: Boolean = false,
 ) {
     var resolvedProviderInfo by remember(widgetId, appWidgetManager) {
         mutableStateOf(appWidgetManager?.getAppWidgetInfo(widgetId))
@@ -629,7 +633,7 @@ internal fun HostedWidgetCard(
 
     val density = LocalDensity.current
     val defaultHeightDp = widgetCardHeight(providerInfo.minHeight, providerInfo.targetCellHeightCompat, density)
-    var isResizing by remember { mutableStateOf(false) }
+    var isResizing by remember { mutableStateOf(initiallyResizing) }
     var resizeHeightDp by remember(customHeightDp, defaultHeightDp) {
         mutableFloatStateOf((customHeightDp?.toFloat() ?: defaultHeightDp.value))
     }
@@ -699,22 +703,33 @@ internal fun HostedWidgetCard(
                     // them the options bundle stays empty and providers fall back
                     // to their zero/empty layout, which appears as a blank widget
                     // card even though the host view occupies the full height.
-                    widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
-                        // Use the public min/max overload — the SizeF list
-                        // variant is @hide in AOSP and not part of the SDK.
-                        // Routes through `applyAppWidgetSizeIfChanged` so a
-                        // layout pass that produces the same dimensions as
-                        // last time (the typical case — same device, same
-                        // persisted widget height) skips the binder IPC and
-                        // avoids waking the provider via
-                        // `onAppWidgetOptionsChanged`. Cache is persisted, so
-                        // the first layout pass after a cold start short-
-                        // circuits too whenever the size is unchanged.
-                        val launcherHost = appWidgetHost as? LauncherAppWidgetHost
-                        if (launcherHost != null) {
-                            launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
-                        } else {
-                            view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                    //
+                    // Withheld while a resize drag is active: every drag frame
+                    // changes the box height by >= 1 dp, so pushing per-frame
+                    // defeated the applyAppWidgetSizeIfChanged cache and paid
+                    // one binder IPC + provider onAppWidgetOptionsChanged wake
+                    // + one persisted-cache prefs write per frame on the
+                    // gesture's hot path. The final size lands when the drag
+                    // ends — isResizing flips false, which re-runs this update
+                    // block with the settled measurement.
+                    if (!isResizing) {
+                        widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
+                            // Use the public min/max overload — the SizeF list
+                            // variant is @hide in AOSP and not part of the SDK.
+                            // Routes through `applyAppWidgetSizeIfChanged` so a
+                            // layout pass that produces the same dimensions as
+                            // last time (the typical case — same device, same
+                            // persisted widget height) skips the binder IPC and
+                            // avoids waking the provider via
+                            // `onAppWidgetOptionsChanged`. Cache is persisted, so
+                            // the first layout pass after a cold start short-
+                            // circuits too whenever the size is unchanged.
+                            val launcherHost = appWidgetHost as? LauncherAppWidgetHost
+                            if (launcherHost != null) {
+                                launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
+                            } else {
+                                view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                            }
                         }
                     }
                     if (view is LauncherAppWidgetHostView) {
