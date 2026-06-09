@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
@@ -471,12 +472,20 @@ class MainActivity : ComponentActivity() {
             if (orphans.isEmpty()) return@launch
             LauncherDebugLog.event("widget reconciliation deleting ${orphans.size} orphaned ids=$orphans")
             orphans.forEach { id ->
-                runCatching {
-                    appWidgetHost.deleteAppWidgetId(id)
-                    appWidgetHost.forgetWidgetSize(id)
-                }.onFailure { exception ->
-                    LauncherDebugLog.warning("widget reconciliation: failed to delete orphaned id=$id", exception)
-                }
+                // The host-binding delete is a Binder IPC — keep it off the main
+                // thread.
+                runCatching { appWidgetHost.deleteAppWidgetId(id) }
+                    .onFailure { exception ->
+                        LauncherDebugLog.warning("widget reconciliation: failed to delete orphaned id=$id", exception)
+                    }
+            }
+            // forgetWidgetSize mutates the host's cachedSizes map, which
+            // HostedWidgetCard's size-hint path reads/writes on the main thread
+            // every layout pass and which carries no lock. Hop back to the main
+            // thread for the cache cleanup so the sweep can't race first
+            // layout/resize of a retained widget and corrupt that map.
+            withContext(Dispatchers.Main) {
+                orphans.forEach { id -> appWidgetHost.forgetWidgetSize(id) }
             }
         }
     }
