@@ -16,6 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
@@ -50,39 +51,66 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("requestCalendarPermission result granted=$it")
             viewModel.refreshAgenda()
         }
-    private val bindWidgetLauncher =
+    // Explicit type: the initializer's lambda reads `widgetAddFlow`, whose
+    // own initializer reads this launcher back — inference would recurse.
+    private val bindWidgetLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val appWidgetId = result.data?.getIntExtra(
+            val resultWidgetId = result.data?.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
                 AppWidgetManager.INVALID_APPWIDGET_ID,
-            ) ?: pendingWidgetId
-            if (result.resultCode == RESULT_OK && appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                configureOrAddWidget(appWidgetId)
-            } else {
-                deletePendingWidget(appWidgetId)
-            }
-            LauncherDebugLog.event(
-                "bindWidget resultCode=${result.resultCode} appWidgetId=$appWidgetId pendingWidgetId=$pendingWidgetId",
             )
-            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            LauncherDebugLog.event(
+                "bindWidget resultCode=${result.resultCode} resultWidgetId=$resultWidgetId " +
+                    "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+            )
+            widgetAddFlow.onBindResult(result.resultCode == RESULT_OK, resultWidgetId)
         }
-    private val configureWidgetLauncher =
+    private val configureWidgetLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val appWidgetId = result.data?.getIntExtra(
+            val resultWidgetId = result.data?.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
                 AppWidgetManager.INVALID_APPWIDGET_ID,
-            ) ?: pendingWidgetId
-            if (result.resultCode == RESULT_OK && appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                viewModel.addWidget(appWidgetId)
-            } else {
-                deletePendingWidget(appWidgetId)
-            }
-            LauncherDebugLog.event(
-                "configureWidget resultCode=${result.resultCode} appWidgetId=$appWidgetId pendingWidgetId=$pendingWidgetId",
             )
-            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            LauncherDebugLog.event(
+                "configureWidget resultCode=${result.resultCode} resultWidgetId=$resultWidgetId " +
+                    "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+            )
+            widgetAddFlow.onConfigureResult(result.resultCode == RESULT_OK, resultWidgetId)
         }
-    private var pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    // Owns pendingWidgetId and the bind → configure → add transitions; see
+    // WidgetAddFlow's KDoc for why the pending ID must survive across the
+    // whole configure launch. The callbacks read the lateinit
+    // appWidgetManager / appWidgetHost / viewModel, which is safe because
+    // they only run from activity-result and UI callbacks after onCreate.
+    private val widgetAddFlow = WidgetAddFlow(
+        launchConfigure = { appWidgetId ->
+            val providerInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
+            val configure = providerInfo?.configure
+            if (configure != null) {
+                LauncherDebugLog.event(
+                    "configureOrAddWidget launching configure appWidgetId=$appWidgetId " +
+                        "configure=${configure.flattenToShortString()}",
+                )
+                configureWidgetLauncher.launch(
+                    Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                        .setComponent(configure)
+                        .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
+                )
+                true
+            } else {
+                LauncherDebugLog.event(
+                    "configureOrAddWidget adding appWidgetId=$appWidgetId hasProvider=${providerInfo != null}",
+                )
+                false
+            }
+        },
+        addWidget = { appWidgetId -> viewModel.addWidget(appWidgetId) },
+        deleteWidget = { appWidgetId ->
+            LauncherDebugLog.event("deletePendingWidget appWidgetId=$appWidgetId")
+            appWidgetHost.deleteAppWidgetId(appWidgetId)
+        },
+    )
 
     // True until the ViewModel has reported `isHomeReady` for the first time.
     // While set, `onStart` skips `AppWidgetHost.startListening` so the cold-
@@ -446,14 +474,13 @@ class MainActivity : ComponentActivity() {
 
     private fun bindWidget(provider: WidgetProvider) {
         val appWidgetId = appWidgetHost.allocateAppWidgetId()
-        pendingWidgetId = appWidgetId
+        widgetAddFlow.onBindStarted(appWidgetId)
         LauncherDebugLog.event(
             "bindWidget provider=${provider.componentName.flattenToShortString()} appWidgetId=$appWidgetId",
         )
         if (appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, provider.profile, provider.componentName, null)) {
             LauncherDebugLog.event("bindWidget allowed appWidgetId=$appWidgetId")
-            configureOrAddWidget(appWidgetId)
-            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            widgetAddFlow.onBindAllowed(appWidgetId)
             return
         }
 
@@ -466,47 +493,19 @@ class MainActivity : ComponentActivity() {
             bindWidgetLauncher.launch(bindIntent)
         } catch (exception: ActivityNotFoundException) {
             LauncherDebugLog.warning("bindWidget failed: picker unavailable", exception)
-            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-            deletePendingWidget(appWidgetId)
+            widgetAddFlow.onBindLaunchFailed()
             Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
         } catch (exception: SecurityException) {
             LauncherDebugLog.warning("bindWidget failed: security exception", exception)
-            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-            deletePendingWidget(appWidgetId)
+            widgetAddFlow.onBindLaunchFailed()
             Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun configureOrAddWidget(appWidgetId: Int) {
-        val providerInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
-        if (providerInfo?.configure != null) {
-            pendingWidgetId = appWidgetId
-            LauncherDebugLog.event(
-                "configureOrAddWidget launching configure appWidgetId=$appWidgetId " +
-                    "configure=${providerInfo.configure.flattenToShortString()}",
-            )
-            configureWidgetLauncher.launch(
-                Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
-                    .setComponent(providerInfo.configure)
-                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
-            )
-        } else {
-            LauncherDebugLog.event("configureOrAddWidget adding appWidgetId=$appWidgetId hasProvider=${providerInfo != null}")
-            viewModel.addWidget(appWidgetId)
-        }
-    }
-
-    private fun deletePendingWidget(appWidgetId: Int) {
-        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            LauncherDebugLog.event("deletePendingWidget appWidgetId=$appWidgetId")
-            appWidgetHost.deleteAppWidgetId(appWidgetId)
         }
     }
 
     private fun removeWidget(appWidgetId: Int) {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         viewModel.removeWidget(appWidgetId)
-        deletePendingWidget(appWidgetId)
+        appWidgetHost.deleteAppWidgetId(appWidgetId)
         // Drop the persisted size cache entry so the widget_size_cache
         // SharedPreferences file doesn't accumulate dead widget IDs over
         // the device's lifetime as users add and remove widgets.
