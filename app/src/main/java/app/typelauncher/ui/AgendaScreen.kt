@@ -23,7 +23,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,7 +101,12 @@ private fun AgendaEventsCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val zone = remember { ZoneId.systemDefault() }
+    // Like `today` below, the zone is deliberately not remembered: a traveler
+    // crossing time zones keeps the launcher process alive, and a memoized
+    // zone would keep grouping and labeling events under the departure zone
+    // until the screen happened to be rebuilt. ZoneId.systemDefault() is a
+    // cached lookup, not I/O.
+    val zone = ZoneId.systemDefault()
     // Recompute today on every recomposition rather than caching it: the
     // launcher process can survive past midnight, and a memoized value would
     // keep showing yesterday's "Today"/"Tomorrow" labels until the screen is
