@@ -1632,26 +1632,35 @@ internal fun resolveLauncherGestureOwner(
 ): LauncherGestureOwner {
     val absX = abs(rawDragX)
     val absY = abs(rawDragY)
-    // Child scrollables get a smaller consumption threshold than the launcher's
-    // claim threshold: once a child has demonstrably started scrolling, keep
-    // the whole gesture with that child instead of stealing it later.
+    // A nested scrollable (the recents/notifications bar's horizontalScroll, the
+    // Home app list, a hosted widget) only reports consumption *after* it has
+    // cleared its own touch slop, so its consumed delta trails the raw finger
+    // movement by roughly one touch slop. If the launcher claimed the gesture
+    // the instant raw movement crossed a single touch slop, it would win that
+    // race every time and steal a drag that belongs to the child — the child
+    // would scroll a few px before the steal while the carousel (or vertical
+    // pull) also followed the finger, so both moved at once. That is the
+    // "scrolls the bar slightly but swipes the page much more" bug.
+    //
+    // Two thresholds break the race:
+    //  - childClaimSlop (half a touch slop): the moment a child shows it has
+    //    consumed on the dominant axis, the whole gesture stays with the child,
+    //    even if it later reaches its scroll edge mid-drag.
+    //  - launcherClaimSlop (two touch slops): the launcher waits this far before
+    //    it claims. That is past the ~1.5 touch slops a scrolling child needs to
+    //    push its consumed delta beyond childClaimSlop, so a child that is going
+    //    to scroll wins first. A drag over non-scrollable space (empty Home, a
+    //    non-scrollable card, or a scrollable row already at its edge) never
+    //    reports consumption, so the launcher still claims once raw movement
+    //    reaches launcherClaimSlop.
     val childClaimSlop = touchSlopPx / 2f
+    val launcherClaimSlop = touchSlopPx * 2f
     return when {
-        absX <= touchSlopPx && absY <= touchSlopPx -> LauncherGestureOwner.Undecided
-        absX > absY -> {
-            if (abs(consumedDragX) > childClaimSlop) {
-                LauncherGestureOwner.ChildScrollable
-            } else {
-                LauncherGestureOwner.HorizontalLauncher
-            }
-        }
-        absY > absX -> {
-            if (abs(consumedDragY) > childClaimSlop) {
-                LauncherGestureOwner.ChildScrollable
-            } else {
-                LauncherGestureOwner.VerticalLauncher
-            }
-        }
+        absX > absY && abs(consumedDragX) > childClaimSlop -> LauncherGestureOwner.ChildScrollable
+        absY > absX && abs(consumedDragY) > childClaimSlop -> LauncherGestureOwner.ChildScrollable
+        absX <= launcherClaimSlop && absY <= launcherClaimSlop -> LauncherGestureOwner.Undecided
+        absX > absY -> LauncherGestureOwner.HorizontalLauncher
+        absY > absX -> LauncherGestureOwner.VerticalLauncher
         else -> LauncherGestureOwner.Undecided
     }
 }
