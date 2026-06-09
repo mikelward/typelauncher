@@ -2433,9 +2433,14 @@ private fun DockedAppButton(
                                 val change = event.changes.firstOrNull { it.id == down.id }
                                     ?: break
                                 if (!change.pressed) {
-                                    if (dragging) {
-                                        latestOnDragEnd()
-                                    } else {
+                                    // A release that arrives already consumed
+                                    // is the framework's cancel signal (the
+                                    // system stole the gesture), not a user
+                                    // lift — the same convention
+                                    // waitForUpOrCancellation uses. A canceled
+                                    // long-press must not pop the actions
+                                    // menu.
+                                    if (!dragging && !change.isConsumed) {
                                         menuExpanded = true
                                     }
                                     change.consume()
@@ -2457,6 +2462,17 @@ private fun DockedAppButton(
                                 change.consume()
                             }
                         } finally {
+                            // Runs on every exit: clean release, the tracked
+                            // pointer vanishing from the stream, and
+                            // cancellation of the gesture coroutine (activity
+                            // pause mid-drag, node detach). Ending the drag
+                            // only on the clean-release path left DockCard's
+                            // draggedAppId/dragOffset latched, so the icon
+                            // kept rendering lifted at its last offset until
+                            // some new drag overwrote the state.
+                            if (dragging) {
+                                latestOnDragEnd()
+                            }
                             latestOnLongPressArmed(false)
                         }
                     }
