@@ -42,7 +42,9 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.test.core.app.ApplicationProvider
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -463,7 +465,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").assertIsDisplayed()
-        saveScreenshot("compose_widget_remove_menu_robolectric.png")
+        captureScreen("compose_widget_remove_menu_robolectric.png")
         composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").performClick()
         composeRule.waitForIdle()
 
@@ -482,7 +484,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:20").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:20").assertIsDisplayed()
         composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:20").assertIsDisplayed()
-        saveScreenshot("compose_widget_move_menu_robolectric.png")
+        captureScreen("compose_widget_move_menu_robolectric.png")
 
         composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:20").performClick()
         composeRule.waitForIdle()
@@ -802,7 +804,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("App info").assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_ABOUT_ACTION_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("About").assertIsDisplayed()
-        saveScreenshot("compose_settings_overflow_menu_robolectric.png")
+        captureScreen("compose_settings_overflow_menu_robolectric.png")
     }
 
     @Test
@@ -1429,7 +1431,11 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Calculator").assertIsDisplayed()
         composeRule.waitForIdle()
 
-        saveScreenshot("compose_app_actions_menu_robolectric.png")
+        // The actions menu is a DropdownMenu, which Compose hosts in a separate
+        // popup window. saveScreenshot() only draws the activity's decorView, so
+        // it would miss the popup entirely; captureScreenRoboImage composites
+        // every window and captures the rounded menu surface on top of the list.
+        captureScreen("compose_app_actions_menu_robolectric.png")
     }
 
     @Test
@@ -2834,6 +2840,20 @@ class MainActivityRobolectricScreenshotTest {
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
         bitmap.captureRoboImage(filePath = "src/test/snapshots/images/$name")
+    }
+
+    /**
+     * Capture the whole device screen, compositing every window, so popups such
+     * as the [androidx.compose.material3.DropdownMenu] action menus appear in the
+     * snapshot. [saveScreenshot] draws only the activity decorView and silently
+     * drops popup windows, which is why it can't be used for the menus.
+     */
+    @OptIn(ExperimentalRoborazziApi::class)
+    private fun captureScreen(name: String) {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+        captureScreenRoboImage(filePath = "src/test/snapshots/images/$name")
     }
 
     private fun assertStandardLauncherFlags(intent: Intent) {
