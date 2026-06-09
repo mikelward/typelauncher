@@ -110,6 +110,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
@@ -530,8 +531,28 @@ private fun SearchCard(
             placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
             modifier = Modifier
                 .focusRequester(focusRequester)
+                // Swallow held-Enter key repeats before they reach the text
+                // field core: the core maps a hardware Enter ACTION_DOWN to
+                // the IME Search action (-> onSearch -> onLaunchActiveApp)
+                // and does so for *every* repeat, so a held key fired one
+                // launch per repeat — and once the first launch cleared the
+                // query, the next repeat shoved the user into settings. The
+                // preview phase runs ancestors-first, so this filter sees
+                // the event before the core consumes it. This is the same
+                // filtering the legacy editor-action path got from
+                // SettingsLaunchGate before the Compose rewrite.
+                .onPreviewKeyEvent { event ->
+                    event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
+                        event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                        event.nativeKeyEvent.repeatCount > 0
+                }
                 .onKeyEvent { event ->
-                    if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER && event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    // Fallback for hosts whose text-field core doesn't map
+                    // Enter to the IME action; repeats never get here (the
+                    // preview filter above consumed them).
+                    if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
+                        event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN
+                    ) {
                         onLaunchActiveApp()
                         true
                     } else {

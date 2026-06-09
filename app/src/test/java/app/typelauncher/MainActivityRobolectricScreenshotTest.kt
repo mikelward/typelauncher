@@ -1208,6 +1208,47 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun enterKeyRepeatDoesNotLaunch() {
+        // Hardware-keyboard key repeat delivers one ACTION_DOWN per repeat
+        // with an increasing repeatCount. Only the initial press
+        // (repeatCount == 0) may launch — each repeat used to fire another
+        // onLaunchActiveApp, launching the app again and then (query
+        // cleared by the first launch) shoving the user into settings.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calcu")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performKeyPress(
+            KeyEvent(
+                AndroidKeyEvent(
+                    0L,
+                    50L,
+                    AndroidKeyEvent.ACTION_DOWN,
+                    AndroidKeyEvent.KEYCODE_ENTER,
+                    1,
+                ),
+            ),
+        )
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "a key repeat must not launch the active app",
+            null,
+            shadowOf(composeRule.activity).nextStartedActivity,
+        )
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
+
+        // The genuine initial press (repeatCount == 0) still launches.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performKeyPress(
+            KeyEvent(AndroidKeyEvent(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_ENTER)),
+        )
+        composeRule.waitForIdle()
+        assertEquals(
+            "app.typelauncher.fake1",
+            shadowOf(composeRule.activity).nextStartedActivity?.component?.packageName,
+        )
+    }
+
+    @Test
     fun tappingInstalledApp_launchesAndClearsSearchQuery() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performClick()
