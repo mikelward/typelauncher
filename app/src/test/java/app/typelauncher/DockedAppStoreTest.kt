@@ -133,6 +133,31 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun moveAfterUndockDoesNotStrandBystanderOnStaleRow() {
+        // Regression test for `move` mutating the sparse persisted map with
+        // compacted-space coordinates. Seed a sparse map by filling three
+        // 2-column rows and undocking the middle row: survivors e and f stay
+        // persisted at row 2 while rendering at row 1. Dragging a onto f's
+        // rendered slot (1,1) must swap a and f within the compacted space.
+        // Before the fix, the swap wrote a=(1,1) and f=(0,0) into the sparse
+        // map where e still sat at (2,0) — rows 0, 1, and 2 all occupied, so
+        // the row-collapse pass could not repair it and e was persisted alone
+        // on row 2 with a hole at (1,0).
+        val store = DockedAppStore(context)
+        listOf("a", "b", "c", "d", "e", "f")
+            .forEach { id -> store.dock(id, columnCount = 2) }
+        listOf("c", "d").forEach { id -> store.undock(id) }
+
+        store.move("a", row = 1, column = 1, columnCount = 2, sortOrder = AppListSortOrder.Usage)
+
+        val resolved = resolvedDockPositions(store.dockedAppIds, store.dockedAppPositions, columnCount = 2)
+        assertEquals(DockPosition(1, 1), resolved.getValue("a"))
+        assertEquals(DockPosition(0, 0), resolved.getValue("f"))
+        assertEquals(DockPosition(1, 0), resolved.getValue("e"))
+        assertEquals(DockPosition(0, 1), resolved.getValue("b"))
+    }
+
+    @Test
     fun moveSwapsOccupiedGridPosition() {
         val store = DockedAppStore(context)
         store.dock("a", columnCount = 4)
