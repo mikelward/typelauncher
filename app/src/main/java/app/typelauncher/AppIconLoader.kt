@@ -306,10 +306,34 @@ internal object AppIconLoader {
             // managed-profile activities, so on a Pixel the work icon comes
             // back with the system blue-briefcase already composited in.
             // Personal-profile activities pass through unchanged.
-            context.getSystemService<LauncherApps>()
-                ?.getActivityList(component.packageName, app.user)
-                ?.firstOrNull { activity -> activity.componentName == component }
-                ?.getBadgedIcon(0)
+            //
+            // Guarded because this runs on the loader scope and any throwable
+            // escaping the producer is re-thrown by `Deferred.await()` inside
+            // every awaiting composition — an unhandled composition exception,
+            // i.e. a process crash. getActivityList throws SecurityException
+            // when app.user has left the caller's profile group (work profile
+            // removed or disabled while this load was in flight), and
+            // getBadgedIcon can throw Resources.NotFoundException while a
+            // work profile is still booting. A missing icon placeholder is
+            // the right degradation for both.
+            try {
+                context.getSystemService<LauncherApps>()
+                    ?.getActivityList(component.packageName, app.user)
+                    ?.firstOrNull { activity -> activity.componentName == component }
+                    ?.getBadgedIcon(0)
+            } catch (exception: SecurityException) {
+                LauncherDebugLog.warning(
+                    "resolve: LauncherApps rejected ${app.packageName} user=${app.user}",
+                    exception,
+                )
+                null
+            } catch (exception: Resources.NotFoundException) {
+                LauncherDebugLog.warning(
+                    "resolve: badged icon unavailable for ${app.packageName}",
+                    exception,
+                )
+                null
+            }
         } else {
             try {
                 val raw = context.packageManager.getActivityIcon(component)
