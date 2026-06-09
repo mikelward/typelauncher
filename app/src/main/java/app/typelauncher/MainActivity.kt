@@ -16,7 +16,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
@@ -35,6 +34,8 @@ internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
 private const val APP_WIDGET_HOST_ID = 1024
 private const val PLAY_UPDATE_REQUEST_CODE = 42
+// Safe alongside ActivityResultRegistry codes, which start at 0x00010000.
+private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
@@ -51,9 +52,7 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("requestCalendarPermission result granted=$it")
             viewModel.refreshAgenda()
         }
-    // Explicit type: the initializer's lambda reads `widgetAddFlow`, whose
-    // own initializer reads this launcher back — inference would recurse.
-    private val bindWidgetLauncher: ActivityResultLauncher<Intent> =
+    private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val resultWidgetId = result.data?.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -64,18 +63,6 @@ class MainActivity : ComponentActivity() {
                     "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
             )
             widgetAddFlow.onBindResult(result.resultCode == RESULT_OK, resultWidgetId)
-        }
-    private val configureWidgetLauncher: ActivityResultLauncher<Intent> =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val resultWidgetId = result.data?.getIntExtra(
-                AppWidgetManager.EXTRA_APPWIDGET_ID,
-                AppWidgetManager.INVALID_APPWIDGET_ID,
-            )
-            LauncherDebugLog.event(
-                "configureWidget resultCode=${result.resultCode} resultWidgetId=$resultWidgetId " +
-                    "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
-            )
-            widgetAddFlow.onConfigureResult(result.resultCode == RESULT_OK, resultWidgetId)
         }
 
     // Owns pendingWidgetId and the bind → configure → add transitions; see
@@ -92,17 +79,38 @@ class MainActivity : ComponentActivity() {
                     "configureOrAddWidget launching configure appWidgetId=$appWidgetId " +
                         "configure=${configure.flattenToShortString()}",
                 )
-                configureWidgetLauncher.launch(
-                    Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
-                        .setComponent(configure)
-                        .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId),
-                )
-                true
+                try {
+                    // Host-mediated launch: the system grants the start
+                    // across profiles and into non-exported configure
+                    // activities. The previous explicit-intent launch
+                    // resolved work-profile configure activities in the
+                    // personal user and threw SecurityException on
+                    // non-exported ones — and it was unguarded, so that
+                    // throw crashed the launcher mid-"add widget". The
+                    // result lands in onActivityResult under
+                    // CONFIGURE_WIDGET_REQUEST_CODE.
+                    appWidgetHost.startAppWidgetConfigureActivityForResult(
+                        this,
+                        appWidgetId,
+                        0,
+                        CONFIGURE_WIDGET_REQUEST_CODE,
+                        null,
+                    )
+                    WidgetAddFlow.ConfigureLaunch.Launched
+                } catch (exception: ActivityNotFoundException) {
+                    LauncherDebugLog.warning("configure launch failed appWidgetId=$appWidgetId", exception)
+                    Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+                    WidgetAddFlow.ConfigureLaunch.Failed
+                } catch (exception: SecurityException) {
+                    LauncherDebugLog.warning("configure launch failed appWidgetId=$appWidgetId", exception)
+                    Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+                    WidgetAddFlow.ConfigureLaunch.Failed
+                }
             } else {
                 LauncherDebugLog.event(
                     "configureOrAddWidget adding appWidgetId=$appWidgetId hasProvider=${providerInfo != null}",
                 )
-                false
+                WidgetAddFlow.ConfigureLaunch.NotNeeded
             }
         },
         addWidget = { appWidgetId -> viewModel.addWidget(appWidgetId) },
@@ -470,6 +478,26 @@ class MainActivity : ComponentActivity() {
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         LauncherDebugLog.event("MainActivity.onKeyUp keyCode=$keyCode event=${event.debugSummary()}")
         return super.onKeyUp(keyCode, event)
+    }
+
+    // The widget configure activity is launched host-mediated
+    // (AppWidgetHost.startAppWidgetConfigureActivityForResult), which only
+    // reports back through the classic onActivityResult path — the
+    // ActivityResultRegistry never sees the request.
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CONFIGURE_WIDGET_REQUEST_CODE) {
+            val resultWidgetId = data?.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
+            )
+            LauncherDebugLog.event(
+                "configureWidget resultCode=$resultCode resultWidgetId=$resultWidgetId " +
+                    "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+            )
+            widgetAddFlow.onConfigureResult(resultCode == RESULT_OK, resultWidgetId)
+        }
     }
 
     private fun bindWidget(provider: WidgetProvider) {

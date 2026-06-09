@@ -24,16 +24,19 @@ import android.appwidget.AppWidgetManager
  * the activity owns the platform calls and injects them as callbacks.
  *
  * @param launchConfigure starts the provider's configure activity for the
- *   given widget ID and returns true, or returns false when the provider has
- *   no configure activity.
+ *   given widget ID, reporting [ConfigureLaunch.NotNeeded] when the provider
+ *   has no configure activity and [ConfigureLaunch.Failed] when the launch
+ *   itself blew up (so the bound ID is deleted, not added half-configured).
  * @param addWidget commits the bound-and-configured widget to the launcher.
  * @param deleteWidget frees an allocated widget ID that will never be added.
  */
 internal class WidgetAddFlow(
-    private val launchConfigure: (Int) -> Boolean,
+    private val launchConfigure: (Int) -> ConfigureLaunch,
     private val addWidget: (Int) -> Unit,
     private val deleteWidget: (Int) -> Unit,
 ) {
+    enum class ConfigureLaunch { Launched, NotNeeded, Failed }
+
     var pendingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
         private set
 
@@ -87,9 +90,16 @@ internal class WidgetAddFlow(
         // Set before launching so the configure result can recover the ID
         // even when the result intent doesn't carry the extra back.
         pendingWidgetId = appWidgetId
-        if (!launchConfigure(appWidgetId)) {
-            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-            addWidget(appWidgetId)
+        when (launchConfigure(appWidgetId)) {
+            ConfigureLaunch.Launched -> Unit
+            ConfigureLaunch.NotNeeded -> {
+                pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+                addWidget(appWidgetId)
+            }
+            ConfigureLaunch.Failed -> {
+                pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+                deleteWidget(appWidgetId)
+            }
         }
     }
 
