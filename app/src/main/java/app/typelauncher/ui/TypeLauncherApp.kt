@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -1493,21 +1494,49 @@ private fun SwipeNavigationBox(
                     "page=${LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)}",
             )
         }
-        listOf(currentPage - 1, currentPage, currentPage + 1).forEach { page ->
-            // key(page) gives each virtual page a movable identity. Without
-            // it the three Boxes match positionally across recompositions,
-            // so when `currentPage` advances the slot contents shift by one
-            // and Compose rebuilds every page from scratch at settle — the
-            // page the user just swiped to (already composed and inflated in
-            // the neighbor slot during the drag) was discarded and re-created
-            // in the center slot, re-paying AppWidgetHostView inflation on
-            // every settle onto a widget page (defeating the widgetsWarmed
-            // warm-keep) and bleeding rememberLazyListState between
-            // *different* widget pages that happened to land in the same
-            // slot. With the key, a page's subtree slides between slots and
-            // only the page that left the [-1, 0, +1] window is disposed.
-            key(page) {
+        // Sign of the carousel translation as -1 / 0 / +1, behind
+        // derivedStateOf so the slot loop below only recomposes when the
+        // direction of travel changes (gesture start, reversal, settle) —
+        // never per dragged frame. Positive translation reveals the
+        // previous (-1) page.
+        val revealDirection by remember {
+            derivedStateOf {
+                when {
+                    carouselOffsetPx > 0f -> 1
+                    carouselOffsetPx < 0f -> -1
+                    else -> 0
+                }
+            }
+        }
+        // Assign each destination to at most one slot. With only two visible
+        // pages (agenda disabled + a single widget page) floorMod aliases the
+        // -1 and +1 slots to the *same* destination; composing it in both
+        // slots created duplicate page compositions — two AppWidgetHostViews
+        // per widget, and the platform delivers RemoteViews updates only to
+        // the most recently created one, so wrapping around in one direction
+        // revealed a frozen copy (and a duplicated Home ran two keyboard
+        // focus effects). The center slot always owns its destination;
+        // between the two neighbors, the side being revealed by the current
+        // drag direction wins so the copy the user is about to see is the
+        // live one. At idle the +1 slot is the canonical owner; if a drag
+        // starts the other way, the destination key below moves the subtree
+        // across slots without recreating its views.
+        val preferredNeighbor = if (revealDirection > 0) currentPage - 1 else currentPage + 1
+        val otherNeighbor = if (revealDirection > 0) currentPage + 1 else currentPage - 1
+        val slotAssignments = buildList<Pair<Int, LauncherPage>> {
+            val taken = mutableSetOf<LauncherPage>()
+            listOf(currentPage, preferredNeighbor, otherNeighbor).forEach { page ->
                 val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount, isAgendaEnabled)
+                if (taken.add(launcherPage)) add(page to launcherPage)
+            }
+        }
+        slotAssignments.sortedBy { (page, _) -> page }.forEach { (page, launcherPage) ->
+            // Keyed by destination, not virtual page index: the -1/+1 slots
+            // can alias to one destination (deduplicated above), and a
+            // destination key also keeps a page's subtree — host views,
+            // scroll state — alive when it changes slots at settle or
+            // survives a full wraparound loop.
+            key(launcherPage.carouselContentKey()) {
                 // Read `carouselOffsetPx` inside the graphicsLayer lambda so the
                 // per-frame drag/settle updates run at the layer phase only — if
                 // the read happened in the composable body, every frame of a

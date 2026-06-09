@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
@@ -134,6 +135,112 @@ class CarouselPageKeyingTest {
             "settling must reuse the host view inflated during the drag, not re-create it",
             inflatedMidDrag,
             findHostViews().single(),
+        )
+    }
+
+    @Test
+    fun twoPageCarouselComposesEachDestinationExactlyOnce() {
+        // With agenda disabled and a single widget page, the visible carousel
+        // is [Home, Widgets(0)] — floorMod aliases the -1 and +1 slots to the
+        // SAME destination. Composing it in both slots created two live
+        // copies: two AppWidgetHostViews per widget (the platform only
+        // delivers updates to the most recently created one, so one
+        // wraparound direction showed frozen widgets) and two HomeScreens
+        // running duplicate keyboard-focus effects.
+        val widgetId = 42
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("app.typelauncher.fakewidget", "FakeProvider")
+            minWidth = 200
+            minHeight = 200
+        }
+        val manager = AppWidgetManager.getInstance(context)
+        shadowOf(manager).addBoundWidget(widgetId, providerInfo)
+        val host = LauncherAppWidgetHost(context, hostId = 0)
+
+        var state by mutableStateOf(
+            LauncherUiState(
+                filteredApps = emptyList(),
+                widgetPages = listOf(listOf(widgetId)),
+                isAgendaEnabled = false,
+            ),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListIconOnlyChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
+                    appWidgetHost = host,
+                    appWidgetManager = manager,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Swipe Home -> Widgets and settle. Widgets is now the center slot;
+        // both neighbor slots alias to Home.
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput {
+            down(Offset(width * 0.85f, height / 2f))
+            moveBy(Offset(-30f, 0f))
+            moveBy(Offset(-width * 0.7f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$widgetId").assertIsDisplayed()
+        assertEquals(
+            "Home must compose exactly once while both neighbor slots alias to it",
+            1,
+            composeRule.onAllNodesWithTag(SEARCH_FIELD_TAG).fetchSemanticsNodes().size,
+        )
+        assertEquals(
+            "the widget must own exactly one host view",
+            1,
+            findHostViews().size,
+        )
+
+        // Swipe back to Home: now both neighbor slots alias to Widgets, which
+        // must still be a single composition with a single host view.
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput {
+            down(Offset(width * 0.15f, height / 2f))
+            moveBy(Offset(30f, 0f))
+            moveBy(Offset(width * 0.7f, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "the aliased widgets neighbor must compose exactly once",
+            1,
+            findHostViews().size,
+        )
+        assertEquals(
+            1,
+            composeRule.onAllNodesWithTag(SEARCH_FIELD_TAG).fetchSemanticsNodes().size,
         )
     }
 
