@@ -1502,9 +1502,16 @@ private fun AppsCard(
                 // respectively.
                 val canScrollUp = if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward
                 val canScrollDown = if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward
+                // layoutInfo is state rewritten after every measure pass, so
+                // reading it directly in composition subscribes this whole
+                // card scope to every frame of a fling. derivedStateOf
+                // confines the invalidation to the measured/not-measured flip.
+                val viewportMeasured by remember(gridState) {
+                    derivedStateOf { gridState.layoutInfo.viewportSize.height > 0 }
+                }
                 val chevronsReady = overflowChevronsReady &&
                     isCurrentAppSetMeasured &&
-                    gridState.layoutInfo.viewportSize.height > 0
+                    viewportMeasured
                 val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
@@ -1546,9 +1553,14 @@ private fun AppsCard(
                 LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
                 val canScrollUp = if (reverseLayout) listState.canScrollForward else listState.canScrollBackward
                 val canScrollDown = if (reverseLayout) listState.canScrollBackward else listState.canScrollForward
+                // Same derivedStateOf rationale as the icon-only branch above:
+                // don't subscribe this scope to every-frame layoutInfo writes.
+                val viewportMeasured by remember(listState) {
+                    derivedStateOf { listState.layoutInfo.viewportSize.height > 0 }
+                }
                 val chevronsReady = overflowChevronsReady &&
                     isCurrentAppSetMeasured &&
-                    listState.layoutInfo.viewportSize.height > 0
+                    viewportMeasured
                 val scope = rememberCoroutineScope()
                 AppListOverflowChevronBox(
                     canScrollUp = canScrollUp,
