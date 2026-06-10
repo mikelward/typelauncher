@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
+import androidx.core.graphics.ColorUtils
+import kotlin.math.sqrt
 
 /**
  * Turns any app [Drawable] into a full-bleed square tile bitmap so every icon
@@ -47,14 +49,33 @@ internal object IconNormalizer {
     private val SAFE_ZONE_SCALE = 1f + 2f * AdaptiveIconDrawable.getExtraInsetFraction()
 
     // A foreground (logo) is enlarged *beyond* the safe-zone zoom only when it is
-    // so small that even after that zoom it fills less than this fraction of the
-    // tile — the "tiny logo floating on a big background" case (GitHub, UniFi,
-    // VW, Onecta). Set close to the size a normal full logo fills so the tiny
-    // ones match the rest of the grid rather than staying visibly smaller. A
-    // normal logo (already above this) keeps the platform framing untouched, and
-    // the enlargement scales about the tile center so the logo is never
-    // re-centered.
-    internal const val MIN_FOREGROUND_FRACTION = 0.80f
+    // so small that even after that zoom its perceived size fills less than this
+    // fraction of the tile — the "tiny logo floating on a big background" case
+    // (Surfshark, UniFi). A normal logo keeps the platform framing untouched, and
+    // the enlargement scales about the logo's own center so it is never shifted.
+    internal const val MIN_FOREGROUND_FRACTION = 0.60f
+
+    // Minimum perceived foreground fraction when the tile's plate blends into the
+    // launcher's dark surface (GitHub, Monzo, VW, Onecta). With the plate invisible
+    // against the app-list card, the logo is the only art the eye registers, so a
+    // keyline-sized logo reads ~30% smaller than a bright-plated neighbor; the
+    // larger minimum compensates so dark tiles read the same size as bright ones.
+    internal const val DARK_PLATE_FOREGROUND_FRACTION = 0.78f
+
+    // A plate below this relative luminance counts as blending into the launcher's
+    // dark theme surface (the app-list card sits around 0.026; GitHub's near-black
+    // plate ~0.02, Monzo/VW navy ~0.01, while even a saturated blue like UniFi's
+    // is ~0.15 and clearly visible).
+    private const val DARK_PLATE_LUMINANCE = 0.05
+
+    // Perceived-size correction for the logo's shape: a solid square reads larger
+    // than a circle of the same bounding box, so the bump compares the box
+    // fraction scaled by sqrt(hullByRect / CIRCLE_AREA_BY_RECT) — 1.0 for a
+    // circle or anything sparser, up to MAX_SHAPE_FACTOR (= sqrt(1 / (π/4))) for
+    // a fully solid box. This keeps a chunky square logo from being enlarged to
+    // the same width as a circle and reading oversized.
+    private const val CIRCLE_AREA_BY_RECT = 0.7853982f // π/4
+    private const val MAX_SHAPE_FACTOR = 1.13f
 
     // An adaptive background covering at least this much of the tile is treated
     // as the fill; a sparser/transparent background falls back to a
@@ -67,6 +88,19 @@ internal object IconNormalizer {
     // anti-aliased edge of a rounded or circular icon.
     private const val OPAQUE_ALPHA = 200
     private const val VISIBLE_ALPHA = 16
+
+    // Alpha at/above which a pixel counts toward the *sizing* bounds used to
+    // measure a foreground logo. Soft drop shadows and glows typically sit well
+    // under 40% alpha; counting them (as the VISIBLE_ALPHA bounds do) inflates
+    // the measured logo so the enlargement under-fires — Brave's lion rendered
+    // below the supposed minimum because its shadow padded the box. Deliberate
+    // translucent art (e.g. a 50%-alpha glass logo) still clears this bar.
+    private const val SIZING_ALPHA = 102
+
+    // The sizing bounds are trusted only when their row-span hull covers at
+    // least this fraction of the tile; otherwise (a fully translucent logo, or
+    // a stray opaque speck) sizing falls back to the faint-visible bounds.
+    private const val SIZING_MIN_HULL_FRACTION = 0.002f
 
     // RGB quantization for the dominant-color histogram: drop the low 3 bits of
     // each channel so near-identical shades share a bucket and the mode isn't
@@ -107,10 +141,11 @@ internal object IconNormalizer {
     /**
      * Normalizes an adaptive icon: fills the tile with the background layer (or
      * a dominant-color plate when the background is transparent), then frames the
-     * foreground with the platform safe-zone zoom — enlarging it to
-     * [MIN_FOREGROUND_FRACTION] only when it would otherwise stay tiny — so a
-     * small logo matches the rest of the grid instead of floating in its
-     * background.
+     * foreground with the platform safe-zone zoom, enlarging it further when its
+     * perceived size (shadow-excluded, shape-corrected) is below
+     * [MIN_FOREGROUND_FRACTION] — or [DARK_PLATE_FOREGROUND_FRACTION] when the
+     * plate blends into the launcher's dark surface and the logo is the only
+     * visible art.
      */
     private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -146,22 +181,32 @@ internal object IconNormalizer {
         if (foreground != null && foregroundAnalysis != null && foregroundAnalysis.hasVisibleContent) {
             // Draw whenever the foreground has any visible content — including a
             // translucent logo with no fully-opaque pixels, which must not
-            // disappear.
-            val bounds = foregroundAnalysis.bounds
+            // disappear. Sizing uses the shadow-excluded bounds so a soft drop
+            // shadow or glow doesn't inflate the measured logo.
+            val bounds = foregroundAnalysis.sizingBounds
             val contentFraction = maxOf(bounds.width(), bounds.height()).coerceAtLeast(1) / sizePx.toFloat()
-            val scale = maxOf(SAFE_ZONE_SCALE, MIN_FOREGROUND_FRACTION / contentFraction)
+            val hullByRect = foregroundAnalysis.sizingHullArea /
+                (bounds.width().toFloat() * bounds.height()).coerceAtLeast(1f)
+            val shapeFactor = sqrt(hullByRect / CIRCLE_AREA_BY_RECT).coerceIn(1f, MAX_SHAPE_FACTOR)
+            val perceivedFraction = contentFraction * shapeFactor
+            // A plate that vanishes against the dark launcher surface leaves the
+            // logo as the entire visible icon, so it gets the larger minimum.
+            val darkPlate = ColorUtils.calculateLuminance(plate) < DARK_PLATE_LUMINANCE
+            val minFraction = if (darkPlate) DARK_PLATE_FOREGROUND_FRACTION else MIN_FOREGROUND_FRACTION
+            val scale = maxOf(SAFE_ZONE_SCALE, minFraction / perceivedFraction)
             // Diagnostic: record how large each app authored its foreground (the
-            // logo) so MIN_FOREGROUND_FRACTION can be tuned from real icons rather
+            // logo) so the minimum fractions can be tuned from real icons rather
             // than guessed. `contentFraction` is the logo's size in the raw layer;
             // `finalFraction` is its size on the tile after scaling.
             if (debugLabel.isNotEmpty()) {
                 LauncherDebugLog.event(
                     "adaptiveIconForeground $debugLabel sizePx=$sizePx " +
-                        "contentFraction=$contentFraction scale=$scale " +
+                        "contentFraction=$contentFraction shapeFactor=$shapeFactor " +
+                        "darkPlate=$darkPlate scale=$scale " +
                         "finalFraction=${contentFraction * scale} bumped=${scale > SAFE_ZONE_SCALE}",
                 )
             }
-            drawForegroundScaled(canvas, foreground, sizePx, scale)
+            drawForegroundScaled(canvas, foreground, sizePx, scale, bounds)
         }
 
         backgroundBitmap?.recycle()
@@ -170,18 +215,30 @@ internal object IconNormalizer {
     }
 
     /**
-     * Draws an adaptive [foreground] with the platform safe-zone zoom, scaling
-     * about the *tile center* so the logo keeps the placement the designer
-     * intended (it is never re-centered on its own bounds). A logo that is tiny
-     * even after the safe-zone zoom — filling less than [MIN_FOREGROUND_FRACTION]
-     * of the tile — is enlarged further to that minimum; a normal logo gets only
-     * the safe-zone zoom. [scale] is computed by the caller (see
-     * [normalizeAdaptive]) so it can also be logged.
+     * Draws an adaptive [foreground] with the platform safe-zone zoom applied
+     * about the *tile center* — exactly the framing a stock launcher gives the
+     * layer. Any enlargement beyond that ([scale] > [SAFE_ZONE_SCALE], computed
+     * by [normalizeAdaptive] from the logo's perceived size) is anchored on the
+     * logo's own post-framing center instead, so an off-center logo grows in
+     * place rather than being pushed further off-center by a tile-anchored zoom.
      */
-    private fun drawForegroundScaled(canvas: Canvas, foreground: Drawable, sizePx: Int, scale: Float) {
+    private fun drawForegroundScaled(
+        canvas: Canvas,
+        foreground: Drawable,
+        sizePx: Int,
+        scale: Float,
+        contentBounds: Rect,
+    ) {
         foreground.setBounds(0, 0, sizePx, sizePx)
         val saved = canvas.save()
-        canvas.scale(scale, scale, sizePx / 2f, sizePx / 2f)
+        val extra = scale / SAFE_ZONE_SCALE
+        if (extra > 1f) {
+            val center = sizePx / 2f
+            val anchorX = center + (contentBounds.exactCenterX() - center) * SAFE_ZONE_SCALE
+            val anchorY = center + (contentBounds.exactCenterY() - center) * SAFE_ZONE_SCALE
+            canvas.scale(extra, extra, anchorX, anchorY)
+        }
+        canvas.scale(SAFE_ZONE_SCALE, SAFE_ZONE_SCALE, sizePx / 2f, sizePx / 2f)
         foreground.draw(canvas)
         canvas.restoreToCount(saved)
     }
@@ -203,6 +260,16 @@ internal object IconNormalizer {
         // from a fully transparent layer (skip it). `coverage` only counts
         // opaque pixels and so can't tell the two apart.
         val hasVisibleContent: Boolean,
+        // Bounds of the meaningfully opaque art (alpha ≥ SIZING_ALPHA), used to
+        // measure a logo for enlargement so a soft shadow or glow under that
+        // alpha doesn't inflate the box. Falls back to [bounds] when the layer
+        // has no usable art at that threshold (fully translucent, or a speck).
+        val sizingBounds: Rect,
+        // Per-row span area (sum of leftmost→rightmost visible run per row) of
+        // the pixels backing [sizingBounds] — a cheap convex-hull stand-in that
+        // fills interior holes, so a ring outline (VW) measures like the disc it
+        // reads as rather than as its sparse stroke pixels.
+        val sizingHullArea: Int,
     )
 
     /**
@@ -222,11 +289,21 @@ internal object IconNormalizer {
         var minY = height
         var maxX = -1
         var maxY = -1
+        var sizingMinX = width
+        var sizingMinY = height
+        var sizingMaxX = -1
+        var sizingMaxY = -1
+        var visibleHull = 0
+        var sizingHull = 0
         // bucket -> [count, redSum, greenSum, blueSum]
         val histogram = HashMap<Int, IntArray>()
 
         var index = 0
         for (y in 0 until height) {
+            var rowVisibleMin = -1
+            var rowVisibleMax = -1
+            var rowSizingMin = -1
+            var rowSizingMax = -1
             for (x in 0 until width) {
                 val pixel = pixels[index++]
                 val alpha = (pixel ushr 24) and 0xFF
@@ -235,6 +312,16 @@ internal object IconNormalizer {
                     if (x > maxX) maxX = x
                     if (y < minY) minY = y
                     if (y > maxY) maxY = y
+                    if (rowVisibleMin < 0) rowVisibleMin = x
+                    rowVisibleMax = x
+                }
+                if (alpha >= SIZING_ALPHA) {
+                    if (x < sizingMinX) sizingMinX = x
+                    if (x > sizingMaxX) sizingMaxX = x
+                    if (y < sizingMinY) sizingMinY = y
+                    if (y > sizingMaxY) sizingMaxY = y
+                    if (rowSizingMin < 0) rowSizingMin = x
+                    rowSizingMax = x
                 }
                 if (alpha >= OPAQUE_ALPHA) {
                     opaque++
@@ -251,17 +338,32 @@ internal object IconNormalizer {
                     accumulator[3] += blue
                 }
             }
+            if (rowVisibleMax >= 0) visibleHull += rowVisibleMax - rowVisibleMin + 1
+            if (rowSizingMax >= 0) sizingHull += rowSizingMax - rowSizingMin + 1
         }
 
         val total = (width * height).coerceAtLeast(1)
         val coverage = opaque.toFloat() / total
         val hasVisibleContent = maxX >= minX
         val bounds = if (!hasVisibleContent) Rect(0, 0, width, height) else Rect(minX, minY, maxX + 1, maxY + 1)
+        val sizingUsable = sizingMaxX >= sizingMinX && sizingHull >= total * SIZING_MIN_HULL_FRACTION
+        val sizingBounds = if (sizingUsable) {
+            Rect(sizingMinX, sizingMinY, sizingMaxX + 1, sizingMaxY + 1)
+        } else {
+            bounds
+        }
         val dominant = histogram.maxByOrNull { it.value[0] }?.value?.let { accumulator ->
             val count = accumulator[0]
             Color.rgb(accumulator[1] / count, accumulator[2] / count, accumulator[3] / count)
         } ?: Color.WHITE
-        return IconAnalysis(coverage, bounds, dominant, hasVisibleContent)
+        return IconAnalysis(
+            coverage,
+            bounds,
+            dominant,
+            hasVisibleContent,
+            sizingBounds,
+            if (sizingUsable) sizingHull else visibleHull,
+        )
     }
 
     /**
