@@ -140,22 +140,28 @@ internal object IconNormalizer {
     }
 
     /**
-     * Draws [drawable] edge-to-edge into a `sizePx` square. Adaptive icons are
-     * composited layer-by-layer at full bounds rather than via
-     * [AdaptiveIconDrawable.draw], whose direct-draw path oversizes the layers
-     * by the safe-zone ring and clips it away — the same faithful full-bleed
-     * technique `LauncherIconScreenshotTest` relies on.
+     * Draws [drawable] into a `sizePx` square. Adaptive icons are composited
+     * layer-by-layer with the standard viewport zoom — the layers are scaled up
+     * by [AdaptiveIconDrawable.getExtraInsetFraction] so the 72/108 safe zone
+     * fills the tile and the bleed ring is clipped away, the same framing the
+     * platform applies. Without the zoom the foreground logo would sit at ~67%
+     * of the tile and look shrunken next to a full-bleed legacy icon.
      */
     private fun rasterizeFullBleed(drawable: Drawable, sizePx: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         if (drawable is AdaptiveIconDrawable) {
+            val inset = (sizePx * AdaptiveIconDrawable.getExtraInsetFraction()).toInt()
+            val left = -inset
+            val top = -inset
+            val right = sizePx + inset
+            val bottom = sizePx + inset
             drawable.background?.apply {
-                setBounds(0, 0, sizePx, sizePx)
+                setBounds(left, top, right, bottom)
                 draw(canvas)
             }
             drawable.foreground?.apply {
-                setBounds(0, 0, sizePx, sizePx)
+                setBounds(left, top, right, bottom)
                 draw(canvas)
             }
         } else {

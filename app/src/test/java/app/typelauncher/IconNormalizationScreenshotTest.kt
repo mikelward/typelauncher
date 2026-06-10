@@ -61,18 +61,17 @@ class IconNormalizationScreenshotTest {
         var left = gap
         for (drawable in cases) {
             val normalized = IconNormalizer.normalizeToTile(drawable, tile)
-            drawRoundedTile(canvas, normalized, left.toFloat(), gap.toFloat(), tile.toFloat())
+            drawCircleTile(canvas, normalized, left.toFloat(), gap.toFloat(), tile.toFloat())
             left += tile + gap
         }
 
         strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_icon_normalization_robolectric.png")
     }
 
-    private fun drawRoundedTile(canvas: Canvas, bitmap: Bitmap, left: Float, top: Float, size: Float) {
-        // Matches AppIcon's MaterialTheme.shapes.medium rounding proportionally.
-        val radius = size * 0.18f
+    private fun drawCircleTile(canvas: Canvas, bitmap: Bitmap, left: Float, top: Float, size: Float) {
+        // Matches AppIcon's circular clip.
         val path = Path().apply {
-            addRoundRect(RectF(left, top, left + size, top + size), radius, radius, Path.Direction.CW)
+            addCircle(left + size / 2f, top + size / 2f, size / 2f, Path.Direction.CW)
         }
         canvas.save()
         canvas.clipPath(path)
