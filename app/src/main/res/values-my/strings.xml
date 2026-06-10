@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">စနစ်</string>
     <string name="settings_theme_option_light">အလင်း</string>
     <string name="settings_theme_option_dark">အမှောင်</string>
+    <string name="settings_icon_theme_title">အိုင်ကွန် အပြင်အဆင်</string>
+    <string name="settings_icon_theme_option_default">မူရင်း</string>
+    <string name="settings_icon_theme_option_monochrome">တစ်ရောင်တည်း</string>
     <string name="settings_dock_icon_count_label">တစ်တန်းလျှင် အိုင်ကွန် - %1$d</string>
     <string name="settings_dock_icon_size_value">အိုင်ကွန်အရွယ်အစား - %1$d dp</string>
     <string name="settings_dock_preview_label">အကြိုကြည့်ရှုခြင်း</string>

@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">ਸਿਸਟਮ</string>
     <string name="settings_theme_option_light">ਹਲਕਾ</string>
     <string name="settings_theme_option_dark">ਗੂੜ੍ਹਾ</string>
+    <string name="settings_icon_theme_title">ਆਈਕਨ ਥੀਮ</string>
+    <string name="settings_icon_theme_option_default">ਡਿਫੌਲਟ</string>
+    <string name="settings_icon_theme_option_monochrome">ਮੋਨੋਕ੍ਰੋਮ</string>
     <string name="settings_dock_icon_count_label">ਪ੍ਰਤੀ ਕਤਾਰ ਆਈਕਨ: %1$d</string>
     <string name="settings_dock_icon_size_value">ਆਈਕਨ ਆਕਾਰ: %1$d dp</string>
     <string name="settings_dock_preview_label">ਪੂਰਵਦਰਸ਼ਨ</string>

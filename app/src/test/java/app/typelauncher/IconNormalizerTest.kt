@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -200,6 +201,50 @@ class IconNormalizerTest {
         // The circle's edge meets the tile edge at the axes; the corner stays
         // outside it and shows the white plate.
         assertColorClose(Color.WHITE, tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun themedColorsRenderMonochromeGlyphOnPlate() {
+        // An adaptive icon with a monochrome layer (a white centered circle —
+        // BitmapDrawable, which honors setTint) takes the themed path: the
+        // glyph is tinted the glyph color and drawn with the platform framing
+        // (0.5 fraction x 1.5 safe-zone zoom = radius 0.375 of the tile), and
+        // everything outside it is the plate fill — the bg/fg layers are not
+        // drawn at all.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val mono = BitmapDrawable(resources, centeredCircle(100, fraction = 0.5f, color = Color.WHITE))
+        val drawable = object : AdaptiveIconDrawable(ColorDrawable(Color.BLUE), ColorDrawable(Color.RED)) {
+            override fun getMonochrome(): Drawable = mono
+        }
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        assertColorClose(glyph, tile.getPixel(50, 50))
+        assertColorClose(plate, tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun themedColorsWithoutMonochromeLayerFallThroughToNormalRendering() {
+        // No monochrome layer: the themed request must not change anything —
+        // the icon renders exactly as the untinted adaptive path does (full
+        // red foreground over blue background; the corner stays red, never the
+        // plate color), matching Pixel's themed-icons behavior.
+        val drawable = AdaptiveIconDrawable(ColorDrawable(Color.BLUE), ColorDrawable(Color.RED))
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            64,
+            themedColors = IconNormalizer.ThemedIconColors(plate = 0xFF112233.toInt(), glyph = 0xFF445566.toInt()),
+        )
+
+        assertColorClose(Color.RED, tile.getPixel(2, 2))
+        assertColorClose(Color.RED, tile.getPixel(32, 32))
     }
 
     private fun solid(size: Int, color: Int): Bitmap {

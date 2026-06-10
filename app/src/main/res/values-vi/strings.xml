@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Hệ thống</string>
     <string name="settings_theme_option_light">Sáng</string>
     <string name="settings_theme_option_dark">Tối</string>
+    <string name="settings_icon_theme_title">Giao diện biểu tượng</string>
+    <string name="settings_icon_theme_option_default">Mặc định</string>
+    <string name="settings_icon_theme_option_monochrome">Đơn sắc</string>
     <string name="settings_dock_icon_count_label">Biểu tượng mỗi hàng: %1$d</string>
     <string name="settings_dock_icon_size_value">Kích thước biểu tượng: %1$d dp</string>
     <string name="settings_dock_preview_label">Xem trước</string>

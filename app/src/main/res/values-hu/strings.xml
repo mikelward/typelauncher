@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Rendszer</string>
     <string name="settings_theme_option_light">Világos</string>
     <string name="settings_theme_option_dark">Sötét</string>
+    <string name="settings_icon_theme_title">Ikontéma</string>
+    <string name="settings_icon_theme_option_default">Alapértelmezett</string>
+    <string name="settings_icon_theme_option_monochrome">Monokróm</string>
     <string name="settings_dock_icon_count_label">Ikonok soronként: %1$d</string>
     <string name="settings_dock_icon_size_value">Ikon mérete: %1$d dp</string>
     <string name="settings_dock_preview_label">Előnézet</string>

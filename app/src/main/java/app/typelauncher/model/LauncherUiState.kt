@@ -224,6 +224,18 @@ internal enum class IconShape {
 }
 
 /**
+ * How the launcher renders every app icon's tile. `Default` keeps each app's
+ * own icon art; `Monochrome` re-renders icons from their app's monochrome
+ * themed-icon glyph in theme colors (API 33+) — apps without a monochrome
+ * layer keep their normal icon. Applied at rasterization time by
+ * `AppIconLoader` / `IconNormalizer`, not at composition time.
+ */
+internal enum class IconTheme {
+    Default,
+    Monochrome,
+}
+
+/**
  * Distinguishes a keyboard reservation that has been confirmed by a real
  * visible IME from one that only ever came in via `WindowInsets.imeAnimationTarget`.
  *
@@ -399,6 +411,11 @@ internal data class LauncherUiState(
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
     val isAppListIconOnly: Boolean = false,
+    // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
+    // themed-icon glyph in theme colors (API 33+); apps without a monochrome
+    // layer keep their normal icon. Applied at rasterization time by
+    // `AppIconLoader` / `IconNormalizer`, not at composition time.
+    val iconTheme: IconTheme = IconTheme.Default,
     // When true (the default), docked apps stay visible in the typed-search
     // app list in addition to the dock row. When false, the dock dedupes
     // itself out of the main list to free vertical space — the launcher's

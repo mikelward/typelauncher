@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">સિસ્ટમ</string>
     <string name="settings_theme_option_light">આછી</string>
     <string name="settings_theme_option_dark">ઘેરી</string>
+    <string name="settings_icon_theme_title">આઇકન થીમ</string>
+    <string name="settings_icon_theme_option_default">ડિફૉલ્ટ</string>
+    <string name="settings_icon_theme_option_monochrome">મોનોક્રોમ</string>
     <string name="settings_dock_icon_count_label">પંક્તિ દીઠ આઇકન: %1$d</string>
     <string name="settings_dock_icon_size_value">આઇકન કદ: %1$d dp</string>
     <string name="settings_dock_preview_label">પૂર્વાવલોકન</string>

@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">സിസ്റ്റം</string>
     <string name="settings_theme_option_light">ഇളം</string>
     <string name="settings_theme_option_dark">കടും</string>
+    <string name="settings_icon_theme_title">ഐക്കൺ തീം</string>
+    <string name="settings_icon_theme_option_default">സ്ഥിരസ്ഥിതി</string>
+    <string name="settings_icon_theme_option_monochrome">മോണോക്രോം</string>
     <string name="settings_dock_icon_count_label">വരിയിൽ ഐക്കണുകൾ: %1$d</string>
     <string name="settings_dock_icon_size_value">ഐക്കൺ വലുപ്പം: %1$d dp</string>
     <string name="settings_dock_preview_label">പ്രിവ്യൂ</string>

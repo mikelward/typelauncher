@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Sistem</string>
     <string name="settings_theme_option_light">Terang</string>
     <string name="settings_theme_option_dark">Gelap</string>
+    <string name="settings_icon_theme_title">Tema ikon</string>
+    <string name="settings_icon_theme_option_default">Default</string>
+    <string name="settings_icon_theme_option_monochrome">Monokrom</string>
     <string name="settings_dock_icon_count_label">Ikon per baris: %1$d</string>
     <string name="settings_dock_icon_size_value">Ukuran ikon: %1$d dp</string>
     <string name="settings_dock_preview_label">Pratinjau</string>

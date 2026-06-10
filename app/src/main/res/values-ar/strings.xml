@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">النظام</string>
     <string name="settings_theme_option_light">فاتح</string>
     <string name="settings_theme_option_dark">داكن</string>
+    <string name="settings_icon_theme_title">مظهر الأيقونات</string>
+    <string name="settings_icon_theme_option_default">افتراضي</string>
+    <string name="settings_icon_theme_option_monochrome">أحادي اللون</string>
     <string name="settings_dock_icon_count_label">أيقونات في الصف: %1$d</string>
     <string name="settings_dock_icon_size_value">حجم الأيقونة: %1$d نقطة</string>
     <string name="settings_dock_preview_label">معاينة</string>

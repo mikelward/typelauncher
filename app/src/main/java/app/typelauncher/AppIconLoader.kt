@@ -4,12 +4,14 @@ import android.content.Context
 import android.content.ComponentName
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.os.SystemClock
 import android.os.UserHandle
 import android.util.LruCache
@@ -19,6 +21,7 @@ import java.io.File
 import java.time.LocalDate
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,6 +62,20 @@ internal object AppIconLoader {
 
     private val cacheHits = AtomicInteger()
     private val cacheMisses = AtomicInteger()
+
+    // Mirrors `DockSettingsStore.iconTheme`; the ViewModel writes it on init
+    // and on every change. A @Volatile mirror (rather than threading the theme
+    // through every load call) keeps the loader's call surface unchanged and is
+    // read once per `performLoad` on the loader scope.
+    @Volatile
+    var iconTheme: IconTheme = IconTheme.Default
+
+    // Bumped by `evictAll` so compositions holding an already-loaded bitmap
+    // (`rememberAppIconBitmap`'s `remember` keys don't otherwise change) drop
+    // their stale state and re-read the now-empty cache — without it, an icon
+    // theme change would only repaint icons whose composables leave and re-enter
+    // the tree.
+    private val cacheGeneration = mutableIntStateOf(0)
 
     // Coalesces concurrent loads of the same `CacheKey`. The first miss creates the
     // `Deferred`; subsequent misses await that same one and skip the duplicate
@@ -184,7 +201,15 @@ internal object AppIconLoader {
             // into the bitmap would be sliced off by that clip. Instead the
             // badge is loaded separately (see loadWorkBadge) and drawn as an
             // overlay outside the circular clip, so it stays fully visible.
-            IconNormalizer.normalizeToTile(drawable, sizePx, app.packageName).asImageBitmap()
+            // Themed rendering only activates on API 33+, where the adaptive
+            // monochrome layer exists; below that the colors would never be
+            // consumed, so skip deriving them.
+            val themedColors = if (iconTheme == IconTheme.Monochrome && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                themedIconColors(context)
+            } else {
+                null
+            }
+            IconNormalizer.normalizeToTile(drawable, sizePx, app.packageName, themedColors).asImageBitmap()
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")
@@ -319,6 +344,13 @@ internal object AppIconLoader {
     fun cacheSnapshot(): Map<CacheKey, ImageBitmap> = cache.snapshot()
 
     /**
+     * Compose-observable counter [evictAll] bumps; [rememberAppIconBitmap] keys
+     * on it so live compositions reload after a full eviction.
+     */
+    internal val cacheGenerationValue: Int
+        get() = cacheGeneration.intValue
+
+    /**
      * Drops every cached bitmap that belongs to (`packageName`, `user`) so the next render
      * forces a fresh `resolve` instead of returning a stale entry.
      *
@@ -358,6 +390,23 @@ internal object AppIconLoader {
         }
     }
 
+    /**
+     * Drops every cached bitmap and detaches every in-flight load, forcing the
+     * next render of every icon through a fresh `resolve` + rasterize pass.
+     * Used when a setting that changes how every tile is rasterized changes
+     * (the icon theme), since the cache key carries no rendering-mode component.
+     * Same locking rationale as [evict]: detach in-flight producers and clear
+     * the LRU under one critical section so no completing producer can re-pin a
+     * stale bitmap.
+     */
+    fun evictAll() {
+        synchronized(inFlightLock) {
+            inFlight.clear()
+            cache.evictAll()
+        }
+        cacheGeneration.intValue++
+    }
+
     private fun recordCacheLookup(hit: Boolean) {
         val hits: Int
         val misses: Int
@@ -373,6 +422,45 @@ internal object AppIconLoader {
             LauncherDebugLog.event("AppIconLoader cache hits=$hits misses=$misses total=$total")
         }
     }
+
+    /**
+     * Plate / glyph pair for themed-icon rendering, derived from the device's
+     * current night mode and (API 31+) the dynamic system palette — the same
+     * neutral-on-accent pairing Pixel's themed icons use. Below API 31 the
+     * dynamic palette does not exist, so fixed gray tones approximate the look.
+     * Evaluated per load (not cached) so a dark-mode or wallpaper change is
+     * picked up by the next rasterize pass.
+     */
+    private fun themedIconColors(context: Context): IconNormalizer.ThemedIconColors {
+        val isDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (isDark) {
+                IconNormalizer.ThemedIconColors(
+                    plate = context.getColor(android.R.color.system_neutral1_800),
+                    glyph = context.getColor(android.R.color.system_accent1_100),
+                )
+            } else {
+                IconNormalizer.ThemedIconColors(
+                    plate = context.getColor(android.R.color.system_accent1_100),
+                    glyph = context.getColor(android.R.color.system_accent1_700),
+                )
+            }
+        } else {
+            if (isDark) {
+                IconNormalizer.ThemedIconColors(plate = THEMED_PLATE_DARK_FALLBACK, glyph = THEMED_GLYPH_DARK_FALLBACK)
+            } else {
+                IconNormalizer.ThemedIconColors(plate = THEMED_GLYPH_DARK_FALLBACK, glyph = THEMED_PLATE_DARK_FALLBACK)
+            }
+        }
+    }
+
+    // Fallback themed-icon tones for devices without the dynamic system palette
+    // (below API 31): dark gray and off-white, swapped between plate and glyph
+    // by night mode. In practice unreachable today — themed rendering requires
+    // API 33 — but kept so the color derivation is total.
+    private const val THEMED_PLATE_DARK_FALLBACK = 0xFF3C4043.toInt()
+    private const val THEMED_GLYPH_DARK_FALLBACK = 0xFFE8EAED.toInt()
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
         val component = app.launchIntent.component ?: return null
@@ -553,8 +641,12 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
     val context = LocalContext.current.applicationContext
     val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
     val cacheId = app.iconCacheId
-    var bitmap by remember(cacheId, sizePx) { mutableStateOf(AppIconLoader.cached(app, sizePx)) }
-    LaunchedEffect(cacheId, sizePx) {
+    // Keyed on the cache generation as well, so a full eviction (icon theme
+    // change) drops the remembered bitmap and reloads instead of painting the
+    // stale pre-change tile until the composable happens to leave the tree.
+    val generation = AppIconLoader.cacheGenerationValue
+    var bitmap by remember(cacheId, sizePx, generation) { mutableStateOf(AppIconLoader.cached(app, sizePx)) }
+    LaunchedEffect(cacheId, sizePx, generation) {
         if (bitmap == null) {
             bitmap = AppIconLoader.load(context, app, sizePx)
         }

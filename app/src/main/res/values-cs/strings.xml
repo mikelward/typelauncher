@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Systémový</string>
     <string name="settings_theme_option_light">Světlý</string>
     <string name="settings_theme_option_dark">Tmavý</string>
+    <string name="settings_icon_theme_title">Motiv ikon</string>
+    <string name="settings_icon_theme_option_default">Výchozí</string>
+    <string name="settings_icon_theme_option_monochrome">Monochromatický</string>
     <string name="settings_dock_icon_count_label">Ikon v řadě: %1$d</string>
     <string name="settings_dock_icon_size_value">Velikost ikony: %1$d dp</string>
     <string name="settings_dock_preview_label">Náhled</string>

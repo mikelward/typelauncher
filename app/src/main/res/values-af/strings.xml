@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Stelsel</string>
     <string name="settings_theme_option_light">Lig</string>
     <string name="settings_theme_option_dark">Donker</string>
+    <string name="settings_icon_theme_title">Ikoontema</string>
+    <string name="settings_icon_theme_option_default">Verstek</string>
+    <string name="settings_icon_theme_option_monochrome">Monochroom</string>
     <string name="settings_dock_icon_count_label">Ikone per ry: %1$d</string>
     <string name="settings_dock_icon_size_value">Ikoongrootte: %1$d dp</string>
     <string name="settings_dock_preview_label">Voorskou</string>

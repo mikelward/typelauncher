@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Lyst</string>
     <string name="settings_theme_option_dark">Mørkt</string>
+    <string name="settings_icon_theme_title">Ikontema</string>
+    <string name="settings_icon_theme_option_default">Standard</string>
+    <string name="settings_icon_theme_option_monochrome">Monokrom</string>
     <string name="settings_dock_icon_count_label">Ikoner pr. række: %1$d</string>
     <string name="settings_dock_icon_size_value">Ikonstørrelse: %1$d dp</string>
     <string name="settings_dock_preview_label">Forhåndsvisning</string>

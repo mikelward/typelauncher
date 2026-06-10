@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Argia</string>
     <string name="settings_theme_option_dark">Iluna</string>
+    <string name="settings_icon_theme_title">Ikonoen itxura</string>
+    <string name="settings_icon_theme_option_default">Lehenetsia</string>
+    <string name="settings_icon_theme_option_monochrome">Monokromoa</string>
     <string name="settings_dock_icon_count_label">Ikonoak ilarako: %1$d</string>
     <string name="settings_dock_icon_size_value">Ikonoaren tamaina: %1$d dp</string>
     <string name="settings_dock_preview_label">Aurrebista</string>

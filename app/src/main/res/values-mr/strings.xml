@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">सिस्टम</string>
     <string name="settings_theme_option_light">हलका</string>
     <string name="settings_theme_option_dark">गडद</string>
+    <string name="settings_icon_theme_title">आयकॉन थीम</string>
+    <string name="settings_icon_theme_option_default">डीफॉल्ट</string>
+    <string name="settings_icon_theme_option_monochrome">मोनोक्रोम</string>
     <string name="settings_dock_icon_count_label">प्रति ओळ आयकॉन: %1$d</string>
     <string name="settings_dock_icon_size_value">आयकॉन आकार: %1$d dp</string>
     <string name="settings_dock_preview_label">पूर्वावलोकन</string>

@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Sistēma</string>
     <string name="settings_theme_option_light">Gaišs</string>
     <string name="settings_theme_option_dark">Tumšs</string>
+    <string name="settings_icon_theme_title">Ikonu motīvs</string>
+    <string name="settings_icon_theme_option_default">Noklusējums</string>
+    <string name="settings_icon_theme_option_monochrome">Monohroms</string>
     <string name="settings_dock_icon_count_label">Ikonas rindā: %1$d</string>
     <string name="settings_dock_icon_size_value">Ikonas izmērs: %1$d dp</string>
     <string name="settings_dock_preview_label">Priekšskatījums</string>
