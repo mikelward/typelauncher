@@ -77,14 +77,20 @@ Android home screen launcher app (Kotlin, single `:app` module).
 - Confirm the English copy with the user before translating it. Don't write translations in any `values-*/strings.xml` (French, Italian, Catalan, etc.) until the corresponding English string in `app/src/main/res/values/strings.xml` — or the proposed wording change to it — has been explicitly approved. Source-of-truth wording shifts often during review; translating ahead of approval wastes the round-trip and leaves stale copy in every locale when the English changes.
 - Sequence the approval *in chat*, not via a commit: do not push an English-only change and "wait for sign-off on the PR." CI runs `./gradlew lint`, which fails on `MissingTranslation` for any new `values/strings.xml` entry that isn't covered in every existing `values-*/` locale. So the working order is (1) propose the English wording in conversation, (2) wait for explicit user approval, (3) commit and push the English string *and* every locale translation together in the same commit so lint stays green. When a task says "translate X" or "add a string in all locales," show the English text first, wait for sign-off, then fan out — but land it all in one push.
 
-## Cursor Cloud specific instructions
+## Remote build environments (Cursor Cloud and Claude Code on the web)
+
+This project is worked on from more than one managed remote environment. The
+toolchain facts below apply to all of them unless a bullet calls out a
+difference; do not assume "Cursor Cloud only."
 
 ### Environment
 
 - **JDK 21** is pre-installed on the VM. AGP 9.2.0 requires JDK 17+.
-- **Android SDK** is installed at `/opt/android-sdk`. Environment variables `ANDROID_HOME`, `JAVA_HOME`, and `PATH` are set via `~/.bashrc`. In non-login/non-interactive shells (e.g. plain `Shell` tool calls), you may need to `source ~/.bashrc` or export these variables explicitly before running Gradle commands.
+- **Android SDK location** is `/opt/android-sdk` (`ANDROID_HOME` / `ANDROID_SDK_ROOT`). How it gets there differs by environment:
+  - **Cursor Cloud**: the SDK is pre-installed at `/opt/android-sdk`, with `ANDROID_HOME`, `JAVA_HOME`, and `PATH` set via `~/.bashrc`. In non-login/non-interactive shells (e.g. plain `Shell` tool calls), you may need to `source ~/.bashrc` or export these variables explicitly before running Gradle commands.
+  - **Claude Code on the web**: the container starts with `ANDROID_HOME` set but the SDK *not yet installed*. The `SessionStart` hook at `.claude/hooks/session-start.sh` provisions it (command-line tools + `platforms;android-36` + `platform-tools`, licenses accepted) at the start of every web session, so by the time the agent loop runs, `./gradlew` builds, tests, and lint work. If you ever find `/opt/android-sdk` empty mid-session, run that hook manually (`CLAUDE_CODE_REMOTE=true .claude/hooks/session-start.sh`) rather than hand-installing.
 - The Gradle wrapper (`./gradlew`) auto-downloads Gradle 9.4.1 on first run.
-- AGP auto-installs `Android SDK Platform 36.1` (compileSdk minor API level 1) on the first build if only `platforms;android-36` is present.
+- AGP auto-installs `Android SDK Platform 36.1` (compileSdk minor API level 1) on the first build if only `platforms;android-36` is present — which is exactly what the hook seeds.
 
 ### Key commands
 
@@ -100,7 +106,7 @@ Android home screen launcher app (Kotlin, single `:app` module).
 - Code changes must include or update relevant unit tests.
 - UI changes must include or update screenshot tests that cover the changed UI state — and the test class must be wired into `.github/workflows/android-ci.yml`. The screenshot job runs `:app:testDebugUnitTest` under `-Proborazzi.test.record=true` against an explicit `--tests` allow-list (one `run:` step per screenshot test class); a new `*ScreenshotTest` class that isn't on that list never records snapshots in CI even when the test passes locally, so the `roborazzi-screenshots` artifact will not contain the new images. After adding a new screenshot test, also add a `Run … screenshot tests` step that targets it. Confirm the snapshot path matches the existing `app/src/test/snapshots/images/` upload root.
 - Whenever a commit touches UI, post a visual diff back to the user. After CI on the new commit completes, pull the `roborazzi-screenshots` artifact, locate every `app/src/test/snapshots/images/*.png` whose blob hash differs from `origin/main`, build a `before | after | diff` PNG contact sheet for each one, save them under `/opt/cursor/artifacts`, and reply with embedded `<img>` links so the user can review the visual delta inline. For brand-new screenshots that didn't exist on `origin/main`, post an "added" image (no contact sheet — there's no before to compare against). Do this on every push that affects UI, not only at PR-open time, so the user can see what changed across the iteration loop.
-- Run the relevant tests before submitting changes and report any environment limitations clearly. The sandbox often can't run `./gradlew assembleDebug` or `./gradlew test` (Google Maven is blocked); when that's the case, the failure modes below are the ones that ship uncaught until CI catches them, so go through them by inspection before pushing.
+- Run the relevant tests before submitting changes and report any environment limitations clearly. Network access depends on the environment: in Cursor Cloud the sandbox often can't run `./gradlew assembleDebug` or `./gradlew test` because Google Maven is blocked, whereas Claude Code on the web (with the `SessionStart` hook above) can reach Google Maven and run the full build, test, and lint locally. When you *can't* run Gradle, the failure modes below are the ones that ship uncaught until CI catches them, so go through them by inspection before pushing; when you *can*, actually run `./gradlew test` and `./gradlew lint` rather than relying on inspection alone.
 
 ### Common pre-CI pitfalls
 
@@ -115,7 +121,7 @@ Each item below has bitten this repo at least once and produces an opaque CI fai
 
 - **Android Emulator** (v36.5.11) is installed at `$ANDROID_HOME/emulator/` and exposed on `PATH` via `~/.bashrc`.
 - **System image**: `system-images;android-36;google_apis;x86_64` (Google APIs Intel x86_64, API 36).
-- **KVM is not available** in the Cursor Cloud VM (`/dev/kvm` does not exist). The VM runs inside Firecracker, which does not expose nested virtualization.
+- **KVM is not available** in either remote environment (`/dev/kvm` does not exist). Cursor Cloud runs inside Firecracker, which does not expose nested virtualization; Claude Code on the web is likewise unaccelerated.
 - Without KVM the emulator falls back to software emulation (TCG/QEMU), which is extremely slow and may not boot reliably. Running `connectedDebugAndroidTest` or `installDebug` in the cloud VM is therefore **not practical** without a KVM-capable host.
 - To create an AVD for local or KVM-enabled CI use:
   ```sh

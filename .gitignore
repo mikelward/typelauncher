@@ -4,6 +4,11 @@
 !/.github/**
 !/.gitignore
 !.gitkeep
+# Claude Code shared config (SessionStart hook + settings) must be tracked so
+# remote web sessions pick it up; keep machine-local overrides ignored.
+!/.claude
+!/.claude/**
+/.claude/settings.local.json
 
 *.iml
 /local.properties
