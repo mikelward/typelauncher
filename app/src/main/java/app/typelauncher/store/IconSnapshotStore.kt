@@ -11,10 +11,17 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Persists a small set of pre-rasterised app icons under `filesDir/icon_snapshots/` so the
+ * Persists a small set of pre-rasterised app icons under `filesDir/icon_snapshots_v2/` so the
  * dock and the most-used app rows can paint real icons on the very first frame of a cold
  * start, ahead of the `LauncherApps`/`PackageManager` resolve + bitmap rasterisation that
  * `AppIconLoader.load` performs on a cache miss.
+ *
+ * The directory carries a renderer/format version (`_v2`). When the bitmaps a renderer
+ * produces change shape — e.g. the move to `IconNormalizer`'s full-bleed tiles — bumping the
+ * version means an upgrade restores nothing from the old directory, so a stale-format bitmap
+ * can never be put back into `AppIconLoader`'s cache (a hit there would bypass the current
+ * rasterisation path). [load] deletes any earlier-versioned directory on the first cold-start
+ * read so old snapshots don't linger on disk.
  *
  * Bitmaps are written as raw `ARGB_8888` pixel buffers (no PNG/WEBP encoding) so the
  * cold-start read path is just a `File.readBytes` + `Bitmap.copyPixelsFromBuffer`, with no
@@ -38,8 +45,21 @@ internal class IconSnapshotStore(context: Context) {
     private val lock = Any()
 
     fun load(): List<Snapshot> = synchronized(lock) {
+        // Runs on Dispatchers.IO (the cold-start restore coroutine), so the
+        // legacy-directory sweep is off the main thread. It precedes save (which
+        // is gated on the restore completing), so purging here is enough to keep
+        // a stale-format snapshot from ever being restored or re-persisted.
+        purgeLegacyDirectories()
         if (!directory.isDirectory) return emptyList()
         directory.listFiles().orEmpty().mapNotNull(::readSnapshot)
+    }
+
+    private fun purgeLegacyDirectories() {
+        directory.parentFile
+            ?.listFiles { file ->
+                file.isDirectory && file.name != DIRECTORY_NAME && file.name.startsWith(DIRECTORY_PREFIX)
+            }
+            ?.forEach { it.deleteRecursively() }
     }
 
     fun save(snapshots: Collection<Snapshot>): Unit = synchronized(lock) {
@@ -131,7 +151,11 @@ internal class IconSnapshotStore(context: Context) {
     internal data class Snapshot(val id: String, val sizePx: Int, val bitmap: ImageBitmap)
 
     private companion object {
-        const val DIRECTORY_NAME = "icon_snapshots"
+        // Bump the version suffix whenever the persisted bitmap's appearance
+        // changes so an upgrade drops the old directory instead of restoring
+        // stale-format icons. _v2 = IconNormalizer full-bleed tiles.
+        const val DIRECTORY_NAME = "icon_snapshots_v2"
+        const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
         const val HEADER_SIZE = 8
