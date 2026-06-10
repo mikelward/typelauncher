@@ -27,7 +27,17 @@ class ManifestUnitTest {
         assertEquals("true", attrs.getNamedItem("android:clearTaskOnLaunch").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:excludeFromRecents").nodeValue)
         assertEquals("singleTask", attrs.getNamedItem("android:launchMode").nodeValue)
-        assertEquals("true", attrs.getNamedItem("android:stateNotNeeded").nodeValue)
+        // stateNotNeeded must NOT be declared: it lets Android restart the
+        // launcher after a low-memory process death with a null saved-state
+        // bundle, which silently breaks every in-flight-result recovery the
+        // app carries through instance state — the rememberSaveable
+        // pendingIconPickAppId (and the ActivityResultRegistry's own
+        // pending-request record) for the icon picker, and MainActivity's
+        // KEY_PENDING_WIDGET_ID for the widget bind/configure flow. All the
+        // state saved is tiny and restore-safe, so the flag's
+        // crash-loop-on-restore protection isn't worth re-breaking those
+        // flows for.
+        assertEquals(null, attrs.getNamedItem("android:stateNotNeeded"))
         assertEquals("stateAlwaysVisible|adjustResize", attrs.getNamedItem("android:windowSoftInputMode").nodeValue)
         assertEquals("intent", queryIntent.nodeName)
         assertEquals("action", queryElements[0].nodeName)
