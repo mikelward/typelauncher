@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -336,6 +337,24 @@ internal fun TypeLauncherApp(
 ) {
     LaunchedEffect(state.destination, state.isSettingsOpen, state.isAppListIconOnly) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.destination}")
+    }
+    // Back closes the topmost launcher surface — the settings page (which
+    // overlays the whole carousel when open), then the widget picker, then
+    // an open recents tray — before falling through to the system. Without
+    // an in-app handler the system default for back is Activity.finish():
+    // as the default home the system immediately relaunches the finished
+    // activity, so "back on settings" *looked* like it worked while
+    // actually paying a full activity + ViewModel teardown and rebuild; as
+    // a non-default app it simply exited the launcher. The `enabled` gate
+    // keeps the system default on a bare Home screen, where back should do
+    // nothing. Dialogs and dropdown menus are absent from the chain on
+    // purpose — their popup windows consume back natively.
+    BackHandler(enabled = state.isSettingsOpen || state.isAddingWidget || state.isRecentsOpen) {
+        when {
+            state.isSettingsOpen -> onCloseSettings()
+            state.isAddingWidget -> onDismissWidgetPicker()
+            else -> onSetRecentsOpen(false)
+        }
     }
     HomeReadySignal(
         // Gate on the fresh load, not the spinner: on a warm start with cached
