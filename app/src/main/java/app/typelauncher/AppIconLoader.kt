@@ -178,12 +178,13 @@ internal object AppIconLoader {
             // surface plate as a gray square. Adaptive icons pass through
             // edge-to-edge; everything else is re-seated on a dominant-color
             // plate. See IconNormalizer.
-            val tile = IconNormalizer.normalizeToTile(drawable, sizePx)
-            // resolve returns the unbadged icon; apply the system work-profile
-            // badge to the finished tile so the briefcase keeps its OS corner
-            // placement instead of being cropped/rescaled by the normalizer.
-            val finished = if (app.isWorkApp) badgeTile(context, tile, app.user, sizePx) else tile
-            finished.asImageBitmap()
+            //
+            // The work-profile badge is NOT baked in here. The launcher clips
+            // this tile to a circle, and a corner-placed briefcase composited
+            // into the bitmap would be sliced off by that clip. Instead the
+            // badge is loaded separately (see loadWorkBadge) and drawn as an
+            // overlay outside the circular clip, so it stays fully visible.
+            IconNormalizer.normalizeToTile(drawable, sizePx).asImageBitmap()
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")
@@ -191,12 +192,51 @@ internal object AppIconLoader {
     }
 
     /**
-     * Applies the system work-profile badge to an already-normalized [tile] by
-     * wrapping it in a Drawable, letting [PackageManager.getUserBadgedIcon]
-     * composite the OEM badge (the blue briefcase on a Pixel), and rasterizing
-     * the result back to [sizePx]. Applying the badge *after* normalization is
-     * what keeps it in its OS corner — IconNormalizer's crop/scale runs on the
-     * unbadged art, so it can't move or shrink the briefcase.
+     * Loads the standalone work-profile badge overlay for [user] at [sizePx] —
+     * a transparent tile with only the OEM badge (the blue briefcase on a
+     * Pixel) composited into its corner. The launcher draws this on top of the
+     * circular icon *outside* the circular clip, so the briefcase stays fully
+     * visible instead of being sliced off where the square corner falls beyond
+     * the circle.
+     *
+     * Cached per (user, size) rather than per app: the badge is the same image
+     * for every work app in a profile, so all of them share one entry. The
+     * cache id can't collide with an app's — app ids are `<userHash>:<...>`
+     * while this is `workbadge:<userHash>`.
+     */
+    suspend fun loadWorkBadge(context: Context, user: UserHandle, sizePx: Int): ImageBitmap? {
+        val key = CacheKey(workBadgeCacheId(user), sizePx)
+        cache.get(key)?.let { return it }
+        val appContext = context.applicationContext
+        return coalesce(key) { performWorkBadgeLoad(appContext, user, sizePx) }
+    }
+
+    fun cachedWorkBadge(user: UserHandle, sizePx: Int): ImageBitmap? =
+        cached(workBadgeCacheId(user), sizePx)
+
+    private fun workBadgeCacheId(user: UserHandle): String = "workbadge:${user.hashCode()}"
+
+    /**
+     * Composites the work-profile badge onto a fully transparent [sizePx] tile,
+     * yielding an overlay that is just the badge in its OS corner. Returns null
+     * when no badge is applied — a personal user, a shadow PackageManager under
+     * test, or a work profile whose badge resource isn't ready yet. A null
+     * result is deliberately not cached (see [createInFlight]), so a later load
+     * retries once the badge becomes available.
+     */
+    private fun performWorkBadgeLoad(context: Context, user: UserHandle, sizePx: Int): ImageBitmap? {
+        val transparent = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val badged = badgeTile(context, transparent, user, sizePx)
+        // badgeTile hands back the input tile unchanged when nothing was
+        // composited; an unchanged transparent tile means "no badge".
+        return if (badged === transparent) null else badged.asImageBitmap()
+    }
+
+    /**
+     * Composites the system work-profile badge onto [tile] by wrapping it in a
+     * Drawable, letting [PackageManager.getUserBadgedIcon] add the OEM badge
+     * (the blue briefcase on a Pixel), and rasterizing the result back to
+     * [sizePx].
      *
      * Falls back to the unbadged [tile] when no badge is composited (personal
      * user, or a shadow PackageManager under test) or when badging is
@@ -287,11 +327,16 @@ internal object AppIconLoader {
      * Why this is necessary even though `iconCacheToken` already keys on the package's
      * `lastUpdateTime`: the token is derived from the personal-profile `PackageManager`,
      * which never observes a work-profile-only update (we have no `INTERACT_ACROSS_USERS`
-     * permission to read the work profile's `PackageInfo` directly). A stale unbadged
-     * work-app bitmap — e.g. one that landed in the cache during work-profile boot before
-     * the badge resource was ready — would therefore stay pinned under the same cache key
-     * forever. The `LauncherApps.Callback` package events are per-(packageName, user), so
-     * eviction at that boundary catches both the personal and work refresh paths cleanly.
+     * permission to read the work profile's `PackageInfo` directly). A stale work-app
+     * bitmap — e.g. one that landed in the cache during work-profile boot before the icon
+     * resource was ready — would therefore stay pinned under the same cache key forever.
+     * The `LauncherApps.Callback` package events are per-(packageName, user), so eviction
+     * at that boundary catches both the personal and work refresh paths cleanly.
+     *
+     * The shared `workbadge:<userHash>` overlay entry is intentionally left alone: it is
+     * keyed on the user, not the package, and the briefcase art never changes per package.
+     * A null overlay (badge resource not ready at boot) is never cached, so it self-heals
+     * on the next load without needing eviction here.
      */
     fun evict(packageName: String, user: UserHandle) {
         val userPrefix = "${user.hashCode()}:"
@@ -343,10 +388,9 @@ internal object AppIconLoader {
         }
         return if (app.launchWithLauncherApps) {
             // Return the UNBADGED icon (getIcon, not getBadgedIcon): the
-            // work-profile badge is applied in performLoad after the icon is
-            // normalized to a tile, so IconNormalizer's crop/scale can't move the
-            // system briefcase out of its corner. Personal-profile activities
-            // have no badge either way.
+            // work-profile badge is loaded separately (loadWorkBadge) and drawn
+            // as an overlay outside the icon's circular clip, so it stays fully
+            // visible. Personal-profile activities have no badge either way.
             //
             // Guarded because this runs on the loader scope and any throwable
             // escaping the producer is re-thrown by `Deferred.await()` inside
@@ -376,7 +420,7 @@ internal object AppIconLoader {
                 null
             }
         } else {
-            // Unbadged here too; performLoad badges the normalized tile.
+            // Unbadged here too; the work badge is a separate overlay.
             try {
                 context.packageManager.getActivityIcon(component)
             } catch (_: PackageManager.NameNotFoundException) {
@@ -515,6 +559,35 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
     LaunchedEffect(cacheId, sizePx) {
         if (bitmap == null) {
             bitmap = AppIconLoader.load(context, app, sizePx)
+        }
+    }
+    return bitmap
+}
+
+/**
+ * Resolves the work-profile badge overlay for [app] at [sizeDp], or null for a
+ * personal-profile app (and while the badge is still loading). The badge is the
+ * standalone briefcase tile [AppIconLoader.loadWorkBadge] produces; the caller
+ * draws it on top of the icon outside the circular clip so it stays uncropped.
+ *
+ * Hooks run unconditionally so the slot table is stable whether or not [app] is
+ * a work app. Keyed on `iconCacheId` (not just user+size) so a post-boot icon
+ * refresh re-attempts the badge load too — a cache hit once the overlay exists,
+ * a fresh attempt if the badge resource only became ready after first paint.
+ */
+@Composable
+internal fun rememberWorkBadgeOverlay(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
+    val context = LocalContext.current.applicationContext
+    val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
+    val cacheId = app.iconCacheId
+    val isWorkApp = app.isWorkApp
+    val user = app.user
+    var bitmap by remember(cacheId, sizePx) {
+        mutableStateOf(if (isWorkApp) AppIconLoader.cachedWorkBadge(user, sizePx) else null)
+    }
+    LaunchedEffect(cacheId, sizePx) {
+        if (isWorkApp && bitmap == null) {
+            bitmap = AppIconLoader.loadWorkBadge(context, user, sizePx)
         }
     }
     return bitmap

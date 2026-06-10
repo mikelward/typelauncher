@@ -2505,9 +2505,10 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
         assertEquals(listOf("Work Calendar"), composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
-        // The system badges the normalized tile via `getUserBadgedIcon`
-        // (AppIconLoader.badgeTile), so there's no custom overlay node in the
-        // tree — the work briefcase comes baked into the bitmap on real devices.
+        // On a real device the work briefcase rides in a separate overlay
+        // (AppIconLoader.loadWorkBadge) drawn outside the icon's circular clip.
+        // Robolectric's default PackageManager doesn't composite a badge, so no
+        // overlay node appears here — only the base icon node is asserted.
         composeRule.onNodeWithTag("$APP_ICON_TAG:Work Calendar", useUnmergedTree = true).assertExists()
 
         val viewModel = composeRule.activity.viewModel

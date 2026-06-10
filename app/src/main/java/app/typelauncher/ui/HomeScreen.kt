@@ -3502,6 +3502,21 @@ internal fun AppIcon(
                 )
             }
         }
+        // The work-profile badge (briefcase) rides on top of the icon but
+        // OUTSIDE the shape clip, so the system-placed corner badge is never
+        // sliced off where the icon corner falls beyond a round/squircle clip.
+        // Drawn as its own full-size overlay rather than baked into the icon
+        // bitmap for exactly that reason.
+        rememberWorkBadgeOverlay(app, size)?.let { workBadge ->
+            Image(
+                bitmap = workBadge,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("$APP_ICON_WORK_BADGE_TAG:${app.displayName}"),
+                contentScale = ContentScale.Fit,
+            )
+        }
         appCornerBadge(app)?.let { badge ->
             val badgeDp = (size.value * APP_ICON_CORNER_BADGE_FRACTION).dp
             // Convert through the density so the glyph stays locked to the
