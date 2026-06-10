@@ -338,7 +338,7 @@ internal fun HomeScreen(
                         val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
                         val workMaxHeightDp = workRows * workRowHeightDp +
                             (workRows - 1) * DOCK_ITEM_SPACING_DP +
-                            SECTION_CARD_VERTICAL_PADDING_DP * 2
+                            SECTION_CARD_PADDING_DP * 2
                         DockCard(
                             dockedApps = state.workDockedApps,
                             dockPositions = state.workDockPositions,
@@ -519,9 +519,9 @@ private fun SearchCard(
                 // launch per repeat — and once the first launch cleared the
                 // query, the next repeat shoved the user into settings. The
                 // preview phase runs ancestors-first, so this filter sees
-                // the event before the core consumes it. This is the same
-                // filtering the legacy editor-action path got from
-                // SettingsLaunchGate before the Compose rewrite.
+                // the event before the core consumes it. This restores the
+                // key-repeat filtering the legacy editor-action path had
+                // before the Compose rewrite.
                 .onPreviewKeyEvent { event ->
                     event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
                         event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
@@ -3539,7 +3539,6 @@ internal fun selectionHighlightOnColor(): Color =
 private fun isDarkColorScheme(): Boolean =
     MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_BAR_COUNT = 3
 private const val SETTINGS_PREVIEW_SPACING_DP = 16

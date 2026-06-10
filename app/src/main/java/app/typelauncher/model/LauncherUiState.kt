@@ -365,9 +365,12 @@ internal data class LauncherUiState(
     // every launcher surface (search results, dock, recents) and only resurface
     // in the Settings "Manage hidden apps" dialog so the user can unhide them.
     val hiddenApps: List<InstalledApp> = emptyList(),
-    // Drag-up-from-the-dock "recents" list. Most-recently-launched first. Only
-    // includes apps the user launched from Type Launcher — third-party launchers
-    // can't read the system task switcher, so this is a best-effort substitute.
+    // Drag-up-from-the-dock "recents" list, in display order: oldest first,
+    // most recently launched last (filterRecent reverses the stored
+    // newest-first ids so the newest entry renders at the row's pinned end).
+    // Only includes apps the user launched from Type Launcher — third-party
+    // launchers can't read the system task switcher, so this is a best-effort
+    // substitute.
     val recentApps: List<InstalledApp> = emptyList(),
     // True once the user has pulled up on the home screen to reveal the recents
     // bar at the bottom (where the dock was; everything else shifts up).

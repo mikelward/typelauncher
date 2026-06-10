@@ -2621,14 +2621,14 @@ class MainActivityRobolectricScreenshotTest {
         val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
         val workHeight = workBounds.bottom.value - workBounds.top.value
         // The cap is
-        // `dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP`.
+        // `dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_PADDING_DP`.
         // The test viewport is `w411dp-h914dp` with the default 4-slot dock,
         // which `dockIconSizeForSlotCount` resolves to 56dp icons; adding
         // 8dp of per-icon tap-target padding and 2 × 16dp of SectionCard
         // padding gives a 96dp one-row cap. Allow a couple of dp of slack
         // for sub-pixel rounding when measuring in root coordinates.
         val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
-        val expectedMaxDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        val expectedMaxDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_PADDING_DP
         assertTrue(
             "work card should be capped at one row (height=${workHeight}dp, cap=${expectedMaxDp}dp)",
             workHeight <= expectedMaxDp + 2f,
@@ -2678,9 +2678,9 @@ class MainActivityRobolectricScreenshotTest {
         val workHeight = workBounds.bottom.value - workBounds.top.value
         val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
         val rowHeightDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
-        val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_PADDING_DP
         val twoRowMaxDp =
-            2 * rowHeightDp + DOCK_ITEM_SPACING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+            2 * rowHeightDp + DOCK_ITEM_SPACING_DP + 2 * SECTION_CARD_PADDING_DP
         assertTrue(
             "work card should grow past one row (height=${workHeight}dp, oneRow=${oneRowMaxDp}dp)",
             workHeight > oneRowMaxDp + 2f,
@@ -2739,9 +2739,9 @@ class MainActivityRobolectricScreenshotTest {
         val workHeight = workBounds.bottom.value - workBounds.top.value
         val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
         val rowHeightDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
-        val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+        val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_PADDING_DP
         val twoRowMaxDp =
-            2 * rowHeightDp + DOCK_ITEM_SPACING_DP + 2 * SECTION_CARD_VERTICAL_PADDING_DP
+            2 * rowHeightDp + DOCK_ITEM_SPACING_DP + 2 * SECTION_CARD_PADDING_DP
         assertTrue(
             "sparse 4-app two-row work dock should render past one row " +
                 "(height=${workHeight}dp, oneRow=${oneRowMaxDp}dp)",

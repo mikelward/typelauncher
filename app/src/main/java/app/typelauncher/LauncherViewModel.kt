@@ -68,7 +68,6 @@ internal class LauncherViewModel(
     // banner reflect Play's flexible-update download state (Starting →
     // Downloading → Downloaded) instead of just vanishing on first tap.
     private var currentPlayUpdateProgress: UpdateProgress = UpdateProgress.Idle
-    private val settingsLaunchGate = SettingsLaunchGate()
     private var installedApps: List<InstalledApp> = emptyList()
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the

@@ -24,68 +24,6 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun reorderMovesIdToTargetIndex() {
-        val store = DockedAppStore(context)
-        store.dock("a")
-        store.dock("b")
-        store.dock("c")
-        store.dock("d")
-
-        store.reorder(fromIndex = 0, toIndex = 2)
-
-        assertEquals(listOf("b", "c", "a", "d"), store.dockedAppIds)
-    }
-
-    @Test
-    fun reorderSupportsMovingLeft() {
-        val store = DockedAppStore(context)
-        store.dock("a")
-        store.dock("b")
-        store.dock("c")
-        store.dock("d")
-
-        store.reorder(fromIndex = 3, toIndex = 1)
-
-        assertEquals(listOf("a", "d", "b", "c"), store.dockedAppIds)
-    }
-
-    @Test
-    fun reorderClampsTargetIndexIntoRange() {
-        val store = DockedAppStore(context)
-        store.dock("a")
-        store.dock("b")
-        store.dock("c")
-
-        store.reorder(fromIndex = 0, toIndex = 99)
-
-        assertEquals(listOf("b", "c", "a"), store.dockedAppIds)
-    }
-
-    @Test
-    fun reorderIgnoresOutOfRangeFromIndex() {
-        val store = DockedAppStore(context)
-        store.dock("a")
-        store.dock("b")
-
-        store.reorder(fromIndex = 5, toIndex = 0)
-
-        assertEquals(listOf("a", "b"), store.dockedAppIds)
-    }
-
-    @Test
-    fun reorderPersistsAcrossProcessRestart() {
-        DockedAppStore(context).apply {
-            dock("a")
-            dock("b")
-            dock("c")
-            reorder(fromIndex = 2, toIndex = 0)
-        }
-
-        val reloaded = DockedAppStore(context)
-        assertEquals(listOf("c", "a", "b"), reloaded.dockedAppIds)
-    }
-
-    @Test
     fun dockAssignsRowColumnPositions() {
         val store = DockedAppStore(context)
 
@@ -172,7 +110,7 @@ class DockedAppStoreTest {
     @Test
     fun concurrentMutationAndReadsStayConsistent() {
         // Regression test for the unsynchronized read-modify-write in dock /
-        // undock / reorder / move. Before the fix, hammering the store from
+        // undock / move. Before the fix, hammering the store from
         // several threads reliably threw a ConcurrentModificationException out
         // of dockedAppIds.toList() / save()'s joinToString while another thread
         // mutated the LinkedHashSet. The lock makes each operation atomic and
@@ -198,7 +136,7 @@ class DockedAppStoreTest {
                         when (iteration % 4) {
                             0 -> store.dock("extra-$threadIndex-$iteration", columnCount = 4)
                             1 -> store.undock(id)
-                            2 -> store.reorder(fromIndex = 0, toIndex = store.dockedAppIds.size)
+                            2 -> store.move(id, row = iteration % 3, column = iteration % 4, columnCount = 4, sortOrder = AppListSortOrder.Usage)
                             else -> {
                                 // Exercise concurrent snapshot reads: each
                                 // getter must copy the backing collection under
