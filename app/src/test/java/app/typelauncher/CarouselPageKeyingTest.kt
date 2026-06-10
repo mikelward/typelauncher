@@ -66,10 +66,13 @@ class CarouselPageKeyingTest {
         shadowOf(manager).addBoundWidget(widgetId, providerInfo)
         val host = LauncherAppWidgetHost(context, hostId = 0)
 
+        // Two widget pages keep the carousel at three visible pages
+        // (Home, Widgets(0), Widgets(1)) so the -1/+1 slots never alias and
+        // the settle genuinely moves the widgets subtree between slots.
         var state by mutableStateOf(
             LauncherUiState(
                 filteredApps = emptyList(),
-                widgetPages = listOf(listOf(widgetId)),
+                widgetPages = listOf(listOf(widgetId), emptyList()),
             ),
         )
         composeRule.setContent {
@@ -93,8 +96,7 @@ class CarouselPageKeyingTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
-                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets(it)) },
                     onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = host,
                     appWidgetManager = manager,
@@ -102,8 +104,6 @@ class CarouselPageKeyingTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -140,7 +140,7 @@ class CarouselPageKeyingTest {
 
     @Test
     fun twoPageCarouselComposesEachDestinationExactlyOnce() {
-        // With agenda disabled and a single widget page, the visible carousel
+        // With a single widget page, the visible carousel
         // is [Home, Widgets(0)] — floorMod aliases the -1 and +1 slots to the
         // SAME destination. Composing it in both slots created two live
         // copies: two AppWidgetHostViews per widget (the platform only
@@ -161,7 +161,6 @@ class CarouselPageKeyingTest {
             LauncherUiState(
                 filteredApps = emptyList(),
                 widgetPages = listOf(listOf(widgetId)),
-                isAgendaEnabled = false,
             ),
         )
         composeRule.setContent {
@@ -185,8 +184,7 @@ class CarouselPageKeyingTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
-                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets(it)) },
                     onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
                     appWidgetHost = host,
                     appWidgetManager = manager,
@@ -194,8 +192,6 @@ class CarouselPageKeyingTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }

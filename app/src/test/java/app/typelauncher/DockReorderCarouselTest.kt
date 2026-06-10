@@ -37,7 +37,7 @@ class DockReorderCarouselTest {
         )
 
     // Regression: long-press + horizontal drag on a docked icon used to also be
-    // claimed by the carousel and page Home → Widgets/Agenda. The dock's
+    // claimed by the carousel and page Home → Widgets. The dock's
     // pointerInput consumes pointer changes, but the carousel reads raw deltas
     // via positionChangeIgnoreConsumed and does not see the consumption (raw
     // pointerInput.consume() does not dispatch nested scroll). The fix lets the
@@ -52,7 +52,6 @@ class DockReorderCarouselTest {
             fakeApp("App04").copy(isDocked = true),
         )
         var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked))
-        var showAgendaCount = 0
         var showWidgetsCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
@@ -75,10 +74,6 @@ class DockReorderCarouselTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {
-                        showAgendaCount += 1
-                        state = state.copy(destination = LauncherDestination.Agenda)
-                    },
                     onShowWidgets = {
                         showWidgetsCount += 1
                         state = state.copy(destination = LauncherDestination.Widgets())
@@ -90,8 +85,6 @@ class DockReorderCarouselTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -117,7 +110,6 @@ class DockReorderCarouselTest {
         composeRule.waitForIdle()
 
         assertEquals("dock reorder must not page the carousel to Widgets", 0, showWidgetsCount)
-        assertEquals("dock reorder must not page the carousel to Agenda", 0, showAgendaCount)
         assertEquals(LauncherDestination.Home, state.destination)
     }
 
@@ -128,7 +120,7 @@ class DockReorderCarouselTest {
     // after the long-press fired. A modest post-long-press move then crossed
     // the carousel's threshold on an event where the dock had not yet seen
     // its own slop crossed — so the carousel claimed the gesture and paged
-    // Home → Widgets/Agenda before the dock's `onDragStart` signalled the
+    // Home → Widgets before the dock's `onDragStart` signalled the
     // suppression latch. The fix arms the suppression latch the moment the
     // long-press fires, not when slop is later crossed.
     @Test
@@ -140,7 +132,6 @@ class DockReorderCarouselTest {
             fakeApp("App04").copy(isDocked = true),
         )
         var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked))
-        var showAgendaCount = 0
         var showWidgetsCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
@@ -163,10 +154,6 @@ class DockReorderCarouselTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {
-                        showAgendaCount += 1
-                        state = state.copy(destination = LauncherDestination.Agenda)
-                    },
                     onShowWidgets = {
                         showWidgetsCount += 1
                         state = state.copy(destination = LauncherDestination.Widgets())
@@ -178,8 +165,6 @@ class DockReorderCarouselTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -210,7 +195,6 @@ class DockReorderCarouselTest {
         composeRule.waitForIdle()
 
         assertEquals("dock reorder after pre-long-press drift must not page Widgets", 0, showWidgetsCount)
-        assertEquals("dock reorder after pre-long-press drift must not page Agenda", 0, showAgendaCount)
         assertEquals(LauncherDestination.Home, state.destination)
     }
 
@@ -257,7 +241,6 @@ class DockReorderCarouselTest {
                     onReorderDock = { id, row, column ->
                         reorderTarget = Triple(id, row, column)
                     },
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -266,8 +249,6 @@ class DockReorderCarouselTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -383,7 +364,6 @@ class DockReorderCarouselTest {
                             dockPositions = positions.toMap(),
                         )
                     },
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -392,8 +372,6 @@ class DockReorderCarouselTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -506,7 +484,6 @@ class DockReorderCarouselTest {
                             dockPositions = positions.toMap(),
                         )
                     },
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -515,8 +492,6 @@ class DockReorderCarouselTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }

@@ -50,7 +50,6 @@ class SwipeDownNotificationShadeTest {
                 onAppListIconOnlyChanged = {},
                 onDockVisibleIconCountChanged = {},
                 onAppListSortOrderChanged = {},
-                onShowAgenda = {},
                 onShowWidgets = onShowWidgets,
                 onShowHome = {},
                 onSetRecentsOpen = onSetRecentsOpen,
@@ -60,8 +59,6 @@ class SwipeDownNotificationShadeTest {
                 onDismissWidgetPicker = {},
                 onSelectWidget = {},
                 onRemoveWidget = {},
-                onRequestCalendarPermission = {},
-                onOpenAgendaEvent = {},
                 onSwipeDown = onSwipeDown,
             )
         }
@@ -109,13 +106,12 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun swipingDownOnAgenda_invokesOnSwipeDownCallback() {
+    fun swipingDownOnWidgets_invokesOnSwipeDownCallback() {
         var swipeDownCount = 0
         composeRule.setContent {
             Launcher(
                 state = LauncherUiState(
-                    destination = LauncherDestination.Agenda,
-                    agenda = AgendaUiState.Empty,
+                    destination = LauncherDestination.Widgets(),
                 ),
                 onSwipeDown = { swipeDownCount += 1 },
             )

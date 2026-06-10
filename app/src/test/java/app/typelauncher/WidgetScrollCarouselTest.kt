@@ -50,7 +50,6 @@ class WidgetScrollCarouselTest {
 
     private class Scenario {
         var swipeDownCount = 0
-        var showAgendaCount = 0
         var showWidgetsCount = 0
         var showHomeCount = 0
     }
@@ -92,10 +91,6 @@ class WidgetScrollCarouselTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {
-                        scenario.showAgendaCount += 1
-                        state = state.copy(destination = LauncherDestination.Agenda)
-                    },
                     onShowWidgets = {
                         scenario.showWidgetsCount += 1
                         state = state.copy(destination = LauncherDestination.Widgets())
@@ -110,8 +105,6 @@ class WidgetScrollCarouselTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                     onSwipeDown = { scenario.swipeDownCount += 1 },
                 )
             }
@@ -182,7 +175,7 @@ class WidgetScrollCarouselTest {
     @Test
     fun horizontalDragWithWidgetClaim_doesNotPageCarousel() {
         // Horizontal scroll inside a widget (e.g. a swipeable gallery)
-        // must not page Home → Widgets/Agenda. The slop crossing is
+        // must not page Home → Widgets. The slop crossing is
         // horizontal, so the carousel resolves owner = HorizontalLauncher
         // *and arms `carouselClaimed = true` on the same event* — the
         // widget's disallow signal arrives between this and the next
@@ -197,7 +190,6 @@ class WidgetScrollCarouselTest {
             commitOffset = Offset(-700f, 0f),
         )
         assertEquals("widget-claimed horizontal drag must not page Widgets", 0, scenario.showWidgetsCount)
-        assertEquals("widget-claimed horizontal drag must not page Agenda", 0, scenario.showAgendaCount)
     }
 
     @Test
@@ -214,7 +206,7 @@ class WidgetScrollCarouselTest {
         assertEquals(
             "without widget claim, horizontal drag on Home pages off Home",
             1,
-            scenario.showWidgetsCount + scenario.showAgendaCount,
+            scenario.showWidgetsCount,
         )
     }
 }

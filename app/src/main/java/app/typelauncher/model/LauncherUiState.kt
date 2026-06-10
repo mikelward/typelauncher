@@ -395,7 +395,6 @@ internal data class LauncherUiState(
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
     val isLoadingAvailableWidgets: Boolean = false,
-    val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
     val isAppListIconOnly: Boolean = false,
@@ -450,9 +449,6 @@ internal data class LauncherUiState(
     // as an animation target, so within-entry shrinks are gated on a
     // visible-IME confirmation.
     val keyboardReservation: KeyboardReservation = KeyboardReservation(),
-    // Settings → "Show agenda". When false, Agenda is removed from the
-    // horizontal carousel and calendar loading is deferred until re-enabled.
-    val isAgendaEnabled: Boolean = true,
     // User-selected appearance mode. `System` (default) follows the device's
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.
@@ -465,12 +461,12 @@ internal data class LauncherUiState(
     // warm start `isLoadingApps` is `false` from process start because cached
     // metadata is rendered immediately, but the fresh `LauncherApps` query is
     // still running on `Dispatchers.IO` in the background. Other startup IO
-    // (the deferred agenda load) waits on this flag instead of `isLoadingApps`
-    // so it doesn't race the fresh app load.
+    // waits on this flag instead of `isLoadingApps` so it doesn't race the
+    // fresh app load.
     val isFreshAppLoadComplete: Boolean = false,
     // Latched true the first time the UI signals "home ready" via
-    // `LauncherViewModel.onHomeReady`. Gates cold-start IO that the agenda load
-    // and `AppWidgetHost.startListening` would otherwise contend with.
+    // `LauncherViewModel.onHomeReady`. Gates cold-start IO that
+    // `AppWidgetHost.startListening` would otherwise contend with.
     val isHomeReady: Boolean = false,
     val isDefaultLauncher: Boolean = false,
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,

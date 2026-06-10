@@ -314,18 +314,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Controls whether Agenda participates in the carousel. Defaults to true
-     * to preserve the existing three-page launcher for current users.
-     */
-    var isAgendaEnabled: Boolean
-        get() = sharedPreferences.getBoolean(KEY_AGENDA_ENABLED, true)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_AGENDA_ENABLED, value)
-                .apply()
-        }
-
-    /**
      * Settings → "Theme" mode. Defaults to [ThemeMode.System] so the launcher
      * follows the device's night-mode configuration; users can pin to
      * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
@@ -384,7 +372,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KEYBOARD_RESERVATION_DENSITY_DPI = "keyboard_reservation_density_dpi"
         const val KEY_KEYBOARD_RESERVATION_NAV_BOTTOM_PX = "keyboard_reservation_nav_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_SOURCE = "keyboard_reservation_source"
-        const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ICON_SHAPE = "icon_shape"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"

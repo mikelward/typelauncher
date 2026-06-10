@@ -111,7 +111,7 @@ private const val CAROUSEL_ACK_TIMEOUT_MS = 1500L
 // up before signalling "home ready" anyway, when keyboard auto-show is enabled.
 // Hardware keyboards, IME-disabled test environments, and slow IME starts can
 // all keep WindowInsets.isImeVisible false indefinitely; we don't want to defer
-// the agenda load forever in those cases.
+// the deferred startup work forever in those cases.
 private const val HOME_READY_IME_TIMEOUT_MS = 1500L
 
 // Debounce window applied before persisting a grown keyboard height as the
@@ -162,7 +162,6 @@ internal fun TypeLauncherApp(
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
-    onRequestCalendarPermission: () -> Unit,
     onRequestDefaultLauncher: () -> Unit,
     onSwipeDown: () -> Unit,
     onStartPlayUpdate: () -> Unit = {},
@@ -177,7 +176,6 @@ internal fun TypeLauncherApp(
         state.isFreshAppLoadComplete,
         state.filteredApps.size,
         state.dockedApps.size,
-        state.isAgendaEnabled,
     ) {
         LauncherDebugLog.event("TypeLauncherApp state ${state.debugSummary()}")
     }
@@ -252,10 +250,8 @@ internal fun TypeLauncherApp(
         onWorkDockEnabledChanged = viewModel::setWorkDockEnabled,
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
-        onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onThemeModeChanged = viewModel::setThemeMode,
         onIconShapeChanged = viewModel::setIconShape,
-        onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
         onHomeReady = viewModel::onHomeReady,
@@ -271,8 +267,6 @@ internal fun TypeLauncherApp(
         onRemoveWidget = onRemoveWidget,
         onResizeWidget = viewModel::resizeWidget,
         onMoveWidget = viewModel::moveWidget,
-        onRequestCalendarPermission = onRequestCalendarPermission,
-        onOpenAgendaEvent = viewModel::openAgendaEvent,
         onSwipeDown = onSwipeDown,
         searchPlaceholderSuffix = searchPlaceholderSuffix,
     )
@@ -313,10 +307,8 @@ internal fun TypeLauncherApp(
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
-    onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
-    onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
     onHomeReady: () -> Unit = {},
@@ -332,8 +324,6 @@ internal fun TypeLauncherApp(
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
-    onRequestCalendarPermission: () -> Unit,
-    onOpenAgendaEvent: (AgendaEvent) -> Unit,
     onSwipeDown: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
@@ -564,7 +554,7 @@ internal fun TypeLauncherApp(
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
-        // Leaving Home (carousel to Widgets/Agenda, opening settings) ends the
+        // Leaving Home (carousel to Widgets, opening settings) ends the
         // presence, so a return to page zero starts hidden again.
         LaunchedEffect(state.destination, state.isSettingsOpen) {
             if (state.destination !is LauncherDestination.Home || state.isSettingsOpen) {
@@ -608,7 +598,6 @@ internal fun TypeLauncherApp(
                         onWorkDockEnabledChanged = onWorkDockEnabledChanged,
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
-                        onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onThemeModeChanged = onThemeModeChanged,
                         onIconShapeChanged = onIconShapeChanged,
                         onUnhideApp = onUnhideApp,
@@ -656,9 +645,7 @@ internal fun TypeLauncherApp(
                     SwipeNavigationBox(
                         destination = state.destination,
                         widgetPageCount = state.widgetPages.size,
-                        isAgendaEnabled = state.isAgendaEnabled,
                         isRecentsOpen = state.isRecentsOpen,
-                        onShowAgenda = onShowAgenda,
                         onShowWidgets = onShowWidgets,
                         onShowHome = onShowHome,
                         onSetRecentsOpen = onSetRecentsOpen,
@@ -740,12 +727,6 @@ internal fun TypeLauncherApp(
                             onResizeWidget = onResizeWidget,
                             onMoveWidget = onMoveWidget,
                             )
-                            LauncherScreen.Agenda -> AgendaScreen(
-                                agenda = state.agenda,
-                                innerPadding = innerPadding,
-                                onRequestCalendarPermission = onRequestCalendarPermission,
-                                onOpenAgendaEvent = onOpenAgendaEvent,
-                            )
                         }
                     }
                 }
@@ -759,8 +740,7 @@ internal fun TypeLauncherApp(
  * returned (`appsReady`). When Home is configured to auto-show the keyboard,
  * this also waits until the soft keyboard is visible or
  * [HOME_READY_IME_TIMEOUT_MS] has elapsed since the apps loaded. The downstream
- * signal releases deferred startup work, including the initial agenda load when
- * Agenda is enabled.
+ * signal releases deferred startup work.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -787,11 +767,9 @@ private fun HomeReadySignal(
 private fun SwipeNavigationBox(
     destination: LauncherDestination,
     widgetPageCount: Int,
-    isAgendaEnabled: Boolean,
     isRecentsOpen: Boolean,
     appListBoundsInRoot: Rect?,
     recentsScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
-    onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit,
@@ -863,12 +841,11 @@ private fun SwipeNavigationBox(
             LauncherScreen.initialCarouselPage(
                 page = destination.toLauncherPage(),
                 widgetPageCount = widgetPageCount,
-                isAgendaEnabled = isAgendaEnabled,
             ),
         )
     }
     var carouselPageConfig by remember {
-        mutableStateOf(CarouselPageConfig(widgetPageCount = widgetPageCount, isAgendaEnabled = isAgendaEnabled))
+        mutableStateOf(CarouselPageConfig(widgetPageCount = widgetPageCount))
     }
     var carouselOffsetPx by remember { mutableStateOf(0f) }
     val density = LocalDensity.current
@@ -924,7 +901,6 @@ private fun SwipeNavigationBox(
     }
     fun dispatchSettledPage(settledPage: LauncherPage) {
         when (settledPage.screen) {
-            LauncherScreen.Agenda -> onShowAgenda()
             LauncherScreen.Widgets -> onShowWidgets(settledPage.widgetPageIndex)
             LauncherScreen.Home -> onShowHome()
         }
@@ -971,7 +947,6 @@ private fun SwipeNavigationBox(
         val targetLauncherPage = LauncherScreen.fromCarouselPage(
             targetPage,
             widgetPageCount = widgetPageCount,
-            isAgendaEnabled,
         )
         // A queued settle swipe is a committed page change replayed from
         // the prior settle; mirror the direct claim path so the same warm
@@ -1001,8 +976,7 @@ private fun SwipeNavigationBox(
     // Hold off on composing carousel pages other than the visible one until the
     // first frame has rendered. The visible page is what triggers the soft
     // keyboard via Home's focusRequester, and any extra layout work on the same
-    // frame (e.g. the agenda's calendar query) delays that show by hundreds of
-    // ms on cold start.
+    // frame delays that show by hundreds of ms on cold start.
     var offscreenPagesReady by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withFrameNanos { }
@@ -1036,7 +1010,6 @@ private fun SwipeNavigationBox(
                 flingCommitVelocityPxPerSec,
                 backwardVelocityCancelPxPerSec,
                 widgetPageCount,
-                isAgendaEnabled,
             ) {
                 awaitEachGesture {
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
@@ -1155,7 +1128,6 @@ private fun SwipeNavigationBox(
                                 val candidateLauncherPage = LauncherScreen.fromCarouselPage(
                                     candidatePage,
                                     widgetPageCount = widgetPageCount,
-                                    isAgendaEnabled,
                                 )
                                 val canStartCarouselGesture =
                                     carouselTransition == CarouselTransitionState.Idle &&
@@ -1171,9 +1143,9 @@ private fun SwipeNavigationBox(
                                     // Direction-toward-widgets check via
                                     // `candidateLauncherPage + drag sign`:
                                     // fromCarouselPage uses floorMod, so
-                                    // when agenda is off the wraparound
-                                    // from Home also lands on Widgets in
-                                    // either direction. The provider's
+                                    // with a single widget page the
+                                    // wraparound from Home also lands on
+                                    // Widgets in either direction. The provider's
                                     // background data fetch can run
                                     // during the drag while listening
                                     // stays on; only the UI-thread
@@ -1182,7 +1154,6 @@ private fun SwipeNavigationBox(
                                     val claimDirectionTarget = LauncherScreen.fromCarouselPage(
                                         claimAdjacentPage,
                                         widgetPageCount = widgetPageCount,
-                                        isAgendaEnabled = isAgendaEnabled,
                                     )
                                     if (claimDirectionTarget.screen == LauncherScreen.Widgets) {
                                         widgetsWarmed = true
@@ -1318,7 +1289,6 @@ private fun SwipeNavigationBox(
                     val targetLauncherPage = LauncherScreen.fromCarouselPage(
                         targetPage,
                         widgetPageCount = widgetPageCount,
-                        isAgendaEnabled,
                     )
                     val willChangePage = committed && targetPage != gestureStartPage
                     if (willChangePage) {
@@ -1465,15 +1435,13 @@ private fun SwipeNavigationBox(
     ) {
         val pageWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val statePage = destination.toLauncherPage()
-        LaunchedEffect(destination, pageWidthPx, isAgendaEnabled, widgetPageCount) {
-            val newConfig = CarouselPageConfig(widgetPageCount = widgetPageCount, isAgendaEnabled = isAgendaEnabled)
+        LaunchedEffect(destination, pageWidthPx, widgetPageCount) {
+            val newConfig = CarouselPageConfig(widgetPageCount = widgetPageCount)
             if (carouselPageConfig != newConfig) {
                 currentPage = LauncherScreen.reanchoredCarouselPage(
                     currentPage = currentPage,
                     oldWidgetPageCount = carouselPageConfig.widgetPageCount,
                     newWidgetPageCount = newConfig.widgetPageCount,
-                    oldIsAgendaEnabled = carouselPageConfig.isAgendaEnabled,
-                    newIsAgendaEnabled = newConfig.isAgendaEnabled,
                 )
                 carouselPageConfig = newConfig
             }
@@ -1494,14 +1462,13 @@ private fun SwipeNavigationBox(
             if (carouselAnimationJob?.isActive == true || carouselOffsetPx != 0f) {
                 return@LaunchedEffect
             }
-            if (statePage == LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)) {
+            if (statePage == LauncherScreen.fromCarouselPage(currentPage, widgetPageCount)) {
                 allowSwipeWithUnackedScreen = false
             }
             val targetPage = LauncherScreen.closestCarouselPage(
                 currentPage = currentPage,
                 page = statePage,
                 widgetPageCount = widgetPageCount,
-                isAgendaEnabled = isAgendaEnabled,
             )
             LauncherDebugLog.event(
                 "SwipeNavigationBox external page=$statePage settledPage=$currentPage targetPage=$targetPage",
@@ -1525,7 +1492,7 @@ private fun SwipeNavigationBox(
         LaunchedEffect(currentPage) {
             LauncherDebugLog.event(
                 "SwipeNavigationBox settledPage=$currentPage " +
-                    "page=${LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)}",
+                    "page=${LauncherScreen.fromCarouselPage(currentPage, widgetPageCount)}",
             )
         }
         // Sign of the carousel translation as -1 / 0 / +1, behind
@@ -1543,7 +1510,7 @@ private fun SwipeNavigationBox(
             }
         }
         // Assign each destination to at most one slot. With only two visible
-        // pages (agenda disabled + a single widget page) floorMod aliases the
+        // pages (Home + a single widget page) floorMod aliases the
         // -1 and +1 slots to the *same* destination; composing it in both
         // slots created duplicate page compositions — two AppWidgetHostViews
         // per widget, and the platform delivers RemoteViews updates only to
@@ -1560,7 +1527,7 @@ private fun SwipeNavigationBox(
         val slotAssignments = buildList<Pair<Int, LauncherPage>> {
             val taken = mutableSetOf<LauncherPage>()
             listOf(currentPage, preferredNeighbor, otherNeighbor).forEach { page ->
-                val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount, isAgendaEnabled)
+                val launcherPage = LauncherScreen.fromCarouselPage(page, widgetPageCount)
                 if (taken.add(launcherPage)) add(page to launcherPage)
             }
         }
@@ -1642,7 +1609,6 @@ private sealed interface CarouselTransitionState {
 
 private data class CarouselPageConfig(
     val widgetPageCount: Int,
-    val isAgendaEnabled: Boolean,
 )
 
 private data class QueuedSettleSwipe(

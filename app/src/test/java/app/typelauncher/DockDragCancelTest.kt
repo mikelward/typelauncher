@@ -70,7 +70,6 @@ class DockDragCancelTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -79,8 +78,6 @@ class DockDragCancelTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }

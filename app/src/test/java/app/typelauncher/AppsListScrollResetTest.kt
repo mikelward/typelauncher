@@ -67,7 +67,6 @@ class AppsListScrollResetTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -76,8 +75,6 @@ class AppsListScrollResetTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                     searchPlaceholderSuffix = searchPlaceholderSuffix,
                 )
             }

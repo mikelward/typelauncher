@@ -1,7 +1,6 @@
 package app.typelauncher
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Process
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,7 +30,6 @@ private fun HomeEmptyPreview() {
             onAppListIconOnlyChanged = {},
             onDockVisibleIconCountChanged = {},
             onAppListSortOrderChanged = {},
-            onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},
             appWidgetHost = null,
@@ -40,8 +38,6 @@ private fun HomeEmptyPreview() {
             onDismissWidgetPicker = {},
             onSelectWidget = {},
             onRemoveWidget = {},
-            onRequestCalendarPermission = {},
-            onOpenAgendaEvent = {},
         )
     }
 }
@@ -74,7 +70,6 @@ private fun HomeRunningLargeFontPreview() {
             onAppListIconOnlyChanged = {},
             onDockVisibleIconCountChanged = {},
             onAppListSortOrderChanged = {},
-            onShowAgenda = {},
             onShowWidgets = {},
             onShowHome = {},
             appWidgetHost = null,
@@ -83,161 +78,6 @@ private fun HomeRunningLargeFontPreview() {
             onDismissWidgetPicker = {},
             onSelectWidget = {},
             onRemoveWidget = {},
-            onRequestCalendarPermission = {},
-            onOpenAgendaEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Agenda permission", uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-private fun AgendaPermissionDarkPreview() {
-    TypeLauncherTheme(dynamicColor = false) {
-        TypeLauncherApp(
-            state = LauncherUiState(destination = LauncherDestination.Agenda, agenda = AgendaUiState.PermissionRequired),
-            onQueryChanged = {},
-            onClearQuery = {},
-            onLaunchActiveApp = {},
-            onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
-            onResetRank = {},
-            onRenameApp = { _, _ -> },
-            onSetAppIconOverride = {},
-            onClearAppIconOverride = {},
-            onHideApp = {},
-            onUnhideApp = {},
-            onOpenSettings = {},
-            onCloseSettings = {},
-            onRequestDefaultLauncher = {},
-            onDockEnabledChanged = {},
-            onAppListIconOnlyChanged = {},
-            onDockVisibleIconCountChanged = {},
-            onAppListSortOrderChanged = {},
-            onShowAgenda = {},
-            onShowWidgets = {},
-            onShowHome = {},
-            appWidgetHost = null,
-            appWidgetManager = null,
-            onAddWidget = {},
-            onDismissWidgetPicker = {},
-            onSelectWidget = {},
-            onRemoveWidget = {},
-            onRequestCalendarPermission = {},
-            onOpenAgendaEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Agenda empty RTL", locale = "ar")
-@Composable
-private fun AgendaEmptyRtlPreview() {
-    TypeLauncherTheme(dynamicColor = false) {
-        TypeLauncherApp(
-            state = LauncherUiState(destination = LauncherDestination.Agenda, agenda = AgendaUiState.Empty),
-            onQueryChanged = {},
-            onClearQuery = {},
-            onLaunchActiveApp = {},
-            onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
-            onResetRank = {},
-            onRenameApp = { _, _ -> },
-            onSetAppIconOverride = {},
-            onClearAppIconOverride = {},
-            onHideApp = {},
-            onUnhideApp = {},
-            onOpenSettings = {},
-            onCloseSettings = {},
-            onRequestDefaultLauncher = {},
-            onDockEnabledChanged = {},
-            onAppListIconOnlyChanged = {},
-            onDockVisibleIconCountChanged = {},
-            onAppListSortOrderChanged = {},
-            onShowAgenda = {},
-            onShowWidgets = {},
-            onShowHome = {},
-            appWidgetHost = null,
-            appWidgetManager = null,
-            onAddWidget = {},
-            onDismissWidgetPicker = {},
-            onSelectWidget = {},
-            onRemoveWidget = {},
-            onRequestCalendarPermission = {},
-            onOpenAgendaEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Agenda events")
-@Composable
-private fun AgendaEventsPreview() {
-    TypeLauncherTheme(dynamicColor = false) {
-        TypeLauncherApp(
-            state = LauncherUiState(
-                destination = LauncherDestination.Agenda,
-                agenda = AgendaUiState.Events(
-                    listOf(
-                        AgendaEvent(
-                            title = "Launch day",
-                            beginMillis = 0L,
-                            endMillis = 1L,
-                            isAllDay = true,
-                            displayTime = "All day",
-                            eventId = 1L,
-                            calendarColor = 0xFF7CB342.toInt(),
-                        ),
-                        AgendaEvent(
-                            title = "Planning",
-                            beginMillis = 0L,
-                            endMillis = 1L,
-                            isAllDay = false,
-                            displayTime = "10:00 AM",
-                            eventId = 2L,
-                            calendarColor = 0xFF1A73E8.toInt(),
-                        ),
-                        AgendaEvent(
-                            title = "Design review",
-                            beginMillis = 0L,
-                            endMillis = 1L,
-                            isAllDay = false,
-                            displayTime = "1:30 PM",
-                            eventId = 3L,
-                            calendarColor = 0xFFD50000.toInt(),
-                        ),
-                    ),
-                ),
-            ),
-            onQueryChanged = {},
-            onClearQuery = {},
-            onLaunchActiveApp = {},
-            onLaunchApp = {},
-            onOpenAppInfo = {},
-            onToggleDock = { _, _ -> },
-            onResetRank = {},
-            onRenameApp = { _, _ -> },
-            onSetAppIconOverride = {},
-            onClearAppIconOverride = {},
-            onHideApp = {},
-            onUnhideApp = {},
-            onOpenSettings = {},
-            onCloseSettings = {},
-            onRequestDefaultLauncher = {},
-            onDockEnabledChanged = {},
-            onAppListIconOnlyChanged = {},
-            onDockVisibleIconCountChanged = {},
-            onAppListSortOrderChanged = {},
-            onShowAgenda = {},
-            onShowWidgets = {},
-            onShowHome = {},
-            appWidgetHost = null,
-            appWidgetManager = null,
-            onAddWidget = {},
-            onDismissWidgetPicker = {},
-            onSelectWidget = {},
-            onRemoveWidget = {},
-            onRequestCalendarPermission = {},
-            onOpenAgendaEvent = {},
         )
     }
 }

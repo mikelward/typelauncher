@@ -68,7 +68,6 @@ class AppsListChevronTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -77,8 +76,6 @@ class AppsListChevronTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -108,7 +105,6 @@ class AppsListChevronTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -117,8 +113,6 @@ class AppsListChevronTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }

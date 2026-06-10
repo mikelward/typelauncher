@@ -64,8 +64,6 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowRoleManager
 import org.robolectric.shadows.ShadowToast
-import java.time.LocalDate
-import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -99,84 +97,12 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Type an app name").assertIsDisplayed()
         composeRule.onNodeWithText("Calculator").assertIsDisplayed()
-        composeRule.onNodeWithText("Agenda").assertDoesNotExist()
         composeRule.onNodeWithText("Find an app").assertDoesNotExist()
         composeRule.onNodeWithText("Dock").assertDoesNotExist()
         composeRule.onNodeWithText("Installed apps").assertDoesNotExist()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
         saveScreenshot("compose_home_material_cards_robolectric.png")
-    }
-
-    @Test
-    fun screenshot_agenda_withoutPermission_showsPermissionCard() {
-        composeRule.activity.viewModel.showAgenda()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(AGENDA_PERMISSION_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("Allow calendar access to show your agenda.").assertIsDisplayed()
-        composeRule.onNodeWithText("Allow calendar access to show your agenda on this -1 screen.").assertDoesNotExist()
-        composeRule.onNodeWithText("Allow calendar").assertIsDisplayed()
-        composeRule.onNodeWithText("Agenda").assertDoesNotExist()
-        composeRule.onNodeWithText("Swipe right to return home").assertDoesNotExist()
-        composeRule.onNodeWithText("Show calendar events").assertDoesNotExist()
-        composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertDoesNotExist()
-
-        saveScreenshot("compose_agenda_permission_robolectric.png")
-    }
-
-    @Test
-    fun screenshot_agenda_events_rendersGoogleCalendarStyleRows() {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
-        val tomorrow = today.plusDays(1)
-        composeRule.activity.viewModel.showAgendaEventsForTest(todayAgendaSample())
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(AGENDA_EVENTS_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag("$AGENDA_EVENT_ROW_TAG:1").assertIsDisplayed()
-        composeRule.onNodeWithText("Standup").assertIsDisplayed()
-        composeRule.onNodeWithText("9:30 AM").assertIsDisplayed()
-        composeRule.onNodeWithText("Design review").assertIsDisplayed()
-        composeRule.onNodeWithText("1:00 PM").assertIsDisplayed()
-        composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$today").assertIsDisplayed()
-        composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$tomorrow").assertIsDisplayed()
-        composeRule.onNodeWithText("Today").assertIsDisplayed()
-        composeRule.onNodeWithText("Tomorrow").assertIsDisplayed()
-
-        saveScreenshot("compose_agenda_events_robolectric.png")
-    }
-
-    @Test
-    fun tappingAgendaEventRow_opensCalendarEventViaIntent() {
-        val sample = todayAgendaSample()
-        composeRule.activity.viewModel.showAgendaEventsForTest(sample)
-        composeRule.waitForIdle()
-
-        val designReview = sample.first { it.eventId == 42L }
-        composeRule.onNodeWithTag("$AGENDA_EVENT_ROW_TAG:42").performClick()
-        composeRule.waitForIdle()
-
-        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
-        assertEquals(Intent.ACTION_VIEW, startedIntent.action)
-        assertEquals(
-            android.content.ContentUris.withAppendedId(
-                android.provider.CalendarContract.Events.CONTENT_URI,
-                42L,
-            ),
-            startedIntent.data,
-        )
-        assertEquals(
-            designReview.beginMillis,
-            startedIntent.getLongExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, 0L),
-        )
-        assertEquals(
-            designReview.endMillis,
-            startedIntent.getLongExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, 0L),
-        )
-        assertStandardLauncherFlags(startedIntent)
     }
 
     @Test
@@ -200,9 +126,9 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun receivingHomeLauncherIntent_returnsToAppListFromOtherScreens() {
         val viewModel = composeRule.activity.viewModel
-        viewModel.showAgenda()
+        viewModel.showWidgets()
         composeRule.waitForIdle()
-        assertEquals(LauncherDestination.Agenda, viewModel.uiState.value.destination)
+        assertEquals(LauncherDestination.Widgets(0), viewModel.uiState.value.destination)
 
         composeRule.activity.runOnUiThread {
             composeRule.activity.handleLauncherIntent(
@@ -235,14 +161,8 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun swipingMovesFromHomeToWidgetsToAgendaAndWrapsAround() {
+    fun swipingMovesFromHomeToWidgetsAndWrapsAround() {
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
-        composeRule.waitForIdle()
-
-        assertEquals(LauncherDestination.Agenda, composeRule.activity.viewModel.uiState.value.destination)
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
-
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeRight() }
         composeRule.waitForIdle()
 
         assertEquals(LauncherDestination.Widgets(0), composeRule.activity.viewModel.uiState.value.destination)
@@ -261,12 +181,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
 
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).performTouchInput { swipeLeft() }
-        composeRule.waitForIdle()
-
-        assertEquals(LauncherDestination.Agenda, composeRule.activity.viewModel.uiState.value.destination)
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
-
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
 
         assertEquals(LauncherDestination.Home, composeRule.activity.viewModel.uiState.value.destination)
@@ -290,8 +204,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(afterFirstSwipePage + 1, carousel.carouselVirtualPage())
-        assertEquals(LauncherDestination.Agenda, composeRule.activity.viewModel.uiState.value.destination)
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+        assertEquals(LauncherDestination.Home, composeRule.activity.viewModel.uiState.value.destination)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -776,7 +690,6 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Show recents").assertDoesNotExist()
         composeRule.onNodeWithText("Hide recents from app list").assertDoesNotExist()
         composeRule.onNodeWithText("Show dock").assertExists()
-        composeRule.onNodeWithText("Show agenda").assertExists()
         composeRule.onNodeWithText("Icons per row: 4").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
@@ -1113,31 +1026,6 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
-    }
-
-    @Test
-    fun showAgendaToggle_inSettingsRemovesAgendaFromCarousel() {
-        val viewModel = composeRule.activity.viewModel
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(SHOW_AGENDA_SWITCH_TAG).performScrollTo().assertIsOn()
-        composeRule.onNodeWithTag(SHOW_AGENDA_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(SHOW_AGENDA_SWITCH_TAG).performScrollTo().assertIsOff()
-        assertFalse(viewModel.uiState.value.isAgendaEnabled)
-        assertFalse(DockSettingsStore(composeRule.activity).isAgendaEnabled)
-        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(HOME_SCREEN_TAG).performTouchInput { swipeRight() }
-        composeRule.waitForIdle()
-
-        assertEquals(LauncherDestination.Widgets(0), viewModel.uiState.value.destination)
-        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertDoesNotExist()
     }
 
     @Test
@@ -3087,41 +2975,6 @@ class MainActivityRobolectricScreenshotTest {
                     }
                 }
             }
-    }
-
-    private fun todayAgendaSample(): List<AgendaEvent> {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
-        val tomorrow = today.plusDays(1)
-        return listOf(
-            AgendaEvent(
-                title = "Standup",
-                beginMillis = today.atTime(9, 30).atZone(zone).toInstant().toEpochMilli(),
-                endMillis = today.atTime(10, 0).atZone(zone).toInstant().toEpochMilli(),
-                isAllDay = false,
-                displayTime = "9:30 AM",
-                eventId = 1L,
-                calendarColor = 0xFF1A73E8.toInt(),
-            ),
-            AgendaEvent(
-                title = "Design review",
-                beginMillis = today.atTime(13, 0).atZone(zone).toInstant().toEpochMilli(),
-                endMillis = today.atTime(14, 0).atZone(zone).toInstant().toEpochMilli(),
-                isAllDay = false,
-                displayTime = "1:00 PM",
-                eventId = 42L,
-                calendarColor = 0xFFD50000.toInt(),
-            ),
-            AgendaEvent(
-                title = "Workout",
-                beginMillis = tomorrow.atTime(7, 0).atZone(zone).toInstant().toEpochMilli(),
-                endMillis = tomorrow.atTime(8, 0).atZone(zone).toInstant().toEpochMilli(),
-                isAllDay = false,
-                displayTime = "7:00 AM",
-                eventId = 7L,
-                calendarColor = 0xFF7CB342.toInt(),
-            ),
-        )
     }
 
     private fun SemanticsNodeInteraction.assertIsFocusedBySemantics(): SemanticsNodeInteraction {

@@ -81,7 +81,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -90,8 +89,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
     }
@@ -135,7 +132,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     onHomeReady = { homeReadyCount += 1 },
@@ -145,8 +141,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -182,7 +176,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { recentsTarget = it },
@@ -193,8 +186,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                     onSwipeDown = { swipeDownCount += 1 },
                 )
             }
@@ -236,7 +227,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { recentsTarget = it },
@@ -247,8 +237,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                     onSwipeDown = { swipeDownCount += 1 },
                 )
             }
@@ -298,7 +286,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
@@ -308,8 +295,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                     onSwipeDown = {},
                 )
             }
@@ -352,7 +337,6 @@ class SwipeUpRecentsTest {
                         onAppListIconOnlyChanged = {},
                         onDockVisibleIconCountChanged = {},
                         onAppListSortOrderChanged = {},
-                        onShowAgenda = {},
                         onShowWidgets = {},
                         onShowHome = {},
                         appWidgetHost = null,
@@ -361,8 +345,6 @@ class SwipeUpRecentsTest {
                         onDismissWidgetPicker = {},
                         onSelectWidget = {},
                         onRemoveWidget = {},
-                        onRequestCalendarPermission = {},
-                        onOpenAgendaEvent = {},
                         onSwipeDown = { swipeDownCount += 1 },
                     )
                 }
@@ -378,15 +360,14 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnAgenda_doesNotOpenRecentsOrShowKeyboard() {
+    fun swipingUpOnWidgets_doesNotOpenRecentsOrShowKeyboard() {
         var recentsTarget: Boolean? = null
         var requestShowKeyboardCount = 0
         composeRule.setContent {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        destination = LauncherDestination.Agenda,
-                        agenda = AgendaUiState.Empty,
+                        destination = LauncherDestination.Widgets(),
                     ),
                     onQueryChanged = {},
                     onClearQuery = {},
@@ -405,7 +386,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { recentsTarget = it },
@@ -416,8 +396,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                     onSwipeDown = {},
                 )
             }
@@ -426,7 +404,7 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        // Pull-up is Home-only — Widgets/Agenda ignore it.
+        // Pull-up is Home-only — Widgets ignores it.
         assertNull(recentsTarget)
         assertEquals(0, requestShowKeyboardCount)
     }
@@ -472,7 +450,6 @@ class SwipeUpRecentsTest {
                         onAppListIconOnlyChanged = {},
                         onDockVisibleIconCountChanged = {},
                         onAppListSortOrderChanged = {},
-                        onShowAgenda = {},
                         onShowWidgets = {},
                         onShowHome = {},
                         appWidgetHost = null,
@@ -481,8 +458,6 @@ class SwipeUpRecentsTest {
                         onDismissWidgetPicker = {},
                         onSelectWidget = {},
                         onRemoveWidget = {},
-                        onRequestCalendarPermission = {},
-                        onOpenAgendaEvent = {},
                     )
                 }
             }
@@ -540,7 +515,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     appWidgetHost = null,
@@ -549,8 +523,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -762,7 +734,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = { widgetsCount += 1 },
                     onShowHome = {},
                     appWidgetHost = null,
@@ -771,8 +742,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }
@@ -822,7 +791,6 @@ class SwipeUpRecentsTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = { widgetsCount += 1 },
                     onShowHome = {},
                     appWidgetHost = null,
@@ -831,8 +799,6 @@ class SwipeUpRecentsTest {
                     onDismissWidgetPicker = {},
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }

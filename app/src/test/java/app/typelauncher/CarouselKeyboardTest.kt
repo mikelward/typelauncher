@@ -55,22 +55,9 @@ class CarouselKeyboardTest {
     }
 
     @Test
-    fun swipingFromHomeToAgenda_hidesKeyboard() {
+    fun swipingRightFromHome_wrapsToWidgets() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(LauncherUiState(filteredApps = emptyList()))
-        renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
-        composeRule.waitForIdle()
-
-        assertEquals(LauncherDestination.Agenda, state.destination)
-        assertEquals(1, keyboard.hideCount)
-    }
-
-    @Test
-    fun swipingRightFromHome_whenAgendaDisabledWrapsToWidgets() {
-        val keyboard = CountingKeyboardController()
-        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), isAgendaEnabled = false))
         renderWithKeyboard(keyboard, stateProvider = { state }, onStateChanged = { state = it })
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeRight() }
@@ -288,7 +275,6 @@ class CarouselKeyboardTest {
                         onAppListIconOnlyChanged = {},
                         onDockVisibleIconCountChanged = {},
                         onAppListSortOrderChanged = {},
-                        onShowAgenda = {},
                         onShowWidgets = {},
                         onShowHome = {},
                         appWidgetHost = null,
@@ -297,8 +283,6 @@ class CarouselKeyboardTest {
                         onDismissWidgetPicker = {},
                         onSelectWidget = {},
                         onRemoveWidget = {},
-                        onRequestCalendarPermission = {},
-                        onOpenAgendaEvent = {},
                     )
                 }
             }
@@ -326,13 +310,12 @@ class CarouselKeyboardTest {
     }
 
     @Test
-    fun swipingBackToHomeWithAgendaDisabled_showsKeyboardOnce() {
+    fun swipingBackToHomeOnTwoPageCarousel_showsKeyboardOnce() {
         val keyboard = CountingKeyboardController()
         var state by mutableStateOf(
             LauncherUiState(
                 destination = LauncherDestination.Widgets(),
                 filteredApps = emptyList(),
-                isAgendaEnabled = false,
                 isKeyboardAutoShown = true,
             ),
         )
@@ -395,7 +378,6 @@ class CarouselKeyboardTest {
                         onAppListIconOnlyChanged = {},
                         onDockVisibleIconCountChanged = {},
                         onAppListSortOrderChanged = {},
-                        onShowAgenda = { onStateChanged(state.copy(destination = LauncherDestination.Agenda)) },
                         onShowWidgets = { onStateChanged(state.copy(destination = LauncherDestination.Widgets())) },
                         onShowHome = { onStateChanged(state.copy(destination = LauncherDestination.Home)) },
                         appWidgetHost = null,
@@ -404,8 +386,6 @@ class CarouselKeyboardTest {
                         onDismissWidgetPicker = {},
                         onSelectWidget = {},
                         onRemoveWidget = {},
-                        onRequestCalendarPermission = {},
-                        onOpenAgendaEvent = {},
                     )
                 }
             }

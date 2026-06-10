@@ -2251,7 +2251,7 @@ private fun DockedAppButton(
                 // slop can already push the carousel's accumulated rawDragX
                 // above its own 8 dp claim threshold, and without the early
                 // signal a small post-long-press move would let the carousel
-                // page Home → Widgets/Agenda before the dock's own slop
+                // page Home → Widgets before the dock's own slop
                 // accounting (which restarts at zero after long-press) had a
                 // chance to set the suppression latch.
                 //
@@ -2490,7 +2490,6 @@ internal fun SettingsScreen(
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
-    onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
@@ -2662,23 +2661,6 @@ internal fun SettingsScreen(
                     checked = state.isKeyboardAutoShown,
                     onCheckedChange = onKeyboardAutoShownChanged,
                     modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_show_agenda_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isAgendaEnabled,
-                    onCheckedChange = onAgendaEnabledChanged,
-                    modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
                 )
             }
             Row(

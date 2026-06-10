@@ -48,10 +48,6 @@ transmitted off your device by the app.
 - **Query installed apps** (`QUERY_ALL_PACKAGES` / launcher app queries): read
   the list of apps installed on your device so they can be shown and
   launched.
-- **Read calendar** (`READ_CALENDAR`): read calendar events from your device
-  to render the Agenda screen. Event data is read on demand from
-  `CalendarContract` and is never stored beyond the in-memory state of the
-  current session.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
   shade when you pull down on the home screen.
 
@@ -77,12 +73,11 @@ These services may collect:
 
 - Crash stack traces and the type of unhandled exception that caused them.
 - A short rolling buffer of non-PII diagnostic breadcrumbs describing
-  launcher lifecycle events (for example, "cold start began", "agenda load
-  completed", "app icon cache miss"). These breadcrumbs do not include your
+  launcher lifecycle events (for example, "cold start began", "app icon
+  cache miss"). These breadcrumbs do not include your
   search queries, app names, calendar contents, or notification contents.
-- Anonymous performance traces (for example, how long cold start, agenda
-  loading, or icon loading took) and high-level counters (for example, icon
-  cache hit rate).
+- Anonymous performance traces (for example, how long cold start or icon
+  loading took) and high-level counters (for example, icon cache hit rate).
 - Standard device and app metadata that the analytics service collects
   automatically: device model, OS version, app version, locale, and a
   service-generated installation identifier that is not tied to your Google

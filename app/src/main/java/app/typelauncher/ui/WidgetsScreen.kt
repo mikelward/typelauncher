@@ -697,7 +697,7 @@ internal fun HostedWidgetCard(
                 update = { view ->
                     // Push the host view's measured size to the provider via
                     // AppWidgetManager options. Adaptive widgets — Google Clock's
-                    // world clocks, calendar agendas, and other layouts that scale
+                    // world clocks, calendar widgets, and other layouts that scale
                     // their content to the available space — read these options
                     // from getAppWidgetOptions() to decide what to render. Without
                     // them the options bundle stays empty and providers fall back

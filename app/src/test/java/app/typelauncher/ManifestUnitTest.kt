@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -10,7 +11,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 class ManifestUnitTest {
     @Test
-    fun mainActivity_manifestHasLauncherFlagsAndCalendarPermission() {
+    fun mainActivity_manifestHasLauncherFlagsAndNoCalendarPermission() {
         val manifest = parseManifest()
         val application = manifest.getElementsByTagName("application").item(0)
         val activity = manifest.getElementsByTagName("activity").item(0)
@@ -44,7 +45,8 @@ class ManifestUnitTest {
         assertEquals("android.intent.action.MAIN", queryElements[0].attributes.getNamedItem("android:name").nodeValue)
         assertEquals("category", queryElements[1].nodeName)
         assertEquals("android.intent.category.LAUNCHER", queryElements[1].attributes.getNamedItem("android:name").nodeValue)
-        assertTrue(names.contains("android.permission.READ_CALENDAR"))
+        // Agenda removed; the launcher must not request calendar access.
+        assertFalse(names.contains("android.permission.READ_CALENDAR"))
     }
 
     @Test
@@ -102,7 +104,6 @@ class ManifestUnitTest {
         assertTrue(typeLauncherAppSource.contains("collectAsStateWithLifecycle"))
         assertTrue(viewModelSource.contains("ViewModel"))
         assertTrue(themeSource.contains("dynamicLightColorScheme"))
-        assertTrue(viewModelSource.contains("AgendaEventOrganizer.forNow"))
         assertTrue(mainActivitySource.contains("onWindowFocusChanged"))
         assertTrue(mainActivitySource.contains("onTrimMemory"))
         assertTrue(typeLauncherAppSource.contains("LauncherDebugLog.event"))

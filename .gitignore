@@ -22,3 +22,7 @@ app/build
 # private to the maintainer. Forks and the sandbox build cleanly without it —
 # see docs/firebase-telemetry.md.
 app/google-services.json
+
+# JVM crash dumps from local test runs
+hs_err_pid*.log
+replay_pid*.log

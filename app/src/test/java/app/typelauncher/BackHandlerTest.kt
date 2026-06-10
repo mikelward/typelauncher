@@ -59,7 +59,6 @@ class BackHandlerTest {
                     onAppListIconOnlyChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
                     onShowWidgets = {},
                     onShowHome = {},
                     onSetRecentsOpen = { open ->
@@ -75,8 +74,6 @@ class BackHandlerTest {
                     },
                     onSelectWidget = {},
                     onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
                 )
             }
         }

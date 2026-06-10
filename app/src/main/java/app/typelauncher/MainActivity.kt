@@ -1,6 +1,5 @@
 package app.typelauncher
 
-import android.Manifest
 import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
@@ -55,11 +54,6 @@ class MainActivity : ComponentActivity() {
 
     private val requestDefaultLauncherLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
-    private val requestCalendarPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            LauncherDebugLog.event("requestCalendarPermission result granted=$it")
-            viewModel.refreshAgenda()
-        }
     private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val resultWidgetId = result.data?.getIntExtra(
@@ -210,9 +204,6 @@ class MainActivity : ComponentActivity() {
                         onDismissWidgetPicker = viewModel::hideWidgetPicker,
                         onSelectWidget = ::bindWidget,
                         onRemoveWidget = ::removeWidget,
-                        onRequestCalendarPermission = {
-                            requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-                        },
                         onRequestDefaultLauncher = ::requestDefaultLauncher,
                         onSwipeDown = ::expandNotificationShade,
                         onStartPlayUpdate = ::startPlayUpdate,

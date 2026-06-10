@@ -5,7 +5,6 @@ import kotlin.math.abs
 internal enum class LauncherScreen {
     Home,
     Widgets,
-    Agenda,
     ;
 
     val carouselPage: Int
@@ -15,52 +14,35 @@ internal enum class LauncherScreen {
         val carouselScreens = entries.toList()
         const val carouselPageCount = Int.MAX_VALUE
 
-        private fun visibleCarouselScreens(isAgendaEnabled: Boolean): List<LauncherScreen> =
-            if (isAgendaEnabled) carouselScreens else listOf(Home, Widgets)
-
-        fun visibleCarouselPages(
-            widgetPageCount: Int,
-            isAgendaEnabled: Boolean,
-        ): List<LauncherPage> {
+        fun visibleCarouselPages(widgetPageCount: Int): List<LauncherPage> {
             val widgetPages = List(widgetPageCount.coerceAtLeast(1)) { index ->
                 LauncherPage(Widgets, widgetPageIndex = index)
             }
-            return if (isAgendaEnabled) {
-                listOf(LauncherPage(Home)) + widgetPages + LauncherPage(Agenda)
-            } else {
-                listOf(LauncherPage(Home)) + widgetPages
-            }
+            return listOf(LauncherPage(Home)) + widgetPages
         }
 
         private fun firstVirtualCarouselPage(screenCount: Int): Int =
             carouselPageCount / 2 - (carouselPageCount / 2 % screenCount)
 
-        private fun LauncherScreen.visibleCarouselPage(isAgendaEnabled: Boolean): Int {
-            val visibleScreens = visibleCarouselScreens(isAgendaEnabled)
-            return visibleScreens.indexOf(this).takeIf { index -> index >= 0 } ?: Home.carouselPage
-        }
+        private fun LauncherScreen.visibleCarouselPage(): Int =
+            carouselScreens.indexOf(this).takeIf { index -> index >= 0 } ?: Home.carouselPage
 
-        fun initialCarouselPage(screen: LauncherScreen, isAgendaEnabled: Boolean = true): Int {
-            val visibleScreens = visibleCarouselScreens(isAgendaEnabled)
-            val visibleScreen = if (screen in visibleScreens) screen else Home
-            return firstVirtualCarouselPage(visibleScreens.size) + visibleScreens.indexOf(visibleScreen)
-        }
+        fun initialCarouselPage(screen: LauncherScreen): Int =
+            firstVirtualCarouselPage(carouselScreens.size) + carouselScreens.indexOf(screen)
 
         fun initialCarouselPage(
             page: LauncherPage,
             widgetPageCount: Int,
-            isAgendaEnabled: Boolean = true,
         ): Int {
-            val visiblePages = visibleCarouselPages(widgetPageCount, isAgendaEnabled)
+            val visiblePages = visibleCarouselPages(widgetPageCount)
             val visiblePage = page.visibleCarouselPage(visiblePages)
             return firstVirtualCarouselPage(visiblePages.size) + visiblePages.indexOf(visiblePage)
         }
 
-        fun closestCarouselPage(currentPage: Int, screen: LauncherScreen, isAgendaEnabled: Boolean = true): Int {
-            val visibleScreens = visibleCarouselScreens(isAgendaEnabled)
-            val screenCount = visibleScreens.size
+        fun closestCarouselPage(currentPage: Int, screen: LauncherScreen): Int {
+            val screenCount = carouselScreens.size
             val currentCarouselPage = Math.floorMod(currentPage, screenCount)
-            val targetCarouselPage = screen.visibleCarouselPage(isAgendaEnabled)
+            val targetCarouselPage = screen.visibleCarouselPage()
             val forwardDelta = Math.floorMod(targetCarouselPage - currentCarouselPage, screenCount)
             val backwardDelta = forwardDelta - screenCount
             val delta = when {
@@ -77,9 +59,8 @@ internal enum class LauncherScreen {
             currentPage: Int,
             page: LauncherPage,
             widgetPageCount: Int,
-            isAgendaEnabled: Boolean = true,
         ): Int {
-            val visiblePages = visibleCarouselPages(widgetPageCount, isAgendaEnabled)
+            val visiblePages = visibleCarouselPages(widgetPageCount)
             val screenCount = visiblePages.size
             val currentCarouselPage = Math.floorMod(currentPage, screenCount)
             val targetCarouselPage = visiblePages.indexOf(page.visibleCarouselPage(visiblePages))
@@ -99,33 +80,23 @@ internal enum class LauncherScreen {
             currentPage: Int,
             oldWidgetPageCount: Int,
             newWidgetPageCount: Int,
-            oldIsAgendaEnabled: Boolean,
-            newIsAgendaEnabled: Boolean,
         ): Int {
-            val oldPage = fromCarouselPage(
-                page = currentPage,
-                widgetPageCount = oldWidgetPageCount,
-                isAgendaEnabled = oldIsAgendaEnabled,
-            )
+            val oldPage = fromCarouselPage(page = currentPage, widgetPageCount = oldWidgetPageCount)
             return closestCarouselPage(
                 currentPage = currentPage,
                 page = oldPage,
                 widgetPageCount = newWidgetPageCount,
-                isAgendaEnabled = newIsAgendaEnabled,
             )
         }
 
-        fun fromCarouselPage(page: Int, isAgendaEnabled: Boolean = true): LauncherScreen {
-            val visibleScreens = visibleCarouselScreens(isAgendaEnabled)
-            return visibleScreens[Math.floorMod(page, visibleScreens.size)]
-        }
+        fun fromCarouselPage(page: Int): LauncherScreen =
+            carouselScreens[Math.floorMod(page, carouselScreens.size)]
 
         fun fromCarouselPage(
             page: Int,
             widgetPageCount: Int,
-            isAgendaEnabled: Boolean = true,
         ): LauncherPage {
-            val visiblePages = visibleCarouselPages(widgetPageCount, isAgendaEnabled)
+            val visiblePages = visibleCarouselPages(widgetPageCount)
             return visiblePages[Math.floorMod(page, visiblePages.size)]
         }
     }
@@ -148,7 +119,6 @@ internal data class LauncherPage(
  */
 internal fun LauncherPage.carouselContentKey(): String = when (screen) {
     LauncherScreen.Home -> "home"
-    LauncherScreen.Agenda -> "agenda"
     LauncherScreen.Widgets -> "widgets:$clampedWidgetPageIndex"
 }
 
@@ -160,26 +130,22 @@ internal fun LauncherPage.carouselContentKey(): String = when (screen) {
 // through `toLauncherPage()` to talk to the existing visible-page math.
 internal sealed class LauncherDestination {
     data object Home : LauncherDestination()
-    data object Agenda : LauncherDestination()
     data class Widgets(val pageIndex: Int = 0) : LauncherDestination()
 
     val screen: LauncherScreen
         get() = when (this) {
             Home -> LauncherScreen.Home
-            Agenda -> LauncherScreen.Agenda
             is Widgets -> LauncherScreen.Widgets
         }
 
     fun toLauncherPage(): LauncherPage = when (this) {
         Home -> LauncherPage(LauncherScreen.Home)
-        Agenda -> LauncherPage(LauncherScreen.Agenda)
         is Widgets -> LauncherPage(LauncherScreen.Widgets, pageIndex)
     }
 }
 
 internal fun LauncherPage.toDestination(): LauncherDestination = when (screen) {
     LauncherScreen.Home -> LauncherDestination.Home
-    LauncherScreen.Agenda -> LauncherDestination.Agenda
     LauncherScreen.Widgets -> LauncherDestination.Widgets(clampedWidgetPageIndex)
 }
 
