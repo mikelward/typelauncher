@@ -88,15 +88,16 @@ class IconNormalizerTest {
     }
 
     @Test
-    fun adaptiveIconIsDrawnFullBleed() {
+    fun adaptiveForegroundThatAlreadyFillsIsNotShrunk() {
+        // A foreground that already fills its bounds (a full red layer) must not
+        // be downscaled to FOREGROUND_FRACTION — that would expose a blue
+        // background border. The corner stays the foreground color.
         val drawable = AdaptiveIconDrawable(ColorDrawable(Color.BLUE), ColorDrawable(Color.RED))
 
         val tile = IconNormalizer.normalizeToTile(drawable, 64)
 
-        // Background fills the tile, so even the corners (outside the enlarged
-        // foreground) are opaque.
-        assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
-        assertEquals(255, Color.alpha(tile.getPixel(61, 61)))
+        assertColorClose(Color.RED, tile.getPixel(2, 2))
+        assertColorClose(Color.RED, tile.getPixel(61, 61))
     }
 
     @Test

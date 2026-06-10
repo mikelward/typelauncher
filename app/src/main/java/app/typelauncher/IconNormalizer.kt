@@ -242,7 +242,10 @@ internal object IconNormalizer {
         fillFraction: Float,
     ) {
         val contentMax = maxOf(contentBounds.width(), contentBounds.height()).coerceAtLeast(1)
-        val scale = (sizePx * fillFraction) / contentMax
+        // Enlarge undersized content up to the target, but never shrink content
+        // that already fills its bounds — shrinking would expose a background
+        // border around foreground art that was meant to be full-size.
+        val scale = ((sizePx * fillFraction) / contentMax).coerceAtLeast(1f)
         val centerX = contentBounds.exactCenterX()
         val centerY = contentBounds.exactCenterY()
         drawable.setBounds(0, 0, sizePx, sizePx)
