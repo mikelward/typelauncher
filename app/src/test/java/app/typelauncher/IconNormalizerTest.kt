@@ -101,6 +101,23 @@ class IconNormalizerTest {
     }
 
     @Test
+    fun adaptiveEmptyForegroundPlatesWithTheBackgroundColor() {
+        // The visible art is a sparse colored background with a fully transparent
+        // foreground. The plate must take the background's color, not the white
+        // fallback of the empty foreground's analysis.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val green = Color.rgb(0x18, 0x80, 0x38)
+        val drawable = AdaptiveIconDrawable(
+            BitmapDrawable(resources, centeredCircle(100, fraction = 0.40f, color = green)),
+            ColorDrawable(Color.TRANSPARENT),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        assertColorClose(green, tile.getPixel(2, 2))
+    }
+
+    @Test
     fun adaptivePartiallyTransparentBackgroundIsPlated() {
         // A circular background on transparency (~78% coverage) takes the
         // "background fills" path; its transparent corners must still be plated
