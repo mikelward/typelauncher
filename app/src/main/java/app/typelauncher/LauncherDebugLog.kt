@@ -22,9 +22,7 @@ internal object LauncherDebugLog {
 
     fun event(message: String) {
         record('D', message, throwable = null)
-        if (BuildConfig.DEBUG) {
-            Log.d(LAUNCHER_DEBUG_TAG, message)
-        }
+        Log.d(LAUNCHER_DEBUG_TAG, message)
         // Mirror into Crashlytics so the most recent ~64 lines ride along on
         // any future crash report, giving us the same context the bug-report
         // helper would attach.
@@ -33,9 +31,7 @@ internal object LauncherDebugLog {
 
     fun warning(message: String, throwable: Throwable? = null) {
         record('W', message, throwable)
-        if (BuildConfig.DEBUG) {
-            Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
-        }
+        Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
         LauncherTelemetry.log("WARN $message")
         if (throwable != null) LauncherTelemetry.recordException(throwable)
     }
