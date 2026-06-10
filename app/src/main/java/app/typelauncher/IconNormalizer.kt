@@ -41,12 +41,17 @@ internal object IconNormalizer {
     // a genuinely sparse logo from butting against the tile edge.
     internal const val CONTENT_FRACTION = 0.92f
 
-    // Fraction of the tile an adaptive icon's foreground (the logo) is scaled to
-    // fill, measured from its own visible bounds rather than the fixed
-    // safe-zone zoom. This enlarges a small logo (e.g. GitHub's mark on its dark
-    // background) to a consistent size instead of leaving it tiny inside the
-    // background, matching how a stock launcher normalizes icon content.
-    internal const val FOREGROUND_FRACTION = 0.84f
+    // Adaptive icons are framed with the platform's safe-zone zoom — the 72/108
+    // safe-zone viewport fills the tile — exactly as a stock launcher renders
+    // them, so a normal logo keeps its intended size and placement.
+    private val SAFE_ZONE_SCALE = 1f + 2f * AdaptiveIconDrawable.getExtraInsetFraction()
+
+    // A foreground (logo) is enlarged *beyond* the safe-zone zoom only when it is
+    // so small that even after that zoom it fills less than this fraction of the
+    // tile — the "tiny logo floating on a big background" case (GitHub, UniFi,
+    // VW). A normal logo keeps the platform framing untouched, and the
+    // enlargement scales about the tile center so the logo is never re-centered.
+    internal const val MIN_FOREGROUND_FRACTION = 0.60f
 
     // An adaptive background covering at least this much of the tile is treated
     // as the fill; a sparser/transparent background falls back to a
@@ -137,14 +142,33 @@ internal object IconNormalizer {
         if (foreground != null && foregroundAnalysis != null && foregroundAnalysis.hasVisibleContent) {
             // Draw whenever the foreground has any visible content — including a
             // translucent logo with no fully-opaque pixels, which must not
-            // disappear. Re-draw the drawable (usually a vector) under a scale
-            // matrix so the enlarged logo stays crisp instead of pixelating.
-            drawDrawableScaled(canvas, foreground, foregroundAnalysis.bounds, sizePx, FOREGROUND_FRACTION)
+            // disappear.
+            drawForegroundScaled(canvas, foreground, foregroundAnalysis.bounds, sizePx)
         }
 
         backgroundBitmap?.recycle()
         foregroundBitmap?.recycle()
         return tile
+    }
+
+    /**
+     * Draws an adaptive [foreground] with the platform safe-zone zoom, scaling
+     * about the *tile center* so the logo keeps the placement the designer
+     * intended (it is never re-centered on its own bounds). A logo that is tiny
+     * even after the safe-zone zoom — filling less than [MIN_FOREGROUND_FRACTION]
+     * of the tile — is enlarged further to that minimum; a normal logo gets only
+     * the safe-zone zoom. [contentBounds] is its visible extent in a full-bounds
+     * `sizePx` rasterization.
+     */
+    private fun drawForegroundScaled(canvas: Canvas, foreground: Drawable, contentBounds: Rect, sizePx: Int) {
+        val contentMax = maxOf(contentBounds.width(), contentBounds.height()).coerceAtLeast(1)
+        val contentFraction = contentMax / sizePx.toFloat()
+        val scale = maxOf(SAFE_ZONE_SCALE, MIN_FOREGROUND_FRACTION / contentFraction)
+        foreground.setBounds(0, 0, sizePx, sizePx)
+        val saved = canvas.save()
+        canvas.scale(scale, scale, sizePx / 2f, sizePx / 2f)
+        foreground.draw(canvas)
+        canvas.restoreToCount(saved)
     }
 
     /** Draws an adaptive [layer] into a `sizePx` square at full bounds. */

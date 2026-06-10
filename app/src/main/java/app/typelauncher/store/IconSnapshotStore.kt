@@ -159,8 +159,9 @@ internal class IconSnapshotStore(context: Context) {
         // work-profile badge — work tiles are now cached unbadged and the
         // briefcase is drawn as a separate overlay, so a restored older work
         // bitmap would carry a clipped baked-in badge under the new overlay
-        // (a double badge) until eviction.
-        const val DIRECTORY_NAME = "icon_snapshots_v5"
+        // (a double badge) until eviction; _v6 = selective foreground zoom
+        // (only tiny logos enlarged, scaled about the tile center).
+        const val DIRECTORY_NAME = "icon_snapshots_v6"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
