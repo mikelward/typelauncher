@@ -112,17 +112,23 @@ internal object IconNormalizer {
         val backgroundAnalysis = backgroundBitmap?.let { analyze(it) }
         val foregroundAnalysis = foregroundBitmap?.let { analyze(it) }
 
-        if (backgroundBitmap != null && backgroundAnalysis!!.coverage >= BACKGROUND_FILL_COVERAGE) {
-            canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
-        } else {
-            // Transparent / sparse background: fill with the logo's own color so
-            // the tile is opaque, then lay any partial background over it.
-            val plate = foregroundAnalysis?.dominantColor
+        // Always lay down an opaque plate before the background bitmap, so any
+        // transparent area of the background — e.g. a circular background on
+        // transparency whose corners fall inside a squircle/system clip — is
+        // filled instead of exposing the surface plate. A fully opaque
+        // background simply covers it. The plate takes the background's own
+        // dominant color when the background is the fill, and the foreground's
+        // (the logo's) color when the background is transparent/sparse.
+        val backgroundFills = backgroundAnalysis != null &&
+            backgroundAnalysis.coverage >= BACKGROUND_FILL_COVERAGE
+        val plate = when {
+            backgroundFills -> backgroundAnalysis!!.dominantColor
+            else -> foregroundAnalysis?.dominantColor
                 ?: backgroundAnalysis?.dominantColor
                 ?: Color.WHITE
-            canvas.drawColor(plate)
-            if (backgroundBitmap != null) canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
         }
+        canvas.drawColor(plate)
+        if (backgroundBitmap != null) canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
 
         val foreground = drawable.foreground
         if (foreground != null && foregroundAnalysis != null && !foregroundAnalysis.bounds.isEmpty) {
