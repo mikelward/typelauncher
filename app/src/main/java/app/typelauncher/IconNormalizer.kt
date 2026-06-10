@@ -3,9 +3,7 @@ package app.typelauncher
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Rect
-import android.graphics.RectF
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 
@@ -43,6 +41,18 @@ internal object IconNormalizer {
     // a genuinely sparse logo from butting against the tile edge.
     internal const val CONTENT_FRACTION = 0.92f
 
+    // Fraction of the tile an adaptive icon's foreground (the logo) is scaled to
+    // fill, measured from its own visible bounds rather than the fixed
+    // safe-zone zoom. This enlarges a small logo (e.g. GitHub's mark on its dark
+    // background) to a consistent size instead of leaving it tiny inside the
+    // background, matching how a stock launcher normalizes icon content.
+    internal const val FOREGROUND_FRACTION = 0.84f
+
+    // An adaptive background covering at least this much of the tile is treated
+    // as the fill; a sparser/transparent background falls back to a
+    // dominant-color plate so the tile is still opaque under the logo.
+    internal const val BACKGROUND_FILL_COVERAGE = 0.65f
+
     // Alpha at/above which a pixel counts as opaque for the coverage test and
     // the dominant-color histogram, and the lower threshold at which a pixel
     // counts as "visible" for the content bounds. The gap absorbs the
@@ -63,16 +73,75 @@ internal object IconNormalizer {
      * `sizePx` × `sizePx`.
      */
     fun normalizeToTile(drawable: Drawable, sizePx: Int): Bitmap {
+        // Adaptive icons expose their background and foreground separately, so we
+        // fill the tile with the background and scale the foreground (the logo)
+        // up to a consistent size — a small logo no longer sits tiny inside its
+        // background.
+        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx)
+
         val raw = rasterizeFullBleed(drawable, sizePx)
         val analysis = analyze(raw)
-        // Both paths plate the content; only the fill fraction differs. Drawing
-        // full-bleed icons edge-to-edge keeps a multi-color background ring-free,
-        // while the plate underneath fills any transparent corners/holes (a
-        // coverage check alone would leave a rounded square's corners gray).
-        val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
-        val tile = drawOnPlate(raw, analysis, sizePx, fillFraction)
         raw.recycle()
+        // Plate the content; the fill fraction keeps a full-bleed icon edge-to-
+        // edge (so a multi-color background gets no ring) while a padded or
+        // sparse icon is enlarged. The plate underneath fills any transparent
+        // corners/holes (a coverage check alone would leave a rounded square's
+        // corners gray). The drawable is re-drawn under a scale matrix rather
+        // than upscaling its bitmap, so a vector icon stays crisp when enlarged.
+        val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
+        val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(tile)
+        canvas.drawColor(analysis.dominantColor)
+        drawDrawableScaled(canvas, drawable, analysis.bounds, sizePx, fillFraction)
         return tile
+    }
+
+    /**
+     * Normalizes an adaptive icon: fills the tile with the background layer (or
+     * a dominant-color plate when the background is transparent), then scales the
+     * foreground layer's visible content to [FOREGROUND_FRACTION] of the tile so
+     * a small logo is enlarged to a consistent size instead of floating tiny on
+     * its background.
+     */
+    private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int): Bitmap {
+        val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(tile)
+
+        val backgroundBitmap = drawable.background?.let { rasterizeLayer(it, sizePx) }
+        val foregroundBitmap = drawable.foreground?.let { rasterizeLayer(it, sizePx) }
+        val backgroundAnalysis = backgroundBitmap?.let { analyze(it) }
+        val foregroundAnalysis = foregroundBitmap?.let { analyze(it) }
+
+        if (backgroundBitmap != null && backgroundAnalysis!!.coverage >= BACKGROUND_FILL_COVERAGE) {
+            canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
+        } else {
+            // Transparent / sparse background: fill with the logo's own color so
+            // the tile is opaque, then lay any partial background over it.
+            val plate = foregroundAnalysis?.dominantColor
+                ?: backgroundAnalysis?.dominantColor
+                ?: Color.WHITE
+            canvas.drawColor(plate)
+            if (backgroundBitmap != null) canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
+        }
+
+        val foreground = drawable.foreground
+        if (foreground != null && foregroundAnalysis != null && !foregroundAnalysis.bounds.isEmpty) {
+            // Re-draw the foreground drawable (usually a vector) under a scale
+            // matrix so the enlarged logo stays crisp instead of pixelating.
+            drawDrawableScaled(canvas, foreground, foregroundAnalysis.bounds, sizePx, FOREGROUND_FRACTION)
+        }
+
+        backgroundBitmap?.recycle()
+        foregroundBitmap?.recycle()
+        return tile
+    }
+
+    /** Draws an adaptive [layer] into a `sizePx` square at full bounds. */
+    private fun rasterizeLayer(layer: Drawable, sizePx: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        layer.setBounds(0, 0, sizePx, sizePx)
+        layer.draw(Canvas(bitmap))
+        return bitmap
     }
 
     internal data class IconAnalysis(
@@ -140,34 +209,13 @@ internal object IconNormalizer {
     }
 
     /**
-     * Draws [drawable] into a `sizePx` square. Adaptive icons are composited
-     * layer-by-layer with the standard viewport zoom — the layers are scaled up
-     * by [AdaptiveIconDrawable.getExtraInsetFraction] so the 72/108 safe zone
-     * fills the tile and the bleed ring is clipped away, the same framing the
-     * platform applies. Without the zoom the foreground logo would sit at ~67%
-     * of the tile and look shrunken next to a full-bleed legacy icon.
+     * Draws a non-adaptive [drawable] into a `sizePx` square at full bounds.
+     * (Adaptive icons take the [normalizeAdaptive] path instead.)
      */
     private fun rasterizeFullBleed(drawable: Drawable, sizePx: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        if (drawable is AdaptiveIconDrawable) {
-            val inset = (sizePx * AdaptiveIconDrawable.getExtraInsetFraction()).toInt()
-            val left = -inset
-            val top = -inset
-            val right = sizePx + inset
-            val bottom = sizePx + inset
-            drawable.background?.apply {
-                setBounds(left, top, right, bottom)
-                draw(canvas)
-            }
-            drawable.foreground?.apply {
-                setBounds(left, top, right, bottom)
-                draw(canvas)
-            }
-        } else {
-            drawable.setBounds(0, 0, sizePx, sizePx)
-            drawable.draw(canvas)
-        }
+        drawable.setBounds(0, 0, sizePx, sizePx)
+        drawable.draw(Canvas(bitmap))
         return bitmap
     }
 
@@ -178,22 +226,31 @@ internal object IconNormalizer {
      * full-bleed icon (`fillFraction == 1`) covers the tile while a padded
      * colored icon or sparse logo sits on an intentional dominant-color backdrop.
      */
-    private fun drawOnPlate(raw: Bitmap, analysis: IconAnalysis, sizePx: Int, fillFraction: Float): Bitmap {
-        val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(tile)
-        canvas.drawColor(analysis.dominantColor)
-
-        val contentWidth = analysis.bounds.width().coerceAtLeast(1)
-        val contentHeight = analysis.bounds.height().coerceAtLeast(1)
-        val target = sizePx * fillFraction
-        val scale = target / maxOf(contentWidth, contentHeight)
-        val drawWidth = contentWidth * scale
-        val drawHeight = contentHeight * scale
-        val left = (sizePx - drawWidth) / 2f
-        val top = (sizePx - drawHeight) / 2f
-        val destination = RectF(left, top, left + drawWidth, top + drawHeight)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
-        canvas.drawBitmap(raw, analysis.bounds, destination, paint)
-        return tile
+    /**
+     * Draws [drawable] so the visible content currently at [contentBounds] (in a
+     * full-bounds `sizePx` rasterization) is scaled to span [fillFraction] of the
+     * tile and centered. The drawable is rendered under a `Canvas` scale matrix
+     * rather than by upscaling a pre-rasterized bitmap, so a vector source
+     * (`VectorDrawable`, the common adaptive foreground) re-rasterizes sharply at
+     * the enlarged size; a raster source falls back to filtered sampling.
+     */
+    private fun drawDrawableScaled(
+        canvas: Canvas,
+        drawable: Drawable,
+        contentBounds: Rect,
+        sizePx: Int,
+        fillFraction: Float,
+    ) {
+        val contentMax = maxOf(contentBounds.width(), contentBounds.height()).coerceAtLeast(1)
+        val scale = (sizePx * fillFraction) / contentMax
+        val centerX = contentBounds.exactCenterX()
+        val centerY = contentBounds.exactCenterY()
+        drawable.setBounds(0, 0, sizePx, sizePx)
+        val saved = canvas.save()
+        canvas.translate(sizePx / 2f, sizePx / 2f)
+        canvas.scale(scale, scale)
+        canvas.translate(-centerX, -centerY)
+        drawable.draw(canvas)
+        canvas.restoreToCount(saved)
     }
 }

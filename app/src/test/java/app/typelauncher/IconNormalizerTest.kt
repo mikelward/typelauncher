@@ -93,15 +93,43 @@ class IconNormalizerTest {
 
         val tile = IconNormalizer.normalizeToTile(drawable, 64)
 
-        // Foreground is drawn over background at full bounds, so the tile is
-        // opaque edge-to-edge with no plate required.
+        // Background fills the tile, so even the corners (outside the enlarged
+        // foreground) are opaque.
         assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
         assertEquals(255, Color.alpha(tile.getPixel(61, 61)))
+    }
+
+    @Test
+    fun adaptiveForegroundIsEnlargedToFillTheTile() {
+        // A small (30% of the layer) white logo on a dark background — the
+        // GitHub/UniFi case. The foreground must be enlarged toward
+        // FOREGROUND_FRACTION instead of floating tiny on the background.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val drawable = AdaptiveIconDrawable(
+            ColorDrawable(Color.rgb(0x10, 0x14, 0x1C)),
+            BitmapDrawable(resources, centeredCircle(100, fraction = 0.30f, color = Color.WHITE)),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        // Center is the logo, and a point 35% out from center is now inside the
+        // enlarged (~84% diameter) logo — the un-enlarged 30% logo wouldn't
+        // reach there. The corner stays the dark background.
+        assertColorClose(Color.WHITE, tile.getPixel(50, 50))
+        assertColorClose(Color.WHITE, tile.getPixel(85, 50))
+        assertColorClose(Color.rgb(0x10, 0x14, 0x1C), tile.getPixel(2, 2))
     }
 
     private fun solid(size: Int, color: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         Canvas(bitmap).drawColor(color)
+        return bitmap
+    }
+
+    private fun centeredCircle(size: Int, fraction: Float, color: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        Canvas(bitmap).drawCircle(size / 2f, size / 2f, size * fraction / 2f, paint)
         return bitmap
     }
 
