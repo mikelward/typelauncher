@@ -209,6 +209,11 @@ jobs:
         # `roborazzi-screenshots` artifact captures the tile treatment.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconNormalizationScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run icon shape screenshot tests
+        # Renders the selectable icon shapes (system / circle / squircle) so the
+        # PR `roborazzi-screenshots` artifact captures the shape options.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconShapeScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

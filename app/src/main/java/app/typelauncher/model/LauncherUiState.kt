@@ -212,6 +212,18 @@ internal enum class ThemeMode {
 }
 
 /**
+ * Shape the launcher clips every app icon to. `System` (default) follows the
+ * device's adaptive-icon mask (a circle on Pixel, a squircle on Samsung, etc.),
+ * `Circle` and `Squircle` force that shape regardless of the device. Resolved
+ * to a Compose `Shape` by `IconShape.toComposeShape`.
+ */
+internal enum class IconShape {
+    System,
+    Circle,
+    Squircle,
+}
+
+/**
  * Distinguishes a keyboard reservation that has been confirmed by a real
  * visible IME from one that only ever came in via `WindowInsets.imeAnimationTarget`.
  *
@@ -445,6 +457,9 @@ internal data class LauncherUiState(
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.
     val themeMode: ThemeMode = ThemeMode.System,
+    // Shape every app icon is clipped to. `System` (default) follows the
+    // device's adaptive-icon mask. Applied by `AppIcon` via `LocalAppIconShape`.
+    val iconShape: IconShape = IconShape.System,
     val isLoadingApps: Boolean = false,
     // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
     // warm start `isLoadingApps` is `false` from process start because cached
