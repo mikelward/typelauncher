@@ -149,8 +149,11 @@ internal object IconNormalizer {
             // Diagnostic: record how large each app authored its foreground (the
             // logo) so MIN_FOREGROUND_FRACTION can be tuned from real icons rather
             // than guessed. `contentFraction` is the logo's size in the raw layer;
-            // `finalFraction` is its size on the tile after scaling.
-            if (debugLabel.isNotEmpty()) {
+            // `finalFraction` is its size on the tile after scaling. Debug builds
+            // only — the .debug app is a separate install, so a fresh/cleared
+            // debug build re-renders (and logs) every icon, and production users
+            // get neither the log nor any cache invalidation.
+            if (debugLabel.isNotEmpty() && BuildConfig.DEBUG) {
                 LauncherDebugLog.event(
                     "adaptiveIconForeground $debugLabel sizePx=$sizePx " +
                         "contentFraction=$contentFraction scale=$scale " +
