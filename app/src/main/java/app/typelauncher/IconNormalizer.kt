@@ -1,9 +1,13 @@
 package app.typelauncher
 
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.Shader
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import androidx.core.graphics.ColorUtils
@@ -36,6 +40,16 @@ internal object IconNormalizer {
     // launcher's clip) and interior holes show the icon's own color rather than
     // exposing the gray surface plate.
     internal const val FULL_BLEED_COVERAGE = 0.9f
+
+    // The composed icon is seated as a circle filling this fraction of the tile,
+    // with the remaining margin taken by a plate in the composition's own
+    // dominant color — the framing the launcher used before icons went
+    // edge-to-edge (every icon sat at ~85% inside its tile), which kept the grid
+    // from feeling zoomed-in, but with the margin matching each icon instead of
+    // the old gray backdrop. For a full-bleed icon the plate matches the art and
+    // the seam is invisible; for a distinct-color edge (Chrome's ball on white)
+    // it reads as the classic ringed icon.
+    internal const val INSET_CONTENT_FRACTION = 0.86f
 
     // Fraction of the tile the normalized content fills on the plate path. The
     // remaining 8% margin is plate-colored; for a colored-shape-with-padding
@@ -111,7 +125,10 @@ internal object IconNormalizer {
      * Rasterizes [drawable] to a `sizePx` square and re-seats it on a
      * dominant-color plate so the tile is opaque to its rounded clip. A
      * full-bleed icon is drawn edge-to-edge; a padded or sparse icon is scaled
-     * to [CONTENT_FRACTION] and centered. The returned bitmap is always
+     * to [CONTENT_FRACTION] and centered. The composition is then seated as a
+     * circle at [INSET_CONTENT_FRACTION] of the tile over a plate in its own
+     * dominant color, so the grid keeps the breathing room of the classic
+     * framing without the old gray backdrop. The returned bitmap is always
      * `sizePx` × `sizePx`.
      */
     fun normalizeToTile(drawable: Drawable, sizePx: Int, debugLabel: String = ""): Bitmap {
@@ -119,33 +136,68 @@ internal object IconNormalizer {
         // fill the tile with the background and scale the foreground (the logo)
         // up to a consistent size — a small logo no longer sits tiny inside its
         // background.
-        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx, debugLabel)
-
-        val raw = rasterizeFullBleed(drawable, sizePx)
-        val analysis = analyze(raw)
-        raw.recycle()
-        // Plate the content; the fill fraction keeps a full-bleed icon edge-to-
-        // edge (so a multi-color background gets no ring) while a padded or
-        // sparse icon is enlarged. The plate underneath fills any transparent
-        // corners/holes (a coverage check alone would leave a rounded square's
-        // corners gray). The drawable is re-drawn under a scale matrix rather
-        // than upscaling its bitmap, so a vector icon stays crisp when enlarged.
-        val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
+        val content = if (drawable is AdaptiveIconDrawable) {
+            normalizeAdaptive(drawable, sizePx, debugLabel)
+        } else {
+            normalizeFlat(drawable, sizePx)
+        }
+        // Plate color comes from the *composition*, not a single layer, so a
+        // foreground that covers its background (a full-bleed logo) contributes
+        // its own color and the margin stays seamless with the visible edge.
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tile)
-        canvas.drawColor(analysis.dominantColor)
-        drawDrawableScaled(canvas, drawable, analysis.bounds, sizePx, fillFraction)
+        canvas.drawColor(analyze(content).dominantColor)
+        drawContentInset(canvas, content, sizePx)
+        content.recycle()
         return tile
     }
 
     /**
-     * Normalizes an adaptive icon: fills the tile with the background layer (or
-     * a dominant-color plate when the background is transparent), then frames the
-     * foreground with the platform safe-zone zoom, enlarging it further when its
-     * perceived size (shadow-excluded, shape-corrected) is below
-     * [MIN_FOREGROUND_FRACTION] — or [DARK_PLATE_FOREGROUND_FRACTION] when the
-     * plate blends into the launcher's dark surface and the logo is the only
-     * visible art.
+     * Composes a non-adaptive [drawable] onto a dominant-color plate: a
+     * full-bleed icon is drawn edge-to-edge (no mismatched ring), a padded or
+     * sparse icon is enlarged to [CONTENT_FRACTION] and centered, and the plate
+     * fills any transparent corners or interior holes with the icon's own
+     * color. The drawable is re-drawn under a scale matrix rather than
+     * upscaling its bitmap, so a vector icon stays crisp when enlarged.
+     */
+    private fun normalizeFlat(drawable: Drawable, sizePx: Int): Bitmap {
+        val raw = rasterizeFullBleed(drawable, sizePx)
+        val analysis = analyze(raw)
+        raw.recycle()
+        val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
+        val content = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(content)
+        canvas.drawColor(analysis.dominantColor)
+        drawDrawableScaled(canvas, drawable, analysis.bounds, sizePx, fillFraction)
+        return content
+    }
+
+    /**
+     * Draws the composed [content] as an anti-aliased circle filling
+     * [INSET_CONTENT_FRACTION] of the tile, centered — the icon's classic
+     * breathing room. A `BitmapShader` fill is used instead of a path clip so
+     * the circular edge is anti-aliased.
+     */
+    private fun drawContentInset(canvas: Canvas, content: Bitmap, sizePx: Int) {
+        val center = sizePx / 2f
+        val matrix = Matrix().apply {
+            setScale(INSET_CONTENT_FRACTION, INSET_CONTENT_FRACTION, center, center)
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            shader = BitmapShader(content, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+                .apply { setLocalMatrix(matrix) }
+        }
+        canvas.drawCircle(center, center, sizePx * INSET_CONTENT_FRACTION / 2f, paint)
+    }
+
+    /**
+     * Composes an adaptive icon at full bleed (the caller seats it inset): the
+     * background layer fills the square (or a dominant-color plate when the
+     * background is transparent), then the foreground is framed with the
+     * platform safe-zone zoom, enlarged further when its perceived size
+     * (shadow-excluded, shape-corrected) is below [MIN_FOREGROUND_FRACTION] —
+     * or [DARK_PLATE_FOREGROUND_FRACTION] when the plate blends into the
+     * launcher's dark surface and the logo is the only visible art.
      */
     private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)

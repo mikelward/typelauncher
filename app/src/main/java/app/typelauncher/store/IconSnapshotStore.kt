@@ -164,8 +164,10 @@ internal class IconSnapshotStore(context: Context) {
         // (only tiny logos enlarged, scaled about the tile center); _v7 raised
         // the tiny-logo target; _v8 = shadow-excluded shape-aware logo sizing
         // with a larger minimum for dark plates, enlargement anchored on the
-        // logo's own center.
-        const val DIRECTORY_NAME = "icon_snapshots_v8"
+        // logo's own center; _v9 seats the composition as an inset circle on a
+        // plate in its own dominant color (the classic breathing room, without
+        // the gray backdrop).
+        const val DIRECTORY_NAME = "icon_snapshots_v9"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
