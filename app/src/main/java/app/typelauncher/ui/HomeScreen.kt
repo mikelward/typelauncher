@@ -1177,23 +1177,29 @@ private fun ScrollableIconRow(
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    // The carousel reserves a horizontal drag for this strip when it starts on
-    // the strip and the strip can still scroll that way. In LTR a finger moving
-    // left scrolls toward the content's end (canScrollForward); `horizontalScroll`
-    // reverses the drag-to-scroll mapping under RTL, so the finger sign flips.
-    // Remembered so the reported region carries a stable lambda.
     val isScrollRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val canScrollInDirection = remember(scrollState, isScrollRtl) {
-        { rawDragX: Float ->
-            val scrollsTowardEnd = if (isScrollRtl) rawDragX > 0f else rawDragX < 0f
-            if (scrollsTowardEnd) scrollState.canScrollForward else scrollState.canScrollBackward
-        }
-    }
     DisposableEffect(Unit) {
         onDispose { onBarScrollRegionChanged(null) }
     }
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
+    // The carousel reserves a horizontal drag for this strip when it starts on
+    // the strip and the strip can still scroll that way. The decision reuses the
+    // same overflowSlopPx the chevrons and pin-to-end apply, so a row that only
+    // overflows by a rounding pixel pages normally instead of reserving a drag
+    // it can barely move. Remembered so the reported region carries a stable
+    // lambda; it reads scrollState/overflowSlopPx live at call time.
+    val canScrollInDirection = remember(scrollState, isScrollRtl) {
+        { rawDragX: Float ->
+            barStripCanScrollInDirection(
+                rawDragX = rawDragX,
+                scrollValue = scrollState.value,
+                scrollMaxValue = scrollState.maxValue,
+                overflowSlopPx = overflowSlopPx,
+                isRtl = isScrollRtl,
+            )
+        }
+    }
     if (pinToEndKey != null) {
         LaunchedEffect(pinToEndKey, scrollState.maxValue, hasMeasuredContent, overflowSlopPx) {
             if (hasMeasuredContent) {

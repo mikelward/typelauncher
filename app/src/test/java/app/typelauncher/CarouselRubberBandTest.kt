@@ -79,6 +79,96 @@ class BarScrollReservationTest {
     }
 }
 
+class BarStripCanScrollInDirectionTest {
+    @Test
+    fun rowThatOnlyOverflowsByRoundingSlopCannotScroll() {
+        // maxValue (1) <= overflowSlopPx (1): the row is visually non-scrollable,
+        // so neither direction reserves the drag — it pages normally.
+        assertFalse(
+            barStripCanScrollInDirection(
+                rawDragX = -40f,
+                scrollValue = 0,
+                scrollMaxValue = 1,
+                overflowSlopPx = 1,
+                isRtl = false,
+            ),
+        )
+        assertFalse(
+            barStripCanScrollInDirection(
+                rawDragX = 40f,
+                scrollValue = 1,
+                scrollMaxValue = 1,
+                overflowSlopPx = 1,
+                isRtl = false,
+            ),
+        )
+    }
+
+    @Test
+    fun canScrollTowardEndWhenNotAtEndBeyondSlop() {
+        // LTR finger-left scrolls toward the end; room remains past the slop.
+        assertTrue(
+            barStripCanScrollInDirection(
+                rawDragX = -40f,
+                scrollValue = 0,
+                scrollMaxValue = 400,
+                overflowSlopPx = 1,
+                isRtl = false,
+            ),
+        )
+    }
+
+    @Test
+    fun cannotScrollTowardEndAtEnd() {
+        assertFalse(
+            barStripCanScrollInDirection(
+                rawDragX = -40f,
+                scrollValue = 400,
+                scrollMaxValue = 400,
+                overflowSlopPx = 1,
+                isRtl = false,
+            ),
+        )
+    }
+
+    @Test
+    fun canScrollTowardStartWhenScrolledPastSlop() {
+        assertTrue(
+            barStripCanScrollInDirection(
+                rawDragX = 40f,
+                scrollValue = 200,
+                scrollMaxValue = 400,
+                overflowSlopPx = 1,
+                isRtl = false,
+            ),
+        )
+    }
+
+    @Test
+    fun rtlFlipsTheFingerDirectionMapping() {
+        // RTL: finger-right scrolls toward the end (room remains) → can scroll.
+        assertTrue(
+            barStripCanScrollInDirection(
+                rawDragX = 40f,
+                scrollValue = 0,
+                scrollMaxValue = 400,
+                overflowSlopPx = 1,
+                isRtl = true,
+            ),
+        )
+        // RTL: finger-left scrolls toward the start; already at start → cannot.
+        assertFalse(
+            barStripCanScrollInDirection(
+                rawDragX = -40f,
+                scrollValue = 0,
+                scrollMaxValue = 400,
+                overflowSlopPx = 1,
+                isRtl = true,
+            ),
+        )
+    }
+}
+
 class LauncherGestureOwnerTest {
     @Test
     fun staysUndecidedUntilTouchSlopClears() {
