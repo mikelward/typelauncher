@@ -155,8 +155,12 @@ internal class IconSnapshotStore(context: Context) {
         // changes so an upgrade drops the old directory instead of restoring
         // stale-format icons. _v2 = IconNormalizer full-bleed tiles; _v3 added
         // the adaptive safe-zone zoom; _v4 = layer-aware adaptive normalization
-        // (foreground logo measured and enlarged).
-        const val DIRECTORY_NAME = "icon_snapshots_v4"
+        // (foreground logo measured and enlarged); _v5 drops the baked-in
+        // work-profile badge — work tiles are now cached unbadged and the
+        // briefcase is drawn as a separate overlay, so a restored older work
+        // bitmap would carry a clipped baked-in badge under the new overlay
+        // (a double badge) until eviction.
+        const val DIRECTORY_NAME = "icon_snapshots_v5"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
