@@ -11,12 +11,13 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Persists a small set of pre-rasterised app icons under `filesDir/icon_snapshots_v2/` so the
- * dock and the most-used app rows can paint real icons on the very first frame of a cold
- * start, ahead of the `LauncherApps`/`PackageManager` resolve + bitmap rasterisation that
- * `AppIconLoader.load` performs on a cache miss.
+ * Persists a small set of pre-rasterised app icons under `filesDir/icon_snapshots_v<N>/`
+ * (see [DIRECTORY_NAME] for the current version) so the dock and the most-used app rows can
+ * paint real icons on the very first frame of a cold start, ahead of the
+ * `LauncherApps`/`PackageManager` resolve + bitmap rasterisation that `AppIconLoader.load`
+ * performs on a cache miss.
  *
- * The directory carries a renderer/format version (`_v2`). When the bitmaps a renderer
+ * The directory carries a renderer/format version (`_v<N>`). When the bitmaps a renderer
  * produces change shape — e.g. the move to `IconNormalizer`'s full-bleed tiles — bumping the
  * version means an upgrade restores nothing from the old directory, so a stale-format bitmap
  * can never be put back into `AppIconLoader`'s cache (a hit there would bypass the current
@@ -160,9 +161,11 @@ internal class IconSnapshotStore(context: Context) {
         // briefcase is drawn as a separate overlay, so a restored older work
         // bitmap would carry a clipped baked-in badge under the new overlay
         // (a double badge) until eviction; _v6 = selective foreground zoom
-        // (only tiny logos enlarged, scaled about the tile center); _v7 raises
-        // the tiny-logo target so enlarged logos match the rest of the grid.
-        const val DIRECTORY_NAME = "icon_snapshots_v7"
+        // (only tiny logos enlarged, scaled about the tile center); _v7 raised
+        // the tiny-logo target; _v8 = shadow-excluded shape-aware logo sizing
+        // with a larger minimum for dark plates, enlargement anchored on the
+        // logo's own center.
+        const val DIRECTORY_NAME = "icon_snapshots_v8"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
