@@ -139,6 +139,27 @@ class IconNormalizerTest {
     }
 
     @Test
+    fun adaptiveTranslucentForegroundIsStillDrawn() {
+        // A translucent logo (alpha below OPAQUE_ALPHA) has visible content but
+        // zero opaque coverage; it must still be composited, not skipped.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val dark = Color.rgb(0x10, 0x14, 0x1C)
+        val drawable = AdaptiveIconDrawable(
+            ColorDrawable(dark),
+            BitmapDrawable(resources, centeredCircle(100, fraction = 0.60f, color = Color.argb(120, 0xFF, 0xFF, 0xFF))),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        // The center is the dark background lightened by the translucent white
+        // logo; if the foreground were skipped it would stay the dark color.
+        assertTrue(
+            "translucent foreground should lighten the center",
+            Color.red(tile.getPixel(50, 50)) > 0x40,
+        )
+    }
+
+    @Test
     fun adaptiveForegroundIsEnlargedToFillTheTile() {
         // A small (30% of the layer) white logo on a dark background — the
         // GitHub/UniFi case. The foreground must be enlarged toward

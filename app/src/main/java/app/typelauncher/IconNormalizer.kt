@@ -134,8 +134,10 @@ internal object IconNormalizer {
         if (backgroundBitmap != null) canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
 
         val foreground = drawable.foreground
-        if (foreground != null && foregroundAnalysis != null && foregroundAnalysis.coverage > 0f) {
-            // Re-draw the foreground drawable (usually a vector) under a scale
+        if (foreground != null && foregroundAnalysis != null && foregroundAnalysis.hasVisibleContent) {
+            // Draw whenever the foreground has any visible content — including a
+            // translucent logo with no fully-opaque pixels, which must not
+            // disappear. Re-draw the drawable (usually a vector) under a scale
             // matrix so the enlarged logo stays crisp instead of pixelating.
             drawDrawableScaled(canvas, foreground, foregroundAnalysis.bounds, sizePx, FOREGROUND_FRACTION)
         }
@@ -157,6 +159,11 @@ internal object IconNormalizer {
         val coverage: Float,
         val bounds: Rect,
         val dominantColor: Int,
+        // True when any pixel is at least faintly visible (alpha ≥ VISIBLE_ALPHA),
+        // even if none is opaque — distinguishes a translucent logo (draw it)
+        // from a fully transparent layer (skip it). `coverage` only counts
+        // opaque pixels and so can't tell the two apart.
+        val hasVisibleContent: Boolean,
     )
 
     /**
@@ -209,12 +216,13 @@ internal object IconNormalizer {
 
         val total = (width * height).coerceAtLeast(1)
         val coverage = opaque.toFloat() / total
-        val bounds = if (maxX < minX) Rect(0, 0, width, height) else Rect(minX, minY, maxX + 1, maxY + 1)
+        val hasVisibleContent = maxX >= minX
+        val bounds = if (!hasVisibleContent) Rect(0, 0, width, height) else Rect(minX, minY, maxX + 1, maxY + 1)
         val dominant = histogram.maxByOrNull { it.value[0] }?.value?.let { accumulator ->
             val count = accumulator[0]
             Color.rgb(accumulator[1] / count, accumulator[2] / count, accumulator[3] / count)
         } ?: Color.WHITE
-        return IconAnalysis(coverage, bounds, dominant)
+        return IconAnalysis(coverage, bounds, dominant, hasVisibleContent)
     }
 
     /**
