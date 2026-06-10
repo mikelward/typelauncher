@@ -1,0 +1,97 @@
+package app.typelauncher
+
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import androidx.test.core.app.ApplicationProvider
+import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/**
+ * Renders the normalized full-bleed tiles for the representative icon shapes —
+ * a full-bleed adaptive icon, a colored shape with transparent padding, a
+ * sparse logo, and a plain colored icon — clipped to
+ * the launcher's tile shape, so the PR `roborazzi-screenshots` artifact shows
+ * the new treatment. Mirrors `LauncherIconScreenshotTest`'s raw-bitmap capture
+ * (no Compose/async-load involved) for a stable golden.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class IconNormalizationScreenshotTest {
+
+    @Test
+    fun normalizedTiles() {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+
+        val tile = 144
+        val gap = 24
+        val cases = listOf(
+            // Full-bleed adaptive icon: blue background, white circle foreground.
+            AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x1A, 0x73, 0xE8)), whiteCircleForeground()),
+            // Colored shape with transparent padding — the case that showed gray.
+            paddedDrawable(Rect(36, 36, 108, 108), Color.rgb(0xFF, 0x6A, 0x4D)),
+            // Sparse dark logo on transparency (documented weak case).
+            paddedDrawable(Rect(54, 54, 90, 90), Color.rgb(0x22, 0x26, 0x2B)),
+            // Plain colored icon with no transparency.
+            ColorDrawable(Color.rgb(0x18, 0x80, 0x38)),
+        )
+
+        val stripWidth = tile * cases.size + gap * (cases.size + 1)
+        val stripHeight = tile + gap * 2
+        val strip = Bitmap.createBitmap(stripWidth, stripHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(strip)
+        canvas.drawColor(Color.WHITE)
+
+        var left = gap
+        for (drawable in cases) {
+            val normalized = IconNormalizer.normalizeToTile(drawable, tile)
+            drawRoundedTile(canvas, normalized, left.toFloat(), gap.toFloat(), tile.toFloat())
+            left += tile + gap
+        }
+
+        strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_icon_normalization_robolectric.png")
+    }
+
+    private fun drawRoundedTile(canvas: Canvas, bitmap: Bitmap, left: Float, top: Float, size: Float) {
+        // Matches AppIcon's MaterialTheme.shapes.medium rounding proportionally.
+        val radius = size * 0.18f
+        val path = Path().apply {
+            addRoundRect(RectF(left, top, left + size, top + size), radius, radius, Path.Direction.CW)
+        }
+        canvas.save()
+        canvas.clipPath(path)
+        canvas.drawBitmap(bitmap, left, top, Paint(Paint.FILTER_BITMAP_FLAG))
+        canvas.restore()
+    }
+
+    private fun whiteCircleForeground(): Drawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(Color.WHITE)
+    }
+
+    private fun paddedDrawable(rect: Rect, color: Int): BitmapDrawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        Canvas(bitmap).drawRoundRect(RectF(rect), 12f, 12f, paint)
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+}
