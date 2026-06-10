@@ -214,6 +214,12 @@ jobs:
         # PR `roborazzi-screenshots` artifact captures the shape options.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconShapeScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run work-badge screenshot tests
+        # Renders a work-profile app icon so the PR `roborazzi-screenshots`
+        # artifact shows the system briefcase badge riding outside the
+        # circular icon clip instead of being sliced off at the corner.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconWorkBadgeScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
