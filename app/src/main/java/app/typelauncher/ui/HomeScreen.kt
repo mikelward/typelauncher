@@ -101,7 +101,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
@@ -3416,9 +3415,11 @@ internal fun AppIcon(
     Box(
         modifier = Modifier
             .size(size)
-            .clip(CircleShape)
             .testTag("$testTag:${app.displayName}"),
     ) {
+        // Only the Surface clips to the circle, not the parent Box — otherwise
+        // the corner badge (aligned BottomStart, below) would be clipped by the
+        // circle and the flag/globe glyph cut off at the icon's corner.
         Surface(
             modifier = Modifier.fillMaxSize(),
             shape = CircleShape,
