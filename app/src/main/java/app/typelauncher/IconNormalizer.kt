@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
+import android.os.Build
+import androidx.core.graphics.ColorUtils
 
 /**
  * Turns any app [Drawable] into a full-bleed square tile bitmap so every icon
@@ -141,21 +143,49 @@ internal object IconNormalizer {
             backgroundAnalysis != null && backgroundAnalysis.coverage > 0f -> backgroundAnalysis.dominantColor
             else -> Color.WHITE
         }
+        canvas.drawColor(plate)
+        drawable.background?.let { drawLayerFramed(canvas, it, sizePx) }
+        drawable.foreground?.let { drawLayerFramed(canvas, it, sizePx) }
         if (debugLabel.isNotEmpty()) {
             // Structural diagnostic only — what the icon's layers actually are
             // and what the analysis saw, so a misrendered icon can be diagnosed
             // from `adb logcat -s TypeLauncherDebug` instead of guessed at.
+            // `mono` reports whether the app ships a themed-icon monochrome
+            // glyph (API 33+) — the prerequisite for any future glyph-style
+            // rendering — and `edgeLum` is the mean luminance of the composed
+            // tile's outer ring, i.e. the boundary the eye looks for against
+            // the launcher surface.
+            val mono = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                drawable.monochrome?.javaClass?.simpleName ?: "null"
+            } else {
+                "unsupported"
+            }
             LauncherDebugLog.event(
                 "iconTile $debugLabel sizePx=$sizePx adaptive " +
                     "bg=${describe(drawable.background, backgroundAnalysis, sizePx)} " +
                     "fg=${describe(drawable.foreground, foregroundAnalysis, sizePx)} " +
-                    "plate=${hexColor(plate)}",
+                    "mono=$mono plate=${hexColor(plate)} edgeLum=${"%.3f".format(edgeLuminance(tile))}",
             )
         }
-        canvas.drawColor(plate)
-        drawable.background?.let { drawLayerFramed(canvas, it, sizePx) }
-        drawable.foreground?.let { drawLayerFramed(canvas, it, sizePx) }
         return tile
+    }
+
+    /**
+     * Mean relative luminance of the tile's outer ring (64 samples at 93% of
+     * the inscribed-circle radius) — the boundary the eye sizes an icon by.
+     * Diagnostic only.
+     */
+    private fun edgeLuminance(tile: Bitmap): Float {
+        val center = tile.width / 2f
+        val radius = center * 0.93f
+        var sum = 0.0
+        for (i in 0 until 64) {
+            val angle = i * (2 * Math.PI / 64)
+            val x = (center + radius * kotlin.math.cos(angle)).toInt().coerceIn(0, tile.width - 1)
+            val y = (center + radius * kotlin.math.sin(angle)).toInt().coerceIn(0, tile.height - 1)
+            sum += ColorUtils.calculateLuminance(tile.getPixel(x, y))
+        }
+        return (sum / 64).toFloat()
     }
 
     /** One-line factual description of an adaptive layer for the diagnostic log. */
