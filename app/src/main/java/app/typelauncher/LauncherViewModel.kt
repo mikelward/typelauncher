@@ -183,6 +183,7 @@ internal class LauncherViewModel(
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
+            iconShape = dockSettingsStore.iconShape,
             isLoadingApps = cachedMetadata.isEmpty(),
             playUpdate = PlayUpdateState.NotAvailable,
         ),
@@ -1575,6 +1576,12 @@ internal class LauncherViewModel(
         dockSettingsStore.themeMode = mode
         _uiState.update { it.copy(themeMode = mode) }
         logState("setThemeMode=$mode")
+    }
+
+    fun setIconShape(shape: IconShape) {
+        dockSettingsStore.iconShape = shape
+        _uiState.update { it.copy(iconShape = shape) }
+        logState("setIconShape=$shape")
     }
 
     fun setDockVisibleIconCount(count: Int) {
