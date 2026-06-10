@@ -101,6 +101,27 @@ class IconNormalizerTest {
     }
 
     @Test
+    fun adaptivePartiallyTransparentBackgroundIsPlated() {
+        // A circular background on transparency (~78% coverage) takes the
+        // "background fills" path; its transparent corners must still be plated
+        // with the background's color so a squircle/system clip (wider than the
+        // circle) doesn't expose the surface underneath.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val blue = Color.rgb(0x20, 0x60, 0xC0)
+        val drawable = AdaptiveIconDrawable(
+            BitmapDrawable(resources, centeredCircle(100, fraction = 1.0f, color = blue)),
+            BitmapDrawable(resources, centeredCircle(100, fraction = 0.30f, color = Color.WHITE)),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        // The corner is outside the background circle; it must be opaque and the
+        // background's color, not transparent.
+        assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
+        assertColorClose(blue, tile.getPixel(2, 2))
+    }
+
+    @Test
     fun adaptiveForegroundIsEnlargedToFillTheTile() {
         // A small (30% of the layer) white logo on a dark background — the
         // GitHub/UniFi case. The foreground must be enlarged toward
