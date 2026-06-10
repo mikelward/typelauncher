@@ -1,7 +1,83 @@
 package app.typelauncher
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+
+class BarScrollReservationTest {
+    private val strip = Rect(left = 0f, top = 100f, right = 400f, bottom = 160f)
+
+    private fun region(canScroll: (Float) -> Boolean) = BarScrollRegion(
+        boundsInRoot = strip,
+        canScrollInDirection = canScroll,
+    )
+
+    @Test
+    fun dragOnStripThatCanScrollIsReservedForBar() {
+        assertTrue(
+            shouldReserveGestureForBar(
+                isBarOpen = true,
+                region = region { true },
+                downPosition = Offset(200f, 130f),
+                rawDragX = -40f,
+            ),
+        )
+    }
+
+    @Test
+    fun dragOutsideStripPagesEvenWhenBarCanScroll() {
+        // Above the strip (the card's top padding) is page territory.
+        assertFalse(
+            shouldReserveGestureForBar(
+                isBarOpen = true,
+                region = region { true },
+                downPosition = Offset(200f, 80f),
+                rawDragX = -40f,
+            ),
+        )
+    }
+
+    @Test
+    fun dragOnStripAtEdgeInThatDirectionPages() {
+        // canScrollInDirection returns false once the strip is at its edge for
+        // the finger's direction, so the swipe falls through to paging.
+        assertFalse(
+            shouldReserveGestureForBar(
+                isBarOpen = true,
+                region = region { false },
+                downPosition = Offset(200f, 130f),
+                rawDragX = -40f,
+            ),
+        )
+    }
+
+    @Test
+    fun noReservationWhenBarClosed() {
+        assertFalse(
+            shouldReserveGestureForBar(
+                isBarOpen = false,
+                region = region { true },
+                downPosition = Offset(200f, 130f),
+                rawDragX = -40f,
+            ),
+        )
+    }
+
+    @Test
+    fun noReservationWhenRegionMissing() {
+        assertFalse(
+            shouldReserveGestureForBar(
+                isBarOpen = true,
+                region = null,
+                downPosition = Offset(200f, 130f),
+                rawDragX = -40f,
+            ),
+        )
+    }
+}
 
 class LauncherGestureOwnerTest {
     @Test

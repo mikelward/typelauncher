@@ -87,6 +87,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -183,6 +184,7 @@ internal fun HomeScreen(
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
     onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
@@ -383,6 +385,7 @@ internal fun HomeScreen(
                 onOpenNotificationSettings = onOpenNotificationSettings,
                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                 onRequestNotificationAccess = onRequestNotificationAccess,
+                onBarScrollRegionChanged = onBarScrollRegionChanged,
             )
         },
     ) { measurables, constraints ->
@@ -462,6 +465,7 @@ internal fun HomeBottomBar(
     onOpenNotificationSettings: (InstalledApp) -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -478,6 +482,7 @@ internal fun HomeBottomBar(
             onOpenNotificationSettings = onOpenNotificationSettings,
             onRequestNotificationAccess = onRequestNotificationAccess,
             onDismiss = { onSetNotificationBarOpen(false) },
+            onBarScrollRegionChanged = onBarScrollRegionChanged,
         )
         RecentsCard(
             recentApps = state.recentApps,
@@ -487,6 +492,7 @@ internal fun HomeBottomBar(
             onOpenAppInfo = onOpenAppInfo,
             onToggleDock = onToggleDock,
             onDismissRecent = onDismissRecent,
+            onBarScrollRegionChanged = onBarScrollRegionChanged,
         )
     }
 }
@@ -866,6 +872,7 @@ private fun RecentsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -880,6 +887,7 @@ private fun RecentsCard(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onDismissRecent = onDismissRecent,
+                onBarScrollRegionChanged = onBarScrollRegionChanged,
             )
         }
     }
@@ -897,6 +905,7 @@ private fun NotificationBarCard(
     onOpenNotificationSettings: (InstalledApp) -> Unit,
     onRequestNotificationAccess: () -> Unit,
     onDismiss: () -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -929,6 +938,7 @@ private fun NotificationBarCard(
                     },
                     onDismissNotifications = onDismissNotifications,
                     onOpenNotificationSettings = onOpenNotificationSettings,
+                    onBarScrollRegionChanged = onBarScrollRegionChanged,
                 )
             }
         }
@@ -965,9 +975,11 @@ private fun NotificationBarRow(
     onLaunchApp: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
     onOpenNotificationSettings: (InstalledApp) -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     val description = stringResource(R.string.notification_bar_description)
     ScrollableIconRow(
+        onBarScrollRegionChanged = onBarScrollRegionChanged,
         rowModifier = Modifier
             .semantics { contentDescription = description }
             .testTag(NOTIFICATION_BAR_LIST_TAG),
@@ -1057,6 +1069,7 @@ private fun RecentsRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -1072,6 +1085,7 @@ private fun RecentsRow(
     }
     val description = stringResource(R.string.dock_recents_description)
     ScrollableIconRow(
+        onBarScrollRegionChanged = onBarScrollRegionChanged,
         rowModifier = Modifier
             .semantics { contentDescription = description }
             .testTag(DOCK_RECENTS_LIST_TAG),
@@ -1159,9 +1173,25 @@ private fun ScrollableIconRow(
     chevronContentDescription: String,
     rowModifier: Modifier = Modifier,
     pinToEndKey: Any? = null,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    // The carousel reserves a horizontal drag for this strip when it starts on
+    // the strip and the strip can still scroll that way. In LTR a finger moving
+    // left scrolls toward the content's end (canScrollForward); `horizontalScroll`
+    // reverses the drag-to-scroll mapping under RTL, so the finger sign flips.
+    // Remembered so the reported region carries a stable lambda.
+    val isScrollRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val canScrollInDirection = remember(scrollState, isScrollRtl) {
+        { rawDragX: Float ->
+            val scrollsTowardEnd = if (isScrollRtl) rawDragX > 0f else rawDragX < 0f
+            if (scrollsTowardEnd) scrollState.canScrollForward else scrollState.canScrollBackward
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { onBarScrollRegionChanged(null) }
+    }
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
     if (pinToEndKey != null) {
@@ -1186,7 +1216,22 @@ private fun ScrollableIconRow(
                 scrollState.value > overflowSlopPx
         }
     }
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            // Report the *viewport* (the visible icon strip) in root
+            // coordinates, not the scrolled content — so it stays put under the
+            // finger as the row scrolls. The strip excludes the card's 16dp
+            // padding, which keeps that padding as page-swipe territory.
+            .onGloballyPositioned { coords ->
+                onBarScrollRegionChanged(
+                    BarScrollRegion(
+                        boundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize()),
+                        canScrollInDirection = canScrollInDirection,
+                    ),
+                )
+            },
+    ) {
         // Stretch the row to at least the viewport width so the centered
         // arrangement has space to distribute when the icons fit on one
         // screen, but use the raw px from `BoxWithConstraints.constraints`

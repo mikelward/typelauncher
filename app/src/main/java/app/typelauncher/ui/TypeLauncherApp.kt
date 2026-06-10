@@ -605,6 +605,12 @@ internal fun TypeLauncherApp(
                     )
                 } else {
                     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+                    // Held by reference (not a plain value param) so the open
+                    // bar's per-frame bounds updates during its expand/collapse
+                    // animation flow to the carousel's pointer loop via `.value`
+                    // without recomposing SwipeNavigationBox — same pattern as
+                    // isDockDraggingState / isWidgetScrollingState.
+                    val homeBarScrollRegionState = remember { mutableStateOf<BarScrollRegion?>(null) }
                     // The carousel's pointerInput has to see this flip within a
                     // single pointer event (Main pass writes from the dock,
                     // Final pass reads from the carousel), so the state is
@@ -660,6 +666,7 @@ internal fun TypeLauncherApp(
                             (appWidgetHost as? LauncherAppWidgetHost)?.deferRemoteViewsApply = false
                         },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
+                        barScrollRegionState = homeBarScrollRegionState,
                         isDockDraggingState = isDockDraggingState,
                         isWidgetScrollingState = isWidgetScrollingState,
                     ) { page, isCurrentPage ->
@@ -693,6 +700,7 @@ internal fun TypeLauncherApp(
                                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                                 onRequestNotificationAccess = onRequestNotificationAccess,
                                 onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
+                                onBarScrollRegionChanged = { homeBarScrollRegionState.value = it },
                                 onDockDragChanged = { isDockDraggingState.value = it },
                             )
                             LauncherScreen.Widgets -> WidgetsScreen(
@@ -773,6 +781,7 @@ private fun SwipeNavigationBox(
     isRecentsOpen: Boolean,
     isNotificationBarOpen: Boolean,
     appListBoundsInRoot: Rect?,
+    barScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
@@ -1075,6 +1084,17 @@ private fun SwipeNavigationBox(
                     // (pre-settle) start page.
                     var claimGestureStartPage = 0
                     var anchorRawDragX = 0f
+                    // Latched once, the first time the gesture resolves as a
+                    // horizontal launcher swipe: true when the drag began on an
+                    // open bottom bar's scrollable strip and the strip can still
+                    // scroll the way the finger is moving. While set, the
+                    // carousel never claims, so the bar's own horizontalScroll
+                    // keeps the gesture — the region check is deterministic, so
+                    // it does not depend on the child winning a consumption race
+                    // (which it loses in the gaps and chevron zones where there
+                    // is no app-icon click handler to pass the drag through).
+                    var barReservationDecided = false
+                    var barReservedGesture = false
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPointerInputChange(downChange)
                     try {
@@ -1112,8 +1132,20 @@ private fun SwipeNavigationBox(
                                     touchSlopPx = touchSlopPx,
                                 )
                             }
+                            if (!barReservationDecided &&
+                                owner == LauncherGestureOwner.HorizontalLauncher
+                            ) {
+                                barReservationDecided = true
+                                barReservedGesture = shouldReserveGestureForBar(
+                                    isBarOpen = currentRecentsOpen || currentNotificationBarOpen,
+                                    region = barScrollRegionState.value,
+                                    downPosition = downChange.position,
+                                    rawDragX = rawDragX,
+                                )
+                            }
                             if (!carouselClaimed &&
                                 owner == LauncherGestureOwner.HorizontalLauncher &&
+                                !barReservedGesture &&
                                 !dockDraggedDuringGesture &&
                                 !widgetScrolledDuringGesture
                             ) {
@@ -1213,6 +1245,7 @@ private fun SwipeNavigationBox(
                             CarouselTransitionState.Idle -> null
                         }
                         if (owner == LauncherGestureOwner.HorizontalLauncher &&
+                            !barReservedGesture &&
                             !dockDraggedDuringGesture &&
                             !widgetScrolledDuringGesture &&
                             settleTargetPage != null
@@ -1622,6 +1655,44 @@ internal enum class LauncherGestureOwner {
     HorizontalLauncher,
     VerticalLauncher,
 }
+
+/**
+ * The on-screen icon strip of an open bottom bar (recents or notifications)
+ * together with a live query of whether it can still scroll in a given finger
+ * direction. The carousel uses this to hand a horizontal drag that starts on
+ * the strip to the bar's own scroll instead of paging — but only the strip
+ * itself, not the card padding around it, so the padding stays page territory.
+ *
+ * [boundsInRoot] is the *viewport* (the visible strip), not the scrolled
+ * content, so it stays put under the finger as the row scrolls.
+ */
+internal class BarScrollRegion(
+    val boundsInRoot: Rect,
+    /**
+     * Whether the strip can still scroll given the raw horizontal finger delta
+     * (negative = finger moving left). False once the strip is at its edge in
+     * that direction, so a swipe past the edge falls through to paging.
+     */
+    val canScrollInDirection: (rawDragX: Float) -> Boolean,
+)
+
+/**
+ * Decide whether a horizontal launcher drag belongs to an open bottom bar's
+ * horizontal scroll instead of the carousel. Reserved only when an overflowing
+ * bar is open, the drag began on its visible strip, and the strip can still
+ * scroll the way the finger is moving — otherwise the carousel pages, including
+ * when the strip is already at its edge in that direction.
+ */
+internal fun shouldReserveGestureForBar(
+    isBarOpen: Boolean,
+    region: BarScrollRegion?,
+    downPosition: Offset,
+    rawDragX: Float,
+): Boolean =
+    isBarOpen &&
+        region != null &&
+        region.boundsInRoot.contains(downPosition) &&
+        region.canScrollInDirection(rawDragX)
 
 internal fun resolveLauncherGestureOwner(
     rawDragX: Float,
