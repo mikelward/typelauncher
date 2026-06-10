@@ -341,6 +341,21 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Settings → "Icon shape". Defaults to [IconShape.System] so the launcher
+     * follows the device's adaptive-icon mask; users can pin to [IconShape.Circle]
+     * or [IconShape.Squircle] to override it.
+     */
+    var iconShape: IconShape
+        get() = sharedPreferences.getString(KEY_ICON_SHAPE, null)
+            ?.let { name -> runCatching { IconShape.valueOf(name) }.getOrNull() }
+            ?: IconShape.System
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_ICON_SHAPE, value.name)
+                .apply()
+        }
+
+    /**
      * When true, the bug-report consent dialog is suppressed and Settings →
      * "Report bug" shares immediately. Set by the "Don't show this again"
      * checkbox on the consent dialog itself.
@@ -371,6 +386,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KEYBOARD_RESERVATION_SOURCE = "keyboard_reservation_source"
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_ICON_SHAPE = "icon_shape"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"
     }
 }

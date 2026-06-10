@@ -2492,6 +2492,7 @@ internal fun SettingsScreen(
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
+    onIconShapeChanged: (IconShape) -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
     onOpenPlayUpdate: () -> Unit,
@@ -2694,6 +2695,22 @@ internal fun SettingsScreen(
                 ThemeModeDropdown(
                     selected = state.themeMode,
                     onThemeModeChanged = onThemeModeChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_icon_shape_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                IconShapeDropdown(
+                    selected = state.iconShape,
+                    onIconShapeChanged = onIconShapeChanged,
                 )
             }
         }
@@ -3040,6 +3057,56 @@ private fun ThemeMode.optionTag(): String =
         ThemeMode.System -> THEME_MODE_OPTION_SYSTEM_TAG
         ThemeMode.Light -> THEME_MODE_OPTION_LIGHT_TAG
         ThemeMode.Dark -> THEME_MODE_OPTION_DARK_TAG
+    }
+
+@Composable
+private fun IconShapeDropdown(
+    selected: IconShape,
+    onIconShapeChanged: (IconShape) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(ICON_SHAPE_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(ICON_SHAPE_DROPDOWN_MENU_TAG),
+        ) {
+            IconShape.entries.forEach { shape ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(shape.labelRes())) },
+                    modifier = Modifier.testTag(shape.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onIconShapeChanged(shape)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun IconShape.labelRes(): Int =
+    when (this) {
+        IconShape.System -> R.string.settings_icon_shape_option_system
+        IconShape.Circle -> R.string.settings_icon_shape_option_circle
+        IconShape.Squircle -> R.string.settings_icon_shape_option_squircle
+    }
+
+private fun IconShape.optionTag(): String =
+    when (this) {
+        IconShape.System -> ICON_SHAPE_OPTION_SYSTEM_TAG
+        IconShape.Circle -> ICON_SHAPE_OPTION_CIRCLE_TAG
+        IconShape.Squircle -> ICON_SHAPE_OPTION_SQUIRCLE_TAG
     }
 
 @Composable
@@ -3412,17 +3479,18 @@ internal fun AppIcon(
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     val bitmap = rememberAppIconBitmap(app, size)
+    val shape = LocalAppIconShape.current.toComposeShape()
     Box(
         modifier = Modifier
             .size(size)
             .testTag("$testTag:${app.displayName}"),
     ) {
-        // Only the Surface clips to the circle, not the parent Box — otherwise
-        // the corner badge (aligned BottomStart, below) would be clipped by the
-        // circle and the flag/globe glyph cut off at the icon's corner.
+        // Only the Surface clips to the icon shape, not the parent Box —
+        // otherwise the corner badge (aligned BottomStart, below) would be
+        // clipped by the shape and the flag/globe glyph cut off at the corner.
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = CircleShape,
+            shape = shape,
             color = backgroundColor,
         ) {
             if (bitmap != null) {

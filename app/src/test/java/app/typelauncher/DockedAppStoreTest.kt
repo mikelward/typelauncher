@@ -254,6 +254,28 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun iconShapeDefaultsToSystem() {
+        assertEquals(IconShape.System, DockSettingsStore(context).iconShape)
+    }
+
+    @Test
+    fun iconShapePersistsExplicitSelection() {
+        DockSettingsStore(context).iconShape = IconShape.Squircle
+
+        assertEquals(IconShape.Squircle, DockSettingsStore(context).iconShape)
+    }
+
+    @Test
+    fun iconShapeFallsBackToSystemForUnknownStoredValue() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("icon_shape", "Bogus")
+            .commit()
+
+        assertEquals(IconShape.System, DockSettingsStore(context).iconShape)
+    }
+
+    @Test
     fun keyboardReservationDefaultsToZeroWithNullFingerprint() {
         val store = DockSettingsStore(context)
 

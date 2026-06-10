@@ -2139,6 +2139,27 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(ThemeMode.Light, viewModel.uiState.value.themeMode)
     }
 
+    @Test
+    fun iconShapeDropdown_inSettings_persistsSelection() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Icon shape").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(ICON_SHAPE_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
+        assertEquals(IconShape.System, viewModel.uiState.value.iconShape)
+
+        saveScreenshot("compose_settings_icon_shape_robolectric.png")
+
+        composeRule.onNodeWithTag(ICON_SHAPE_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(ICON_SHAPE_OPTION_SQUIRCLE_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(IconShape.Squircle, viewModel.uiState.value.iconShape)
+    }
+
     // The dock wraps to additional rows so every docked app stays visible
     // without horizontal scrolling. Under the default 4 icons per row this
     // means 8 docked apps render as a 2-row grid; all eight icons must be

@@ -17,6 +17,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
@@ -195,7 +196,8 @@ class MainActivity : ComponentActivity() {
                 LauncherDebugLog.event("setContent composing TypeLauncherTheme")
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 TypeLauncherTheme(themeMode = state.themeMode) {
-                    TypeLauncherApp(
+                    CompositionLocalProvider(LocalAppIconShape provides state.iconShape) {
+                        TypeLauncherApp(
                         viewModel = viewModel,
                         appWidgetHost = appWidgetHost,
                         appWidgetManager = appWidgetManager,
@@ -217,6 +219,7 @@ class MainActivity : ComponentActivity() {
                         onCompletePlayUpdate = ::completePlayUpdate,
                         searchPlaceholderSuffix = searchPlaceholderSuffix(),
                     )
+                    }
                 }
             }
         }

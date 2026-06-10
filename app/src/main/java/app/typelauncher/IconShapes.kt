@@ -4,6 +4,7 @@ import android.graphics.Matrix
 import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposePath
@@ -14,6 +15,13 @@ import kotlin.math.pow
 import kotlin.math.sign
 import kotlin.math.sin
 import android.graphics.Path as AndroidPath
+
+/**
+ * The user's selected icon shape, provided once near the top of the tree from
+ * `LauncherUiState.iconShape` so every `AppIcon` can read it without threading a
+ * parameter through every call site. Defaults to [IconShape.System].
+ */
+internal val LocalAppIconShape = compositionLocalOf { IconShape.System }
 
 /**
  * Resolves an [IconShape] preference to the Compose [Shape] `AppIcon` clips its
