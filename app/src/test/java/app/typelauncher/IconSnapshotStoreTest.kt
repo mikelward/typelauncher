@@ -21,13 +21,16 @@ import java.io.File
 @Config(sdk = [36])
 class IconSnapshotStoreTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val directory = File(context.filesDir, "icon_snapshots_v2")
-    private val legacyDirectory = File(context.filesDir, "icon_snapshots")
+    private val directory = File(context.filesDir, "icon_snapshots_v3")
+    private val legacyDirectories = listOf(
+        File(context.filesDir, "icon_snapshots"),
+        File(context.filesDir, "icon_snapshots_v2"),
+    )
 
     @After
     fun cleanDirectory() {
         directory.deleteRecursively()
-        legacyDirectory.deleteRecursively()
+        legacyDirectories.forEach { it.deleteRecursively() }
     }
 
     @Test
@@ -159,17 +162,19 @@ class IconSnapshotStoreTest {
 
     @Test
     fun loadPurgesEarlierVersionedDirectoriesAndRestoresNothingFromThem() {
-        // Simulate an upgrade from the pre-normalization renderer: an old
-        // `icon_snapshots` directory holds a saved bitmap. The new store must not
-        // restore it (a stale gray-backed icon would bypass IconNormalizer) and
-        // must delete the old directory so it doesn't linger on disk.
-        legacyDirectory.mkdirs()
-        File(legacyDirectory, "anything_8.bin").writeBytes(ByteArray(8 + 8 * 8 * 4))
+        // Simulate an upgrade from an earlier renderer: every prior snapshot
+        // directory (the original unversioned one and `_v2`) holds a saved
+        // bitmap. The new store must not restore any of them (a stale-format icon
+        // would bypass IconNormalizer) and must delete them so they don't linger.
+        legacyDirectories.forEach { dir ->
+            dir.mkdirs()
+            File(dir, "anything_8.bin").writeBytes(ByteArray(8 + 8 * 8 * 4))
+        }
 
         val loaded = IconSnapshotStore(context).load()
 
         assertEquals(emptyList<IconSnapshotStore.Snapshot>(), loaded)
-        assertFalse(legacyDirectory.exists())
+        legacyDirectories.forEach { assertFalse(it.exists()) }
     }
 
     @Test
