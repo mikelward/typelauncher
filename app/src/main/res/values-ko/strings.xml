@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">시스템</string>
     <string name="settings_theme_option_light">밝게</string>
     <string name="settings_theme_option_dark">어둡게</string>
+    <string name="settings_icon_theme_title">아이콘 테마</string>
+    <string name="settings_icon_theme_option_default">기본값</string>
+    <string name="settings_icon_theme_option_monochrome">단색</string>
     <string name="settings_dock_icon_count_label">행당 아이콘 수: %1$d</string>
     <string name="settings_dock_icon_size_value">아이콘 크기: %1$d dp</string>
     <string name="settings_dock_preview_label">미리보기</string>

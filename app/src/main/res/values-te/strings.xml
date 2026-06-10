@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">సిస్టమ్</string>
     <string name="settings_theme_option_light">కాంతి</string>
     <string name="settings_theme_option_dark">చీకటి</string>
+    <string name="settings_icon_theme_title">ఐకాన్ థీమ్</string>
+    <string name="settings_icon_theme_option_default">డిఫాల్ట్</string>
+    <string name="settings_icon_theme_option_monochrome">మోనోక్రోమ్</string>
     <string name="settings_dock_icon_count_label">వరుసకు ఐకాన్‌లు: %1$d</string>
     <string name="settings_dock_icon_size_value">ఐకాన్ పరిమాణం: %1$d dp</string>
     <string name="settings_dock_preview_label">ప్రివ్యూ</string>

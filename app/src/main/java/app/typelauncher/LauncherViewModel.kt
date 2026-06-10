@@ -184,6 +184,7 @@ internal class LauncherViewModel(
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
+            iconTheme = dockSettingsStore.iconTheme,
             isLoadingApps = cachedMetadata.isEmpty(),
             playUpdate = PlayUpdateState.NotAvailable,
         ),
@@ -205,6 +206,10 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+        // Seed the loader's mirror of the icon theme setting before any load
+        // can run (loads start from composition, after this constructor), so
+        // the very first rasterize pass already honors the persisted setting.
+        AppIconLoader.iconTheme = dockSettingsStore.iconTheme
         // Restore previously-rasterised icons off the main thread: the file read +
         // Bitmap allocation + copyPixelsFromBuffer per snapshot adds up to enough work
         // to delay setContent → first frame → the LaunchedEffect in SearchCard that
@@ -1582,6 +1587,19 @@ internal class LauncherViewModel(
         dockSettingsStore.iconShape = shape
         _uiState.update { it.copy(iconShape = shape) }
         logState("setIconShape=$shape")
+    }
+
+    fun setIconTheme(theme: IconTheme) {
+        dockSettingsStore.iconTheme = theme
+        AppIconLoader.iconTheme = theme
+        // Every cached tile was rasterized under the previous theme and the
+        // cache key carries no rendering-mode component, so drop them all —
+        // the next render of each icon re-rasterizes with (or without) the
+        // themed plate + glyph. The next `persistIconSnapshot` then snapshots
+        // the re-rendered cache, so the on-disk snapshot follows along.
+        AppIconLoader.evictAll()
+        _uiState.update { it.copy(iconTheme = theme) }
+        logState("setIconTheme=$theme")
     }
 
     fun setDockVisibleIconCount(count: Int) {

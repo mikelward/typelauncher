@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Sistemska</string>
     <string name="settings_theme_option_light">Svetla</string>
     <string name="settings_theme_option_dark">Temna</string>
+    <string name="settings_icon_theme_title">Tema ikon</string>
+    <string name="settings_icon_theme_option_default">Privzeta</string>
+    <string name="settings_icon_theme_option_monochrome">Enobarvna</string>
     <string name="settings_dock_icon_count_label">Ikon na vrstico: %1$d</string>
     <string name="settings_dock_icon_size_value">Velikost ikone: %1$d dp</string>
     <string name="settings_dock_preview_label">Predogled</string>

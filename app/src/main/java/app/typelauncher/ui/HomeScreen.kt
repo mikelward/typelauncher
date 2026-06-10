@@ -2493,6 +2493,7 @@ internal fun SettingsScreen(
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
+    onIconThemeChanged: (IconTheme) -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
     onOpenPlayUpdate: () -> Unit,
@@ -2711,6 +2712,22 @@ internal fun SettingsScreen(
                 IconShapeDropdown(
                     selected = state.iconShape,
                     onIconShapeChanged = onIconShapeChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_icon_theme_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                IconThemeDropdown(
+                    selected = state.iconTheme,
+                    onIconThemeChanged = onIconThemeChanged,
                 )
             }
         }
@@ -3107,6 +3124,54 @@ private fun IconShape.optionTag(): String =
         IconShape.System -> ICON_SHAPE_OPTION_SYSTEM_TAG
         IconShape.Circle -> ICON_SHAPE_OPTION_CIRCLE_TAG
         IconShape.Squircle -> ICON_SHAPE_OPTION_SQUIRCLE_TAG
+    }
+
+@Composable
+private fun IconThemeDropdown(
+    selected: IconTheme,
+    onIconThemeChanged: (IconTheme) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(ICON_THEME_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(ICON_THEME_DROPDOWN_MENU_TAG),
+        ) {
+            IconTheme.entries.forEach { theme ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(theme.labelRes())) },
+                    modifier = Modifier.testTag(theme.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onIconThemeChanged(theme)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun IconTheme.labelRes(): Int =
+    when (this) {
+        IconTheme.Default -> R.string.settings_icon_theme_option_default
+        IconTheme.Monochrome -> R.string.settings_icon_theme_option_monochrome
+    }
+
+private fun IconTheme.optionTag(): String =
+    when (this) {
+        IconTheme.Default -> ICON_THEME_OPTION_DEFAULT_TAG
+        IconTheme.Monochrome -> ICON_THEME_OPTION_MONOCHROME_TAG
     }
 
 @Composable

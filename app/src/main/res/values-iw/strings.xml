@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">מערכת</string>
     <string name="settings_theme_option_light">בהיר</string>
     <string name="settings_theme_option_dark">כהה</string>
+    <string name="settings_icon_theme_title">ערכת נושא לסמלים</string>
+    <string name="settings_icon_theme_option_default">ברירת מחדל</string>
+    <string name="settings_icon_theme_option_monochrome">מונוכרום</string>
     <string name="settings_dock_icon_count_label">סמלים בשורה: %1$d</string>
     <string name="settings_dock_icon_size_value">גודל סמל: %1$d dp</string>
     <string name="settings_dock_preview_label">תצוגה מקדימה</string>

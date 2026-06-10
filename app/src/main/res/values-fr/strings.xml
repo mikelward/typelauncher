@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Système</string>
     <string name="settings_theme_option_light">Clair</string>
     <string name="settings_theme_option_dark">Sombre</string>
+    <string name="settings_icon_theme_title">Thème des icônes</string>
+    <string name="settings_icon_theme_option_default">Par défaut</string>
+    <string name="settings_icon_theme_option_monochrome">Monochrome</string>
     <string name="settings_dock_icon_count_label">Icônes par rangée : %1$d</string>
     <string name="settings_dock_icon_size_value">Taille des icônes : %1$d dp</string>
     <string name="settings_dock_preview_label">Aperçu</string>

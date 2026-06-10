@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Isistimu</string>
     <string name="settings_theme_option_light">Okukhanyayo</string>
     <string name="settings_theme_option_dark">Okumnyama</string>
+    <string name="settings_icon_theme_title">Indikimba yesithonjana</string>
+    <string name="settings_icon_theme_option_default">Okuzenzakalelayo</string>
+    <string name="settings_icon_theme_option_monochrome">Umbala owodwa</string>
     <string name="settings_dock_icon_count_label">Izithonjana ngomugqa: %1$d</string>
     <string name="settings_dock_icon_size_value">Usayizi wesithonjana: %1$d dp</string>
     <string name="settings_dock_preview_label">Ukubukwa kuqala</string>

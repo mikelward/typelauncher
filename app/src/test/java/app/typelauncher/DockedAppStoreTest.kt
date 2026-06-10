@@ -276,6 +276,28 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun iconThemeDefaultsToDefault() {
+        assertEquals(IconTheme.Default, DockSettingsStore(context).iconTheme)
+    }
+
+    @Test
+    fun iconThemePersistsExplicitSelection() {
+        DockSettingsStore(context).iconTheme = IconTheme.Monochrome
+
+        assertEquals(IconTheme.Monochrome, DockSettingsStore(context).iconTheme)
+    }
+
+    @Test
+    fun iconThemeFallsBackToDefaultForUnknownStoredValue() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("icon_theme", "Bogus")
+            .commit()
+
+        assertEquals(IconTheme.Default, DockSettingsStore(context).iconTheme)
+    }
+
+    @Test
     fun keyboardReservationDefaultsToZeroWithNullFingerprint() {
         val store = DockSettingsStore(context)
 

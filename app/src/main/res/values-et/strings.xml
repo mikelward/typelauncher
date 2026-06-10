@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Süsteem</string>
     <string name="settings_theme_option_light">Hele</string>
     <string name="settings_theme_option_dark">Tume</string>
+    <string name="settings_icon_theme_title">Ikooniteema</string>
+    <string name="settings_icon_theme_option_default">Vaikimisi</string>
+    <string name="settings_icon_theme_option_monochrome">Monokroomne</string>
     <string name="settings_dock_icon_count_label">Ikoone reas: %1$d</string>
     <string name="settings_dock_icon_size_value">Ikooni suurus: %1$d dp</string>
     <string name="settings_dock_preview_label">Eelvaade</string>

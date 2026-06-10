@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Systemowy</string>
     <string name="settings_theme_option_light">Jasny</string>
     <string name="settings_theme_option_dark">Ciemny</string>
+    <string name="settings_icon_theme_title">Motyw ikon</string>
+    <string name="settings_icon_theme_option_default">Domyślny</string>
+    <string name="settings_icon_theme_option_monochrome">Monochromatyczny</string>
     <string name="settings_dock_icon_count_label">Ikon w rzędzie: %1$d</string>
     <string name="settings_dock_icon_size_value">Rozmiar ikony: %1$d dp</string>
     <string name="settings_dock_preview_label">Podgląd</string>

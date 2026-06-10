@@ -66,17 +66,68 @@ internal object IconNormalizer {
     private const val COLOR_BUCKET_SHIFT = 3
 
     /**
+     * Colors for the themed-icon rendering path: an opaque [plate] the tile is
+     * filled with and the [glyph] tint applied to the app's monochrome layer.
+     */
+    internal data class ThemedIconColors(val plate: Int, val glyph: Int)
+
+    /**
      * Rasterizes [drawable] to a full-bleed `sizePx` square tile, opaque to the
      * launcher's rounded clip — the tile carries no margin or ring of its own;
      * the icon's art (or its own background layer) fills it edge-to-edge. The
      * returned bitmap is always `sizePx` × `sizePx`.
+     *
+     * When [themedColors] is non-null and the icon is adaptive with a
+     * monochrome layer (API 33+), the tile is instead the themed variant — the
+     * glyph tinted [ThemedIconColors.glyph] on a [ThemedIconColors.plate] fill.
+     * Apps without a monochrome layer keep their normal rendering, matching
+     * Pixel's themed-icons behavior.
      */
-    fun normalizeToTile(drawable: Drawable, sizePx: Int, debugLabel: String = ""): Bitmap {
+    fun normalizeToTile(
+        drawable: Drawable,
+        sizePx: Int,
+        debugLabel: String = "",
+        themedColors: ThemedIconColors? = null,
+    ): Bitmap {
         // Adaptive icons are composed from their background and foreground
         // layers with the platform framing; legacy icons are re-seated on a
         // dominant-color plate.
-        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx, debugLabel)
+        if (drawable is AdaptiveIconDrawable) {
+            if (themedColors != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                drawable.monochrome?.let { mono ->
+                    return normalizeThemed(mono, sizePx, themedColors, debugLabel)
+                }
+            }
+            return normalizeAdaptive(drawable, sizePx, debugLabel)
+        }
         return normalizeFlat(drawable, sizePx, debugLabel)
+    }
+
+    /**
+     * Composes the themed tile: a [ThemedIconColors.plate] fill under the
+     * monochrome [mono] glyph tinted [ThemedIconColors.glyph], drawn with the
+     * same platform safe-zone framing as any adaptive layer — the monochrome
+     * glyph spec is standardized, so no per-icon sizing is needed.
+     */
+    private fun normalizeThemed(
+        mono: Drawable,
+        sizePx: Int,
+        themedColors: ThemedIconColors,
+        debugLabel: String = "",
+    ): Bitmap {
+        val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(tile)
+        canvas.drawColor(themedColors.plate)
+        val glyph = mono.mutate()
+        glyph.setTint(themedColors.glyph)
+        drawLayerFramed(canvas, glyph, sizePx)
+        if (debugLabel.isNotEmpty()) {
+            LauncherDebugLog.event(
+                "iconTile $debugLabel sizePx=$sizePx themed mono=${mono.javaClass.simpleName} " +
+                    "plate=${hexColor(themedColors.plate)} glyph=${hexColor(themedColors.glyph)}",
+            )
+        }
+        return tile
     }
 
     /**

@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Ètò</string>
     <string name="settings_theme_option_light">Mọ́lẹ̀</string>
     <string name="settings_theme_option_dark">Òkùnkùn</string>
+    <string name="settings_icon_theme_title">Àkòrí àmì</string>
+    <string name="settings_icon_theme_option_default">Àìpadà</string>
+    <string name="settings_icon_theme_option_monochrome">Àwọ̀ kan</string>
     <string name="settings_dock_icon_count_label">Àmì lórí ọ̀nà kọ̀ọ̀kan: %1$d</string>
     <string name="settings_dock_icon_size_value">Ìwọ̀n àmì: %1$d dp</string>
     <string name="settings_dock_preview_label">Àyẹ̀wò</string>

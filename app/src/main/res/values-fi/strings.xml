@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Järjestelmä</string>
     <string name="settings_theme_option_light">Vaalea</string>
     <string name="settings_theme_option_dark">Tumma</string>
+    <string name="settings_icon_theme_title">Kuvaketeema</string>
+    <string name="settings_icon_theme_option_default">Oletus</string>
+    <string name="settings_icon_theme_option_monochrome">Yksivärinen</string>
     <string name="settings_dock_icon_count_label">Kuvakkeita rivillä: %1$d</string>
     <string name="settings_dock_icon_size_value">Kuvakkeen koko: %1$d dp</string>
     <string name="settings_dock_preview_label">Esikatselu</string>

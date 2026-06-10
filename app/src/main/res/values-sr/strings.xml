@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Системска</string>
     <string name="settings_theme_option_light">Светла</string>
     <string name="settings_theme_option_dark">Тамна</string>
+    <string name="settings_icon_theme_title">Тема икона</string>
+    <string name="settings_icon_theme_option_default">Подразумевана</string>
+    <string name="settings_icon_theme_option_monochrome">Монохромна</string>
     <string name="settings_dock_icon_count_label">Иконе по реду: %1$d</string>
     <string name="settings_dock_icon_size_value">Величина иконе: %1$d dp</string>
     <string name="settings_dock_preview_label">Преглед</string>

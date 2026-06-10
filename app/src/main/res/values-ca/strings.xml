@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Clar</string>
     <string name="settings_theme_option_dark">Fosc</string>
+    <string name="settings_icon_theme_title">Tema de les icones</string>
+    <string name="settings_icon_theme_option_default">Per defecte</string>
+    <string name="settings_icon_theme_option_monochrome">Monocrom</string>
     <string name="settings_dock_icon_count_label">Icones per fila: %1$d</string>
     <string name="settings_dock_icon_size_value">Mida de la icona: %1$d dp</string>
     <string name="settings_dock_preview_label">Previsualització</string>

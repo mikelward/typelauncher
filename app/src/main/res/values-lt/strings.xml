@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Sistemos</string>
     <string name="settings_theme_option_light">Šviesi</string>
     <string name="settings_theme_option_dark">Tamsi</string>
+    <string name="settings_icon_theme_title">Piktogramų tema</string>
+    <string name="settings_icon_theme_option_default">Numatytoji</string>
+    <string name="settings_icon_theme_option_monochrome">Monochrominė</string>
     <string name="settings_dock_icon_count_label">Piktogramų eilėje: %1$d</string>
     <string name="settings_dock_icon_size_value">Piktogramos dydis: %1$d dp</string>
     <string name="settings_dock_preview_label">Peržiūra</string>

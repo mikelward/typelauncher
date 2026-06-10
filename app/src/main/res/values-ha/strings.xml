@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">Tsarin</string>
     <string name="settings_theme_option_light">Mai haske</string>
     <string name="settings_theme_option_dark">Mai duhu</string>
+    <string name="settings_icon_theme_title">Jigon alama</string>
+    <string name="settings_icon_theme_option_default">Na asali</string>
+    <string name="settings_icon_theme_option_monochrome">Launi ɗaya</string>
     <string name="settings_dock_icon_count_label">Alamomi a kowane layi: %1$d</string>
     <string name="settings_dock_icon_size_value">Girman alama: %1$d dp</string>
     <string name="settings_dock_preview_label">Samfuri</string>

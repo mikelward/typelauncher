@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">පද්ධතිය</string>
     <string name="settings_theme_option_light">ආලෝක</string>
     <string name="settings_theme_option_dark">අඳුරු</string>
+    <string name="settings_icon_theme_title">අයිකන තේමාව</string>
+    <string name="settings_icon_theme_option_default">පෙරනිමි</string>
+    <string name="settings_icon_theme_option_monochrome">ඒකවර්ණ</string>
     <string name="settings_dock_icon_count_label">පේළියකට අයිකන: %1$d</string>
     <string name="settings_dock_icon_size_value">අයිකන ප්‍රමාණය: %1$d dp</string>
     <string name="settings_dock_preview_label">පෙරදසුන</string>

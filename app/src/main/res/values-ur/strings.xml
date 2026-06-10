@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">سسٹم</string>
     <string name="settings_theme_option_light">ہلکا</string>
     <string name="settings_theme_option_dark">گہرا</string>
+    <string name="settings_icon_theme_title">آئیکن تھیم</string>
+    <string name="settings_icon_theme_option_default">طے شدہ</string>
+    <string name="settings_icon_theme_option_monochrome">مونوکروم</string>
     <string name="settings_dock_icon_count_label">فی قطار آئیکنز: %1$d</string>
     <string name="settings_dock_icon_size_value">آئیکن کا سائز: %1$d dp</string>
     <string name="settings_dock_preview_label">پیش منظر</string>

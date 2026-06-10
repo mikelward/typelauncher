@@ -118,6 +118,9 @@
     <string name="settings_theme_option_system">系统</string>
     <string name="settings_theme_option_light">浅色</string>
     <string name="settings_theme_option_dark">深色</string>
+    <string name="settings_icon_theme_title">图标主题</string>
+    <string name="settings_icon_theme_option_default">默认</string>
+    <string name="settings_icon_theme_option_monochrome">单色</string>
     <string name="settings_dock_icon_count_label">每行图标数: %1$d</string>
     <string name="settings_dock_icon_size_value">图标大小: %1$d dp</string>
     <string name="settings_dock_preview_label">预览</string>
