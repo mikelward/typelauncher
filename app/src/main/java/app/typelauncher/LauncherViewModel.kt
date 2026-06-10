@@ -211,11 +211,11 @@ internal class LauncherViewModel(
         // can run (loads start from composition, after this constructor), so
         // the very first rasterize pass already honors the persisted setting.
         AppIconLoader.iconTheme = dockSettingsStore.iconTheme
-        // Seed the loader's resolved dark/light mirror alongside, so the very
+        // Seed the loader's resolved palette mirror alongside, so the very
         // first themed rasterize pass picks the palette matching what the
         // launcher's own Theme setting renders, not whatever the system night
         // mask happens to say.
-        AppIconLoader.setThemedIconsUseDarkPalette(isLauncherThemeDark(dockSettingsStore.themeMode))
+        AppIconLoader.setThemedIconPalette(app, isLauncherThemeDark(dockSettingsStore.themeMode))
         // Restore previously-rasterised icons off the main thread: the file read +
         // Bitmap allocation + copyPixelsFromBuffer per snapshot adds up to enough work
         // to delay setContent → first frame → the LaunchedEffect in SearchCard that
@@ -1587,9 +1587,9 @@ internal class LauncherViewModel(
         dockSettingsStore.themeMode = mode
         // Re-resolve the themed-icon palette: with the Monochrome icon theme,
         // plates must flip with the launcher's effective dark/light appearance
-        // (the loader evicts its cache when the resolved value changes, so
+        // (the loader evicts its cache when the resolved colors change, so
         // on-screen icons re-rasterize with the new palette).
-        AppIconLoader.setThemedIconsUseDarkPalette(isLauncherThemeDark(mode))
+        AppIconLoader.setThemedIconPalette(app, isLauncherThemeDark(mode))
         _uiState.update { it.copy(themeMode = mode) }
         logState("setThemeMode=$mode")
     }

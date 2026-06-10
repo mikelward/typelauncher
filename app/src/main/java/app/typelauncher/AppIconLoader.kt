@@ -76,7 +76,7 @@ internal object AppIconLoader {
     // this value, not `Configuration.UI_MODE_NIGHT_MASK` alone: with `Theme`
     // pinned to `Dark` on a light-mode device (or vice versa) the night mask
     // disagrees with what the launcher actually renders, and plates derived
-    // from it sit light-on-dark. Seeded via [setThemedIconsUseDarkPalette]
+    // from it sit light-on-dark. Seeded via [setThemedIconPalette]
     // from the ViewModel (init and every theme-mode change) and from
     // MainActivity whenever it re-resolves — including the recreation after
     // a system night-mode configuration change while `Theme` is `System`.
@@ -84,16 +84,35 @@ internal object AppIconLoader {
     var themedIconsUseDarkPalette: Boolean = false
         private set
 
+    // Mirrors the *resolved* plate/glyph pair themed tiles are rasterized
+    // with — not just the dark/light flag. The dynamic system palette can
+    // change while the resolved darkness stays the same (a wallpaper or
+    // dynamic-color change recreates the activity with the same isDark), so
+    // change detection must compare the actual colors: cached monochrome
+    // tiles bake the accent in, and the cache key carries no color component.
+    @Volatile
+    var themedIconColors: IconNormalizer.ThemedIconColors? = null
+        private set
+
     /**
-     * Updates [themedIconsUseDarkPalette]; when the resolved value actually
-     * changes while the Monochrome icon theme is active, drops every cached
-     * tile so the next render re-rasterizes each themed plate with the new
-     * palette. No eviction when nothing changed or the Default theme is
-     * active — no cached tile carries a themed plate there.
+     * Resolves the plate/glyph pair for [isDark] from [context] and updates
+     * the mirrors; when the resolved pair actually changes while the
+     * Monochrome icon theme is active, drops every cached tile so the next
+     * render re-rasterizes each themed plate with the new colors. Comparing
+     * the pair (not just [isDark]) is what catches a wallpaper / dynamic-color
+     * change, which recreates the activity with the same resolved darkness
+     * but new accent colors. No eviction when the pair is unchanged or the
+     * Default theme is active — no cached tile carries a themed plate there.
      */
-    fun setThemedIconsUseDarkPalette(isDark: Boolean) {
-        if (themedIconsUseDarkPalette == isDark) return
+    fun setThemedIconPalette(context: Context, isDark: Boolean) {
+        setThemedIconPalette(resolveThemedIconColors(context, isDark), isDark)
+    }
+
+    /** Color-injecting overload backing [setThemedIconPalette]; visible so tests can exercise an accent change Robolectric's fixed system palette can't produce. */
+    internal fun setThemedIconPalette(colors: IconNormalizer.ThemedIconColors, isDark: Boolean) {
         themedIconsUseDarkPalette = isDark
+        if (themedIconColors == colors) return
+        themedIconColors = colors
         if (iconTheme == IconTheme.Monochrome) {
             evictAll()
         }
@@ -234,7 +253,10 @@ internal object AppIconLoader {
             // monochrome layer exists; below that the colors would never be
             // consumed, so skip deriving them.
             val themedColors = if (iconTheme == IconTheme.Monochrome && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                themedIconColors(context)
+                // The mirrored pair is seeded before composition (ViewModel init,
+                // MainActivity onCreate) so it's normally present; the fallback
+                // derivation keeps a load that somehow races the first seed total.
+                themedIconColors ?: resolveThemedIconColors(context, themedIconsUseDarkPalette)
             } else {
                 null
             }
@@ -454,17 +476,17 @@ internal object AppIconLoader {
 
     /**
      * Plate / glyph pair for themed-icon rendering, derived from the
-     * launcher's resolved dark/light appearance ([themedIconsUseDarkPalette]
-     * — the Settings `Theme` mode combined with the device night mode, not
-     * the raw night mask) and (API 31+) the dynamic system palette — the same
+     * launcher's resolved dark/light appearance ([isDark] — the Settings
+     * `Theme` mode combined with the device night mode, not the raw night
+     * mask) and (API 31+) the dynamic system palette — the same
      * neutral-on-accent pairing Pixel's themed icons use. Below API 31 the
      * dynamic palette does not exist, so fixed gray tones approximate the look.
-     * Evaluated per load (not cached) so a theme or wallpaper change is
-     * picked up by the next rasterize pass. Internal so tests can assert the
-     * palette follows the mirror rather than the night mask.
+     * Pure derivation with no mirror read, so [setThemedIconPalette] can call
+     * it from MainActivity with the resolution it just computed. Internal so
+     * tests can assert the palette follows the resolved theme rather than the
+     * night mask.
      */
-    internal fun themedIconColors(context: Context): IconNormalizer.ThemedIconColors {
-        val isDark = themedIconsUseDarkPalette
+    internal fun resolveThemedIconColors(context: Context, isDark: Boolean): IconNormalizer.ThemedIconColors {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (isDark) {
                 IconNormalizer.ThemedIconColors(

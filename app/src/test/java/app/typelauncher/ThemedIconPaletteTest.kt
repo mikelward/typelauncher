@@ -39,7 +39,7 @@ class ThemedIconPaletteTest {
         // between methods, so restore the defaults the production cold start
         // assumes (and sibling tests may rely on).
         AppIconLoader.iconTheme = IconTheme.Default
-        AppIconLoader.setThemedIconsUseDarkPalette(false)
+        AppIconLoader.setThemedIconPalette(context, isDark = false)
         AppIconLoader.evictAll()
         listOf(
             "docked_apps",
@@ -60,9 +60,9 @@ class ThemedIconPaletteTest {
     @Test
     fun themedIconColorsFollowResolvedLauncherThemeNotNightMask() {
         // Robolectric's default configuration is notnight, so a palette read
-        // from the night mask would stay light here. The mirror must win.
-        AppIconLoader.setThemedIconsUseDarkPalette(true)
-        val dark = AppIconLoader.themedIconColors(context)
+        // from the night mask would stay light here. The resolved value the
+        // caller passes must win.
+        val dark = AppIconLoader.resolveThemedIconColors(context, isDark = true)
         assertEquals(
             "dark launcher theme must pick the dark (neutral) plate even on a light-mode device",
             context.getColor(android.R.color.system_neutral1_800),
@@ -70,8 +70,7 @@ class ThemedIconPaletteTest {
         )
         assertEquals(context.getColor(android.R.color.system_accent1_100), dark.glyph)
 
-        AppIconLoader.setThemedIconsUseDarkPalette(false)
-        val light = AppIconLoader.themedIconColors(context)
+        val light = AppIconLoader.resolveThemedIconColors(context, isDark = false)
         assertEquals(context.getColor(android.R.color.system_accent1_100), light.plate)
         assertEquals(context.getColor(android.R.color.system_accent1_700), light.glyph)
     }
@@ -79,12 +78,12 @@ class ThemedIconPaletteTest {
     @Test
     fun resolvedThemeChangeUnderMonochromeEvictsIconCache() {
         AppIconLoader.iconTheme = IconTheme.Monochrome
-        AppIconLoader.setThemedIconsUseDarkPalette(false)
+        AppIconLoader.setThemedIconPalette(context, isDark = false)
         val id = "0:app.typelauncher.palettetest.evicted/.LaunchActivity"
         AppIconLoader.put(id, SIZE_PX, testBitmap())
         val generationBefore = AppIconLoader.cacheGenerationValue
 
-        AppIconLoader.setThemedIconsUseDarkPalette(true)
+        AppIconLoader.setThemedIconPalette(context, isDark = true)
 
         assertTrue(AppIconLoader.themedIconsUseDarkPalette)
         assertNull(
@@ -100,11 +99,11 @@ class ThemedIconPaletteTest {
     @Test
     fun unchangedResolvedThemeKeepsIconCache() {
         AppIconLoader.iconTheme = IconTheme.Monochrome
-        AppIconLoader.setThemedIconsUseDarkPalette(true)
+        AppIconLoader.setThemedIconPalette(context, isDark = true)
         val id = "0:app.typelauncher.palettetest.unchanged/.LaunchActivity"
         AppIconLoader.put(id, SIZE_PX, testBitmap())
 
-        AppIconLoader.setThemedIconsUseDarkPalette(true)
+        AppIconLoader.setThemedIconPalette(context, isDark = true)
 
         assertNotNull(
             "re-seeding the same resolved value must not evict anything",
@@ -115,15 +114,56 @@ class ThemedIconPaletteTest {
     @Test
     fun resolvedThemeChangeUnderDefaultThemeKeepsIconCache() {
         AppIconLoader.iconTheme = IconTheme.Default
-        AppIconLoader.setThemedIconsUseDarkPalette(false)
+        AppIconLoader.setThemedIconPalette(context, isDark = false)
         val id = "0:app.typelauncher.palettetest.defaulttheme/.LaunchActivity"
         AppIconLoader.put(id, SIZE_PX, testBitmap())
 
-        AppIconLoader.setThemedIconsUseDarkPalette(true)
+        AppIconLoader.setThemedIconPalette(context, isDark = true)
 
         assertTrue(AppIconLoader.themedIconsUseDarkPalette)
         assertNotNull(
             "Default-theme tiles carry no themed plate, so a theme flip must not evict them",
+            AppIconLoader.cached(id, SIZE_PX),
+        )
+    }
+
+    @Test
+    fun sameDarknessDifferentAccentUnderMonochromeEvictsIconCache() {
+        // A wallpaper / dynamic-color change recreates the activity with the
+        // SAME resolved isDark but new system accent colors. Robolectric's
+        // system palette is fixed, so inject the pairs directly through the
+        // internal overload the context-taking setter delegates to.
+        AppIconLoader.iconTheme = IconTheme.Monochrome
+        AppIconLoader.setThemedIconPalette(LIGHT_BLUE_ACCENT_COLORS, isDark = false)
+        val id = "0:app.typelauncher.palettetest.accentchange/.LaunchActivity"
+        AppIconLoader.put(id, SIZE_PX, testBitmap())
+        val generationBefore = AppIconLoader.cacheGenerationValue
+
+        AppIconLoader.setThemedIconPalette(LIGHT_ORANGE_ACCENT_COLORS, isDark = false)
+
+        assertFalse(AppIconLoader.themedIconsUseDarkPalette)
+        assertNull(
+            "an accent change with unchanged darkness must drop cached tiles under Monochrome — " +
+                "they bake the old accent into every plate",
+            AppIconLoader.cached(id, SIZE_PX),
+        )
+        assertTrue(
+            "eviction must bump the cache generation so on-screen icons repaint",
+            AppIconLoader.cacheGenerationValue > generationBefore,
+        )
+    }
+
+    @Test
+    fun sameDarknessDifferentAccentUnderDefaultThemeKeepsIconCache() {
+        AppIconLoader.iconTheme = IconTheme.Default
+        AppIconLoader.setThemedIconPalette(LIGHT_BLUE_ACCENT_COLORS, isDark = false)
+        val id = "0:app.typelauncher.palettetest.accentdefault/.LaunchActivity"
+        AppIconLoader.put(id, SIZE_PX, testBitmap())
+
+        AppIconLoader.setThemedIconPalette(LIGHT_ORANGE_ACCENT_COLORS, isDark = false)
+
+        assertNotNull(
+            "Default-theme tiles carry no themed plate, so an accent change must not evict them",
             AppIconLoader.cached(id, SIZE_PX),
         )
     }
@@ -194,5 +234,12 @@ class ThemedIconPaletteTest {
 
     private companion object {
         const val SIZE_PX = 24
+
+        // Two light-appearance palettes that differ only in accent, standing in
+        // for the dynamic system palette before and after a wallpaper change.
+        val LIGHT_BLUE_ACCENT_COLORS =
+            IconNormalizer.ThemedIconColors(plate = 0xFFD3E3FD.toInt(), glyph = 0xFF0B57D0.toInt())
+        val LIGHT_ORANGE_ACCENT_COLORS =
+            IconNormalizer.ThemedIconColors(plate = 0xFFFFDDB5.toInt(), glyph = 0xFF8B5000.toInt())
     }
 }
