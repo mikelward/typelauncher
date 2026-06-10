@@ -43,13 +43,32 @@ class IconNormalizerTest {
     }
 
     @Test
-    fun fullBleedDrawableIsReturnedUntouched() {
+    fun fullBleedDrawableFillsTileWithNoRing() {
         val tile = IconNormalizer.normalizeToTile(ColorDrawable(Color.GREEN), 64)
 
-        // No plate ring: every pixel, corners included, is the icon's own color.
+        // Drawn edge-to-edge: every pixel, corners included, is the icon's own
+        // color — the plate underneath is fully covered, so no ring appears.
         assertColorClose(Color.GREEN, tile.getPixel(0, 0))
         assertColorClose(Color.GREEN, tile.getPixel(63, 63))
         assertColorClose(Color.GREEN, tile.getPixel(32, 32))
+    }
+
+    @Test
+    fun nearlyFullIconWithTransparentCornersHasCornersPlated() {
+        // A rounded square (~95% opaque) hits the full-bleed branch, but its
+        // transparent corners — rounded tighter than the launcher's clip — must
+        // still be plated so they don't expose the gray surface. Regression for
+        // the coverage-only decision that returned such icons raw.
+        val drawable = BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            roundedSquareOnTransparent(64, cornerRadius = 16f, color = Color.rgb(0x20, 0x60, 0xC0)),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 64)
+
+        // The extreme corner pixel is opaque (plate-filled), not transparent.
+        assertEquals(255, Color.alpha(tile.getPixel(0, 0)))
+        assertColorClose(Color.rgb(0x20, 0x60, 0xC0), tile.getPixel(0, 0))
     }
 
     @Test
@@ -90,6 +109,21 @@ class IconNormalizerTest {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val paint = Paint().apply { this.color = color }
         Canvas(bitmap).drawRect(rect, paint)
+        return bitmap
+    }
+
+    private fun roundedSquareOnTransparent(size: Int, cornerRadius: Float, color: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        Canvas(bitmap).drawRoundRect(
+            0f,
+            0f,
+            size.toFloat(),
+            size.toFloat(),
+            cornerRadius,
+            cornerRadius,
+            paint,
+        )
         return bitmap
     }
 

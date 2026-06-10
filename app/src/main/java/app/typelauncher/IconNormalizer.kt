@@ -28,10 +28,13 @@ import android.graphics.drawable.Drawable
  * per-icon analysis pass never touches the render hot path.
  */
 internal object IconNormalizer {
-    // A tile whose opaque coverage is at or above this is already treated as
-    // full-bleed and returned untouched, so a multi-color adaptive background
-    // never gets a mismatched dominant-color ring drawn around it. Padded /
-    // logo-style icons fall below it and take the plate path.
+    // A tile whose opaque coverage is at or above this is drawn edge-to-edge
+    // over the plate (so a multi-color adaptive background gets no mismatched
+    // dominant-color ring); below it, the content is scaled to CONTENT_FRACTION
+    // and centered. Either way the content sits on a dominant-color plate, so
+    // transparent corners (e.g. a rounded square rounded tighter than the
+    // launcher's clip) and interior holes show the icon's own color rather than
+    // exposing the gray surface plate.
     internal const val FULL_BLEED_COVERAGE = 0.9f
 
     // Fraction of the tile the normalized content fills on the plate path. The
@@ -53,15 +56,21 @@ internal object IconNormalizer {
     private const val COLOR_BUCKET_SHIFT = 3
 
     /**
-     * Rasterizes [drawable] to a `sizePx` square and, if it doesn't already
-     * fill the tile, re-seats it on a dominant-color plate. The returned bitmap
-     * is always `sizePx` × `sizePx`.
+     * Rasterizes [drawable] to a `sizePx` square and re-seats it on a
+     * dominant-color plate so the tile is opaque to its rounded clip. A
+     * full-bleed icon is drawn edge-to-edge; a padded or sparse icon is scaled
+     * to [CONTENT_FRACTION] and centered. The returned bitmap is always
+     * `sizePx` × `sizePx`.
      */
     fun normalizeToTile(drawable: Drawable, sizePx: Int): Bitmap {
         val raw = rasterizeFullBleed(drawable, sizePx)
         val analysis = analyze(raw)
-        if (analysis.coverage >= FULL_BLEED_COVERAGE) return raw
-        val tile = drawOnPlate(raw, analysis, sizePx)
+        // Both paths plate the content; only the fill fraction differs. Drawing
+        // full-bleed icons edge-to-edge keeps a multi-color background ring-free,
+        // while the plate underneath fills any transparent corners/holes (a
+        // coverage check alone would leave a rounded square's corners gray).
+        val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
+        val tile = drawOnPlate(raw, analysis, sizePx, fillFraction)
         raw.recycle()
         return tile
     }
@@ -158,19 +167,19 @@ internal object IconNormalizer {
 
     /**
      * Fills a fresh `sizePx` tile with [IconAnalysis.dominantColor] and draws
-     * the visible content of [raw] (its [IconAnalysis.bounds] region) scaled to
-     * [CONTENT_FRACTION] of the tile and centered, so a padded colored icon
-     * becomes a seamless full-bleed tile and a sparse logo gets an intentional
-     * backdrop.
+     * the visible content of [raw] (its [IconAnalysis.bounds] region) scaled so
+     * its larger side spans [fillFraction] of the tile and centered, so a
+     * full-bleed icon (`fillFraction == 1`) covers the tile while a padded
+     * colored icon or sparse logo sits on an intentional dominant-color backdrop.
      */
-    private fun drawOnPlate(raw: Bitmap, analysis: IconAnalysis, sizePx: Int): Bitmap {
+    private fun drawOnPlate(raw: Bitmap, analysis: IconAnalysis, sizePx: Int, fillFraction: Float): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tile)
         canvas.drawColor(analysis.dominantColor)
 
         val contentWidth = analysis.bounds.width().coerceAtLeast(1)
         val contentHeight = analysis.bounds.height().coerceAtLeast(1)
-        val target = sizePx * CONTENT_FRACTION
+        val target = sizePx * fillFraction
         val scale = target / maxOf(contentWidth, contentHeight)
         val drawWidth = contentWidth * scale
         val drawHeight = contentHeight * scale
