@@ -226,12 +226,17 @@ private fun pickDisambiguator(remainingTail: List<String>): String {
  * Parses a recognised regional badge tag from the trailing whitespace-
  * separated token of a user-supplied display label, normalising surrounding
  * punctuation so "Chase (US)", "Chase US", and "Chase US " all map to "US".
- * Returns the upper-cased tag if it matches a country code (the same
- * [COUNTRY_CODES] set the auto-disambiguator uses, plus the colloquial "uk"
- * alias) or "intl"; returns `null` otherwise. Used by [InstalledApp.
- * effectiveDisambiguator] so that renaming an app to e.g. "Chase (US)"
- * surfaces a US flag badge instead of silently retaining whatever badge the
- * auto-disambiguator computed from the original label.
+ * Country tags must be written in uppercase to count: two-letter ISO codes
+ * collide with ordinary lowercase English words, so before the case gate a
+ * rename to "To Do" / "Check In" / "Call Me" grew a Dominican Republic /
+ * India / Montenegro flag out of its final word. Uppercase is the
+ * conventional way to write a country code, so deliberate tags keep working
+ * while plain words stay plain. The "intl" marker stays case-insensitive —
+ * it collides with no English word. Returns the upper-cased tag, or `null`
+ * when the label carries no recognisable tag. Used by
+ * [InstalledApp.effectiveDisambiguator] so that renaming an app to e.g.
+ * "Chase (US)" surfaces a US flag badge instead of silently retaining
+ * whatever badge the auto-disambiguator computed from the original label.
  */
 internal fun parseTrailingDisambiguatorTag(label: String): String? {
     val trimmed = label.trim()
@@ -242,6 +247,6 @@ internal fun parseTrailingDisambiguatorTag(label: String): String? {
     if (lastToken.isEmpty()) return null
     val normalized = lastToken.lowercase()
     if (normalized in REGIONAL_MARKERS) return normalized.uppercase()
-    if (normalized in COUNTRY_CODES) return normalized.uppercase()
+    if (lastToken == lastToken.uppercase() && normalized in COUNTRY_CODES) return lastToken
     return null
 }
