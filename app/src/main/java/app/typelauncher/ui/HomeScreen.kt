@@ -3416,12 +3416,12 @@ internal fun AppIcon(
     Box(
         modifier = Modifier
             .size(size)
-            .clip(MaterialTheme.shapes.medium)
+            .clip(CircleShape)
             .testTag("$testTag:${app.displayName}"),
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = MaterialTheme.shapes.medium,
+            shape = CircleShape,
             color = backgroundColor,
         ) {
             if (bitmap != null) {
