@@ -123,15 +123,18 @@ internal object IconNormalizer {
             backgroundAnalysis.coverage >= BACKGROUND_FILL_COVERAGE
         val plate = when {
             backgroundFills -> backgroundAnalysis!!.dominantColor
-            else -> foregroundAnalysis?.dominantColor
-                ?: backgroundAnalysis?.dominantColor
-                ?: Color.WHITE
+            // Only use the foreground's color when it actually has opaque art —
+            // an empty/transparent foreground's dominant color is a meaningless
+            // white fallback, so prefer the (sparse) background's color instead.
+            foregroundAnalysis != null && foregroundAnalysis.coverage > 0f -> foregroundAnalysis.dominantColor
+            backgroundAnalysis != null && backgroundAnalysis.coverage > 0f -> backgroundAnalysis.dominantColor
+            else -> Color.WHITE
         }
         canvas.drawColor(plate)
         if (backgroundBitmap != null) canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
 
         val foreground = drawable.foreground
-        if (foreground != null && foregroundAnalysis != null && !foregroundAnalysis.bounds.isEmpty) {
+        if (foreground != null && foregroundAnalysis != null && foregroundAnalysis.coverage > 0f) {
             // Re-draw the foreground drawable (usually a vector) under a scale
             // matrix so the enlarged logo stays crisp instead of pixelating.
             drawDrawableScaled(canvas, foreground, foregroundAnalysis.bounds, sizePx, FOREGROUND_FRACTION)
