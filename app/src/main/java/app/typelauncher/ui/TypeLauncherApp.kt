@@ -1677,6 +1677,31 @@ internal class BarScrollRegion(
 )
 
 /**
+ * Whether a bottom bar's icon strip can still scroll in the finger's direction.
+ * Applies the same `overflowSlopPx` the chevrons and pin-to-end use, so a row
+ * that only overflows by a rounding pixel (`maxValue <= overflowSlopPx`) counts
+ * as non-scrollable and pages instead of reserving a drag it can barely move.
+ * In LTR a finger moving left (negative delta) scrolls toward the content's end;
+ * `horizontalScroll` reverses that drag-to-scroll mapping under RTL, so the
+ * finger sign flips. The two branches mirror showEndChevron / showStartChevron.
+ */
+internal fun barStripCanScrollInDirection(
+    rawDragX: Float,
+    scrollValue: Int,
+    scrollMaxValue: Int,
+    overflowSlopPx: Int,
+    isRtl: Boolean,
+): Boolean {
+    if (scrollMaxValue <= overflowSlopPx) return false
+    val scrollsTowardEnd = if (isRtl) rawDragX > 0f else rawDragX < 0f
+    return if (scrollsTowardEnd) {
+        scrollValue < scrollMaxValue - overflowSlopPx
+    } else {
+        scrollValue > overflowSlopPx
+    }
+}
+
+/**
  * Decide whether a horizontal launcher drag belongs to an open bottom bar's
  * horizontal scroll instead of the carousel. Reserved only when an overflowing
  * bar is open, the drag began on its visible strip, and the strip can still
