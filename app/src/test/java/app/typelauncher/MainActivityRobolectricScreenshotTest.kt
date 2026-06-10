@@ -2484,9 +2484,9 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Work Calendar").assertIsDisplayed()
         assertEquals(listOf("Work Calendar"), composeRule.activity.viewModel.uiState.value.filteredApps.map { it.name })
-        // The system badges the icon via `LauncherActivityInfo.getBadgedIcon`,
-        // so there's no custom overlay node in the tree anymore — the work
-        // briefcase comes baked into the bitmap on real devices.
+        // The system badges the normalized tile via `getUserBadgedIcon`
+        // (AppIconLoader.badgeTile), so there's no custom overlay node in the
+        // tree — the work briefcase comes baked into the bitmap on real devices.
         composeRule.onNodeWithTag("$APP_ICON_TAG:Work Calendar", useUnmergedTree = true).assertExists()
 
         val viewModel = composeRule.activity.viewModel

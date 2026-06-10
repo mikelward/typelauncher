@@ -8,6 +8,7 @@ import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.os.UserHandle
@@ -177,11 +178,46 @@ internal object AppIconLoader {
             // surface plate as a gray square. Adaptive icons pass through
             // edge-to-edge; everything else is re-seated on a dominant-color
             // plate. See IconNormalizer.
-            IconNormalizer.normalizeToTile(drawable, sizePx).asImageBitmap()
+            val tile = IconNormalizer.normalizeToTile(drawable, sizePx)
+            // resolve returns the unbadged icon; apply the system work-profile
+            // badge to the finished tile so the briefcase keeps its OS corner
+            // placement instead of being cropped/rescaled by the normalizer.
+            val finished = if (app.isWorkApp) badgeTile(context, tile, app.user, sizePx) else tile
+            finished.asImageBitmap()
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")
         bitmap
+    }
+
+    /**
+     * Applies the system work-profile badge to an already-normalized [tile] by
+     * wrapping it in a Drawable, letting [PackageManager.getUserBadgedIcon]
+     * composite the OEM badge (the blue briefcase on a Pixel), and rasterizing
+     * the result back to [sizePx]. Applying the badge *after* normalization is
+     * what keeps it in its OS corner — IconNormalizer's crop/scale runs on the
+     * unbadged art, so it can't move or shrink the briefcase.
+     *
+     * Falls back to the unbadged [tile] when no badge is composited (personal
+     * user, or a shadow PackageManager under test) or when badging is
+     * unavailable — getUserBadgedIcon can throw Resources.NotFoundException
+     * while a work profile is still booting, and an escaping throwable here
+     * would crash every awaiting composition.
+     */
+    private fun badgeTile(context: Context, tile: Bitmap, user: UserHandle, sizePx: Int): Bitmap = try {
+        val badged = context.packageManager
+            .getUserBadgedIcon(BitmapDrawable(context.resources, tile), user)
+        if (badged is BitmapDrawable && badged.bitmap === tile) {
+            tile
+        } else {
+            val out = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+            badged.setBounds(0, 0, sizePx, sizePx)
+            badged.draw(Canvas(out))
+            out
+        }
+    } catch (exception: Resources.NotFoundException) {
+        LauncherDebugLog.warning("badgeTile: badge unavailable for user=$user", exception)
+        tile
     }
 
     private fun decodeOverrideBitmap(file: File, sizePx: Int): Bitmap? = try {
@@ -303,28 +339,29 @@ internal object AppIconLoader {
         // 31st). Try that selection first and fall back to the default icon when
         // the app doesn't expose the metadata or anything goes wrong.
         if (app.packageName in DYNAMIC_CALENDAR_PACKAGES) {
-            resolveDynamicCalendarIcon(context, app, component)?.let { return it }
+            resolveDynamicCalendarIcon(context, component)?.let { return it }
         }
         return if (app.launchWithLauncherApps) {
-            // getBadgedIcon delegates to PackageManager.getUserBadgedIcon for
-            // managed-profile activities, so on a Pixel the work icon comes
-            // back with the system blue-briefcase already composited in.
-            // Personal-profile activities pass through unchanged.
+            // Return the UNBADGED icon (getIcon, not getBadgedIcon): the
+            // work-profile badge is applied in performLoad after the icon is
+            // normalized to a tile, so IconNormalizer's crop/scale can't move the
+            // system briefcase out of its corner. Personal-profile activities
+            // have no badge either way.
             //
             // Guarded because this runs on the loader scope and any throwable
             // escaping the producer is re-thrown by `Deferred.await()` inside
             // every awaiting composition — an unhandled composition exception,
             // i.e. a process crash. getActivityList throws SecurityException
             // when app.user has left the caller's profile group (work profile
-            // removed or disabled while this load was in flight), and
-            // getBadgedIcon can throw Resources.NotFoundException while a
-            // work profile is still booting. A missing icon placeholder is
-            // the right degradation for both.
+            // removed or disabled while this load was in flight), and getIcon
+            // can throw Resources.NotFoundException while a work profile is
+            // still booting. A missing icon placeholder is the right
+            // degradation for both.
             try {
                 context.getSystemService<LauncherApps>()
                     ?.getActivityList(component.packageName, app.user)
                     ?.firstOrNull { activity -> activity.componentName == component }
-                    ?.getBadgedIcon(0)
+                    ?.getIcon(0)
             } catch (exception: SecurityException) {
                 LauncherDebugLog.warning(
                     "resolve: LauncherApps rejected ${app.packageName} user=${app.user}",
@@ -333,19 +370,15 @@ internal object AppIconLoader {
                 null
             } catch (exception: Resources.NotFoundException) {
                 LauncherDebugLog.warning(
-                    "resolve: badged icon unavailable for ${app.packageName}",
+                    "resolve: icon unavailable for ${app.packageName}",
                     exception,
                 )
                 null
             }
         } else {
+            // Unbadged here too; performLoad badges the normalized tile.
             try {
-                val raw = context.packageManager.getActivityIcon(component)
-                if (app.isWorkApp) {
-                    context.packageManager.getUserBadgedIcon(raw, app.user)
-                } else {
-                    raw
-                }
+                context.packageManager.getActivityIcon(component)
             } catch (_: PackageManager.NameNotFoundException) {
                 null
             }
@@ -370,7 +403,6 @@ internal object AppIconLoader {
      */
     private fun resolveDynamicCalendarIcon(
         context: Context,
-        app: InstalledApp,
         component: ComponentName,
     ): Drawable? = try {
         val packageManager = context.packageManager
@@ -402,11 +434,9 @@ internal object AppIconLoader {
                 "dynamicCalendarIcon: ${component.packageName} day=$dayOfMonth " +
                     "arrayResId=$arrayResId dayResId=$dayIconResId resolved=${raw != null}",
             )
-            when {
-                raw == null -> null
-                app.isWorkApp -> packageManager.getUserBadgedIcon(raw, app.user)
-                else -> raw
-            }
+            // Unbadged: performLoad badges the normalized tile for work apps so
+            // the badge survives IconNormalizer's crop/scale intact.
+            raw
         }
     } catch (_: PackageManager.NameNotFoundException) {
         null
