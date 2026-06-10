@@ -15,6 +15,7 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Process
 import android.os.UserHandle
@@ -210,6 +211,11 @@ internal class LauncherViewModel(
         // can run (loads start from composition, after this constructor), so
         // the very first rasterize pass already honors the persisted setting.
         AppIconLoader.iconTheme = dockSettingsStore.iconTheme
+        // Seed the loader's resolved dark/light mirror alongside, so the very
+        // first themed rasterize pass picks the palette matching what the
+        // launcher's own Theme setting renders, not whatever the system night
+        // mask happens to say.
+        AppIconLoader.setThemedIconsUseDarkPalette(isLauncherThemeDark(dockSettingsStore.themeMode))
         // Restore previously-rasterised icons off the main thread: the file read +
         // Bitmap allocation + copyPixelsFromBuffer per snapshot adds up to enough work
         // to delay setContent → first frame → the LaunchedEffect in SearchCard that
@@ -1579,8 +1585,29 @@ internal class LauncherViewModel(
 
     fun setThemeMode(mode: ThemeMode) {
         dockSettingsStore.themeMode = mode
+        // Re-resolve the themed-icon palette: with the Monochrome icon theme,
+        // plates must flip with the launcher's effective dark/light appearance
+        // (the loader evicts its cache when the resolved value changes, so
+        // on-screen icons re-rasterize with the new palette).
+        AppIconLoader.setThemedIconsUseDarkPalette(isLauncherThemeDark(mode))
         _uiState.update { it.copy(themeMode = mode) }
         logState("setThemeMode=$mode")
+    }
+
+    /**
+     * Resolves the launcher's effective dark/light appearance for [mode]:
+     * `System` follows the device night mode, `Light` / `Dark` pin it
+     * regardless. The same resolution `MainActivity.applyEdgeToEdgeForThemeMode`
+     * and `TypeLauncherTheme` apply.
+     */
+    private fun isLauncherThemeDark(mode: ThemeMode): Boolean {
+        val systemDark = (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        return when (mode) {
+            ThemeMode.System -> systemDark
+            ThemeMode.Light -> false
+            ThemeMode.Dark -> true
+        }
     }
 
     fun setIconShape(shape: IconShape) {

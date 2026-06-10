@@ -402,6 +402,12 @@ class MainActivity : ComponentActivity() {
             ThemeMode.Light -> false
             ThemeMode.Dark -> true
         }
+        // Mirror the resolved value into the icon loader so monochrome themed
+        // plates follow the launcher's effective theme. This is also the path
+        // that re-seeds after a system night-mode configuration change
+        // recreates the activity while `Theme` is `System` — the ViewModel
+        // survives recreation, so its init-time seed alone would go stale.
+        AppIconLoader.setThemedIconsUseDarkPalette(isDark)
         val style = if (isDark) {
             SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         } else {

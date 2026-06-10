@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.ComponentName
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -69,6 +68,36 @@ internal object AppIconLoader {
     // read once per `performLoad` on the loader scope.
     @Volatile
     var iconTheme: IconTheme = IconTheme.Default
+
+    // Mirrors the launcher's *resolved* dark/light appearance — the Settings
+    // `Theme` mode (System / Light / Dark) combined with the device night
+    // mode, the same resolution `MainActivity.applyEdgeToEdgeForThemeMode`
+    // and `TypeLauncherTheme` apply. Themed (monochrome) plates must follow
+    // this value, not `Configuration.UI_MODE_NIGHT_MASK` alone: with `Theme`
+    // pinned to `Dark` on a light-mode device (or vice versa) the night mask
+    // disagrees with what the launcher actually renders, and plates derived
+    // from it sit light-on-dark. Seeded via [setThemedIconsUseDarkPalette]
+    // from the ViewModel (init and every theme-mode change) and from
+    // MainActivity whenever it re-resolves — including the recreation after
+    // a system night-mode configuration change while `Theme` is `System`.
+    @Volatile
+    var themedIconsUseDarkPalette: Boolean = false
+        private set
+
+    /**
+     * Updates [themedIconsUseDarkPalette]; when the resolved value actually
+     * changes while the Monochrome icon theme is active, drops every cached
+     * tile so the next render re-rasterizes each themed plate with the new
+     * palette. No eviction when nothing changed or the Default theme is
+     * active — no cached tile carries a themed plate there.
+     */
+    fun setThemedIconsUseDarkPalette(isDark: Boolean) {
+        if (themedIconsUseDarkPalette == isDark) return
+        themedIconsUseDarkPalette = isDark
+        if (iconTheme == IconTheme.Monochrome) {
+            evictAll()
+        }
+    }
 
     // Bumped by `evictAll` so compositions holding an already-loaded bitmap
     // (`rememberAppIconBitmap`'s `remember` keys don't otherwise change) drop
@@ -424,16 +453,18 @@ internal object AppIconLoader {
     }
 
     /**
-     * Plate / glyph pair for themed-icon rendering, derived from the device's
-     * current night mode and (API 31+) the dynamic system palette — the same
+     * Plate / glyph pair for themed-icon rendering, derived from the
+     * launcher's resolved dark/light appearance ([themedIconsUseDarkPalette]
+     * — the Settings `Theme` mode combined with the device night mode, not
+     * the raw night mask) and (API 31+) the dynamic system palette — the same
      * neutral-on-accent pairing Pixel's themed icons use. Below API 31 the
      * dynamic palette does not exist, so fixed gray tones approximate the look.
-     * Evaluated per load (not cached) so a dark-mode or wallpaper change is
-     * picked up by the next rasterize pass.
+     * Evaluated per load (not cached) so a theme or wallpaper change is
+     * picked up by the next rasterize pass. Internal so tests can assert the
+     * palette follows the mirror rather than the night mask.
      */
-    private fun themedIconColors(context: Context): IconNormalizer.ThemedIconColors {
-        val isDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_YES
+    internal fun themedIconColors(context: Context): IconNormalizer.ThemedIconColors {
+        val isDark = themedIconsUseDarkPalette
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (isDark) {
                 IconNormalizer.ThemedIconColors(
