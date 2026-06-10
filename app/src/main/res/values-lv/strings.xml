@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Nesen lietotās lietotnes</string>
     <string name="dock_recents_scroll_more_hint">Ritiniet, lai redzētu vairāk nesen lietotu lietotņu</string>
     <string name="apps_list_scroll_more_hint">Ritiniet, lai redzētu vairāk lietotņu</string>
-    <string name="notification_listener_service_label">Type Launcher paziņojumi</string>
-    <string name="notification_bar_description">Lietotnes ar paziņojumiem</string>
-    <string name="notification_bar_empty_hint">Nav jaunu paziņojumu</string>
-    <string name="notification_bar_permission_hint">Atļaujiet piekļuvi paziņojumiem, lai redzētu lietotnes ar paziņojumiem.</string>
-    <string name="notification_bar_permission_button">Atļaut piekļuvi paziņojumiem</string>
-    <string name="notification_bar_badge_description">Ir nelasīti paziņojumi</string>
     <string name="agenda_title">Darba kārtība</string>
     <string name="agenda_events_list_label">Kalendāra darba kārtības notikumi</string>
     <string name="agenda_permission_message">Atļaujiet piekļuvi kalendāram, lai parādītu jūsu darba kārtību.</string>

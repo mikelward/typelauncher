@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Недавні застосунки</string>
     <string name="dock_recents_scroll_more_hint">Прокрутіть, щоб побачити більше недавніх застосунків</string>
     <string name="apps_list_scroll_more_hint">Прокрутіть, щоб побачити більше застосунків</string>
-    <string name="notification_listener_service_label">Сповіщення Type Launcher</string>
-    <string name="notification_bar_description">Застосунки зі сповіщеннями</string>
-    <string name="notification_bar_empty_hint">Немає нових сповіщень</string>
-    <string name="notification_bar_permission_hint">Дозвольте доступ до сповіщень, щоб бачити застосунки зі сповіщеннями.</string>
-    <string name="notification_bar_permission_button">Дозволити доступ до сповіщень</string>
-    <string name="notification_bar_badge_description">Має непрочитане сповіщення</string>
     <string name="agenda_title">Розклад</string>
     <string name="agenda_events_list_label">Події розкладу календаря</string>
     <string name="agenda_permission_message">Дозвольте доступ до календаря, щоб показати розклад.</string>

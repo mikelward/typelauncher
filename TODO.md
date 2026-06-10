@@ -2,7 +2,7 @@
 
 - Extend the widget picker filter to also match individual widget labels (and possibly description) within an app group, not just the app group names. Today (`WidgetsScreen.kt`'s `WidgetPickerCard`) only filters by `WidgetProvider.appName`.
 - Decide whether empty-query Enter/Search should continue opening Type Launcher settings or do something else.
-- Revisit cached Home keyboard geometry after adding a permanent bottom reservation for recents / notification bars. Today `keyboard_reservation_bottom_px` keeps Home in typing-height geometry even after the user dismisses the IME with Back; that is intentional for the current hot path, but it should become redundant once the app list and dock reserve stable bottom space independent of keyboard visibility.
+- Revisit cached Home keyboard geometry after adding a permanent bottom reservation for the recents bar. Today `keyboard_reservation_bottom_px` keeps Home in typing-height geometry even after the user dismisses the IME with Back; that is intentional for the current hot path, but it should become redundant once the app list and dock reserve stable bottom space independent of keyboard visibility.
 - Decide the secondary-tray behavior when `Show keyboard automatically` is disabled. The current tray is coupled to cached keyboard geometry from the type-first path; keyboard-opt-out users may need a stable bottom reservation that is not derived from IME auto-show.
 - Design keyboard access for launching docked apps.
 - Consider work-profile surfacing that is only visible when a managed work profile is provisioned and currently active (i.e. not paused / quiet-mode). Two shapes worth weighing:
@@ -33,7 +33,7 @@
 
 ## Layout, caching, rendering, and recomposition follow-ups
 
-- Split `LauncherUiState` consumption into smaller screen/subtree projections so typing, notification, widget, and settings updates do not invalidate broad composition scopes. Candidate slices: theme, home/search/results, keyboard tray, carousel, widgets, and settings.
+- Split `LauncherUiState` consumption into smaller screen/subtree projections so typing, widget, and settings updates do not invalidate broad composition scopes. Candidate slices: theme, home/search/results, keyboard tray, carousel, widgets, and settings.
 - Move query filtering and ranking off the main thread, or pre-index enough app search metadata to keep per-keystroke work cheap. Keep query text updates immediate, make result computation cancellable with `mapLatest`, and publish only the latest filtered list.
 - Revisit offscreen carousel composition so non-current widget and agenda pages stay lightweight. Prefer composing the current page plus the active drag/animation target, and avoid creating hosted widget `AndroidView`s for pages that are only preloaded for swipe readiness.
 - Move widget picker preview and app-icon bitmap generation out of composition. Add async loaders/caches keyed by provider and requested preview/icon size, render placeholders first, and rasterize drawables away from the UI thread.

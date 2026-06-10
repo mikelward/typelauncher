@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Nedavne aplikacije</string>
     <string name="dock_recents_scroll_more_hint">Pomaknite za više nedavnih aplikacija</string>
     <string name="apps_list_scroll_more_hint">Pomaknite za više aplikacija</string>
-    <string name="notification_listener_service_label">Obavijesti aplikacije Type Launcher</string>
-    <string name="notification_bar_description">Aplikacije s obavijestima</string>
-    <string name="notification_bar_empty_hint">Nema novih obavijesti</string>
-    <string name="notification_bar_permission_hint">Dopustite pristup obavijestima da biste vidjeli aplikacije s obavijestima.</string>
-    <string name="notification_bar_permission_button">Dopusti pristup obavijestima</string>
-    <string name="notification_bar_badge_description">Ima nepročitane obavijesti</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Događaji u agendi kalendara</string>
     <string name="agenda_permission_message">Dopustite pristup kalendaru za prikaz agende.</string>

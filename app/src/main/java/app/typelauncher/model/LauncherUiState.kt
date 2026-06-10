@@ -205,16 +205,6 @@ internal fun dockedAppIdsInGridRankOrder(
     }
 }
 
-internal enum class NotificationPullDownBehavior {
-    None,
-    System,
-    BarBelow,
-    BarAbove,
-}
-
-internal val NotificationPullDownBehavior.showsLauncherNotificationBar: Boolean
-    get() = this == NotificationPullDownBehavior.BarBelow || this == NotificationPullDownBehavior.BarAbove
-
 internal enum class ThemeMode {
     System,
     Light,
@@ -328,8 +318,8 @@ internal fun resolveKeyboardReservation(
 
 /**
  * True when the soft keyboard is on screen *or* animating into view, so the
- * secondary bars (recents / notifications) that live in the reserved keyboard
- * tray must not render.
+ * secondary bars (recents) that live in the reserved keyboard tray must not
+ * render.
  *
  * `WindowInsets.isImeVisible` on its own is not enough to gate the tray:
  * while the keyboard is growing, its visibility flag can momentarily still
@@ -380,29 +370,10 @@ internal data class LauncherUiState(
     // can't read the system task switcher, so this is a best-effort substitute.
     val recentApps: List<InstalledApp> = emptyList(),
     // True once the user has pulled up on the home screen to reveal the recents
-    // bar at the bottom (where the dock was; everything else shifts up). Mutually
-    // exclusive with [isNotificationBarOpen] — only one bottom bar shows at a
-    // time. A pull-down closes it; a second pull-up re-shows the search keyboard.
+    // bar at the bottom (where the dock was; everything else shifts up).
+    // A pull-down closes it; a second pull-up re-shows the search keyboard.
     // Reset on app launch / screen change / settings open / resume to Home.
     val isRecentsOpen: Boolean = false,
-    // Apps with at least one active user-visible notification, sourced from the
-    // bound NotificationListenerService. Empty unless the user has granted
-    // notification access in Android settings. Rendered in the notification bar,
-    // when [isNotificationBarOpen] is true.
-    val notifyingApps: List<InstalledApp> = emptyList(),
-    // True once the user has pulled down on the home screen to reveal the
-    // notification bar at the bottom (where the dock was; everything else shifts
-    // up). Mutually exclusive with [isRecentsOpen]. A pull-up closes it; a second
-    // pull-down expands the system shade. Reset on app launch / screen change /
-    // settings open / resume to Home.
-    val isNotificationBarOpen: Boolean = false,
-    // Whether the user has granted Type Launcher notification listener access.
-    // Refreshed in `refreshPermissionDrivenUi` so flipping the toggle in
-    // Android settings is picked up on the next resume.
-    val hasNotificationAccess: Boolean = false,
-    // Legacy persisted pull-down action. The setting UI has been removed and
-    // runtime Home gestures always use the launcher notification bar first.
-    val notificationPullDownBehavior: NotificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
     val widgetHeights: Map<Int, Int> = emptyMap(),

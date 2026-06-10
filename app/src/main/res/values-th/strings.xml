@@ -22,12 +22,6 @@
     <string name="dock_recents_description">แอปล่าสุด</string>
     <string name="dock_recents_scroll_more_hint">เลื่อนเพื่อดูแอปล่าสุดเพิ่มเติม</string>
     <string name="apps_list_scroll_more_hint">เลื่อนเพื่อดูแอปเพิ่มเติม</string>
-    <string name="notification_listener_service_label">การแจ้งเตือน Type Launcher</string>
-    <string name="notification_bar_description">แอปที่มีการแจ้งเตือน</string>
-    <string name="notification_bar_empty_hint">ไม่มีการแจ้งเตือนใหม่</string>
-    <string name="notification_bar_permission_hint">อนุญาตการเข้าถึงการแจ้งเตือนเพื่อดูแอปที่มีการแจ้งเตือน</string>
-    <string name="notification_bar_permission_button">อนุญาตการเข้าถึงการแจ้งเตือน</string>
-    <string name="notification_bar_badge_description">มีการแจ้งเตือนที่ยังไม่อ่าน</string>
     <string name="agenda_title">กำหนดการ</string>
     <string name="agenda_events_list_label">กิจกรรมในกำหนดการปฏิทิน</string>
     <string name="agenda_permission_message">อนุญาตการเข้าถึงปฏิทินเพื่อแสดงกำหนดการของคุณ</string>

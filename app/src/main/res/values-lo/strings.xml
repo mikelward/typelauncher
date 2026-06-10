@@ -22,12 +22,6 @@
     <string name="dock_recents_description">ແອັບຫຼ້າສຸດ</string>
     <string name="dock_recents_scroll_more_hint">ເລື່ອນເພື່ອເບິ່ງແອັບຫຼ້າສຸດເພີ່ມເຕີມ</string>
     <string name="apps_list_scroll_more_hint">ເລື່ອນເພື່ອເບິ່ງແອັບເພີ່ມເຕີມ</string>
-    <string name="notification_listener_service_label">ການແຈ້ງເຕືອນ Type Launcher</string>
-    <string name="notification_bar_description">ແອັບທີ່ມີການແຈ້ງເຕືອນ</string>
-    <string name="notification_bar_empty_hint">ບໍ່ມີການແຈ້ງເຕືອນໃໝ່</string>
-    <string name="notification_bar_permission_hint">ອະນຸຍາດການເຂົ້າເຖິງການແຈ້ງເຕືອນເພື່ອເບິ່ງແອັບທີ່ມີການແຈ້ງເຕືອນ.</string>
-    <string name="notification_bar_permission_button">ອະນຸຍາດການເຂົ້າເຖິງການແຈ້ງເຕືອນ</string>
-    <string name="notification_bar_badge_description">ມີການແຈ້ງເຕືອນທີ່ຍັງບໍ່ໄດ້ອ່ານ</string>
     <string name="agenda_title">ກຳນົດການ</string>
     <string name="agenda_events_list_label">ເຫດການກຳນົດການປະຕິທິນ</string>
     <string name="agenda_permission_message">ອະນຸຍາດການເຂົ້າເຖິງປະຕິທິນເພື່ອສະແດງກຳນົດການຂອງທ່ານ.</string>

@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Nedávné aplikace</string>
     <string name="dock_recents_scroll_more_hint">Posunutím zobrazíte další nedávné aplikace</string>
     <string name="apps_list_scroll_more_hint">Posunutím zobrazíte další aplikace</string>
-    <string name="notification_listener_service_label">Oznámení Type Launcher</string>
-    <string name="notification_bar_description">Aplikace s oznámeními</string>
-    <string name="notification_bar_empty_hint">Žádná nová oznámení</string>
-    <string name="notification_bar_permission_hint">Povolte přístup k oznámením, abyste viděli aplikace s oznámeními.</string>
-    <string name="notification_bar_permission_button">Povolit přístup k oznámením</string>
-    <string name="notification_bar_badge_description">Má nepřečtené oznámení</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Události v agendě kalendáře</string>
     <string name="agenda_permission_message">Povolte přístup ke kalendáři pro zobrazení agendy.</string>

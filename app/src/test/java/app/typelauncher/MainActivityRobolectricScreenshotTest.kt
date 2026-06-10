@@ -2031,17 +2031,13 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsPreview_alwaysShowsNotificationSecondaryBar() {
+    fun settingsPreview_hasNoNotificationBarOrPullDownSetting() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Pull down").assertDoesNotExist()
         composeRule.onNodeWithText("Bar below").assertDoesNotExist()
         composeRule.onNodeWithText("System shade").assertDoesNotExist()
-        // Settings preview wraps its cards in clearAndSetSemantics {} —
-        // descendants live only in the unmerged tree.
-        composeRule.onNodeWithTag(NOTIFICATION_BAR_CARD_TAG, useUnmergedTree = true)
-            .performScrollTo().assertExists()
         saveScreenshot("compose_settings_secondary_bars_preview_robolectric.png")
     }
 
@@ -2465,8 +2461,8 @@ class MainActivityRobolectricScreenshotTest {
 
         // Dropped from the dock derivation even though the dock store still
         // pins it; the same `visibleInstalledApps()` filter feeds search
-        // results, recents, and the notification bar so they all hide it
-        // too without per-surface plumbing.
+        // results and recents so they all hide it too without per-surface
+        // plumbing.
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertDoesNotExist()
         assertTrue(
             "Paused work app should be filtered out of dockedApps",

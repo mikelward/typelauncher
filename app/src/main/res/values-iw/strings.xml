@@ -22,12 +22,6 @@
     <string name="dock_recents_description">אפליקציות אחרונות</string>
     <string name="dock_recents_scroll_more_hint">גללו לעוד אפליקציות אחרונות</string>
     <string name="apps_list_scroll_more_hint">גללו לעוד אפליקציות</string>
-    <string name="notification_listener_service_label">התראות Type Launcher</string>
-    <string name="notification_bar_description">אפליקציות עם התראות</string>
-    <string name="notification_bar_empty_hint">אין התראות חדשות</string>
-    <string name="notification_bar_permission_hint">אפשרו גישה להתראות כדי לראות אפליקציות עם התראות.</string>
-    <string name="notification_bar_permission_button">לאפשר גישה להתראות</string>
-    <string name="notification_bar_badge_description">יש התראה שלא נקראה</string>
     <string name="agenda_title">סדר יום</string>
     <string name="agenda_events_list_label">אירועי סדר היום מהיומן</string>
     <string name="agenda_permission_message">אפשרו גישה ליומן כדי להציג את סדר היום.</string>

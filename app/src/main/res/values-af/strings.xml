@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Onlangse programme</string>
     <string name="dock_recents_scroll_more_hint">Rol vir meer onlangse programme</string>
     <string name="apps_list_scroll_more_hint">Rol vir meer programme</string>
-    <string name="notification_listener_service_label">Type Launcher-kennisgewings</string>
-    <string name="notification_bar_description">Programme met kennisgewings</string>
-    <string name="notification_bar_empty_hint">Geen nuwe kennisgewings nie</string>
-    <string name="notification_bar_permission_hint">Laat kennisgewingtoegang toe om programme met kennisgewings te sien.</string>
-    <string name="notification_bar_permission_button">Laat kennisgewingtoegang toe</string>
-    <string name="notification_bar_badge_description">Het ongelese kennisgewing</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Kalender-agenda-gebeurtenisse</string>
     <string name="agenda_permission_message">Laat kalendertoegang toe om jou agenda te wys.</string>

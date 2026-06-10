@@ -22,12 +22,6 @@
     <string name="dock_recents_description">حالیہ ایپس</string>
     <string name="dock_recents_scroll_more_hint">مزید حالیہ ایپس کے لیے سکرول کریں</string>
     <string name="apps_list_scroll_more_hint">مزید ایپس کے لیے سکرول کریں</string>
-    <string name="notification_listener_service_label">Type Launcher کی اطلاعات</string>
-    <string name="notification_bar_description">اطلاعات والی ایپس</string>
-    <string name="notification_bar_empty_hint">کوئی نئی اطلاعات نہیں</string>
-    <string name="notification_bar_permission_hint">اطلاعات والی ایپس دیکھنے کے لیے اطلاعات تک رسائی کی اجازت دیں۔</string>
-    <string name="notification_bar_permission_button">اطلاعات تک رسائی کی اجازت دیں</string>
-    <string name="notification_bar_badge_description">غیر پڑھی ہوئی اطلاع موجود ہے</string>
     <string name="agenda_title">شیڈول</string>
     <string name="agenda_events_list_label">کیلنڈر شیڈول کے واقعات</string>
     <string name="agenda_permission_message">اپنا شیڈول دکھانے کے لیے کیلنڈر تک رسائی کی اجازت دیں۔</string>

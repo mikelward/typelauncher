@@ -24,9 +24,8 @@ import org.robolectric.annotation.Config
  * carousel's `pointerInput` reads raw deltas via
  * `positionChangeIgnoreConsumed` and cannot see View-level consumption. The
  * symptoms were two-fold: a vertical drag inside the widget expanded the
- * system notification shade on the Widgets / Agenda screens (or opened the
- * launcher's pull-down notification bar on Home), and a horizontal drag
- * inside a horizontally-scrolling widget paged the carousel.
+ * system notification shade, and a horizontal drag inside a
+ * horizontally-scrolling widget paged the carousel.
  *
  * The fix follows the dock's `isDockDraggingState` template: the launcher's
  * `LauncherAppWidgetHostView` forwards `requestDisallowInterceptTouchEvent`

@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Legutóbbi alkalmazások</string>
     <string name="dock_recents_scroll_more_hint">Görgessen több legutóbbi alkalmazásért</string>
     <string name="apps_list_scroll_more_hint">Görgessen több alkalmazásért</string>
-    <string name="notification_listener_service_label">Type Launcher értesítések</string>
-    <string name="notification_bar_description">Alkalmazások értesítésekkel</string>
-    <string name="notification_bar_empty_hint">Nincsenek új értesítések</string>
-    <string name="notification_bar_permission_hint">Engedélyezze az értesítésekhez való hozzáférést az értesítésekkel rendelkező alkalmazások megtekintéséhez.</string>
-    <string name="notification_bar_permission_button">Értesítések engedélyezése</string>
-    <string name="notification_bar_badge_description">Olvasatlan értesítés van</string>
     <string name="agenda_title">Napirend</string>
     <string name="agenda_events_list_label">Naptári események napirendje</string>
     <string name="agenda_permission_message">Engedélyezze a naptár hozzáférését a napirend megjelenítéséhez.</string>

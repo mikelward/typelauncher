@@ -22,12 +22,6 @@
     <string name="dock_recents_description">မကြာသေးမီက အက်ပ်များ</string>
     <string name="dock_recents_scroll_more_hint">မကြာသေးမီက အက်ပ်များ ထပ်ကြည့်ရန် ဆွဲပါ</string>
     <string name="apps_list_scroll_more_hint">အက်ပ်များ ထပ်ကြည့်ရန် ဆွဲပါ</string>
-    <string name="notification_listener_service_label">Type Launcher အကြောင်းကြားချက်များ</string>
-    <string name="notification_bar_description">အကြောင်းကြားချက်ပါသော အက်ပ်များ</string>
-    <string name="notification_bar_empty_hint">အကြောင်းကြားချက်အသစ်မရှိပါ</string>
-    <string name="notification_bar_permission_hint">အကြောင်းကြားချက်ပါသော အက်ပ်များကို ကြည့်ရန် အကြောင်းကြားချက်အသုံးပြုခွင့်ပေးပါ။</string>
-    <string name="notification_bar_permission_button">အကြောင်းကြားချက်အသုံးပြုခွင့်ပေးမည်</string>
-    <string name="notification_bar_badge_description">မဖတ်ရသေးသော အကြောင်းကြားချက်ရှိသည်</string>
     <string name="agenda_title">အစီအစဉ်</string>
     <string name="agenda_events_list_label">ပြက္ခဒိန်အစီအစဉ်ပွဲများ</string>
     <string name="agenda_permission_message">သင်၏ အစီအစဉ်ကို ပြသရန် ပြက္ခဒိန်အသုံးပြုခွင့်ပေးပါ။</string>

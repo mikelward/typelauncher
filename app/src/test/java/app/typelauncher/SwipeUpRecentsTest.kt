@@ -265,67 +265,8 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun swipingUpOnHomeWithNotificationBarOpen_closesNotificationBar() {
-        var notificationBarOpened: Boolean? = null
-        var recentsTarget: Boolean? = null
-        var requestShowKeyboardCount = 0
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        isNotificationBarOpen = true,
-                        keyboardReservation = KeyboardReservation(bottomPx = 900),
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    onSetRecentsOpen = { recentsTarget = it },
-                    onRequestShowKeyboard = { requestShowKeyboardCount += 1 },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = {},
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
-        composeRule.waitForIdle()
-
-        // Opposite-direction gesture hides the open bar — pull-up closes the
-        // notification bar rather than re-showing the keyboard or opening recents.
-        assertEquals(false, notificationBarOpened)
-        assertNull(recentsTarget)
-        assertEquals(0, requestShowKeyboardCount)
-    }
-
-    @Test
     fun pullingUpOnBottomBarRequestsShowKeyboard() {
-        // The bottom bar (recents/notifications) is rendered inside the
+        // The bottom bar (recents) is rendered inside the
         // carousel's pointerInput surface, so the existing vertical pull-up
         // detector should pick up gestures that start on the bar. Without
         // this hookup, a pull-up that starts on the recents row never reaches
@@ -382,9 +323,9 @@ class SwipeUpRecentsTest {
     }
 
     @Test
-    fun pullingDownOnAppListDoesNotHideKeyboardOrOpenNotificationBar() {
+    fun pullingDownOnAppListDoesNotHideKeyboardOrOpenShade() {
         val keyboard = CountingKeyboardController()
-        var notificationBarOpened: Boolean? = null
+        var swipeDownCount = 0
         val apps = (1..20).map { i -> fakeApp(name = "App%02d".format(i)) }
         composeRule.setContent {
             CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
@@ -392,7 +333,6 @@ class SwipeUpRecentsTest {
                     TypeLauncherApp(
                         state = LauncherUiState(
                             filteredApps = apps,
-                            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
                             isKeyboardAutoShown = false,
                         ),
                         onQueryChanged = {},
@@ -415,7 +355,6 @@ class SwipeUpRecentsTest {
                         onShowAgenda = {},
                         onShowWidgets = {},
                         onShowHome = {},
-                        onSetNotificationBarOpen = { notificationBarOpened = it },
                         appWidgetHost = null,
                         appWidgetManager = null,
                         onAddWidget = {},
@@ -424,6 +363,7 @@ class SwipeUpRecentsTest {
                         onRemoveWidget = {},
                         onRequestCalendarPermission = {},
                         onOpenAgendaEvent = {},
+                        onSwipeDown = { swipeDownCount += 1 },
                     )
                 }
             }
@@ -433,7 +373,7 @@ class SwipeUpRecentsTest {
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
-        assertNull("app-list scroll gestures must not open the notification bar", notificationBarOpened)
+        assertEquals("app-list scroll gestures must not open the system shade", 0, swipeDownCount)
         assertEquals("app-list scroll gestures must not hide the keyboard", 0, keyboard.hideCount)
     }
 

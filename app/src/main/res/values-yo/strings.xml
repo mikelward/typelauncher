@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Áàpù àìpẹ́</string>
     <string name="dock_recents_scroll_more_hint">Yí láti rí áàpù àìpẹ́ síi</string>
     <string name="apps_list_scroll_more_hint">Yí láti rí áàpù síi</string>
-    <string name="notification_listener_service_label">Ìfìlọ̀ Type Launcher</string>
-    <string name="notification_bar_description">Áàpù tí ó ní ìfìlọ̀</string>
-    <string name="notification_bar_empty_hint">Kò sí ìfìlọ̀ tuntun</string>
-    <string name="notification_bar_permission_hint">Gba ìwọlé sí ìfìlọ̀ láti rí áàpù tí ó ní ìfìlọ̀.</string>
-    <string name="notification_bar_permission_button">Gba ìwọlé sí ìfìlọ̀</string>
-    <string name="notification_bar_badge_description">Ó ní ìfìlọ̀ tí a kò tíì kà</string>
     <string name="agenda_title">Ètò ọjọ́</string>
     <string name="agenda_events_list_label">Ìṣẹ̀lẹ̀ ètò ọjọ́ kàlẹ́ńdà</string>
     <string name="agenda_permission_message">Gba ìwọlé sí kàlẹ́ńdà láti fihàn ètò ọjọ́ rẹ.</string>

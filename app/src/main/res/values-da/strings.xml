@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Nylige apps</string>
     <string name="dock_recents_scroll_more_hint">Rul for at se flere nylige apps</string>
     <string name="apps_list_scroll_more_hint">Rul for at se flere apps</string>
-    <string name="notification_listener_service_label">Type Launcher-notifikationer</string>
-    <string name="notification_bar_description">Apps med notifikationer</string>
-    <string name="notification_bar_empty_hint">Ingen nye notifikationer</string>
-    <string name="notification_bar_permission_hint">Tillad notifikationsadgang for at se apps med notifikationer.</string>
-    <string name="notification_bar_permission_button">Tillad notifikationsadgang</string>
-    <string name="notification_bar_badge_description">Har ulæst notifikation</string>
     <string name="agenda_title">Dagsorden</string>
     <string name="agenda_events_list_label">Kalenderdagsordensbegivenheder</string>
     <string name="agenda_permission_message">Tillad kalenderadgang for at vise din dagsorden.</string>

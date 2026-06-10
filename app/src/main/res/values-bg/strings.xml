@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Скорошни приложения</string>
     <string name="dock_recents_scroll_more_hint">Превъртете за още скорошни приложения</string>
     <string name="apps_list_scroll_more_hint">Превъртете за още приложения</string>
-    <string name="notification_listener_service_label">Известия на Type Launcher</string>
-    <string name="notification_bar_description">Приложения с известия</string>
-    <string name="notification_bar_empty_hint">Няма нови известия</string>
-    <string name="notification_bar_permission_hint">Разрешете достъп до известията, за да виждате приложенията с известия.</string>
-    <string name="notification_bar_permission_button">Разреши достъп до известията</string>
-    <string name="notification_bar_badge_description">Има непрочетени известия</string>
     <string name="agenda_title">Дневен ред</string>
     <string name="agenda_events_list_label">Събития от календарния дневен ред</string>
     <string name="agenda_permission_message">Разрешете достъп до календара, за да се покаже дневният ред.</string>

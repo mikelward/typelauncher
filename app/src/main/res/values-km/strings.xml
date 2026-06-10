@@ -22,12 +22,6 @@
     <string name="dock_recents_description">កម្មវិធីថ្មីៗ</string>
     <string name="dock_recents_scroll_more_hint">រំកិលដើម្បីមើលកម្មវិធីថ្មីៗបន្ថែម</string>
     <string name="apps_list_scroll_more_hint">រំកិលដើម្បីមើលកម្មវិធីបន្ថែម</string>
-    <string name="notification_listener_service_label">ការជូនដំណឹង Type Launcher</string>
-    <string name="notification_bar_description">កម្មវិធីដែលមានការជូនដំណឹង</string>
-    <string name="notification_bar_empty_hint">មិនមានការជូនដំណឹងថ្មី</string>
-    <string name="notification_bar_permission_hint">អនុញ្ញាតការចូលប្រើការជូនដំណឹង ដើម្បីមើលកម្មវិធីដែលមានការជូនដំណឹង។</string>
-    <string name="notification_bar_permission_button">អនុញ្ញាតការចូលប្រើការជូនដំណឹង</string>
-    <string name="notification_bar_badge_description">មានការជូនដំណឹងមិនទាន់អាន</string>
     <string name="agenda_title">កាលវិភាគ</string>
     <string name="agenda_events_list_label">ព្រឹត្តិការណ៍កាលវិភាគប្រតិទិន</string>
     <string name="agenda_permission_message">អនុញ្ញាតការចូលប្រើប្រតិទិន ដើម្បីបង្ហាញកាលវិភាគរបស់អ្នក។</string>

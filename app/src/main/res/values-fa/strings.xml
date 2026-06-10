@@ -22,12 +22,6 @@
     <string name="dock_recents_description">برنامه‌های اخیر</string>
     <string name="dock_recents_scroll_more_hint">برای دیدن برنامه‌های اخیر بیشتر اسکرول کنید</string>
     <string name="apps_list_scroll_more_hint">برای دیدن برنامه‌های بیشتر اسکرول کنید</string>
-    <string name="notification_listener_service_label">اعلان‌های Type Launcher</string>
-    <string name="notification_bar_description">برنامه‌هایی با اعلان</string>
-    <string name="notification_bar_empty_hint">اعلان جدیدی نیست</string>
-    <string name="notification_bar_permission_hint">برای دیدن برنامه‌های دارای اعلان، دسترسی به اعلان‌ها را اجازه دهید.</string>
-    <string name="notification_bar_permission_button">اجازه دسترسی به اعلان‌ها</string>
-    <string name="notification_bar_badge_description">دارای اعلان خوانده‌نشده</string>
     <string name="agenda_title">برنامه روزانه</string>
     <string name="agenda_events_list_label">رویدادهای برنامه روزانه تقویم</string>
     <string name="agenda_permission_message">برای نمایش برنامه روزانه، دسترسی به تقویم را اجازه دهید.</string>

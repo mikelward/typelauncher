@@ -250,22 +250,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Home pull-down behavior. Defaults to [NotificationPullDownBehavior.BarBelow]
-     * for users without an explicit selection, including installs that only have
-     * the legacy `notifications_enabled` boolean. The old persisted `Launcher`
-     * enum name maps to BarBelow.
-     */
-    var notificationPullDownBehavior: NotificationPullDownBehavior
-        get() = sharedPreferences.getString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, null)
-            ?.let(::parseNotificationPullDownBehavior)
-            ?: NotificationPullDownBehavior.BarBelow
-        set(value) {
-            sharedPreferences.edit()
-                .putString(KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR, value.name)
-                .apply()
-        }
-
-    /**
      * Controls whether the soft keyboard is auto-shown when Home is brought to
      * the foreground. When `true` (default) the search field is focused and
      * `keyboard.show()` runs on cold start, matching the original always-typing
@@ -394,8 +378,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
-        const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
-        const val KEY_NOTIFICATION_PULL_DOWN_BEHAVIOR = "notification_pull_down_behavior"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"
@@ -409,12 +391,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"
     }
 }
-
-private fun parseNotificationPullDownBehavior(name: String): NotificationPullDownBehavior? =
-    when (name) {
-        "Launcher" -> NotificationPullDownBehavior.BarBelow
-        else -> runCatching { NotificationPullDownBehavior.valueOf(name) }.getOrNull()
-    }
 
 private fun android.content.SharedPreferences.deriveDockIconCountFromLegacySize(): Int {
     val legacySize = getInt(LEGACY_KEY_DOCK_ICON_SIZE_DP, DEFAULT_DOCK_APP_ICON_SIZE_DP)

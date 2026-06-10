@@ -22,12 +22,6 @@
     <string name="dock_recents_description">हालैका एपहरू</string>
     <string name="dock_recents_scroll_more_hint">थप हालैका एपहरू हेर्न स्क्रोल गर्नुहोस्</string>
     <string name="apps_list_scroll_more_hint">थप एपहरू हेर्न स्क्रोल गर्नुहोस्</string>
-    <string name="notification_listener_service_label">Type Launcher सूचनाहरू</string>
-    <string name="notification_bar_description">सूचनासहितका एपहरू</string>
-    <string name="notification_bar_empty_hint">कुनै नयाँ सूचना छैन</string>
-    <string name="notification_bar_permission_hint">सूचनासहितका एप हेर्न सूचना पहुँचको अनुमति दिनुहोस्।</string>
-    <string name="notification_bar_permission_button">सूचना पहुँचको अनुमति दिनुहोस्</string>
-    <string name="notification_bar_badge_description">नपढिएको सूचना छ</string>
     <string name="agenda_title">कार्यसूची</string>
     <string name="agenda_events_list_label">क्यालेन्डर कार्यसूची घटनाहरू</string>
     <string name="agenda_permission_message">तपाईंको कार्यसूची देखाउन क्यालेन्डर पहुँचको अनुमति दिनुहोस्।</string>

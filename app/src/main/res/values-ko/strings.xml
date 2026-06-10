@@ -22,12 +22,6 @@
     <string name="dock_recents_description">최근 앱</string>
     <string name="dock_recents_scroll_more_hint">스크롤하여 최근 앱 더 보기</string>
     <string name="apps_list_scroll_more_hint">스크롤하여 앱 더 보기</string>
-    <string name="notification_listener_service_label">Type Launcher 알림</string>
-    <string name="notification_bar_description">알림이 있는 앱</string>
-    <string name="notification_bar_empty_hint">새 알림이 없습니다</string>
-    <string name="notification_bar_permission_hint">알림이 있는 앱을 보려면 알림 액세스를 허용하세요.</string>
-    <string name="notification_bar_permission_button">알림 액세스 허용</string>
-    <string name="notification_bar_badge_description">읽지 않은 알림 있음</string>
     <string name="agenda_title">일정</string>
     <string name="agenda_events_list_label">캘린더 일정 이벤트</string>
     <string name="agenda_permission_message">일정을 표시하려면 캘린더 액세스를 허용하세요.</string>

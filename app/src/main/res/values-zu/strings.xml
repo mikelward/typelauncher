@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Izinhlelo zokusebenza zakamuva</string>
     <string name="dock_recents_scroll_more_hint">Skrolela ukuze ubone izinhlelo zokusebenza zakamuva ezengeziwe</string>
     <string name="apps_list_scroll_more_hint">Skrolela ukuze ubone izinhlelo zokusebenza ezengeziwe</string>
-    <string name="notification_listener_service_label">Izaziso ze-Type Launcher</string>
-    <string name="notification_bar_description">Izinhlelo zokusebenza ezinezaziso</string>
-    <string name="notification_bar_empty_hint">Azikho izaziso ezintsha</string>
-    <string name="notification_bar_permission_hint">Vumela ukufinyelela kwezaziso ukuze ubone izinhlelo zokusebenza ezinezaziso.</string>
-    <string name="notification_bar_permission_button">Vumela ukufinyelela kwezaziso</string>
-    <string name="notification_bar_badge_description">Inesaziso esingafundwanga</string>
     <string name="agenda_title">I-ajenda</string>
     <string name="agenda_events_list_label">Imicimbi ye-ajenda yekhalenda</string>
     <string name="agenda_permission_message">Vumela ukufinyelela kwekhalenda ukuze kuboniswe i-ajenda yakho.</string>

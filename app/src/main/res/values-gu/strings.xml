@@ -22,12 +22,6 @@
     <string name="dock_recents_description">તાજેતરની એપ્સ</string>
     <string name="dock_recents_scroll_more_hint">વધુ તાજેતરની એપ્સ માટે સ્ક્રોલ કરો</string>
     <string name="apps_list_scroll_more_hint">વધુ એપ્સ માટે સ્ક્રોલ કરો</string>
-    <string name="notification_listener_service_label">Type Launcher સૂચનાઓ</string>
-    <string name="notification_bar_description">સૂચનાઓ વાળી એપ્સ</string>
-    <string name="notification_bar_empty_hint">કોઈ નવી સૂચના નથી</string>
-    <string name="notification_bar_permission_hint">સૂચનાઓ વાળી એપ્સ જોવા માટે સૂચના ઍક્સેસને મંજૂરી આપો.</string>
-    <string name="notification_bar_permission_button">સૂચના ઍક્સેસ મંજૂર કરો</string>
-    <string name="notification_bar_badge_description">વાંચ્યા વગરની સૂચના છે</string>
     <string name="agenda_title">એજન્ડા</string>
     <string name="agenda_events_list_label">કૅલેન્ડર એજન્ડા ઇવેન્ટ્સ</string>
     <string name="agenda_permission_message">તમારો એજન્ડા બતાવવા માટે કૅલેન્ડર ઍક્સેસને મંજૂરી આપો.</string>

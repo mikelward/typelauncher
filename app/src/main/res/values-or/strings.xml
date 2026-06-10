@@ -22,12 +22,6 @@
     <string name="dock_recents_description">ସାମ୍ପ୍ରତିକ ଆପ୍‌ଗୁଡ଼ିକ</string>
     <string name="dock_recents_scroll_more_hint">ଅଧିକ ସାମ୍ପ୍ରତିକ ଆପ୍ ଦେଖିବାକୁ ସ୍କ୍ରୋଲ୍ କରନ୍ତୁ</string>
     <string name="apps_list_scroll_more_hint">ଅଧିକ ଆପ୍ ଦେଖିବାକୁ ସ୍କ୍ରୋଲ୍ କରନ୍ତୁ</string>
-    <string name="notification_listener_service_label">Type Launcher ବିଜ୍ଞପ୍ତିଗୁଡ଼ିକ</string>
-    <string name="notification_bar_description">ବିଜ୍ଞପ୍ତିଯୁକ୍ତ ଆପ୍‌ଗୁଡ଼ିକ</string>
-    <string name="notification_bar_empty_hint">କୌଣସି ନୂଆ ବିଜ୍ଞପ୍ତି ନାହିଁ</string>
-    <string name="notification_bar_permission_hint">ବିଜ୍ଞପ୍ତିଯୁକ୍ତ ଆପ୍ ଦେଖିବାକୁ ବିଜ୍ଞପ୍ତି ଆକ୍ସେସ୍ ଅନୁମତି ଦିଅନ୍ତୁ।</string>
-    <string name="notification_bar_permission_button">ବିଜ୍ଞପ୍ତି ଆକ୍ସେସ୍ ଅନୁମତି ଦିଅନ୍ତୁ</string>
-    <string name="notification_bar_badge_description">ଅପଠିତ ବିଜ୍ଞପ୍ତି ଅଛି</string>
     <string name="agenda_title">ଏଜେଣ୍ଡା</string>
     <string name="agenda_events_list_label">କ୍ୟାଲେଣ୍ଡର ଏଜେଣ୍ଡା ଇଭେଣ୍ଟ</string>
     <string name="agenda_permission_message">ଆପଣଙ୍କ ଏଜେଣ୍ଡା ଦେଖାଇବାକୁ କ୍ୟାଲେଣ୍ଡର ଆକ୍ସେସ୍ ଅନୁମତି ଦିଅନ୍ତୁ।</string>

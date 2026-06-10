@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Azken aplikazioak</string>
     <string name="dock_recents_scroll_more_hint">Mugitu azken aplikazio gehiago ikusteko</string>
     <string name="apps_list_scroll_more_hint">Mugitu aplikazio gehiago ikusteko</string>
-    <string name="notification_listener_service_label">Type Launcher jakinarazpenak</string>
-    <string name="notification_bar_description">Jakinarazpendun aplikazioak</string>
-    <string name="notification_bar_empty_hint">Ez dago jakinarazpen berririk</string>
-    <string name="notification_bar_permission_hint">Baimendu jakinarazpenetarako sarbidea jakinarazpendun aplikazioak ikusteko.</string>
-    <string name="notification_bar_permission_button">Baimendu jakinarazpenetarako sarbidea</string>
-    <string name="notification_bar_badge_description">Irakurri gabeko jakinarazpenak ditu</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Egutegiko agendaren gertaerak</string>
     <string name="agenda_permission_message">Baimendu egutegirako sarbidea zure agenda erakusteko.</string>

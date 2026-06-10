@@ -22,12 +22,6 @@
     <string name="dock_recents_description">সাম্প্ৰতিক এপ</string>
     <string name="dock_recents_scroll_more_hint">আৰু সাম্প্ৰতিক এপ চাবলৈ স্ক্ৰল কৰক</string>
     <string name="apps_list_scroll_more_hint">আৰু এপ চাবলৈ স্ক্ৰল কৰক</string>
-    <string name="notification_listener_service_label">Type Launcher জাননী</string>
-    <string name="notification_bar_description">জাননীযুক্ত এপ</string>
-    <string name="notification_bar_empty_hint">কোনো নতুন জাননী নাই</string>
-    <string name="notification_bar_permission_hint">জাননীযুক্ত এপ চাবলৈ জাননী এক্সেছৰ অনুমতি দিয়ক।</string>
-    <string name="notification_bar_permission_button">জাননী এক্সেছৰ অনুমতি দিয়ক</string>
-    <string name="notification_bar_badge_description">অপঠিত জাননী আছে</string>
     <string name="agenda_title">এজেণ্ডা</string>
     <string name="agenda_events_list_label">কেলেণ্ডাৰ এজেণ্ডা ইভেণ্ট</string>
     <string name="agenda_permission_message">আপোনাৰ এজেণ্ডা দেখুৱাবলৈ কেলেণ্ডাৰ এক্সেছৰ অনুমতি দিয়ক।</string>

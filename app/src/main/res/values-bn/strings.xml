@@ -22,12 +22,6 @@
     <string name="dock_recents_description">সাম্প্রতিক অ্যাপ</string>
     <string name="dock_recents_scroll_more_hint">আরও সাম্প্রতিক অ্যাপ দেখতে স্ক্রল করুন</string>
     <string name="apps_list_scroll_more_hint">আরও অ্যাপ দেখতে স্ক্রল করুন</string>
-    <string name="notification_listener_service_label">Type Launcher বিজ্ঞপ্তি</string>
-    <string name="notification_bar_description">বিজ্ঞপ্তিসহ অ্যাপ</string>
-    <string name="notification_bar_empty_hint">কোনো নতুন বিজ্ঞপ্তি নেই</string>
-    <string name="notification_bar_permission_hint">বিজ্ঞপ্তিসহ অ্যাপ দেখতে বিজ্ঞপ্তি অ্যাক্সেসের অনুমতি দিন।</string>
-    <string name="notification_bar_permission_button">বিজ্ঞপ্তি অ্যাক্সেসের অনুমতি দিন</string>
-    <string name="notification_bar_badge_description">অপঠিত বিজ্ঞপ্তি আছে</string>
     <string name="agenda_title">এজেন্ডা</string>
     <string name="agenda_events_list_label">ক্যালেন্ডার এজেন্ডা ইভেন্ট</string>
     <string name="agenda_permission_message">আপনার এজেন্ডা দেখাতে ক্যালেন্ডার অ্যাক্সেসের অনুমতি দিন।</string>

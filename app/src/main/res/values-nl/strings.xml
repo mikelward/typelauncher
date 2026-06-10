@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Recente apps</string>
     <string name="dock_recents_scroll_more_hint">Scroll voor meer recente apps</string>
     <string name="apps_list_scroll_more_hint">Scroll voor meer apps</string>
-    <string name="notification_listener_service_label">Type Launcher-meldingen</string>
-    <string name="notification_bar_description">Apps met meldingen</string>
-    <string name="notification_bar_empty_hint">Geen nieuwe meldingen</string>
-    <string name="notification_bar_permission_hint">Sta meldingstoegang toe om apps met meldingen te zien.</string>
-    <string name="notification_bar_permission_button">Meldingstoegang toestaan</string>
-    <string name="notification_bar_badge_description">Heeft ongelezen melding</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Agenda-afspraken</string>
     <string name="agenda_permission_message">Sta agendatoegang toe om je agenda weer te geven.</string>

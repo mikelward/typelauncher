@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Mga kamakailang app</string>
     <string name="dock_recents_scroll_more_hint">Mag-scroll para sa iba pang kamakailang app</string>
     <string name="apps_list_scroll_more_hint">Mag-scroll para sa iba pang app</string>
-    <string name="notification_listener_service_label">Mga notification ng Type Launcher</string>
-    <string name="notification_bar_description">Mga app na may notification</string>
-    <string name="notification_bar_empty_hint">Walang bagong notification</string>
-    <string name="notification_bar_permission_hint">Payagan ang access sa notification para makita ang mga app na may notification.</string>
-    <string name="notification_bar_permission_button">Payagan ang access sa notification</string>
-    <string name="notification_bar_badge_description">May hindi pa nababasang notification</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Mga kaganapan sa agenda ng kalendaryo</string>
     <string name="agenda_permission_message">Payagan ang access sa kalendaryo para ipakita ang iyong agenda.</string>
