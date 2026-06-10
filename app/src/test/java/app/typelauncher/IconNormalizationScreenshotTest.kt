@@ -44,6 +44,10 @@ class IconNormalizationScreenshotTest {
         val cases = listOf(
             // Full-bleed adaptive icon: blue background, white circle foreground.
             AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x1A, 0x73, 0xE8)), whiteCircleForeground()),
+            // Adaptive icon with a small foreground logo on a dark background —
+            // the logo is enlarged to fill rather than floating tiny (the
+            // GitHub / UniFi case).
+            AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x10, 0x14, 0x1C)), smallLogoForeground()),
             // Colored shape with transparent padding — the case that showed gray.
             paddedDrawable(Rect(36, 36, 108, 108), Color.rgb(0xFF, 0x6A, 0x4D)),
             // Sparse dark logo on transparency (documented weak case).
@@ -56,7 +60,7 @@ class IconNormalizationScreenshotTest {
         val stripHeight = tile + gap * 2
         val strip = Bitmap.createBitmap(stripWidth, stripHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(strip)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(Color.rgb(0x9E, 0x9E, 0x9E))
 
         var left = gap
         for (drawable in cases) {
@@ -82,6 +86,18 @@ class IconNormalizationScreenshotTest {
     private fun whiteCircleForeground(): Drawable = GradientDrawable().apply {
         shape = GradientDrawable.OVAL
         setColor(Color.WHITE)
+    }
+
+    // A small white logo (30% of the layer) centered on transparency, the kind
+    // of adaptive foreground that used to render tiny inside its background.
+    private fun smallLogoForeground(): Drawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        Canvas(bitmap).drawCircle(72f, 72f, 144 * 0.30f / 2f, paint)
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
     }
 
     private fun paddedDrawable(rect: Rect, color: Int): BitmapDrawable {
