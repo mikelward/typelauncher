@@ -168,8 +168,10 @@ internal class IconSnapshotStore(context: Context) {
         // a dominant-color plate (reverted); _v10 removes the inset ring,
         // caps the safe-zone zoom so margin-less foregrounds (Chrome, Play
         // Store) are never cropped, and fills the tile with dark-plated
-        // disc logos (GitHub).
-        const val DIRECTORY_NAME = "icon_snapshots_v10"
+        // disc logos (GitHub); _v11 restores the platform crop for full-bleed
+        // foregrounds (Play Store) and raises the bright-plate minimum to the
+        // observed neighbor norm.
+        const val DIRECTORY_NAME = "icon_snapshots_v11"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"

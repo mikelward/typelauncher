@@ -51,10 +51,14 @@ internal object IconNormalizer {
 
     // A foreground (logo) is enlarged *beyond* the safe-zone zoom only when it is
     // so small that even after that zoom its perceived size fills less than this
-    // fraction of the tile — the "tiny logo floating on a big background" case
-    // (Surfshark, UniFi). A normal logo keeps the platform framing untouched, and
-    // the enlargement scales about the logo's own center so it is never shifted.
-    internal const val MIN_FOREGROUND_FRACTION = 0.60f
+    // fraction of the tile — the "small logo floating on a big background" case
+    // (Brave, Surfshark, UniFi). The value matches the size cluster that
+    // normally-authored logos land on after the platform framing (Gmail 0.70,
+    // YouTube Music 0.73, Maps 0.76 in the on-device sizing log), so a bumped
+    // logo reads the same size as its unbumped neighbors. A normal logo keeps
+    // the platform framing untouched, and the enlargement scales about the
+    // logo's own center so it is never shifted.
+    internal const val MIN_FOREGROUND_FRACTION = 0.68f
 
     // Minimum perceived foreground fraction when the tile's plate blends into the
     // launcher's dark surface (Monzo, VW). With the plate invisible against the
@@ -158,16 +162,14 @@ internal object IconNormalizer {
     /**
      * Normalizes an adaptive icon: fills the tile with the background layer (or
      * a dominant-color plate when the background is transparent), then frames
-     * the foreground with the platform safe-zone zoom — *capped so the
-     * foreground's measured art always fits inside the tile*. Apps like Chrome
-     * and the Play Store author their foreground with no safe-zone margin; the
-     * blanket 1.5x zoom blows that art past the tile edge and crops it (a small
-     * blue dot in a stretched, flat-cut ball). The cap draws such art at its
-     * authored size instead. A logo that is still small after the zoom is
-     * enlarged to a minimum perceived size ([MIN_FOREGROUND_FRACTION], or
-     * [DARK_PLATE_FOREGROUND_FRACTION] when the plate blends into the
-     * launcher's dark surface), and a dark-plated *filled disc* logo fills the
-     * tile outright (see [DISC_LIKE_MIN_FILL]).
+     * the foreground with the platform safe-zone zoom — including its crop: a
+     * foreground authored full-bleed (Play Store) deliberately puts filler in
+     * the outer bleed area and relies on the zoom to crop it, which is what
+     * gives the inner logo its intended size. A logo that is still small after
+     * the zoom is enlarged to a minimum perceived size
+     * ([MIN_FOREGROUND_FRACTION], or [DARK_PLATE_FOREGROUND_FRACTION] when the
+     * plate blends into the launcher's dark surface), and a dark-plated
+     * *filled disc* logo fills the tile outright (see [DISC_LIKE_MIN_FILL]).
      */
     private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -226,13 +228,7 @@ internal object IconNormalizer {
                 darkPlate -> DARK_PLATE_FOREGROUND_FRACTION
                 else -> MIN_FOREGROUND_FRACTION
             }
-            // Never let the framing push the measured art past the tile edge:
-            // a foreground authored with no safe-zone margin (Chrome, Play
-            // Store, contentFraction ~1.0) is drawn at its authored size
-            // instead of being zoomed 1.5x and cropped.
-            val fitScale = 1f / contentFraction
             val scale = maxOf(SAFE_ZONE_SCALE, minFraction / perceivedFraction)
-                .coerceAtMost(maxOf(fitScale, 1f))
             // Diagnostic: record how large each app authored its foreground (the
             // logo) so the minimum fractions can be tuned from real icons rather
             // than guessed. `contentFraction` is the logo's size in the raw layer;
@@ -262,9 +258,7 @@ internal object IconNormalizer {
      * place rather than being pushed further off-center by a tile-anchored
      * zoom; [centerContent] overrides that for a disc-fill logo, which becomes
      * the tile's background and is therefore moved to the tile center so the
-     * grown disc can't spill past an edge. A [scale] *below* the safe-zone
-     * zoom (the fit cap on margin-less foregrounds) is a uniform un-zoom of
-     * the platform framing, also about the tile center.
+     * grown disc can't spill past an edge.
      */
     private fun drawForegroundScaled(
         canvas: Canvas,
@@ -289,8 +283,6 @@ internal object IconNormalizer {
                 val anchorX = center + (contentBounds.exactCenterX() - center) * SAFE_ZONE_SCALE
                 val anchorY = center + (contentBounds.exactCenterY() - center) * SAFE_ZONE_SCALE
                 canvas.scale(extra, extra, anchorX, anchorY)
-            } else if (extra != 1f) {
-                canvas.scale(extra, extra, center, center)
             }
             canvas.scale(SAFE_ZONE_SCALE, SAFE_ZONE_SCALE, center, center)
         }
