@@ -164,7 +164,7 @@ class IconNormalizerTest {
         // A tiny (30% of the layer) white logo on a dark background — the
         // GitHub/UniFi case. Even after the platform safe-zone zoom it would fill
         // only ~45% of the tile, so it must be enlarged to MIN_FOREGROUND_FRACTION
-        // (~60%, radius ~30 of 100). A point 26px out from center is inside that
+        // (~80%, radius ~40 of 100). A point 26px out from center is inside that
         // enlarged logo but outside the safe-zone-only size (~22px radius).
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
         val drawable = AdaptiveIconDrawable(
