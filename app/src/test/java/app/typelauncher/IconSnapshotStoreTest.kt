@@ -21,7 +21,7 @@ import java.io.File
 @Config(sdk = [36])
 class IconSnapshotStoreTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val directory = File(context.filesDir, "icon_snapshots_v11")
+    private val directory = File(context.filesDir, "icon_snapshots_v12")
     private val legacyDirectories = listOf(
         File(context.filesDir, "icon_snapshots"),
         File(context.filesDir, "icon_snapshots_v2"),
@@ -33,6 +33,7 @@ class IconSnapshotStoreTest {
         File(context.filesDir, "icon_snapshots_v8"),
         File(context.filesDir, "icon_snapshots_v9"),
         File(context.filesDir, "icon_snapshots_v10"),
+        File(context.filesDir, "icon_snapshots_v11"),
     )
 
     @After
