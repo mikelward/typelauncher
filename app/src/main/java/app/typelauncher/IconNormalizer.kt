@@ -77,12 +77,12 @@ internal object IconNormalizer {
      * to [CONTENT_FRACTION] and centered. The returned bitmap is always
      * `sizePx` × `sizePx`.
      */
-    fun normalizeToTile(drawable: Drawable, sizePx: Int): Bitmap {
+    fun normalizeToTile(drawable: Drawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         // Adaptive icons expose their background and foreground separately, so we
         // fill the tile with the background and scale the foreground (the logo)
         // up to a consistent size — a small logo no longer sits tiny inside its
         // background.
-        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx)
+        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx, debugLabel)
 
         val raw = rasterizeFullBleed(drawable, sizePx)
         val analysis = analyze(raw)
@@ -108,7 +108,7 @@ internal object IconNormalizer {
      * a small logo is enlarged to a consistent size instead of floating tiny on
      * its background.
      */
-    private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int): Bitmap {
+    private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tile)
 
@@ -143,7 +143,21 @@ internal object IconNormalizer {
             // Draw whenever the foreground has any visible content — including a
             // translucent logo with no fully-opaque pixels, which must not
             // disappear.
-            drawForegroundScaled(canvas, foreground, foregroundAnalysis.bounds, sizePx)
+            val bounds = foregroundAnalysis.bounds
+            val contentFraction = maxOf(bounds.width(), bounds.height()).coerceAtLeast(1) / sizePx.toFloat()
+            val scale = maxOf(SAFE_ZONE_SCALE, MIN_FOREGROUND_FRACTION / contentFraction)
+            // Diagnostic: record how large each app authored its foreground (the
+            // logo) so MIN_FOREGROUND_FRACTION can be tuned from real icons rather
+            // than guessed. `contentFraction` is the logo's size in the raw layer;
+            // `finalFraction` is its size on the tile after scaling.
+            if (debugLabel.isNotEmpty()) {
+                LauncherDebugLog.event(
+                    "adaptiveIconForeground $debugLabel sizePx=$sizePx " +
+                        "contentFraction=$contentFraction scale=$scale " +
+                        "finalFraction=${contentFraction * scale} bumped=${scale > SAFE_ZONE_SCALE}",
+                )
+            }
+            drawForegroundScaled(canvas, foreground, sizePx, scale)
         }
 
         backgroundBitmap?.recycle()
@@ -157,13 +171,10 @@ internal object IconNormalizer {
      * intended (it is never re-centered on its own bounds). A logo that is tiny
      * even after the safe-zone zoom — filling less than [MIN_FOREGROUND_FRACTION]
      * of the tile — is enlarged further to that minimum; a normal logo gets only
-     * the safe-zone zoom. [contentBounds] is its visible extent in a full-bounds
-     * `sizePx` rasterization.
+     * the safe-zone zoom. [scale] is computed by the caller (see
+     * [normalizeAdaptive]) so it can also be logged.
      */
-    private fun drawForegroundScaled(canvas: Canvas, foreground: Drawable, contentBounds: Rect, sizePx: Int) {
-        val contentMax = maxOf(contentBounds.width(), contentBounds.height()).coerceAtLeast(1)
-        val contentFraction = contentMax / sizePx.toFloat()
-        val scale = maxOf(SAFE_ZONE_SCALE, MIN_FOREGROUND_FRACTION / contentFraction)
+    private fun drawForegroundScaled(canvas: Canvas, foreground: Drawable, sizePx: Int, scale: Float) {
         foreground.setBounds(0, 0, sizePx, sizePx)
         val saved = canvas.save()
         canvas.scale(scale, scale, sizePx / 2f, sizePx / 2f)
