@@ -225,39 +225,37 @@ internal object AppIconLoader {
      * retries once the badge becomes available.
      */
     private fun performWorkBadgeLoad(context: Context, user: UserHandle, sizePx: Int): ImageBitmap? {
-        val transparent = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        val badged = badgeTile(context, transparent, user, sizePx)
-        // badgeTile hands back the input tile unchanged when nothing was
-        // composited; an unchanged transparent tile means "no badge".
-        return if (badged === transparent) null else badged.asImageBitmap()
+        val out = try {
+            val transparent = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+            val badged = context.packageManager
+                .getUserBadgedIcon(BitmapDrawable(context.resources, transparent), user)
+            // Rasterize whatever getUserBadgedIcon returned into a fresh tile.
+            // Instance identity is NOT a reliable "no badge" signal: some OEM
+            // implementations badge the backing bitmap in place and hand back
+            // the SAME drawable, so a same-instance result can still carry the
+            // briefcase. Drawing it out and checking pixels handles both that
+            // path and the new-composite-drawable path uniformly.
+            Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).also { tile ->
+                badged.setBounds(0, 0, sizePx, sizePx)
+                badged.draw(Canvas(tile))
+            }
+        } catch (exception: Resources.NotFoundException) {
+            // getUserBadgedIcon can throw while a work profile is still booting;
+            // returning null keeps it out of the cache so a later load retries.
+            LauncherDebugLog.warning("performWorkBadgeLoad: badge unavailable for user=$user", exception)
+            return null
+        }
+        // No badge composited (personal user, or a shadow PackageManager under
+        // test) leaves the tile fully transparent — detect that by pixel content
+        // rather than drawable identity and skip caching an empty overlay.
+        return if (hasVisiblePixel(out)) out.asImageBitmap() else null
     }
 
-    /**
-     * Composites the system work-profile badge onto [tile] by wrapping it in a
-     * Drawable, letting [PackageManager.getUserBadgedIcon] add the OEM badge
-     * (the blue briefcase on a Pixel), and rasterizing the result back to
-     * [sizePx].
-     *
-     * Falls back to the unbadged [tile] when no badge is composited (personal
-     * user, or a shadow PackageManager under test) or when badging is
-     * unavailable — getUserBadgedIcon can throw Resources.NotFoundException
-     * while a work profile is still booting, and an escaping throwable here
-     * would crash every awaiting composition.
-     */
-    private fun badgeTile(context: Context, tile: Bitmap, user: UserHandle, sizePx: Int): Bitmap = try {
-        val badged = context.packageManager
-            .getUserBadgedIcon(BitmapDrawable(context.resources, tile), user)
-        if (badged is BitmapDrawable && badged.bitmap === tile) {
-            tile
-        } else {
-            val out = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-            badged.setBounds(0, 0, sizePx, sizePx)
-            badged.draw(Canvas(out))
-            out
-        }
-    } catch (exception: Resources.NotFoundException) {
-        LauncherDebugLog.warning("badgeTile: badge unavailable for user=$user", exception)
-        tile
+    /** True when any pixel in [bitmap] has a non-zero alpha channel. */
+    private fun hasVisiblePixel(bitmap: Bitmap): Boolean {
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return pixels.any { (it ushr 24) != 0 }
     }
 
     private fun decodeOverrideBitmap(file: File, sizePx: Int): Bitmap? = try {
