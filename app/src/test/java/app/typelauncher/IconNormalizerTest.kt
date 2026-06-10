@@ -162,10 +162,10 @@ class IconNormalizerTest {
     @Test
     fun adaptiveForegroundIsEnlargedToFillTheTile() {
         // A tiny (30% of the layer) white logo on a dark background — the
-        // GitHub/UniFi case. Even after the platform safe-zone zoom it would fill
-        // only ~45% of the tile, so it must be enlarged to MIN_FOREGROUND_FRACTION
-        // (~80%, radius ~40 of 100). A point 26px out from center is inside that
-        // enlarged logo but outside the safe-zone-only size (~22px radius).
+        // GitHub/UniFi case. It must be enlarged to MIN_FOREGROUND_FRACTION
+        // (0.80 → radius ~40 of 100). The sample point is 35px out from center:
+        // inside the 0.80 radius (~40) but outside the previous 0.60 target
+        // (~30px), so this fails if the target regresses to 0.60.
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
         val drawable = AdaptiveIconDrawable(
             ColorDrawable(Color.rgb(0x10, 0x14, 0x1C)),
@@ -175,7 +175,7 @@ class IconNormalizerTest {
         val tile = IconNormalizer.normalizeToTile(drawable, 100)
 
         assertColorClose(Color.WHITE, tile.getPixel(50, 50))
-        assertColorClose(Color.WHITE, tile.getPixel(76, 50))
+        assertColorClose(Color.WHITE, tile.getPixel(85, 50))
         assertColorClose(Color.rgb(0x10, 0x14, 0x1C), tile.getPixel(2, 2))
     }
 
