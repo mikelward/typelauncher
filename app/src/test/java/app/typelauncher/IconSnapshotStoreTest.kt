@@ -21,11 +21,12 @@ import java.io.File
 @Config(sdk = [36])
 class IconSnapshotStoreTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val directory = File(context.filesDir, "icon_snapshots_v4")
+    private val directory = File(context.filesDir, "icon_snapshots_v5")
     private val legacyDirectories = listOf(
         File(context.filesDir, "icon_snapshots"),
         File(context.filesDir, "icon_snapshots_v2"),
         File(context.filesDir, "icon_snapshots_v3"),
+        File(context.filesDir, "icon_snapshots_v4"),
     )
 
     @After
@@ -164,9 +165,10 @@ class IconSnapshotStoreTest {
     @Test
     fun loadPurgesEarlierVersionedDirectoriesAndRestoresNothingFromThem() {
         // Simulate an upgrade from an earlier renderer: every prior snapshot
-        // directory (the original unversioned one and `_v2`) holds a saved
-        // bitmap. The new store must not restore any of them (a stale-format icon
-        // would bypass IconNormalizer) and must delete them so they don't linger.
+        // directory (the original unversioned one, `_v2`, and `_v3`) holds a
+        // saved bitmap. The new store must not restore any of them (a stale
+        // _v3 work bitmap would carry a baked-in badge under the new overlay)
+        // and must delete them so they don't linger.
         legacyDirectories.forEach { dir ->
             dir.mkdirs()
             File(dir, "anything_8.bin").writeBytes(ByteArray(8 + 8 * 8 * 4))
