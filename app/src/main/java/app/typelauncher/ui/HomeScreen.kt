@@ -184,7 +184,7 @@ internal fun HomeScreen(
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
     onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
@@ -465,7 +465,7 @@ internal fun HomeBottomBar(
     onOpenNotificationSettings: (InstalledApp) -> Unit,
     onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestNotificationAccess: () -> Unit = {},
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
 ) {
     Column(
         modifier = modifier
@@ -872,7 +872,7 @@ private fun RecentsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -905,7 +905,7 @@ private fun NotificationBarCard(
     onOpenNotificationSettings: (InstalledApp) -> Unit,
     onRequestNotificationAccess: () -> Unit,
     onDismiss: () -> Unit,
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -975,10 +975,11 @@ private fun NotificationBarRow(
     onLaunchApp: (InstalledApp) -> Unit,
     onDismissNotifications: (InstalledApp) -> Unit,
     onOpenNotificationSettings: (InstalledApp) -> Unit,
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
 ) {
     val description = stringResource(R.string.notification_bar_description)
     ScrollableIconRow(
+        barKind = BottomBarKind.Notifications,
         onBarScrollRegionChanged = onBarScrollRegionChanged,
         rowModifier = Modifier
             .semantics { contentDescription = description }
@@ -1069,7 +1070,7 @@ private fun RecentsRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -1085,6 +1086,7 @@ private fun RecentsRow(
     }
     val description = stringResource(R.string.dock_recents_description)
     ScrollableIconRow(
+        barKind = BottomBarKind.Recents,
         onBarScrollRegionChanged = onBarScrollRegionChanged,
         rowModifier = Modifier
             .semantics { contentDescription = description }
@@ -1173,13 +1175,16 @@ private fun ScrollableIconRow(
     chevronContentDescription: String,
     rowModifier: Modifier = Modifier,
     pinToEndKey: Any? = null,
-    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    barKind: BottomBarKind = BottomBarKind.Recents,
+    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val isScrollRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     DisposableEffect(Unit) {
-        onDispose { onBarScrollRegionChanged(null) }
+        // Clears only this bar's slot, so a disposing bar never erases the
+        // region of the other bar that may be entering at the same time.
+        onDispose { onBarScrollRegionChanged(barKind, null) }
     }
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
@@ -1231,6 +1236,7 @@ private fun ScrollableIconRow(
             // padding, which keeps that padding as page-swipe territory.
             .onGloballyPositioned { coords ->
                 onBarScrollRegionChanged(
+                    barKind,
                     BarScrollRegion(
                         boundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize()),
                         canScrollInDirection = canScrollInDirection,

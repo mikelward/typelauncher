@@ -610,7 +610,17 @@ internal fun TypeLauncherApp(
                     // animation flow to the carousel's pointer loop via `.value`
                     // without recomposing SwipeNavigationBox — same pattern as
                     // isDockDraggingState / isWidgetScrollingState.
-                    val homeBarScrollRegionState = remember { mutableStateOf<BarScrollRegion?>(null) }
+                    //
+                    // One slot per bar, keyed by BottomBarKind: recents and the
+                    // notification bar share the same bottom slot and one can be
+                    // exit-animating (still composed, still reporting shrinking
+                    // bounds, and finally disposing → null) while the other
+                    // enters. Separate slots mean an exiting bar can never erase
+                    // or overwrite the region of the bar that is actually open;
+                    // the carousel below reads whichever slot matches the open
+                    // bar.
+                    val recentsScrollRegionState = remember { mutableStateOf<BarScrollRegion?>(null) }
+                    val notificationScrollRegionState = remember { mutableStateOf<BarScrollRegion?>(null) }
                     // The carousel's pointerInput has to see this flip within a
                     // single pointer event (Main pass writes from the dock,
                     // Final pass reads from the carousel), so the state is
@@ -666,7 +676,8 @@ internal fun TypeLauncherApp(
                             (appWidgetHost as? LauncherAppWidgetHost)?.deferRemoteViewsApply = false
                         },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
-                        barScrollRegionState = homeBarScrollRegionState,
+                        recentsScrollRegionState = recentsScrollRegionState,
+                        notificationScrollRegionState = notificationScrollRegionState,
                         isDockDraggingState = isDockDraggingState,
                         isWidgetScrollingState = isWidgetScrollingState,
                     ) { page, isCurrentPage ->
@@ -700,7 +711,12 @@ internal fun TypeLauncherApp(
                                 onSetNotificationBarOpen = onSetNotificationBarOpen,
                                 onRequestNotificationAccess = onRequestNotificationAccess,
                                 onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
-                                onBarScrollRegionChanged = { homeBarScrollRegionState.value = it },
+                                onBarScrollRegionChanged = { kind, region ->
+                                    when (kind) {
+                                        BottomBarKind.Recents -> recentsScrollRegionState.value = region
+                                        BottomBarKind.Notifications -> notificationScrollRegionState.value = region
+                                    }
+                                },
                                 onDockDragChanged = { isDockDraggingState.value = it },
                             )
                             LauncherScreen.Widgets -> WidgetsScreen(
@@ -781,7 +797,8 @@ private fun SwipeNavigationBox(
     isRecentsOpen: Boolean,
     isNotificationBarOpen: Boolean,
     appListBoundsInRoot: Rect?,
-    barScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
+    recentsScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
+    notificationScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
@@ -1136,9 +1153,17 @@ private fun SwipeNavigationBox(
                                 owner == LauncherGestureOwner.HorizontalLauncher
                             ) {
                                 barReservationDecided = true
+                                // Read the slot for whichever bar is open, so an
+                                // exiting bar's stale region can never reserve a
+                                // drag meant for the page.
+                                val openBarRegion = when {
+                                    currentRecentsOpen -> recentsScrollRegionState.value
+                                    currentNotificationBarOpen -> notificationScrollRegionState.value
+                                    else -> null
+                                }
                                 barReservedGesture = shouldReserveGestureForBar(
                                     isBarOpen = currentRecentsOpen || currentNotificationBarOpen,
-                                    region = barScrollRegionState.value,
+                                    region = openBarRegion,
                                     downPosition = downChange.position,
                                     rawDragX = rawDragX,
                                 )
@@ -1655,6 +1680,9 @@ internal enum class LauncherGestureOwner {
     HorizontalLauncher,
     VerticalLauncher,
 }
+
+/** Which bottom bar a reported [BarScrollRegion] belongs to. */
+internal enum class BottomBarKind { Recents, Notifications }
 
 /**
  * The on-screen icon strip of an open bottom bar (recents or notifications)
