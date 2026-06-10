@@ -40,7 +40,7 @@ internal fun EmptyState(
 // content area. Exposed so callers that need to size a card around a known
 // content height (e.g. the home dock slot capping the work dock at one icon
 // row) can add the chrome without recomputing it from a literal.
-internal const val SECTION_CARD_VERTICAL_PADDING_DP = 16
+internal const val SECTION_CARD_PADDING_DP = 16
 
 @Composable
 internal fun SectionCard(
@@ -53,7 +53,7 @@ internal fun SectionCard(
         colors = colors,
     ) {
         Column(
-            modifier = Modifier.padding(SECTION_CARD_VERTICAL_PADDING_DP.dp),
+            modifier = Modifier.padding(SECTION_CARD_PADDING_DP.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             content = content,
         )

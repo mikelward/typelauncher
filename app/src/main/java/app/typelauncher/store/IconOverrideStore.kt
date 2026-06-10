@@ -9,9 +9,10 @@ import java.io.InputStream
 /**
  * Persists per-app launcher-icon overrides so the user can replace the icon
  * Android reports for an app with a picture they pick (SVG, PNG, JPEG, WEBP).
- * Overrides are keyed by [InstalledApp.id] so they survive a package upgrade
- * but not a fresh install (which produces a new component name and therefore
- * a new id).
+ * Overrides are keyed by [InstalledApp.id] — user handle plus component name,
+ * both of which are deterministic — so an override survives package upgrades
+ * *and* uninstall/reinstall cycles; it persists until the user clears it (or
+ * clears the launcher's app data).
  *
  * The on-disk layout is the source of truth: each override is stored under
  * `filesDir/icon_overrides/<base64Url(appId)>.<extension>` and the directory

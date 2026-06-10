@@ -10,7 +10,7 @@ internal class DockedAppStore(
     private val sharedPreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 
     // Guards every read and write of the in-memory dock state below. `dock`,
-    // `undock`, `reorder`, and `move` each read the current `dockedIds` /
+    // `undock`, and `move` each read the current `dockedIds` /
     // `dockPositions`, compute a new value, then write it back — a classic
     // read-modify-write. Without a lock, two of these running concurrently
     // (a user drag on the main thread racing a background reader, or any
@@ -74,23 +74,6 @@ internal class DockedAppStore(
             dockPositions.remove(appId)
             save()
         }
-    }
-
-    fun reorder(fromIndex: Int, toIndex: Int) = synchronized(lock) {
-        val current = dockedIds.toList()
-        if (fromIndex !in current.indices) return@synchronized
-        val clampedTo = toIndex.coerceIn(0, current.lastIndex)
-        if (fromIndex == clampedTo) return@synchronized
-        val moved = current[fromIndex]
-        val withoutMoved = current.subList(0, fromIndex) + current.subList(fromIndex + 1, current.size)
-        val rebuilt = withoutMoved.subList(0, clampedTo) + moved + withoutMoved.subList(clampedTo, withoutMoved.size)
-        dockedIds = LinkedHashSet(rebuilt)
-        dockPositions = rebuilt.withIndex()
-            .associate { (index, id) ->
-                id to DockPosition(index / DEFAULT_DOCK_ICON_COUNT, index % DEFAULT_DOCK_ICON_COUNT)
-            }
-            .toMutableMap()
-        save()
     }
 
     fun move(appId: String, row: Int, column: Int, columnCount: Int, sortOrder: AppListSortOrder) =
