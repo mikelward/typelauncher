@@ -44,7 +44,7 @@ class IconSnapshotStoreTest {
 
     @Test
     fun loadReturnsEmptyWhenNothingSaved() {
-        assertEquals(emptyList<IconSnapshotStore.Snapshot>(), IconSnapshotStore(context).load())
+        assertEquals(emptyList<IconSnapshotStore.Snapshot>(), IconSnapshotStore(context).load(RENDERER_STATE))
     }
 
     @Test
@@ -57,9 +57,9 @@ class IconSnapshotStoreTest {
             bitmap = bitmap.asImageBitmap(),
         )
 
-        store.save(listOf(original))
+        store.save(listOf(original), RENDERER_STATE)
 
-        val loaded = IconSnapshotStore(context).load().single()
+        val loaded = IconSnapshotStore(context).load(RENDERER_STATE).single()
         assertEquals(original.id, loaded.id)
         assertEquals(original.sizePx, loaded.sizePx)
         val androidBitmap = loaded.bitmap.asAndroidBitmap()
@@ -84,13 +84,12 @@ class IconSnapshotStoreTest {
             sizePx = 16,
             bitmap = solidColorBitmap(16, 16, Color.BLUE).asImageBitmap(),
         )
-        store.save(listOf(first))
-        assertEquals(1, directory.listFiles().orEmpty().size)
-        store.save(listOf(second))
+        store.save(listOf(first), RENDERER_STATE)
+        assertEquals(1, snapshotFileNames().size)
+        store.save(listOf(second), RENDERER_STATE)
 
-        val files = directory.listFiles().orEmpty().map { it.name }
-        assertEquals(1, files.size)
-        val loaded = IconSnapshotStore(context).load()
+        assertEquals(1, snapshotFileNames().size)
+        val loaded = IconSnapshotStore(context).load(RENDERER_STATE)
         assertEquals(listOf("0:app.second/.Launch"), loaded.map { it.id })
     }
 
@@ -105,10 +104,11 @@ class IconSnapshotStoreTest {
                     bitmap = solidColorBitmap(16, 16, Color.GREEN).asImageBitmap(),
                 ),
             ),
+            RENDERER_STATE,
         )
         assertTrue(directory.listFiles().orEmpty().isNotEmpty())
 
-        store.save(emptyList())
+        store.save(emptyList(), RENDERER_STATE)
 
         assertEquals(0, directory.listFiles().orEmpty().size)
     }
@@ -131,9 +131,10 @@ class IconSnapshotStoreTest {
                     bitmap = solidColorBitmap(16, 16, Color.MAGENTA).asImageBitmap(),
                 ),
             ),
+            RENDERER_STATE,
         )
 
-        val loaded = store.load()
+        val loaded = store.load(RENDERER_STATE)
         assertEquals(1, loaded.size)
         assertEquals("0:app.valid/.Launch", loaded.single().id)
         // Save with the same single snapshot should also clean the leftover .tmp file.
@@ -155,12 +156,12 @@ class IconSnapshotStoreTest {
         )
 
         val threads = (0 until 8).map {
-            Thread { repeat(25) { store.save(snapshots) } }
+            Thread { repeat(25) { store.save(snapshots, RENDERER_STATE) } }
         }
         threads.forEach(Thread::start)
         threads.forEach(Thread::join)
 
-        val loaded = IconSnapshotStore(context).load()
+        val loaded = IconSnapshotStore(context).load(RENDERER_STATE)
         assertEquals(snapshots.map { it.id }.toSet(), loaded.map { it.id }.toSet())
         loaded.forEach { assertNotNull(it.bitmap) }
         assertTrue(
@@ -181,7 +182,7 @@ class IconSnapshotStoreTest {
             File(dir, "anything_8.bin").writeBytes(ByteArray(8 + 8 * 8 * 4))
         }
 
-        val loaded = IconSnapshotStore(context).load()
+        val loaded = IconSnapshotStore(context).load(RENDERER_STATE)
 
         assertEquals(emptyList<IconSnapshotStore.Snapshot>(), loaded)
         legacyDirectories.forEach { assertFalse(it.exists()) }
@@ -198,16 +199,97 @@ class IconSnapshotStoreTest {
             bitmap = solidColorBitmap(12, 12, Color.YELLOW).asImageBitmap(),
         )
 
-        store.save(listOf(tricky))
-        val loaded = IconSnapshotStore(context).load().single()
+        store.save(listOf(tricky), RENDERER_STATE)
+        val loaded = IconSnapshotStore(context).load(RENDERER_STATE).single()
         assertEquals(tricky.id, loaded.id)
         assertEquals(tricky.sizePx, loaded.sizePx)
         assertNotNull(loaded.bitmap)
     }
 
+    @Test
+    fun mismatchedRendererStatePurgesAndRestoresNothing() {
+        // Theme changed (e.g. Default -> Monochrome) but the process died before
+        // the post-eviction re-save: the on-disk tiles bake the old variant, so
+        // restoring them would pin wrong-variant icons in the cache indefinitely.
+        val store = IconSnapshotStore(context)
+        store.save(
+            listOf(
+                IconSnapshotStore.Snapshot(
+                    id = "0:app.stale/.Launch",
+                    sizePx = 16,
+                    bitmap = solidColorBitmap(16, 16, Color.RED).asImageBitmap(),
+                ),
+            ),
+            IconSnapshotStore.rendererState(IconTheme.Default, null),
+        )
+        assertTrue(snapshotFileNames().isNotEmpty())
+
+        val loaded = IconSnapshotStore(context).load(
+            IconSnapshotStore.rendererState(
+                IconTheme.Monochrome,
+                IconNormalizer.ThemedIconColors(plate = Color.BLACK, glyph = Color.WHITE),
+            ),
+        )
+
+        assertEquals(emptyList<IconSnapshotStore.Snapshot>(), loaded)
+        assertEquals(0, directory.listFiles().orEmpty().size)
+    }
+
+    @Test
+    fun matchingRendererStateRoundTrips() {
+        val store = IconSnapshotStore(context)
+        val rendererState = IconSnapshotStore.rendererState(
+            IconTheme.Monochrome,
+            IconNormalizer.ThemedIconColors(plate = Color.BLACK, glyph = Color.WHITE),
+        )
+        val original = IconSnapshotStore.Snapshot(
+            id = "0:app.themed/.Launch",
+            sizePx = 16,
+            bitmap = solidColorBitmap(16, 16, Color.CYAN).asImageBitmap(),
+        )
+
+        store.save(listOf(original), rendererState)
+        val loaded = IconSnapshotStore(context).load(rendererState).single()
+
+        assertEquals(original.id, loaded.id)
+        assertEquals(original.sizePx, loaded.sizePx)
+        assertEquals(Color.CYAN, loaded.bitmap.asAndroidBitmap().getPixel(8, 8))
+    }
+
+    @Test
+    fun missingRendererStateMarkerIsTreatedAsMismatch() {
+        // Snapshots written by a build that predates the marker carry no record
+        // of the theme / palette they bake in, so they must be purged, not
+        // trusted to match whatever the current renderer state is.
+        val store = IconSnapshotStore(context)
+        store.save(
+            listOf(
+                IconSnapshotStore.Snapshot(
+                    id = "0:app.unmarked/.Launch",
+                    sizePx = 16,
+                    bitmap = solidColorBitmap(16, 16, Color.GREEN).asImageBitmap(),
+                ),
+            ),
+            RENDERER_STATE,
+        )
+        assertTrue(File(directory, "renderer_state").delete())
+
+        val loaded = IconSnapshotStore(context).load(RENDERER_STATE)
+
+        assertEquals(emptyList<IconSnapshotStore.Snapshot>(), loaded)
+        assertEquals(0, directory.listFiles().orEmpty().size)
+    }
+
+    private fun snapshotFileNames(): List<String> =
+        directory.listFiles().orEmpty().map { it.name }.filter { it != "renderer_state" }
+
     private fun solidColorBitmap(width: Int, height: Int, color: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(color)
         return bitmap
+    }
+
+    private companion object {
+        val RENDERER_STATE = IconSnapshotStore.rendererState(IconTheme.Default, null)
     }
 }

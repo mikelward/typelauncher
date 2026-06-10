@@ -232,7 +232,12 @@ internal class LauncherViewModel(
             withContext(ioDispatcher) {
                 androidTrace("launcher.icon_snapshot_restore") {
                     traceBlock("icon_snapshot_restore") { trace ->
-                        val snapshots = iconSnapshotStore.load()
+                        // The expected renderer state reads the AppIconLoader
+                        // mirrors seeded synchronously in init above, so a
+                        // snapshot saved under a different icon theme / palette
+                        // (e.g. the theme changed but the process died before
+                        // the post-eviction re-save) is purged, not restored.
+                        val snapshots = iconSnapshotStore.load(currentIconRendererState())
                         for (snapshot in snapshots) {
                             // Dynamic calendar icons are date-specific, so a snapshot
                             // bitmap is stale the moment the day changes (or whenever a
@@ -825,9 +830,20 @@ internal class LauncherViewModel(
         )
         // An empty snapshots list still goes through to IconSnapshotStore.save so its
         // prune contract runs and orphan files left behind by undocking + resetting
-        // launch counts get cleaned up.
-        viewModelScope.launch(ioDispatcher) { iconSnapshotStore.save(snapshots) }
+        // launch counts get cleaned up. The renderer state is captured here, alongside
+        // the cacheSnapshot() harvest it describes, not inside the IO coroutine.
+        val rendererState = currentIconRendererState()
+        viewModelScope.launch(ioDispatcher) { iconSnapshotStore.save(snapshots, rendererState) }
     }
+
+    /**
+     * The renderer-state fingerprint for [IconSnapshotStore]: the icon theme plus the
+     * resolved themed palette, read from the `AppIconLoader` mirrors (which this view
+     * model seeds in init, before the snapshot restore launches, and keeps current on
+     * every theme / palette change).
+     */
+    private fun currentIconRendererState(): String =
+        IconSnapshotStore.rendererState(AppIconLoader.iconTheme, AppIconLoader.themedIconColors)
 
     private fun priorityIconCacheIds(): Set<String> {
         val docked = dockedAppStore.dockedAppIds.toSet() + workDockedAppStore.dockedAppIds.toSet()

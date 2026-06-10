@@ -34,6 +34,15 @@ import java.nio.ByteOrder
  * Wrong-size or wrong-density entries simply miss on lookup and the next render falls
  * back to a normal `AppIconLoader.load`, which then overwrites the snapshot on the next
  * `save`.
+ *
+ * Alongside the bitmaps, every [save] writes a `renderer_state` marker file recording the
+ * renderer state (icon theme + resolved themed palette, see [rendererState]) the bitmaps
+ * were rasterized under. [load] takes the *current* renderer state and, when the marker is
+ * missing or doesn't match, deletes every snapshot and restores nothing: a wrong-variant
+ * tile put back into `AppIconLoader`'s cache would be a hit that bypasses rendering
+ * indefinitely (e.g. the icon theme changed but the process died before the post-eviction
+ * re-save). The marker is written last in [save], so a crash mid-save leaves a marker that
+ * mismatches on the next load and the half-written set is purged rather than restored.
  */
 internal class IconSnapshotStore(context: Context) {
     private val directory: File = File(context.filesDir, DIRECTORY_NAME)
@@ -45,14 +54,26 @@ internal class IconSnapshotStore(context: Context) {
     // here — the contended case is two background saves, never the main thread.
     private val lock = Any()
 
-    fun load(): List<Snapshot> = synchronized(lock) {
+    fun load(expectedRendererState: String): List<Snapshot> = synchronized(lock) {
         // Runs on Dispatchers.IO (the cold-start restore coroutine), so the
         // legacy-directory sweep is off the main thread. It precedes save (which
         // is gated on the restore completing), so purging here is enough to keep
         // a stale-format snapshot from ever being restored or re-persisted.
         purgeLegacyDirectories()
         if (!directory.isDirectory) return emptyList()
-        directory.listFiles().orEmpty().mapNotNull(::readSnapshot)
+        val files = directory.listFiles().orEmpty()
+        val recordedState = runCatching {
+            files.firstOrNull { it.name == RENDERER_STATE_FILE_NAME }?.readText()
+        }.getOrNull()
+        if (recordedState != expectedRendererState) {
+            // The snapshots were rasterized under a different icon theme /
+            // palette (or predate the marker entirely), so restoring them would
+            // pin wrong-variant tiles in the cache until the next eviction.
+            // Purge instead and let the next render rasterize fresh.
+            files.forEach { it.delete() }
+            return emptyList()
+        }
+        files.filter { it.name != RENDERER_STATE_FILE_NAME }.mapNotNull(::readSnapshot)
     }
 
     private fun purgeLegacyDirectories() {
@@ -63,10 +84,11 @@ internal class IconSnapshotStore(context: Context) {
             ?.forEach { it.deleteRecursively() }
     }
 
-    fun save(snapshots: Collection<Snapshot>): Unit = synchronized(lock) {
+    fun save(snapshots: Collection<Snapshot>, rendererState: String): Unit = synchronized(lock) {
         if (snapshots.isEmpty()) {
-            // An empty save still prunes orphans, but we don't create the directory just
-            // to delete nothing from it.
+            // An empty save still prunes orphans (including the renderer-state
+            // marker), but we don't create the directory just to delete nothing
+            // from it.
             if (directory.isDirectory) {
                 directory.listFiles()?.forEach { it.delete() }
             }
@@ -75,7 +97,7 @@ internal class IconSnapshotStore(context: Context) {
         directory.mkdirs()
         val expectedNames = snapshots.mapTo(mutableSetOf()) { it.fileName() }
         directory.listFiles()?.forEach { file ->
-            if (file.name !in expectedNames) {
+            if (file.name !in expectedNames && file.name != RENDERER_STATE_FILE_NAME) {
                 file.delete()
             }
         }
@@ -83,6 +105,27 @@ internal class IconSnapshotStore(context: Context) {
             val file = File(directory, snapshot.fileName())
             runCatching { writeSnapshot(file, snapshot) }
                 .onFailure { file.delete() }
+        }
+        // Written last: a crash mid-save leaves the previous marker (or none),
+        // which mismatches on the next load and purges the half-written set.
+        writeRendererState(rendererState)
+    }
+
+    private fun writeRendererState(rendererState: String) {
+        val file = File(directory, RENDERER_STATE_FILE_NAME)
+        val tmp = File(directory, "$RENDERER_STATE_FILE_NAME$TMP_SUFFIX")
+        runCatching {
+            tmp.writeText(rendererState)
+            if (!tmp.renameTo(file)) {
+                // Fall back to a non-atomic write rather than leaving a stale .tmp behind.
+                tmp.delete()
+                file.writeText(rendererState)
+            }
+        }.onFailure {
+            // A marker recording the wrong state is worse than no marker (no
+            // marker purges on the next load, which is the safe direction).
+            tmp.delete()
+            file.delete()
         }
     }
 
@@ -151,7 +194,26 @@ internal class IconSnapshotStore(context: Context) {
 
     internal data class Snapshot(val id: String, val sizePx: Int, val bitmap: ImageBitmap)
 
-    private companion object {
+    companion object {
+        /**
+         * Serializes the renderer state the cached tiles bake in — the icon
+         * theme plus, under Monochrome, the resolved plate/glyph pair (the
+         * dynamic system palette can change while the theme stays Monochrome,
+         * e.g. a wallpaper change while the process is dead). Saved into the
+         * `renderer_state` marker on every [save] and compared by [load]
+         * against the current mirrors so wrong-variant tiles are never
+         * restored. `Default` tiles carry no themed plate, so the palette is
+         * deliberately not part of the default fingerprint.
+         */
+        fun rendererState(
+            iconTheme: IconTheme,
+            themedColors: IconNormalizer.ThemedIconColors?,
+        ): String = when (iconTheme) {
+            IconTheme.Default -> "default"
+            IconTheme.Monochrome ->
+                "monochrome plate=${themedColors?.plate} glyph=${themedColors?.glyph}"
+        }
+
         // Bump the version suffix whenever the persisted bitmap's appearance
         // changes so an upgrade drops the old directory instead of restoring
         // stale-format icons. _v2 = IconNormalizer full-bleed tiles; _v3 added
@@ -172,13 +234,14 @@ internal class IconSnapshotStore(context: Context) {
         // foregrounds (Play Store) and raises the bright-plate minimum;
         // _v12 retires per-logo sizing entirely — adaptive icons render
         // exactly as the platform composes them.
-        const val DIRECTORY_NAME = "icon_snapshots_v12"
-        const val DIRECTORY_PREFIX = "icon_snapshots"
-        const val EXTENSION = ".bin"
-        const val TMP_SUFFIX = ".tmp"
-        const val HEADER_SIZE = 8
-        const val BYTES_PER_PIXEL = 4
-        const val MAX_DIMENSION = 1024
-        const val BASE64_FLAGS = Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+        private const val DIRECTORY_NAME = "icon_snapshots_v12"
+        private const val DIRECTORY_PREFIX = "icon_snapshots"
+        private const val RENDERER_STATE_FILE_NAME = "renderer_state"
+        private const val EXTENSION = ".bin"
+        private const val TMP_SUFFIX = ".tmp"
+        private const val HEADER_SIZE = 8
+        private const val BYTES_PER_PIXEL = 4
+        private const val MAX_DIMENSION = 1024
+        private const val BASE64_FLAGS = Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
     }
 }
