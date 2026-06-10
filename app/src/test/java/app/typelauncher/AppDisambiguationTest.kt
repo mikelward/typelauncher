@@ -199,6 +199,35 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun lowercaseEnglishWordTrailingTokenDoesNotGrowAFlag() {
+        // Two-letter ISO codes collide with ordinary English words. Before
+        // the uppercase gate, these renames grew a Dominican Republic /
+        // India / Montenegro flag badge out of their final word.
+        assertNull(
+            personalApp("Tasks", "com.example.tasks")
+                .copy(customName = "To Do").effectiveDisambiguator,
+        )
+        assertNull(
+            personalApp("Attend", "com.example.attend")
+                .copy(customName = "Check In").effectiveDisambiguator,
+        )
+        assertNull(
+            personalApp("Phone", "com.example.phone")
+                .copy(customName = "Call Me").effectiveDisambiguator,
+        )
+    }
+
+    @Test
+    fun titlecaseCountryTokenDoesNotDriveBadge() {
+        // Only the conventional all-uppercase form reads as a deliberate
+        // country tag; "Uk" is treated as a word.
+        assertNull(
+            personalApp("Foo", "com.example.foo")
+                .copy(customName = "Foo Uk").effectiveDisambiguator,
+        )
+    }
+
+    @Test
     fun customNameWithoutRecognisedTagSuppressesBadge() {
         // The user explicitly chose a label without a regional tag; do not
         // silently retain the system-picked badge they were overriding.
