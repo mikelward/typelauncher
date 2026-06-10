@@ -59,7 +59,12 @@ class AppIconLoaderWorkBadgeInPlaceTest {
 
     @Test
     fun inPlaceBadgingStillProducesAnOverlay() = runBlocking {
-        val sizePx = 96
+        // `AppIconLoader`'s cache is a process-wide singleton and `evict` leaves
+        // `workbadge:<user>` entries alone, so a sibling test that loaded the
+        // overlay at a common size (e.g. 96 px) could leave a cached hit that
+        // returns before this shadow runs. A size no other test uses guarantees
+        // a cache miss, so the in-place shadow is actually exercised here.
+        val sizePx = 113
         val overlay = AppIconLoader.loadWorkBadge(
             context = ApplicationProvider.getApplicationContext(),
             user = Process.myUserHandle(),
