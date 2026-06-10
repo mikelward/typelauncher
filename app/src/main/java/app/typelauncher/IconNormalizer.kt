@@ -69,12 +69,12 @@ internal object IconNormalizer {
      * the icon's art (or its own background layer) fills it edge-to-edge. The
      * returned bitmap is always `sizePx` × `sizePx`.
      */
-    fun normalizeToTile(drawable: Drawable, sizePx: Int): Bitmap {
+    fun normalizeToTile(drawable: Drawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         // Adaptive icons are composed from their background and foreground
         // layers with the platform framing; legacy icons are re-seated on a
         // dominant-color plate.
-        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx)
-        return normalizeFlat(drawable, sizePx)
+        if (drawable is AdaptiveIconDrawable) return normalizeAdaptive(drawable, sizePx, debugLabel)
+        return normalizeFlat(drawable, sizePx, debugLabel)
     }
 
     /**
@@ -85,11 +85,17 @@ internal object IconNormalizer {
      * color. The drawable is re-drawn under a scale matrix rather than
      * upscaling its bitmap, so a vector icon stays crisp when enlarged.
      */
-    private fun normalizeFlat(drawable: Drawable, sizePx: Int): Bitmap {
+    private fun normalizeFlat(drawable: Drawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val raw = rasterizeFullBleed(drawable, sizePx)
         val analysis = analyze(raw)
         raw.recycle()
         val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
+        if (debugLabel.isNotEmpty()) {
+            LauncherDebugLog.event(
+                "iconTile $debugLabel sizePx=$sizePx flat ${drawable.javaClass.simpleName} " +
+                    "${analysis.describe(sizePx)} fillFraction=$fillFraction",
+            )
+        }
         val content = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(content)
         canvas.drawColor(analysis.dominantColor)
@@ -107,7 +113,7 @@ internal object IconNormalizer {
      * measured or resized per icon; what the designer authored is what renders,
      * pixel-for-pixel like a stock launcher.
      */
-    private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int): Bitmap {
+    private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tile)
 
@@ -117,7 +123,6 @@ internal object IconNormalizer {
         val foregroundAnalysis = foregroundBitmap?.let { analyze(it) }
         backgroundBitmap?.recycle()
         foregroundBitmap?.recycle()
-
         // Always lay down an opaque plate before the background layer, so any
         // transparent area of the background — e.g. a circular background on
         // transparency whose corners fall inside a squircle/system clip — is
@@ -136,11 +141,37 @@ internal object IconNormalizer {
             backgroundAnalysis != null && backgroundAnalysis.coverage > 0f -> backgroundAnalysis.dominantColor
             else -> Color.WHITE
         }
+        if (debugLabel.isNotEmpty()) {
+            // Structural diagnostic only — what the icon's layers actually are
+            // and what the analysis saw, so a misrendered icon can be diagnosed
+            // from `adb logcat -s TypeLauncherDebug` instead of guessed at.
+            LauncherDebugLog.event(
+                "iconTile $debugLabel sizePx=$sizePx adaptive " +
+                    "bg=${describe(drawable.background, backgroundAnalysis, sizePx)} " +
+                    "fg=${describe(drawable.foreground, foregroundAnalysis, sizePx)} " +
+                    "plate=${hexColor(plate)}",
+            )
+        }
         canvas.drawColor(plate)
         drawable.background?.let { drawLayerFramed(canvas, it, sizePx) }
         drawable.foreground?.let { drawLayerFramed(canvas, it, sizePx) }
         return tile
     }
+
+    /** One-line factual description of an adaptive layer for the diagnostic log. */
+    private fun describe(layer: Drawable?, analysis: IconAnalysis?, sizePx: Int): String {
+        if (layer == null) return "null"
+        return "${layer.javaClass.simpleName}${analysis?.let { "(${it.describe(sizePx)})" } ?: ""}"
+    }
+
+    private fun IconAnalysis.describe(sizePx: Int): String =
+        "cov=%.2f boundsFraction=%.2f dom=%s".format(
+            coverage,
+            maxOf(bounds.width(), bounds.height()) / sizePx.toFloat(),
+            hexColor(dominantColor),
+        )
+
+    private fun hexColor(color: Int): String = "#%08X".format(color)
 
     /**
      * Draws an adaptive [layer] with the platform safe-zone zoom applied about

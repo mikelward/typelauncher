@@ -184,7 +184,7 @@ internal object AppIconLoader {
             // into the bitmap would be sliced off by that clip. Instead the
             // badge is loaded separately (see loadWorkBadge) and drawn as an
             // overlay outside the circular clip, so it stays fully visible.
-            IconNormalizer.normalizeToTile(drawable, sizePx).asImageBitmap()
+            IconNormalizer.normalizeToTile(drawable, sizePx, app.packageName).asImageBitmap()
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")
