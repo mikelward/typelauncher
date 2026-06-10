@@ -169,9 +169,10 @@ internal class IconSnapshotStore(context: Context) {
         // caps the safe-zone zoom so margin-less foregrounds (Chrome, Play
         // Store) are never cropped, and fills the tile with dark-plated
         // disc logos (GitHub); _v11 restores the platform crop for full-bleed
-        // foregrounds (Play Store) and raises the bright-plate minimum to the
-        // observed neighbor norm.
-        const val DIRECTORY_NAME = "icon_snapshots_v11"
+        // foregrounds (Play Store) and raises the bright-plate minimum;
+        // _v12 retires per-logo sizing entirely — adaptive icons render
+        // exactly as the platform composes them.
+        const val DIRECTORY_NAME = "icon_snapshots_v12"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"

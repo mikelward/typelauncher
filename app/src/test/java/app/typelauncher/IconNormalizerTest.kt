@@ -160,95 +160,12 @@ class IconNormalizerTest {
     }
 
     @Test
-    fun darkPlateDiscLogoFillsTheTile() {
-        // A solid white disc (30% of the layer, off-center at x=38) on a
-        // near-black background — the GitHub case. The dark plate vanishes into
-        // the launcher's dark surface, so the disc *is* the visible icon;
-        // anything short of full size reads smaller than every bright neighbor
-        // whose whole circle is visible. The disc is grown to fill the tile
-        // (radius ~50 of 100) and moved to the tile center so the growth can't
-        // spill past an edge — both 44px-out points are covered.
-        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val drawable = AdaptiveIconDrawable(
-            ColorDrawable(Color.rgb(0x10, 0x14, 0x1C)),
-            BitmapDrawable(resources, circleAt(100, centerX = 38f, centerY = 50f, radius = 15f, color = Color.WHITE)),
-        )
-
-        val tile = IconNormalizer.normalizeToTile(drawable, 100)
-
-        assertColorClose(Color.WHITE, tile.getPixel(50, 50))
-        assertColorClose(Color.WHITE, tile.getPixel(6, 50))
-        assertColorClose(Color.WHITE, tile.getPixel(94, 50))
-        assertColorClose(Color.rgb(0x10, 0x14, 0x1C), tile.getPixel(2, 2))
-    }
-
-    @Test
-    fun darkPlateRingLogoIsEnlargedOnlyToTheDarkPlateMinimum() {
-        // A ring outline (outer radius 15, stroke 3 — the VW case) on the same
-        // near-black background is *not* a filled disc (it fills only ~36% of
-        // its hull), so it must not be grown to fill the tile — its open shape
-        // would slam the clip edge. It gets DARK_PLATE_FOREGROUND_FRACTION
-        // (~78%, outer radius ~39, inner ~31): 35px out is on the ring, 25px
-        // out is inside the hole, and 45px out must be background again (a
-        // disc-fill would paint it white).
-        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val dark = Color.rgb(0x10, 0x14, 0x1C)
-        val ring = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-        Canvas(ring).drawCircle(
-            50f,
-            50f,
-            13.5f,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.STROKE
-                strokeWidth = 3f
-            },
-        )
-        val drawable = AdaptiveIconDrawable(ColorDrawable(dark), BitmapDrawable(resources, ring))
-
-        val tile = IconNormalizer.normalizeToTile(drawable, 100)
-
-        assertColorClose(Color.WHITE, tile.getPixel(85, 50))
-        assertColorClose(dark, tile.getPixel(75, 50))
-        assertColorClose(dark, tile.getPixel(95, 50))
-    }
-
-    @Test
-    fun marginlessForegroundGetsThePlatformCrop() {
-        // The Play Store authors its foreground full-bleed: the outer quarter
-        // of the layer is deliberate filler (here a blue frame) that the
-        // platform's 1.5x safe-zone zoom crops away, which is exactly what
-        // gives the inner art (red) its intended size. Drawing the layer
-        // "uncropped" at authored size shrinks the inner logo and exposes the
-        // filler — the v595 tiny-triangle-on-white regression — so the frame
-        // must be cropped off the tile and the interior must reach the edges.
-        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val red = Color.rgb(0xC0, 0x28, 0x28)
-        val blue = Color.rgb(0x20, 0x40, 0xC0)
-        val framed = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888).also {
-            val canvas = Canvas(it)
-            canvas.drawColor(blue)
-            canvas.drawRect(Rect(8, 8, 92, 92), Paint().apply { color = red })
-        }
-        val drawable = AdaptiveIconDrawable(
-            ColorDrawable(Color.WHITE),
-            BitmapDrawable(resources, framed),
-        )
-
-        val tile = IconNormalizer.normalizeToTile(drawable, 100)
-
-        assertColorClose(red, tile.getPixel(50, 50))
-        assertColorClose(red, tile.getPixel(3, 50))
-        assertColorClose(red, tile.getPixel(97, 50))
-    }
-
-    @Test
-    fun adaptiveForegroundOnABrightPlateIsEnlargedOnlyToTheMinimum() {
-        // A tiny (30% of the layer) dark logo on a white background reads
-        // against a visible bright tile, so it only gets
-        // MIN_FOREGROUND_FRACTION (~68%, radius 34 of 100) — not the dark-plate
-        // compensation. 24px out is inside that size; 36px out must still be
-        // the white plate.
+    fun adaptiveSmallForegroundKeepsItsAuthoredSize() {
+        // A 30% logo renders at exactly the platform framing (30% x 1.5 =
+        // radius 22.5 of 100) — never measured, never enlarged. The point 20px
+        // out is inside the authored size; 26px out must be the plate. (The
+        // retired sizing engine would have grown this logo to a "minimum" and
+        // covered both points — that whole idea is deliberately gone.)
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
         val dark = Color.rgb(0x10, 0x14, 0x1C)
         val drawable = AdaptiveIconDrawable(
@@ -259,75 +176,8 @@ class IconNormalizerTest {
         val tile = IconNormalizer.normalizeToTile(drawable, 100)
 
         assertColorClose(dark, tile.getPixel(50, 50))
-        assertColorClose(dark, tile.getPixel(74, 50))
-        assertColorClose(Color.WHITE, tile.getPixel(86, 50))
-    }
-
-    @Test
-    fun adaptiveForegroundShadowDoesNotInflateTheSizing() {
-        // A crisp 30% logo wrapped in a soft 60% shadow halo (alpha 60, under
-        // SIZING_ALPHA). Sizing must measure the crisp art only, so the logo is
-        // enlarged to the 68% minimum (radius 34) — the regression was the halo
-        // padding the measured box so the bump under-fired and the crisp logo
-        // rendered at only ~45% (radius 22.5, leaving 24px out un-covered).
-        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val dark = Color.rgb(0x10, 0x14, 0x1C)
-        val foreground = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(foreground)
-        val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(60, 0x10, 0x14, 0x1C) }
-        canvas.drawCircle(50f, 50f, 30f, haloPaint)
-        val crispPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = dark }
-        canvas.drawCircle(50f, 50f, 15f, crispPaint)
-        val drawable = AdaptiveIconDrawable(
-            ColorDrawable(Color.WHITE),
-            BitmapDrawable(resources, foreground),
-        )
-
-        val tile = IconNormalizer.normalizeToTile(drawable, 100)
-
-        assertColorClose(dark, tile.getPixel(50, 50))
-        assertColorClose(dark, tile.getPixel(74, 50))
-    }
-
-    @Test
-    fun adaptiveSquareLogoGetsASmallerBumpThanARoundOne() {
-        // A solid square reads larger than a circle of the same bounding box, so
-        // the perceived-size correction enlarges it less: a 30% square lands at
-        // ~60% per side (half-side ~30 of 100) instead of the 68% a circle
-        // gets. 26px out is inside the square; 32px out must be plate again
-        // (a circle-sized bump would still cover it at radius 34).
-        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val dark = Color.rgb(0x10, 0x14, 0x1C)
-        val drawable = AdaptiveIconDrawable(
-            ColorDrawable(Color.WHITE),
-            BitmapDrawable(resources, squareOnTransparent(100, Rect(35, 35, 65, 65), dark)),
-        )
-
-        val tile = IconNormalizer.normalizeToTile(drawable, 100)
-
-        assertColorClose(dark, tile.getPixel(76, 50))
-        assertColorClose(Color.WHITE, tile.getPixel(82, 50))
-    }
-
-    @Test
-    fun adaptiveEnlargementKeepsAnOffCenterLogoInPlace() {
-        // A 20% logo centered at (38, 50) of the layer needs a 3.4x bump (to
-        // the 68% minimum). The extra zoom beyond the safe-zone framing is
-        // anchored on the logo's own center — after framing that center is at
-        // x=32, and it must stay there (radius 34 covers x=58). A
-        // tile-center-anchored zoom would shove the logo's center out to x=14,
-        // leaving both asserted points on the plate.
-        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
-        val dark = Color.rgb(0x10, 0x14, 0x1C)
-        val drawable = AdaptiveIconDrawable(
-            ColorDrawable(Color.WHITE),
-            BitmapDrawable(resources, circleAt(100, centerX = 38f, centerY = 50f, radius = 10f, color = dark)),
-        )
-
-        val tile = IconNormalizer.normalizeToTile(drawable, 100)
-
-        assertColorClose(dark, tile.getPixel(50, 50))
-        assertColorClose(dark, tile.getPixel(58, 50))
+        assertColorClose(dark, tile.getPixel(70, 50))
+        assertColorClose(Color.WHITE, tile.getPixel(76, 50))
     }
 
     @Test
@@ -362,13 +212,6 @@ class IconNormalizerTest {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
         Canvas(bitmap).drawCircle(size / 2f, size / 2f, size * fraction / 2f, paint)
-        return bitmap
-    }
-
-    private fun circleAt(size: Int, centerX: Float, centerY: Float, radius: Float, color: Int): Bitmap {
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-        Canvas(bitmap).drawCircle(centerX, centerY, radius, paint)
         return bitmap
     }
 
