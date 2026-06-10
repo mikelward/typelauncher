@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.core.content.getSystemService
-import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -173,7 +172,12 @@ internal object AppIconLoader {
         }
         val bitmapStart = SystemClock.elapsedRealtime()
         val bitmap = withContext(Dispatchers.Default) {
-            drawable.toBitmap(width = sizePx, height = sizePx).asImageBitmap()
+            // Normalize to a full-bleed tile so padded/legacy icons fill the
+            // launcher's rounded-rectangle shape instead of floating on the
+            // surface plate as a gray square. Adaptive icons pass through
+            // edge-to-edge; everything else is re-seated on a dominant-color
+            // plate. See IconNormalizer.
+            IconNormalizer.normalizeToTile(drawable, sizePx).asImageBitmap()
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")

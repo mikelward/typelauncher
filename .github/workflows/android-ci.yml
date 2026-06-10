@@ -203,6 +203,12 @@ jobs:
         # corner radius).
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.BadgePickerDialogScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run icon normalization screenshot tests
+        # Renders the normalized full-bleed app-icon tiles (adaptive, colored
+        # shape with padding, sparse logo, plain colored) so the PR
+        # `roborazzi-screenshots` artifact captures the tile treatment.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconNormalizationScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

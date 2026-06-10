@@ -1,0 +1,105 @@
+package app.typelauncher
+
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class IconNormalizerTest {
+
+    @Test
+    fun fullyOpaqueIconReportsFullCoverageAndItsColor() {
+        val analysis = IconNormalizer.analyze(solid(64, Color.RED))
+
+        assertEquals(1f, analysis.coverage, 0.001f)
+        assertEquals(Rect(0, 0, 64, 64), analysis.bounds)
+        assertColorClose(Color.RED, analysis.dominantColor)
+    }
+
+    @Test
+    fun paddedIconReportsTightBoundsLowCoverageAndShapeColor() {
+        // A red square occupying the center 32x32 of a 64x64 transparent canvas
+        // — the "colored shape with transparent padding" case.
+        val analysis = IconNormalizer.analyze(squareOnTransparent(64, Rect(16, 16, 48, 48), Color.RED))
+
+        assertTrue("coverage was ${analysis.coverage}", analysis.coverage < 0.3f)
+        assertEquals(Rect(16, 16, 48, 48), analysis.bounds)
+        assertColorClose(Color.RED, analysis.dominantColor)
+    }
+
+    @Test
+    fun fullBleedDrawableIsReturnedUntouched() {
+        val tile = IconNormalizer.normalizeToTile(ColorDrawable(Color.GREEN), 64)
+
+        // No plate ring: every pixel, corners included, is the icon's own color.
+        assertColorClose(Color.GREEN, tile.getPixel(0, 0))
+        assertColorClose(Color.GREEN, tile.getPixel(63, 63))
+        assertColorClose(Color.GREEN, tile.getPixel(32, 32))
+    }
+
+    @Test
+    fun paddedColoredIconBecomesSeamlessFullBleedTile() {
+        val drawable = BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            squareOnTransparent(64, Rect(20, 20, 44, 44), Color.rgb(0xFF, 0x6A, 0x4D)),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 64)
+
+        // The transparent corners are now filled with the extracted coral plate
+        // — the dead gray can no longer show through.
+        assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
+        assertColorClose(Color.rgb(0xFF, 0x6A, 0x4D), tile.getPixel(2, 2))
+        assertColorClose(Color.rgb(0xFF, 0x6A, 0x4D), tile.getPixel(32, 32))
+    }
+
+    @Test
+    fun adaptiveIconIsDrawnFullBleed() {
+        val drawable = AdaptiveIconDrawable(ColorDrawable(Color.BLUE), ColorDrawable(Color.RED))
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 64)
+
+        // Foreground is drawn over background at full bounds, so the tile is
+        // opaque edge-to-edge with no plate required.
+        assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
+        assertEquals(255, Color.alpha(tile.getPixel(61, 61)))
+    }
+
+    private fun solid(size: Int, color: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).drawColor(color)
+        return bitmap
+    }
+
+    private fun squareOnTransparent(size: Int, rect: Rect, color: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val paint = Paint().apply { this.color = color }
+        Canvas(bitmap).drawRect(rect, paint)
+        return bitmap
+    }
+
+    private fun assertColorClose(expected: Int, actual: Int) {
+        val tolerance = 12
+        assertTrue(
+            "expected #${Integer.toHexString(expected)} but was #${Integer.toHexString(actual)}",
+            kotlin.math.abs(Color.red(expected) - Color.red(actual)) <= tolerance &&
+                kotlin.math.abs(Color.green(expected) - Color.green(actual)) <= tolerance &&
+                kotlin.math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance,
+        )
+    }
+}
