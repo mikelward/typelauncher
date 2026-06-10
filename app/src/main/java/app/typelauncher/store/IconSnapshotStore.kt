@@ -154,8 +154,9 @@ internal class IconSnapshotStore(context: Context) {
         // Bump the version suffix whenever the persisted bitmap's appearance
         // changes so an upgrade drops the old directory instead of restoring
         // stale-format icons. _v2 = IconNormalizer full-bleed tiles; _v3 added
-        // the adaptive safe-zone zoom (different rasterized content).
-        const val DIRECTORY_NAME = "icon_snapshots_v3"
+        // the adaptive safe-zone zoom; _v4 = layer-aware adaptive normalization
+        // (foreground logo measured and enlarged).
+        const val DIRECTORY_NAME = "icon_snapshots_v4"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
