@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Paskutinės programos</string>
     <string name="dock_recents_scroll_more_hint">Slinkite, kad pamatytumėte daugiau paskutinių programų</string>
     <string name="apps_list_scroll_more_hint">Slinkite, kad pamatytumėte daugiau programų</string>
-    <string name="notification_listener_service_label">Type Launcher pranešimai</string>
-    <string name="notification_bar_description">Programos su pranešimais</string>
-    <string name="notification_bar_empty_hint">Naujų pranešimų nėra</string>
-    <string name="notification_bar_permission_hint">Leiskite prieigą prie pranešimų, kad matytumėte programas su pranešimais.</string>
-    <string name="notification_bar_permission_button">Leisti prieigą prie pranešimų</string>
-    <string name="notification_bar_badge_description">Yra neskaitytų pranešimų</string>
     <string name="agenda_title">Darbotvarkė</string>
     <string name="agenda_events_list_label">Kalendoriaus darbotvarkės įvykiai</string>
     <string name="agenda_permission_message">Leiskite prieigą prie kalendoriaus, kad būtų rodoma jūsų darbotvarkė.</string>

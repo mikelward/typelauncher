@@ -22,12 +22,6 @@
     <string name="dock_recents_description">මෑත යෙදුම්</string>
     <string name="dock_recents_scroll_more_hint">තවත් මෑත යෙදුම් සඳහා ස්ක්‍රෝල් කරන්න</string>
     <string name="apps_list_scroll_more_hint">තවත් යෙදුම් සඳහා ස්ක්‍රෝල් කරන්න</string>
-    <string name="notification_listener_service_label">Type Launcher දැනුම්දීම්</string>
-    <string name="notification_bar_description">දැනුම්දීම් සහිත යෙදුම්</string>
-    <string name="notification_bar_empty_hint">නව දැනුම්දීම් නැත</string>
-    <string name="notification_bar_permission_hint">දැනුම්දීම් සහිත යෙදුම් බැලීමට දැනුම්දීම් ප්‍රවේශය ඉඩ දෙන්න.</string>
-    <string name="notification_bar_permission_button">දැනුම්දීම් ප්‍රවේශය ඉඩ දෙන්න</string>
-    <string name="notification_bar_badge_description">කියවා නැති දැනුම්දීමක් ඇත</string>
     <string name="agenda_title">න්‍යාය පත්‍රය</string>
     <string name="agenda_events_list_label">දින දර්ශන න්‍යාය පත්‍ර සිදුවීම්</string>
     <string name="agenda_permission_message">ඔබේ න්‍යාය පත්‍රය පෙන්වීමට දින දර්ශන ප්‍රවේශය ඉඩ දෙන්න.</string>

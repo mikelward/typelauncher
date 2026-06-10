@@ -237,8 +237,6 @@ internal fun TypeLauncherApp(
         onHideApp = viewModel::hideApp,
         onUnhideApp = viewModel::unhideApp,
         onDismissRecent = viewModel::removeRecent,
-        onDismissNotifications = viewModel::dismissNotificationsFor,
-        onOpenNotificationSettings = viewModel::openNotificationSettingsFor,
         onOpenSettings = viewModel::openSettings,
         onCloseSettings = viewModel::closeSettings,
         onOpenLauncherAppInfo = viewModel::openLauncherAppInfo,
@@ -260,11 +258,9 @@ internal fun TypeLauncherApp(
         onShowHome = viewModel::showHome,
         onHomeReady = viewModel::onHomeReady,
         onSetRecentsOpen = viewModel::setRecentsOpen,
-        onSetNotificationBarOpen = viewModel::setNotificationBarOpen,
         onRequestShowKeyboard = viewModel::requestShowKeyboard,
         onKeyboardReservationChanged = viewModel::setKeyboardReservation,
         keyboardShowRequests = viewModel.keyboardShowRequests,
-        onRequestNotificationAccess = viewModel::openNotificationAccessSettings,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
         onAddWidget = onAddWidget,
@@ -301,8 +297,6 @@ internal fun TypeLauncherApp(
     onHideApp: (InstalledApp) -> Unit,
     onUnhideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit = {},
-    onDismissNotifications: (InstalledApp) -> Unit = {},
-    onOpenNotificationSettings: (InstalledApp) -> Unit = {},
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
     onOpenLauncherAppInfo: () -> Unit = {},
@@ -324,11 +318,9 @@ internal fun TypeLauncherApp(
     onShowHome: () -> Unit,
     onHomeReady: () -> Unit = {},
     onSetRecentsOpen: (Boolean) -> Unit = {},
-    onSetNotificationBarOpen: (Boolean) -> Unit = {},
     onRequestShowKeyboard: () -> Unit = {},
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
-    onRequestNotificationAccess: () -> Unit = {},
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     onAddWidget: (WidgetAddRequest) -> Unit,
@@ -354,8 +346,8 @@ internal fun TypeLauncherApp(
         waitForIme = state.isKeyboardAutoShown,
         onHomeReady = onHomeReady,
     )
-    // Cold-start one-frame holdback for the home body (apps grid, notification
-    // bar, dock, recents). Hoisted here so it survives HomeScreen unmount /
+    // Cold-start one-frame holdback for the home body (apps grid, dock,
+    // recents). Hoisted here so it survives HomeScreen unmount /
     // remount cycles (Settings open/close, returning from carousel screens):
     // the holdback is a cold-start optimisation, not something we want to
     // re-trigger on routine navigation. TypeLauncherApp itself only unmounts
@@ -610,17 +602,7 @@ internal fun TypeLauncherApp(
                     // animation flow to the carousel's pointer loop via `.value`
                     // without recomposing SwipeNavigationBox — same pattern as
                     // isDockDraggingState / isWidgetScrollingState.
-                    //
-                    // One slot per bar, keyed by BottomBarKind: recents and the
-                    // notification bar share the same bottom slot and one can be
-                    // exit-animating (still composed, still reporting shrinking
-                    // bounds, and finally disposing → null) while the other
-                    // enters. Separate slots mean an exiting bar can never erase
-                    // or overwrite the region of the bar that is actually open;
-                    // the carousel below reads whichever slot matches the open
-                    // bar.
                     val recentsScrollRegionState = remember { mutableStateOf<BarScrollRegion?>(null) }
-                    val notificationScrollRegionState = remember { mutableStateOf<BarScrollRegion?>(null) }
                     // The carousel's pointerInput has to see this flip within a
                     // single pointer event (Main pass writes from the dock,
                     // Final pass reads from the carousel), so the state is
@@ -654,11 +636,9 @@ internal fun TypeLauncherApp(
                         widgetPageCount = state.widgetPages.size,
                         isAgendaEnabled = state.isAgendaEnabled,
                         isRecentsOpen = state.isRecentsOpen,
-                        isNotificationBarOpen = state.isNotificationBarOpen,
                         onShowAgenda = onShowAgenda,
                         onShowWidgets = onShowWidgets,
                         onShowHome = onShowHome,
-                        onSetNotificationBarOpen = onSetNotificationBarOpen,
                         onSetRecentsOpen = onSetRecentsOpen,
                         onRequestShowKeyboard = onRequestShowKeyboard,
                         onSwipeDown = onSwipeDown,
@@ -677,7 +657,6 @@ internal fun TypeLauncherApp(
                         },
                         appListBoundsInRoot = homeAppListBoundsInRoot,
                         recentsScrollRegionState = recentsScrollRegionState,
-                        notificationScrollRegionState = notificationScrollRegionState,
                         isDockDraggingState = isDockDraggingState,
                         isWidgetScrollingState = isWidgetScrollingState,
                     ) { page, isCurrentPage ->
@@ -705,17 +684,10 @@ internal fun TypeLauncherApp(
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
                                 onDismissRecent = onDismissRecent,
-                                onDismissNotifications = onDismissNotifications,
-                                onOpenNotificationSettings = onOpenNotificationSettings,
                                 onOpenSettings = onOpenSettings,
-                                onSetNotificationBarOpen = onSetNotificationBarOpen,
-                                onRequestNotificationAccess = onRequestNotificationAccess,
                                 onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
-                                onBarScrollRegionChanged = { kind, region ->
-                                    when (kind) {
-                                        BottomBarKind.Recents -> recentsScrollRegionState.value = region
-                                        BottomBarKind.Notifications -> notificationScrollRegionState.value = region
-                                    }
+                                onBarScrollRegionChanged = { region ->
+                                    recentsScrollRegionState.value = region
                                 },
                                 onDockDragChanged = { isDockDraggingState.value = it },
                             )
@@ -795,14 +767,11 @@ private fun SwipeNavigationBox(
     widgetPageCount: Int,
     isAgendaEnabled: Boolean,
     isRecentsOpen: Boolean,
-    isNotificationBarOpen: Boolean,
     appListBoundsInRoot: Rect?,
     recentsScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
-    notificationScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
-    onSetNotificationBarOpen: (Boolean) -> Unit,
     onSetRecentsOpen: (Boolean) -> Unit,
     onRequestShowKeyboard: () -> Unit,
     onSwipeDown: () -> Unit,
@@ -821,8 +790,6 @@ private fun SwipeNavigationBox(
     val currentScreen by rememberUpdatedState(destination.screen)
     val currentLauncherPage by rememberUpdatedState(destination.toLauncherPage())
     val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
-    val currentNotificationBarOpen by rememberUpdatedState(isNotificationBarOpen)
-    val currentSetNotificationBarOpen by rememberUpdatedState(onSetNotificationBarOpen)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
@@ -839,26 +806,19 @@ private fun SwipeNavigationBox(
     val currentKeyboard by rememberUpdatedState(keyboard)
     val focusManager = LocalFocusManager.current
     val currentFocusManager by rememberUpdatedState(focusManager)
-    // The bottom-bar state machine. Recents and the notification bar are
-    // mutually exclusive (enforced in the ViewModel), and they sit in the same
-    // bottom slot, so the two pull directions toggle between three states:
+    // The bottom-bar state machine for the recents bar:
     //
     //            pull up                         pull down
-    //   None  -> open Recents            None  -> open Notifications
+    //   None  -> open Recents            None  -> system shade
     //   Recents -> re-show keyboard      Recents -> close (opposite gesture)
-    //   Notifications -> close           Notifications -> system shade
     //
-    // i.e. the opposite gesture always hides an open bar, a second pull-up on
-    // recents re-shows the search keyboard, and a second pull-down on the
-    // notification bar falls through to the real system notification shade.
+    // i.e. pull-down opens the real system notification shade unless the
+    // recents bar is open (the opposite gesture hides it first), and a second
+    // pull-up on recents re-shows the search keyboard.
     val swipeDownDispatch = remember<() -> Unit> {
         {
-            if (currentScreen == LauncherScreen.Home) {
-                when {
-                    currentRecentsOpen -> currentSetRecentsOpen(false)
-                    currentNotificationBarOpen -> currentOnSwipeDown()
-                    else -> currentSetNotificationBarOpen(true)
-                }
+            if (currentScreen == LauncherScreen.Home && currentRecentsOpen) {
+                currentSetRecentsOpen(false)
             } else {
                 currentOnSwipeDown()
             }
@@ -868,10 +828,10 @@ private fun SwipeNavigationBox(
         {
             // Pull-up only does anything on Home.
             if (currentScreen == LauncherScreen.Home) {
-                when {
-                    currentNotificationBarOpen -> currentSetNotificationBarOpen(false)
-                    currentRecentsOpen -> currentRequestShowKeyboard()
-                    else -> currentSetRecentsOpen(true)
+                if (currentRecentsOpen) {
+                    currentRequestShowKeyboard()
+                } else {
+                    currentSetRecentsOpen(true)
                 }
             }
         }
@@ -1153,17 +1113,12 @@ private fun SwipeNavigationBox(
                                 owner == LauncherGestureOwner.HorizontalLauncher
                             ) {
                                 barReservationDecided = true
-                                // Read the slot for whichever bar is open, so an
-                                // exiting bar's stale region can never reserve a
-                                // drag meant for the page.
-                                val openBarRegion = when {
-                                    currentRecentsOpen -> recentsScrollRegionState.value
-                                    currentNotificationBarOpen -> notificationScrollRegionState.value
-                                    else -> null
-                                }
+                                // Only read the region while the bar is open, so
+                                // an exiting bar's stale region can never reserve
+                                // a drag meant for the page.
                                 barReservedGesture = shouldReserveGestureForBar(
-                                    isBarOpen = currentRecentsOpen || currentNotificationBarOpen,
-                                    region = openBarRegion,
+                                    isBarOpen = currentRecentsOpen,
+                                    region = if (currentRecentsOpen) recentsScrollRegionState.value else null,
                                     downPosition = downChange.position,
                                     rawDragX = rawDragX,
                                 )
@@ -1419,10 +1374,9 @@ private fun SwipeNavigationBox(
                     // `requestDisallowInterceptTouchEvent(true)` mid-gesture,
                     // and `LauncherAppWidgetHostView` flips
                     // `isWidgetScrollingState` accordingly. Without this latch a
-                    // vertical drag inside a widget on the Widgets screen would
-                    // fall through to `swipeDownDispatch` and expand the system
-                    // notification shade; on Home it would open the launcher's
-                    // own pull-down notification bar.
+                    // vertical drag inside a widget would fall through to
+                    // `swipeDownDispatch` and expand the system notification
+                    // shade.
                     var widgetScrolledDuringGesture = false
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPointerInputChange(downChange)
@@ -1681,15 +1635,12 @@ internal enum class LauncherGestureOwner {
     VerticalLauncher,
 }
 
-/** Which bottom bar a reported [BarScrollRegion] belongs to. */
-internal enum class BottomBarKind { Recents, Notifications }
-
 /**
- * The on-screen icon strip of an open bottom bar (recents or notifications)
- * together with a live query of whether it can still scroll in a given finger
- * direction. The carousel uses this to hand a horizontal drag that starts on
- * the strip to the bar's own scroll instead of paging — but only the strip
- * itself, not the card padding around it, so the padding stays page territory.
+ * The on-screen icon strip of the open recents bar together with a live query
+ * of whether it can still scroll in a given finger direction. The carousel
+ * uses this to hand a horizontal drag that starts on the strip to the bar's
+ * own scroll instead of paging — but only the strip itself, not the card
+ * padding around it, so the padding stays page territory.
  *
  * [boundsInRoot] is the *viewport* (the visible strip), not the scrolled
  * content, so it stays put under the finger as the row scrolls.
@@ -1756,7 +1707,7 @@ internal fun resolveLauncherGestureOwner(
 ): LauncherGestureOwner {
     val absX = abs(rawDragX)
     val absY = abs(rawDragY)
-    // A nested scrollable (the recents/notifications bar's horizontalScroll, the
+    // A nested scrollable (the recents bar's horizontalScroll, the
     // Home app list, a hosted widget) only reports consumption *after* it has
     // cleared its own touch slop, so its consumed delta trails the raw finger
     // movement by roughly one touch slop. If the launcher claimed the gesture

@@ -22,12 +22,6 @@
     <string name="dock_recents_description">अलीकडील अॅप्स</string>
     <string name="dock_recents_scroll_more_hint">अधिक अलीकडील अॅप्ससाठी स्क्रोल करा</string>
     <string name="apps_list_scroll_more_hint">अधिक अॅप्ससाठी स्क्रोल करा</string>
-    <string name="notification_listener_service_label">Type Launcher सूचना</string>
-    <string name="notification_bar_description">सूचना असलेले अॅप्स</string>
-    <string name="notification_bar_empty_hint">कोणत्याही नवीन सूचना नाहीत</string>
-    <string name="notification_bar_permission_hint">सूचना असलेले अॅप्स पाहण्यासाठी सूचना प्रवेशास परवानगी द्या.</string>
-    <string name="notification_bar_permission_button">सूचना प्रवेशास परवानगी द्या</string>
-    <string name="notification_bar_badge_description">न वाचलेली सूचना आहे</string>
     <string name="agenda_title">अजेंडा</string>
     <string name="agenda_events_list_label">कॅलेंडर अजेंडा इव्हेंट</string>
     <string name="agenda_permission_message">तुमचा अजेंडा दाखवण्यासाठी कॅलेंडर प्रवेशास परवानगी द्या.</string>

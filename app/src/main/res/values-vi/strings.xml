@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Ứng dụng gần đây</string>
     <string name="dock_recents_scroll_more_hint">Cuộn để xem thêm ứng dụng gần đây</string>
     <string name="apps_list_scroll_more_hint">Cuộn để xem thêm ứng dụng</string>
-    <string name="notification_listener_service_label">Thông báo Type Launcher</string>
-    <string name="notification_bar_description">Ứng dụng có thông báo</string>
-    <string name="notification_bar_empty_hint">Không có thông báo mới</string>
-    <string name="notification_bar_permission_hint">Cho phép truy cập thông báo để xem các ứng dụng có thông báo.</string>
-    <string name="notification_bar_permission_button">Cho phép truy cập thông báo</string>
-    <string name="notification_bar_badge_description">Có thông báo chưa đọc</string>
     <string name="agenda_title">Lịch trình</string>
     <string name="agenda_events_list_label">Sự kiện lịch trình</string>
     <string name="agenda_permission_message">Cho phép truy cập lịch để hiển thị lịch trình của bạn.</string>

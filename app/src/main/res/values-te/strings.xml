@@ -22,12 +22,6 @@
     <string name="dock_recents_description">ఇటీవలి యాప్‌లు</string>
     <string name="dock_recents_scroll_more_hint">మరిన్ని ఇటీవలి యాప్‌ల కోసం స్క్రోల్ చేయండి</string>
     <string name="apps_list_scroll_more_hint">మరిన్ని యాప్‌ల కోసం స్క్రోల్ చేయండి</string>
-    <string name="notification_listener_service_label">Type Launcher నోటిఫికేషన్‌లు</string>
-    <string name="notification_bar_description">నోటిఫికేషన్‌లు ఉన్న యాప్‌లు</string>
-    <string name="notification_bar_empty_hint">కొత్త నోటిఫికేషన్‌లు లేవు</string>
-    <string name="notification_bar_permission_hint">నోటిఫికేషన్‌లు ఉన్న యాప్‌లను చూడటానికి నోటిఫికేషన్ యాక్సెస్‌ను అనుమతించండి.</string>
-    <string name="notification_bar_permission_button">నోటిఫికేషన్ యాక్సెస్‌ను అనుమతించు</string>
-    <string name="notification_bar_badge_description">చదవని నోటిఫికేషన్ ఉంది</string>
     <string name="agenda_title">అజెండా</string>
     <string name="agenda_events_list_label">క్యాలెండర్ అజెండా ఈవెంట్‌లు</string>
     <string name="agenda_permission_message">మీ అజెండాను చూపడానికి క్యాలెండర్ యాక్సెస్‌ను అనుమతించండి.</string>

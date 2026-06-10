@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Regression coverage for the query-typing fast path: a `setQuery` call must
- * recompute `filteredApps` only and leave dock / recents / hidden / notifying
+ * recompute `filteredApps` only and leave dock / recents / hidden
  * lists reference-equal so unrelated UI does not recompose on every keystroke
  * (notably backspace, which grows the result set back toward the full list).
  */
@@ -81,11 +81,6 @@ class LauncherViewModelQueryTest {
             "hiddenApps does not depend on the query and must not be rebuilt",
             before.hiddenApps,
             after.hiddenApps,
-        )
-        assertSame(
-            "notifyingApps does not depend on the query and must not be rebuilt",
-            before.notifyingApps,
-            after.notifyingApps,
         )
     }
 

@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Aplicații recente</string>
     <string name="dock_recents_scroll_more_hint">Derulați pentru mai multe aplicații recente</string>
     <string name="apps_list_scroll_more_hint">Derulați pentru mai multe aplicații</string>
-    <string name="notification_listener_service_label">Notificări Type Launcher</string>
-    <string name="notification_bar_description">Aplicații cu notificări</string>
-    <string name="notification_bar_empty_hint">Nicio notificare nouă</string>
-    <string name="notification_bar_permission_hint">Permiteți accesul la notificări pentru a vedea aplicațiile cu notificări.</string>
-    <string name="notification_bar_permission_button">Permite accesul la notificări</string>
-    <string name="notification_bar_badge_description">Are notificări necitite</string>
     <string name="agenda_title">Agendă</string>
     <string name="agenda_events_list_label">Evenimente din agenda calendarului</string>
     <string name="agenda_permission_message">Permiteți accesul la calendar pentru a afișa agenda.</string>

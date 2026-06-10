@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Hiljutised rakendused</string>
     <string name="dock_recents_scroll_more_hint">Kerige rohkemate hiljutiste rakenduste nägemiseks</string>
     <string name="apps_list_scroll_more_hint">Kerige rohkemate rakenduste nägemiseks</string>
-    <string name="notification_listener_service_label">Type Launcheri märguanded</string>
-    <string name="notification_bar_description">Märguannetega rakendused</string>
-    <string name="notification_bar_empty_hint">Uusi märguandeid pole</string>
-    <string name="notification_bar_permission_hint">Lubage juurdepääs märguannetele, et näha märguannetega rakendusi.</string>
-    <string name="notification_bar_permission_button">Luba juurdepääs märguannetele</string>
-    <string name="notification_bar_badge_description">Lugemata märguanded</string>
     <string name="agenda_title">Päevakava</string>
     <string name="agenda_events_list_label">Kalendri päevakava sündmused</string>
     <string name="agenda_permission_message">Lubage juurdepääs kalendrile, et kuvada teie päevakava.</string>

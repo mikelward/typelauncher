@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Πρόσφατες εφαρμογές</string>
     <string name="dock_recents_scroll_more_hint">Κάντε κύλιση για περισσότερες πρόσφατες εφαρμογές</string>
     <string name="apps_list_scroll_more_hint">Κάντε κύλιση για περισσότερες εφαρμογές</string>
-    <string name="notification_listener_service_label">Ειδοποιήσεις Type Launcher</string>
-    <string name="notification_bar_description">Εφαρμογές με ειδοποιήσεις</string>
-    <string name="notification_bar_empty_hint">Δεν υπάρχουν νέες ειδοποιήσεις</string>
-    <string name="notification_bar_permission_hint">Επιτρέψτε την πρόσβαση στις ειδοποιήσεις για να βλέπετε εφαρμογές με ειδοποιήσεις.</string>
-    <string name="notification_bar_permission_button">Επιτρέψτε την πρόσβαση στις ειδοποιήσεις</string>
-    <string name="notification_bar_badge_description">Έχει μη αναγνωσμένη ειδοποίηση</string>
     <string name="agenda_title">Ατζέντα</string>
     <string name="agenda_events_list_label">Γεγονότα ατζέντας ημερολογίου</string>
     <string name="agenda_permission_message">Επιτρέψτε την πρόσβαση στο ημερολόγιο για να εμφανιστεί η ατζέντα σας.</string>

@@ -178,13 +178,9 @@ internal fun HomeScreen(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onDismissNotifications: (InstalledApp) -> Unit,
-    onOpenNotificationSettings: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
-    onSetNotificationBarOpen: (Boolean) -> Unit = {},
-    onRequestNotificationAccess: () -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
     onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
@@ -368,12 +364,12 @@ internal fun HomeScreen(
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
-            // Index 3: the bottom bar (recents OR notifications, mutually
-            // exclusive). Always emitted so the measurable count is stable;
-            // both cards collapse to zero height when closed, so a closed bar
-            // lays out identically to having no bar at all. When a bar opens it
-            // takes the bottom-most slot and the search / apps / dock above it
-            // all shift up to make room — "everything moves up".
+            // Index 3: the bottom bar (recents). Always emitted so the
+            // measurable count is stable; the card collapses to zero height
+            // when closed, so a closed bar lays out identically to having no
+            // bar at all. When the bar opens it takes the bottom-most slot and
+            // the search / apps / dock above it all shift up to make room —
+            // "everything moves up".
             HomeBottomBar(
                 state = state,
                 dockIconSizeDp = dockIconSizeDp,
@@ -381,10 +377,6 @@ internal fun HomeScreen(
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
                 onDismissRecent = onDismissRecent,
-                onDismissNotifications = onDismissNotifications,
-                onOpenNotificationSettings = onOpenNotificationSettings,
-                onSetNotificationBarOpen = onSetNotificationBarOpen,
-                onRequestNotificationAccess = onRequestNotificationAccess,
                 onBarScrollRegionChanged = onBarScrollRegionChanged,
             )
         },
@@ -444,11 +436,8 @@ internal fun HomeScreen(
 }
 
 /**
- * The home screen's bottom bar: the recents bar (revealed by a pull-up) or the
- * notification bar (revealed by a pull-down). The two are mutually exclusive —
- * [LauncherUiState.isRecentsOpen] and [LauncherUiState.isNotificationBarOpen]
- * are never both true — so at most one card is expanded at a time. Each card
- * animates itself open/closed via its own `AnimatedVisibility`; when both are
+ * The home screen's bottom bar: the recents bar (revealed by a pull-up). The
+ * card animates itself open/closed via its own `AnimatedVisibility`; when
  * closed the bar collapses to zero height and the home layout above it fills
  * the space.
  */
@@ -461,29 +450,13 @@ internal fun HomeBottomBar(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onDismissNotifications: (InstalledApp) -> Unit,
-    onOpenNotificationSettings: (InstalledApp) -> Unit,
-    onSetNotificationBarOpen: (Boolean) -> Unit = {},
-    onRequestNotificationAccess: () -> Unit = {},
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .testTag(HOME_BOTTOM_BAR_TAG),
     ) {
-        NotificationBarCard(
-            notifyingApps = state.notifyingApps,
-            isVisible = state.isNotificationBarOpen,
-            hasNotificationAccess = state.hasNotificationAccess,
-            dockIconSizeDp = dockIconSizeDp,
-            onLaunchApp = onLaunchApp,
-            onDismissNotifications = onDismissNotifications,
-            onOpenNotificationSettings = onOpenNotificationSettings,
-            onRequestNotificationAccess = onRequestNotificationAccess,
-            onDismiss = { onSetNotificationBarOpen(false) },
-            onBarScrollRegionChanged = onBarScrollRegionChanged,
-        )
         RecentsCard(
             recentApps = state.recentApps,
             isVisible = state.isRecentsOpen,
@@ -872,7 +845,7 @@ private fun RecentsCard(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -894,175 +867,6 @@ private fun RecentsCard(
 }
 
 @Composable
-private fun NotificationBarCard(
-    notifyingApps: List<InstalledApp>,
-    isVisible: Boolean,
-    hasNotificationAccess: Boolean,
-    dockIconSizeDp: Int,
-    modifier: Modifier = Modifier,
-    onLaunchApp: (InstalledApp) -> Unit,
-    onDismissNotifications: (InstalledApp) -> Unit,
-    onOpenNotificationSettings: (InstalledApp) -> Unit,
-    onRequestNotificationAccess: () -> Unit,
-    onDismiss: () -> Unit,
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
-) {
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = expandVertically() + fadeIn(),
-        exit = shrinkVertically() + fadeOut(),
-    ) {
-        SectionCard(modifier.testTag(NOTIFICATION_BAR_CARD_TAG)) {
-            when {
-                !hasNotificationAccess -> NotificationBarPermissionCta(
-                    onRequestNotificationAccess = {
-                        onDismiss()
-                        onRequestNotificationAccess()
-                    },
-                )
-                notifyingApps.isEmpty() -> Text(
-                    text = stringResource(R.string.notification_bar_empty_hint),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                        .testTag(NOTIFICATION_BAR_HINT_TAG),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                else -> NotificationBarRow(
-                    notifyingApps = notifyingApps,
-                    dockIconSizeDp = dockIconSizeDp,
-                    onLaunchApp = { app ->
-                        onDismiss()
-                        onLaunchApp(app)
-                    },
-                    onDismissNotifications = onDismissNotifications,
-                    onOpenNotificationSettings = onOpenNotificationSettings,
-                    onBarScrollRegionChanged = onBarScrollRegionChanged,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NotificationBarPermissionCta(onRequestNotificationAccess: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = stringResource(R.string.notification_bar_permission_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        TextButton(
-            onClick = onRequestNotificationAccess,
-            modifier = Modifier.testTag(NOTIFICATION_BAR_PERMISSION_BUTTON_TAG),
-        ) {
-            Text(stringResource(R.string.notification_bar_permission_button))
-        }
-    }
-}
-
-@Composable
-private fun NotificationBarRow(
-    notifyingApps: List<InstalledApp>,
-    dockIconSizeDp: Int,
-    onLaunchApp: (InstalledApp) -> Unit,
-    onDismissNotifications: (InstalledApp) -> Unit,
-    onOpenNotificationSettings: (InstalledApp) -> Unit,
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
-) {
-    val description = stringResource(R.string.notification_bar_description)
-    ScrollableIconRow(
-        barKind = BottomBarKind.Notifications,
-        onBarScrollRegionChanged = onBarScrollRegionChanged,
-        rowModifier = Modifier
-            .semantics { contentDescription = description }
-            .testTag(NOTIFICATION_BAR_LIST_TAG),
-        startChevronTestTag = NOTIFICATION_BAR_SCROLL_START_CHEVRON_TAG,
-        endChevronTestTag = NOTIFICATION_BAR_SCROLL_END_CHEVRON_TAG,
-        chevronContentDescription = description,
-        // Newest notification sits at the end of the row; auto-scroll to the
-        // end whenever the list contents change so the freshest entry stays
-        // visible without the user having to swipe.
-        pinToEndKey = notifyingApps.map { it.id },
-    ) {
-        notifyingApps.forEach { app ->
-            NotifyingAppButton(
-                app = app,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onDismissNotifications = onDismissNotifications,
-                onOpenNotificationSettings = onOpenNotificationSettings,
-            )
-        }
-    }
-}
-
-@Composable
-private fun NotifyingAppButton(
-    app: InstalledApp,
-    dockIconSizeDp: Int,
-    onLaunchApp: (InstalledApp) -> Unit,
-    onDismissNotifications: (InstalledApp) -> Unit,
-    onOpenNotificationSettings: (InstalledApp) -> Unit,
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    val badgeDescription = stringResource(R.string.notification_bar_badge_description)
-    Box {
-        Column(
-            modifier = Modifier
-                .semantics { contentDescription = app.displayName }
-                .padding(4.dp)
-                .testTag("$NOTIFICATION_BAR_APP_TAG:${app.displayName}"),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box {
-                AppIcon(app = app, size = dockIconSizeDp.dp, testTag = NOTIFICATION_BAR_APP_ICON_TAG)
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(NOTIFICATION_BADGE_SIZE_DP.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.error,
-                            shape = CircleShape,
-                        )
-                        .semantics { contentDescription = badgeDescription }
-                        .testTag("$NOTIFICATION_BAR_BADGE_TAG:${app.displayName}"),
-                )
-            }
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    role = Role.Button,
-                    onClick = { onLaunchApp(app) },
-                    onLongClick = { menuExpanded = true },
-                )
-                .semantics {
-                    role = Role.Button
-                    contentDescription = app.displayName
-                },
-        )
-        NotifyingAppActionsMenu(
-            expanded = menuExpanded,
-            app = app,
-            onDismissMenu = { menuExpanded = false },
-            onDismissNotifications = onDismissNotifications,
-            onOpenNotificationSettings = onOpenNotificationSettings,
-        )
-    }
-}
-
-@Composable
 private fun RecentsRow(
     recentApps: List<InstalledApp>,
     dockIconSizeDp: Int,
@@ -1070,7 +874,7 @@ private fun RecentsRow(
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
 ) {
     if (recentApps.isEmpty()) {
         Text(
@@ -1086,7 +890,6 @@ private fun RecentsRow(
     }
     val description = stringResource(R.string.dock_recents_description)
     ScrollableIconRow(
-        barKind = BottomBarKind.Recents,
         onBarScrollRegionChanged = onBarScrollRegionChanged,
         rowModifier = Modifier
             .semantics { contentDescription = description }
@@ -1175,16 +978,13 @@ private fun ScrollableIconRow(
     chevronContentDescription: String,
     rowModifier: Modifier = Modifier,
     pinToEndKey: Any? = null,
-    barKind: BottomBarKind = BottomBarKind.Recents,
-    onBarScrollRegionChanged: (BottomBarKind, BarScrollRegion?) -> Unit = { _, _ -> },
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
     content: @Composable RowScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val isScrollRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     DisposableEffect(Unit) {
-        // Clears only this bar's slot, so a disposing bar never erases the
-        // region of the other bar that may be entering at the same time.
-        onDispose { onBarScrollRegionChanged(barKind, null) }
+        onDispose { onBarScrollRegionChanged(null) }
     }
     var hasMeasuredContent by remember { mutableStateOf(false) }
     var overflowSlopPx by remember { mutableStateOf(0) }
@@ -1236,7 +1036,6 @@ private fun ScrollableIconRow(
             // padding, which keeps that padding as page-swipe territory.
             .onGloballyPositioned { coords ->
                 onBarScrollRegionChanged(
-                    barKind,
                     BarScrollRegion(
                         boundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize()),
                         canScrollInDirection = canScrollInDirection,
@@ -1286,8 +1085,8 @@ private fun ScrollableIconRow(
                     // does its own dp→px rounding for padding/spacing, and on
                     // non-integer densities those errors can compound into a
                     // 1–2 px row width above the viewport even when the icons
-                    // visibly fit. Without this, `pinToEndKey` rows (recents,
-                    // notifications) auto-scroll to that 1 px maxValue, lift
+                    // visibly fit. Without this, `pinToEndKey` rows (recents)
+                    // auto-scroll to that 1 px maxValue, lift
                     // `scrollState.value` above 0, and show the start chevron
                     // for content the user has no way to actually scroll.
                     overflowSlopPx = 1.dp.roundToPx()
@@ -1337,7 +1136,7 @@ private suspend fun ScrollState.scrollOneHorizontalPage(backward: Boolean, viewp
  * Wraps a vertically scrollable apps list (the `LazyColumn` text rows or the
  * `LazyVerticalGrid` icon-only grid) and overlays top/bottom chevrons on
  * whichever edge has more content scrolled past, mirroring the dock and
- * notification-bar overflow treatment so a long list is discoverable as
+ * recents-bar overflow treatment so a long list is discoverable as
  * scrollable instead of relying on the user guessing.
  */
 @Composable
@@ -2339,47 +2138,6 @@ private fun RecentAppActionsMenu(
             onClick = {
                 onDismissMenu()
                 onDismissRecent(app)
-            },
-        )
-    }
-}
-
-/**
- * Long-press menu for the notification bar. The bar surfaces apps because the
- * system has flagged them as actively notifying — so the right actions are
- * notification-shaped, not app-shaped. Dismiss cancels the user-visible
- * notifications for the package (which clears the icon from the bar);
- * Settings opens Android's per-app notification settings so the user can
- * mute or block the app at the source. App info / Dock / Reset rank / Hide
- * are reachable from the main app list and would be off-context here.
- */
-@Composable
-private fun NotifyingAppActionsMenu(
-    expanded: Boolean,
-    app: InstalledApp,
-    onDismissMenu: () -> Unit,
-    onDismissNotifications: (InstalledApp) -> Unit,
-    onOpenNotificationSettings: (InstalledApp) -> Unit,
-) {
-    LauncherDropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismissMenu,
-        properties = AppActionsMenuPopupProperties,
-    ) {
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_dismiss)) },
-            modifier = Modifier.testTag("$DISMISS_NOTIFICATIONS_ACTION_TAG:${app.displayName}"),
-            onClick = {
-                onDismissMenu()
-                onDismissNotifications(app)
-            },
-        )
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_settings)) },
-            modifier = Modifier.testTag("$NOTIFICATION_SETTINGS_ACTION_TAG:${app.displayName}"),
-            onClick = {
-                onDismissMenu()
-                onOpenNotificationSettings(app)
             },
         )
     }
@@ -3543,7 +3301,7 @@ private fun SettingsPreview(
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
-    val fixedBarCount = 1 + (if (state.isDockEnabled) 1 else 0) + 1
+    val fixedBarCount = (if (state.isDockEnabled) 1 else 0) + 1
     val appListHeight =
         totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
     // The preview is visual-only on every interaction surface:
@@ -3559,10 +3317,9 @@ private fun SettingsPreview(
     //     callback fires, so blocking the callback isn't enough.
     //   - The descendants still exist in the UNMERGED tree, which is what
     //     the existing settings-preview screenshot tests rely on — they
-    //     query APPS_CARD_TAG, DOCK_CARD_TAG, NOTIFICATION_BAR_CARD_TAG,
-    //     DOCK_RECENTS_CARD_TAG, DOCK_APP_ICON_TAG with
-    //     useUnmergedTree = true. Future preview tests must follow that
-    //     same convention.
+    //     query APPS_CARD_TAG, DOCK_CARD_TAG, DOCK_RECENTS_CARD_TAG,
+    //     DOCK_APP_ICON_TAG with useUnmergedTree = true. Future preview
+    //     tests must follow that same convention.
     //   - Every card callback is also wired to a no-op as defense in
     //     depth: a test that opts into the unmerged tree and calls
     //     performClick() still hits a no-op rather than the live
@@ -3600,20 +3357,6 @@ private fun SettingsPreview(
                 onClearAppIconOverride = {},
                 onSetAppBadge = { _, _ -> },
                 onHideApp = {},
-            )
-            // Forced access-granted so the preview shows the compact secondary bar
-            // instead of the taller permission CTA.
-            NotificationBarCard(
-                notifyingApps = state.notifyingApps,
-                isVisible = true,
-                hasNotificationAccess = true,
-                dockIconSizeDp = dockIconSizeDp,
-                modifier = Modifier.height(previewHeight),
-                onLaunchApp = {},
-                onDismissNotifications = {},
-                onOpenNotificationSettings = {},
-                onRequestNotificationAccess = {},
-                onDismiss = {},
             )
             if (state.isDockEnabled) {
                 DockCard(
@@ -3798,15 +3541,10 @@ private fun isDarkColorScheme(): Boolean =
 
 private const val MIN_DOCKED_APPS = 1
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
-private const val SETTINGS_PREVIEW_BAR_COUNT = 4
+private const val SETTINGS_PREVIEW_BAR_COUNT = 3
 private const val SETTINGS_PREVIEW_SPACING_DP = 16
 
-// Notification badge dot — sized to read as "presence" rather than a count or
-// number badge, matching Android's standard notification dot. Sits in the
-// top-right corner of the icon with a thin surface-coloured ring so it stays
-// legible against busy app icons.
-private const val NOTIFICATION_BADGE_SIZE_DP = 12
-
-// Play update badge dot — same "presence" treatment as the notification dot,
-// scaled down for the smaller search-field gear icon.
+// Play update badge dot — a "presence" dot (no count or number), matching
+// Android's standard notification dot, scaled down for the smaller
+// search-field gear icon.
 private const val PLAY_UPDATE_BADGE_SIZE_DP = 8

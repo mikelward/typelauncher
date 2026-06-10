@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Nylige apper</string>
     <string name="dock_recents_scroll_more_hint">Bla for å se flere nylige apper</string>
     <string name="apps_list_scroll_more_hint">Bla for å se flere apper</string>
-    <string name="notification_listener_service_label">Type Launcher-varsler</string>
-    <string name="notification_bar_description">Apper med varsler</string>
-    <string name="notification_bar_empty_hint">Ingen nye varsler</string>
-    <string name="notification_bar_permission_hint">Tillat varseltilgang for å se apper med varsler.</string>
-    <string name="notification_bar_permission_button">Tillat varseltilgang</string>
-    <string name="notification_bar_badge_description">Har uleste varsler</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Kalenderhendelser i agenda</string>
     <string name="agenda_permission_message">Tillat kalendertilgang for å vise agendaen din.</string>

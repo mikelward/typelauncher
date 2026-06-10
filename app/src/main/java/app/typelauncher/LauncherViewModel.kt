@@ -180,13 +180,11 @@ internal class LauncherViewModel(
             dockIconCount = dockSettingsStore.dockIconCount,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
-            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
             isLoadingApps = cachedMetadata.isEmpty(),
-            hasNotificationAccess = ActiveNotifications.hasListenerAccess(app),
             playUpdate = PlayUpdateState.NotAvailable,
         ),
     )
@@ -207,17 +205,6 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
-        // Observe the notification listener's package set so the bar stays
-        // current as the system posts/dismisses notifications. Routed through
-        // a separate launch so the StateFlow's initial-value emission doesn't
-        // run inside the ViewModel constructor — that would invoke a member
-        // function (visibleInstalledApps / markVisibility) on a half-built
-        // instance under Dispatchers.Main.immediate.
-        viewModelScope.launch {
-            ActiveNotifications.packages.collect { packages ->
-                refreshNotifyingApps(packages)
-            }
-        }
         // Restore previously-rasterised icons off the main thread: the file read +
         // Bitmap allocation + copyPixelsFromBuffer per snapshot adds up to enough work
         // to delay setContent → first frame → the LaunchedEffect in SearchCard that
@@ -287,9 +274,6 @@ internal class LauncherViewModel(
                         isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                         recentApps = newRecentApps,
                         hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
-                        notifyingApps = visibleApps
-                            .filterNotifying(ActiveNotifications.packages.value)
-                            .markVisibility(),
                     )
                 }
             }
@@ -351,9 +335,6 @@ internal class LauncherViewModel(
                     isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                     recentApps = newRecentApps,
                     hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
-                    notifyingApps = visibleApps
-                        .filterNotifying(ActiveNotifications.packages.value)
-                        .markVisibility(),
                     isLoadingApps = false,
                     isFreshAppLoadComplete = true,
                 )
@@ -623,7 +604,7 @@ internal class LauncherViewModel(
     }
 
     fun setQuery(query: String) {
-        // Query-only refresh: dock / recents / hidden / notifying lists don't
+        // Query-only refresh: dock / recents / hidden lists don't
         // depend on the query, and rebuilding them on every keystroke produces
         // fresh list references that recompose unrelated UI for nothing. The
         // worst case is backspace, which grows the result set back toward the
@@ -641,7 +622,6 @@ internal class LauncherViewModel(
             it.copy(
                 destination = LauncherDestination.Agenda,
                 isRecentsOpen = false,
-                isNotificationBarOpen = false,
             )
         }
         logState("showAgenda")
@@ -659,35 +639,24 @@ internal class LauncherViewModel(
                 destination = LauncherDestination.Widgets(clamped),
                 lastWidgetPage = clamped,
                 isRecentsOpen = false,
-                isNotificationBarOpen = false,
             )
         }
         logState("showWidgets")
     }
 
     fun setRecentsOpen(isOpen: Boolean) {
-        val state = _uiState.value
-        // The recents and notification bars share the single bottom-bar slot, so
-        // opening one closes the other — only ever one can be on screen.
-        if (state.isRecentsOpen == isOpen && (!isOpen || !state.isNotificationBarOpen)) return
-        _uiState.update {
-            it.copy(isRecentsOpen = isOpen, isNotificationBarOpen = if (isOpen) false else it.isNotificationBarOpen)
-        }
+        if (_uiState.value.isRecentsOpen == isOpen) return
+        _uiState.update { it.copy(isRecentsOpen = isOpen) }
         logState("setRecentsOpen=$isOpen")
     }
 
     fun requestShowKeyboard() {
         // The soft keyboard owns the reserved slot, so an explicit request to
-        // show it closes any user-opened tray (recents / notifications) right
-        // away — otherwise the force-shown bar lingers over the keyboard's grow
-        // for the frame or two before its insets register. Covers a pull-up that
-        // requests the keyboard straight from an open tray.
-        _uiState.update {
-            it.copy(
-                isRecentsOpen = false,
-                isNotificationBarOpen = false,
-            )
-        }
+        // show it closes the user-opened recents tray right away — otherwise
+        // the force-shown bar lingers over the keyboard's grow for the frame or
+        // two before its insets register. Covers a pull-up that requests the
+        // keyboard straight from an open tray.
+        _uiState.update { it.copy(isRecentsOpen = false) }
         val emitted = _keyboardShowRequests.tryEmit(Unit)
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
     }
@@ -723,9 +692,9 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Closes the open bottom bar (recents / notifications) when the launcher is
-     * resumed to Home, so returning from another app starts with a clean Home
-     * rather than carrying a stale open bar back.
+     * Closes the open bottom bar (recents) when the launcher is resumed to
+     * Home, so returning from another app starts with a clean Home rather than
+     * carrying a stale open bar back.
      */
     fun closeSecondaryTrayOnResume() {
         val state = _uiState.value
@@ -733,23 +702,11 @@ internal class LauncherViewModel(
             state.destination is LauncherDestination.Home &&
             !state.isSettingsOpen &&
             !state.isAddingWidget &&
-            (state.isRecentsOpen || state.isNotificationBarOpen)
+            state.isRecentsOpen
         ) {
-            _uiState.update {
-                it.copy(isRecentsOpen = false, isNotificationBarOpen = false)
-            }
+            _uiState.update { it.copy(isRecentsOpen = false) }
             LauncherDebugLog.event("closeSecondaryTrayOnResume")
         }
-    }
-
-    fun setNotificationBarOpen(isOpen: Boolean) {
-        val state = _uiState.value
-        // Mutually exclusive with recents — see [setRecentsOpen].
-        if (state.isNotificationBarOpen == isOpen && (!isOpen || !state.isRecentsOpen)) return
-        _uiState.update {
-            it.copy(isNotificationBarOpen = isOpen, isRecentsOpen = if (isOpen) false else it.isRecentsOpen)
-        }
-        logState("setNotificationBarOpen=$isOpen")
     }
 
     fun showWidgetPicker(
@@ -807,7 +764,6 @@ internal class LauncherViewModel(
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
-                isNotificationBarOpen = false,
             )
         }
         logState("returnToLauncherHome")
@@ -816,27 +772,10 @@ internal class LauncherViewModel(
     fun refreshPermissionDrivenUi() {
         LauncherDebugLog.event("refreshPermissionDrivenUi destination=${_uiState.value.destination}")
         val isDefaultLauncher = app.getSystemService<RoleManager>()?.isRoleHeld(RoleManager.ROLE_HOME) ?: false
-        val hasNotificationAccess = ActiveNotifications.hasListenerAccess(app)
-        _uiState.update {
-            it.copy(
-                isDefaultLauncher = isDefaultLauncher,
-                hasNotificationAccess = hasNotificationAccess,
-            )
-        }
+        _uiState.update { it.copy(isDefaultLauncher = isDefaultLauncher) }
         if (_uiState.value.destination is LauncherDestination.Agenda) {
             refreshAgenda()
         }
-    }
-
-    /**
-     * Opens Android's "Notification access" settings page so the user can enable
-     * the launcher's listener service. Without that grant, the notification bar
-     * has no source of truth — the system never binds the listener — so the bar
-     * exposes this as the empty-state CTA.
-     */
-    fun openNotificationAccessSettings() {
-        LauncherDebugLog.event("openNotificationAccessSettings")
-        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).asLauncherTaskIntent())
     }
 
     /**
@@ -997,10 +936,9 @@ internal class LauncherViewModel(
         // recomputed. setQuery's keystroke-fast-path skips that, so trigger
         // the full refresh here directly.
         refreshLists()
-        // Close the recents panel and notification bar as we leave Home — when
-        // the user comes back they should be tucked away again, not still
-        // expanded from before.
-        _uiState.update { it.copy(isRecentsOpen = false, isNotificationBarOpen = false) }
+        // Close the recents panel as we leave Home — when the user comes back
+        // it should be tucked away again, not still expanded from before.
+        _uiState.update { it.copy(isRecentsOpen = false) }
         setQuery("")
     }
 
@@ -1134,61 +1072,14 @@ internal class LauncherViewModel(
 
     /**
      * Removes [app] from the recents bar without touching its launch count —
-     * "Dismiss" on the recents bar is the per-icon equivalent of swiping a
-     * notification away from the notification bar: the user is taking that one
-     * entry off the bar, not resetting the app's rank in the main list.
+     * "Dismiss" on the recents bar takes that one entry off the bar, not
+     * resetting the app's rank in the main list.
      */
     fun removeRecent(app: InstalledApp) {
         LauncherDebugLog.event("removeRecent package=${app.packageName}")
         appLaunchStatsStore.removeRecent(app.id)
         refreshLists()
         logState("removeRecent")
-    }
-
-    /**
-     * Cancels every user-visible active notification for [app]'s package under
-     * its profile. Backs the "Dismiss" action on the notification bar — once
-     * the system clears those notifications the listener fires a refresh and
-     * the package drops out of the bar. The package + user pair scopes the
-     * cancel to the selected profile so dismissing the personal icon doesn't
-     * also clear notifications for the work-profile copy of the same package
-     * (and vice versa). No-op if the listener service isn't bound.
-     */
-    fun dismissNotificationsFor(app: InstalledApp) {
-        LauncherDebugLog.event("dismissNotificationsFor package=${app.packageName} work=${app.isWorkApp}")
-        NotificationDismisser.dismissNotificationsFor(app.packageName, app.user)
-    }
-
-    /**
-     * Opens Android's per-app notification settings for [app]. Backs the
-     * notification bar's "Settings" action — the user's escape hatch for "I
-     * don't want this app to keep showing up in this bar." Falls back to the
-     * generic app-info screen if the OEM has no notification-settings activity
-     * registered for the package.
-     */
-    fun openNotificationSettingsFor(app: InstalledApp) {
-        LauncherDebugLog.event("openNotificationSettingsFor package=${app.packageName} work=${app.isWorkApp}")
-        // ACTION_APP_NOTIFICATION_SETTINGS carries only a package name and
-        // Settings resolves it against the current (personal) user — there is
-        // no cross-profile variant. Routing a work-profile app through it
-        // opens the *personal* copy's notification settings (or a
-        // not-installed package), so the user toggles channels that have no
-        // effect on the notifications they came from. The honest fallback is
-        // the app-info screen, which `openAppInfo` already dispatches into
-        // the correct profile via `LauncherApps.startAppDetailsActivity`;
-        // notification settings are one tap away from there.
-        if (app.isWorkApp) {
-            openAppInfo(app)
-            return
-        }
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, app.packageName)
-        try {
-            startActivity(intent)
-        } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("openNotificationSettingsFor missing activity, falling back to app info", exception)
-            openAppInfo(app)
-        }
     }
 
     fun hideApp(app: InstalledApp) {
@@ -1523,7 +1414,7 @@ internal class LauncherViewModel(
     }
 
     fun openSettings() {
-        _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false, isNotificationBarOpen = false) }
+        _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false) }
         logState("openSettings")
     }
 
@@ -1659,26 +1550,6 @@ internal class LauncherViewModel(
         logState("setAppListSortOrder")
     }
 
-    /**
-     * Persists the user's Home pull-down behavior. Choosing the launcher's
-     * notification bar prompts for notification listener access if needed; the
-     * bar would otherwise open without notification data.
-     */
-    fun setNotificationPullDownBehavior(behavior: NotificationPullDownBehavior) {
-        dockSettingsStore.notificationPullDownBehavior = behavior
-        _uiState.update {
-            it.copy(
-                notificationPullDownBehavior = behavior,
-                isNotificationBarOpen =
-                    it.isNotificationBarOpen && behavior.showsLauncherNotificationBar,
-            )
-        }
-        logState("setNotificationPullDownBehavior=$behavior")
-        if (behavior.showsLauncherNotificationBar && !_uiState.value.hasNotificationAccess) {
-            openNotificationAccessSettings()
-        }
-    }
-
     fun setKeyboardAutoShown(isAutoShown: Boolean) {
         dockSettingsStore.isKeyboardAutoShown = isAutoShown
         _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
@@ -1693,7 +1564,6 @@ internal class LauncherViewModel(
                 isAgendaEnabled = isEnabled,
                 destination = if (!isEnabled && onAgenda) LauncherDestination.Home else state.destination,
                 isRecentsOpen = state.isRecentsOpen && !onAgenda,
-                isNotificationBarOpen = state.isNotificationBarOpen && !onAgenda,
             )
         }
         logState("setAgendaEnabled=$isEnabled")
@@ -1766,9 +1636,6 @@ internal class LauncherViewModel(
                 isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                 recentApps = newRecentApps,
                 hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
-                notifyingApps = visibleApps
-                    .filterNotifying(ActiveNotifications.packages.value)
-                    .markVisibility(),
             )
         }
     }
@@ -1843,8 +1710,7 @@ internal class LauncherViewModel(
      * apps are hidden while the dock UI is on (the dock row already shows
      * them) unless the user has opted into [LauncherUiState.isShowDockedAppsInList],
      * which keeps docked apps visible in the typed-search list as well.
-     * Secondary bars such as recents and notifications do not dedupe from the
-     * app list.
+     * Secondary bars such as recents do not dedupe from the app list.
      */
     private fun excludedFromAppList(
         state: LauncherUiState,
@@ -1877,8 +1743,7 @@ internal class LauncherViewModel(
     private fun visibleInstalledApps(): List<InstalledApp> {
         // Drop every work-profile app whose profile is currently in quiet
         // mode so paused work icons disappear from every derived surface
-        // (search, dock, recents, notification bar) without per-surface
-        // plumbing. The full `installedApps` list is left intact so the
+        // (search, dock, recents) without per-surface plumbing. The full `installedApps` list is left intact so the
         // entries reappear automatically when the work profile is resumed
         // (the broadcast receiver triggers a reload that flips `isQuietMode`
         // back to false). Personal-profile apps are never
@@ -1887,16 +1752,6 @@ internal class LauncherViewModel(
         // entries.
         return installedApps.filterNot { app ->
             hiddenAppStore.contains(app.id) || (app.isWorkApp && app.isQuietMode)
-        }
-    }
-
-    private fun refreshNotifyingApps(packages: Map<String, Long>) {
-        _uiState.update { state ->
-            state.copy(
-                notifyingApps = visibleInstalledApps()
-                    .filterNotifying(packages)
-                    .markVisibility(),
-            )
         }
     }
 

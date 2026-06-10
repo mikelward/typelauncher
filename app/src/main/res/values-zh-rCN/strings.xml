@@ -22,12 +22,6 @@
     <string name="dock_recents_description">最近使用的应用</string>
     <string name="dock_recents_scroll_more_hint">滚动以查看更多最近使用的应用</string>
     <string name="apps_list_scroll_more_hint">滚动以查看更多应用</string>
-    <string name="notification_listener_service_label">Type Launcher 通知</string>
-    <string name="notification_bar_description">有通知的应用</string>
-    <string name="notification_bar_empty_hint">没有新通知</string>
-    <string name="notification_bar_permission_hint">允许通知访问权限以查看有通知的应用。</string>
-    <string name="notification_bar_permission_button">允许通知访问</string>
-    <string name="notification_bar_badge_description">有未读通知</string>
     <string name="agenda_title">日程</string>
     <string name="agenda_events_list_label">日历日程事件</string>
     <string name="agenda_permission_message">允许日历访问权限以显示您的日程。</string>

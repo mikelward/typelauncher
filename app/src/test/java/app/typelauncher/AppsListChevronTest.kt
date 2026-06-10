@@ -19,7 +19,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The home apps list mirrors the dock and notification-bar overflow
+ * The home apps list mirrors the dock and recents-bar overflow
  * treatment: a chevron is overlaid on the bottom edge while more rows are
  * off-screen below, and on the top edge once the user has scrolled past the
  * first row. Visibility is driven by `LazyListState.canScrollForward` /

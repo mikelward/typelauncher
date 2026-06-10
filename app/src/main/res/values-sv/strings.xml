@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Senaste appar</string>
     <string name="dock_recents_scroll_more_hint">Bläddra för fler senaste appar</string>
     <string name="apps_list_scroll_more_hint">Bläddra för fler appar</string>
-    <string name="notification_listener_service_label">Type Launcher-aviseringar</string>
-    <string name="notification_bar_description">Appar med aviseringar</string>
-    <string name="notification_bar_empty_hint">Inga nya aviseringar</string>
-    <string name="notification_bar_permission_hint">Tillåt aviseringsåtkomst för att se appar med aviseringar.</string>
-    <string name="notification_bar_permission_button">Tillåt aviseringsåtkomst</string>
-    <string name="notification_bar_badge_description">Har oläst avisering</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Kalenderhändelser i agenda</string>
     <string name="agenda_permission_message">Tillåt kalenderåtkomst för att visa din agenda.</string>

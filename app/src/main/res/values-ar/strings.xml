@@ -22,12 +22,6 @@
     <string name="dock_recents_description">التطبيقات الحديثة</string>
     <string name="dock_recents_scroll_more_hint">مرر لمزيد من التطبيقات الحديثة</string>
     <string name="apps_list_scroll_more_hint">مرر لمزيد من التطبيقات</string>
-    <string name="notification_listener_service_label">إشعارات Type Launcher</string>
-    <string name="notification_bar_description">التطبيقات التي بها إشعارات</string>
-    <string name="notification_bar_empty_hint">لا توجد إشعارات جديدة</string>
-    <string name="notification_bar_permission_hint">اسمح بالوصول إلى الإشعارات لعرض التطبيقات التي بها إشعارات.</string>
-    <string name="notification_bar_permission_button">السماح بالوصول إلى الإشعارات</string>
-    <string name="notification_bar_badge_description">يحتوي على إشعار غير مقروء</string>
     <string name="agenda_title">الأجندة</string>
     <string name="agenda_events_list_label">أحداث أجندة التقويم</string>
     <string name="agenda_permission_message">اسمح بالوصول إلى التقويم لعرض الأجندة.</string>

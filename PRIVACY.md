@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-05-03_
+_Last updated: 2026-06-10_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -26,8 +26,7 @@ Type Launcher persists the following entirely on your device, in Android
 - The list of apps you have hidden.
 - Per-app launch counts and the most-recently-launched apps list (used to
   rank and show recents).
-- Dock and UI settings (icon size, sort order, pull-down behavior, keyboard
-  auto-show, etc.).
+- Dock and UI settings (icon size, sort order, keyboard auto-show, etc.).
 - A snapshot of the labels and metadata of installed apps, used to render the
   app list on the first frame after launch.
 - Cached app icon bitmaps, used to render icons on the first frame after
@@ -54,14 +53,7 @@ transmitted off your device by the app.
   `CalendarContract` and is never stored beyond the in-memory state of the
   current session.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
-  shade when you pull down on the home screen with the corresponding setting
-  enabled.
-- **Notification listener** (`BIND_NOTIFICATION_LISTENER_SERVICE`): when you
-  grant notification access in Android settings, the app reads only the
-  **package names** of apps that currently have user-visible notifications,
-  in order to draw the in-launcher notification bar. The app does **not**
-  read, copy, store, or transmit notification titles, text, sender, or any
-  other notification payload.
+  shade when you pull down on the home screen.
 
 ## What the app does not do
 

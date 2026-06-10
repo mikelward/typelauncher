@@ -22,12 +22,6 @@
     <string name="dock_recents_description">የቅርብ ጊዜ መተግበሪያዎች</string>
     <string name="dock_recents_scroll_more_hint">ተጨማሪ የቅርብ ጊዜ መተግበሪያዎችን ለማየት ይሸብልሉ</string>
     <string name="apps_list_scroll_more_hint">ተጨማሪ መተግበሪያዎችን ለማየት ይሸብልሉ</string>
-    <string name="notification_listener_service_label">የ Type Launcher ማሳወቂያዎች</string>
-    <string name="notification_bar_description">ማሳወቂያ ያላቸው መተግበሪያዎች</string>
-    <string name="notification_bar_empty_hint">አዲስ ማሳወቂያዎች የሉም</string>
-    <string name="notification_bar_permission_hint">ማሳወቂያ ያላቸውን መተግበሪያዎች ለማየት የማሳወቂያ መዳረሻን ይፍቀዱ።</string>
-    <string name="notification_bar_permission_button">የማሳወቂያ መዳረሻን ፍቀድ</string>
-    <string name="notification_bar_badge_description">ያልተነበበ ማሳወቂያ አለው</string>
     <string name="agenda_title">አጀንዳ</string>
     <string name="agenda_events_list_label">የቀን መቁጠሪያ አጀንዳ ክስተቶች</string>
     <string name="agenda_permission_message">አጀንዳዎን ለማሳየት የቀን መቁጠሪያ መዳረሻን ይፍቀዱ።</string>

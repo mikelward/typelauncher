@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Apps recentes</string>
     <string name="dock_recents_scroll_more_hint">Role para ver mais apps recentes</string>
     <string name="apps_list_scroll_more_hint">Role para ver mais apps</string>
-    <string name="notification_listener_service_label">Notificações do Type Launcher</string>
-    <string name="notification_bar_description">Apps com notificações</string>
-    <string name="notification_bar_empty_hint">Sem novas notificações</string>
-    <string name="notification_bar_permission_hint">Permitir acesso às notificações para ver apps com notificações.</string>
-    <string name="notification_bar_permission_button">Permitir acesso às notificações</string>
-    <string name="notification_bar_badge_description">Tem notificações não lidas</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Eventos da agenda do calendário</string>
     <string name="agenda_permission_message">Permitir acesso ao calendário para exibir sua agenda.</string>

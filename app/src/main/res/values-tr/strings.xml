@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Son uygulamalar</string>
     <string name="dock_recents_scroll_more_hint">Daha fazla son uygulama için kaydırın</string>
     <string name="apps_list_scroll_more_hint">Daha fazla uygulama için kaydırın</string>
-    <string name="notification_listener_service_label">Type Launcher bildirimleri</string>
-    <string name="notification_bar_description">Bildirimi olan uygulamalar</string>
-    <string name="notification_bar_empty_hint">Yeni bildirim yok</string>
-    <string name="notification_bar_permission_hint">Bildirimi olan uygulamaları görmek için bildirim erişimine izin verin.</string>
-    <string name="notification_bar_permission_button">Bildirim erişimine izin ver</string>
-    <string name="notification_bar_badge_description">Okunmamış bildirim var</string>
     <string name="agenda_title">Ajanda</string>
     <string name="agenda_events_list_label">Takvim ajanda etkinlikleri</string>
     <string name="agenda_permission_message">Ajandanızı göstermek için takvim erişimine izin verin.</string>

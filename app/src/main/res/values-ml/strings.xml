@@ -22,12 +22,6 @@
     <string name="dock_recents_description">സമീപകാല ആപ്പുകൾ</string>
     <string name="dock_recents_scroll_more_hint">കൂടുതൽ സമീപകാല ആപ്പുകൾക്കായി സ്ക്രോൾ ചെയ്യുക</string>
     <string name="apps_list_scroll_more_hint">കൂടുതൽ ആപ്പുകൾക്കായി സ്ക്രോൾ ചെയ്യുക</string>
-    <string name="notification_listener_service_label">Type Launcher അറിയിപ്പുകൾ</string>
-    <string name="notification_bar_description">അറിയിപ്പുകളുള്ള ആപ്പുകൾ</string>
-    <string name="notification_bar_empty_hint">പുതിയ അറിയിപ്പുകളില്ല</string>
-    <string name="notification_bar_permission_hint">അറിയിപ്പുകളുള്ള ആപ്പുകൾ കാണാൻ അറിയിപ്പ് ആക്‌സസ് അനുവദിക്കുക.</string>
-    <string name="notification_bar_permission_button">അറിയിപ്പ് ആക്‌സസ് അനുവദിക്കുക</string>
-    <string name="notification_bar_badge_description">വായിക്കാത്ത അറിയിപ്പുണ്ട്</string>
     <string name="agenda_title">അജണ്ട</string>
     <string name="agenda_events_list_label">കലണ്ടർ അജണ്ട ഇവന്റുകൾ</string>
     <string name="agenda_permission_message">നിങ്ങളുടെ അജണ്ട കാണിക്കാൻ കലണ്ടർ ആക്‌സസ് അനുവദിക്കുക.</string>

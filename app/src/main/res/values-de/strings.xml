@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Aktuelle Apps</string>
     <string name="dock_recents_scroll_more_hint">Scrollen für mehr aktuelle Apps</string>
     <string name="apps_list_scroll_more_hint">Scrollen für mehr Apps</string>
-    <string name="notification_listener_service_label">Type Launcher-Benachrichtigungen</string>
-    <string name="notification_bar_description">Apps mit Benachrichtigungen</string>
-    <string name="notification_bar_empty_hint">Keine neuen Benachrichtigungen</string>
-    <string name="notification_bar_permission_hint">Benachrichtigungszugriff erlauben, um Apps mit Benachrichtigungen zu sehen.</string>
-    <string name="notification_bar_permission_button">Benachrichtigungszugriff erlauben</string>
-    <string name="notification_bar_badge_description">Hat ungelesene Benachrichtigungen</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Kalender-Agenda-Ereignisse</string>
     <string name="agenda_permission_message">Kalenderzugriff erlauben, um deine Agenda anzuzeigen.</string>

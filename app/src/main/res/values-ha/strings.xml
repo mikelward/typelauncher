@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Manhajojin kwanan nan</string>
     <string name="dock_recents_scroll_more_hint">Gungura don ƙarin manhajojin kwanan nan</string>
     <string name="apps_list_scroll_more_hint">Gungura don ƙarin manhajoji</string>
-    <string name="notification_listener_service_label">Sanarwar Type Launcher</string>
-    <string name="notification_bar_description">Manhajoji masu sanarwa</string>
-    <string name="notification_bar_empty_hint">Babu sabbin sanarwa</string>
-    <string name="notification_bar_permission_hint">Bada izinin samun sanarwa don ganin manhajoji masu sanarwa.</string>
-    <string name="notification_bar_permission_button">Bada izinin samun sanarwa</string>
-    <string name="notification_bar_badge_description">Yana da sanarwar da ba a karanta ba</string>
     <string name="agenda_title">Ajanda</string>
     <string name="agenda_events_list_label">Abubuwan ajandar kalanda</string>
     <string name="agenda_permission_message">Bada izinin samun kalanda don nuna ajandarka.</string>

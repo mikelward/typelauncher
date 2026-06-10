@@ -22,12 +22,6 @@
     <string name="dock_recents_description">最近使ったアプリ</string>
     <string name="dock_recents_scroll_more_hint">スクロールして最近のアプリをさらに表示</string>
     <string name="apps_list_scroll_more_hint">スクロールしてアプリをさらに表示</string>
-    <string name="notification_listener_service_label">Type Launcher 通知</string>
-    <string name="notification_bar_description">通知のあるアプリ</string>
-    <string name="notification_bar_empty_hint">新しい通知はありません</string>
-    <string name="notification_bar_permission_hint">通知のあるアプリを表示するには通知へのアクセスを許可してください。</string>
-    <string name="notification_bar_permission_button">通知へのアクセスを許可</string>
-    <string name="notification_bar_badge_description">未読の通知あり</string>
     <string name="agenda_title">アジェンダ</string>
     <string name="agenda_events_list_label">カレンダーのアジェンダイベント</string>
     <string name="agenda_permission_message">アジェンダを表示するにはカレンダーへのアクセスを許可してください。</string>

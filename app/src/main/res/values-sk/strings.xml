@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Nedávne aplikácie</string>
     <string name="dock_recents_scroll_more_hint">Posunutím zobrazíte ďalšie nedávne aplikácie</string>
     <string name="apps_list_scroll_more_hint">Posunutím zobrazíte ďalšie aplikácie</string>
-    <string name="notification_listener_service_label">Upozornenia Type Launcher</string>
-    <string name="notification_bar_description">Aplikácie s upozorneniami</string>
-    <string name="notification_bar_empty_hint">Žiadne nové upozornenia</string>
-    <string name="notification_bar_permission_hint">Povoľte prístup k upozorneniam, aby ste videli aplikácie s upozorneniami.</string>
-    <string name="notification_bar_permission_button">Povoliť prístup k upozorneniam</string>
-    <string name="notification_bar_badge_description">Má neprečítané upozornenia</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Udalosti v agende kalendára</string>
     <string name="agenda_permission_message">Povoľte prístup ku kalendáru pre zobrazenie agendy.</string>

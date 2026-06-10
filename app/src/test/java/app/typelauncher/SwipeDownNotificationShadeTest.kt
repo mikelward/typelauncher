@@ -2,10 +2,8 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
@@ -13,7 +11,6 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,374 +23,59 @@ class SwipeDownNotificationShadeTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    @Test
-    fun swipingDownOnHomeWithNotificationBarClosed_opensBarInsteadOfShade() {
-        var swipeDownCount = 0
-        var notificationBarOpened = false
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+    @Composable
+    private fun Launcher(
+        state: LauncherUiState,
+        onShowWidgets: (Int) -> Unit = {},
+        onSetRecentsOpen: (Boolean) -> Unit = {},
+        onSwipeDown: () -> Unit = {},
+    ) {
+        TypeLauncherTheme {
+            TypeLauncherApp(
+                state = state,
+                onQueryChanged = {},
+                onClearQuery = {},
+                onLaunchActiveApp = {},
+                onLaunchApp = {},
+                onOpenAppInfo = {},
+                onToggleDock = { _, _ -> },
+                onResetRank = {},
+                onRenameApp = { _, _ -> },
+                onHideApp = {},
+                onUnhideApp = {},
+                onOpenSettings = {},
+                onCloseSettings = {},
+                onRequestDefaultLauncher = {},
+                onDockEnabledChanged = {},
+                onAppListIconOnlyChanged = {},
+                onDockVisibleIconCountChanged = {},
+                onAppListSortOrderChanged = {},
+                onShowAgenda = {},
+                onShowWidgets = onShowWidgets,
+                onShowHome = {},
+                onSetRecentsOpen = onSetRecentsOpen,
+                appWidgetHost = null,
+                appWidgetManager = null,
+                onAddWidget = {},
+                onDismissWidgetPicker = {},
+                onSelectWidget = {},
+                onRemoveWidget = {},
+                onRequestCalendarPermission = {},
+                onOpenAgendaEvent = {},
+                onSwipeDown = onSwipeDown,
+            )
         }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
     }
 
     @Test
-    fun swipingDownOnHomeWithBarAbove_opensBarInsteadOfShade() {
-        var swipeDownCount = 0
-        var notificationBarOpened = false
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarAbove,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
-    }
-
-    @Test
-    fun swipingDownOnHomeWithLegacySystemBehavior_opensBarInsteadOfShade() {
-        // The Pull down setting was removed; old persisted values no longer
-        // change the first pull-down stage.
-        var swipeDownCount = 0
-        var notificationBarOpened = false
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        notificationPullDownBehavior = NotificationPullDownBehavior.System,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
-    }
-
-    @Test
-    fun swipingDownOnHomeWithLegacyNoneBehavior_opensBarInsteadOfDoingNothing() {
-        var swipeDownCount = 0
-        var notificationBarOpened = false
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        notificationPullDownBehavior = NotificationPullDownBehavior.None,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        assertEquals(0, swipeDownCount)
-        assertEquals(true, notificationBarOpened)
-    }
-
-    @Test
-    fun swipingDownToOpenNotificationBar_doesNotHideKeyboard() {
-        // The notification bar takes its own space at the bottom and stacks
-        // above the keyboard rather than replacing it, so opening it must not
-        // dismiss the IME.
-        var hideCalled = false
-        val fakeKeyboard = object : SoftwareKeyboardController {
-            override fun show() {}
-            override fun hide() { hideCalled = true }
-        }
-        composeRule.setContent {
-            CompositionLocalProvider(LocalSoftwareKeyboardController provides fakeKeyboard) {
-                TypeLauncherTheme {
-                    TypeLauncherApp(
-                        state = LauncherUiState(
-                            filteredApps = emptyList(),
-                            notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-                        ),
-                        onQueryChanged = {},
-                        onClearQuery = {},
-                        onLaunchActiveApp = {},
-                        onLaunchApp = {},
-                        onOpenAppInfo = {},
-                        onToggleDock = { _, _ -> },
-                        onResetRank = {},
-                        onRenameApp = { _, _ -> },
-                        onHideApp = {},
-                        onUnhideApp = {},
-                        onOpenSettings = {},
-                        onCloseSettings = {},
-                        onRequestDefaultLauncher = {},
-                        onDockEnabledChanged = {},
-                        onAppListIconOnlyChanged = {},
-                        onDockVisibleIconCountChanged = {},
-                        onAppListSortOrderChanged = {},
-                        onShowAgenda = {},
-                        onShowWidgets = {},
-                        onShowHome = {},
-                        onSetNotificationBarOpen = {},
-                        appWidgetHost = null,
-                        appWidgetManager = null,
-                        onAddWidget = {},
-                        onDismissWidgetPicker = {},
-                        onSelectWidget = {},
-                        onRemoveWidget = {},
-                        onRequestCalendarPermission = {},
-                        onOpenAgendaEvent = {},
-                        onSwipeDown = {},
-                    )
-                }
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        assertFalse("opening the notification bar must not hide the keyboard", hideCalled)
-    }
-
-    @Test
-    fun swipingDownOnHomeWithRecentsOpen_closesRecents() {
-        var recentsTarget: Boolean? = null
-        var notificationBarOpened: Boolean? = null
+    fun swipingDownOnHome_invokesOnSwipeDownCallback() {
+        // Pull-down on Home goes straight to the system notification shade.
         var swipeDownCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        isRecentsOpen = true,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetRecentsOpen = { recentsTarget = it },
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        // Opposite-direction gesture hides the open bar; recents does not fall
-        // through to the system shade.
-        assertEquals(false, recentsTarget)
-        assertNull(notificationBarOpened)
-        assertEquals(0, swipeDownCount)
-    }
-
-    @Test
-    fun swipingDownOnHomeWithNotificationBarOpen_invokesOnSwipeDownCallback() {
-        var swipeDownCount = 0
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = emptyList(),
-                        isNotificationBarOpen = true,
-                        keyboardReservation = KeyboardReservation(bottomPx = 900),
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = emptyList()),
+                onSwipeDown = { swipeDownCount += 1 },
+            )
         }
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
@@ -403,46 +85,40 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
+    fun swipingDownOnHomeWithRecentsOpen_closesRecents() {
+        var recentsTarget: Boolean? = null
+        var swipeDownCount = 0
+        composeRule.setContent {
+            Launcher(
+                state = LauncherUiState(
+                    filteredApps = emptyList(),
+                    isRecentsOpen = true,
+                ),
+                onSetRecentsOpen = { recentsTarget = it },
+                onSwipeDown = { swipeDownCount += 1 },
+            )
+        }
+
+        composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        // Opposite-direction gesture hides the open bar; recents does not fall
+        // through to the system shade.
+        assertEquals(false, recentsTarget)
+        assertEquals(0, swipeDownCount)
+    }
+
+    @Test
     fun swipingDownOnAgenda_invokesOnSwipeDownCallback() {
         var swipeDownCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        destination = LauncherDestination.Agenda,
-                        agenda = AgendaUiState.Empty,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+            Launcher(
+                state = LauncherUiState(
+                    destination = LauncherDestination.Agenda,
+                    agenda = AgendaUiState.Empty,
+                ),
+                onSwipeDown = { swipeDownCount += 1 },
+            )
         }
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeDown() }
@@ -455,40 +131,10 @@ class SwipeDownNotificationShadeTest {
     fun swipingUpOnCarousel_doesNotInvokeOnSwipeDownCallback() {
         var swipeDownCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = emptyList()),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = emptyList()),
+                onSwipeDown = { swipeDownCount += 1 },
+            )
         }
 
         composeRule.onNodeWithTag(CAROUSEL_TAG).performTouchInput { swipeUp() }
@@ -501,52 +147,12 @@ class SwipeDownNotificationShadeTest {
     fun swipingDownOnScrollableAppsList_doesNotInvokeOnSwipeDownCallback() {
         // Seed enough apps that the list is scrollable; vertical drags should scroll
         // the list rather than pull down the notification shade.
-        val apps = (0 until 40).map { index ->
-            InstalledApp(
-                name = "App %02d".format(index),
-                packageName = "app.typelauncher.fake$index",
-                launchIntent = Intent(),
-                user = Process.myUserHandle(),
-                isWorkApp = false,
-                launchWithLauncherApps = false,
-            )
-        }
         var swipeDownCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = apps),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = fakeScrollableApps()),
+                onSwipeDown = { swipeDownCount += 1 },
+            )
         }
 
         // First scroll the list down so it can scroll back up when we drag down.
@@ -565,51 +171,12 @@ class SwipeDownNotificationShadeTest {
 
     @Test
     fun diagonalVerticalDragOnScrollableAppsList_doesNotNavigateCarousel() {
-        val apps = (0 until 40).map { index ->
-            InstalledApp(
-                name = "App %02d".format(index),
-                packageName = "app.typelauncher.fake$index",
-                launchIntent = Intent(),
-                user = Process.myUserHandle(),
-                isWorkApp = false,
-                launchWithLauncherApps = false,
-            )
-        }
         var widgetsCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(filteredApps = apps),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = { widgetsCount += 1 },
-                    onShowHome = {},
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = fakeScrollableApps()),
+                onShowWidgets = { widgetsCount += 1 },
+            )
         }
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput {
@@ -623,156 +190,31 @@ class SwipeDownNotificationShadeTest {
     }
 
     @Test
-    fun pullingDownPastTopOfAppsList_doesNotOpenNotificationBar() {
-        val apps = fakeScrollableApps()
-        var notificationBarOpened = false
+    fun pullingDownPastTopOfAppsList_doesNotInvokeOnSwipeDownCallback() {
+        // A drag that starts in the scrollable apps list stays an app-list
+        // gesture even after the list reaches its top edge mid-drag.
         var swipeDownCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = apps,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = fakeScrollableApps()),
+                onSwipeDown = { swipeDownCount += 1 },
+            )
         }
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
-        assertEquals(false, notificationBarOpened)
     }
 
     @Test
-    fun pullingDownPastTopOfAppsListWithSystemBehavior_doesNotInvokeOnSwipeDownCallback() {
-        val apps = fakeScrollableApps()
-        var notificationBarOpened = false
-        var swipeDownCount = 0
-        composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = apps,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.System,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
-        composeRule.waitForIdle()
-
-        assertEquals(0, swipeDownCount)
-        assertEquals(false, notificationBarOpened)
-    }
-
-    @Test
-    fun pushingUpPastBottomOfAppsList_doesNotHideNotificationBar() {
-        val apps = fakeScrollableApps()
-        var notificationBarOpen = true
+    fun pushingUpPastBottomOfAppsList_doesNotOpenRecents() {
         var recentsOpened = false
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = apps,
-                        isNotificationBarOpen = true,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpen = it },
-                    onSetRecentsOpen = { recentsOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = fakeScrollableApps()),
+                onSetRecentsOpen = { recentsOpened = it },
+            )
         }
         repeat(8) {
             composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
@@ -782,12 +224,11 @@ class SwipeDownNotificationShadeTest {
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeUp() }
         composeRule.waitForIdle()
 
-        assertEquals(true, notificationBarOpen)
         assertEquals(false, recentsOpened)
     }
 
     @Test
-    fun pullingDownOnShortNonScrollableAppsList_doesNotOpenNotificationBar() {
+    fun pullingDownOnShortNonScrollableAppsList_doesNotInvokeOnSwipeDownCallback() {
         // A handful of apps doesn't fill the apps card, so the LazyColumn has
         // no scrolling room. Drags that start in the app list still stay app-list
         // gestures so the keyboard does not jump while the user explores results.
@@ -801,54 +242,18 @@ class SwipeDownNotificationShadeTest {
                 launchWithLauncherApps = false,
             )
         }
-        var notificationBarOpened = false
         var swipeDownCount = 0
         composeRule.setContent {
-            TypeLauncherTheme {
-                TypeLauncherApp(
-                    state = LauncherUiState(
-                        filteredApps = apps,
-                        notificationPullDownBehavior = NotificationPullDownBehavior.BarBelow,
-                    ),
-                    onQueryChanged = {},
-                    onClearQuery = {},
-                    onLaunchActiveApp = {},
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onHideApp = {},
-                    onUnhideApp = {},
-                    onOpenSettings = {},
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onAppListSortOrderChanged = {},
-                    onShowAgenda = {},
-                    onShowWidgets = {},
-                    onShowHome = {},
-                    onSetNotificationBarOpen = { notificationBarOpened = it },
-                    appWidgetHost = null,
-                    appWidgetManager = null,
-                    onAddWidget = {},
-                    onDismissWidgetPicker = {},
-                    onSelectWidget = {},
-                    onRemoveWidget = {},
-                    onRequestCalendarPermission = {},
-                    onOpenAgendaEvent = {},
-                    onSwipeDown = { swipeDownCount += 1 },
-                )
-            }
+            Launcher(
+                state = LauncherUiState(filteredApps = apps),
+                onSwipeDown = { swipeDownCount += 1 },
+            )
         }
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).performTouchInput { swipeDown() }
         composeRule.waitForIdle()
 
         assertEquals(0, swipeDownCount)
-        assertEquals(false, notificationBarOpened)
     }
 
     private fun fakeScrollableApps(): List<InstalledApp> =

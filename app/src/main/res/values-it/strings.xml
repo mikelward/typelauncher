@@ -22,12 +22,6 @@
     <string name="dock_recents_description">App recenti</string>
     <string name="dock_recents_scroll_more_hint">Scorri per più app recenti</string>
     <string name="apps_list_scroll_more_hint">Scorri per più app</string>
-    <string name="notification_listener_service_label">Notifiche di Type Launcher</string>
-    <string name="notification_bar_description">App con notifiche</string>
-    <string name="notification_bar_empty_hint">Nessuna nuova notifica</string>
-    <string name="notification_bar_permission_hint">Consenti l\'accesso alle notifiche per vedere le app con notifiche.</string>
-    <string name="notification_bar_permission_button">Consenti accesso alle notifiche</string>
-    <string name="notification_bar_badge_description">Ha notifiche non lette</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Eventi agenda del calendario</string>
     <string name="agenda_permission_message">Consenti l\'accesso al calendario per mostrare la tua agenda.</string>

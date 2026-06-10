@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Aplikasi terbaru</string>
     <string name="dock_recents_scroll_more_hint">Skrol untuk lebih banyak aplikasi terbaru</string>
     <string name="apps_list_scroll_more_hint">Skrol untuk lebih banyak aplikasi</string>
-    <string name="notification_listener_service_label">Pemberitahuan Type Launcher</string>
-    <string name="notification_bar_description">Aplikasi dengan pemberitahuan</string>
-    <string name="notification_bar_empty_hint">Tiada pemberitahuan baharu</string>
-    <string name="notification_bar_permission_hint">Benarkan akses pemberitahuan untuk melihat aplikasi dengan pemberitahuan.</string>
-    <string name="notification_bar_permission_button">Benarkan akses pemberitahuan</string>
-    <string name="notification_bar_badge_description">Mempunyai pemberitahuan belum dibaca</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Acara agenda kalendar</string>
     <string name="agenda_permission_message">Benarkan akses kalendar untuk memaparkan agenda anda.</string>

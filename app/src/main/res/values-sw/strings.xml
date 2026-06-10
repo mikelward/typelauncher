@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Programu za hivi karibuni</string>
     <string name="dock_recents_scroll_more_hint">Sogeza ili kuona programu zaidi za hivi karibuni</string>
     <string name="apps_list_scroll_more_hint">Sogeza ili kuona programu zaidi</string>
-    <string name="notification_listener_service_label">Arifa za Type Launcher</string>
-    <string name="notification_bar_description">Programu zenye arifa</string>
-    <string name="notification_bar_empty_hint">Hakuna arifa mpya</string>
-    <string name="notification_bar_permission_hint">Ruhusu ufikiaji wa arifa ili kuona programu zenye arifa.</string>
-    <string name="notification_bar_permission_button">Ruhusu ufikiaji wa arifa</string>
-    <string name="notification_bar_badge_description">Ina arifa ambazo hazijasomwa</string>
     <string name="agenda_title">Ratiba</string>
     <string name="agenda_events_list_label">Matukio ya ratiba ya kalenda</string>
     <string name="agenda_permission_message">Ruhusu ufikiaji wa kalenda ili kuonyesha ratiba yako.</string>

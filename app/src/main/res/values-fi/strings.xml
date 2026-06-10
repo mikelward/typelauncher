@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Viimeaikaiset sovellukset</string>
     <string name="dock_recents_scroll_more_hint">Vieritä nähdäksesi lisää viimeaikaisia sovelluksia</string>
     <string name="apps_list_scroll_more_hint">Vieritä nähdäksesi lisää sovelluksia</string>
-    <string name="notification_listener_service_label">Type Launcher -ilmoitukset</string>
-    <string name="notification_bar_description">Sovellukset, joilla on ilmoituksia</string>
-    <string name="notification_bar_empty_hint">Ei uusia ilmoituksia</string>
-    <string name="notification_bar_permission_hint">Salli ilmoituspääsy nähdäksesi sovellukset, joilla on ilmoituksia.</string>
-    <string name="notification_bar_permission_button">Salli ilmoituspääsy</string>
-    <string name="notification_bar_badge_description">Lukematon ilmoitus</string>
     <string name="agenda_title">Kalenteri</string>
     <string name="agenda_events_list_label">Kalenterin tapahtumat</string>
     <string name="agenda_permission_message">Salli kalenterin käyttöoikeus näyttääksesi kalenterisi.</string>

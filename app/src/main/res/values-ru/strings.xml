@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Недавние приложения</string>
     <string name="dock_recents_scroll_more_hint">Прокрутите для других недавних приложений</string>
     <string name="apps_list_scroll_more_hint">Прокрутите для других приложений</string>
-    <string name="notification_listener_service_label">Уведомления Type Launcher</string>
-    <string name="notification_bar_description">Приложения с уведомлениями</string>
-    <string name="notification_bar_empty_hint">Нет новых уведомлений</string>
-    <string name="notification_bar_permission_hint">Разрешите доступ к уведомлениям, чтобы видеть приложения с уведомлениями.</string>
-    <string name="notification_bar_permission_button">Разрешить доступ к уведомлениям</string>
-    <string name="notification_bar_badge_description">Есть непрочитанное уведомление</string>
     <string name="agenda_title">Расписание</string>
     <string name="agenda_events_list_label">События расписания календаря</string>
     <string name="agenda_permission_message">Разрешите доступ к календарю, чтобы показать расписание.</string>

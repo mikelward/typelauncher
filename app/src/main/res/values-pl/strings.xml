@@ -22,12 +22,6 @@
     <string name="dock_recents_description">Ostatnie aplikacje</string>
     <string name="dock_recents_scroll_more_hint">Przewiń, aby zobaczyć więcej ostatnich aplikacji</string>
     <string name="apps_list_scroll_more_hint">Przewiń, aby zobaczyć więcej aplikacji</string>
-    <string name="notification_listener_service_label">Powiadomienia Type Launcher</string>
-    <string name="notification_bar_description">Aplikacje z powiadomieniami</string>
-    <string name="notification_bar_empty_hint">Brak nowych powiadomień</string>
-    <string name="notification_bar_permission_hint">Zezwól na dostęp do powiadomień, aby zobaczyć aplikacje z powiadomieniami.</string>
-    <string name="notification_bar_permission_button">Zezwól na dostęp do powiadomień</string>
-    <string name="notification_bar_badge_description">Ma nieprzeczytane powiadomienie</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Wydarzenia agendy kalendarza</string>
     <string name="agenda_permission_message">Zezwól na dostęp do kalendarza, aby wyświetlić agendę.</string>
