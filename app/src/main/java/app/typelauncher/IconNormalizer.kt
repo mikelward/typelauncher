@@ -49,9 +49,12 @@ internal object IconNormalizer {
     // A foreground (logo) is enlarged *beyond* the safe-zone zoom only when it is
     // so small that even after that zoom it fills less than this fraction of the
     // tile — the "tiny logo floating on a big background" case (GitHub, UniFi,
-    // VW). A normal logo keeps the platform framing untouched, and the
-    // enlargement scales about the tile center so the logo is never re-centered.
-    internal const val MIN_FOREGROUND_FRACTION = 0.60f
+    // VW, Onecta). Set close to the size a normal full logo fills so the tiny
+    // ones match the rest of the grid rather than staying visibly smaller. A
+    // normal logo (already above this) keeps the platform framing untouched, and
+    // the enlargement scales about the tile center so the logo is never
+    // re-centered.
+    internal const val MIN_FOREGROUND_FRACTION = 0.80f
 
     // An adaptive background covering at least this much of the tile is treated
     // as the fill; a sparser/transparent background falls back to a
@@ -103,10 +106,11 @@ internal object IconNormalizer {
 
     /**
      * Normalizes an adaptive icon: fills the tile with the background layer (or
-     * a dominant-color plate when the background is transparent), then scales the
-     * foreground layer's visible content to [FOREGROUND_FRACTION] of the tile so
-     * a small logo is enlarged to a consistent size instead of floating tiny on
-     * its background.
+     * a dominant-color plate when the background is transparent), then frames the
+     * foreground with the platform safe-zone zoom — enlarging it to
+     * [MIN_FOREGROUND_FRACTION] only when it would otherwise stay tiny — so a
+     * small logo matches the rest of the grid instead of floating in its
+     * background.
      */
     private fun normalizeAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)

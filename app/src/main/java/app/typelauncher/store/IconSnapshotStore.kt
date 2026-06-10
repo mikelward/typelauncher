@@ -160,8 +160,9 @@ internal class IconSnapshotStore(context: Context) {
         // briefcase is drawn as a separate overlay, so a restored older work
         // bitmap would carry a clipped baked-in badge under the new overlay
         // (a double badge) until eviction; _v6 = selective foreground zoom
-        // (only tiny logos enlarged, scaled about the tile center).
-        const val DIRECTORY_NAME = "icon_snapshots_v6"
+        // (only tiny logos enlarged, scaled about the tile center); _v7 raises
+        // the tiny-logo target so enlarged logos match the rest of the grid.
+        const val DIRECTORY_NAME = "icon_snapshots_v7"
         const val DIRECTORY_PREFIX = "icon_snapshots"
         const val EXTENSION = ".bin"
         const val TMP_SUFFIX = ".tmp"
