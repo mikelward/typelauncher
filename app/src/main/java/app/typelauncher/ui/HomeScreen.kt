@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -2844,6 +2845,9 @@ private fun PlayUpdateBanner(
                 isDownloaded -> {
                     TextButton(
                         onClick = onCompletePlayUpdate,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
                         modifier = Modifier.testTag(PLAY_UPDATE_BANNER_RESTART_TAG),
                     ) {
                         Text(stringResource(R.string.play_update_banner_restart_button))
@@ -2852,6 +2856,9 @@ private fun PlayUpdateBanner(
                 else -> {
                     TextButton(
                         onClick = onOpenPlayUpdate,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
                         modifier = Modifier.testTag(PLAY_UPDATE_BANNER_UPDATE_TAG),
                     ) {
                         Text(stringResource(R.string.play_update_banner_update_button))
