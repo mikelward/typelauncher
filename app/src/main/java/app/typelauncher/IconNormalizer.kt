@@ -151,6 +151,21 @@ internal object IconNormalizer {
     // normalize the per-pixel color distance into 0..1.
     private const val MAX_COLOR_DISTANCE = 441.673f
 
+    // Deadzone applied to the normalized ink (color distance / peak): a pixel
+    // below INK_KNEE_LOW of the peak is treated as field (plate); from there it
+    // ramps to full glyph by INK_KNEE_HIGH. This stops a multicolor/gradient
+    // background — whose hues sit a little off the single modal field color —
+    // from being washed with a sheen of glyph color, and crispens every glyph
+    // edge. A smoothstep ramp (not a hard step) keeps anti-aliased mark edges
+    // smooth between the two knees.
+    private const val INK_KNEE_LOW = 0.22f
+    private const val INK_KNEE_HIGH = 0.70f
+
+    private fun inkResponse(t: Float): Float {
+        val x = ((t - INK_KNEE_LOW) / (INK_KNEE_HIGH - INK_KNEE_LOW)).coerceIn(0f, 1f)
+        return x * x * (3f - 2f * x)
+    }
+
     // Brightness-histogram resolution used to find the icon's dominant luminance
     // band. 32 bins separate a logo from its background at a useful granularity.
     private const val LUMINANCE_BINS = 32
@@ -298,7 +313,14 @@ internal object IconNormalizer {
             val coverage = if (!hasDetail) {
                 alpha[i]
             } else {
-                alpha[i] * (silhouetteWeight + (1f - silhouetteWeight) * (ink[i] / maxInk))
+                // A deadzone on the normalized ink: pixels whose color barely
+                // departs from the field (a multicolor or gradient background,
+                // each hue a little off the modal field color) snap to the plate
+                // instead of being faintly inked, while a true mark — at or near
+                // the peak ink — still fills. This keeps a gradient/photographic
+                // background clean rather than washing it with a sheen of glyph
+                // color, and sharpens every glyph's edge against the plate.
+                alpha[i] * (silhouetteWeight + (1f - silhouetteWeight) * inkResponse(ink[i] / maxInk))
             }
             val a = (coverage.coerceIn(0f, 1f) * 255f).roundToInt()
             pixels[i] = (a shl 24) or glyphRgb
