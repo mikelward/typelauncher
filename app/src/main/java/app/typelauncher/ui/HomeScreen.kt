@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -2494,6 +2495,7 @@ internal fun SettingsScreen(
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
+    onOpenWallpaperAndStyle: () -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
     onOpenPlayUpdate: () -> Unit,
@@ -2730,6 +2732,14 @@ internal fun SettingsScreen(
                     onIconThemeChanged = onIconThemeChanged,
                 )
             }
+        }
+        OutlinedButton(
+            onClick = onOpenWallpaperAndStyle,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(SETTINGS_THEME_SETTINGS_BUTTON_TAG),
+        ) {
+            Text(stringResource(R.string.settings_theme_settings_button))
         }
         Button(
             onClick = { hiddenAppsDialogVisible = true },

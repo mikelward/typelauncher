@@ -125,6 +125,7 @@
     <string name="settings_icon_theme_title">Icon theme</string>
     <string name="settings_icon_theme_option_default">Default</string>
     <string name="settings_icon_theme_option_monochrome">Monochrome</string>
+    <string name="settings_theme_settings_button" translatable="false">Theme settings</string>
     <string name="settings_dock_icon_count_label">Icons per row: %1$d</string>
     <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>
     <string name="settings_dock_preview_label">Preview</string>

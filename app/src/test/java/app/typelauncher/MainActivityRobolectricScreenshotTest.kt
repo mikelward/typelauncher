@@ -789,6 +789,23 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun settingsThemeSettingsButtonOpensSystemThemeScreen() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_THEME_SETTINGS_BUTTON_TAG).performScrollTo()
+        composeRule.onNodeWithTag(SETTINGS_THEME_SETTINGS_BUTTON_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Theme settings").assertIsDisplayed()
+        saveScreenshot("compose_settings_theme_settings_button_robolectric.png")
+
+        composeRule.onNodeWithTag(SETTINGS_THEME_SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        val started = shadowOf(composeRule.activity.application).nextStartedActivity
+        assertEquals(Intent.ACTION_SET_WALLPAPER, started.action)
+    }
+
+    @Test
     fun settingsOverflowMenuExposesReportBugAppInfoAndAboutActions() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).assertDoesNotExist()

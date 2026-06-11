@@ -1009,6 +1009,23 @@ internal class LauncherViewModel(
     }
 
     /**
+     * Opens the system "Wallpaper & style" screen, which hosts the Material You
+     * color picker. The launcher's UI chrome and monochrome icon plate/glyph
+     * already follow that wallpaper-derived palette, so this is the in-app path
+     * to the setting that drives those colors. ACTION_SET_WALLPAPER lands on the
+     * wallpaper-and-style surface on Pixel/AOSP; some OEM builds resolve no
+     * activity for it, so a miss no-ops instead of crashing the launcher.
+     */
+    fun openWallpaperAndStyle() {
+        LauncherDebugLog.event("openWallpaperAndStyle")
+        try {
+            app.startActivity(Intent(Intent.ACTION_SET_WALLPAPER).asLauncherTaskIntent())
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("openWallpaperAndStyle no activity for ACTION_SET_WALLPAPER", exception)
+        }
+    }
+
+    /**
      * Unified "Dock" / "Undock" toggle for the long-press menu. Routes based
      * on the app's current membership so it always does the inverse of what
      * the menu label says:
