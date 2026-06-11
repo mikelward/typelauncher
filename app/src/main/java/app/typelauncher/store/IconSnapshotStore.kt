@@ -241,8 +241,10 @@ internal class IconSnapshotStore(context: Context) {
         // silhouette, so a shape drawn in color on a solid field keeps its
         // detail instead of flattening to a disc; _v15 engraves from color
         // distance rather than brightness alone, so a mark set apart from its
-        // background only by hue (same brightness) is kept instead of flattening.
-        private const val DIRECTORY_NAME = "icon_snapshots_v15"
+        // background only by hue (same brightness) is kept instead of flattening;
+        // _v16 adds an ink deadzone so a multicolor/gradient background stays on
+        // the plate instead of being washed with a faint glyph-color sheen.
+        private const val DIRECTORY_NAME = "icon_snapshots_v16"
         private const val DIRECTORY_PREFIX = "icon_snapshots"
         private const val RENDERER_STATE_FILE_NAME = "renderer_state"
         private const val EXTENSION = ".bin"

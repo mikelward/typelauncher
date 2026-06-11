@@ -338,6 +338,39 @@ class IconNormalizerTest {
     }
 
     @Test
+    fun themedColorsEngraveDeadzoneKeepsMulticolorBackgroundOnPlate() {
+        // A multicolor background (two close blues) behind a strong white logo.
+        // Each background hue sits a little off the single modal field color, so
+        // without the ink deadzone it would be faintly washed with glyph color;
+        // the deadzone snaps those low-distance pixels back to the plate while
+        // the logo (the peak-ink mark) still inks.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val blue = Color.rgb(60, 90, 200)
+        val offBlue = Color.rgb(60, 90, 170) // ~0.07 normalized distance from blue
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(blue)
+            drawRect(50f, 0f, 100f, 100f, Paint().apply { color = offBlue })
+            drawCircle(50f, 50f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
+        }
+        val drawable = BitmapDrawable(resources, bitmap)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        // Both background hues stay on the plate (no glyph-color sheen); the
+        // white logo is the glyph.
+        assertColorClose(plate, tile.getPixel(20, 10))
+        assertColorClose(plate, tile.getPixel(80, 10))
+        assertColorClose(glyph, tile.getPixel(50, 50))
+    }
+
+    @Test
     fun themedColorsEngraveColorDefinedShapeIntoGlyph() {
         // The life-preserver case: a shape defined by COLOR (a red ring on an
         // opaque white field), not by transparency. The alpha silhouette would
