@@ -230,21 +230,69 @@ class IconNormalizerTest {
     }
 
     @Test
-    fun themedColorsWithoutMonochromeLayerFallThroughToNormalRendering() {
-        // No monochrome layer: the themed request must not change anything —
-        // the icon renders exactly as the untinted adaptive path does (full
-        // red foreground over blue background; the corner stays red, never the
-        // plate color), matching Pixel's themed-icons behavior.
-        val drawable = AdaptiveIconDrawable(ColorDrawable(Color.BLUE), ColorDrawable(Color.RED))
+    fun themedColorsSynthesizeGlyphWhenNoMonochromeLayer() {
+        // No authored monochrome layer: the themed request must synthesize a
+        // glyph from the icon's own art instead of keeping the full-color tile.
+        // The foreground (a white centered circle) becomes the glyph — tinted
+        // the glyph color and drawn on the plate fill — so the center is the
+        // glyph color and the corner (outside the circle) is the plate, never
+        // the original red/blue layers.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val foreground = BitmapDrawable(resources, centeredCircle(100, fraction = 0.5f, color = Color.WHITE))
+        val drawable = AdaptiveIconDrawable(ColorDrawable(Color.BLUE), foreground)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        assertColorClose(glyph, tile.getPixel(50, 50))
+        assertColorClose(plate, tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun themedColorsFallBackToVisibleLayerWhenForegroundEmpty() {
+        // An adaptive icon can carry its visible art in the background with a
+        // transparent foreground. Synthesizing from the (empty) foreground would
+        // tint nothing and leave a blank plate — the icon would vanish — so the
+        // glyph must fall back to the visible background layer. The whole tile
+        // ends up the glyph color (the background fills it); the key assertion is
+        // that the center is the glyph, not the bare plate.
+        val drawable = AdaptiveIconDrawable(ColorDrawable(Color.RED), ColorDrawable(Color.TRANSPARENT))
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
 
         val tile = IconNormalizer.normalizeToTile(
             drawable,
             64,
-            themedColors = IconNormalizer.ThemedIconColors(plate = 0xFF112233.toInt(), glyph = 0xFF445566.toInt()),
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
         )
 
-        assertColorClose(Color.RED, tile.getPixel(2, 2))
-        assertColorClose(Color.RED, tile.getPixel(32, 32))
+        assertColorClose(glyph, tile.getPixel(32, 32))
+    }
+
+    @Test
+    fun themedColorsSynthesizeGlyphForLegacyIcon() {
+        // A legacy (non-adaptive) icon has no monochrome layer either; under the
+        // themed request its alpha silhouette becomes the glyph. A white square
+        // padded on transparency tints to the glyph color in its center, with the
+        // transparent corner filling to the plate.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val drawable = BitmapDrawable(resources, squareOnTransparent(100, Rect(30, 30, 70, 70), Color.WHITE))
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        assertColorClose(glyph, tile.getPixel(50, 50))
+        assertColorClose(plate, tile.getPixel(2, 2))
     }
 
     private fun solid(size: Int, color: Int): Bitmap {

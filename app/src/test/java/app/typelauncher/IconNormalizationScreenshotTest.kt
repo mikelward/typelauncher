@@ -41,20 +41,7 @@ class IconNormalizationScreenshotTest {
 
         val tile = 144
         val gap = 24
-        val cases = listOf(
-            // Full-bleed adaptive icon: blue background, white circle foreground.
-            AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x1A, 0x73, 0xE8)), whiteCircleForeground()),
-            // Adaptive icon with a small foreground logo on a dark background —
-            // the logo is enlarged to fill rather than floating tiny (the
-            // GitHub / UniFi case).
-            AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x10, 0x14, 0x1C)), smallLogoForeground()),
-            // Colored shape with transparent padding — the case that showed gray.
-            paddedDrawable(Rect(36, 36, 108, 108), Color.rgb(0xFF, 0x6A, 0x4D)),
-            // Sparse dark logo on transparency (documented weak case).
-            paddedDrawable(Rect(54, 54, 90, 90), Color.rgb(0x22, 0x26, 0x2B)),
-            // Plain colored icon with no transparency.
-            ColorDrawable(Color.rgb(0x18, 0x80, 0x38)),
-        )
+        val cases = normalizationCases()
 
         val stripWidth = tile * cases.size + gap * (cases.size + 1)
         val stripHeight = tile + gap * 2
@@ -71,6 +58,57 @@ class IconNormalizationScreenshotTest {
 
         strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_icon_normalization_robolectric.png")
     }
+
+    @Test
+    fun themedTiles() {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+
+        // The same representative inputs forced monochrome under the Monochrome
+        // theme: none of them ships an authored monochrome layer, so every glyph
+        // is synthesized from the icon's own art (its foreground/silhouette
+        // tinted the glyph color on the accent plate). The grid should read as a
+        // uniform two-tone set — including the deliberately rough full-bleed and
+        // plain-color cases, which collapse to a solid glyph-color shape.
+        val tile = 144
+        val gap = 24
+        val cases = normalizationCases()
+        val themedColors = IconNormalizer.ThemedIconColors(
+            plate = Color.rgb(0x3C, 0x40, 0x43),
+            glyph = Color.rgb(0xE8, 0xEA, 0xED),
+        )
+
+        val stripWidth = tile * cases.size + gap * (cases.size + 1)
+        val stripHeight = tile + gap * 2
+        val strip = Bitmap.createBitmap(stripWidth, stripHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(strip)
+        canvas.drawColor(Color.rgb(0x9E, 0x9E, 0x9E))
+
+        var left = gap
+        for (drawable in cases) {
+            val normalized = IconNormalizer.normalizeToTile(drawable, tile, themedColors = themedColors)
+            drawCircleTile(canvas, normalized, left.toFloat(), gap.toFloat(), tile.toFloat())
+            left += tile + gap
+        }
+
+        strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_icon_normalization_themed_robolectric.png")
+    }
+
+    private fun normalizationCases(): List<Drawable> = listOf(
+        // Full-bleed adaptive icon: blue background, white circle foreground.
+        AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x1A, 0x73, 0xE8)), whiteCircleForeground()),
+        // Adaptive icon with a small foreground logo on a dark background —
+        // the logo is enlarged to fill rather than floating tiny (the
+        // GitHub / UniFi case).
+        AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x10, 0x14, 0x1C)), smallLogoForeground()),
+        // Colored shape with transparent padding — the case that showed gray.
+        paddedDrawable(Rect(36, 36, 108, 108), Color.rgb(0xFF, 0x6A, 0x4D)),
+        // Sparse dark logo on transparency (documented weak case).
+        paddedDrawable(Rect(54, 54, 90, 90), Color.rgb(0x22, 0x26, 0x2B)),
+        // Plain colored icon with no transparency.
+        ColorDrawable(Color.rgb(0x18, 0x80, 0x38)),
+    )
 
     private fun drawCircleTile(canvas: Canvas, bitmap: Bitmap, left: Float, top: Float, size: Float) {
         // Matches AppIcon's circular clip.

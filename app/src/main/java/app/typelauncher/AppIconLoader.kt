@@ -204,6 +204,22 @@ internal object AppIconLoader {
         return self
     }
 
+    /**
+     * The plate/glyph pair to render every icon with under the Monochrome theme,
+     * or null when icons render as the app designed them. Non-null only on API
+     * 33+ (below that the adaptive monochrome layer — and the whole themed path —
+     * doesn't exist, so the colors would never be consumed). Prefers the mirrored
+     * pair seeded before composition (ViewModel init, MainActivity onCreate);
+     * the fallback derivation keeps a load that somehow races the first seed
+     * from rendering a stale plate.
+     */
+    private fun themedColorsOrNull(context: Context): IconNormalizer.ThemedIconColors? =
+        if (iconTheme == IconTheme.Monochrome && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            themedIconColors ?: resolveThemedIconColors(context, themedIconsUseDarkPalette)
+        } else {
+            null
+        }
+
     private suspend fun performLoad(
         context: Context,
         app: InstalledApp,
@@ -221,8 +237,25 @@ internal object AppIconLoader {
                 val override = withContext(Dispatchers.IO) { decodeOverrideBitmap(file, sizePx) }
                 trace.incrementMetric("override_ms", SystemClock.elapsedRealtime() - overrideStart)
                 if (override != null) {
-                    trace.setAttribute("result", "override")
-                    return@traceBlock override.asImageBitmap()
+                    val themedColors = themedColorsOrNull(context)
+                    if (themedColors == null) {
+                        trace.setAttribute("result", "override")
+                        return@traceBlock override.asImageBitmap()
+                    }
+                    // Under the Monochrome theme the override is forced monochrome
+                    // too, so an app the user edited matches the rest of the
+                    // forced-monochrome grid instead of staying full-color; its
+                    // alpha silhouette becomes the glyph. The chosen art returns
+                    // as soon as the theme switches back to Default.
+                    trace.setAttribute("result", "override_themed")
+                    return@traceBlock withContext(Dispatchers.Default) {
+                        IconNormalizer.normalizeToTile(
+                            BitmapDrawable(context.resources, override),
+                            sizePx,
+                            app.packageName,
+                            themedColors,
+                        ).asImageBitmap()
+                    }
                 }
                 trace.setAttribute("override_result", "decode_failed")
             } else {
@@ -251,16 +284,9 @@ internal object AppIconLoader {
             // overlay outside the circular clip, so it stays fully visible.
             // Themed rendering only activates on API 33+, where the adaptive
             // monochrome layer exists; below that the colors would never be
-            // consumed, so skip deriving them.
-            val themedColors = if (iconTheme == IconTheme.Monochrome && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // The mirrored pair is seeded before composition (ViewModel init,
-                // MainActivity onCreate) so it's normally present; the fallback
-                // derivation keeps a load that somehow races the first seed total.
-                themedIconColors ?: resolveThemedIconColors(context, themedIconsUseDarkPalette)
-            } else {
-                null
-            }
-            IconNormalizer.normalizeToTile(drawable, sizePx, app.packageName, themedColors).asImageBitmap()
+            // consumed, so themedColorsOrNull returns null and rendering is
+            // unchanged.
+            IconNormalizer.normalizeToTile(drawable, sizePx, app.packageName, themedColorsOrNull(context)).asImageBitmap()
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
         trace.setAttribute("result", "success")
