@@ -75,8 +75,8 @@ class IconNormalizationScreenshotTest {
         val gap = 24
         val cases = normalizationCases()
         val themedColors = IconNormalizer.ThemedIconColors(
-            plate = Color.rgb(0x3C, 0x40, 0x43),
-            glyph = Color.rgb(0xE8, 0xEA, 0xED),
+            plate = Color.rgb(0xE8, 0xEA, 0xED),
+            glyph = Color.rgb(0x3C, 0x40, 0x43),
         )
 
         val stripWidth = tile * cases.size + gap * (cases.size + 1)
@@ -108,6 +108,23 @@ class IconNormalizationScreenshotTest {
         paddedDrawable(Rect(54, 54, 90, 90), Color.rgb(0x22, 0x26, 0x2B)),
         // Plain colored icon with no transparency.
         ColorDrawable(Color.rgb(0x18, 0x80, 0x38)),
+        // Life preserver: a shape defined by COLOR on an opaque field (a red ring
+        // on white). The engraving must recover the ring and its hole instead of
+        // a solid disc.
+        colorRingOnWhite(Color.rgb(0xE5, 0x3A, 0x2B)),
+        // Monzo-style logo: a shape defined by TRANSPARENCY (a coral ring on a
+        // transparent field). The silhouette already carries it; the engraving
+        // must not regress it.
+        alphaRingOnTransparent(Color.rgb(0xFF, 0x6A, 0x4D)),
+        // Light logo on a bright background: a white circle on orange. The mark
+        // is brighter than the field, so the engraving must ink the logo (not
+        // invert it into a plate-colored hole).
+        AdaptiveIconDrawable(ColorDrawable(Color.rgb(0xFF, 0xA5, 0x00)), smallLogoForeground()),
+        // White logo on a gradient background (the Instagram case): the gradient
+        // spreads across many brightness bins while the logo piles into one, so
+        // the field must come from the densest window of bins or the logo would
+        // invert.
+        whiteLogoOnGradient(),
     )
 
     private fun drawCircleTile(canvas: Canvas, bitmap: Bitmap, left: Float, top: Float, size: Float) {
@@ -132,6 +149,59 @@ class IconNormalizationScreenshotTest {
         val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
         Canvas(bitmap).drawCircle(72f, 72f, 144 * 0.30f / 2f, paint)
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+
+    // A full-bleed white tile with a colored ring — shape defined by color, not
+    // alpha (the life-preserver case that used to collapse to a solid disc).
+    private fun colorRingOnWhite(color: Int): BitmapDrawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(Color.WHITE)
+            drawCircle(72f, 72f, 58f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+            drawCircle(72f, 72f, 26f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = Color.WHITE })
+        }
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+
+    // A colored ring on transparency — shape defined by alpha (a Monzo-style
+    // logo), the case the silhouette already handles well.
+    private fun alphaRingOnTransparent(color: Int): BitmapDrawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawCircle(72f, 72f, 58f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+            drawCircle(
+                72f,
+                72f,
+                26f,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR) },
+            )
+        }
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+
+    // A white logo on a diagonal color gradient — the brightness is spread
+    // across many histogram bins, so the field must be the densest window of
+    // bins (the background) rather than the single bin the solid logo lands in.
+    private fun whiteLogoOnGradient(): BitmapDrawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val shader = android.graphics.LinearGradient(
+            0f, 0f, 144f, 144f,
+            Color.rgb(0x83, 0x3A, 0xB4), Color.rgb(0xFC, 0xAF, 0x45),
+            android.graphics.Shader.TileMode.CLAMP,
+        )
+        canvas.drawRect(0f, 0f, 144f, 144f, Paint().apply { this.shader = shader })
+        canvas.drawCircle(72f, 72f, 30f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
         return BitmapDrawable(
             ApplicationProvider.getApplicationContext<android.content.Context>().resources,
             bitmap,

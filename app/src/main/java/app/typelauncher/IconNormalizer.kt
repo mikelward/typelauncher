@@ -8,6 +8,7 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import androidx.core.graphics.ColorUtils
+import kotlin.math.roundToInt
 
 /**
  * Turns any app [Drawable] into a full-bleed square tile bitmap so every icon
@@ -84,9 +85,9 @@ internal object IconNormalizer {
      * has a glyph synthesized from its existing art (the adaptive foreground
      * logo, or the whole drawable for a legacy icon), so the grid is uniformly
      * monochrome rather than a mix of themed and full-color icons. The
-     * synthesized glyph follows the source's alpha silhouette, so a full-bleed
-     * opaque foreground (e.g. Play Store) collapses to a solid glyph-color
-     * shape — the accepted rough edge of forcing every icon monochrome.
+     * synthesized glyph is engraved from the icon's own brightness (see
+     * [engraveThemedGlyph]) so its shape, internal lines, and art survive as a
+     * single-color mark instead of flattening to a solid disc.
      */
     fun normalizeToTile(
         drawable: Drawable,
@@ -100,68 +101,225 @@ internal object IconNormalizer {
         if (drawable is AdaptiveIconDrawable) {
             if (themedColors != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 drawable.monochrome?.let { mono ->
-                    return normalizeThemed(mono, sizePx, themedColors, debugLabel, synthesized = false)
+                    return normalizeThemed(mono, sizePx, themedColors, debugLabel)
                 }
-                // No authored monochrome layer: synthesize the glyph from the
-                // icon's own art (its alpha silhouette tinted the glyph color).
-                val source = themedGlyphSource(drawable, sizePx)
-                return normalizeThemed(source, sizePx, themedColors, debugLabel, synthesized = true)
+                // No authored monochrome layer: engrave a glyph from the app's
+                // own composed art (background + foreground) so its shape and
+                // internal detail survive as a single-color mark on the plate.
+                val art = rasterizeComposedAdaptive(drawable, sizePx)
+                val tile = engraveThemedGlyph(art, sizePx, themedColors, debugLabel)
+                art.recycle()
+                return tile
             }
             return normalizeAdaptive(drawable, sizePx, debugLabel)
         }
-        // A legacy (non-adaptive) icon has no monochrome layer; under the themed
-        // request its whole silhouette becomes the synthesized glyph. themedColors
-        // is only non-null on API 33+ (gated by the caller), so no SDK check here.
+        // A legacy (non-adaptive) icon — and a user-supplied override, which
+        // arrives here wrapped in a BitmapDrawable — has no monochrome layer; the
+        // themed request engraves a glyph from its whole art. themedColors is only
+        // non-null on API 33+ (gated by the caller), so no SDK check here.
         if (themedColors != null) {
-            return normalizeThemed(drawable, sizePx, themedColors, debugLabel, synthesized = true)
+            val art = rasterizeFullBleed(drawable, sizePx)
+            val tile = engraveThemedGlyph(art, sizePx, themedColors, debugLabel)
+            art.recycle()
+            return tile
         }
         return normalizeFlat(drawable, sizePx, debugLabel)
     }
 
     /**
-     * Picks the layer to synthesize a themed glyph from for an adaptive icon
-     * with no authored monochrome layer. Normally the foreground holds the logo,
-     * so it's preferred — but an adaptive icon can put its art in the background
-     * and leave a transparent foreground, and tinting that empty foreground would
-     * draw a blank plate (the icon would vanish). So the foreground is used only
-     * when it has visible pixels; otherwise the synthesis falls back to a visible
-     * background, and to the whole drawable if neither layer has any content
-     * (a degenerate icon that renders blank regardless). The single extra
-     * rasterize runs only on this themed-no-monochrome path and is cached.
+     * Rasterizes an adaptive icon's composed art — background then foreground,
+     * with the platform safe-zone framing — into a transparent-backed `sizePx`
+     * tile, the source [engraveThemedGlyph] reads brightness from. No plate is
+     * laid down first: transparent areas must stay transparent so the engraving
+     * maps them to the plate rather than to a phantom mark.
      */
-    private fun themedGlyphSource(drawable: AdaptiveIconDrawable, sizePx: Int): Drawable {
-        drawable.foreground?.let { foreground ->
-            if (hasVisibleContent(foreground, sizePx)) return foreground
-        }
-        drawable.background?.let { background ->
-            if (hasVisibleContent(background, sizePx)) return background
-        }
-        return drawable
+    private fun rasterizeComposedAdaptive(drawable: AdaptiveIconDrawable, sizePx: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.background?.let { drawLayerFramed(canvas, it, sizePx) }
+        drawable.foreground?.let { drawLayerFramed(canvas, it, sizePx) }
+        return bitmap
     }
 
-    /** True when [layer] rasterizes to at least one faintly-visible pixel. */
-    private fun hasVisibleContent(layer: Drawable, sizePx: Int): Boolean {
-        val bitmap = rasterizeLayer(layer, sizePx)
-        val visible = analyze(bitmap).hasVisibleContent
-        bitmap.recycle()
-        return visible
+    // Below this peak ink level the icon carries no usable brightness variation
+    // to engrave (a flat single-color tile), so the glyph falls back to the
+    // icon's alpha silhouette instead of washing out to a near-empty plate.
+    private const val LUMINANCE_DETAIL_EPSILON = 0.04f
+
+    // Brightness-histogram resolution used to find the icon's dominant
+    // brightness. 32 bins separate a logo from its background at a useful
+    // granularity.
+    private const val LUMINANCE_BINS = 32
+
+    // Half-width (in bins) of the window summed when choosing the dominant
+    // brightness, so a gradient background spread across contiguous bins outvotes
+    // a solid logo concentrated in a single bin. 2 ⇒ a 5-bin (~16% luminance)
+    // band.
+    private const val LUMINANCE_FIELD_WINDOW = 2
+
+    /**
+     * Engraves [art] (the app's own rasterized icon) into a single-color glyph on
+     * the [ThemedIconColors.plate], deriving each pixel's glyph coverage from the
+     * icon's *brightness* rather than its alpha — so a shape defined by color on
+     * an opaque field (a red life-ring on white) keeps its form and its hole,
+     * where an alpha-only silhouette would flatten the whole opaque tile to a
+     * solid disc.
+     *
+     * The icon's dominant (modal) brightness is the field, mapped to the plate;
+     * pixels that deviate from it in *either* direction — a dark logo on a light
+     * field or a light logo on a dark/bright field — become the
+     * [ThemedIconColors.glyph]. Coverage is gated by the source alpha, and a
+     * transparency-weighted silhouette floor keeps a logo that sits on
+     * transparency (its shape is in the alpha, not the brightness — the Monzo "M"
+     * case) from washing out. An icon with no brightness variation at all has
+     * nothing to engrave, so it falls back to its alpha silhouette.
+     */
+    private fun engraveThemedGlyph(
+        art: Bitmap,
+        sizePx: Int,
+        themedColors: ThemedIconColors,
+        debugLabel: String = "",
+    ): Bitmap {
+        val count = sizePx * sizePx
+        val pixels = IntArray(count)
+        art.getPixels(pixels, 0, sizePx, 0, 0, sizePx, sizePx)
+
+        val alpha = FloatArray(count)
+        val luminance = FloatArray(count)
+        // Brightness histogram over opaque pixels: the modal bin is the icon's
+        // dominant brightness — its "field" — that marks deviate from.
+        val binCount = IntArray(LUMINANCE_BINS)
+        val binSum = FloatArray(LUMINANCE_BINS)
+        val opaqueThreshold = OPAQUE_ALPHA / 255f
+        var opaque = 0
+        for (i in 0 until count) {
+            val pixel = pixels[i]
+            val a = (pixel ushr 24) and 0xFF
+            alpha[i] = a / 255f
+            val l = relativeLuminance(pixel)
+            luminance[i] = l
+            if (a >= OPAQUE_ALPHA) {
+                opaque++
+                val bin = (l * (LUMINANCE_BINS - 1)).roundToInt().coerceIn(0, LUMINANCE_BINS - 1)
+                binCount[bin]++
+                binSum[bin] += l
+            }
+        }
+
+        val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(tile)
+        canvas.drawColor(themedColors.plate)
+        val glyphRgb = themedColors.glyph and 0x00FFFFFF
+        if (opaque == 0) {
+            // No fully-opaque pixels to read brightness from, but the art may
+            // still be visible — a uniformly translucent logo. Fall back to its
+            // alpha silhouette so the icon doesn't vanish to a bare plate; a
+            // genuinely empty drawable draws nothing and stays plate.
+            for (i in 0 until count) {
+                pixels[i] = ((alpha[i] * 255f).roundToInt() shl 24) or glyphRgb
+            }
+            val silhouette = Bitmap.createBitmap(pixels, sizePx, sizePx, Bitmap.Config.ARGB_8888)
+            canvas.drawBitmap(silhouette, 0f, 0f, null)
+            silhouette.recycle()
+            return tile
+        }
+
+        // The field is the icon's dominant brightness, not the overall mean. A
+        // white logo on a bright background sits above the mean, so picking a
+        // single mark direction from the mean would treat the logo as field and
+        // ink the darker background instead — inverting the mark into a
+        // plate-colored hole. Measuring the absolute deviation from the dominant
+        // brightness inks whatever departs from the field, lighter or darker.
+        //
+        // The dominant brightness is the densest *window* of bins, not a single
+        // bin: a gradient or photographic background spreads its luminance across
+        // many bins while a solid logo piles into one, so a lone-bin mode could
+        // pick the logo as the field and invert it. Summing a small neighborhood
+        // lets a contiguous background outweigh a single-bin logo.
+        var bestBin = 0
+        var bestScore = -1
+        for (b in 0 until LUMINANCE_BINS) {
+            var score = 0
+            for (w in -LUMINANCE_FIELD_WINDOW..LUMINANCE_FIELD_WINDOW) {
+                val bin = b + w
+                if (bin in 0 until LUMINANCE_BINS) score += binCount[bin]
+            }
+            if (score > bestScore) {
+                bestScore = score
+                bestBin = b
+            }
+        }
+        var fieldSum = 0f
+        var fieldCount = 0
+        for (w in -LUMINANCE_FIELD_WINDOW..LUMINANCE_FIELD_WINDOW) {
+            val bin = bestBin + w
+            if (bin in 0 until LUMINANCE_BINS) {
+                fieldSum += binSum[bin]
+                fieldCount += binCount[bin]
+            }
+        }
+        val fieldLuminance = fieldSum / fieldCount
+
+        // Ink is measured only over opaque pixels: a transparent background reads
+        // as black (RGB 0), which would otherwise count as a strong mark and both
+        // poison the ink scale and suppress the silhouette fallback. Transparent
+        // pixels keep ink 0 and are gated out by their alpha.
+        var maxInk = 0f
+        val ink = FloatArray(count)
+        for (i in 0 until count) {
+            if (alpha[i] < opaqueThreshold) continue
+            val v = kotlin.math.abs(luminance[i] - fieldLuminance)
+            ink[i] = v
+            if (v > maxInk) maxInk = v
+        }
+
+        val silhouetteWeight = (1f - opaque.toFloat() / count).coerceIn(0f, 1f)
+        val hasLuminanceDetail = maxInk >= LUMINANCE_DETAIL_EPSILON
+        for (i in 0 until count) {
+            val coverage = if (!hasLuminanceDetail) {
+                alpha[i]
+            } else {
+                alpha[i] * (silhouetteWeight + (1f - silhouetteWeight) * (ink[i] / maxInk))
+            }
+            val a = (coverage.coerceIn(0f, 1f) * 255f).roundToInt()
+            pixels[i] = (a shl 24) or glyphRgb
+        }
+        val glyph = Bitmap.createBitmap(pixels, sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        canvas.drawBitmap(glyph, 0f, 0f, null)
+        glyph.recycle()
+
+        if (debugLabel.isNotEmpty()) {
+            LauncherDebugLog.event(
+                "iconTile $debugLabel sizePx=$sizePx themed synthesized engrave " +
+                    "fieldL=${"%.2f".format(fieldLuminance)} maxInk=${"%.2f".format(maxInk)} " +
+                    "silhouetteW=${"%.2f".format(silhouetteWeight)} lumDetail=$hasLuminanceDetail " +
+                    "plate=${hexColor(themedColors.plate)} glyph=${hexColor(themedColors.glyph)}",
+            )
+        }
+        return tile
+    }
+
+    /** Perceptual brightness (Rec. 709, no gamma) of a pixel's RGB, in 0..1. */
+    private fun relativeLuminance(pixel: Int): Float {
+        val r = (pixel ushr 16) and 0xFF
+        val g = (pixel ushr 8) and 0xFF
+        val b = pixel and 0xFF
+        return (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f
     }
 
     /**
-     * Composes the themed tile: a [ThemedIconColors.plate] fill under the
-     * [mono] glyph tinted [ThemedIconColors.glyph], drawn with the same platform
-     * safe-zone framing as any adaptive layer. [mono] is the app's authored
-     * monochrome layer when [synthesized] is false; when true it is the app's
-     * own art (an adaptive foreground or a legacy icon) whose alpha silhouette
-     * is being forced into a glyph because the app ships no monochrome layer.
-     * Either way the standardized framing means no per-icon sizing is needed.
+     * Composes the themed tile for an app's *authored* monochrome layer: a
+     * [ThemedIconColors.plate] fill under the [mono] glyph tinted
+     * [ThemedIconColors.glyph], drawn with the same platform safe-zone framing as
+     * any adaptive layer — the monochrome glyph spec is standardized, so no
+     * per-icon sizing is needed. (Apps without a monochrome layer take the
+     * [engraveThemedGlyph] path instead.)
      */
     private fun normalizeThemed(
         mono: Drawable,
         sizePx: Int,
         themedColors: ThemedIconColors,
         debugLabel: String = "",
-        synthesized: Boolean = false,
     ): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tile)
@@ -171,8 +329,7 @@ internal object IconNormalizer {
         drawLayerFramed(canvas, glyph, sizePx)
         if (debugLabel.isNotEmpty()) {
             LauncherDebugLog.event(
-                "iconTile $debugLabel sizePx=$sizePx themed${if (synthesized) " synthesized" else ""} " +
-                    "mono=${mono.javaClass.simpleName} " +
+                "iconTile $debugLabel sizePx=$sizePx themed mono=${mono.javaClass.simpleName} " +
                     "plate=${hexColor(themedColors.plate)} glyph=${hexColor(themedColors.glyph)}",
             )
         }
