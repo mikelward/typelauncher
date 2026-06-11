@@ -233,8 +233,11 @@ internal class IconSnapshotStore(context: Context) {
         // disc logos (GitHub); _v11 restores the platform crop for full-bleed
         // foregrounds (Play Store) and raises the bright-plate minimum;
         // _v12 retires per-logo sizing entirely — adaptive icons render
-        // exactly as the platform composes them.
-        private const val DIRECTORY_NAME = "icon_snapshots_v12"
+        // exactly as the platform composes them; _v13 forces every app
+        // monochrome under the Monochrome theme — apps without an authored
+        // monochrome layer now get a glyph synthesized from their own art
+        // rather than keeping their full-color tile.
+        private const val DIRECTORY_NAME = "icon_snapshots_v13"
         private const val DIRECTORY_PREFIX = "icon_snapshots"
         private const val RENDERER_STATE_FILE_NAME = "renderer_state"
         private const val EXTENSION = ".bin"

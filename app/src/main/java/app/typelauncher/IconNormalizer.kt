@@ -77,11 +77,16 @@ internal object IconNormalizer {
      * the icon's art (or its own background layer) fills it edge-to-edge. The
      * returned bitmap is always `sizePx` × `sizePx`.
      *
-     * When [themedColors] is non-null and the icon is adaptive with a
-     * monochrome layer (API 33+), the tile is instead the themed variant — the
-     * glyph tinted [ThemedIconColors.glyph] on a [ThemedIconColors.plate] fill.
-     * Apps without a monochrome layer keep their normal rendering, matching
-     * Pixel's themed-icons behavior.
+     * When [themedColors] is non-null (the Monochrome icon theme on API 33+),
+     * every app renders as a themed two-tone tile — the glyph tinted
+     * [ThemedIconColors.glyph] on a [ThemedIconColors.plate] fill. An app that
+     * ships an adaptive monochrome layer uses it directly; an app without one
+     * has a glyph synthesized from its existing art (the adaptive foreground
+     * logo, or the whole drawable for a legacy icon), so the grid is uniformly
+     * monochrome rather than a mix of themed and full-color icons. The
+     * synthesized glyph follows the source's alpha silhouette, so a full-bleed
+     * opaque foreground (e.g. Play Store) collapses to a solid glyph-color
+     * shape — the accepted rough edge of forcing every icon monochrome.
      */
     fun normalizeToTile(
         drawable: Drawable,
@@ -95,25 +100,68 @@ internal object IconNormalizer {
         if (drawable is AdaptiveIconDrawable) {
             if (themedColors != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 drawable.monochrome?.let { mono ->
-                    return normalizeThemed(mono, sizePx, themedColors, debugLabel)
+                    return normalizeThemed(mono, sizePx, themedColors, debugLabel, synthesized = false)
                 }
+                // No authored monochrome layer: synthesize the glyph from the
+                // icon's own art (its alpha silhouette tinted the glyph color).
+                val source = themedGlyphSource(drawable, sizePx)
+                return normalizeThemed(source, sizePx, themedColors, debugLabel, synthesized = true)
             }
             return normalizeAdaptive(drawable, sizePx, debugLabel)
+        }
+        // A legacy (non-adaptive) icon has no monochrome layer; under the themed
+        // request its whole silhouette becomes the synthesized glyph. themedColors
+        // is only non-null on API 33+ (gated by the caller), so no SDK check here.
+        if (themedColors != null) {
+            return normalizeThemed(drawable, sizePx, themedColors, debugLabel, synthesized = true)
         }
         return normalizeFlat(drawable, sizePx, debugLabel)
     }
 
     /**
+     * Picks the layer to synthesize a themed glyph from for an adaptive icon
+     * with no authored monochrome layer. Normally the foreground holds the logo,
+     * so it's preferred — but an adaptive icon can put its art in the background
+     * and leave a transparent foreground, and tinting that empty foreground would
+     * draw a blank plate (the icon would vanish). So the foreground is used only
+     * when it has visible pixels; otherwise the synthesis falls back to a visible
+     * background, and to the whole drawable if neither layer has any content
+     * (a degenerate icon that renders blank regardless). The single extra
+     * rasterize runs only on this themed-no-monochrome path and is cached.
+     */
+    private fun themedGlyphSource(drawable: AdaptiveIconDrawable, sizePx: Int): Drawable {
+        drawable.foreground?.let { foreground ->
+            if (hasVisibleContent(foreground, sizePx)) return foreground
+        }
+        drawable.background?.let { background ->
+            if (hasVisibleContent(background, sizePx)) return background
+        }
+        return drawable
+    }
+
+    /** True when [layer] rasterizes to at least one faintly-visible pixel. */
+    private fun hasVisibleContent(layer: Drawable, sizePx: Int): Boolean {
+        val bitmap = rasterizeLayer(layer, sizePx)
+        val visible = analyze(bitmap).hasVisibleContent
+        bitmap.recycle()
+        return visible
+    }
+
+    /**
      * Composes the themed tile: a [ThemedIconColors.plate] fill under the
-     * monochrome [mono] glyph tinted [ThemedIconColors.glyph], drawn with the
-     * same platform safe-zone framing as any adaptive layer — the monochrome
-     * glyph spec is standardized, so no per-icon sizing is needed.
+     * [mono] glyph tinted [ThemedIconColors.glyph], drawn with the same platform
+     * safe-zone framing as any adaptive layer. [mono] is the app's authored
+     * monochrome layer when [synthesized] is false; when true it is the app's
+     * own art (an adaptive foreground or a legacy icon) whose alpha silhouette
+     * is being forced into a glyph because the app ships no monochrome layer.
+     * Either way the standardized framing means no per-icon sizing is needed.
      */
     private fun normalizeThemed(
         mono: Drawable,
         sizePx: Int,
         themedColors: ThemedIconColors,
         debugLabel: String = "",
+        synthesized: Boolean = false,
     ): Bitmap {
         val tile = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(tile)
@@ -123,7 +171,8 @@ internal object IconNormalizer {
         drawLayerFramed(canvas, glyph, sizePx)
         if (debugLabel.isNotEmpty()) {
             LauncherDebugLog.event(
-                "iconTile $debugLabel sizePx=$sizePx themed mono=${mono.javaClass.simpleName} " +
+                "iconTile $debugLabel sizePx=$sizePx themed${if (synthesized) " synthesized" else ""} " +
+                    "mono=${mono.javaClass.simpleName} " +
                     "plate=${hexColor(themedColors.plate)} glyph=${hexColor(themedColors.glyph)}",
             )
         }
