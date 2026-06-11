@@ -306,6 +306,38 @@ class IconNormalizerTest {
     }
 
     @Test
+    fun themedColorsEngraveHueOnlyMarkIntoGlyph() {
+        // A mark set apart from its background only by HUE at the same brightness
+        // (a red ring on an equal-luminance teal field). A brightness-only metric
+        // sees no contrast and flattens the whole opaque tile to a solid disc;
+        // measuring color distance keeps the ring (and its hole).
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val teal = Color.rgb(40, 131, 160) // L ~0.446
+        val red = Color.rgb(200, 90, 90) // L ~0.445 — same brightness, different hue
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(teal)
+            drawCircle(50f, 50f, 40f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = red })
+            drawCircle(50f, 50f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = teal })
+        }
+        val drawable = BitmapDrawable(resources, bitmap)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        // The red ring band is the glyph; the teal hole and the teal corner are
+        // the plate (a brightness-only metric would make the whole tile glyph).
+        assertColorClose(glyph, tile.getPixel(50, 21))
+        assertColorClose(plate, tile.getPixel(50, 50))
+        assertColorClose(plate, tile.getPixel(2, 2))
+    }
+
+    @Test
     fun themedColorsEngraveColorDefinedShapeIntoGlyph() {
         // The life-preserver case: a shape defined by COLOR (a red ring on an
         // opaque white field), not by transparency. The alpha silhouette would

@@ -141,14 +141,18 @@ internal object IconNormalizer {
         return bitmap
     }
 
-    // Below this peak ink level the icon carries no usable brightness variation
-    // to engrave (a flat single-color tile), so the glyph falls back to the
-    // icon's alpha silhouette instead of washing out to a near-empty plate.
-    private const val LUMINANCE_DETAIL_EPSILON = 0.04f
+    // Below this peak ink level the icon carries no usable color variation to
+    // engrave (a flat single-color tile), so the glyph falls back to the icon's
+    // alpha silhouette instead of washing out to a near-empty plate. In
+    // normalized color-distance units (0..1).
+    private const val DETAIL_EPSILON = 0.04f
 
-    // Brightness-histogram resolution used to find the icon's dominant
-    // brightness. 32 bins separate a logo from its background at a useful
-    // granularity.
+    // Largest possible RGB color distance (black↔white), sqrt(3)·255, used to
+    // normalize the per-pixel color distance into 0..1.
+    private const val MAX_COLOR_DISTANCE = 441.673f
+
+    // Brightness-histogram resolution used to find the icon's dominant luminance
+    // band. 32 bins separate a logo from its background at a useful granularity.
     private const val LUMINANCE_BINS = 32
 
     // Half-width (in bins) of the window summed when choosing the dominant
@@ -159,20 +163,22 @@ internal object IconNormalizer {
 
     /**
      * Engraves [art] (the app's own rasterized icon) into a single-color glyph on
-     * the [ThemedIconColors.plate], deriving each pixel's glyph coverage from the
-     * icon's *brightness* rather than its alpha — so a shape defined by color on
-     * an opaque field (a red life-ring on white) keeps its form and its hole,
-     * where an alpha-only silhouette would flatten the whole opaque tile to a
-     * solid disc.
+     * the [ThemedIconColors.plate], deriving each pixel's glyph coverage from how
+     * far its *color* is from the icon's background color — so a shape set apart
+     * by color (a red life-ring on white, or a logo that differs from its
+     * background only in hue at the same brightness) keeps its form, where an
+     * alpha-only silhouette would flatten the whole opaque tile to a solid disc.
      *
-     * The icon's dominant (modal) brightness is the field, mapped to the plate;
-     * pixels that deviate from it in *either* direction — a dark logo on a light
-     * field or a light logo on a dark/bright field — become the
-     * [ThemedIconColors.glyph]. Coverage is gated by the source alpha, and a
+     * The field is the modal color within the icon's dominant luminance band (the
+     * densest window of a brightness histogram); pixels whose color is far from it
+     * become the [ThemedIconColors.glyph]. Locating the band by windowed
+     * brightness keeps a gradient/photographic background from letting a solid
+     * logo be mistaken for the field, and taking the color within it adds hue
+     * sensitivity. Coverage is gated by the source alpha, and a
      * transparency-weighted silhouette floor keeps a logo that sits on
-     * transparency (its shape is in the alpha, not the brightness — the Monzo "M"
-     * case) from washing out. An icon with no brightness variation at all has
-     * nothing to engrave, so it falls back to its alpha silhouette.
+     * transparency (its shape is in the alpha — the Monzo "M" case) from washing
+     * out. An icon with no color variation at all has nothing to engrave, so it
+     * falls back to its alpha silhouette.
      */
     private fun engraveThemedGlyph(
         art: Bitmap,
@@ -186,10 +192,10 @@ internal object IconNormalizer {
 
         val alpha = FloatArray(count)
         val luminance = FloatArray(count)
-        // Brightness histogram over opaque pixels: the modal bin is the icon's
-        // dominant brightness — its "field" — that marks deviate from.
+        // Brightness histogram over opaque pixels, used only to locate the icon's
+        // dominant luminance band (the background); the field *color* is taken
+        // from within that band below.
         val binCount = IntArray(LUMINANCE_BINS)
-        val binSum = FloatArray(LUMINANCE_BINS)
         val opaqueThreshold = OPAQUE_ALPHA / 255f
         var opaque = 0
         for (i in 0 until count) {
@@ -200,9 +206,7 @@ internal object IconNormalizer {
             luminance[i] = l
             if (a >= OPAQUE_ALPHA) {
                 opaque++
-                val bin = (l * (LUMINANCE_BINS - 1)).roundToInt().coerceIn(0, LUMINANCE_BINS - 1)
-                binCount[bin]++
-                binSum[bin] += l
+                binCount[(l * (LUMINANCE_BINS - 1)).roundToInt().coerceIn(0, LUMINANCE_BINS - 1)]++
             }
         }
 
@@ -224,18 +228,10 @@ internal object IconNormalizer {
             return tile
         }
 
-        // The field is the icon's dominant brightness, not the overall mean. A
-        // white logo on a bright background sits above the mean, so picking a
-        // single mark direction from the mean would treat the logo as field and
-        // ink the darker background instead — inverting the mark into a
-        // plate-colored hole. Measuring the absolute deviation from the dominant
-        // brightness inks whatever departs from the field, lighter or darker.
-        //
-        // The dominant brightness is the densest *window* of bins, not a single
-        // bin: a gradient or photographic background spreads its luminance across
-        // many bins while a solid logo piles into one, so a lone-bin mode could
-        // pick the logo as the field and invert it. Summing a small neighborhood
-        // lets a contiguous background outweigh a single-bin logo.
+        // Locate the icon's dominant luminance band — the densest *window* of
+        // bins, not a single bin, so a gradient or photographic background spread
+        // across many bins outvotes a solid logo concentrated in one. (A lone-bin
+        // choice could pick the logo as the field and invert the mark.)
         var bestBin = 0
         var bestScore = -1
         for (b in 0 until LUMINANCE_BINS) {
@@ -249,34 +245,57 @@ internal object IconNormalizer {
                 bestBin = b
             }
         }
-        var fieldSum = 0f
-        var fieldCount = 0
-        for (w in -LUMINANCE_FIELD_WINDOW..LUMINANCE_FIELD_WINDOW) {
-            val bin = bestBin + w
-            if (bin in 0 until LUMINANCE_BINS) {
-                fieldSum += binSum[bin]
-                fieldCount += binCount[bin]
-            }
-        }
-        val fieldLuminance = fieldSum / fieldCount
 
-        // Ink is measured only over opaque pixels: a transparent background reads
-        // as black (RGB 0), which would otherwise count as a strong mark and both
-        // poison the ink scale and suppress the silhouette fallback. Transparent
-        // pixels keep ink 0 and are gated out by their alpha.
+        // The field color is the modal color *within* that band — the background.
+        // Restricting the color vote to the band keeps a gradient's spread-out
+        // colors from letting a solid logo win it, and keeps a hue-only mark that
+        // shares the field's brightness from being taken for the field.
+        val bandLo = (bestBin - LUMINANCE_FIELD_WINDOW).coerceAtLeast(0)
+        val bandHi = (bestBin + LUMINANCE_FIELD_WINDOW).coerceAtMost(LUMINANCE_BINS - 1)
+        val colorBuckets = HashMap<Int, IntArray>() // bucket -> [count, rSum, gSum, bSum]
+        for (i in 0 until count) {
+            if (alpha[i] < opaqueThreshold) continue
+            val bin = (luminance[i] * (LUMINANCE_BINS - 1)).roundToInt().coerceIn(0, LUMINANCE_BINS - 1)
+            if (bin < bandLo || bin > bandHi) continue
+            val pixel = pixels[i]
+            val r = (pixel ushr 16) and 0xFF
+            val g = (pixel ushr 8) and 0xFF
+            val b = pixel and 0xFF
+            val bucket = ((r shr COLOR_BUCKET_SHIFT) shl 10) or
+                ((g shr COLOR_BUCKET_SHIFT) shl 5) or (b shr COLOR_BUCKET_SHIFT)
+            val acc = colorBuckets.getOrPut(bucket) { IntArray(4) }
+            acc[0]++
+            acc[1] += r
+            acc[2] += g
+            acc[3] += b
+        }
+        val field = colorBuckets.maxByOrNull { it.value[0] }!!.value
+        val fieldR = field[1] / field[0]
+        val fieldG = field[2] / field[0]
+        val fieldB = field[3] / field[0]
+
+        // Ink is each pixel's color distance from the field color — hue *and*
+        // brightness — so a mark set apart only by hue at the same brightness is
+        // still inked, where a luminance-only metric would miss it. Measured only
+        // over opaque pixels; a transparent background reads as black (RGB 0) and
+        // would otherwise count as a strong mark, so it is gated out by alpha.
         var maxInk = 0f
         val ink = FloatArray(count)
         for (i in 0 until count) {
             if (alpha[i] < opaqueThreshold) continue
-            val v = kotlin.math.abs(luminance[i] - fieldLuminance)
+            val pixel = pixels[i]
+            val dr = ((pixel ushr 16) and 0xFF) - fieldR
+            val dg = ((pixel ushr 8) and 0xFF) - fieldG
+            val db = (pixel and 0xFF) - fieldB
+            val v = kotlin.math.sqrt((dr * dr + dg * dg + db * db).toFloat()) / MAX_COLOR_DISTANCE
             ink[i] = v
             if (v > maxInk) maxInk = v
         }
 
         val silhouetteWeight = (1f - opaque.toFloat() / count).coerceIn(0f, 1f)
-        val hasLuminanceDetail = maxInk >= LUMINANCE_DETAIL_EPSILON
+        val hasDetail = maxInk >= DETAIL_EPSILON
         for (i in 0 until count) {
-            val coverage = if (!hasLuminanceDetail) {
+            val coverage = if (!hasDetail) {
                 alpha[i]
             } else {
                 alpha[i] * (silhouetteWeight + (1f - silhouetteWeight) * (ink[i] / maxInk))
@@ -291,8 +310,8 @@ internal object IconNormalizer {
         if (debugLabel.isNotEmpty()) {
             LauncherDebugLog.event(
                 "iconTile $debugLabel sizePx=$sizePx themed synthesized engrave " +
-                    "fieldL=${"%.2f".format(fieldLuminance)} maxInk=${"%.2f".format(maxInk)} " +
-                    "silhouetteW=${"%.2f".format(silhouetteWeight)} lumDetail=$hasLuminanceDetail " +
+                    "field=${hexColor(Color.rgb(fieldR, fieldG, fieldB))} maxInk=${"%.2f".format(maxInk)} " +
+                    "silhouetteW=${"%.2f".format(silhouetteWeight)} detail=$hasDetail " +
                     "plate=${hexColor(themedColors.plate)} glyph=${hexColor(themedColors.glyph)}",
             )
         }
