@@ -239,8 +239,10 @@ internal class IconSnapshotStore(context: Context) {
         // rather than keeping their full-color tile; _v14 engraves that
         // synthesized glyph from the icon's brightness instead of its alpha
         // silhouette, so a shape drawn in color on a solid field keeps its
-        // detail instead of flattening to a disc.
-        private const val DIRECTORY_NAME = "icon_snapshots_v14"
+        // detail instead of flattening to a disc; _v15 engraves from color
+        // distance rather than brightness alone, so a mark set apart from its
+        // background only by hue (same brightness) is kept instead of flattening.
+        private const val DIRECTORY_NAME = "icon_snapshots_v15"
         private const val DIRECTORY_PREFIX = "icon_snapshots"
         private const val RENDERER_STATE_FILE_NAME = "renderer_state"
         private const val EXTENSION = ".bin"

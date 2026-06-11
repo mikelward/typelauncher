@@ -125,6 +125,10 @@ class IconNormalizationScreenshotTest {
         // the field must come from the densest window of bins or the logo would
         // invert.
         whiteLogoOnGradient(),
+        // Hue-only mark: a red ring on an equal-brightness teal field. There is
+        // no brightness contrast, so a luminance-only metric flattens it to a
+        // solid disc; the color-distance metric keeps the ring.
+        hueOnlyRing(),
     )
 
     private fun drawCircleTile(canvas: Canvas, bitmap: Bitmap, left: Float, top: Float, size: Float) {
@@ -202,6 +206,23 @@ class IconNormalizationScreenshotTest {
         )
         canvas.drawRect(0f, 0f, 144f, 144f, Paint().apply { this.shader = shader })
         canvas.drawCircle(72f, 72f, 30f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+
+    // A red ring on an equal-brightness teal field — shape set apart by hue, not
+    // brightness (the case a luminance-only engraving flattens to a disc).
+    private fun hueOnlyRing(): BitmapDrawable {
+        val teal = Color.rgb(40, 131, 160)
+        val red = Color.rgb(200, 90, 90)
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(teal)
+            drawCircle(72f, 72f, 58f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = red })
+            drawCircle(72f, 72f, 26f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = teal })
+        }
         return BitmapDrawable(
             ApplicationProvider.getApplicationContext<android.content.Context>().resources,
             bitmap,
