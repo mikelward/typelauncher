@@ -233,10 +233,10 @@ class IconNormalizerTest {
     fun themedColorsSynthesizeGlyphWhenNoMonochromeLayer() {
         // No authored monochrome layer: the themed request must synthesize a
         // glyph from the icon's own art instead of keeping the full-color tile.
-        // The foreground (a white centered circle) becomes the glyph — tinted
-        // the glyph color and drawn on the plate fill — so the center is the
-        // glyph color and the corner (outside the circle) is the plate, never
-        // the original red/blue layers.
+        // The composed art is a white foreground circle over a darker blue
+        // background; the bright circle engraves to the glyph and the blue field
+        // maps to the plate, so the center is the glyph color and the corner is
+        // the plate, never the original red/blue layers.
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
         val foreground = BitmapDrawable(resources, centeredCircle(100, fraction = 0.5f, color = Color.WHITE))
         val drawable = AdaptiveIconDrawable(ColorDrawable(Color.BLUE), foreground)
@@ -254,13 +254,118 @@ class IconNormalizerTest {
     }
 
     @Test
-    fun themedColorsFallBackToVisibleLayerWhenForegroundEmpty() {
-        // An adaptive icon can carry its visible art in the background with a
-        // transparent foreground. Synthesizing from the (empty) foreground would
-        // tint nothing and leave a blank plate — the icon would vanish — so the
-        // glyph must fall back to the visible background layer. The whole tile
-        // ends up the glyph color (the background fills it); the key assertion is
-        // that the center is the glyph, not the bare plate.
+    fun themedColorsEngraveLightLogoOnBrightBackground() {
+        // A white logo on a bright (orange) background: the logo sits above the
+        // icon's mean brightness, so a single mark direction from the mean would
+        // treat the logo as field and ink the darker background instead —
+        // inverting the mark into a plate-colored hole. Measuring deviation from
+        // the dominant (orange) brightness must instead make the white logo the
+        // glyph and the orange background the plate.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val foreground = BitmapDrawable(resources, centeredCircle(100, fraction = 0.4f, color = Color.WHITE))
+        val drawable = AdaptiveIconDrawable(ColorDrawable(Color.rgb(0xFF, 0xA5, 0x00)), foreground)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        assertColorClose(glyph, tile.getPixel(50, 50))
+        assertColorClose(plate, tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun themedColorsEngraveLightLogoOnGradientBackground() {
+        // A white logo on a gradient background (the Instagram case): the
+        // gradient spreads its brightness across many histogram bins while the
+        // solid white logo piles into one, so a single-bin field choice would
+        // pick the logo as the field and invert it. Choosing the densest *window*
+        // of bins keeps the gradient as the field, so the logo is inked.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        for (y in 0 until 100) {
+            val v = 30 + y * 90 / 100 // L ramps ~0.12..0.47, spread across many bins
+            canvas.drawRect(0f, y.toFloat(), 100f, (y + 1).toFloat(), Paint().apply { color = Color.rgb(v, v, v) })
+        }
+        canvas.drawCircle(50f, 50f, 22f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
+        val drawable = BitmapDrawable(resources, bitmap)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        assertColorClose(glyph, tile.getPixel(50, 50))
+    }
+
+    @Test
+    fun themedColorsEngraveColorDefinedShapeIntoGlyph() {
+        // The life-preserver case: a shape defined by COLOR (a red ring on an
+        // opaque white field), not by transparency. The alpha silhouette would
+        // flatten the whole opaque tile to a solid glyph disc; the brightness
+        // engraving instead maps the darker red ring to the glyph and the
+        // brighter white field — including the ring's hole — to the plate, so the
+        // ring and its hole survive.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(Color.WHITE)
+            drawCircle(50f, 50f, 40f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.RED })
+            drawCircle(50f, 50f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
+        }
+        val drawable = BitmapDrawable(resources, bitmap)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            100,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        // A point on the red ring band (29px above center, between r=18 and r=40)
+        // is the glyph; the white hole and the white corner are the plate.
+        assertColorClose(glyph, tile.getPixel(50, 21))
+        assertColorClose(plate, tile.getPixel(50, 50))
+        assertColorClose(plate, tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun themedColorsEngraveTranslucentArtStaysVisible() {
+        // An icon whose art is visible but entirely translucent (every pixel
+        // below the opaque threshold) has no fully-opaque pixels to read
+        // brightness from. It must still render from its alpha silhouette rather
+        // than vanishing to a bare plate.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.argb(128, 200, 200, 200))
+        val drawable = BitmapDrawable(resources, bitmap)
+        val plate = 0xFF112233.toInt()
+        val glyph = 0xFF445566.toInt()
+
+        val tile = IconNormalizer.normalizeToTile(
+            drawable,
+            64,
+            themedColors = IconNormalizer.ThemedIconColors(plate = plate, glyph = glyph),
+        )
+
+        // ~50% glyph over the plate — distinctly not the bare plate.
+        assertColorClose(Color.rgb(43, 60, 77), tile.getPixel(32, 32))
+    }
+
+    @Test
+    fun themedColorsEngraveDoesNotVanishForUniformColorIcon() {
+        // An adaptive icon whose composed art is a single flat color (here a
+        // transparent foreground over a solid red background) has no brightness
+        // variation to engrave, so the glyph falls back to the alpha silhouette
+        // rather than washing out to a blank plate — the icon stays visible.
         val drawable = AdaptiveIconDrawable(ColorDrawable(Color.RED), ColorDrawable(Color.TRANSPARENT))
         val plate = 0xFF112233.toInt()
         val glyph = 0xFF445566.toInt()
@@ -277,9 +382,10 @@ class IconNormalizerTest {
     @Test
     fun themedColorsSynthesizeGlyphForLegacyIcon() {
         // A legacy (non-adaptive) icon has no monochrome layer either; under the
-        // themed request its alpha silhouette becomes the glyph. A white square
-        // padded on transparency tints to the glyph color in its center, with the
-        // transparent corner filling to the plate.
+        // themed request a glyph is engraved from its art. A uniform white square
+        // padded on transparency has no brightness variation, so it falls back to
+        // its silhouette: the square becomes the glyph and the transparent corner
+        // fills to the plate.
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
         val drawable = BitmapDrawable(resources, squareOnTransparent(100, Rect(30, 30, 70, 70), Color.WHITE))
         val plate = 0xFF112233.toInt()

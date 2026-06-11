@@ -236,8 +236,11 @@ internal class IconSnapshotStore(context: Context) {
         // exactly as the platform composes them; _v13 forces every app
         // monochrome under the Monochrome theme — apps without an authored
         // monochrome layer now get a glyph synthesized from their own art
-        // rather than keeping their full-color tile.
-        private const val DIRECTORY_NAME = "icon_snapshots_v13"
+        // rather than keeping their full-color tile; _v14 engraves that
+        // synthesized glyph from the icon's brightness instead of its alpha
+        // silhouette, so a shape drawn in color on a solid field keeps its
+        // detail instead of flattening to a disc.
+        private const val DIRECTORY_NAME = "icon_snapshots_v14"
         private const val DIRECTORY_PREFIX = "icon_snapshots"
         private const val RENDERER_STATE_FILE_NAME = "renderer_state"
         private const val EXTENSION = ".bin"
