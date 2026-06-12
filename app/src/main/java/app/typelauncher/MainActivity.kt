@@ -20,6 +20,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -536,11 +538,35 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("MainActivity.onWindowFocusChanged hasFocus=$hasFocus window=${window.debugSummary()}")
         if (hasFocus && ::viewModel.isInitialized) {
             if (hasSeenInitialWindowFocus) {
-                viewModel.requestShowKeyboardOnHomeResume()
+                // Window focus is the earliest point the IME can be shown after
+                // returning from a launched app, and it arrives only once the
+                // home transition completes (~0.4s after onResume in practice).
+                // The ViewModel still drives the Compose focus/show path so the
+                // search field owns focus and the launch-on-Enter flow stays
+                // wired; but that path costs an extra frame for the
+                // emit -> collect -> requestFocus round-trip before the IME is
+                // asked to appear. When the ViewModel confirms it requested the
+                // keyboard, also kick the IME show natively in this same
+                // focus-grant callback so the animation can start a frame
+                // earlier instead of waiting on the next composition.
+                if (viewModel.requestShowKeyboardOnHomeResume()) {
+                    showImeOnResume()
+                }
             } else {
                 hasSeenInitialWindowFocus = true
             }
         }
+    }
+
+    // Drive the soft keyboard up through the window insets controller. This is
+    // a no-op when no editor holds focus (the Compose path requests focus on
+    // the search field in parallel), and it does not fight the Compose
+    // `SoftwareKeyboardController.show()` — both are idempotent "show" requests,
+    // so the earlier of the two wins and neither hides the IME.
+    private fun showImeOnResume() {
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.show(WindowInsetsCompat.Type.ime())
+        LauncherDebugLog.event("showImeOnResume requested native IME show")
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

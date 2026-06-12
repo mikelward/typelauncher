@@ -689,21 +689,31 @@ internal class LauncherViewModel(
         )
     }
 
-    fun requestShowKeyboardOnHomeResume() {
+    /**
+     * Requests the Home search keyboard on launcher resume when Home is the
+     * visible page and auto-show is enabled. Returns `true` when the request
+     * was actually emitted so the caller (`MainActivity.onWindowFocusChanged`)
+     * can mirror the decision by driving the IME natively in the same
+     * focus-grant pass — skipping the extra frame the Compose
+     * emit -> collect -> requestFocus round-trip would otherwise cost.
+     */
+    fun requestShowKeyboardOnHomeResume(): Boolean {
         val state = _uiState.value
-        if (
+        return if (
             state.destination is LauncherDestination.Home &&
             !state.isSettingsOpen &&
             !state.isAddingWidget &&
             state.isKeyboardAutoShown
         ) {
             requestShowKeyboard()
+            true
         } else {
             LauncherDebugLog.event(
                 "requestShowKeyboardOnHomeResume skipped destination=${state.destination} " +
                     "settings=${state.isSettingsOpen} addingWidget=${state.isAddingWidget} " +
                     "autoShown=${state.isKeyboardAutoShown}",
             )
+            false
         }
     }
 

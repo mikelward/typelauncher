@@ -35,9 +35,13 @@ class LauncherViewModelKeyboardTest {
         val viewModel = newViewModel()
         val requests = KeyboardRequestCounter(viewModel)
 
-        viewModel.requestShowKeyboardOnHomeResume()
+        // The return value gates whether MainActivity also kicks the native IME
+        // show in the same window-focus callback, so it must report true exactly
+        // when the keyboard request was emitted.
+        val requested = viewModel.requestShowKeyboardOnHomeResume()
         idle()
 
+        assertEquals(true, requested)
         assertEquals(1, requests.count.get())
         requests.cancel()
     }
@@ -49,9 +53,10 @@ class LauncherViewModelKeyboardTest {
         viewModel.setKeyboardAutoShown(false)
         idle()
 
-        viewModel.requestShowKeyboardOnHomeResume()
+        val requested = viewModel.requestShowKeyboardOnHomeResume()
         idle()
 
+        assertEquals(false, requested)
         assertEquals(0, requests.count.get())
         requests.cancel()
     }
@@ -62,12 +67,14 @@ class LauncherViewModelKeyboardTest {
         val requests = KeyboardRequestCounter(viewModel)
 
         viewModel.showWidgets()
-        viewModel.requestShowKeyboardOnHomeResume()
+        val requestedOffHome = viewModel.requestShowKeyboardOnHomeResume()
         viewModel.showHome()
         viewModel.openSettings()
-        viewModel.requestShowKeyboardOnHomeResume()
+        val requestedInSettings = viewModel.requestShowKeyboardOnHomeResume()
         idle()
 
+        assertEquals(false, requestedOffHome)
+        assertEquals(false, requestedInSettings)
         assertEquals(0, requests.count.get())
         requests.cancel()
     }
