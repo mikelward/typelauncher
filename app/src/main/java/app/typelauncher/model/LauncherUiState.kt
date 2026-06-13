@@ -5,9 +5,17 @@ import android.graphics.drawable.Drawable
 import android.os.UserHandle
 import androidx.compose.runtime.Immutable
 
-internal const val MIN_DOCK_APP_ICON_SIZE_DP = 40
+// Bounds on the derived icon size, which in turn set the "Icons per row"
+// slider's range per screen width (see `dockSlotCountRange`). The floor is the
+// densest the user can pack a row; 36 dp keeps a ~44 dp tap cell (icon + the
+// 8 dp item padding) — just under Material's 48 dp target, the trade for
+// fitting an extra column on a typical phone. The ceiling caps the largest
+// icon; 76 dp drops the near-duplicate clamped step at the sparse end (a row
+// of 3 huge icons whose natural size overflowed the old 80 dp cap) so the
+// largest stop is a clean, unclamped size instead.
+internal const val MIN_DOCK_APP_ICON_SIZE_DP = 36
 internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 56
-internal const val MAX_DOCK_APP_ICON_SIZE_DP = 80
+internal const val MAX_DOCK_APP_ICON_SIZE_DP = 76
 internal const val MIN_DOCK_ICON_COUNT = 1
 internal const val DEFAULT_DOCK_ICON_COUNT = 4
 internal const val MAX_DOCK_ICON_COUNT = 8
