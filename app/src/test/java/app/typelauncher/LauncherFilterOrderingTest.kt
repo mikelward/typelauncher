@@ -6,6 +6,7 @@ import android.os.Process
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -497,8 +498,35 @@ class LauncherFilterOrderingTest {
         assertEquals(listOf("Ebay", "École", "Über", "Uno", "Zoom"), sorted.map { it.name })
     }
 
-    private fun installedApp(name: String): InstalledApp {
-        val packageName = "app.${name.lowercase().replace(' ', '.')}"
+    @Test
+    fun packageBrandMatchSurfacesHiddenBrandAcrossEveryPrefix() {
+        // Virgin Money: the brand lives only in the package; the visible title
+        // "Credit Card" shares no letters with the query, so the package-brand
+        // tier is the only thing that can surface it. Typing the brand prefix
+        // progressively (v -> vi -> vir -> ...) must keep including it.
+        val apps = listOf(
+            installedApp("Credit Card", packageName = "com.virginmoney.cards"),
+            installedApp("Calculator"),
+            installedApp("Weather"),
+        )
+
+        for (query in listOf("v", "vi", "vir", "virgin", "virginmoney")) {
+            val filtered = apps.filterByName(
+                query = query,
+                appLaunchStatsStore = store,
+                excludedAppIds = emptySet(),
+            )
+            assertTrue(
+                "query \"$query\" should surface the hidden-brand app",
+                filtered.any { it.name == "Credit Card" },
+            )
+        }
+    }
+
+    private fun installedApp(
+        name: String,
+        packageName: String = "app.${name.lowercase().replace(' ', '.')}",
+    ): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
         return InstalledApp(
             name = name,

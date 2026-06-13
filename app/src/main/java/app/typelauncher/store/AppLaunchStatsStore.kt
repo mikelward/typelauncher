@@ -172,9 +172,21 @@ internal fun List<InstalledApp>.filterByName(
         candidates
             // Match against `displayName` so the disambiguator suffix (e.g.
             // "(US)" / "(UK)") is searchable when a brand has multiple regional
-            // installs. When no disambiguator is set, displayName falls back
-            // to name and behaviour is unchanged.
-            .mapNotNull { app -> app.displayName.launcherMatchTier(query)?.let { tier -> app to tier } }
+            // installs. When no disambiguator is set, displayName falls back to
+            // name and behaviour is unchanged. The package's brand segments are
+            // also matched, so an app whose title hides its brand (e.g. Virgin
+            // Money's "Credit Card" / com.virginmoney.cards) is still reachable
+            // by name. Both signals are always evaluated and the *best* (lowest
+            // ordinal) tier wins — rather than only checking the package when
+            // the title misses — so the ranking stays correct even if the tier
+            // order is ever changed.
+            .mapNotNull { app ->
+                val tier = listOfNotNull(
+                    app.displayName.launcherMatchTier(query),
+                    app.packageName.packageBrandMatchTier(query),
+                ).minByOrNull { it.ordinal }
+                tier?.let { app to it }
+            }
             .sortedWith(
                 compareBy<Pair<InstalledApp, LauncherMatchTier>> { (_, tier) -> tier.ordinal }
                     .then(withinTier),
@@ -221,14 +233,66 @@ internal fun List<InstalledApp>.filterHidden(hiddenAppIds: List<String>): List<I
     filter { app -> app.id in hiddenAppIds }
         .sortedBy { app -> hiddenAppIds.indexOf(app.id) }
 
-internal enum class LauncherMatchTier { Prefix, Anchored, Substring }
+// Match quality, best first — the `ordinal` drives result ranking, so order
+// matters. `Fuzzy` and `PackageBrand` are the looser fallback tiers and sit
+// below the precise title tiers so they only surface when nothing better
+// matches, and never outrank a prefix/anchored/substring hit.
+internal enum class LauncherMatchTier { Prefix, Anchored, Substring, Fuzzy, PackageBrand }
+
+// Below this query length the fuzzy tier stays off: a 1-char fuzzy match
+// reduces to "some word in the label starts with this letter", which Prefix
+// and Anchored already cover, so it would only add noise. (PackageBrand has no
+// such floor — see `packageBrandMatchTier`.)
+private const val FUZZY_MIN_QUERY_LENGTH = 2
+
+// Reverse-DNS / platform boilerplate that must never anchor a brand match, so
+// `com.google.android.apps.maps` is searched as `google` / `maps` rather than
+// the shared `com` / `android` / `apps` noise every package carries. Without
+// this strip a two/three-letter query would match the prefix every package
+// shares (e.g. "and" -> every com.*.android.* app).
+private val GENERIC_PACKAGE_SEGMENTS = setOf(
+    "com", "org", "net", "io", "co", "app", "apps", "android", "mobile",
+)
 
 internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
     if (query.isEmpty()) return LauncherMatchTier.Prefix
     if (startsWith(query, ignoreCase = true)) return LauncherMatchTier.Prefix
     if (matchesLauncherQuery(query)) return LauncherMatchTier.Anchored
     if (contains(query, ignoreCase = true)) return LauncherMatchTier.Substring
+    // Fuzzy is the strict anchored match with the skip-boundary rule relaxed:
+    // the first query character still has to anchor on a word boundary, but the
+    // rest may match any later characters in order. This is what lets "vw" find
+    // "Volkswagen" (the 'w' is mid-word, so the strict tier rejects it). It is
+    // deliberately the same loose behavior that was tightened out of the
+    // *anchored* tier in commit 80c8d68 — at that time matching was a flat,
+    // unranked filter, so "fa" -> "Air France" polluted the list with no way to
+    // sink it. Reintroduced here only as the lowest title tier, those loose
+    // matches now rank below every precise match instead of mixing in.
+    if (query.length >= FUZZY_MIN_QUERY_LENGTH && matchesLauncherQueryFuzzy(query)) {
+        return LauncherMatchTier.Fuzzy
+    }
     return null
+}
+
+/**
+ * Tier for a package-name match used as a fallback when the visible label does
+ * not match at all — e.g. the Virgin Money app whose title is "Credit Card" but
+ * whose package is `com.virginmoney.cards`. Matches [query] as a case-insensitive
+ * prefix of any brand segment, after dropping the generic reverse-DNS/platform
+ * segments, and returns the lowest tier so a real title match always ranks above
+ * it. Active from the first character: a short query can't flood results because
+ * the Substring tier already captures every label that *contains* the query, so
+ * this tier only adds labels that lack the query entirely. The only guard is for
+ * an empty query, which would otherwise prefix-match every segment.
+ */
+internal fun String.packageBrandMatchTier(query: String): LauncherMatchTier? {
+    if (query.isEmpty()) return null
+    val matched = splitToSequence('.').any { segment ->
+        segment.length >= query.length &&
+            segment.lowercase() !in GENERIC_PACKAGE_SEGMENTS &&
+            segment.startsWith(query, ignoreCase = true)
+    }
+    return if (matched) LauncherMatchTier.PackageBrand else null
 }
 
 internal fun String.matchesLauncherQuery(query: String): Boolean {
@@ -240,6 +304,36 @@ internal fun String.matchesLauncherQuery(query: String): Boolean {
         if (matchesQueryFrom(query, queryStart = 1, nameStart = anchor + 1)) return true
     }
     return false
+}
+
+/**
+ * Loose variant of [matchesLauncherQuery]: the first query character still has
+ * to anchor on a word boundary (start of label or an uppercase letter), but the
+ * remaining characters match any later label characters in order, ignoring the
+ * skip-boundary rule. Backs [LauncherMatchTier.Fuzzy].
+ */
+internal fun String.matchesLauncherQueryFuzzy(query: String): Boolean {
+    if (query.isEmpty()) return true
+    val firstQueryChar = query[0]
+    for (anchor in indices) {
+        if (!isAnchorBoundary(anchor)) continue
+        if (!this[anchor].equalsIgnoreCase(firstQueryChar)) continue
+        if (isLooseSubsequenceFrom(query, queryStart = 1, nameStart = anchor + 1)) return true
+    }
+    return false
+}
+
+private fun String.isLooseSubsequenceFrom(query: String, queryStart: Int, nameStart: Int): Boolean {
+    var nameIndex = nameStart
+    var queryIndex = queryStart
+    while (queryIndex < query.length) {
+        if (nameIndex >= length) return false
+        if (this[nameIndex].equalsIgnoreCase(query[queryIndex])) {
+            queryIndex++
+        }
+        nameIndex++
+    }
+    return true
 }
 
 private fun String.isAnchorBoundary(index: Int): Boolean {
