@@ -4,30 +4,44 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Hollow rectangle above the T, stylised as a search/filter bar -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
-        android:pathData="M34,27 H74 V35 H34 Z" />
-    <!-- Caret inside the rectangle -->
+    <!-- The whole T mark is scaled down and lifted into the upper safe zone so
+         the "DEV" badge below it stays inside the central 72dp the adaptive-icon
+         mask is guaranteed to show. The badge used to fill the bottom viewport
+         edge (y92..108), but that band lives entirely in the outer 18dp safe-zone
+         ring every launcher crops, so the marker never reached the screen. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.7"
+        android:scaleY="0.7"
+        android:translateY="-12">
+        <!-- Hollow rectangle above the T, stylised as a search/filter bar -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="1.5"
+            android:pathData="M34,27 H74 V35 H34 Z" />
+        <!-- Caret inside the rectangle -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M39,29.5 H40 V32.5 H39 Z" />
+        <!-- Letter T -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
+    </group>
+    <!-- Local-build monochrome badge: black DEV bar with knocked-out lettering.
+         Its top sits inside the safe zone so the DEV text is always visible; the
+         bar bleeds to the bottom edge so the adaptive-icon mask shapes the lower
+         corners. -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M39,29.5 H40 V32.5 H39 Z" />
-    <!-- Letter T -->
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
-    <!-- Local-build monochrome badge: black DEV bar fills the bottom; corners
-         are cropped by the launcher's adaptive-icon mask. -->
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M0,92 H108 V108 H0 Z" />
+        android:pathData="M0,64 H108 V108 H0 Z" />
     <group
         android:scaleX="1.5"
         android:scaleY="1.5"
         android:translateX="8.715"
-        android:translateY="92.5">
+        android:translateY="68.5">
         <path
             android:fillColor="#FFFFFFFF"
             android:fillType="evenOdd"
