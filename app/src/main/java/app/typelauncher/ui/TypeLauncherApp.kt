@@ -263,6 +263,7 @@ internal fun TypeLauncherApp(
         onSetRecentsOpen = viewModel::setRecentsOpen,
         onRequestShowKeyboard = viewModel::requestShowKeyboard,
         onKeyboardReservationChanged = viewModel::setKeyboardReservation,
+        onHomeLandscapeTierChanged = viewModel::setHomeLandscapeTier,
         keyboardShowRequests = viewModel.keyboardShowRequests,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
@@ -325,6 +326,7 @@ internal fun TypeLauncherApp(
     onSetRecentsOpen: (Boolean) -> Unit = {},
     onRequestShowKeyboard: () -> Unit = {},
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
+    onHomeLandscapeTierChanged: (HomeLandscapeTier) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
@@ -360,13 +362,27 @@ internal fun TypeLauncherApp(
             else -> onSetRecentsOpen(false)
         }
     }
+    // Resolve how much of Home the current viewport can fit (keyboard, search
+    // box, both, or — in cramped landscape — neither). Computed here, where the
+    // configuration and the persisted keyboard reservation are both in scope,
+    // and pushed back into state so MainActivity (window soft-input mode, resume
+    // re-show) reads the same decision. Passed directly to HomeScreen below to
+    // avoid the one-frame round-trip through state.
+    val homeLandscapeTier = rememberHomeLandscapeTier(state)
+    LaunchedEffect(homeLandscapeTier) {
+        onHomeLandscapeTierChanged(homeLandscapeTier)
+    }
+    val autoShowKeyboardFits = homeLandscapeTier == HomeLandscapeTier.KeyboardAndBox
     HomeReadySignal(
         // Gate on the fresh load, not the spinner: on a warm start with cached
         // metadata, `isLoadingApps` is `false` while `installed_apps_load` is
         // still running on IO. Firing here would race the fresh app load —
         // exactly what this signal exists to prevent.
         appsReady = state.isFreshAppLoadComplete,
-        waitForIme = state.isKeyboardAutoShown,
+        // In a landscape viewport too short to fit the keyboard we suppress the
+        // auto-show, so there is no IME to wait for — gating on the raw setting
+        // would stall home-ready until the 1500ms timeout.
+        waitForIme = state.isKeyboardAutoShown && autoShowKeyboardFits,
         onHomeReady = onHomeReady,
     )
     // Cold-start one-frame holdback for the home body (apps grid, dock,
@@ -518,8 +534,29 @@ internal fun TypeLauncherApp(
                 current = currentReservation,
             )?.let(onKeyboardReservationChanged)
         }
+        // In the cramped-landscape [HomeLandscapeTier.Hidden] tier the search box
+        // is hidden by default; a pull-up (routed to `keyboardShowRequests`)
+        // reveals it on demand. Reset on leaving Home and on resume (below) so a
+        // returning user starts from the hidden state again rather than a
+        // lingering revealed box.
+        var searchRevealedInTightLandscape by remember { mutableStateOf(false) }
+        if (homeLandscapeTier == HomeLandscapeTier.Hidden) {
+            LaunchedEffect(keyboardShowRequests) {
+                keyboardShowRequests.collect { searchRevealedInTightLandscape = true }
+            }
+        }
+        // The keyboard is only expected up — and so its height only worth
+        // pre-reserving — when the layout actually auto-shows it (KeyboardAndBox
+        // with the setting on) or the user has revealed it in the Hidden tier.
+        // Without this gate a persisted reservation matching the current
+        // landscape size would reserve the suppressed keyboard's height anyway,
+        // re-squeezing the very layout the BoxOnly / Hidden tiers exist to free.
+        // A manual tap in BoxOnly still reserves dynamically via the imeTarget /
+        // imeVisible paths below as the IME animates in.
+        val expectKeyboardThisEntry = (state.isKeyboardAutoShown && autoShowKeyboardFits) ||
+            searchRevealedInTightLandscape
         val stableTypingGeometryAvailable = !state.isSettingsOpen &&
-            state.isKeyboardAutoShown &&
+            expectKeyboardThisEntry &&
             entryKeyboardBottomPx > navBottomPx
         val shouldUseTypingGeometry = stableTypingGeometryAvailable
         val keyboardBottomPx = when {
@@ -561,6 +598,7 @@ internal fun TypeLauncherApp(
                 // even when the activity wasn't fully stopped.
                 if (event == Lifecycle.Event.ON_STOP || event == Lifecycle.Event.ON_RESUME) {
                     keyboardSeenThisHomePresence = false
+                    searchRevealedInTightLandscape = false
                 }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
@@ -571,6 +609,7 @@ internal fun TypeLauncherApp(
         LaunchedEffect(state.destination, state.isSettingsOpen) {
             if (state.destination !is LauncherDestination.Home || state.isSettingsOpen) {
                 keyboardSeenThisHomePresence = false
+                searchRevealedInTightLandscape = false
             }
         }
         // Gate on the animation target, not just `imeVisible`: while the
@@ -690,6 +729,8 @@ internal fun TypeLauncherApp(
                                 state = state,
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
+                                landscapeTier = homeLandscapeTier,
+                                searchRevealed = searchRevealedInTightLandscape,
                                 primaryBottomPadding = effectiveKeyboardReservationDp,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
@@ -754,6 +795,55 @@ internal fun TypeLauncherApp(
                 }
             }
         }
+    }
+}
+
+/**
+ * Resolves the [HomeLandscapeTier] for the current configuration. Reads only
+ * the live configuration, navigation-bar inset, dock settings, and the
+ * persisted keyboard reservation — never the live IME insets — so the value is
+ * stable through a keyboard animation and recomputes only on a real
+ * configuration / setting / reservation change.
+ */
+@Composable
+private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier {
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val navBottomPx = WindowInsets.navigationBars.getBottom(density)
+    val isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive
+    val workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList()
+    return remember(
+        configuration.orientation,
+        configuration.screenWidthDp,
+        configuration.screenHeightDp,
+        configuration.densityDpi,
+        navBottomPx,
+        state.dockIconCount,
+        state.isDockEnabled,
+        workDockedAppIds,
+        state.workDockPositions,
+        state.keyboardReservation,
+    ) {
+        val fingerprint = KeyboardReservationConfig(
+            orientation = configuration.orientation,
+            screenWidthDp = configuration.screenWidthDp,
+            screenHeightDp = configuration.screenHeightDp,
+            densityDpi = configuration.densityDpi,
+            navBottomPx = navBottomPx,
+        )
+        resolveHomeLandscapeTier(
+            homeLandscapeMetrics(
+                screenWidthDp = configuration.screenWidthDp,
+                screenHeightDp = configuration.screenHeightDp,
+                densityDpi = configuration.densityDpi,
+                dockIconCount = state.dockIconCount,
+                isPersonalDockEnabled = state.isDockEnabled,
+                workDockedAppIds = workDockedAppIds,
+                workDockPositions = state.workDockPositions,
+                keyboardReservation = state.keyboardReservation,
+                reservationFingerprint = fingerprint,
+            ),
+        )
     }
 }
 

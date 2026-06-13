@@ -677,6 +677,12 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
     }
 
+    fun setHomeLandscapeTier(tier: HomeLandscapeTier) {
+        if (_uiState.value.homeLandscapeTier == tier) return
+        _uiState.update { it.copy(homeLandscapeTier = tier) }
+        LauncherDebugLog.event("setHomeLandscapeTier tier=$tier")
+    }
+
     fun setKeyboardReservation(reservation: KeyboardReservation) {
         val coerced = reservation.copy(bottomPx = reservation.bottomPx.coerceAtLeast(0))
         if (_uiState.value.keyboardReservation == coerced) return
@@ -695,14 +701,15 @@ internal class LauncherViewModel(
             state.destination is LauncherDestination.Home &&
             !state.isSettingsOpen &&
             !state.isAddingWidget &&
-            state.isKeyboardAutoShown
+            state.isKeyboardAutoShown &&
+            state.homeLandscapeTier == HomeLandscapeTier.KeyboardAndBox
         ) {
             requestShowKeyboard()
         } else {
             LauncherDebugLog.event(
                 "requestShowKeyboardOnHomeResume skipped destination=${state.destination} " +
                     "settings=${state.isSettingsOpen} addingWidget=${state.isAddingWidget} " +
-                    "autoShown=${state.isKeyboardAutoShown}",
+                    "autoShown=${state.isKeyboardAutoShown} tier=${state.homeLandscapeTier}",
             )
         }
     }
