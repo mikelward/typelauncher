@@ -91,6 +91,7 @@ class HomeLandscapeLayoutTest {
             densityDpi = 420,
             dockIconCount = 4,
             isPersonalDockEnabled = true,
+            isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
             workDockPositions = emptyMap(),
             keyboardReservation = KeyboardReservation(),
@@ -116,6 +117,7 @@ class HomeLandscapeLayoutTest {
             densityDpi = 320,
             dockIconCount = 4,
             isPersonalDockEnabled = true,
+            isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
             workDockPositions = emptyMap(),
             keyboardReservation = KeyboardReservation(
@@ -140,6 +142,7 @@ class HomeLandscapeLayoutTest {
             densityDpi = 420,
             dockIconCount = 4,
             isPersonalDockEnabled = true,
+            isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
             workDockPositions = emptyMap(),
             keyboardReservation = KeyboardReservation(bottomPx = 1200, configFingerprint = persisted),
@@ -150,35 +153,43 @@ class HomeLandscapeLayoutTest {
 
     @Test
     fun metricsCountBothDockCardsWhenWorkDockVisible() {
-        fun dockHeightFor(personal: Boolean, workApps: List<String>) = homeLandscapeMetrics(
-            // Tall enough for a two-row work dock (>= 600dp short edge).
-            screenWidthDp = 1280,
-            screenHeightDp = 800,
-            densityDpi = 420,
-            dockIconCount = 4,
-            isPersonalDockEnabled = personal,
-            workDockedAppIds = workApps,
-            workDockPositions = emptyMap(),
-            keyboardReservation = KeyboardReservation(),
-            reservationFingerprint = fingerprint(1280, 800, 420, navBottomPx = 0),
-        ).dockHeightDp
+        fun dockHeightFor(personal: Boolean, workVisible: Boolean, workApps: List<String> = emptyList()) =
+            homeLandscapeMetrics(
+                // Tall enough for a two-row work dock (>= 600dp short edge).
+                screenWidthDp = 1280,
+                screenHeightDp = 800,
+                densityDpi = 420,
+                dockIconCount = 4,
+                isPersonalDockEnabled = personal,
+                isWorkDockVisible = workVisible,
+                workDockedAppIds = workApps,
+                workDockPositions = emptyMap(),
+                keyboardReservation = KeyboardReservation(),
+                reservationFingerprint = fingerprint(1280, 800, 420, navBottomPx = 0),
+            ).dockHeightDp
 
-        val personalOnly = dockHeightFor(personal = true, workApps = emptyList())
-        // A single work app is one row; enough apps to overflow any row width
-        // forces the work card to its two-row cap.
+        val personalOnly = dockHeightFor(personal = true, workVisible = false)
+        // Enough apps to overflow any row width forces the work card's two-row cap.
         val oneWorkApp = listOf("w1")
         val manyWorkApps = (1..20).map { "w$it" }
 
         // Adding the work card adds a second card plus the inter-card gap.
         assertTrue(
-            dockHeightFor(personal = true, workApps = oneWorkApp) > personalOnly + HOME_CARD_SPACING_DP,
+            dockHeightFor(personal = true, workVisible = true, workApps = oneWorkApp) >
+                personalOnly + HOME_CARD_SPACING_DP,
+        )
+        // A visible but *empty* work dock still occupies a one-row card (HomeScreen
+        // renders the add-hint card), so it must be counted the same as one app.
+        assertEquals(
+            dockHeightFor(personal = true, workVisible = true, workApps = oneWorkApp),
+            dockHeightFor(personal = true, workVisible = true, workApps = emptyList()),
         )
         // A two-row work dock is estimated taller than a one-row one.
         assertTrue(
-            dockHeightFor(personal = true, workApps = manyWorkApps) >
-                dockHeightFor(personal = true, workApps = oneWorkApp),
+            dockHeightFor(personal = true, workVisible = true, workApps = manyWorkApps) >
+                dockHeightFor(personal = true, workVisible = true, workApps = oneWorkApp),
         )
-        assertEquals(0, dockHeightFor(personal = false, workApps = emptyList()))
+        assertEquals(0, dockHeightFor(personal = false, workVisible = false))
     }
 
     private fun fingerprint(widthDp: Int, heightDp: Int, densityDpi: Int, navBottomPx: Int) =

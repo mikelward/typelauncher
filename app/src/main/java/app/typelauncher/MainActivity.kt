@@ -416,6 +416,7 @@ class MainActivity : ComponentActivity() {
                 densityDpi = config.densityDpi,
                 dockIconCount = state.dockIconCount,
                 isPersonalDockEnabled = state.isDockEnabled,
+                isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList(),
                 workDockPositions = state.workDockPositions,
                 keyboardReservation = state.keyboardReservation,

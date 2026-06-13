@@ -70,6 +70,7 @@ internal fun homeLandscapeMetrics(
     densityDpi: Int,
     dockIconCount: Int,
     isPersonalDockEnabled: Boolean,
+    isWorkDockVisible: Boolean,
     workDockedAppIds: List<String>,
     workDockPositions: Map<String, DockPosition>,
     keyboardReservation: KeyboardReservation,
@@ -91,13 +92,19 @@ internal fun homeLandscapeMetrics(
     // to MAX_WORK_DOCK_ROWS). Under-counting here would leave the box visible on
     // a viewport that can't fit it; this keeps the Hidden threshold honest when
     // a two-row work dock is present.
+    //
+    // The work card is counted by *visibility*, not app count: `HomeScreen`
+    // renders it whenever the work dock is enabled and the profile is active —
+    // even with no apps pinned (it shows the add hint) — and `dockRowCount`
+    // already floors at one row, so an empty-but-visible work dock still
+    // occupies a one-row card here.
     val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
     val maxWorkRows = if (screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP) {
         MAX_WORK_DOCK_ROWS
     } else {
         1
     }
-    val workRows = if (workDockedAppIds.isNotEmpty()) {
+    val workRows = if (isWorkDockVisible) {
         dockRowCount(workDockedAppIds, workDockPositions, coercedDockIconCount).coerceAtMost(maxWorkRows)
     } else {
         0
