@@ -52,7 +52,14 @@ class LauncherViewModelCalendarIconTest {
         val viewModel = newViewModel()
         idle()
 
-        val apps = viewModel.uiState.value.filteredApps
+        // Calendar is one of the popular packages the first-run dock prefill
+        // pins, and docked apps are deduped out of the main list by default, so
+        // it surfaces in `dockedApps` rather than `filteredApps`. The dated
+        // cache token is stamped on every installed app regardless of which
+        // surface it lands on, so gather all of them before asserting.
+        val state = viewModel.uiState.value
+        val apps = (state.filteredApps + state.dockedApps + state.workDockedApps)
+            .distinctBy { it.id }
         val calendar = apps.first { it.packageName == "com.google.android.calendar" }
         val mail = apps.first { it.packageName == "com.example.mail" }
 
