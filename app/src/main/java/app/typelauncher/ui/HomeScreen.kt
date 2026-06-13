@@ -201,11 +201,17 @@ internal fun HomeScreen(
     // makes the apps-list minimum a hard constraint that the dock can never
     // squeeze, regardless of how many apps the user has docked.
     val showWorkDock = state.isWorkDockEnabled && state.isWorkProfileActive
-    // The dock slot is reserved whenever *either* dock has content to render.
+    // The dock slot is reserved whenever *either* dock has content to render,
+    // but only while the search field is empty. Typing a query hides both
+    // docks so the freed space goes to the filtered results the user is
+    // actually scanning — the docked apps surface in that list instead (the
+    // ViewModel stops deduping them out of `filteredApps` once the query is
+    // non-blank, so they stay reachable while the dock row is gone).
     // A user who turns off "Show dock" but keeps "Show work dock" on (with
     // an active work profile) still gets a dock surface — the work card
     // simply renders on its own without the personal card above it.
-    val isDockSlotPresent = bodyReady && (state.isDockEnabled || showWorkDock)
+    val isDockSlotPresent =
+        bodyReady && state.query.isBlank() && (state.isDockEnabled || showWorkDock)
     Layout(
         modifier = Modifier
             .fillMaxSize()

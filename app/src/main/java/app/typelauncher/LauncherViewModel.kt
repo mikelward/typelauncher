@@ -273,7 +273,7 @@ internal class LauncherViewModel(
                             query = state.query,
                             appLaunchStatsStore = appLaunchStatsStore,
                             excludedAppIds = excludedFromAppList(state, dockedIds),
-                            dockedAppIds = dockedIds,
+                            dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                             sortOrder = state.appListSortOrder,
                         ).markVisibility(),
                         dockedApps = visibleApps
@@ -334,7 +334,7 @@ internal class LauncherViewModel(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = excludedFromAppList(state, dockedIds),
-                        dockedAppIds = dockedIds,
+                        dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                         sortOrder = state.appListSortOrder,
                     ).markVisibility(),
                     dockedApps = visibleApps
@@ -920,15 +920,15 @@ internal class LauncherViewModel(
             setQuery("")
             return
         }
-        // Docked apps are excluded from filteredApps while their dock is
-        // visible, so fall back to launching the first matching dock entry
-        // when no non-excluded match exists. The dock rows are unfiltered
-        // by typed search, so the fallback re-runs the matcher here rather
-        // than reading state.dockedApps / state.workDockedApps in their
-        // displayed order — otherwise we would launch whichever app
-        // happens to sit first in the row regardless of the query.
-        // The work dock is checked after the personal dock so the personal
-        // copy of a shared app (e.g. Gmail) wins when both profiles have it.
+        // Typing hides both docks and surfaces their apps in `filteredApps`
+        // (floated to the top), so a docked match is normally the first
+        // filtered result and resolves through `filteredApps.firstOrNull()`
+        // below. The dock lookups remain as defense-in-depth for the edge
+        // where no filtered match exists; they re-run the matcher rather than
+        // reading the rows' displayed order so the query, not row position,
+        // picks the target. The work dock is checked after the personal dock
+        // so the personal copy of a shared app (e.g. Gmail) wins when both
+        // profiles have it.
         val state = _uiState.value
         val target = state.filteredApps.firstOrNull()
             ?: state.dockedApps.firstOrNull { app -> app.displayName.launcherMatchTier(trimmedQuery) != null }
@@ -1563,6 +1563,13 @@ internal class LauncherViewModel(
         logState("setAppListIconOnly")
     }
 
+    // TODO: Consider removing the "Show docked apps" setting. Now that typing
+    //  hides both docks and always surfaces docked apps in the filtered list
+    //  (so they stay reachable mid-search), this toggle only affects the
+    //  empty-query browse view — whether docked apps are deduped out of the
+    //  list because the dock row already shows them. That is a narrow enough
+    //  behavior that it may not be worth a user-facing setting; revisit whether
+    //  to drop it and always keep docked apps in the list (or always dedupe).
     fun setShowDockedAppsInList(isShown: Boolean) {
         dockSettingsStore.isShowDockedAppsInList = isShown
         _uiState.update { it.copy(isShowDockedAppsInList = isShown) }
@@ -1690,7 +1697,7 @@ internal class LauncherViewModel(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
-                    dockedAppIds = dockedIds,
+                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
@@ -1711,12 +1718,13 @@ internal class LauncherViewModel(
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
             val dockedIds = dockedAppIdsForState(state)
+            val workDockedIds = workDockedAppIdsForState(state)
             state.copy(
                 filteredApps = visibleInstalledApps().filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
-                    dockedAppIds = dockedIds,
+                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
             )
@@ -1734,6 +1742,23 @@ internal class LauncherViewModel(
             sortOrder = state.appListSortOrder,
             columnCount = state.dockIconCount,
         )
+
+    /**
+     * The docked IDs that should float to the top of the main app list (the
+     * "docked first" rule that makes pinned apps rank as if they had the
+     * highest usage). Personal docked apps always float — they back the
+     * empty-query rule and the typed-search surfacing. Work docked apps only
+     * float while their dock row is hidden — i.e. during a typed search, when
+     * both docks disappear — so hiding the work dock surfaces those apps at the
+     * top of the results instead of burying them under usage-ranked entries.
+     * Personal IDs lead so the personal dock's muscle-memory order wins ties.
+     */
+    private fun floatingDockedIdsForState(
+        state: LauncherUiState,
+        personalDockedIds: List<String>,
+        workDockedIds: List<String>,
+    ): List<String> =
+        if (state.query.isBlank()) personalDockedIds else personalDockedIds + workDockedIds
 
     /**
      * Runs the one-time work-dock prefill the first time the user enables the
@@ -1774,17 +1799,30 @@ internal class LauncherViewModel(
     /**
      * Returns the IDs of apps that should be omitted from the main app list
      * because they already render on another always-visible surface. Docked
-     * apps are hidden while the dock UI is on (the dock row already shows
-     * them) unless the user has opted into [LauncherUiState.isShowDockedAppsInList],
-     * which keeps docked apps visible in the typed-search list as well.
-     * Secondary bars such as recents do not dedupe from the app list.
+     * apps are hidden from the list only while the dock row is actually on
+     * screen (the dock row already shows them) — that is, with an empty query
+     * and [LauncherUiState.isShowDockedAppsInList] off. A non-blank query hides
+     * the dock row, so docked apps always surface in the typed-search list
+     * (where they float to the top of their tier); opting into
+     * [LauncherUiState.isShowDockedAppsInList] keeps them visible even with an
+     * empty query. Secondary bars such as recents do not dedupe from the app
+     * list.
      */
     private fun excludedFromAppList(
         state: LauncherUiState,
         dockedIds: List<String>,
     ): Set<String> {
         val excluded = mutableSetOf<String>()
-        if (state.isDockEnabled && !state.isShowDockedAppsInList) excluded.addAll(dockedIds)
+        // Docked apps are only deduped out of the main list while their dock
+        // row is actually on screen. Typing a query hides both docks (see
+        // `isDockSlotPresent` in HomeScreen), so a non-blank query must stop
+        // the exclusion or the docked apps would vanish from every surface
+        // mid-search and become unreachable. With the query blank the dock is
+        // visible again and the dedupe resumes (subject to `Show docked apps`).
+        val isDockUiVisible = state.query.isBlank()
+        if (isDockUiVisible && state.isDockEnabled && !state.isShowDockedAppsInList) {
+            excluded.addAll(dockedIds)
+        }
         // Re-derive `isWorkProfileActive` from the authoritative
         // `installedApps` instead of reading `state.isWorkProfileActive`.
         // The `_uiState.update { state -> ... }` lambdas compute the new
@@ -1798,6 +1836,7 @@ internal class LauncherViewModel(
         // from `state`.
         val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
         if (
+            isDockUiVisible &&
             state.isWorkDockEnabled &&
             isWorkProfileActive &&
             !state.isShowDockedAppsInList

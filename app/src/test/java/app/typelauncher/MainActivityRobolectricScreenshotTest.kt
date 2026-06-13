@@ -528,6 +528,26 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun typingHidesDockAndClearingRestoresIt() {
+        // The dock row is a stable, always-tappable surface only while the
+        // user is browsing with an empty query. As soon as they type, the dock
+        // disappears so the filtered results get the freed space; clearing the
+        // query brings it back.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        saveScreenshot("compose_home_typing_hides_dock_robolectric.png")
+
+        composeRule.onNodeWithContentDescription("Clear search text").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun firstVisibleAppInTextList_isSelectedAsActiveLaunchTarget() {
         composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertIsNotSelected()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsNotSelected()
@@ -1598,21 +1618,25 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun dockingApp_addsItToDockAndOffersUndock() {
-        // The default `Show docked apps` toggle keeps Calculator visible in
-        // the main list after docking; turn it off so the assertions below
-        // can verify the dedup path.
-        composeRule.activity.viewModel.setShowDockedAppsInList(false)
+        // Dock Calculator from its long-press menu in the typed list. Typing
+        // hides the dock row, so the docked icon only appears once the query
+        // is cleared — but the docked app stays in the filtered results
+        // (floated to the top) while the query is active.
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("cal")
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$TOGGLE_DOCK_ACTION_TAG:Calculator").performClick()
         composeRule.waitForIdle()
 
+        assertTrue(composeRule.activity.viewModel.uiState.value.dockedApps.single().isDocked)
+        // Docked apps remain in the typed search results now, floated to the
+        // top of their tier.
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsDisplayed()
+
+        // Clearing the query brings the dock back; the docked entry offers Undock.
+        composeRule.onNodeWithContentDescription("Clear search text").performClick()
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag(DOCK_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
-        assertTrue(composeRule.activity.viewModel.uiState.value.dockedApps.single().isDocked)
-        // Once docked, Calculator drops out of the typed search results — long
-        // press the dock entry instead to verify the Undock action surfaces.
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").performTouchInput { longClick() }
         composeRule.onNodeWithText("Undock").assertIsDisplayed()
     }
@@ -1704,48 +1728,46 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun dockedList_isNotFilteredBySearchQuery() {
+    fun typingHidesDockAndSurfacesDockedAppsInList() {
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Browser" }, maxDockedApps = 6)
+        composeRule.waitForIdle()
 
-        // Typing a query that only matches one of the docked apps must leave
-        // both icons visible — the dock is meant to be a stable, always-tappable
-        // row that the user pinned by hand, so reordering or hiding entries
-        // while typing would defeat the point. The recents row has the same
-        // unfiltered contract.
+        // With an empty query the dock row is visible.
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
+
+        // Typing hides the whole dock; the docked apps move into the filtered
+        // list instead, so a matching docked app is still reachable as a list
+        // row rather than a dock icon.
         viewModel.setQuery("cal")
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_LIST_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsDisplayed()
 
-        viewModel.setQuery("browser")
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
-        composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
-
-        viewModel.setQuery("zzz-no-match")
+        // Clearing the query restores the dock row.
+        viewModel.setQuery("")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Calculator").assertIsDisplayed()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
     }
 
     @Test
-    fun launchActiveApp_fallsBackToDockedMatchWhenMainListHasNone() {
+    fun launchActiveApp_launchesDockedMatchSurfacedInListWhileTyping() {
         val viewModel = composeRule.activity.viewModel
-        // The docked-fallback path is only reached when the main list is
-        // empty, which requires the dock to dedup against the list — opt out
-        // of the default "Show docked apps" toggle so the fallback exercises.
+        // Even with "Show docked apps" off, typing hides the dock and surfaces
+        // the docked app in the filtered list, so a query matching only the
+        // docked Calculator resolves it as the top result.
         viewModel.setShowDockedAppsInList(false)
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }, maxDockedApps = 6)
         composeRule.waitForIdle()
 
-        // "calc" only matches the docked Calculator; the main list is empty.
-        // Enter must still launch Calculator via the dock fallback even though
-        // the dock is no longer pre-filtered to expose the matching entry.
+        // "calc" only matches the docked Calculator; it now appears in the
+        // list while typing rather than only on the (hidden) dock row.
         viewModel.setQuery("calc")
         composeRule.waitForIdle()
-        assertEquals(emptyList<String>(), viewModel.uiState.value.filteredApps.map { it.name })
+        assertEquals(listOf("Calculator"), viewModel.uiState.value.filteredApps.map { it.name })
 
         viewModel.launchActiveApp()
         composeRule.waitForIdle()
@@ -1755,17 +1777,12 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun launchActiveApp_dockedFallback_matchesAgainstRenameOverride() {
-        // Regression: the dock-fallback matcher used to read `app.name` (the
-        // system label), so renaming a docked app and pressing Enter on a
-        // query that only matched the override returned no target — the
-        // visible icon showed the new label, but the fallback failed to
-        // resolve. Dock fallback should use `displayName` so it matches the
-        // same way the typed-search results do.
+    fun launchActiveApp_matchesDockedAppAgainstRenameOverride() {
+        // Regression: a docked app renamed to "Numbers" must be matchable by
+        // the override while typing. Typing hides the dock and surfaces the
+        // docked app in the list, where the matcher reads `displayName`, so a
+        // query that only matches the override still resolves and launches.
         val viewModel = composeRule.activity.viewModel
-        // Force the dedup path so the docked-fallback gets exercised; with
-        // the default "Show docked apps" toggle on, the renamed entry would
-        // surface in `filteredApps` directly and the fallback never runs.
         viewModel.setShowDockedAppsInList(false)
         val target = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(target, maxDockedApps = 6)
@@ -1774,9 +1791,9 @@ class MainActivityRobolectricScreenshotTest {
 
         viewModel.setQuery("numb")
         composeRule.waitForIdle()
-        // The dock excludes the target from filteredApps while the dock UI
-        // is on, so this exercises the docked-fallback path specifically.
-        assertEquals(emptyList<String>(), viewModel.uiState.value.filteredApps.map { it.name })
+        // The renamed docked app surfaces in the list while typing and matches
+        // on its override.
+        assertEquals(listOf("Numbers"), viewModel.uiState.value.filteredApps.map { it.displayName })
 
         viewModel.launchActiveApp()
         composeRule.waitForIdle()
@@ -2467,10 +2484,12 @@ class MainActivityRobolectricScreenshotTest {
             viewModel.uiState.value.filteredApps.single { it.name == "Work Calendar" },
             maxDockedApps = 6,
         )
+        // Clear the query so the dock row (hidden while typing) is rendered
+        // and we can confirm the work app was pinned before pausing.
+        viewModel.setQuery("")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertIsDisplayed()
 
-        viewModel.setQuery("")
         // Drive quiet mode through the test seam — Robolectric's shadows
         // can't simulate a real work profile in quiet mode for the launcher
         // to read back through `UserManager.isQuietModeEnabled`. The
@@ -2513,6 +2532,9 @@ class MainActivityRobolectricScreenshotTest {
 
         val viewModel = composeRule.activity.viewModel
         viewModel.toggleDock(viewModel.uiState.value.filteredApps.single(), maxDockedApps = 6)
+        // Clear the query so the dock row (hidden while typing) renders the
+        // docked work icon for the screenshot.
+        viewModel.setQuery("")
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("$DOCK_APP_TAG:Work Calendar").assertIsDisplayed()

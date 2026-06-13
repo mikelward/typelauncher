@@ -85,6 +85,44 @@ class LauncherViewModelShowDockedInListTest {
     }
 
     @Test
+    fun typingSurfacesDockedAppsAtTopEvenWhenDedupedFromUnfilteredList() {
+        // With "Show docked apps" off the dock dedupes itself out of the
+        // unfiltered list. But typing hides the dock row entirely, so the
+        // docked apps must reappear in the filtered results — and float to the
+        // top of their tier, as if they had the highest usage — or they would
+        // be buried (or unreachable) mid-search.
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
+        viewModel.toggleDock(maps, maxDockedApps = 4)
+        viewModel.setShowDockedAppsInList(false)
+        idle()
+
+        // Empty query: docked Maps is deduped out (the dock row shows it).
+        assertFalse(
+            "Docked Maps is deduped from the empty-query list",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+
+        // "ma" matches both Mail and Maps in the prefix tier. Maps is docked,
+        // so once typing hides the dock it must surface and float ahead of the
+        // non-docked Mail.
+        viewModel.setQuery("ma")
+        idle()
+
+        val names = viewModel.uiState.value.filteredApps.map { it.name }
+        assertTrue("Docked Maps must surface in the typed list, got $names", "Maps" in names)
+        assertTrue("Non-docked Mail must also match, got $names", "Mail" in names)
+        assertEquals(
+            "Docked Maps must float to the top of the matches, got $names",
+            "Maps",
+            names.first(),
+        )
+    }
+
+    @Test
     fun togglingBackOnRestoresDockedAppsToUnfilteredList() {
         seedApp("Mail", "com.example.mail")
         seedApp("Maps", "com.example.maps")
