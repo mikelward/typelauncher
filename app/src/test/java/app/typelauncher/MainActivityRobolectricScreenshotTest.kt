@@ -2557,6 +2557,36 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun typingDoesNotFloatWorkDockPinsWhenWorkDockIsDisabled() {
+        // Regression: stale work-dock pins (left in the work store after the
+        // user turned the work dock off) must not float to the top of the
+        // search results — or become the Enter launch target — while typing.
+        // They should rank as normal apps.
+        val viewModel = composeRule.activity.viewModel
+        viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake8")
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        val workApp = viewModel.uiState.value.filteredApps.first { it.name == "Work Calendar" }
+        viewModel.toggleWorkDock(workApp, maxDockedApps = 6)
+        // Rename so the pin shares the "cal" prefix tier with the non-docked
+        // Calculator / Calendar; alphabetically it sorts last, so floating
+        // (the bug) would visibly jump it to the front.
+        viewModel.renameApp(workApp, "Calzzz")
+        // Turn the work dock back off; the pin stays in the work store.
+        viewModel.setWorkDockEnabled(false)
+        composeRule.waitForIdle()
+
+        viewModel.setQuery("cal")
+        composeRule.waitForIdle()
+
+        val names = viewModel.uiState.value.filteredApps.map { it.displayName }
+        assertTrue("Renamed work app should still be a candidate, got $names", "Calzzz" in names)
+        assertEquals("Disabled work pin must not float to the top, got $names", "Calculator", names.first())
+        assertEquals("Disabled work pin ranks by normal alpha order, got $names", "Calzzz", names.last())
+    }
+
+    @Test
     fun workDockCard_rendersBelowPersonalDockWhenEnabledAndProfileActive() {
         val viewModel = composeRule.activity.viewModel
         // Seed two real `POPULAR_APP_PACKAGES` entries into the shadow
