@@ -267,24 +267,22 @@ internal class LauncherViewModel(
                     val dockedIds = dockedAppIdsForState(state)
                     val workDockedIds = workDockedAppIdsForState(state)
                     val visibleApps = visibleInstalledApps()
+                    val dockRender = dockRenderState(state, visibleApps, dockedIds, workDockedIds)
                     val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                     state.copy(
                         filteredApps = visibleApps.filterByName(
                             query = state.query,
                             appLaunchStatsStore = appLaunchStatsStore,
                             excludedAppIds = excludedFromAppList(state, dockedIds),
-                            dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                            dockedAppIds = floatingDockedIdsForState(state, dockedIds),
                             sortOrder = state.appListSortOrder,
                         ).markVisibility(),
-                        dockedApps = visibleApps
-                            .filterDocked(dockedIds)
-                            .markVisibility(),
-                        dockPositions = dockedAppStore.dockedAppPositions,
+                        dockedApps = dockRender.dockedApps,
+                        dockPositions = dockRender.dockPositions,
                         shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
-                        workDockedApps = visibleApps
-                            .filterDocked(workDockedIds)
-                            .markVisibility(),
-                        workDockPositions = workDockedAppStore.dockedAppPositions,
+                        workDockedApps = dockRender.workDockedApps,
+                        workDockPositions = dockRender.workDockPositions,
+                        mergeWorkIntoPersonal = dockRender.mergeWorkIntoPersonal,
                         shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                         isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                         isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
@@ -328,24 +326,22 @@ internal class LauncherViewModel(
                 val dockedIds = dockedAppIdsForState(state)
                 val workDockedIds = workDockedAppIdsForState(state)
                 val visibleApps = visibleInstalledApps()
+                val dockRender = dockRenderState(state, visibleApps, dockedIds, workDockedIds)
                 val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                 state.copy(
                     filteredApps = visibleApps.filterByName(
                         query = state.query,
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = excludedFromAppList(state, dockedIds),
-                        dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                        dockedAppIds = floatingDockedIdsForState(state, dockedIds),
                         sortOrder = state.appListSortOrder,
                     ).markVisibility(),
-                    dockedApps = visibleApps
-                        .filterDocked(dockedIds)
-                        .markVisibility(),
-                    dockPositions = dockedAppStore.dockedAppPositions,
+                    dockedApps = dockRender.dockedApps,
+                    dockPositions = dockRender.dockPositions,
                     shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
-                    workDockedApps = visibleApps
-                        .filterDocked(workDockedIds)
-                        .markVisibility(),
-                    workDockPositions = workDockedAppStore.dockedAppPositions,
+                    workDockedApps = dockRender.workDockedApps,
+                    workDockPositions = dockRender.workDockPositions,
+                    mergeWorkIntoPersonal = dockRender.mergeWorkIntoPersonal,
                     shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                     isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                     isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
@@ -1031,6 +1027,11 @@ internal class LauncherViewModel(
      * Unified "Dock" / "Undock" toggle for the long-press menu. Routes based
      * on the app's current membership so it always does the inverse of what
      * the menu label says:
+     *  - merged dual-pin (work dock off, app in *both* stores, rendering as one
+     *    icon) → undock from both stores so the single visible icon disappears
+     *    in one tap instead of re-merging from the surviving work entry. This
+     *    covers every surface the merged icon appears on — the merged dock card
+     *    and the floated typed-search result — since both call this handler;
      *  - already in the personal dock → undock from personal (regardless of
      *    `isWorkApp`, since the user pinned it there before the work dock
      *    existed and the menu shows "Undock");
@@ -1043,9 +1044,13 @@ internal class LauncherViewModel(
         LauncherDebugLog.event(
             "toggleDock package=${app.packageName} docked=${app.isDocked} " +
                 "workDocked=${app.isWorkDocked} workDockEnabled=${state.isWorkDockEnabled} " +
-                "max=$maxDockedApps",
+                "merge=${state.mergeWorkIntoPersonal} max=$maxDockedApps",
         )
         when {
+            state.mergeWorkIntoPersonal && app.isDocked && app.isWorkDocked -> {
+                dockedAppStore.undock(app.id)
+                workDockedAppStore.undock(app.id)
+            }
             app.isDocked -> dockedAppStore.undock(app.id)
             app.isWorkDocked -> workDockedAppStore.undock(app.id)
             app.isWorkApp && state.isWorkDockEnabled ->
@@ -1107,6 +1112,61 @@ internal class LauncherViewModel(
         )
         refreshLists()
         logState("reorderWorkDockedApps")
+    }
+
+    /**
+     * Reorder handler for the personal dock card while it is hosting merged
+     * work apps ([LauncherUiState.mergeWorkIntoPersonal]). The card reports the
+     * dragged icon's target slot in the *merged* grid; route the write to the
+     * store that actually owns the app:
+     *  - a personal app moves in the personal store at the merged coordinate
+     *    (which is a valid personal coordinate — personal apps lead the grid);
+     *  - a work app is translated to its cell within the (trailing) work block
+     *    and moved in the work store's own packed coordinate space, so the
+     *    relative work order persists and round-trips when the work dock is
+     *    re-enabled. Because the two stores keep independent coordinate spaces,
+     *    a work app cannot interleave between personal apps — dropping it onto a
+     *    personal slot lands it at the front of the work block.
+     */
+    fun reorderMergedDock(appId: String, row: Int, column: Int) {
+        val state = _uiState.value
+        LauncherDebugLog.event("reorderMergedDock appId=$appId row=$row column=$column")
+        val columns = state.dockIconCount.coerceAtLeast(1)
+        when {
+            dockedAppStore.contains(appId) ->
+                dockedAppStore.move(appId, row, column, columns, state.appListSortOrder)
+            workDockedAppStore.contains(appId) -> {
+                // Rebuild the same merged grid `dockRenderState` renders: the
+                // visible-filtered ids in the work dock's forward visual order
+                // (so a reversed sort or a hidden pin can't desync the target
+                // cell the dragged work app is saved at).
+                val visibleIds = visibleInstalledApps().mapTo(HashSet()) { app -> app.id }
+                val merged = mergePersonalAndWorkDock(
+                    personalIds = dockedAppIdsForState(state).filter { id -> id in visibleIds },
+                    personalPositions = dockedAppStore.dockedAppPositions,
+                    workIds = workDockVisualOrder(state).filter { id -> id in visibleIds },
+                    columnCount = columns,
+                )
+                // Translate the merged target cell into the work store's own
+                // packed coordinate space by subtracting the first work cell
+                // (work apps trail the personal block). Handing the *cell* — not
+                // a strictly-less-than rank — to the store's swap-based `move`
+                // makes forward and backward drags symmetric (a forward drag
+                // onto the next work icon swaps the two, rather than no-opping at
+                // the dragged app's own rank). A drop on a personal cell clamps
+                // to the front of the work block.
+                val targetIndex = row * columns + column
+                val personalMaxIndex = merged.positions
+                    .filterKeys { id -> dockedAppStore.contains(id) }
+                    .values
+                    .maxOfOrNull { position -> position.row * columns + position.column }
+                    ?: -1
+                val workIndex = (targetIndex - (personalMaxIndex + 1)).coerceAtLeast(0)
+                workDockedAppStore.move(appId, workIndex / columns, workIndex % columns, columns, state.appListSortOrder)
+            }
+        }
+        refreshLists()
+        logState("reorderMergedDock")
     }
 
     fun resetRank(app: InstalledApp) {
@@ -1675,6 +1735,13 @@ internal class LauncherViewModel(
         val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
         dockSettingsStore.dockIconCount = clampedCount
         _uiState.update { it.copy(dockIconCount = clampedCount) }
+        // Rebuild the dock render state under the new column count. The normal
+        // dock path resolves its positions live in `DockCard`, but the merged
+        // path bakes work-app coordinates into `dockPositions` at the column
+        // count in force when it ran, so without this the merged work icons
+        // would resolve against stale positions (gaps, or a work icon ahead of
+        // a personal one) until some unrelated refresh rebuilt the merge.
+        refreshLists()
         logState("setDockVisibleIconCount requested=$count")
     }
 
@@ -1706,6 +1773,7 @@ internal class LauncherViewModel(
             val dockedIds = dockedAppIdsForState(state)
             val workDockedIds = workDockedAppIdsForState(state)
             val visibleApps = visibleInstalledApps()
+            val dockRender = dockRenderState(state, visibleApps, dockedIds, workDockedIds)
             // Compute the new recents list first so the exclusion sees the
             // post-filterRecent display list rather than `state.recentApps`,
             // which is a snapshot from before this update and may not include
@@ -1716,14 +1784,15 @@ internal class LauncherViewModel(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
-                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                    dockedAppIds = floatingDockedIdsForState(state, dockedIds),
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
-                dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
-                dockPositions = dockedAppStore.dockedAppPositions,
+                dockedApps = dockRender.dockedApps,
+                dockPositions = dockRender.dockPositions,
                 shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
-                workDockedApps = visibleApps.filterDocked(workDockedIds).markVisibility(),
-                workDockPositions = workDockedAppStore.dockedAppPositions,
+                workDockedApps = dockRender.workDockedApps,
+                workDockPositions = dockRender.workDockPositions,
+                mergeWorkIntoPersonal = dockRender.mergeWorkIntoPersonal,
                 shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                 isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                 isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
@@ -1737,13 +1806,12 @@ internal class LauncherViewModel(
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
             val dockedIds = dockedAppIdsForState(state)
-            val workDockedIds = workDockedAppIdsForState(state)
             state.copy(
                 filteredApps = visibleInstalledApps().filterByName(
                     query = query,
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
-                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                    dockedAppIds = floatingDockedIdsForState(state, dockedIds),
                     sortOrder = state.appListSortOrder,
                 ).markVisibility(),
             )
@@ -1763,6 +1831,104 @@ internal class LauncherViewModel(
         )
 
     /**
+     * Work-dock ids in the order they render visually — forward grid-rank,
+     * top-left first — regardless of the app-list sort direction. The merge
+     * (and `reorderMergedDock`) repack work apps by id order, so they need this
+     * forward order rather than [workDockedAppIdsForState], which is
+     * bottom-right-first under `UsageReversed`/`AlphabeticalReversed`. The
+     * standalone work dock draws icons at their fixed coordinates, so its visual
+     * order never flips with the sort; [AppListSortOrder.dataOrdering] strips the
+     * reversed flag so the merged layout matches it. (Usage vs Alphabetical is
+     * irrelevant here — dock grid-rank only keys off the reversed flag.)
+     */
+    private fun workDockVisualOrder(state: LauncherUiState): List<String> =
+        workDockedAppStore.dockedAppIdsFor(
+            sortOrder = state.appListSortOrder.dataOrdering,
+            columnCount = state.dockIconCount,
+        )
+
+    /**
+     * True when the "Show work dock" setting is off but the work-docked apps
+     * must still surface by folding into the personal dock card. Requires the
+     * personal dock to be on screen to host them, an active (non-quiet) work
+     * profile, and a non-empty work store. When this is false the work apps
+     * either get their own card (setting on) or simply stay in the app list
+     * (personal dock off / paused profile / empty store) — today's behavior.
+     *
+     * The active-profile flag is re-derived from the authoritative
+     * `installedApps` rather than `state.isWorkProfileActive` for the same
+     * reason `excludedFromAppList`/`floatingDockedIdsForState` do: the `state`
+     * snapshot can lag the package reload by a frame.
+     */
+    private fun shouldMergeWorkIntoPersonal(state: LauncherUiState): Boolean =
+        state.isDockEnabled &&
+            !state.isWorkDockEnabled &&
+            installedApps.any { it.isWorkApp && !it.isQuietMode } &&
+            workDockedAppStore.dockedAppIds.isNotEmpty()
+
+    /**
+     * The dock-card render inputs for a single `_uiState` update. Normally the
+     * personal and work cards render from their own stores; when
+     * [shouldMergeWorkIntoPersonal] holds the work apps are folded into the
+     * personal card via [mergePersonalAndWorkDock] and the work card's fields
+     * are emptied (it does not render — `showWorkDock` is false). The merge is
+     * render-only: neither store is mutated, so re-enabling the work dock
+     * restores the apps to their own card.
+     */
+    private data class DockRenderState(
+        val dockedApps: List<InstalledApp>,
+        val dockPositions: Map<String, DockPosition>,
+        val workDockedApps: List<InstalledApp>,
+        val workDockPositions: Map<String, DockPosition>,
+        val mergeWorkIntoPersonal: Boolean,
+    )
+
+    private fun dockRenderState(
+        state: LauncherUiState,
+        visibleApps: List<InstalledApp>,
+        dockedIds: List<String>,
+        workDockedIds: List<String>,
+    ): DockRenderState =
+        if (shouldMergeWorkIntoPersonal(state)) {
+            // Lay out only ids that actually render. `mergePersonalAndWorkDock`
+            // packs work apps into the cells left free by the personal block, so
+            // an invisible (hidden / stale / uninstalled) docked id left in a
+            // store would otherwise reserve a slot — leaving a gap before the
+            // first visible work app or forcing a spurious extra row. The
+            // non-merged `DockCard` path already lays out only the visible
+            // `dockedApps`, so filtering here keeps the two paths consistent.
+            val visibleIds = visibleApps.mapTo(HashSet()) { app -> app.id }
+            val merged = mergePersonalAndWorkDock(
+                personalIds = dockedIds.filter { id -> id in visibleIds },
+                personalPositions = dockedAppStore.dockedAppPositions,
+                // Pack in the work dock's *visual* (forward grid-rank) order, not
+                // `workDockedIds` — that came from `workDockedAppIdsForState`,
+                // which is bottom-right-first under a reversed sort. The
+                // standalone work dock draws icons at their fixed coordinates so
+                // its visual order never flips; using the reversed id order here
+                // would mirror the work icons left-to-right when the work dock is
+                // turned off. See `workDockVisualOrder`.
+                workIds = workDockVisualOrder(state).filter { id -> id in visibleIds },
+                columnCount = state.dockIconCount,
+            )
+            DockRenderState(
+                dockedApps = visibleApps.filterDocked(merged.orderedIds).markVisibility(),
+                dockPositions = merged.positions,
+                workDockedApps = emptyList(),
+                workDockPositions = emptyMap(),
+                mergeWorkIntoPersonal = true,
+            )
+        } else {
+            DockRenderState(
+                dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
+                dockPositions = dockedAppStore.dockedAppPositions,
+                workDockedApps = visibleApps.filterDocked(workDockedIds).markVisibility(),
+                workDockPositions = workDockedAppStore.dockedAppPositions,
+                mergeWorkIntoPersonal = false,
+            )
+        }
+
+    /**
      * The docked IDs that should float to the top of the main app list (the
      * "docked first" rule that makes pinned apps rank as if they had the
      * highest usage). Personal docked apps always float — they back the
@@ -1770,18 +1936,20 @@ internal class LauncherViewModel(
      * floating even when the personal dock is disabled. Work docked apps only
      * float while their dock row is hidden and the list is the surface showing
      * them — i.e. during a typed search (when both docks disappear) or in the
-     * cramped-landscape Compact state (when both docks are dropped) — and only
-     * when the work dock is enabled with an active, non-quiet work profile.
-     * Without that gate, stale pins left in the work store after the user turned
-     * the work dock off would wrongly outrank real matches and could even become
-     * the Enter/search launch target. When the work dock is on screen (a blank
-     * query in the Full state) its apps live there, not floated in the list.
-     * Personal IDs lead so the personal dock's muscle-memory order wins ties.
+     * cramped-landscape Compact state (when both docks are dropped) — *and*
+     * only when the work apps have a dock surface with an active, non-quiet
+     * work profile: either their own card (work dock enabled) or merged into
+     * the personal card ([shouldMergeWorkIntoPersonal]). Without that gate,
+     * stale pins left in the work store while the work apps have no dock
+     * surface at all (personal dock also off) would wrongly outrank real
+     * matches and could even become the Enter/search launch target. When the
+     * work dock is on screen (a blank query in the Full state) its apps live
+     * there, not floated in the list. Personal IDs lead so the personal dock's
+     * muscle-memory order wins ties.
      */
     private fun floatingDockedIdsForState(
         state: LauncherUiState,
         personalDockedIds: List<String>,
-        workDockedIds: List<String>,
     ): List<String> {
         // The work dock row is hidden — so its apps belong in the list and float
         // like personal pins — whenever a query is active or the Compact state
@@ -1794,13 +1962,18 @@ internal class LauncherViewModel(
         // reason `excludedFromAppList` does: the `state` snapshot visible here
         // can lag the package reload by a frame.
         val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
-        return if (state.isWorkDockEnabled && isWorkProfileActive) {
-            // `distinct()` keeps the first (personal) occurrence of an app that
-            // is pinned to both docks, so it ranks by its personal-dock
-            // coordinates. Without it, `filterByName`'s `withIndex().associate`
-            // would let the later work-dock index overwrite the personal one
-            // and demote the app below its intended personal-order position.
-            (personalDockedIds + workDockedIds).distinct()
+        val workHasDockSurface = state.isWorkDockEnabled || shouldMergeWorkIntoPersonal(state)
+        return if (workHasDockSurface && isWorkProfileActive) {
+            // Float work pins in the dock's visual (forward grid-rank) order, the
+            // same order `dockRenderState` lays them out in, so the floated
+            // search order and the Enter target match what the dock shows — even
+            // under a reversed sort, where `workDockedAppIdsForState` would be
+            // bottom-right-first. `distinct()` keeps the first (personal)
+            // occurrence of an app pinned to both docks, so it ranks by its
+            // personal-dock coordinates; without it, `filterByName`'s
+            // `withIndex().associate` would let the later work-dock index
+            // overwrite the personal one and demote the app.
+            (personalDockedIds + workDockVisualOrder(state)).distinct()
         } else {
             personalDockedIds
         }
@@ -1886,9 +2059,14 @@ internal class LauncherViewModel(
         // settings unaffected by package reloads, so they stay correct
         // from `state`.
         val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
+        // Work-docked apps are deduped from the list whenever they have a dock
+        // surface on screen: their own card (work dock enabled) or merged into
+        // the personal card (`shouldMergeWorkIntoPersonal`). Either way the row
+        // already shows them, so leaving them in the list would duplicate.
+        val workHasDockSurface = state.isWorkDockEnabled || shouldMergeWorkIntoPersonal(state)
         if (
             isDockUiVisible &&
-            state.isWorkDockEnabled &&
+            workHasDockSurface &&
             isWorkProfileActive &&
             !state.isShowDockedAppsInList
         ) {

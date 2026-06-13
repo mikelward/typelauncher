@@ -2713,11 +2713,12 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun typingDoesNotFloatWorkDockPinsWhenWorkDockIsDisabled() {
-        // Regression: stale work-dock pins (left in the work store after the
-        // user turned the work dock off) must not float to the top of the
-        // search results — or become the Enter launch target — while typing.
-        // They should rank as normal apps.
+    fun typingFloatsMergedWorkPinsWhenWorkDockOffButPersonalDockOn() {
+        // With the work dock off but the personal dock on, a work pin folds
+        // into the personal dock (it becomes a real docked icon). Like every
+        // other docked app, it must float to the top of the search results
+        // when typing hides the dock row — so it stays reachable as the
+        // active/Enter launch target rather than being buried.
         val viewModel = composeRule.activity.viewModel
         viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake8")
         viewModel.setWorkDockEnabled(true)
@@ -2726,20 +2727,51 @@ class MainActivityRobolectricScreenshotTest {
         val workApp = viewModel.uiState.value.filteredApps.first { it.name == "Work Calendar" }
         viewModel.toggleWorkDock(workApp, maxDockedApps = 6)
         // Rename so the pin shares the "cal" prefix tier with the non-docked
-        // Calculator / Calendar; alphabetically it sorts last, so floating
-        // (the bug) would visibly jump it to the front.
+        // Calculator / Calendar; alphabetically it sorts last, so the merged
+        // pin floating to the front is an observable change.
         viewModel.renameApp(workApp, "Calzzz")
-        // Turn the work dock back off; the pin stays in the work store.
+        // Turn the work dock back off; the pin stays in the work store and
+        // merges into the still-enabled personal dock.
         viewModel.setWorkDockEnabled(false)
         composeRule.waitForIdle()
+        assertTrue(viewModel.uiState.value.mergeWorkIntoPersonal)
 
         viewModel.setQuery("cal")
         composeRule.waitForIdle()
 
         val names = viewModel.uiState.value.filteredApps.map { it.displayName }
-        assertTrue("Renamed work app should still be a candidate, got $names", "Calzzz" in names)
-        assertEquals("Disabled work pin must not float to the top, got $names", "Calculator", names.first())
-        assertEquals("Disabled work pin ranks by normal alpha order, got $names", "Calzzz", names.last())
+        assertTrue("Merged work pin should be a candidate, got $names", "Calzzz" in names)
+        assertEquals("Merged work pin floats to the top like any docked app, got $names", "Calzzz", names.first())
+    }
+
+    @Test
+    fun typingDoesNotFloatWorkPinsWhenNeitherDockIsEnabled() {
+        // Regression: with neither dock enabled the work pin has no dock
+        // surface to render on, so it must NOT float to the top of the search
+        // results (the old "stale invisible pin hijacks search" bug). It should
+        // rank as a normal app.
+        val viewModel = composeRule.activity.viewModel
+        viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake8")
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+
+        val workApp = viewModel.uiState.value.filteredApps.first { it.name == "Work Calendar" }
+        viewModel.toggleWorkDock(workApp, maxDockedApps = 6)
+        viewModel.renameApp(workApp, "Calzzz")
+        // Turn off both docks: now the work pin has nowhere to render and must
+        // not merge into (a disabled) personal dock.
+        viewModel.setWorkDockEnabled(false)
+        viewModel.setDockEnabled(false)
+        composeRule.waitForIdle()
+        assertFalse(viewModel.uiState.value.mergeWorkIntoPersonal)
+
+        viewModel.setQuery("cal")
+        composeRule.waitForIdle()
+
+        val names = viewModel.uiState.value.filteredApps.map { it.displayName }
+        assertTrue("Work app should still be a candidate, got $names", "Calzzz" in names)
+        assertEquals("Surfaceless work pin must not float to the top, got $names", "Calculator", names.first())
+        assertEquals("Surfaceless work pin ranks by normal alpha order, got $names", "Calzzz", names.last())
     }
 
     @Test
@@ -2770,6 +2802,44 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Gmail").assertExists()
         composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Calendar").assertExists()
         composeRule.onNodeWithTag(WORK_DOCK_ADD_BUTTON_TAG).assertExists()
+    }
+
+    @Test
+    fun workDockOff_mergesWorkAppsIntoThePersonalDock() {
+        val viewModel = composeRule.activity.viewModel
+        // Seed a popular work app and enable the work dock so the prefill pins
+        // it into the work store, then turn the work dock back off. The pin is
+        // left stranded in the work store — it must now render in the personal
+        // dock rather than vanishing while still showing an "Undock" menu.
+        addPopularWorkApps(listOf("Gmail" to "com.google.android.gm"))
+        // Pin a couple of personal apps so the merged dock shows the work app
+        // packed alongside real personal dock entries, not on its own.
+        listOf("Browser", "Calculator").forEach { name ->
+            viewModel.toggleDock(
+                viewModel.uiState.value.filteredApps.first { it.name == name },
+                maxDockedApps = 1,
+            )
+        }
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:Gmail").assertExists()
+
+        viewModel.setWorkDockEnabled(false)
+        composeRule.waitForIdle()
+
+        // The standalone work card is gone; Gmail now rides the personal dock,
+        // packed after the personal entries.
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Browser").assertIsDisplayed()
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Gmail").assertIsDisplayed()
+        assertTrue(viewModel.uiState.value.mergeWorkIntoPersonal)
+        assertTrue(viewModel.uiState.value.dockedApps.any { it.name == "Gmail" })
+        // Work app keeps its work-docked flag (menu reads "Undock"); personal
+        // entries are not in the work store.
+        assertTrue(viewModel.uiState.value.dockedApps.first { it.name == "Gmail" }.isWorkDocked)
+
+        saveScreenshot("compose_home_work_dock_merged_into_personal_robolectric.png")
     }
 
     // Regression: enabling the work dock used to cap *each* dock at half the

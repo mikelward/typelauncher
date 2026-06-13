@@ -218,6 +218,7 @@ internal fun TypeLauncherApp(
         onToggleWorkDock = viewModel::toggleWorkDock,
         onReorderDock = viewModel::reorderDockedApps,
         onReorderWorkDock = viewModel::reorderWorkDockedApps,
+        onReorderMergedDock = viewModel::reorderMergedDock,
         onResetRank = viewModel::resetRank,
         onRenameApp = viewModel::renameApp,
         onSetAppIconOverride = { app ->
@@ -293,6 +294,7 @@ internal fun TypeLauncherApp(
     onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
     onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
     onReorderWorkDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onReorderMergedDock: (String, Int, Int) -> Unit = onReorderDock,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
@@ -743,6 +745,7 @@ internal fun TypeLauncherApp(
                                 onToggleWorkDock = onToggleWorkDock,
                                 onReorderDock = onReorderDock,
                                 onReorderWorkDock = onReorderWorkDock,
+                                onReorderMergedDock = onReorderMergedDock,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
                                 onSetAppIconOverride = onSetAppIconOverride,

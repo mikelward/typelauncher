@@ -213,6 +213,63 @@ internal fun dockedAppIdsInGridRankOrder(
     }
 }
 
+/**
+ * The render inputs for a personal dock that has work-docked apps folded into
+ * it. [orderedIds] is the personal ids first (in their grid-rank order) then
+ * the work ids that aren't already pinned to the personal dock; [positions] is
+ * a single collision-free coordinate map covering both sets.
+ */
+internal data class MergedDock(
+    val orderedIds: List<String>,
+    val positions: Map<String, DockPosition>,
+)
+
+/**
+ * Builds the combined render inputs for the personal dock when the work dock
+ * is off but its apps must still surface (see
+ * [LauncherUiState.mergeWorkIntoPersonal]). Personal apps keep their resolved
+ * coordinates; each work app is laid out as a *contiguous trailing block*
+ * starting at the cell immediately after the last occupied personal cell
+ * (row-major), then wrapping to new rows. Work apps deliberately do **not**
+ * back-fill a leading or interior gap in a sparse personal layout (e.g. a lone
+ * personal app parked at column 2): doing so would render a work icon *ahead*
+ * of a personal icon, breaking the trailing-group contract that
+ * `reorderMergedDock`'s rank arithmetic relies on. Only the trailing remainder
+ * of the personal block's last partial row is filled, since that sits after
+ * the last personal cell. Work ids already present in the personal dock (the
+ * dual-pin case — the same activity id can validly sit in both stores) are
+ * skipped so the personal coordinate wins and the app renders once.
+ *
+ * [workIds] must arrive in the work dock's own grid-rank order; the merge
+ * always packs work apps after the personal block, so the relative order the
+ * user saw in the standalone work card is preserved when it folds in.
+ *
+ * This is a pure, render-time transform: it never mutates either store, so a
+ * later off-then-on toggle of the work dock restores the work apps to their
+ * own card exactly as they were persisted.
+ */
+internal fun mergePersonalAndWorkDock(
+    personalIds: List<String>,
+    personalPositions: Map<String, DockPosition>,
+    workIds: List<String>,
+    columnCount: Int,
+): MergedDock {
+    val columns = columnCount.coerceAtLeast(1)
+    val merged = resolvedDockPositions(personalIds, personalPositions, columns).toMutableMap()
+    val orderedIds = personalIds.toMutableList()
+    // Start one cell past the last occupied personal cell (row-major) so work
+    // apps form a contiguous trailing block and never jump ahead of a sparse
+    // personal layout's gaps.
+    var nextIndex = (merged.values.maxOfOrNull { it.row * columns + it.column } ?: -1) + 1
+    workIds.forEach { workId ->
+        if (workId in merged) return@forEach
+        merged[workId] = DockPosition(nextIndex / columns, nextIndex % columns)
+        nextIndex += 1
+        orderedIds.add(workId)
+    }
+    return MergedDock(orderedIds = orderedIds, positions = merged)
+}
+
 internal enum class ThemeMode {
     System,
     Light,
@@ -448,6 +505,14 @@ internal data class LauncherUiState(
     // Per-dock equivalent of [shouldShowDockAddHint] for the work dock.
     val shouldShowWorkDockAddHint: Boolean = false,
     val isWorkDockEnabled: Boolean = false,
+    // True when the "Show work dock" setting is off but work-docked apps are
+    // rendered merged into the personal dock anyway (active work profile +
+    // personal dock enabled + a non-empty work store). Drives HomeScreen's
+    // reorder routing (the personal card's reorder must route to the work
+    // store for merged work apps) and suppresses the personal "+" hint. The
+    // work store is never mutated for the merge, so re-enabling the work dock
+    // restores those apps to their own card. See `mergePersonalAndWorkDock`.
+    val mergeWorkIntoPersonal: Boolean = false,
     // True when at least one work-profile `InstalledApp` is present in the
     // raw `installedApps` list, regardless of quiet mode. Drives whether the
     // "Show work dock" settings row is visible at all.

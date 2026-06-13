@@ -173,6 +173,9 @@ internal fun HomeScreen(
     onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
     onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
     onReorderWorkDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    // Reorder within the personal dock card while it is hosting merged work
+    // apps (state.mergeWorkIntoPersonal). Routes the write to the owning store.
+    onReorderMergedDock: (String, Int, Int) -> Unit = onReorderDock,
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
@@ -386,8 +389,18 @@ internal fun HomeScreen(
                                 modifier = Modifier.weight(1f, fill = false),
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
+                                // `onToggleDock` (viewModel.toggleDock) is itself
+                                // merge-aware — it clears a dual-pinned app from
+                                // both stores when merged — so the dock card and
+                                // the floated search result share one undock path.
                                 onToggleDock = onToggleDock,
-                                onReorderDock = onReorderDock,
+                                // Reorder still needs the merge-aware handler so a
+                                // dragged work app persists to the work store.
+                                onReorderDock = if (state.mergeWorkIntoPersonal) {
+                                    onReorderMergedDock
+                                } else {
+                                    onReorderDock
+                                },
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
                                 onSetAppIconOverride = onSetAppIconOverride,
@@ -395,7 +408,10 @@ internal fun HomeScreen(
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
                                 onDragStateChanged = onDockDragChanged,
-                                showAddButtonHint = state.shouldShowDockAddHint,
+                                // Suppress the personal onboarding "+" hint when
+                                // work apps are merged in — the merged card is
+                                // no longer the fresh-install personal-only state.
+                                showAddButtonHint = state.shouldShowDockAddHint && !state.mergeWorkIntoPersonal,
                             )
                         }
                         if (showWorkDock) {
