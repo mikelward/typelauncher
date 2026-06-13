@@ -109,55 +109,76 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "w914dp-h411dp-420dpi")
-    fun screenshot_landscape_tooShortForKeyboard_keepsBoxHidesKeyboard() {
+    @Config(qualifiers = "w1280dp-h900dp-420dpi")
+    fun screenshot_landscape_full_showsDockAndBox() {
         composeRule.waitForIdle()
-        // A typical phone landscape can't fit the keyboard alongside the search
-        // box, dock, and an app row, so the keyboard is suppressed but the box
-        // stays — the BoxOnly tier.
+        // A tall (tablet) landscape fits the search box, keyboard, an app row, and
+        // the dock together — the Full state, which keeps everything on screen.
         assertEquals(
-            HomeLandscapeTier.BoxOnly,
+            HomeLandscapeTier.Full,
             composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
         )
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
-        saveScreenshot("compose_home_landscape_box_only_robolectric.png", widthPx = 2400, heightPx = 1080)
+        saveScreenshot("compose_home_landscape_full_robolectric.png", widthPx = 3360, heightPx = 2362)
     }
 
     @Test
-    @Config(qualifiers = "w600dp-h240dp-420dpi")
-    fun screenshot_landscape_tooShortForBox_hidesSearchBox() {
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_compact_dropsDockAndBox() {
         composeRule.waitForIdle()
-        // A very short landscape viewport can't fit even the search box with the
-        // dock and an app row, so the box is hidden too — the Hidden tier.
+        // A typical phone landscape can't fit the keyboard alongside the search
+        // box, dock, and an app row, so it collapses to the Compact state: the
+        // search box and keyboard are hidden by default and both docks are
+        // dropped, leaving the app list to fill the viewport.
         assertEquals(
-            HomeLandscapeTier.Hidden,
+            HomeLandscapeTier.Compact,
             composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
         )
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
 
-        saveScreenshot("compose_home_landscape_hidden_box_robolectric.png", widthPx = 1575, heightPx = 630)
+        saveScreenshot("compose_home_landscape_compact_robolectric.png", widthPx = 2400, heightPx = 1080)
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    fun screenshot_landscape_compactShort_dropsDockAndBox() {
+        composeRule.waitForIdle()
+        // An even shorter landscape viewport is also Compact — the box is hidden
+        // and the dock is dropped just the same.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
+        )
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+
+        saveScreenshot("compose_home_landscape_compact_short_robolectric.png", widthPx = 1575, heightPx = 630)
     }
 
     @Test
     @Config(qualifiers = "w914dp-h411dp-420dpi")
-    fun screenshot_landscape_cachedKeyboard_doesNotReserveInBoxOnly() {
+    fun screenshot_landscape_cachedKeyboard_doesNotReserveInCompact() {
         composeRule.waitForIdle()
         // Even with a keyboard height cached for this size (seeded by the rule),
-        // the BoxOnly tier suppresses the keyboard and must not reserve its
-        // height — so the dock still lays out instead of being squeezed away.
+        // the Compact state suppresses the keyboard and must not reserve its
+        // height — so the app list fills the viewport. The box and dock are
+        // dropped, just as in any other Compact viewport.
         assertEquals(
-            HomeLandscapeTier.BoxOnly,
+            HomeLandscapeTier.Compact,
             composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
         )
-        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
 
         saveScreenshot(
-            "compose_home_landscape_box_only_cached_keyboard_robolectric.png",
+            "compose_home_landscape_compact_cached_keyboard_robolectric.png",
             widthPx = 2400,
             heightPx = 1080,
         )
@@ -165,11 +186,11 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
-    fun landscape_hiddenTier_keepsSearchVisibleWhileQueryActive() {
+    fun landscape_compact_keepsSearchVisibleWhileQueryActive() {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
         // A retained query must keep the search field on screen even in the
-        // Hidden tier (e.g. after a rotation/resume reset the reveal), so the
+        // Compact state (e.g. after a rotation/resume reset the reveal), so the
         // user can always see and clear what's filtering the list.
         composeRule.runOnUiThread { composeRule.activity.viewModel.setQuery("ca") }
         composeRule.waitForIdle()
@@ -178,11 +199,11 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
-    fun landscape_pullUpRevealsHiddenSearchBox() {
+    fun landscape_pullUpRevealsCompactSearchBox() {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        // The second pull-up routes through `requestShowKeyboard`; in the Hidden
-        // tier that reveals the search box (and brings the keyboard) on demand.
+        // The pull-up routes through `requestShowKeyboard`; in the Compact state
+        // that reveals the search box (and brings the keyboard) on demand.
         composeRule.runOnUiThread { composeRule.activity.viewModel.requestShowKeyboard() }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
@@ -2387,14 +2408,15 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_six_slots_one_row_robolectric.png")
     }
 
-    // In a window wider than portrait (here the 411dp phone rotated to
-    // landscape), the dock keeps its portrait icon size and the gray card is
-    // narrowed to its content and centered — an island with the screen
-    // background showing in the margins — rather than a bar stretched
-    // edge-to-edge. Asserts the dock card is narrower than the full-width apps
-    // card and symmetrically inset, and records the visual for review.
+    // In a window wider than portrait (here a tall tablet landscape, which is
+    // the only landscape that stays in the Full state and therefore renders the
+    // dock), the dock keeps its portrait icon size and the gray card is narrowed
+    // to its content and centered — an island with the screen background showing
+    // in the margins — rather than a bar stretched edge-to-edge. Asserts the dock
+    // card is narrower than the full-width apps card and symmetrically inset, and
+    // records the visual for review.
     @Test
-    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    @Config(qualifiers = "w1280dp-h900dp-420dpi")
     fun dockCardIsNarrowedAndCenteredInLandscape() {
         val config = composeRule.activity.resources.configuration
         assertTrue(
@@ -2435,8 +2457,8 @@ class MainActivityRobolectricScreenshotTest {
 
         saveScreenshot(
             "compose_dock_landscape_centered_robolectric.png",
-            widthPx = 2400,
-            heightPx = 1079,
+            widthPx = 3360,
+            heightPx = 2362,
         )
     }
 
@@ -3205,11 +3227,11 @@ class MainActivityRobolectricScreenshotTest {
                             .putBoolean("dock_prefilled", true)
                             .commit()
                     }
-                    if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveInBoxOnly") {
+                    if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveInCompact") {
                         // A keyboard height already cached for this landscape size
                         // (wildcard fingerprint, so it applies under any config).
-                        // The BoxOnly tier must not reserve it — exercises the
-                        // suppressed-tier reservation gate.
+                        // The Compact state must not reserve it — exercises the
+                        // suppressed-state reservation gate.
                         DockSettingsStore(application).keyboardReservation = KeyboardReservation(
                             bottomPx = 600,
                             configFingerprint = null,

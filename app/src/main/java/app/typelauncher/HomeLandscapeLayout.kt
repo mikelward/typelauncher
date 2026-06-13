@@ -7,21 +7,21 @@ import kotlin.math.min
  *
  * In landscape the screen is short, and an auto-shown keyboard can leave too
  * little room for the search box, dock(s), and app list. Rather than squeeze
- * the app list to nothing, Home degrades in three tiers as height shrinks:
+ * the app list to nothing or clip the dock off the bottom of the screen, Home
+ * resolves to one of two states:
  *
- *  - [KeyboardAndBox]: everything fits with the keyboard up — the default, and
- *    the only tier ever used in portrait.
- *  - [BoxOnly]: the keyboard would not fit alongside the search box, dock, and
- *    one app row, so the auto-shown keyboard is suppressed and that space goes
- *    to content. The search box stays; tapping it brings the keyboard up.
- *  - [Hidden]: even the search box + dock + one app row do not fit, so the box
- *    is hidden too and the dock + app grid get the whole viewport. A second
- *    pull-up reveals the search box and keyboard on demand.
+ *  - [Full]: the search box, the auto-shown keyboard, at least one app row, and
+ *    the dock(s) all fit. This is the only state ever used in portrait; in
+ *    landscape it is reached only on tall viewports (tablets), since a landscape
+ *    keyboard occupies roughly half the short edge.
+ *  - [Compact]: everything else. The app list fills the viewport on its own —
+ *    the static search box is hidden by default, the auto-shown keyboard is
+ *    suppressed, and both docks are dropped entirely (not clipped, not
+ *    reflowed). A pull-up reveals the search box and keyboard on demand.
  */
 internal enum class HomeLandscapeTier {
-    KeyboardAndBox,
-    BoxOnly,
-    Hidden,
+    Full,
+    Compact,
 }
 
 // Estimated height of the search card (the `SectionCard` wrapping the filter
@@ -146,22 +146,23 @@ internal fun homeLandscapeMetrics(
 
 /**
  * Resolves the [HomeLandscapeTier] from pre-computed [HomeLandscapeMetrics].
- * Portrait is always [HomeLandscapeTier.KeyboardAndBox]; the keyboard and then
- * the search box are dropped only when the landscape viewport can't fit them
- * alongside the dock and at least one app row.
+ * Portrait is always [HomeLandscapeTier.Full]. In landscape we stay [Full] only
+ * when the search box, the keyboard, at least one app row, and the dock(s) all
+ * fit; otherwise we drop to [Compact] — which hides the box, suppresses the
+ * keyboard, and drops the dock(s). The dock height is still reserved in the
+ * fit test because the dock is rendered in [Full].
  */
 internal fun resolveHomeLandscapeTier(
     metrics: HomeLandscapeMetrics,
     cardSpacingDp: Int = HOME_CARD_SPACING_DP,
 ): HomeLandscapeTier {
-    if (!metrics.isWiderThanPortrait) return HomeLandscapeTier.KeyboardAndBox
+    if (!metrics.isWiderThanPortrait) return HomeLandscapeTier.Full
     val dockBlockDp = if (metrics.dockHeightDp > 0) cardSpacingDp + metrics.dockHeightDp else 0
     val needWithBoxDp = metrics.searchBoxHeightDp + cardSpacingDp + metrics.appRowHeightDp + dockBlockDp
     return when {
         needWithBoxDp + cardSpacingDp + metrics.predictedKeyboardHeightDp <= metrics.availableHeightDp ->
-            HomeLandscapeTier.KeyboardAndBox
-        needWithBoxDp <= metrics.availableHeightDp -> HomeLandscapeTier.BoxOnly
-        else -> HomeLandscapeTier.Hidden
+            HomeLandscapeTier.Full
+        else -> HomeLandscapeTier.Compact
     }
 }
 

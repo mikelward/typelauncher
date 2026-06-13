@@ -372,7 +372,7 @@ internal fun TypeLauncherApp(
     LaunchedEffect(homeLandscapeTier) {
         onHomeLandscapeTierChanged(homeLandscapeTier)
     }
-    val autoShowKeyboardFits = homeLandscapeTier == HomeLandscapeTier.KeyboardAndBox
+    val autoShowKeyboardFits = homeLandscapeTier == HomeLandscapeTier.Full
     HomeReadySignal(
         // Gate on the fresh load, not the spinner: on a warm start with cached
         // metadata, `isLoadingApps` is `false` while `installed_apps_load` is
@@ -534,24 +534,24 @@ internal fun TypeLauncherApp(
                 current = currentReservation,
             )?.let(onKeyboardReservationChanged)
         }
-        // In the cramped-landscape [HomeLandscapeTier.Hidden] tier the search box
+        // In the cramped-landscape [HomeLandscapeTier.Compact] state the search box
         // is hidden by default; a pull-up (routed to `keyboardShowRequests`)
         // reveals it on demand. Reset on leaving Home and on resume (below) so a
         // returning user starts from the hidden state again rather than a
         // lingering revealed box.
         var searchRevealedInTightLandscape by remember { mutableStateOf(false) }
-        if (homeLandscapeTier == HomeLandscapeTier.Hidden) {
+        if (homeLandscapeTier == HomeLandscapeTier.Compact) {
             LaunchedEffect(keyboardShowRequests) {
                 keyboardShowRequests.collect { searchRevealedInTightLandscape = true }
             }
         }
         // The keyboard is only expected up — and so its height only worth
-        // pre-reserving — when the layout actually auto-shows it (KeyboardAndBox
-        // with the setting on) or the user has revealed it in the Hidden tier.
+        // pre-reserving — when the layout actually auto-shows it (Full with the
+        // setting on) or the user has revealed it in the Compact state.
         // Without this gate a persisted reservation matching the current
         // landscape size would reserve the suppressed keyboard's height anyway,
-        // re-squeezing the very layout the BoxOnly / Hidden tiers exist to free.
-        // A manual tap in BoxOnly still reserves dynamically via the imeTarget /
+        // re-squeezing the very app list the Compact state exists to free. A
+        // pull-up reveal in Compact still reserves dynamically via the imeTarget /
         // imeVisible paths below as the IME animates in.
         val expectKeyboardThisEntry = (state.isKeyboardAutoShown && autoShowKeyboardFits) ||
             searchRevealedInTightLandscape
