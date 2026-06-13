@@ -18,10 +18,9 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * Coverage for the "Show docked apps" toggle. Default is on, so docked apps
- * stay in the typed-search list as well as the dock row; turning it off
- * restores the original launcher behavior where the dock dedupes itself out
- * of the main list.
+ * Coverage for the "Show docked apps" toggle. Default is off, so the dock
+ * dedupes itself out of the main list; turning it on keeps docked apps in the
+ * typed-search list as well as the dock row.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -48,7 +47,7 @@ class LauncherViewModelShowDockedInListTest {
     }
 
     @Test
-    fun defaultKeepsDockedAppsVisibleInUnfilteredList() {
+    fun defaultHidesDockedAppsFromUnfilteredList() {
         seedApp("Mail", "com.example.mail")
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
@@ -57,9 +56,29 @@ class LauncherViewModelShowDockedInListTest {
         viewModel.toggleDock(mail, maxDockedApps = 4)
         idle()
 
+        assertFalse(viewModel.uiState.value.isShowDockedAppsInList)
+        val names = viewModel.uiState.value.filteredApps.map { it.name }
+        assertFalse(
+            "Default dedupes docked apps out of the typed-search list, got $names",
+            "Mail" in names,
+        )
+        assertTrue("Non-docked Maps should remain visible, got $names", "Maps" in names)
+    }
+
+    @Test
+    fun togglingOnKeepsDockedAppsInUnfilteredList() {
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
+        viewModel.toggleDock(mail, maxDockedApps = 4)
+        viewModel.setShowDockedAppsInList(true)
+        idle()
+
         assertTrue(viewModel.uiState.value.isShowDockedAppsInList)
         assertTrue(
-            "Default keeps docked apps in the typed-search list",
+            "Turning the toggle on keeps docked apps in the typed-search list",
             viewModel.uiState.value.filteredApps.any { it.name == "Mail" },
         )
     }
