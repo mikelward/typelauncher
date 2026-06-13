@@ -1768,7 +1768,12 @@ internal class LauncherViewModel(
         // can lag the package reload by a frame.
         val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
         return if (state.isWorkDockEnabled && isWorkProfileActive) {
-            personalDockedIds + workDockedIds
+            // `distinct()` keeps the first (personal) occurrence of an app that
+            // is pinned to both docks, so it ranks by its personal-dock
+            // coordinates. Without it, `filterByName`'s `withIndex().associate`
+            // would let the later work-dock index overwrite the personal one
+            // and demote the app below its intended personal-order position.
+            (personalDockedIds + workDockedIds).distinct()
         } else {
             personalDockedIds
         }
