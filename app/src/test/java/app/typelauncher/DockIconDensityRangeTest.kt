@@ -62,4 +62,31 @@ class DockIconDensityRangeTest {
             }
         }
     }
+
+    @Test
+    fun range_neverAdvertisesAStopAboveTheCountCap_acrossWideWindows() {
+        // The slider's persisted value is coerced to MAX_DOCK_ICON_COUNT, so
+        // its range must never offer a denser stop. Without clamping, the 36dp
+        // floor lets a wide window exceed the cap (524dp -> 9 per row), giving
+        // a stop that snaps back to 8 on release.
+        for (screenWidthDp in 320..900) {
+            val range = dockSlotCountRange(screenWidthDp)
+            assertTrue(
+                "Range $range exceeds count cap at ${screenWidthDp}dp",
+                range.last <= MAX_DOCK_ICON_COUNT,
+            )
+            assertTrue(
+                "Range $range drops below count floor at ${screenWidthDp}dp",
+                range.first >= MIN_DOCK_ICON_COUNT,
+            )
+            assertTrue("Range $range is empty at ${screenWidthDp}dp", range.first <= range.last)
+        }
+    }
+
+    @Test
+    fun range_cappedAtEightPerRow_onA524dpWindow() {
+        // Regression: the densest stop on this width was an unreachable 9.
+        val range = dockSlotCountRange(524)
+        assertEquals(MAX_DOCK_ICON_COUNT, range.last)
+    }
 }

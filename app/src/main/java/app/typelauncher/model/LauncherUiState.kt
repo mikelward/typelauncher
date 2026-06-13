@@ -517,8 +517,15 @@ internal fun dockIconSizeForSlotCount(screenWidthDp: Int, slotCount: Int): Int {
 }
 
 internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
+    // Both ends are clamped to [MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT]: that
+    // is the hard cap `setDockVisibleIconCount` / `DockedAppStore` coerce every
+    // selection to, so the slider must not advertise a stop it can't persist.
+    // Without the cap a wide window (e.g. 524dp, where the 36dp floor admits 9
+    // icons) would offer a 9-per-row stop that snaps back to 8 on release.
     val minSlotCount = dockSlotCountForIconSize(screenWidthDp, MAX_DOCK_APP_ICON_SIZE_DP)
+        .coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
     val maxSlotCount = dockSlotCountForIconSize(screenWidthDp, MIN_DOCK_APP_ICON_SIZE_DP)
+        .coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
     return minSlotCount..maxSlotCount
 }
 
