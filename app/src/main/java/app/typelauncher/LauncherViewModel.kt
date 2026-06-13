@@ -1747,18 +1747,32 @@ internal class LauncherViewModel(
      * The docked IDs that should float to the top of the main app list (the
      * "docked first" rule that makes pinned apps rank as if they had the
      * highest usage). Personal docked apps always float — they back the
-     * empty-query rule and the typed-search surfacing. Work docked apps only
-     * float while their dock row is hidden — i.e. during a typed search, when
-     * both docks disappear — so hiding the work dock surfaces those apps at the
-     * top of the results instead of burying them under usage-ranked entries.
-     * Personal IDs lead so the personal dock's muscle-memory order wins ties.
+     * empty-query rule and the typed-search surfacing, and (per SPEC) keep
+     * floating even when the personal dock is disabled. Work docked apps only
+     * float while their dock row would otherwise be on screen — i.e. during a
+     * typed search (when both docks disappear) *and* only when the work dock is
+     * enabled with an active, non-quiet work profile. Without that gate, stale
+     * pins left in the work store after the user turned the work dock off would
+     * wrongly outrank real matches and could even become the Enter/search
+     * launch target. Personal IDs lead so the personal dock's muscle-memory
+     * order wins ties.
      */
     private fun floatingDockedIdsForState(
         state: LauncherUiState,
         personalDockedIds: List<String>,
         workDockedIds: List<String>,
-    ): List<String> =
-        if (state.query.isBlank()) personalDockedIds else personalDockedIds + workDockedIds
+    ): List<String> {
+        if (state.query.isBlank()) return personalDockedIds
+        // Re-derive the active-profile flag from `installedApps` for the same
+        // reason `excludedFromAppList` does: the `state` snapshot visible here
+        // can lag the package reload by a frame.
+        val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
+        return if (state.isWorkDockEnabled && isWorkProfileActive) {
+            personalDockedIds + workDockedIds
+        } else {
+            personalDockedIds
+        }
+    }
 
     /**
      * Runs the one-time work-dock prefill the first time the user enables the
