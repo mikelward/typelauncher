@@ -680,6 +680,11 @@ internal class LauncherViewModel(
     fun setHomeLandscapeTier(tier: HomeLandscapeTier) {
         if (_uiState.value.homeLandscapeTier == tier) return
         _uiState.update { it.copy(homeLandscapeTier = tier) }
+        // The dock-dedupe in `excludedFromAppList` depends on the tier (the
+        // Compact state hides the docks, so their apps must reappear in the
+        // list), so the filtered list has to be recomputed when the tier flips
+        // — e.g. rotating a phone into or out of cramped landscape.
+        refreshFilteredApps()
         LauncherDebugLog.event("setHomeLandscapeTier tier=$tier")
     }
 
@@ -702,7 +707,7 @@ internal class LauncherViewModel(
             !state.isSettingsOpen &&
             !state.isAddingWidget &&
             state.isKeyboardAutoShown &&
-            state.homeLandscapeTier == HomeLandscapeTier.KeyboardAndBox
+            state.homeLandscapeTier == HomeLandscapeTier.Full
         ) {
             requestShowKeyboard()
         } else {
@@ -1763,20 +1768,28 @@ internal class LauncherViewModel(
      * highest usage). Personal docked apps always float — they back the
      * empty-query rule and the typed-search surfacing, and (per SPEC) keep
      * floating even when the personal dock is disabled. Work docked apps only
-     * float while their dock row would otherwise be on screen — i.e. during a
-     * typed search (when both docks disappear) *and* only when the work dock is
-     * enabled with an active, non-quiet work profile. Without that gate, stale
-     * pins left in the work store after the user turned the work dock off would
-     * wrongly outrank real matches and could even become the Enter/search
-     * launch target. Personal IDs lead so the personal dock's muscle-memory
-     * order wins ties.
+     * float while their dock row is hidden and the list is the surface showing
+     * them — i.e. during a typed search (when both docks disappear) or in the
+     * cramped-landscape Compact state (when both docks are dropped) — and only
+     * when the work dock is enabled with an active, non-quiet work profile.
+     * Without that gate, stale pins left in the work store after the user turned
+     * the work dock off would wrongly outrank real matches and could even become
+     * the Enter/search launch target. When the work dock is on screen (a blank
+     * query in the Full state) its apps live there, not floated in the list.
+     * Personal IDs lead so the personal dock's muscle-memory order wins ties.
      */
     private fun floatingDockedIdsForState(
         state: LauncherUiState,
         personalDockedIds: List<String>,
         workDockedIds: List<String>,
     ): List<String> {
-        if (state.query.isBlank()) return personalDockedIds
+        // The work dock row is hidden — so its apps belong in the list and float
+        // like personal pins — whenever a query is active or the Compact state
+        // has dropped the docks. A blank query in Full keeps the work dock on
+        // screen, so only personal pins float then.
+        val workDockHidden = state.query.isNotBlank() ||
+            state.homeLandscapeTier == HomeLandscapeTier.Compact
+        if (!workDockHidden) return personalDockedIds
         // Re-derive the active-profile flag from `installedApps` for the same
         // reason `excludedFromAppList` does: the `state` snapshot visible here
         // can lag the package reload by a frame.
@@ -1847,12 +1860,17 @@ internal class LauncherViewModel(
     ): Set<String> {
         val excluded = mutableSetOf<String>()
         // Docked apps are only deduped out of the main list while their dock
-        // row is actually on screen. Typing a query hides both docks (see
-        // `isDockSlotPresent` in HomeScreen), so a non-blank query must stop
-        // the exclusion or the docked apps would vanish from every surface
-        // mid-search and become unreachable. With the query blank the dock is
-        // visible again and the dedupe resumes (subject to `Show docked apps`).
-        val isDockUiVisible = state.query.isBlank()
+        // row is actually on screen. Two things hide the dock: typing a query
+        // (which hides both docks — see `isDockSlotPresent` in HomeScreen) and
+        // the cramped-landscape Compact state (which drops the docks entirely).
+        // In either case the exclusion must stop, or the docked apps would
+        // vanish from every surface and become unreachable — the Compact app
+        // list is the *only* surface, so it must contain all launchable apps.
+        // The dock is on screen only with a blank query in the Full state
+        // (which includes all of portrait); then the dedupe resumes (subject to
+        // `Show docked apps`).
+        val isDockUiVisible = state.query.isBlank() &&
+            state.homeLandscapeTier == HomeLandscapeTier.Full
         if (isDockUiVisible && state.isDockEnabled && !state.isShowDockedAppsInList) {
             excluded.addAll(dockedIds)
         }

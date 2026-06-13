@@ -32,6 +32,7 @@ class LauncherViewModelShowDockedInListTest {
     fun clearPrefs() {
         listOf(
             "docked_apps",
+            "work_docked_apps",
             "dock_settings",
             "app_launch_stats",
             "widgets",
@@ -137,6 +138,85 @@ class LauncherViewModelShowDockedInListTest {
         assertEquals(
             "Docked Maps must float to the top of the matches, got $names",
             "Maps",
+            names.first(),
+        )
+    }
+
+    @Test
+    fun compactTierSurfacesDockedAppsInUnfilteredList() {
+        // The cramped-landscape Compact state drops the docks entirely, so the
+        // blank-query app list is the only surface for launching apps. Docked
+        // apps must therefore reappear in it (even with "Show docked apps" off),
+        // or they would be unreachable until the user reveals search — the same
+        // reasoning as the typed-search case above, but driven by the tier
+        // rather than the query.
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
+        viewModel.toggleDock(maps, maxDockedApps = 4)
+        viewModel.setShowDockedAppsInList(false)
+        idle()
+
+        // Full (the default tier): docked Maps is deduped out — the dock shows it.
+        assertFalse(
+            "Docked Maps is deduped from the Full blank-query list",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+
+        // Compact drops the dock, so Maps must reappear in the list.
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Compact)
+        idle()
+        assertTrue(
+            "Docked Maps must reappear in the Compact list once the dock is dropped",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+
+        // Returning to Full re-hides it (the dock surface is back).
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Full)
+        idle()
+        assertFalse(
+            "Returning to Full re-dedupes the docked app",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+    }
+
+    @Test
+    fun compactTierFloatsWorkDockedAppsToTop() {
+        // In Compact the work dock is dropped too, so its pins must not only
+        // reappear in the blank-query list (the exclusion fix) but also float to
+        // the top in dock order — like they do during a typed search — instead of
+        // scattering by the usage/alphabetical sort. "Zzz Work" sorts last
+        // alphabetically, so floating visibly moves it to the front.
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        seedApp("Zzz Work", "com.example.work")
+        val viewModel = newViewModel()
+        idle()
+        // Flip the seeded app to an active work app and pin it to the work dock.
+        viewModel.markAsActiveWorkAppForTest("com.example.work")
+        viewModel.setWorkDockEnabled(true)
+        idle()
+        val workApp = viewModel.uiState.value.filteredApps.first { it.name == "Zzz Work" }
+        viewModel.toggleWorkDock(workApp, maxDockedApps = 6)
+        idle()
+
+        // Full (the default tier) with "Show docked apps" off: the work pin is
+        // deduped out — the work dock row shows it.
+        assertFalse(
+            "Work pin is deduped from the Full blank-query list",
+            viewModel.uiState.value.filteredApps.any { it.name == "Zzz Work" },
+        )
+
+        // Compact drops the work dock, so the pin reappears and floats to the top.
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Compact)
+        idle()
+        val names = viewModel.uiState.value.filteredApps.map { it.name }
+        assertTrue("Work pin must reappear in the Compact list, got $names", "Zzz Work" in names)
+        assertEquals(
+            "Work pin must float to the top of the Compact list, got $names",
+            "Zzz Work",
             names.first(),
         )
     }

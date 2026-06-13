@@ -187,7 +187,7 @@ class MainActivity : ComponentActivity() {
         val seedTier = computeHomeLandscapeTier()
         viewModel.setHomeLandscapeTier(seedTier)
         applyKeyboardAutoShownPreference(
-            viewModel.uiState.value.isKeyboardAutoShown && seedTier == HomeLandscapeTier.KeyboardAndBox,
+            viewModel.uiState.value.isKeyboardAutoShown && seedTier == HomeLandscapeTier.Full,
         )
         observeKeyboardAutoShownPreference()
         // Apply edge-to-edge with system-bar styling that matches the persisted
@@ -383,7 +383,7 @@ class MainActivity : ComponentActivity() {
                 // stateAlwaysHidden so retained search focus can't resurrect the
                 // IME, matching Compose's suppressed auto-show. The tier is
                 // pushed into state by the Compose layer (and seeded in onCreate).
-                .map { it.isKeyboardAutoShown && it.homeLandscapeTier == HomeLandscapeTier.KeyboardAndBox }
+                .map { it.isKeyboardAutoShown && it.homeLandscapeTier == HomeLandscapeTier.Full }
                 .distinctUntilChanged()
                 .collect(::applyKeyboardAutoShownPreference)
         }

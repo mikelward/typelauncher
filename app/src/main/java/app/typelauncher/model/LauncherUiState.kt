@@ -479,8 +479,8 @@ internal data class LauncherUiState(
     // the live configuration + persisted [keyboardReservation] by the Compose
     // layer and pushed back into state so `MainActivity` (window soft-input
     // mode, resume re-show) and the cold-start home-ready IME wait read one
-    // value. Always [HomeLandscapeTier.KeyboardAndBox] in portrait.
-    val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.KeyboardAndBox,
+    // value. Always [HomeLandscapeTier.Full] in portrait.
+    val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,

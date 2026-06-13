@@ -159,7 +159,7 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
-    landscapeTier: HomeLandscapeTier = HomeLandscapeTier.KeyboardAndBox,
+    landscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
     searchRevealed: Boolean = false,
     primaryBottomPadding: Dp = 0.dp,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
@@ -244,26 +244,32 @@ internal fun HomeScreen(
     // A user who turns off "Show dock" but keeps "Show work dock" on (with
     // an active work profile) still gets a dock surface — the work card
     // simply renders on its own without the personal card above it.
+    //
+    // In the cramped-landscape Compact state the dock(s) are dropped entirely:
+    // the viewport can't fit the full experience, so rather than clip the dock
+    // off the bottom of the screen we give the whole area to the app list. The
+    // dock only renders in Full (which includes all of portrait). Revealing the
+    // search box in Compact does not bring the dock back.
     val isDockSlotPresent =
-        bodyReady && state.query.isBlank() && (state.isDockEnabled || showWorkDock)
+        bodyReady && state.query.isBlank() &&
+            landscapeTier == HomeLandscapeTier.Full &&
+            (state.isDockEnabled || showWorkDock)
     val isHome = state.destination is LauncherDestination.Home
-    // In the cramped-landscape Hidden tier the search box doesn't fit alongside
-    // the dock and an app row, so it's hidden until the user reveals it with a
-    // pull-up; every other tier (and all of portrait) keeps it visible. It also
-    // stays visible whenever a query is active — a non-blank query hides the
-    // dock (freeing the space the Hidden estimate guards), and hiding the box
-    // would otherwise leave the list filtered with no way to see or clear the
-    // query (e.g. after a rotation / resume resets the reveal while the query
-    // is still retained).
-    val showSearchCard = landscapeTier != HomeLandscapeTier.Hidden ||
+    // In the cramped-landscape Compact state the search box doesn't fit alongside
+    // the keyboard and an app row, so it's hidden until the user reveals it with a
+    // pull-up; Full (and all of portrait) keeps it visible. It also stays visible
+    // whenever a query is active — hiding the box would otherwise leave the list
+    // filtered with no way to see or clear the query (e.g. after a rotation /
+    // resume resets the reveal while the query is still retained).
+    val showSearchCard = landscapeTier != HomeLandscapeTier.Compact ||
         searchRevealed ||
         state.query.isNotBlank()
-    // Auto-show the keyboard only when it fits (KeyboardAndBox), or when the
-    // user explicitly revealed the box in the Hidden tier — a pull-up is an
-    // explicit request, so it shows the keyboard even with auto-show off.
+    // Auto-show the keyboard only when it fits (Full), or when the user explicitly
+    // revealed the box in the Compact state — a pull-up is an explicit request, so
+    // it shows the keyboard even with auto-show off.
     val autoShowKeyboard = isHome && (
-        (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.KeyboardAndBox) ||
-            (searchRevealed && landscapeTier == HomeLandscapeTier.Hidden)
+        (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.Full) ||
+            (searchRevealed && landscapeTier == HomeLandscapeTier.Compact)
         )
     Layout(
         modifier = Modifier
@@ -275,7 +281,7 @@ internal fun HomeScreen(
             .testTag(HOME_SCREEN_TAG),
         content = {
             // Index 0: search card, or a zero-size spacer when the cramped
-            // landscape Hidden tier hides it. The slot is always emitted so the
+            // landscape Compact state hides it. The slot is always emitted so the
             // layout's measurable indices below stay stable.
             if (showSearchCard) {
                 SearchCard(
@@ -477,7 +483,7 @@ internal fun HomeScreen(
             constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
         )
         // No card-gap below a hidden (zero-height) search box, so the app grid
-        // sits flush at the top in the cramped-landscape Hidden tier.
+        // sits flush at the top in the cramped-landscape Compact state.
         val searchSpacingPx = if (search.height > 0) spacingPx else 0
         val belowSearch = (constraints.maxHeight - search.height - searchSpacingPx).coerceAtLeast(0)
 

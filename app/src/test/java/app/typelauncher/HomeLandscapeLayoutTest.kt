@@ -23,61 +23,73 @@ class HomeLandscapeLayoutTest {
     )
 
     @Test
-    fun portraitAlwaysFitsKeyboardAndBox() {
-        // Even a height that could never fit anything in landscape stays
-        // KeyboardAndBox in portrait — the tiers are landscape-only.
+    fun portraitAlwaysFull() {
+        // Even a height that could never fit anything in landscape stays Full in
+        // portrait — the two-state degradation is landscape-only.
         val tier = resolveHomeLandscapeTier(
             metrics(isWiderThanPortrait = false, availableHeightDp = 10, predictedKeyboardHeightDp = 999),
         )
-        assertEquals(HomeLandscapeTier.KeyboardAndBox, tier)
+        assertEquals(HomeLandscapeTier.Full, tier)
     }
 
     @Test
-    fun keyboardFitsAtExactBoundary() {
+    fun fullWhenEverythingFitsIncludingKeyboard() {
+        // A tall (tablet) viewport fits box + keyboard + an app row + the dock:
+        // need-with-box(296) + spacing(8) + keyboard(200) = 504 <= 800.
+        assertEquals(
+            HomeLandscapeTier.Full,
+            resolveHomeLandscapeTier(metrics(availableHeightDp = 800, predictedKeyboardHeightDp = 200)),
+        )
+    }
+
+    @Test
+    fun fullAtExactBoundary() {
         // need-with-box(296) + spacing(8) + keyboard(200) = 504.
         assertEquals(
-            HomeLandscapeTier.KeyboardAndBox,
+            HomeLandscapeTier.Full,
             resolveHomeLandscapeTier(metrics(availableHeightDp = 504, predictedKeyboardHeightDp = 200)),
         )
     }
 
     @Test
-    fun keyboardDroppedOneDpBelowBoundary() {
+    fun compactOneDpBelowFullBoundary() {
+        // One dp short of fitting the keyboard → drop to Compact (app list only).
         assertEquals(
-            HomeLandscapeTier.BoxOnly,
+            HomeLandscapeTier.Compact,
             resolveHomeLandscapeTier(metrics(availableHeightDp = 503, predictedKeyboardHeightDp = 200)),
         )
     }
 
     @Test
-    fun boxFitsAtExactBoundary() {
-        // need-with-box is 296; the keyboard does not fit but the box does.
+    fun compactIgnoresDockHeightForTierChoice() {
+        // Below the Full (keyboard) threshold there is no middle tier gated on the
+        // dock — dropping the dock is a render decision, not a tier decision — so
+        // two viewports differing only in dock height both resolve Compact.
         assertEquals(
-            HomeLandscapeTier.BoxOnly,
-            resolveHomeLandscapeTier(metrics(availableHeightDp = 296, predictedKeyboardHeightDp = 200)),
-        )
-    }
-
-    @Test
-    fun boxDroppedOneDpBelowBoundary() {
-        assertEquals(
-            HomeLandscapeTier.Hidden,
-            resolveHomeLandscapeTier(metrics(availableHeightDp = 295, predictedKeyboardHeightDp = 200)),
-        )
-    }
-
-    @Test
-    fun disablingDockLowersTheBoxThreshold() {
-        // Without a dock, need-with-box drops to 88 + 8 + 84 = 180, so a height
-        // that hid the box with a dock now keeps it.
-        assertEquals(
-            HomeLandscapeTier.Hidden,
-            resolveHomeLandscapeTier(metrics(availableHeightDp = 200, predictedKeyboardHeightDp = 200)),
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200)),
         )
         assertEquals(
-            HomeLandscapeTier.BoxOnly,
+            HomeLandscapeTier.Compact,
             resolveHomeLandscapeTier(
-                metrics(availableHeightDp = 200, predictedKeyboardHeightDp = 200, dockHeightDp = 0),
+                metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200, dockHeightDp = 0),
+            ),
+        )
+    }
+
+    @Test
+    fun disablingDockLowersTheFullThreshold() {
+        // The dock height is still reserved in the Full fit test, so a height that
+        // is Compact with a dock (504 needed) becomes Full without one: removing
+        // the dock drops the need to 88 + 8 + 84 + 8 + 200 = 388.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(metrics(availableHeightDp = 400, predictedKeyboardHeightDp = 200)),
+        )
+        assertEquals(
+            HomeLandscapeTier.Full,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 400, predictedKeyboardHeightDp = 200, dockHeightDp = 0),
             ),
         )
     }
