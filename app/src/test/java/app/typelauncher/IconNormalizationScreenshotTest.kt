@@ -95,6 +95,35 @@ class IconNormalizationScreenshotTest {
         strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_icon_normalization_themed_robolectric.png")
     }
 
+    @Test
+    fun localBadgeThemed() {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+
+        // The local-build launcher icon under the Monochrome / Android themed
+        // icon path. Its authored monochrome layer is tinted one glyph color, so
+        // the "DEV" lettering must be transparent cut-outs in the bar — a solid
+        // (un-punched) badge would read as a featureless block here. This golden
+        // is the regression guard for that punch-out.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val tile = 144
+        val gap = 24
+        val themedColors = IconNormalizer.ThemedIconColors(
+            plate = Color.rgb(0xE8, 0xEA, 0xED),
+            glyph = Color.rgb(0x3C, 0x40, 0x43),
+        )
+        val drawable = context.getDrawable(R.mipmap.ic_launcher_local)!!
+        val normalized = IconNormalizer.normalizeToTile(drawable, tile, themedColors = themedColors)
+
+        val strip = Bitmap.createBitmap(tile + gap * 2, tile + gap * 2, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(strip)
+        canvas.drawColor(Color.rgb(0x9E, 0x9E, 0x9E))
+        drawCircleTile(canvas, normalized, gap.toFloat(), gap.toFloat(), tile.toFloat())
+
+        strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_local_badge_themed_robolectric.png")
+    }
+
     private fun normalizationCases(): List<Drawable> = listOf(
         // Full-bleed adaptive icon: blue background, white circle foreground.
         AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x1A, 0x73, 0xE8)), whiteCircleForeground()),

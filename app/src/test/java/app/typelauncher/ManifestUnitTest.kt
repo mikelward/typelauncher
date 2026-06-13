@@ -72,15 +72,19 @@ class ManifestUnitTest {
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_foreground_local"))
         assertTrue(localRoundIcon.contains("@drawable/ic_launcher_monochrome_local"))
         assertTrue(localForeground.contains("DEV bar"))
-        assertTrue(localForeground.contains("M0,92 H108 V108 H0 Z"))
+        // The badge bar sits inside the safe zone (top at y64) instead of the
+        // cropped bottom ring (the old y92 band that never reached the screen).
+        assertTrue(localForeground.contains("M0,64 H108 V108 H0 Z"))
         assertTrue(localForeground.contains("android:scaleX=\"1.5\""))
-        assertTrue(localForeground.contains("android:translateY=\"92.5\""))
+        assertTrue(localForeground.contains("android:translateY=\"68.5\""))
         assertTrue(localForeground.contains("#FFC107"))
         assertTrue(localForeground.contains("M37.01,8.5"))
         assertTrue(localMonochrome.contains("DEV bar"))
-        assertTrue(localMonochrome.contains("M0,92 H108 V108 H0 Z"))
+        // The monochrome badge punches the letters out of the bar as even-odd
+        // cut-outs so the themed-icon tint can't flatten it into a solid block.
+        assertTrue(localMonochrome.contains("android:fillType=\"evenOdd\""))
         assertTrue(localMonochrome.contains("android:scaleX=\"1.5\""))
-        assertTrue(localMonochrome.contains("android:translateY=\"92.5\""))
+        assertTrue(localMonochrome.contains("android:translateY=\"68.5\""))
         assertTrue(localMonochrome.contains("M37.01,8.5"))
     }
 
