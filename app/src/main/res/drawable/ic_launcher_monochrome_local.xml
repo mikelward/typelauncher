@@ -30,27 +30,24 @@
             android:fillColor="#FF000000"
             android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
     </group>
-    <!-- Local-build monochrome badge: black DEV bar with knocked-out lettering.
-         Its top sits inside the safe zone so the DEV text is always visible; the
-         bar bleeds to the bottom edge so the adaptive-icon mask shapes the lower
-         corners. -->
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M0,64 H108 V108 H0 Z" />
+    <!-- Local-build monochrome DEV bar. Android themed icons tint the whole
+         monochrome layer one color (IconNormalizer.normalizeThemed setTint), so
+         the lettering can't be a second opaque color — it would be recolored to
+         match the bar and the badge would read as a solid block. Instead the bar
+         and the "DEV" letters are one even-odd path: the bar fills, the letters
+         are transparent cut-outs, so the tinted bar shows the plate color through
+         readable "DEV". The bar rectangle is expressed in the letter group's
+         local space (viewport M0,64 H108 V108 H0 Z mapped back through the 1.5x
+         scale and 8.715/68.5 translation) so it bleeds to the icon edge while the
+         mask still shapes its lower corners. -->
     <group
         android:scaleX="1.5"
         android:scaleY="1.5"
         android:translateX="8.715"
         android:translateY="68.5">
         <path
-            android:fillColor="#FFFFFFFF"
+            android:fillColor="#FF000000"
             android:fillType="evenOdd"
-            android:pathData="M20.38,8.5 H22.00 Q22.51,8.50 22.94,8.38 Q23.38,8.26 23.72,8.05 Q24.05,7.84 24.31,7.55 Q24.58,7.25 24.75,6.89 Q24.92,6.55 25.01,6.13 Q25.10,5.72 25.10,5.26 V4.75 Q25.09,4.26 25.0,3.84 Q24.91,3.42 24.73,3.06 Q24.53,2.64 24.20,2.32 Q23.87,2.00 23.44,1.81 Q23.14,1.66 22.77,1.58 Q22.41,1.50 22.00,1.5 H20.38 Z M21.29,2.23 H22.00 Q22.33,2.24 22.61,2.31 Q22.89,2.38 23.12,2.5 Q23.44,2.67 23.65,2.94 Q23.87,3.21 24.00,3.55 Q24.10,3.81 24.15,4.11 Q24.20,4.41 24.21,4.74 V5.26 Q24.20,5.58 24.16,5.88 Q24.11,6.17 24.01,6.43 Q23.90,6.74 23.71,6.99 Q23.52,7.25 23.26,7.42 Q23.02,7.59 22.70,7.68 Q22.39,7.77 22.00,7.77 H21.29 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M31.73,5.26 V4.51 H28.81 V2.26 H32.18 V1.5 H27.92 V8.5 H32.22 V7.75 H28.81 V5.26 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M37.01,8.5 H37.78 L39.99,1.5 H39.04 L37.49,6.72 L37.39,7.07 L37.29,6.73 L35.75,1.5 H34.80 Z" />
+            android:pathData="M-5.81,-3 H66.19 V26.333 H-5.81 Z M20.38,8.5 H22.00 Q22.51,8.50 22.94,8.38 Q23.38,8.26 23.72,8.05 Q24.05,7.84 24.31,7.55 Q24.58,7.25 24.75,6.89 Q24.92,6.55 25.01,6.13 Q25.10,5.72 25.10,5.26 V4.75 Q25.09,4.26 25.0,3.84 Q24.91,3.42 24.73,3.06 Q24.53,2.64 24.20,2.32 Q23.87,2.00 23.44,1.81 Q23.14,1.66 22.77,1.58 Q22.41,1.50 22.00,1.5 H20.38 Z M21.29,2.23 H22.00 Q22.33,2.24 22.61,2.31 Q22.89,2.38 23.12,2.5 Q23.44,2.67 23.65,2.94 Q23.87,3.21 24.00,3.55 Q24.10,3.81 24.15,4.11 Q24.20,4.41 24.21,4.74 V5.26 Q24.20,5.58 24.16,5.88 Q24.11,6.17 24.01,6.43 Q23.90,6.74 23.71,6.99 Q23.52,7.25 23.26,7.42 Q23.02,7.59 22.70,7.68 Q22.39,7.77 22.00,7.77 H21.29 Z M31.73,5.26 V4.51 H28.81 V2.26 H32.18 V1.5 H27.92 V8.5 H32.22 V7.75 H28.81 V5.26 Z M37.01,8.5 H37.78 L39.99,1.5 H39.04 L37.49,6.72 L37.39,7.07 L37.29,6.73 L35.75,1.5 H34.80 Z" />
     </group>
 </vector>
