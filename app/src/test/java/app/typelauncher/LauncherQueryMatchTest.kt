@@ -143,12 +143,54 @@ class LauncherQueryMatchTest {
     fun substringTierMatchesWhenAnchorRulesReject() {
         assertEquals(LauncherMatchTier.Substring, "Gmail".launcherMatchTier("mail"))
         assertEquals(LauncherMatchTier.Substring, "1password".launcherMatchTier("pass"))
-        // "Air France" does NOT contain "fa" (the F is followed by 'r'), so the
-        // substring fallback can't rescue it either — it still returns null.
-        assertNull("Air France".launcherMatchTier("fa"))
-        // But "Snail" contains "ail" mid-word: anchor rules reject it (lowercase
+        // "Snail" contains "ail" mid-word: anchor rules reject it (lowercase
         // 'a' isn't a boundary), substring rules accept it.
         assertEquals(LauncherMatchTier.Substring, "Snail".launcherMatchTier("ail"))
+    }
+
+    @Test
+    fun fuzzyTierMatchesMidWordSkipBelowSubstring() {
+        // The motivating case: "vw" -> "Volkswagen". The 'w' is mid-word, so the
+        // strict anchored tier rejects it and it isn't a prefix or substring;
+        // the loose Fuzzy tier (first letter anchored, rest a subsequence)
+        // catches it, ranked below every precise tier.
+        assertEquals(LauncherMatchTier.Fuzzy, "Volkswagen".launcherMatchTier("vw"))
+        // "fa" -> "Air France" / "Fly Delta" returns to the results, but only in
+        // the Fuzzy (bottom) tier — never above a prefix match like "Facebook".
+        assertEquals(LauncherMatchTier.Fuzzy, "Air France".launcherMatchTier("fa"))
+        assertEquals(LauncherMatchTier.Fuzzy, "Fly Delta".launcherMatchTier("fa"))
+        // A prefix/substring still wins over fuzzy for the same label.
+        assertEquals(LauncherMatchTier.Prefix, "Volkswagen".launcherMatchTier("vo"))
+    }
+
+    @Test
+    fun fuzzyTierStillRequiresFirstLetterAnchor() {
+        // The first query letter must start a word — 'v' is mid-word in
+        // "Service", so it never anchors and "vw" can't match here.
+        assertNull("Service Now".launcherMatchTier("vw"))
+        // Single-character queries never reach the fuzzy tier (FUZZY_MIN_QUERY_LENGTH).
+        assertNull("Volkswagen".launcherMatchTier("z"))
+    }
+
+    @Test
+    fun packageBrandTierMatchesHiddenBrandPrefix() {
+        // Virgin Money: title is "Credit Card", brand only lives in the package.
+        assertEquals(LauncherMatchTier.PackageBrand, "com.virginmoney.cards".packageBrandMatchTier("virgin"))
+        assertEquals(LauncherMatchTier.PackageBrand, "com.virginmoney.cards".packageBrandMatchTier("vir"))
+    }
+
+    @Test
+    fun packageBrandTierIgnoresGenericSegmentsButMatchesShortPrefixes() {
+        // Generic reverse-DNS / platform segments never anchor a match, so a
+        // short query doesn't pull in every app sharing the boilerplate prefix.
+        assertNull("com.google.android.apps.maps".packageBrandMatchTier("and"))
+        assertNull("com.google.android.apps.maps".packageBrandMatchTier("app"))
+        // Matching activates from the first character: even a lone "v" reaches
+        // the brand segment "virginmoney".
+        assertEquals(LauncherMatchTier.PackageBrand, "com.virginmoney.cards".packageBrandMatchTier("v"))
+        assertEquals(LauncherMatchTier.PackageBrand, "com.virginmoney.cards".packageBrandMatchTier("vi"))
+        // A non-prefix substring of a brand segment does not match (prefix only).
+        assertNull("com.virginmoney.cards".packageBrandMatchTier("money"))
     }
 
     @Test
