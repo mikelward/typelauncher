@@ -226,13 +226,13 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * When true (the default), docked apps remain visible in the typed-search
-     * app list in addition to the dock row. When false, the dock acts as a
+     * When true, docked apps remain visible in the typed-search app list in
+     * addition to the dock row. When false (the default), the dock acts as a
      * deduplicating shortcut surface and docked apps are hidden from the main
      * list to free vertical space — the launcher's pre-toggle behavior.
      */
     var isShowDockedAppsInList: Boolean
-        get() = sharedPreferences.getBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, true)
+        get() = sharedPreferences.getBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, false)
         set(value) {
             sharedPreferences.edit()
                 .putBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, value)
