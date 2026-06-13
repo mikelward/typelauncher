@@ -529,6 +529,18 @@ internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
     return minSlotCount..maxSlotCount
 }
 
+// The width, in dp, that a single dock row of [slotCount] icons occupies at
+// [iconSizeDp]: the icons plus their per-item padding and the inter-item
+// spacing — the same geometry `dockSlotCountForIconSize` packs into the
+// available width. The dock card is narrowed to this (plus its own padding)
+// and centered in wider-than-portrait windows so it sits as an island with
+// the screen background in the margins rather than stretching edge-to-edge.
+internal fun dockRowContentWidthDp(slotCount: Int, iconSizeDp: Int): Int {
+    val columns = slotCount.coerceAtLeast(1)
+    return columns * (iconSizeDp + DOCK_ITEM_HORIZONTAL_PADDING_DP) +
+        (columns - 1) * DOCK_ITEM_SPACING_DP
+}
+
 // `Drawable` and `ComponentName` are unstable to Compose; the picker passes
 // `WidgetProvider` instances to composables and we never mutate the wrapped
 // drawables after the provider list is built, so the data class is safe to

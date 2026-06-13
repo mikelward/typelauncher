@@ -2306,6 +2306,59 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_six_slots_one_row_robolectric.png")
     }
 
+    // In a window wider than portrait (here the 411dp phone rotated to
+    // landscape), the dock keeps its portrait icon size and the gray card is
+    // narrowed to its content and centered — an island with the screen
+    // background showing in the margins — rather than a bar stretched
+    // edge-to-edge. Asserts the dock card is narrower than the full-width apps
+    // card and symmetrically inset, and records the visual for review.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun dockCardIsNarrowedAndCenteredInLandscape() {
+        val config = composeRule.activity.resources.configuration
+        assertTrue(
+            "expected a landscape window (w=${config.screenWidthDp}, h=${config.screenHeightDp})",
+            config.screenWidthDp > config.screenHeightDp,
+        )
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(6)
+        composeRule.waitForIdle()
+        val sixApps = viewModel.uiState.value.filteredApps.take(6)
+        sixApps.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+
+        assertEquals(6, viewModel.uiState.value.dockedApps.size)
+
+        // The apps card fills the full content width; the dock card should be
+        // a centered island narrower than it.
+        val appsCard = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
+        val dockCard = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+
+        val dockWidth = (dockCard.right - dockCard.left).value
+        val appsWidth = (appsCard.right - appsCard.left).value
+        val leftMargin = (dockCard.left - appsCard.left).value
+        val rightMargin = (appsCard.right - dockCard.right).value
+        assertTrue(
+            "dock card should be narrower than the full-width apps card " +
+                "(dock=$dockWidth, apps=$appsWidth)",
+            dockWidth < appsWidth,
+        )
+        assertTrue(
+            "dock card should leave a real side margin (left=$leftMargin)",
+            leftMargin > 8f,
+        )
+        assertTrue(
+            "dock card should be centered (left=$leftMargin, right=$rightMargin)",
+            kotlin.math.abs(leftMargin - rightMargin) <= 2f,
+        )
+
+        saveScreenshot(
+            "compose_dock_landscape_centered_robolectric.png",
+            widthPx = 2400,
+            heightPx = 1079,
+        )
+    }
+
     // The "+" hint is a one-shot onboarding affordance: it appears after a
     // first-run prefill that leaves a free slot, and disappears for good as
     // soon as the user docks anything to that dock. The fake-app fixture has
