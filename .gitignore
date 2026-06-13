@@ -11,6 +11,7 @@
 /.claude/settings.local.json
 
 *.iml
+__pycache__/
 /local.properties
 /build
 /captures
