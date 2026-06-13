@@ -184,14 +184,46 @@ internal fun HomeScreen(
     onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
-    // Coerce against the current screen's slot range. The persisted count
-    // can outlive the configuration it was set under (e.g. saved at 411dp
-    // and now resumed in 392dp portrait, or carried across a fold/unfold
-    // that narrows the window), so a stale value would otherwise drive
-    // `dockIconSizeForSlotCount` past the row's actual capacity. Settings
-    // already coerces; matching here keeps Home's render in lock-step.
-    val dockIconCount = state.dockIconCount.coerceIn(dockSlotCountRange(configuration.screenWidthDp))
-    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
+    // Derive the dock icon size from the short screen edge (the portrait
+    // width), not the live width, so rotating to landscape keeps the icons at
+    // their configured dp instead of ballooning to fill the wider row. The
+    // dock row is then centered at that fixed size (see `DockCard`), leaving
+    // even margins in landscape.
+    //
+    // TODO: this only stabilizes the size across portrait<->landscape, where
+    // the short edge is invariant. Width changes that also grow the short edge
+    // still resize the dock; revisit if these come up:
+    //   - foldable unfold (inner display is wider in both dimensions)
+    //   - free-form / desktop windowing and multi-window resize
+    //   - split-screen giving the launcher a narrower-than-portrait pane
+    //   - connected-display / DeX-style large secondary screens
+    // The robust fix is persisting an explicit icon-size dp; deferred for now.
+    val dockReferenceWidthDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+    // Coerce against the slot range. The persisted count can outlive the
+    // configuration it was set under (e.g. saved on a wider device), so a
+    // stale value would otherwise drive `dockIconSizeForSlotCount` past the
+    // row's actual capacity. Settings already coerces; matching here keeps
+    // Home's render in lock-step.
+    val dockIconCount = state.dockIconCount.coerceIn(dockSlotCountRange(dockReferenceWidthDp))
+    val dockIconSizeDp = dockIconSizeForSlotCount(dockReferenceWidthDp, dockIconCount)
+    // Once the window is wider than portrait (landscape), the fixed-size dock
+    // no longer fills the row. Narrow the dock card to the width its icons
+    // occupy and center it (see the dock slot below) so the gray card sits as
+    // an island with the screen background showing in the margins, instead of
+    // a bar stretched edge-to-edge. Portrait keeps the full-width card.
+    val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    // Card width = the icon row's footprint + the card's own padding + a small
+    // slack. The slack matters: `Modifier.weight(1f)` only avoids the
+    // pixel-rounding wrap (the v403 regression) when the row has a little room
+    // beyond the icons' rounded-up pixel widths. The full-width portrait card
+    // gets this for free — the slot-count math reserves DOCK_HORIZONTAL_PADDING_DP
+    // (64) of chrome while the real chrome is only ~48 — so mirror that ~16dp
+    // here, otherwise the last icon wraps to a second row at exact-fit widths.
+    val dockRowSlackDp = DOCK_ITEM_SPACING_DP * 2
+    val dockCardWidthDp = (
+        dockRowContentWidthDp(dockIconCount, dockIconSizeDp) +
+            dockRowSlackDp + SECTION_CARD_PADDING_DP * 2
+        ).dp
     // Custom Layout (not Column) so the dock's max-height constraint is
     // derived from the actual measured search-card height in the same
     // measurement pass. A `Column { weight(1f) }` plus state-tracked search
@@ -294,77 +326,95 @@ internal fun HomeScreen(
             // the rare case where its natural content exceeds the remaining
             // budget.
             if (isDockSlotPresent) {
-                Column(verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp)) {
-                    if (state.isDockEnabled) {
-                        DockCard(
-                            dockedApps = state.dockedApps,
-                            dockPositions = state.dockPositions,
-                            dockIconSizeDp = dockIconSizeDp,
-                            dockIconCount = dockIconCount,
-                            modifier = Modifier.weight(1f, fill = false),
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onToggleDock = onToggleDock,
-                            onReorderDock = onReorderDock,
-                            onResetRank = onResetRank,
-                            onRenameApp = onRenameApp,
-                            onSetAppIconOverride = onSetAppIconOverride,
-                            onClearAppIconOverride = onClearAppIconOverride,
-                            onSetAppBadge = onSetAppBadge,
-                            onHideApp = onHideApp,
-                            onDragStateChanged = onDockDragChanged,
-                            showAddButtonHint = state.shouldShowDockAddHint,
-                        )
-                    }
-                    if (showWorkDock) {
-                        // Match `DockCard`'s own row-count calculation (which
-                        // is `maxOccupiedRow + 1` over the resolved-positions
-                        // map, not just `ceil(size / dockIconCount)`) so a
-                        // sparse persisted layout — e.g. four apps with one
-                        // pinned at row 1 — gets the two-row cap it actually
-                        // needs. Then clamp at `MAX_WORK_DOCK_ROWS`, and at
-                        // 1 on very short viewports where a two-row work
-                        // dock would crowd the personal dock out of the
-                        // slot. Every supported Android phone in normal
-                        // portrait is taller than the threshold; foldable
-                        // narrow modes and old compact phones fall back to
-                        // the previous single-row behaviour.
-                        val maxWorkRows = if (
-                            configuration.screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP
-                        ) {
-                            MAX_WORK_DOCK_ROWS
-                        } else {
-                            1
+                // In a wider-than-portrait window, narrow the dock card(s) to
+                // the width their icons occupy and center them, so the gray
+                // card sits as an island with the screen background showing in
+                // the margins instead of a bar stretched edge-to-edge. The
+                // SectionCard always fills its parent's width, so the narrowing
+                // is applied to this wrapping Column (the card can't size
+                // itself); the surrounding Box centers it. Portrait fills the
+                // width exactly as before.
+                val dockColumnModifier = if (isWiderThanPortrait) {
+                    Modifier.width(dockCardWidthDp)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                    Column(
+                        modifier = dockColumnModifier,
+                        verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
+                    ) {
+                        if (state.isDockEnabled) {
+                            DockCard(
+                                dockedApps = state.dockedApps,
+                                dockPositions = state.dockPositions,
+                                dockIconSizeDp = dockIconSizeDp,
+                                dockIconCount = dockIconCount,
+                                modifier = Modifier.weight(1f, fill = false),
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onToggleDock = onToggleDock,
+                                onReorderDock = onReorderDock,
+                                onResetRank = onResetRank,
+                                onRenameApp = onRenameApp,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
+                                onHideApp = onHideApp,
+                                onDragStateChanged = onDockDragChanged,
+                                showAddButtonHint = state.shouldShowDockAddHint,
+                            )
                         }
-                        val workRows = dockRowCount(
-                            state.workDockedApps.map { app -> app.id },
-                            state.workDockPositions,
-                            dockIconCount,
-                        ).coerceAtMost(maxWorkRows)
-                        val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
-                        val workMaxHeightDp = workRows * workRowHeightDp +
-                            (workRows - 1) * DOCK_ITEM_SPACING_DP +
-                            SECTION_CARD_PADDING_DP * 2
-                        DockCard(
-                            dockedApps = state.workDockedApps,
-                            dockPositions = state.workDockPositions,
-                            dockIconSizeDp = dockIconSizeDp,
-                            dockIconCount = dockIconCount,
-                            modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onToggleDock = onToggleWorkDock,
-                            onReorderDock = onReorderWorkDock,
-                            onResetRank = onResetRank,
-                            onRenameApp = onRenameApp,
-                            onSetAppIconOverride = onSetAppIconOverride,
-                            onClearAppIconOverride = onClearAppIconOverride,
-                            onSetAppBadge = onSetAppBadge,
-                            onHideApp = onHideApp,
-                            onDragStateChanged = onDockDragChanged,
-                            tags = DockTestTags.Work,
-                            showAddButtonHint = state.shouldShowWorkDockAddHint,
-                        )
+                        if (showWorkDock) {
+                            // Match `DockCard`'s own row-count calculation (which
+                            // is `maxOccupiedRow + 1` over the resolved-positions
+                            // map, not just `ceil(size / dockIconCount)`) so a
+                            // sparse persisted layout — e.g. four apps with one
+                            // pinned at row 1 — gets the two-row cap it actually
+                            // needs. Then clamp at `MAX_WORK_DOCK_ROWS`, and at
+                            // 1 on very short viewports where a two-row work
+                            // dock would crowd the personal dock out of the
+                            // slot. Every supported Android phone in normal
+                            // portrait is taller than the threshold; foldable
+                            // narrow modes and old compact phones fall back to
+                            // the previous single-row behaviour.
+                            val maxWorkRows = if (
+                                configuration.screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP
+                            ) {
+                                MAX_WORK_DOCK_ROWS
+                            } else {
+                                1
+                            }
+                            val workRows = dockRowCount(
+                                state.workDockedApps.map { app -> app.id },
+                                state.workDockPositions,
+                                dockIconCount,
+                            ).coerceAtMost(maxWorkRows)
+                            val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
+                            val workMaxHeightDp = workRows * workRowHeightDp +
+                                (workRows - 1) * DOCK_ITEM_SPACING_DP +
+                                SECTION_CARD_PADDING_DP * 2
+                            DockCard(
+                                dockedApps = state.workDockedApps,
+                                dockPositions = state.workDockPositions,
+                                dockIconSizeDp = dockIconSizeDp,
+                                dockIconCount = dockIconCount,
+                                modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onToggleDock = onToggleWorkDock,
+                                onReorderDock = onReorderWorkDock,
+                                onResetRank = onResetRank,
+                                onRenameApp = onRenameApp,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
+                                onHideApp = onHideApp,
+                                onDragStateChanged = onDockDragChanged,
+                                tags = DockTestTags.Work,
+                                showAddButtonHint = state.shouldShowWorkDockAddHint,
+                            )
+                        }
                     }
                 }
             } else {
@@ -2508,9 +2558,14 @@ internal fun SettingsScreen(
     onDismissPlayUpdate: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    val slotCountRange = dockSlotCountRange(configuration.screenWidthDp)
+    // Anchor the slider's range and preview size to the short screen edge so
+    // the "Icons per row" options are identical in portrait and landscape,
+    // matching how Home now derives the dock size (see DockCard's rotation
+    // TODO).
+    val dockReferenceWidthDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+    val slotCountRange = dockSlotCountRange(dockReferenceWidthDp)
     val dockIconCount = state.dockIconCount.coerceIn(slotCountRange)
-    val dockIconSizeDp = dockIconSizeForSlotCount(configuration.screenWidthDp, dockIconCount)
+    val dockIconSizeDp = dockIconSizeForSlotCount(dockReferenceWidthDp, dockIconCount)
     var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
