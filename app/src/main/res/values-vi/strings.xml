@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Tên ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Tên ↑</string>
     <string name="settings_dock_enabled_title">Hiển thị dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Hiển thị ứng dụng trong dock</string>
     <string name="settings_work_dock_enabled_title">Hiển thị dock công việc</string>
     <string name="settings_work_dock_disabled_toast">Hồ sơ công việc đang tạm dừng</string>
     <string name="settings_keyboard_auto_show_title">Tự động hiển thị bàn phím</string>

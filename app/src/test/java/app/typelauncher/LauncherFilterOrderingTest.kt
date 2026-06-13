@@ -138,10 +138,9 @@ class LauncherFilterOrderingTest {
     }
 
     @Test
-    fun filterByNameIncludesDockedAppsWhenShowDockedAppsInListIsOn() {
-        // Mirrors the new "Show docked apps" setting (default ON): the
-        // ViewModel passes an empty exclusion set even though the dock UI is
-        // active, so docked apps stay in the typed-search list.
+    fun filterByNameIncludesDockedAppsWhileTyping() {
+        // While typing, the dock row is hidden, so the ViewModel passes an
+        // empty exclusion set and docked apps surface in the typed-search list.
         val docked = installedApp("ABC")
         val apps = listOf(docked, installedApp("Camera"), installedApp("Calculator"))
 

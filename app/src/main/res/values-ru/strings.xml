@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Имени ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Имени ↑</string>
     <string name="settings_dock_enabled_title">Показывать док</string>
-    <string name="settings_show_docked_apps_in_list_title">Показывать приложения дока</string>
     <string name="settings_work_dock_enabled_title">Показывать рабочий док</string>
     <string name="settings_work_dock_disabled_toast">Рабочий профиль приостановлен</string>
     <string name="settings_keyboard_auto_show_title">Автоматически показывать клавиатуру</string>

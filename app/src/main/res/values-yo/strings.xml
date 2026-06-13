@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Orúkọ ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Orúkọ ↑</string>
     <string name="settings_dock_enabled_title">Fihàn dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Fihàn áàpù dock</string>
     <string name="settings_work_dock_enabled_title">Fihàn dock iṣẹ́</string>
     <string name="settings_work_dock_disabled_toast">A ti dáwọ́ profáìlì iṣẹ́ dúró</string>
     <string name="settings_keyboard_auto_show_title">Fihàn kíbọ́dù ní àlátinúdá</string>

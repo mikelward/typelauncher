@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Nama ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Nama ↑</string>
     <string name="settings_dock_enabled_title">Tampilkan dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Tampilkan aplikasi di dock</string>
     <string name="settings_work_dock_enabled_title">Tampilkan dock kerja</string>
     <string name="settings_work_dock_disabled_toast">Profil kerja dijeda</string>
     <string name="settings_keyboard_auto_show_title">Tampilkan keyboard otomatis</string>

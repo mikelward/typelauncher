@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">പേര് ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">പേര് ↑</string>
     <string name="settings_dock_enabled_title">ഡോക്ക് കാണിക്കുക</string>
-    <string name="settings_show_docked_apps_in_list_title">ഡോക്ക് ചെയ്ത ആപ്പുകൾ കാണിക്കുക</string>
     <string name="settings_work_dock_enabled_title">വർക്ക് ഡോക്ക് കാണിക്കുക</string>
     <string name="settings_work_dock_disabled_toast">വർക്ക് പ്രൊഫൈൽ താൽക്കാലികമായി നിർത്തി</string>
     <string name="settings_keyboard_auto_show_title">കീബോർഡ് സ്വയമേവ കാണിക്കുക</string>

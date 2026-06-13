@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Suna ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Suna ↑</string>
     <string name="settings_dock_enabled_title">Nuna dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Nuna manhajojin da ke dock</string>
     <string name="settings_work_dock_enabled_title">Nuna dock na aiki</string>
     <string name="settings_work_dock_disabled_toast">An dakatar da bayanin aiki</string>
     <string name="settings_keyboard_auto_show_title">Nuna madannai ta atomatik</string>

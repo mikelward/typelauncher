@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">పేరు ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">పేరు ↑</string>
     <string name="settings_dock_enabled_title">డాక్‌ను చూపించు</string>
-    <string name="settings_show_docked_apps_in_list_title">డాక్ చేసిన యాప్‌లను చూపించు</string>
     <string name="settings_work_dock_enabled_title">పని డాక్‌ను చూపించు</string>
     <string name="settings_work_dock_disabled_toast">వర్క్ ప్రొఫైల్ నిలిపివేయబడింది</string>
     <string name="settings_keyboard_auto_show_title">కీబోర్డ్‌ను స్వయంచాలకంగా చూపించు</string>

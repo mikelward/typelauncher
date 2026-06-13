@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Navn ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Navn ↑</string>
     <string name="settings_dock_enabled_title">Vis dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Vis dokkede apper</string>
     <string name="settings_work_dock_enabled_title">Vis jobbdock</string>
     <string name="settings_work_dock_disabled_toast">Jobbprofilen er satt på pause</string>
     <string name="settings_keyboard_auto_show_title">Vis tastatur automatisk</string>

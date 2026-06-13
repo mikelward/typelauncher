@@ -2542,7 +2542,6 @@ internal fun SettingsScreen(
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
-    onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
@@ -2677,30 +2676,6 @@ internal fun SettingsScreen(
                     checked = state.isDockEnabled,
                     onCheckedChange = onDockEnabledChanged,
                     modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_show_docked_apps_in_list_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isShowDockedAppsInList,
-                    onCheckedChange = onShowDockedAppsInListChanged,
-                    // The flag controls the main-list dedup for both docks,
-                    // so keep the switch interactable whenever either dock
-                    // is actually rendered — otherwise a user with the
-                    // personal dock off and the work dock on would have no
-                    // way to make work-docked apps searchable again.
-                    enabled = state.isDockEnabled ||
-                        (state.isWorkDockEnabled && state.isWorkProfileActive),
-                    modifier = Modifier.testTag(SHOW_DOCKED_APPS_IN_LIST_SWITCH_TAG),
                 )
             }
             if (state.isWorkProfileConfigured) {

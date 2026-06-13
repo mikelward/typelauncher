@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Ime ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Ime ↑</string>
     <string name="settings_dock_enabled_title">Prikaži dok</string>
-    <string name="settings_show_docked_apps_in_list_title">Prikaži pripete aplikacije</string>
     <string name="settings_work_dock_enabled_title">Prikaži službeni dok</string>
     <string name="settings_work_dock_disabled_toast">Službeni profil je začasno ustavljen</string>
     <string name="settings_keyboard_auto_show_title">Samodejno prikaži tipkovnico</string>

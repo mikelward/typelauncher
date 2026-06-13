@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">အမည် ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">အမည် ↑</string>
     <string name="settings_dock_enabled_title">Dock ပြသမည်</string>
-    <string name="settings_show_docked_apps_in_list_title">Dock ရှိ အက်ပ်များပြသမည်</string>
     <string name="settings_work_dock_enabled_title">အလုပ် Dock ပြသမည်</string>
     <string name="settings_work_dock_disabled_toast">အလုပ်ပရိုဖိုင် ခေတ္တရပ်ထားသည်</string>
     <string name="settings_keyboard_auto_show_title">ကီးဘုတ်အလိုအလျောက်ပြသမည်</string>

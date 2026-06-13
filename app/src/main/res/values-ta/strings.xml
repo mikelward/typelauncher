@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">பெயர் ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">பெயர் ↑</string>
     <string name="settings_dock_enabled_title">டாக்கைக் காட்டு</string>
-    <string name="settings_show_docked_apps_in_list_title">டாக் செய்யப்பட்ட பயன்பாடுகளைக் காட்டு</string>
     <string name="settings_work_dock_enabled_title">பணி டாக்கைக் காட்டு</string>
     <string name="settings_work_dock_disabled_toast">பணிச் சுயவிவரம் இடைநிறுத்தப்பட்டது</string>
     <string name="settings_keyboard_auto_show_title">விசைப்பலகையை தானாக காட்டு</string>

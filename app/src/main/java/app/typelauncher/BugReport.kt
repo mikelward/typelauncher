@@ -68,7 +68,6 @@ internal object BugReport {
             locale = Locale.getDefault(),
             isDockEnabled = dockSettings.isDockEnabled,
             isAppListIconOnly = dockSettings.isAppListIconOnly,
-            isShowDockedAppsInList = dockSettings.isShowDockedAppsInList,
             dockIconCount = dockSettings.dockIconCount,
             appListSortOrder = dockSettings.appListSortOrder,
             isAgendaEnabled = dockSettings.isAgendaEnabled,
@@ -200,7 +199,6 @@ internal fun buildBugReportPayload(
     locale: Locale,
     isDockEnabled: Boolean,
     isAppListIconOnly: Boolean,
-    isShowDockedAppsInList: Boolean,
     dockIconCount: Int,
     appListSortOrder: AppListSortOrder,
     isAgendaEnabled: Boolean,
@@ -228,7 +226,6 @@ internal fun buildBugReportPayload(
         appendLine("--- Settings ---")
         appendLine("Dock enabled: $isDockEnabled")
         appendLine("App list icon-only: $isAppListIconOnly")
-        appendLine("Show docked apps in list: $isShowDockedAppsInList")
         appendLine("Dock icons visible: $dockIconCount")
         appendLine("App list sort order: $appListSortOrder")
         appendLine("Agenda enabled: $isAgendaEnabled")

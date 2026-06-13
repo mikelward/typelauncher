@@ -176,7 +176,6 @@ internal class LauncherViewModel(
             widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
-            isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             dockIconCount = dockSettingsStore.dockIconCount,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -1570,20 +1569,6 @@ internal class LauncherViewModel(
         logState("setAppListIconOnly")
     }
 
-    // TODO: Consider removing the "Show docked apps" setting. Now that typing
-    //  hides both docks and always surfaces docked apps in the filtered list
-    //  (so they stay reachable mid-search), this toggle only affects the
-    //  empty-query browse view — whether docked apps are deduped out of the
-    //  list because the dock row already shows them. That is a narrow enough
-    //  behavior that it may not be worth a user-facing setting; revisit whether
-    //  to drop it and always keep docked apps in the list (or always dedupe).
-    fun setShowDockedAppsInList(isShown: Boolean) {
-        dockSettingsStore.isShowDockedAppsInList = isShown
-        _uiState.update { it.copy(isShowDockedAppsInList = isShown) }
-        refreshLists()
-        logState("setShowDockedAppsInList=$isShown")
-    }
-
     fun setAppListSortOrder(sortOrder: AppListSortOrder) {
         dockSettingsStore.appListSortOrder = sortOrder
         _uiState.update { it.copy(appListSortOrder = sortOrder) }
@@ -1826,13 +1811,10 @@ internal class LauncherViewModel(
      * Returns the IDs of apps that should be omitted from the main app list
      * because they already render on another always-visible surface. Docked
      * apps are hidden from the list only while the dock row is actually on
-     * screen (the dock row already shows them) — that is, with an empty query
-     * and [LauncherUiState.isShowDockedAppsInList] off. A non-blank query hides
-     * the dock row, so docked apps always surface in the typed-search list
-     * (where they float to the top of their tier); opting into
-     * [LauncherUiState.isShowDockedAppsInList] keeps them visible even with an
-     * empty query. Secondary bars such as recents do not dedupe from the app
-     * list.
+     * screen (the dock row already shows them) — that is, with an empty query.
+     * A non-blank query hides the dock row, so docked apps always surface in
+     * the typed-search list (where they float to the top of their tier).
+     * Secondary bars such as recents do not dedupe from the app list.
      */
     private fun excludedFromAppList(
         state: LauncherUiState,
@@ -1844,9 +1826,9 @@ internal class LauncherViewModel(
         // `isDockSlotPresent` in HomeScreen), so a non-blank query must stop
         // the exclusion or the docked apps would vanish from every surface
         // mid-search and become unreachable. With the query blank the dock is
-        // visible again and the dedupe resumes (subject to `Show docked apps`).
+        // visible again and the dedupe resumes.
         val isDockUiVisible = state.query.isBlank()
-        if (isDockUiVisible && state.isDockEnabled && !state.isShowDockedAppsInList) {
+        if (isDockUiVisible && state.isDockEnabled) {
             excluded.addAll(dockedIds)
         }
         // Re-derive `isWorkProfileActive` from the authoritative
@@ -1857,15 +1839,13 @@ internal class LauncherViewModel(
         // is the *old* snapshot and would skip the exclusion on the very
         // frame the work dock first becomes visible (leaving a duplicate
         // work-docked entry in the main list until the next refresh).
-        // `state.isDockEnabled` / `isShowDockedAppsInList` are persistent
-        // settings unaffected by package reloads, so they stay correct
-        // from `state`.
+        // `state.isDockEnabled` is a persistent setting unaffected by package
+        // reloads, so it stays correct from `state`.
         val isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode }
         if (
             isDockUiVisible &&
             state.isWorkDockEnabled &&
-            isWorkProfileActive &&
-            !state.isShowDockedAppsInList
+            isWorkProfileActive
         ) {
             excluded.addAll(workDockedAppStore.dockedAppIds)
         }

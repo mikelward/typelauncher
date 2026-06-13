@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">الاسم ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">الاسم ↑</string>
     <string name="settings_dock_enabled_title">إظهار الشريط</string>
-    <string name="settings_show_docked_apps_in_list_title">إظهار تطبيقات الشريط</string>
     <string name="settings_work_dock_enabled_title">إظهار شريط العمل</string>
     <string name="settings_work_dock_disabled_toast">ملف العمل متوقف مؤقتًا</string>
     <string name="settings_keyboard_auto_show_title">إظهار لوحة المفاتيح تلقائيًا</string>

@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">नाव ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">नाव ↑</string>
     <string name="settings_dock_enabled_title">डॉक दाखवा</string>
-    <string name="settings_show_docked_apps_in_list_title">डॉक केलेले अॅप्स दाखवा</string>
     <string name="settings_work_dock_enabled_title">कार्य डॉक दाखवा</string>
     <string name="settings_work_dock_disabled_toast">कार्य प्रोफाइल थांबवली आहे</string>
     <string name="settings_keyboard_auto_show_title">कीबोर्ड आपोआप दाखवा</string>

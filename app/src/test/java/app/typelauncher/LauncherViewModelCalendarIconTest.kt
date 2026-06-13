@@ -48,12 +48,16 @@ class LauncherViewModelCalendarIconTest {
     @Test
     fun calendarAppGetsDatedCacheKeyAndOrdinaryAppDoesNot() {
         seedApp("Mail", "com.example.mail")
-        seedApp("Calendar", "com.google.android.calendar")
+        // Use the AOSP calendar package rather than `com.google.android.calendar`:
+        // both are dynamic-calendar packages, but the Google one is in the dock
+        // prefill list, so on first run it would be docked and deduped out of
+        // the empty-query list this test reads from.
+        seedApp("Calendar", "com.android.calendar")
         val viewModel = newViewModel()
         idle()
 
         val apps = viewModel.uiState.value.filteredApps
-        val calendar = apps.first { it.packageName == "com.google.android.calendar" }
+        val calendar = apps.first { it.packageName == "com.android.calendar" }
         val mail = apps.first { it.packageName == "com.example.mail" }
 
         assertTrue(

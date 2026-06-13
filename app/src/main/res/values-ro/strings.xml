@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Nume ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Nume ↑</string>
     <string name="settings_dock_enabled_title">Afișează dock-ul</string>
-    <string name="settings_show_docked_apps_in_list_title">Afișează aplicațiile ancorate</string>
     <string name="settings_work_dock_enabled_title">Afișează dock-ul de muncă</string>
     <string name="settings_work_dock_disabled_toast">Profilul de muncă este în pauză</string>
     <string name="settings_keyboard_auto_show_title">Afișează tastatura automat</string>

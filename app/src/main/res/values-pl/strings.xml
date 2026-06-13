@@ -109,7 +109,6 @@
     <string name="settings_app_list_sort_option_name">Nazwa ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Nazwa ↑</string>
     <string name="settings_dock_enabled_title">Pokaż dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Pokaż zadokowane aplikacje</string>
     <string name="settings_work_dock_enabled_title">Pokaż dock służbowy</string>
     <string name="settings_work_dock_disabled_toast">Profil służbowy jest wstrzymany</string>
     <string name="settings_keyboard_auto_show_title">Pokazuj klawiaturę automatycznie</string>

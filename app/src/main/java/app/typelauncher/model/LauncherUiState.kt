@@ -424,11 +424,6 @@ internal data class LauncherUiState(
     // layer keep their normal icon. Applied at rasterization time by
     // `AppIconLoader` / `IconNormalizer`, not at composition time.
     val iconTheme: IconTheme = IconTheme.Default,
-    // When true (the default), docked apps stay visible in the typed-search
-    // app list in addition to the dock row. When false, the dock dedupes
-    // itself out of the main list to free vertical space — the launcher's
-    // pre-toggle behavior.
-    val isShowDockedAppsInList: Boolean = true,
     val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
     // True when the dock was prefilled on first run and the user has not yet
