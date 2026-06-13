@@ -180,7 +180,15 @@ class MainActivity : ComponentActivity() {
         // so the cold-start IME state matches the setting on the very first
         // frame. Compose owns the Home search focus target; the window keeps
         // the platform resize/show policy in sync with the user preference.
-        applyKeyboardAutoShownPreference(viewModel.uiState.value.isKeyboardAutoShown)
+        // Seed the landscape tier from `resources.configuration` here too, so a
+        // rotation into a cramped landscape (which recreates the activity) opens
+        // with the keyboard already suppressed rather than flashing it for the
+        // frame before Compose recomputes.
+        val seedTier = computeHomeLandscapeTier()
+        viewModel.setHomeLandscapeTier(seedTier)
+        applyKeyboardAutoShownPreference(
+            viewModel.uiState.value.isKeyboardAutoShown && seedTier == HomeLandscapeTier.KeyboardAndBox,
+        )
         observeKeyboardAutoShownPreference()
         // Apply edge-to-edge with system-bar styling that matches the persisted
         // theme mode before setContent so the cold-start status/navigation bar
@@ -369,10 +377,51 @@ class MainActivity : ComponentActivity() {
     private fun observeKeyboardAutoShownPreference() {
         lifecycleScope.launch {
             viewModel.uiState
-                .map { it.isKeyboardAutoShown }
+                // The window's auto-show contract follows the *effective*
+                // decision: the user's preference AND the layout actually
+                // fitting the keyboard. In a cramped landscape tier we apply
+                // stateAlwaysHidden so retained search focus can't resurrect the
+                // IME, matching Compose's suppressed auto-show. The tier is
+                // pushed into state by the Compose layer (and seeded in onCreate).
+                .map { it.isKeyboardAutoShown && it.homeLandscapeTier == HomeLandscapeTier.KeyboardAndBox }
                 .distinctUntilChanged()
                 .collect(::applyKeyboardAutoShownPreference)
         }
+    }
+
+    /**
+     * Resolves the [HomeLandscapeTier] from `resources.configuration` and the
+     * persisted keyboard reservation, for seeding the window soft-input mode in
+     * [onCreate] before Compose has computed it. Reconstructs the reservation
+     * fingerprint with the persisted nav-bar inset so a stored landscape
+     * keyboard height applies when orientation / size / density match; otherwise
+     * the fit falls back to the landscape estimate.
+     */
+    private fun computeHomeLandscapeTier(): HomeLandscapeTier {
+        val config = resources.configuration
+        val state = viewModel.uiState.value
+        val navBottomPx = state.keyboardReservation.configFingerprint?.navBottomPx ?: 0
+        val fingerprint = KeyboardReservationConfig(
+            orientation = config.orientation,
+            screenWidthDp = config.screenWidthDp,
+            screenHeightDp = config.screenHeightDp,
+            densityDpi = config.densityDpi,
+            navBottomPx = navBottomPx,
+        )
+        val isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive
+        return resolveHomeLandscapeTier(
+            homeLandscapeMetrics(
+                screenWidthDp = config.screenWidthDp,
+                screenHeightDp = config.screenHeightDp,
+                densityDpi = config.densityDpi,
+                dockIconCount = state.dockIconCount,
+                isPersonalDockEnabled = state.isDockEnabled,
+                workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList(),
+                workDockPositions = state.workDockPositions,
+                keyboardReservation = state.keyboardReservation,
+                reservationFingerprint = fingerprint,
+            ),
+        )
     }
 
     private fun observeThemeModePreference() {

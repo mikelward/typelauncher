@@ -475,6 +475,12 @@ internal data class LauncherUiState(
     // as an animation target, so within-entry shrinks are gated on a
     // visible-IME confirmation.
     val keyboardReservation: KeyboardReservation = KeyboardReservation(),
+    // How much of Home the current (landscape) viewport can fit. Derived from
+    // the live configuration + persisted [keyboardReservation] by the Compose
+    // layer and pushed back into state so `MainActivity` (window soft-input
+    // mode, resume re-show) and the cold-start home-ready IME wait read one
+    // value. Always [HomeLandscapeTier.KeyboardAndBox] in portrait.
+    val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.KeyboardAndBox,
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,

@@ -159,6 +159,8 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
+    landscapeTier: HomeLandscapeTier = HomeLandscapeTier.KeyboardAndBox,
+    searchRevealed: Boolean = false,
     primaryBottomPadding: Dp = 0.dp,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
@@ -244,6 +246,25 @@ internal fun HomeScreen(
     // simply renders on its own without the personal card above it.
     val isDockSlotPresent =
         bodyReady && state.query.isBlank() && (state.isDockEnabled || showWorkDock)
+    val isHome = state.destination is LauncherDestination.Home
+    // In the cramped-landscape Hidden tier the search box doesn't fit alongside
+    // the dock and an app row, so it's hidden until the user reveals it with a
+    // pull-up; every other tier (and all of portrait) keeps it visible. It also
+    // stays visible whenever a query is active — a non-blank query hides the
+    // dock (freeing the space the Hidden estimate guards), and hiding the box
+    // would otherwise leave the list filtered with no way to see or clear the
+    // query (e.g. after a rotation / resume resets the reveal while the query
+    // is still retained).
+    val showSearchCard = landscapeTier != HomeLandscapeTier.Hidden ||
+        searchRevealed ||
+        state.query.isNotBlank()
+    // Auto-show the keyboard only when it fits (KeyboardAndBox), or when the
+    // user explicitly revealed the box in the Hidden tier — a pull-up is an
+    // explicit request, so it shows the keyboard even with auto-show off.
+    val autoShowKeyboard = isHome && (
+        (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.KeyboardAndBox) ||
+            (searchRevealed && landscapeTier == HomeLandscapeTier.Hidden)
+        )
     Layout(
         modifier = Modifier
             .fillMaxSize()
@@ -253,18 +274,24 @@ internal fun HomeScreen(
             .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
             .testTag(HOME_SCREEN_TAG),
         content = {
-            // Index 0: search card (always present).
-            SearchCard(
-                query = state.query,
-                autoShowKeyboard = state.isKeyboardAutoShown && state.destination is LauncherDestination.Home,
-                showPlayUpdateBadge = state.playUpdate.showBadge,
-                placeholderSuffix = searchPlaceholderSuffix,
-                keyboardShowRequests = keyboardShowRequests,
-                onQueryChanged = onQueryChanged,
-                onClearQuery = onClearQuery,
-                onOpenSettings = onOpenSettings,
-                onLaunchActiveApp = onLaunchActiveApp,
-            )
+            // Index 0: search card, or a zero-size spacer when the cramped
+            // landscape Hidden tier hides it. The slot is always emitted so the
+            // layout's measurable indices below stay stable.
+            if (showSearchCard) {
+                SearchCard(
+                    query = state.query,
+                    autoShowKeyboard = autoShowKeyboard,
+                    showPlayUpdateBadge = state.playUpdate.showBadge,
+                    placeholderSuffix = searchPlaceholderSuffix,
+                    keyboardShowRequests = keyboardShowRequests,
+                    onQueryChanged = onQueryChanged,
+                    onClearQuery = onClearQuery,
+                    onOpenSettings = onOpenSettings,
+                    onLaunchActiveApp = onLaunchActiveApp,
+                )
+            } else {
+                Spacer(modifier = Modifier.size(0.dp))
+            }
             // Index 1: apps card OR a placeholder spacer that fills the
             // remaining space during the cold-start holdback so the search
             // card stays pinned to the top.
@@ -449,7 +476,10 @@ internal fun HomeScreen(
         val search = measurables[0].measure(
             constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
         )
-        val belowSearch = (constraints.maxHeight - search.height - spacingPx).coerceAtLeast(0)
+        // No card-gap below a hidden (zero-height) search box, so the app grid
+        // sits flush at the top in the cramped-landscape Hidden tier.
+        val searchSpacingPx = if (search.height > 0) spacingPx else 0
+        val belowSearch = (constraints.maxHeight - search.height - searchSpacingPx).coerceAtLeast(0)
 
         // Bottom bar first: it owns the bottom-most slot, so the dock and apps
         // list lay out against whatever it leaves. Capped — like the dock — so
@@ -478,8 +508,8 @@ internal fun HomeScreen(
 
         layout(constraints.maxWidth, constraints.maxHeight) {
             search.place(0, 0)
-            apps.place(0, search.height + spacingPx)
-            var y = search.height + spacingPx + apps.height
+            apps.place(0, search.height + searchSpacingPx)
+            var y = search.height + searchSpacingPx + apps.height
             if (dock.height > 0) {
                 dock.place(0, y + spacingPx)
                 y += spacingPx + dock.height

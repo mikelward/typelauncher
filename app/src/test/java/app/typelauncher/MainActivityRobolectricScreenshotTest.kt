@@ -109,6 +109,86 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_tooShortForKeyboard_keepsBoxHidesKeyboard() {
+        composeRule.waitForIdle()
+        // A typical phone landscape can't fit the keyboard alongside the search
+        // box, dock, and an app row, so the keyboard is suppressed but the box
+        // stays — the BoxOnly tier.
+        assertEquals(
+            HomeLandscapeTier.BoxOnly,
+            composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
+        )
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+
+        saveScreenshot("compose_home_landscape_box_only_robolectric.png", widthPx = 2400, heightPx = 1080)
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    fun screenshot_landscape_tooShortForBox_hidesSearchBox() {
+        composeRule.waitForIdle()
+        // A very short landscape viewport can't fit even the search box with the
+        // dock and an app row, so the box is hidden too — the Hidden tier.
+        assertEquals(
+            HomeLandscapeTier.Hidden,
+            composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
+        )
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+
+        saveScreenshot("compose_home_landscape_hidden_box_robolectric.png", widthPx = 1575, heightPx = 630)
+    }
+
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_cachedKeyboard_doesNotReserveInBoxOnly() {
+        composeRule.waitForIdle()
+        // Even with a keyboard height cached for this size (seeded by the rule),
+        // the BoxOnly tier suppresses the keyboard and must not reserve its
+        // height — so the dock still lays out instead of being squeezed away.
+        assertEquals(
+            HomeLandscapeTier.BoxOnly,
+            composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
+        )
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+
+        saveScreenshot(
+            "compose_home_landscape_box_only_cached_keyboard_robolectric.png",
+            widthPx = 2400,
+            heightPx = 1080,
+        )
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    fun landscape_hiddenTier_keepsSearchVisibleWhileQueryActive() {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        // A retained query must keep the search field on screen even in the
+        // Hidden tier (e.g. after a rotation/resume reset the reveal), so the
+        // user can always see and clear what's filtering the list.
+        composeRule.runOnUiThread { composeRule.activity.viewModel.setQuery("ca") }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    fun landscape_pullUpRevealsHiddenSearchBox() {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        // The second pull-up routes through `requestShowKeyboard`; in the Hidden
+        // tier that reveals the search box (and brings the keyboard) on demand.
+        composeRule.runOnUiThread { composeRule.activity.viewModel.requestShowKeyboard() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun screenshot_agenda_withoutPermission_showsPermissionCard() {
         composeRule.activity.viewModel.showAgenda()
         composeRule.waitForIdle()
@@ -3124,6 +3204,17 @@ class MainActivityRobolectricScreenshotTest {
                             .putString("docked_app_positions", "upgrade-fixture-id\t0\t0")
                             .putBoolean("dock_prefilled", true)
                             .commit()
+                    }
+                    if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveInBoxOnly") {
+                        // A keyboard height already cached for this landscape size
+                        // (wildcard fingerprint, so it applies under any config).
+                        // The BoxOnly tier must not reserve it — exercises the
+                        // suppressed-tier reservation gate.
+                        DockSettingsStore(application).keyboardReservation = KeyboardReservation(
+                            bottomPx = 600,
+                            configFingerprint = null,
+                            source = KeyboardReservationSource.VisibleIme,
+                        )
                     }
                     base.evaluate()
                 }
