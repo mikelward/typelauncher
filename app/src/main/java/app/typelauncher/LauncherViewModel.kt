@@ -773,6 +773,7 @@ internal class LauncherViewModel(
 
     fun returnToLauncherHome() {
         pendingWidgetPlacement = null
+        val hadQuery = _uiState.value.query.isNotEmpty()
         _uiState.update {
             it.copy(
                 destination = LauncherDestination.Home,
@@ -780,8 +781,14 @@ internal class LauncherViewModel(
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
+                query = "",
             )
         }
+        // Clearing the query has to rebuild the filtered list so the app list
+        // matches the now-empty search field. Skip the rebuild when nothing was
+        // typed so a plain home press on an already-empty Home doesn't churn
+        // filteredApps (and recompose the list) for nothing.
+        if (hadQuery) refreshFilteredApps()
         logState("returnToLauncherHome")
     }
 
