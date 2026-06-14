@@ -81,6 +81,45 @@ class DockPrefillNarrowScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "sw411dp-w320dp-h600dp")
+    fun prefillClampsToTheCurrentWindowNotTheDeviceShortEdge() {
+        // A 411 dp device (smallestScreenWidthDp) running in a 320 dp-wide
+        // window — split-screen, free-form, or a foldable cover screen.
+        // HomeScreen renders the dock against the current window
+        // (minOf(screenWidthDp, screenHeightDp) = 320 → 5 columns), so the
+        // prefill must clamp to that, not the device's 411 dp (which admits 6
+        // and would fill the rendered row, hiding the "+").
+        val config = context.resources.configuration
+        // Guard: confirm the qualifiers set up the divergence we're testing.
+        assertEquals("device short edge", 411, config.smallestScreenWidthDp)
+        assertEquals(
+            "window short edge",
+            320,
+            minOf(config.screenWidthDp, config.screenHeightDp),
+        )
+
+        listOf(
+            "com.android.chrome",
+            "com.google.android.gm",
+            "com.google.android.apps.maps",
+            "com.google.android.youtube",
+            "com.google.android.dialer",
+            "com.google.android.apps.messaging",
+        ).forEach { pkg -> seedApp(pkg, pkg) }
+
+        val viewModel = newViewModel()
+        idle()
+
+        // 320 dp window → 5 columns → prefill stops at 4, leaving the "+" cell.
+        // Clamping on the 411 dp device width would admit 6 and dock 5.
+        assertEquals(
+            "prefill must size to the current window, not the device short edge",
+            4,
+            viewModel.uiState.value.dockedApps.size,
+        )
+    }
+
+    @Test
     fun dockWritesUseTheDeviceClampedColumnGridOnNarrowScreens() {
         // 320 dp tops out at 5 columns but the stored default is 6. A dock write
         // must place apps in the 5-column grid Home actually renders, not a

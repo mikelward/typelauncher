@@ -1819,15 +1819,27 @@ internal class LauncherViewModel(
      * (defaulting to the live `dockIconCount`) coerced into [dockSlotCountRange]
      * for the short edge. The stored count is derived from a fixed reference
      * width ([DEFAULT_DOCK_SCREEN_WIDTH_DP]) and can fall outside what a given
-     * phone shows — HomeScreen clamps the rendered dock the same way. Every
+     * window shows — HomeScreen clamps the rendered dock the same way. Every
      * dock-store interaction that depends on the column grid (first-run prefill,
      * `dock`/`move` position writes, and the position→rank reads that order
      * docked apps in the list) sizes itself from this so the persisted grid
      * always matches the grid the user sees, instead of placing or ranking apps
      * in columns Home never renders.
+     *
+     * Uses the *current window's* short edge — `minOf(screenWidthDp,
+     * screenHeightDp)`, the exact expression HomeScreen's `dockReferenceWidthDp`
+     * uses — rather than `smallestScreenWidthDp`. The two diverge when the app
+     * runs in a window narrower than the physical device (split-screen,
+     * free-form, a foldable cover screen): there `smallestScreenWidthDp` still
+     * reports the device's smallest width while HomeScreen renders against the
+     * narrower window, so clamping on the device width would persist a grid
+     * wider than what's drawn.
      */
-    private fun deviceRenderableDockIconCount(storedCount: Int = _uiState.value.dockIconCount): Int =
-        storedCount.coerceIn(dockSlotCountRange(app.resources.configuration.smallestScreenWidthDp))
+    private fun deviceRenderableDockIconCount(storedCount: Int = _uiState.value.dockIconCount): Int {
+        val configuration = app.resources.configuration
+        val shortEdgeDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+        return storedCount.coerceIn(dockSlotCountRange(shortEdgeDp))
+    }
 
     /**
      * Runs the one-time work-dock prefill the first time the user enables the
