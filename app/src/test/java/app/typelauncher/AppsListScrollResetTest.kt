@@ -134,7 +134,10 @@ class AppsListScrollResetTest {
     @Test
     fun iconGrid_queryChange_resetsScrollToTop() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        val stateHolder = renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true))
+        // Pin 4 icons per row: at the 6-per-row default this icon grid composes
+        // enough cells to leave Robolectric's shared Compose runtime unable to
+        // reach idle in a later test in the same JVM (see AppsListChevronTest).
+        val stateHolder = renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true, dockIconCount = 4))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
