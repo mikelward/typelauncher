@@ -183,6 +183,68 @@ class LauncherViewModelShowDockedInListTest {
     }
 
     @Test
+    fun dockNoKeyboardTierDedupesDockedAppsLikeFull() {
+        // The keyboard-down DockNoKeyboard landscape state renders the dock, so a
+        // docked app must be deduped out of the blank-query list there just like
+        // in Full — otherwise it would show in both the dock and the list with
+        // "Show docked apps" off. (Regression guard: the dedup gate used to key
+        // on Full only, missing the new tier.)
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
+        viewModel.toggleDock(maps, maxDockedApps = 4)
+        viewModel.setShowDockedAppsInList(false)
+        idle()
+
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.DockNoKeyboard)
+        idle()
+        assertFalse(
+            "Docked Maps is deduped in DockNoKeyboard, where the dock is on screen",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+    }
+
+    @Test
+    fun dockNoKeyboardKeyboardUpSurfacesDockedAppsInList() {
+        // In DockNoKeyboard, raising the keyboard hides the dock to make room,
+        // so its docked apps must reappear in the list (the only surface left)
+        // until the keyboard is dismissed — the dedup follows the dock, no seam.
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
+        viewModel.toggleDock(maps, maxDockedApps = 4)
+        viewModel.setShowDockedAppsInList(false)
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.DockNoKeyboard)
+        idle()
+
+        // Keyboard down: the dock is shown, so Maps is deduped out of the list.
+        assertFalse(
+            "Docked Maps is deduped while the DockNoKeyboard dock is shown",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+
+        // Keyboard up: the dock is suppressed, so Maps reappears in the list.
+        viewModel.setDockSuppressedByKeyboard(true)
+        idle()
+        assertTrue(
+            "Docked Maps reappears once the keyboard suppresses the dock",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+
+        // Keyboard dismissed: the dock returns and Maps re-dedupes.
+        viewModel.setDockSuppressedByKeyboard(false)
+        idle()
+        assertFalse(
+            "Docked Maps re-dedupes once the dock returns",
+            viewModel.uiState.value.filteredApps.any { it.name == "Maps" },
+        )
+    }
+
+    @Test
     fun compactTierFloatsWorkDockedAppsToTop() {
         // In Compact the work dock is dropped too, so its pins must not only
         // reappear in the blank-query list (the exclusion fix) but also float to
@@ -216,6 +278,44 @@ class LauncherViewModelShowDockedInListTest {
         assertTrue("Work pin must reappear in the Compact list, got $names", "Zzz Work" in names)
         assertEquals(
             "Work pin must float to the top of the Compact list, got $names",
+            "Zzz Work",
+            names.first(),
+        )
+    }
+
+    @Test
+    fun dockNoKeyboardKeyboardUpFloatsWorkDockedAppsToTop() {
+        // Raising the keyboard in DockNoKeyboard suppresses both dock cards, so a
+        // work pin must not only reappear in the list but also float to the top
+        // in dock order (like Compact / typed search) rather than scattering by
+        // usage. "Zzz Work" sorts last alphabetically and is never launched, so
+        // floating visibly moves it to the front.
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        seedApp("Zzz Work", "com.example.work")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.markAsActiveWorkAppForTest("com.example.work")
+        viewModel.setWorkDockEnabled(true)
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.DockNoKeyboard)
+        idle()
+        val workApp = viewModel.uiState.value.filteredApps.first { it.name == "Zzz Work" }
+        viewModel.toggleWorkDock(workApp, maxDockedApps = 6)
+        idle()
+
+        // Keyboard down: the work dock is on screen, so the pin is deduped out.
+        assertFalse(
+            "Work pin is deduped while the DockNoKeyboard work dock is shown",
+            viewModel.uiState.value.filteredApps.any { it.name == "Zzz Work" },
+        )
+
+        // Keyboard up: the work dock is suppressed, so the pin reappears and floats.
+        viewModel.setDockSuppressedByKeyboard(true)
+        idle()
+        val names = viewModel.uiState.value.filteredApps.map { it.name }
+        assertTrue("Work pin must reappear when the keyboard suppresses the dock, got $names", "Zzz Work" in names)
+        assertEquals(
+            "Work pin must float to the top while the dock is suppressed, got $names",
             "Zzz Work",
             names.first(),
         )

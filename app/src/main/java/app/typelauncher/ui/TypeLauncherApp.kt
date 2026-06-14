@@ -265,6 +265,7 @@ internal fun TypeLauncherApp(
         onRequestShowKeyboard = viewModel::requestShowKeyboard,
         onKeyboardReservationChanged = viewModel::setKeyboardReservation,
         onHomeLandscapeTierChanged = viewModel::setHomeLandscapeTier,
+        onDockSuppressedByKeyboardChanged = viewModel::setDockSuppressedByKeyboard,
         keyboardShowRequests = viewModel.keyboardShowRequests,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
@@ -329,6 +330,7 @@ internal fun TypeLauncherApp(
     onRequestShowKeyboard: () -> Unit = {},
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
     onHomeLandscapeTierChanged: (HomeLandscapeTier) -> Unit = {},
+    onDockSuppressedByKeyboardChanged: (Boolean) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
@@ -624,6 +626,19 @@ internal fun TypeLauncherApp(
             imeTargetBottomPx = imeTargetBottomPx,
             navBottomPx = navBottomPx,
         )
+        // The DockNoKeyboard tier shows the dock with the keyboard down; once the
+        // keyboard rises there is no room for both, so the dock yields. Keyed on
+        // the showing-or-animating signal (not raw `imeVisible`, which lags the
+        // animation target) so the dock yields on the same frame the keyboard
+        // reservation starts applying, not a frame or two later. Only ever true
+        // in that tier (Full/portrait keep the dock with the IME up). Pushed to
+        // the ViewModel so the app-list dedup surfaces the docked apps while the
+        // dock is gone, and passed straight to HomeScreen so it yields promptly.
+        val dockSuppressedByKeyboard =
+            keyboardShowingOrAnimatingIn && homeLandscapeTier == HomeLandscapeTier.DockNoKeyboard
+        LaunchedEffect(dockSuppressedByKeyboard) {
+            onDockSuppressedByKeyboardChanged(dockSuppressedByKeyboard)
+        }
         // Collapse the reserved keyboard space once the keyboard has been seen
         // and dismissed this Home presence (see `keyboardSeenThisHomePresence`).
         // Until then it stays reserved so the auto-shown keyboard does not cause
@@ -735,6 +750,7 @@ internal fun TypeLauncherApp(
                                 landscapeTier = homeLandscapeTier,
                                 searchRevealed = searchRevealedInTightLandscape,
                                 primaryBottomPadding = effectiveKeyboardReservationDp,
+                                dockSuppressedByKeyboard = dockSuppressedByKeyboard,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
                                 onQueryChanged = onQueryChanged,
@@ -815,6 +831,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
     val navBottomPx = WindowInsets.navigationBars.getBottom(density)
     val isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive
     val workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList()
+    val personalDockedAppIds = if (state.isDockEnabled) state.dockedApps.map { it.id } else emptyList()
     return remember(
         configuration.orientation,
         configuration.screenWidthDp,
@@ -822,7 +839,10 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
         configuration.densityDpi,
         navBottomPx,
         state.dockIconSizeDp,
+        state.landscapeDockMode,
         state.isDockEnabled,
+        personalDockedAppIds,
+        state.dockPositions,
         isWorkDockVisible,
         workDockedAppIds,
         state.workDockPositions,
@@ -843,6 +863,8 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
                 targetDockIconSizeDp = state.dockIconSizeDp,
                 landscapeDockMode = state.landscapeDockMode,
                 isPersonalDockEnabled = state.isDockEnabled,
+                personalDockedAppIds = personalDockedAppIds,
+                personalDockPositions = state.dockPositions,
                 isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = workDockedAppIds,
                 workDockPositions = state.workDockPositions,

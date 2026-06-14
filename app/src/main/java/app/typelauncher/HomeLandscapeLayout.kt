@@ -8,19 +8,28 @@ import kotlin.math.min
  * In landscape the screen is short, and an auto-shown keyboard can leave too
  * little room for the search box, dock(s), and app list. Rather than squeeze
  * the app list to nothing or clip the dock off the bottom of the screen, Home
- * resolves to one of two states:
+ * resolves to one of three states:
  *
  *  - [Full]: the search box, the auto-shown keyboard, at least one app row, and
  *    the dock(s) all fit. This is the only state ever used in portrait; in
  *    landscape it is reached only on tall viewports (tablets), since a landscape
  *    keyboard occupies roughly half the short edge.
- *  - [Compact]: everything else. The app list fills the viewport on its own —
- *    the static search box is hidden by default, the auto-shown keyboard is
- *    suppressed, and both docks are dropped entirely (not clipped, not
- *    reflowed). A pull-up reveals the search box and keyboard on demand.
+ *  - [DockNoKeyboard]: the keyboard does not fit, but the search box, one app
+ *    row, and a *single-row* dock do. The dock renders with the keyboard down
+ *    (auto-show suppressed); the user brings the keyboard on demand by tapping
+ *    the search box, which then yields the dock its height. Gated on a
+ *    single-row dock so a tall multi-row dock cannot eat the height-constrained
+ *    app list — which is why this is the state that makes a flattened landscape
+ *    dock (always one row) visible on phones and folds.
+ *  - [Compact]: everything else (not even the search box, one app row, and a
+ *    one-row dock fit). The app list fills the viewport on its own — the static
+ *    search box is hidden by default, the auto-shown keyboard is suppressed, and
+ *    both docks are dropped entirely (not clipped, not reflowed). A pull-up
+ *    reveals the search box and keyboard on demand.
  */
 internal enum class HomeLandscapeTier {
     Full,
+    DockNoKeyboard,
     Compact,
 }
 
@@ -29,6 +38,12 @@ internal enum class HomeLandscapeTier {
 // filter field is a default-height text field (~56dp) inside the card's
 // `SECTION_CARD_PADDING_DP` of vertical chrome on each side (16 * 2 = 32).
 internal const val SEARCH_CARD_ESTIMATED_HEIGHT_DP = 88
+
+// Height of a single text `AppRow` in the app list, independent of the dock
+// icon size. The DockNoKeyboard app-list floor reserves the larger of this and
+// the icon-grid row so a dense dock (whose icon-grid row is shorter than a text
+// row) can't let the tier under-reserve the user's text-row layout.
+internal const val APP_LIST_TEXT_ROW_HEIGHT_DP = 56
 
 // Outer padding applied around the whole Home layout (see `HomeScreen`'s root
 // `Modifier.padding(... 8.dp ...)`). Subtracted from the screen height when
@@ -56,6 +71,9 @@ internal data class HomeLandscapeMetrics(
     val searchBoxHeightDp: Int,
     val dockHeightDp: Int,
     val appRowHeightDp: Int,
+    // Whether every visible dock renders as a single row in this window — the
+    // gate for the keyboard-down DockNoKeyboard tier (see resolveHomeLandscapeTier).
+    val dockFitsAsSingleRow: Boolean = true,
 )
 
 /**
@@ -71,6 +89,8 @@ internal fun homeLandscapeMetrics(
     targetDockIconSizeDp: Int,
     landscapeDockMode: LandscapeDockMode,
     isPersonalDockEnabled: Boolean,
+    personalDockedAppIds: List<String>,
+    personalDockPositions: Map<String, DockPosition>,
     isWorkDockVisible: Boolean,
     workDockedAppIds: List<String>,
     workDockPositions: Map<String, DockPosition>,
@@ -152,6 +172,19 @@ internal fun homeLandscapeMetrics(
         screenHeightDp * LANDSCAPE_KEYBOARD_FALLBACK_PERCENT / 100
     }
 
+    val dockFitsAsSingleRow = landscapeDockFitsAsSingleRow(
+        isWiderThanPortrait = screenWidthDp > screenHeightDp,
+        landscapeDockMode = landscapeDockMode,
+        dockIconCount = coercedDockIconCount,
+        landscapeFitColumns = dockSlotCountForIconSize(screenWidthDp, dockIconSizeDp),
+        isPersonalDockEnabled = isPersonalDockEnabled,
+        personalDockedAppIds = personalDockedAppIds,
+        personalDockPositions = personalDockPositions,
+        isWorkDockVisible = isWorkDockVisible,
+        workDockedAppIds = workDockedAppIds,
+        workDockPositions = workDockPositions,
+    )
+
     return HomeLandscapeMetrics(
         isWiderThanPortrait = screenWidthDp > screenHeightDp,
         availableHeightDp = (screenHeightDp - HOME_OUTER_PADDING_DP * 2).coerceAtLeast(0),
@@ -159,16 +192,23 @@ internal fun homeLandscapeMetrics(
         searchBoxHeightDp = SEARCH_CARD_ESTIMATED_HEIGHT_DP,
         dockHeightDp = dockHeightDp,
         appRowHeightDp = appRowHeightDp,
+        dockFitsAsSingleRow = dockFitsAsSingleRow,
     )
 }
 
 /**
  * Resolves the [HomeLandscapeTier] from pre-computed [HomeLandscapeMetrics].
- * Portrait is always [HomeLandscapeTier.Full]. In landscape we stay [Full] only
- * when the search box, the keyboard, at least one app row, and the dock(s) all
- * fit; otherwise we drop to [Compact] — which hides the box, suppresses the
- * keyboard, and drops the dock(s). The dock height is still reserved in the
- * fit test because the dock is rendered in [Full].
+ * Portrait is always [HomeLandscapeTier.Full]. In landscape:
+ *  - [Full] when the search box, the keyboard, one app row, and the dock(s) fit.
+ *  - [HomeLandscapeTier.DockNoKeyboard] when the keyboard does not fit but the
+ *    search box, the dock, and the app list's `APP_LIST_MIN_VISIBLE_ROWS` floor
+ *    do — and [dockFitsAsSingleRow] is true (a tall multi-row dock is not worth
+ *    the height-constrained app list, so it falls through to [Compact] instead).
+ *  - [Compact] otherwise — hides the box, suppresses the keyboard, drops the
+ *    dock(s).
+ *
+ * The keyboard height is reserved only in the [Full] test; [DockNoKeyboard]
+ * shows the dock with the keyboard down, so it is sized without it.
  */
 internal fun resolveHomeLandscapeTier(
     metrics: HomeLandscapeMetrics,
@@ -177,11 +217,73 @@ internal fun resolveHomeLandscapeTier(
     if (!metrics.isWiderThanPortrait) return HomeLandscapeTier.Full
     val dockBlockDp = if (metrics.dockHeightDp > 0) cardSpacingDp + metrics.dockHeightDp else 0
     val needWithBoxDp = metrics.searchBoxHeightDp + cardSpacingDp + metrics.appRowHeightDp + dockBlockDp
+    // DockNoKeyboard renders without the keyboard, but `HomeScreen` still floors
+    // the app list at APP_LIST_MIN_VISIBLE_ROWS rows above the dock, so the tier
+    // has to reserve that whole floor — not just one app row. The row height is
+    // the *larger* of the icon-grid row (`appRowHeightDp`, from the dock icon
+    // size) and the fixed-height text row: DockNoKeyboard keeps the user's
+    // app-list layout, which may be text rows, and a dense dock makes the
+    // icon-grid row shorter than a text row, so floor-ing on the icon row alone
+    // would under-reserve and let a viewport that can't fit two text rows + the
+    // dock enter DockNoKeyboard and squeeze the layout instead of falling back to
+    // Compact.
+    val appListFloorRowDp = maxOf(metrics.appRowHeightDp, APP_LIST_TEXT_ROW_HEIGHT_DP)
+    val needWithDockFloorDp = metrics.searchBoxHeightDp + cardSpacingDp +
+        APP_LIST_MIN_VISIBLE_ROWS * appListFloorRowDp + dockBlockDp
     return when {
         needWithBoxDp + cardSpacingDp + metrics.predictedKeyboardHeightDp <= metrics.availableHeightDp ->
             HomeLandscapeTier.Full
+        metrics.dockHeightDp > 0 && metrics.dockFitsAsSingleRow &&
+            needWithDockFloorDp <= metrics.availableHeightDp ->
+            HomeLandscapeTier.DockNoKeyboard
         else -> HomeLandscapeTier.Compact
     }
+}
+
+/**
+ * Whether every visible dock would render as a single row in this landscape
+ * window — the gate for [HomeLandscapeTier.DockNoKeyboard]. A flattening mode
+ * collapses each dock to one row unless its apps exceed the landscape fit
+ * (`landscapeDockColumnCount`); `Same` keeps the portrait row count, so a
+ * many-app `Same` dock stays multi-row and is *not* shown in the
+ * height-constrained tier. A dock whose card is not rendered contributes no
+ * rows. Portrait always returns true (the tier is forced to `Full` there).
+ */
+internal fun landscapeDockFitsAsSingleRow(
+    isWiderThanPortrait: Boolean,
+    landscapeDockMode: LandscapeDockMode,
+    dockIconCount: Int,
+    landscapeFitColumns: Int,
+    isPersonalDockEnabled: Boolean,
+    personalDockedAppIds: List<String>,
+    personalDockPositions: Map<String, DockPosition>,
+    isWorkDockVisible: Boolean,
+    workDockedAppIds: List<String>,
+    workDockPositions: Map<String, DockPosition>,
+): Boolean {
+    if (!isWiderThanPortrait) return true
+    val isFlatten = landscapeDockMode != LandscapeDockMode.Same
+    val columnCount = landscapeDockColumnCount(
+        isPersonalDockEnabled = isPersonalDockEnabled,
+        personalDockedAppCount = personalDockedAppIds.size,
+        isWorkDockVisible = isWorkDockVisible,
+        workDockedAppCount = workDockedAppIds.size,
+        dockIconCount = dockIconCount,
+        landscapeFitColumns = landscapeFitColumns,
+    ).coerceAtLeast(1)
+    fun rowsFor(
+        isVisible: Boolean,
+        ids: List<String>,
+        positions: Map<String, DockPosition>,
+    ): Int = when {
+        !isVisible -> 0
+        // A visible dock always occupies at least one row (the add-hint card).
+        isFlatten -> if (ids.isEmpty()) 1 else (ids.size + columnCount - 1) / columnCount
+        else -> dockRowCount(ids, positions, dockIconCount)
+    }
+    val personalRows = rowsFor(isPersonalDockEnabled, personalDockedAppIds, personalDockPositions)
+    val workRows = rowsFor(isWorkDockVisible, workDockedAppIds, workDockPositions)
+    return personalRows <= 1 && workRows <= 1
 }
 
 private fun pxToDp(px: Int, densityDpi: Int): Int {

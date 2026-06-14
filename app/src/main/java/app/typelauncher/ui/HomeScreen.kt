@@ -162,6 +162,10 @@ internal fun HomeScreen(
     landscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
     searchRevealed: Boolean = false,
     primaryBottomPadding: Dp = 0.dp,
+    // True while the keyboard is up in the DockNoKeyboard landscape tier; the
+    // dock yields its space then (see `isDockSlotPresent`). Passed directly
+    // (not via state) so the dock hides on the same frame the keyboard rises.
+    dockSuppressedByKeyboard: Boolean = false,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onQueryChanged: (String) -> Unit,
@@ -291,11 +295,20 @@ internal fun HomeScreen(
     // In the cramped-landscape Compact state the dock(s) are dropped entirely:
     // the viewport can't fit the full experience, so rather than clip the dock
     // off the bottom of the screen we give the whole area to the app list. The
-    // dock only renders in Full (which includes all of portrait). Revealing the
-    // search box in Compact does not bring the dock back.
+    // dock renders in Full (which includes all of portrait) and in
+    // DockNoKeyboard — the landscape state that fits a single-row dock with the
+    // keyboard down, the one that makes a flattened landscape dock visible on
+    // phones and folds. Revealing the search box in Compact does not bring the
+    // dock back.
+    // In DockNoKeyboard the dock shows with the keyboard down; once the user
+    // raises the keyboard there is no room for both, so the dock yields its
+    // space (the app list keeps its floor and the docked apps resurface in the
+    // list — see `excludedFromAppList`). `dockSuppressedByKeyboard` is only ever
+    // true in DockNoKeyboard, so Full and portrait keep the dock with the IME up.
     val isDockSlotPresent =
         bodyReady && state.query.isBlank() &&
-            landscapeTier == HomeLandscapeTier.Full &&
+            landscapeTier != HomeLandscapeTier.Compact &&
+            !dockSuppressedByKeyboard &&
             (state.isDockEnabled || showWorkDock)
     val isHome = state.destination is LauncherDestination.Home
     // In the cramped-landscape Compact state the search box doesn't fit alongside
@@ -308,11 +321,12 @@ internal fun HomeScreen(
         searchRevealed ||
         state.query.isNotBlank()
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
-    // revealed the box in the Compact state — a pull-up is an explicit request, so
-    // it shows the keyboard even with auto-show off.
+    // revealed the box in a landscape state that keeps the keyboard down
+    // (Compact or DockNoKeyboard) — a pull-up is an explicit request, so it
+    // shows the keyboard even with auto-show off.
     val autoShowKeyboard = isHome && (
         (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.Full) ||
-            (searchRevealed && landscapeTier == HomeLandscapeTier.Compact)
+            (searchRevealed && landscapeTier != HomeLandscapeTier.Full)
         )
     Layout(
         modifier = Modifier
@@ -2341,6 +2355,12 @@ private fun DockedAppButton(
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
     val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    // Read through updated-state too: the `pointerInput` key is `app.id`, so a
+    // live window-size change that flips reordering off (entering a landscape
+    // reflow) without remounting this node must reach the already-running
+    // gesture coroutine, or a long-press could still promote into a drag and
+    // write a flattened-grid column back into portrait storage.
+    val latestReorderEnabled by rememberUpdatedState(reorderEnabled)
     Box(
         modifier = modifier
             // onGloballyPositioned sits outside the graphicsLayer so it
@@ -2453,9 +2473,21 @@ private fun DockedAppButton(
                                     change.consume()
                                     break
                                 }
+                                if (dragging && !latestReorderEnabled) {
+                                    // Reordering was disabled mid-drag — a live
+                                    // window-size change (foldable/freeform)
+                                    // entered a landscape reflow before the finger
+                                    // lifted. End the drag here so the active
+                                    // gesture can't keep dispatching against the
+                                    // reflowed slot table and persist a
+                                    // flattened-grid column into the portrait
+                                    // store. The `finally` runs `onDragEnd`, so the
+                                    // icon snaps back to its slot.
+                                    break
+                                }
                                 val delta = change.positionChange()
                                 totalDelta += delta
-                                if (reorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
+                                if (latestReorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
                                     dragging = true
                                     latestOnDragStart()
                                     // Carry the full pre-slop displacement into

@@ -417,6 +417,8 @@ class MainActivity : ComponentActivity() {
                 targetDockIconSizeDp = state.dockIconSizeDp,
                 landscapeDockMode = state.landscapeDockMode,
                 isPersonalDockEnabled = state.isDockEnabled,
+                personalDockedAppIds = if (state.isDockEnabled) state.dockedApps.map { it.id } else emptyList(),
+                personalDockPositions = state.dockPositions,
                 isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList(),
                 workDockPositions = state.workDockPositions,

@@ -697,6 +697,21 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("setHomeLandscapeTier tier=$tier")
     }
 
+    /**
+     * Pushed from the Compose layer: true while the keyboard is up in the
+     * landscape `DockNoKeyboard` tier, where raising the keyboard hides the
+     * dock. The filtered list has to be recomputed when it flips so the
+     * dock-dedupe in [excludedFromAppList] follows the dock — docked apps
+     * reappear in the list while the dock is suppressed, then re-dedupe once
+     * the keyboard is dismissed and the dock returns.
+     */
+    fun setDockSuppressedByKeyboard(suppressed: Boolean) {
+        if (_uiState.value.dockSuppressedByKeyboard == suppressed) return
+        _uiState.update { it.copy(dockSuppressedByKeyboard = suppressed) }
+        refreshFilteredApps()
+        LauncherDebugLog.event("setDockSuppressedByKeyboard=$suppressed")
+    }
+
     fun setKeyboardReservation(reservation: KeyboardReservation) {
         val coerced = reservation.copy(bottomPx = reservation.bottomPx.coerceAtLeast(0))
         if (_uiState.value.keyboardReservation == coerced) return
@@ -1806,11 +1821,14 @@ internal class LauncherViewModel(
         workDockedIds: List<String>,
     ): List<String> {
         // The work dock row is hidden — so its apps belong in the list and float
-        // like personal pins — whenever a query is active or the Compact state
-        // has dropped the docks. A blank query in Full keeps the work dock on
-        // screen, so only personal pins float then.
+        // like personal pins — whenever a query is active, the Compact state has
+        // dropped the docks, or the keyboard has suppressed the DockNoKeyboard
+        // dock (matching `excludedFromAppList`, which surfaces those pins in the
+        // list there). A blank query in Full keeps the work dock on screen, so
+        // only personal pins float then.
         val workDockHidden = state.query.isNotBlank() ||
-            state.homeLandscapeTier == HomeLandscapeTier.Compact
+            state.homeLandscapeTier == HomeLandscapeTier.Compact ||
+            state.dockSuppressedByKeyboard
         if (!workDockHidden) return personalDockedIds
         // Re-derive the active-profile flag from `installedApps` for the same
         // reason `excludedFromAppList` does: the `state` snapshot visible here
@@ -1915,11 +1933,16 @@ internal class LauncherViewModel(
         // In either case the exclusion must stop, or the docked apps would
         // vanish from every surface and become unreachable — the Compact app
         // list is the *only* surface, so it must contain all launchable apps.
-        // The dock is on screen only with a blank query in the Full state
-        // (which includes all of portrait); then the dedupe resumes (subject to
-        // `Show docked apps`).
+        // The dock is on screen with a blank query in any non-Compact state —
+        // Full (which includes all of portrait) and the keyboard-down
+        // DockNoKeyboard landscape state both render it — so the dedupe must
+        // match `isDockSlotPresent` and resume there too (subject to
+        // `Show docked apps`). The exception is DockNoKeyboard with the keyboard
+        // raised: that hides the dock to make room, so its apps must reappear in
+        // the list (the only surface left) until the keyboard is dismissed.
         val isDockUiVisible = state.query.isBlank() &&
-            state.homeLandscapeTier == HomeLandscapeTier.Full
+            state.homeLandscapeTier != HomeLandscapeTier.Compact &&
+            !state.dockSuppressedByKeyboard
         if (isDockUiVisible && state.isDockEnabled && !state.isShowDockedAppsInList) {
             excluded.addAll(dockedIds)
         }

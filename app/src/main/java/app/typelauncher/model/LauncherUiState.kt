@@ -631,6 +631,13 @@ internal data class LauncherUiState(
     // mode, resume re-show) and the cold-start home-ready IME wait read one
     // value. Always [HomeLandscapeTier.Full] in portrait.
     val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
+    // True while the keyboard is up in the landscape [HomeLandscapeTier.DockNoKeyboard]
+    // state: that tier shows the dock with the keyboard down, so when the user
+    // raises the keyboard the dock yields its space. Pushed from the Compose
+    // layer (IME visibility) so the app-list dedup follows the dock — docked
+    // apps reappear in the list while the dock is suppressed, mirroring how
+    // typing or the Compact state surface them. False everywhere else.
+    val dockSuppressedByKeyboard: Boolean = false,
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,

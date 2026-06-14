@@ -48,11 +48,12 @@ class LandscapeDockDragTest {
     private fun setLauncherContent(mode: LandscapeDockMode) {
         reorders.clear()
         val docked = (1..8).map { index -> fakeApp("App%02d".format(index)).copy(isDocked = true) }
-        // Empty persisted positions resolve to a contiguous 4-wide, two-row grid.
+        // Empty persisted positions resolve to a contiguous grid; the exact row
+        // count doesn't matter here — a flatten mode disables drag regardless.
         val state = LauncherUiState(
             filteredApps = emptyList(),
             dockedApps = docked,
-            dockIconCount = 4,
+            dockIconSizeDp = MAX_DOCK_APP_ICON_SIZE_DP,
             landscapeDockMode = mode,
         )
         composeRule.setContent {
