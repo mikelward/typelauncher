@@ -274,7 +274,7 @@ internal class LauncherViewModel(
                             appLaunchStatsStore = appLaunchStatsStore,
                             excludedAppIds = excludedFromAppList(state, dockedIds),
                             dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                            sortOrder = state.appListSortOrder,
+                            sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
                         ).markVisibility(),
                         dockedApps = visibleApps
                             .filterDocked(dockedIds)
@@ -335,7 +335,7 @@ internal class LauncherViewModel(
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = excludedFromAppList(state, dockedIds),
                         dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                        sortOrder = state.appListSortOrder,
+                        sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
                     ).markVisibility(),
                     dockedApps = visibleApps
                         .filterDocked(dockedIds)
@@ -680,10 +680,14 @@ internal class LauncherViewModel(
     fun setHomeLandscapeTier(tier: HomeLandscapeTier) {
         if (_uiState.value.homeLandscapeTier == tier) return
         _uiState.update { it.copy(homeLandscapeTier = tier) }
-        // The dock-dedupe in `excludedFromAppList` depends on the tier (the
+        // The filtered list depends on the tier in two ways, so it has to be
+        // recomputed when the tier flips — e.g. rotating a phone into or out of
+        // cramped landscape. (1) The dock-dedupe in `excludedFromAppList`: the
         // Compact state hides the docks, so their apps must reappear in the
-        // list), so the filtered list has to be recomputed when the tier flips
-        // — e.g. rotating a phone into or out of cramped landscape.
+        // list. (2) `effectiveAppListSortOrder`: the Compact state always sorts
+        // by usage regardless of the persisted "Sort apps by" choice, so the
+        // data ordering changes when entering/leaving Compact under a non-usage
+        // sort.
         refreshFilteredApps()
         LauncherDebugLog.event("setHomeLandscapeTier tier=$tier")
     }
@@ -1717,7 +1721,7 @@ internal class LauncherViewModel(
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
                     dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                    sortOrder = state.appListSortOrder,
+                    sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
                 ).markVisibility(),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
@@ -1744,7 +1748,7 @@ internal class LauncherViewModel(
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
                     dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                    sortOrder = state.appListSortOrder,
+                    sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
                 ).markVisibility(),
             )
         }
@@ -1752,13 +1756,13 @@ internal class LauncherViewModel(
 
     private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
         dockedAppStore.dockedAppIdsFor(
-            sortOrder = state.appListSortOrder,
+            sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
             columnCount = state.dockIconCount,
         )
 
     private fun workDockedAppIdsForState(state: LauncherUiState): List<String> =
         workDockedAppStore.dockedAppIdsFor(
-            sortOrder = state.appListSortOrder,
+            sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
             columnCount = state.dockIconCount,
         )
 

@@ -507,6 +507,37 @@ internal data class LauncherUiState(
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
 )
 
+/**
+ * The sort order the app list actually renders under, given the persisted
+ * "Sort apps by" [persisted] choice and the current landscape [tier].
+ *
+ * The cramped-landscape [HomeLandscapeTier.Compact] state always sorts by usage
+ * with the most-used app at the visual bottom (`UsageReversed`) regardless of
+ * the persisted choice: the app list is the only launch surface there (the docks
+ * are dropped and the search box is hidden), so the most-launched apps belong
+ * under the thumb, closest to where a pull-up brings the keyboard. Every other
+ * state — all of portrait, and the Full landscape tier — honors [persisted].
+ */
+internal fun effectiveAppListSortOrder(
+    persisted: AppListSortOrder,
+    tier: HomeLandscapeTier,
+): AppListSortOrder =
+    if (tier == HomeLandscapeTier.Compact) AppListSortOrder.UsageReversed else persisted
+
+/**
+ * Whether the app list renders as an icon grid rather than text rows, given the
+ * persisted "App list" layout [persistedIconOnly] choice and the current
+ * landscape [tier].
+ *
+ * The cramped-landscape [HomeLandscapeTier.Compact] state always uses icons: the
+ * short viewport fits far more apps as a grid than as full-width text rows.
+ * Every other state honors [persistedIconOnly].
+ */
+internal fun effectiveAppListIconOnly(
+    persistedIconOnly: Boolean,
+    tier: HomeLandscapeTier,
+): Boolean = persistedIconOnly || tier == HomeLandscapeTier.Compact
+
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
     return ((availableWidthDp + DOCK_ITEM_SPACING_DP) /

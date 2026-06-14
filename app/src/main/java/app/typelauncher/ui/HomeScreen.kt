@@ -312,10 +312,17 @@ internal fun HomeScreen(
                     isLoading = state.isLoadingApps,
                     overflowChevronsReady = state.isFreshAppLoadComplete,
                     dockLimit = Int.MAX_VALUE,
-                    isIconOnly = state.isAppListIconOnly,
+                    // The cramped-landscape Compact tier always renders the app
+                    // list as an icon grid sorted by usage with the most-used app
+                    // at the visual bottom, overriding the persisted "App list"
+                    // and "Sort apps by" choices — the list is the only launch
+                    // surface there, so it favors density and thumb-reach. Both
+                    // read the live `landscapeTier` param (which can lead the
+                    // `state.homeLandscapeTier` snapshot by a frame on rotation).
+                    isIconOnly = effectiveAppListIconOnly(state.isAppListIconOnly, landscapeTier),
                     iconSizeDp = dockIconSizeDp,
                     highlightFirst = state.query.isNotBlank(),
-                    reverseLayout = state.appListSortOrder.isReversed,
+                    reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
                     scrollResetKey = state.query,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
