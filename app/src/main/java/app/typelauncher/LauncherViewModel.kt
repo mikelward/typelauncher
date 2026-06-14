@@ -20,6 +20,7 @@ import android.net.Uri
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import android.util.DisplayMetrics
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -1838,7 +1839,17 @@ internal class LauncherViewModel(
     private fun deviceRenderableDockIconCount(storedCount: Int = _uiState.value.dockIconCount): Int {
         val configuration = app.resources.configuration
         val shortEdgeDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
-        return storedCount.coerceIn(dockSlotCountRange(shortEdgeDp))
+        // Mirror HomeScreen's `dockIconSizing` exactly: the rendered count honors
+        // both the window's short edge and the system "Display size" setting
+        // (which inflates the icon dp and so reduces how many fit), not just the
+        // width. Persisting against this keeps the stored grid in lock-step with
+        // what the user sees at any Display size.
+        return dockIconSizing(
+            liveReferenceWidthDp = shortEdgeDp,
+            liveDensityDpi = configuration.densityDpi,
+            stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
+            persistedIconCount = storedCount,
+        ).slotCount
     }
 
     /**
