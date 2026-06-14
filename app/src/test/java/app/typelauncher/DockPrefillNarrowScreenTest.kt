@@ -49,12 +49,12 @@ class DockPrefillNarrowScreenTest {
 
     @Test
     fun prefillLeavesAFreeSlotForTheAddButtonOnNarrowScreens() {
-        // A 320 dp short edge admits at most 5 dock columns (dockSlotCountRange
-        // = 3..5), so the default count of 6 clamps to 5. Plenty of popular apps
-        // are installed; the prefill must stop at 4 (device count − 1), leaving
-        // one of the five rendered cells free for the "+" hint.
-        val deviceRange = dockSlotCountRange(320)
-        assertEquals("guard: 320 dp tops out at 5 columns", 5, deviceRange.last)
+        // A 320 dp short edge fits 4 dock columns at the default 43 dp icon.
+        // Plenty of popular apps are installed; the prefill must stop at 3
+        // (rendered count − 1), leaving one of the four rendered cells free for
+        // the "+" hint.
+        val renderedColumns = dockIconSizing(320, DEFAULT_DOCK_APP_ICON_SIZE_DP).slotCount
+        assertEquals("guard: 320 dp fits 4 columns at the default icon", 4, renderedColumns)
 
         listOf(
             "com.android.chrome",
@@ -68,15 +68,20 @@ class DockPrefillNarrowScreenTest {
         val viewModel = newViewModel()
         idle()
 
-        // Stored count stays at the reference-width default of 6...
-        assertEquals(DEFAULT_DOCK_ICON_COUNT, viewModel.uiState.value.dockIconCount)
-        // ...but the prefill is clamped to the device's 5 columns minus the
-        // reserved slot, so a cell stays open for the onboarding "+".
+        // Stored icon size stays at the default (which is 6 per row at the
+        // reference width)...
+        assertEquals(DEFAULT_DOCK_APP_ICON_SIZE_DP, viewModel.uiState.value.dockIconSizeDp)
+        assertEquals(
+            DEFAULT_DOCK_ICON_COUNT,
+            dockSlotCountForIconSize(DEFAULT_DOCK_SCREEN_WIDTH_DP, viewModel.uiState.value.dockIconSizeDp),
+        )
+        // ...but the prefill is clamped to the device's rendered columns minus
+        // the reserved slot, so a cell stays open for the onboarding "+".
         val docked = viewModel.uiState.value.dockedApps
-        assertEquals("prefill must reserve a slot on a 5-column device", 4, docked.size)
+        assertEquals("prefill must reserve a slot", renderedColumns - 1, docked.size)
         assertTrue(
             "docked count must stay below the rendered column count so the + cell is free",
-            docked.size < deviceRange.last,
+            docked.size < renderedColumns,
         )
     }
 
@@ -86,9 +91,9 @@ class DockPrefillNarrowScreenTest {
         // A 411 dp device (smallestScreenWidthDp) running in a 320 dp-wide
         // window — split-screen, free-form, or a foldable cover screen.
         // HomeScreen renders the dock against the current window
-        // (minOf(screenWidthDp, screenHeightDp) = 320 → 5 columns), so the
-        // prefill must clamp to that, not the device's 411 dp (which admits 6
-        // and would fill the rendered row, hiding the "+").
+        // (minOf(screenWidthDp, screenHeightDp) = 320 → 4 columns at the default
+        // icon), so the prefill must clamp to that, not the device's 411 dp
+        // (which renders 6 and would fill the row, hiding the "+").
         val config = context.resources.configuration
         // Guard: confirm the qualifiers set up the divergence we're testing.
         assertEquals("device short edge", 411, config.smallestScreenWidthDp)
@@ -110,11 +115,11 @@ class DockPrefillNarrowScreenTest {
         val viewModel = newViewModel()
         idle()
 
-        // 320 dp window → 5 columns → prefill stops at 4, leaving the "+" cell.
-        // Clamping on the 411 dp device width would admit 6 and dock 5.
+        // 320 dp window → 4 columns → prefill stops at 3, leaving the "+" cell.
+        // Sizing to the 411 dp device width would render 6 and dock 5.
         assertEquals(
             "prefill must size to the current window, not the device short edge",
-            4,
+            dockIconSizing(320, DEFAULT_DOCK_APP_ICON_SIZE_DP).slotCount - 1,
             viewModel.uiState.value.dockedApps.size,
         )
     }

@@ -31,7 +31,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-// These gesture/recents tests render the home with `dockIconCount = 4`. They
+// These gesture/recents tests render the home at 4 icons per row. They
 // were written under the 4-per-row default; at the current 6-per-row default
 // the dock and recents icons shrink and each render composes more cells, and
 // the accumulated cells across the class's renders leave Robolectric's shared
@@ -121,7 +121,7 @@ class SwipeUpRecentsTest {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        dockIconCount = 4,
+                        dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                         isFreshAppLoadComplete = true,
                         isKeyboardAutoShown = false,
                     ),
@@ -283,7 +283,7 @@ class SwipeUpRecentsTest {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        dockIconCount = 4,
+                        dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                         filteredApps = emptyList(),
                         recentApps = listOf(fakeApp(name = "Recent")),
                         isRecentsOpen = true,
@@ -340,7 +340,7 @@ class SwipeUpRecentsTest {
                 TypeLauncherTheme {
                     TypeLauncherApp(
                         state = LauncherUiState(
-                            dockIconCount = 4,
+                            dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                             filteredApps = apps,
                             isKeyboardAutoShown = false,
                         ),
@@ -394,7 +394,7 @@ class SwipeUpRecentsTest {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        dockIconCount = 4,
+                        dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                         destination = LauncherDestination.Agenda,
                         agenda = AgendaUiState.Empty,
                     ),
@@ -458,7 +458,7 @@ class SwipeUpRecentsTest {
                 TypeLauncherTheme {
                     TypeLauncherApp(
                         state = LauncherUiState(
-                            dockIconCount = 4,
+                            dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                             filteredApps = emptyList(),
                             // Disable cold-start auto-show so the show() call we
                             // observe is the result of the keyboardShowRequests
@@ -524,7 +524,7 @@ class SwipeUpRecentsTest {
         val recentApps = listOf(fakeApp(name = "Recent"))
         val state = mutableStateOf(
             LauncherUiState(
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                 filteredApps = apps,
                 dockedApps = dockedApps,
                 recentApps = recentApps,
@@ -589,7 +589,7 @@ class SwipeUpRecentsTest {
         val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(
             LauncherUiState(
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                 filteredApps = emptyList(),
                 recentApps = recentApps,
                 isRecentsOpen = true,
@@ -636,7 +636,7 @@ class SwipeUpRecentsTest {
         val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(
             LauncherUiState(
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                 filteredApps = emptyList(),
                 recentApps = recentApps,
                 isRecentsOpen = true,
@@ -674,7 +674,7 @@ class SwipeUpRecentsTest {
         val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(
             LauncherUiState(
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                 filteredApps = emptyList(),
                 recentApps = recentApps,
                 isRecentsOpen = true,
@@ -713,7 +713,7 @@ class SwipeUpRecentsTest {
         val recentApps = (1..12).map { i -> fakeApp(name = "App%02d".format(i)) }
         renderHome(
             LauncherUiState(
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                 filteredApps = emptyList(),
                 recentApps = recentApps,
                 isRecentsOpen = true,
@@ -756,7 +756,7 @@ class SwipeUpRecentsTest {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        dockIconCount = 4,
+                        dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                         filteredApps = emptyList(),
                         recentApps = recentApps,
                         isRecentsOpen = true,
@@ -817,7 +817,7 @@ class SwipeUpRecentsTest {
             TypeLauncherTheme {
                 TypeLauncherApp(
                     state = LauncherUiState(
-                        dockIconCount = 4,
+                        dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
                         filteredApps = emptyList(),
                         recentApps = recentApps,
                         isRecentsOpen = true,

@@ -305,25 +305,42 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun dockIconCountDefaultsToSixOnAFreshInstall() {
-        // A fresh install has neither the per-row count nor the legacy icon-size
-        // key, so the count falls through to the legacy-size derivation seeded
-        // by DEFAULT_DOCK_APP_ICON_SIZE_DP (43dp), which maps to 6 icons per row
-        // on a standard 411dp phone — the default density.
-        assertEquals(6, DockSettingsStore(context).dockIconCount)
+    fun dockIconSizeDefaultsToTheDefaultOnAFreshInstall() {
+        // A fresh install has none of the dock icon-size keys, so it falls
+        // through to DEFAULT_DOCK_APP_ICON_SIZE_DP (43dp), which is 6 icons per
+        // row on a standard 411dp phone.
+        assertEquals(DEFAULT_DOCK_APP_ICON_SIZE_DP, DockSettingsStore(context).dockIconSizeDp)
+        assertEquals(
+            DEFAULT_DOCK_ICON_COUNT,
+            dockSlotCountForIconSize(DEFAULT_DOCK_SCREEN_WIDTH_DP, DockSettingsStore(context).dockIconSizeDp),
+        )
     }
 
     @Test
-    fun dockIconCountDerivesFromAPersistedLegacyIconSize() {
-        // Upgrades from the old dp-based store carry `dock_icon_size_dp`; the
-        // count derives from it rather than the fresh-install default. A 56dp
-        // legacy icon maps to 4 per row on a 411dp phone.
+    fun dockIconSizeReadsAPersistedLegacyIconSize() {
+        // Upgrades from the original dp-based store carry `dock_icon_size_dp`;
+        // the target size reads it directly.
         context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
             .edit()
             .putInt("dock_icon_size_dp", 56)
             .commit()
 
-        assertEquals(4, DockSettingsStore(context).dockIconCount)
+        assertEquals(56, DockSettingsStore(context).dockIconSizeDp)
+    }
+
+    @Test
+    fun dockIconSizeMigratesAPersistedPerRowCount() {
+        // A #433-era install stored a per-row `dock_icon_count`; migrate it to
+        // the dp that fills that many icons at the reference width.
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putInt("dock_icon_count", 4)
+            .commit()
+
+        assertEquals(
+            dockIconSizeForSlotCount(DEFAULT_DOCK_SCREEN_WIDTH_DP, 4),
+            DockSettingsStore(context).dockIconSizeDp,
+        )
     }
 
     @Test

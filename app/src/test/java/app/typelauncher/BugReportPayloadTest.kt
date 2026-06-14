@@ -22,7 +22,7 @@ class BugReportPayloadTest {
             isDockEnabled = true,
             isAppListIconOnly = false,
             isShowDockedAppsInList = true,
-            dockIconCount = 5,
+            dockIconSizeDp = 5,
             appListSortOrder = AppListSortOrder.Usage,
             isAgendaEnabled = true,
             dockedAppIds = listOf("0:com.example/.LaunchActivity", "0:com.example2/.LaunchActivity"),
@@ -40,7 +40,7 @@ class BugReportPayloadTest {
         assertTrue("includes dock enabled", payload.contains("Dock enabled: true"))
         assertTrue("includes icon only", payload.contains("App list icon-only: false"))
         assertTrue("includes show docked in list", payload.contains("Show docked apps in list: true"))
-        assertTrue("includes dock icon count", payload.contains("Dock icons visible: 5"))
+        assertTrue("includes dock icon size", payload.contains("Dock icon size: 5dp"))
         assertTrue("includes sort order", payload.contains("App list sort order: Usage"))
         assertTrue("includes agenda setting", payload.contains("Agenda enabled: true"))
         assertTrue("includes docked apps count", payload.contains("Docked apps (2):"))
@@ -68,7 +68,7 @@ class BugReportPayloadTest {
             isDockEnabled = false,
             isAppListIconOnly = true,
             isShowDockedAppsInList = false,
-            dockIconCount = 4,
+            dockIconSizeDp = 4,
             appListSortOrder = AppListSortOrder.Alphabetical,
             isAgendaEnabled = false,
             dockedAppIds = emptyList(),

@@ -3,7 +3,6 @@ package app.typelauncher
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.util.DisplayMetrics
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -187,31 +186,23 @@ internal fun HomeScreen(
     onDockDragChanged: (Boolean) -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
-    // Derive the dock icon size from the short screen edge (the portrait
-    // width), not the live width, so rotating to landscape keeps the icons at
-    // their configured dp instead of ballooning to fill the wider row. The
-    // dock row is then centered at that fixed size (see `DockCard`), leaving
-    // even margins in landscape.
+    // Size the dock from the short screen edge (the portrait width), so rotating
+    // to landscape keeps the icons at their size instead of ballooning to fill
+    // the wider row; the dock row is centered at that size (see `DockCard`),
+    // leaving even margins in landscape.
     //
-    // The size is taken at the device's *stable* density so it honors the
-    // system "Display size" setting: `dockIconSizing` pins the icon dp (which
-    // grows in pixels as Display size is enlarged) and lets the rendered
-    // per-row count drop to keep the larger icons fitting. The persisted
-    // "Icons per row" count thus chooses an icon dp, not a fixed column count.
-    // See `dockIconSizing` / `stableDockReferenceWidthDp` for the full
-    // rationale, and the coercion that keeps a stale persisted count (e.g.
-    // saved on a wider device) within the row's capacity.
+    // `dockIconSizing` takes the persisted target icon size (dp) and returns the
+    // rendered per-row count (how many fit) plus the grown-to-fill size. Because
+    // the icon is a fixed dp, it honors the system "Display size" setting for
+    // free (a dp grows in pixels as density grows) and is immune to screen-
+    // resolution changes — the dp-width simply shrinks as Display size grows, so
+    // fewer, bigger icons render.
     //
     // TODO: the short edge still moves under width changes that grow both
     // dimensions; revisit for foldable unfold, free-form / multi-window
     // resize, narrow split-screen panes, and connected-display setups.
     val dockReferenceWidthDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
-    val dockSizing = dockIconSizing(
-        liveReferenceWidthDp = dockReferenceWidthDp,
-        liveDensityDpi = configuration.densityDpi,
-        stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
-        persistedIconCount = state.dockIconCount,
-    )
+    val dockSizing = dockIconSizing(dockReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
     // Once the window is wider than portrait (landscape), the fixed-size dock
@@ -2607,28 +2598,15 @@ internal fun SettingsScreen(
     onDismissPlayUpdate: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
-    // Anchor the slider's range and icon dp to the short screen edge at the
-    // device's *stable* density, so the "Icons per row" options are identical in
-    // portrait and landscape and don't shift as the user changes the system
-    // Display size (see `dockIconSizing`). The slider value is the configured
-    // count (it chooses the icon dp); the label and preview show the *rendered*
-    // count — how many of those icons actually fit at the current Display size —
-    // so Settings reflects exactly what Home draws. At the default Display size
-    // the two counts are equal.
+    // Derive the slider's range, value, and the preview's icon size from the
+    // short screen edge and the persisted target icon size, so Settings shows
+    // exactly what Home draws. `dockIconCount` is the *rendered* per-row count
+    // (`dockIconSizing(...).slotCount`) — re-derived here rather than stored, so
+    // the slider self-heals to the real number that fits this device / Display
+    // size on every open.
     val liveReferenceWidthDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
-    val stableReferenceWidthDp = stableDockReferenceWidthDp(
-        liveReferenceWidthDp = liveReferenceWidthDp,
-        liveDensityDpi = configuration.densityDpi,
-        stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
-    )
-    val slotCountRange = dockSlotCountRange(stableReferenceWidthDp)
-    val dockSizing = dockIconSizing(
-        liveReferenceWidthDp = liveReferenceWidthDp,
-        liveDensityDpi = configuration.densityDpi,
-        stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
-        persistedIconCount = state.dockIconCount,
-    )
-    val configuredDockIconCount = dockSizing.configuredCount
+    val slotCountRange = dockSlotCountRange(liveReferenceWidthDp)
+    val dockSizing = dockIconSizing(liveReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
     var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
@@ -2719,7 +2697,7 @@ internal fun SettingsScreen(
                 style = MaterialTheme.typography.titleMedium,
             )
             Slider(
-                value = configuredDockIconCount.toFloat(),
+                value = dockIconCount.toFloat(),
                 onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
                 valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
                 steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),

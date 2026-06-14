@@ -1112,9 +1112,10 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
-        assertEquals(7, viewModel.uiState.value.dockIconCount)
-        // The densest stop renders at an unclamped 34dp icon on a 411dp screen.
-        assertEquals(34, dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount))
+        // The slider stored the 34dp icon size that fills 7 per row at 411dp,
+        // and the dock renders those 7 columns back.
+        assertEquals(34, viewModel.uiState.value.dockIconSizeDp)
+        assertEquals(7, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
 
         composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
 
@@ -1838,8 +1839,8 @@ class MainActivityRobolectricScreenshotTest {
         val gap = DOCK_ITEM_SPACING_DP.dp
         val cellWidth = (
             (dockListBounds.right - dockListBounds.left) -
-                gap * (viewModel.uiState.value.dockIconCount - 1)
-            ) / viewModel.uiState.value.dockIconCount
+                gap * (dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp) - 1)
+            ) / dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp)
         val firstSlotCenter = dockListBounds.left + cellWidth / 2f
         val dockIconCenter = dockIconBounds.left + (dockIconBounds.right - dockIconBounds.left) / 2f
 
@@ -2344,7 +2345,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(8, viewModel.uiState.value.dockedApps.size)
-        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        assertEquals(4, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
         viewModel.uiState.value.dockedApps.forEach { app ->
             composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").assertIsDisplayed()
         }
@@ -2445,7 +2446,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.waitForIdle()
 
         assertEquals(6, viewModel.uiState.value.dockedApps.size)
-        assertEquals(6, viewModel.uiState.value.dockIconCount)
+        assertEquals(6, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
 
         val tops = viewModel.uiState.value.dockedApps.map { app ->
             composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot().top.value
@@ -2574,7 +2575,7 @@ class MainActivityRobolectricScreenshotTest {
         // 5 docked apps × 4 icons per row = 2 rows; user has already learned
         // the gesture, so the hint must not appear.
         assertEquals(5, viewModel.uiState.value.dockedApps.size)
-        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        assertEquals(4, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
         composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
@@ -2591,7 +2592,7 @@ class MainActivityRobolectricScreenshotTest {
 
         // 8 docked apps × 4 icons per row = 2 full rows, no empty cells.
         assertEquals(8, viewModel.uiState.value.dockedApps.size)
-        assertEquals(4, viewModel.uiState.value.dockIconCount)
+        assertEquals(4, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
         composeRule.onNodeWithTag(DOCK_ADD_BUTTON_TAG).assertDoesNotExist()
     }
 
@@ -2912,7 +2913,7 @@ class MainActivityRobolectricScreenshotTest {
         // 8dp of per-icon tap-target padding and 2 × 16dp of SectionCard
         // padding gives a 96dp one-row cap. Allow a couple of dp of slack
         // for sub-pixel rounding when measuring in root coordinates.
-        val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
+        val iconSizeDp = dockIconSizeForSlotCount(411, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
         val expectedMaxDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + 2 * SECTION_CARD_PADDING_DP
         assertTrue(
             "work card should be capped at one row (height=${workHeight}dp, cap=${expectedMaxDp}dp)",
@@ -2961,7 +2962,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
         val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
         val workHeight = workBounds.bottom.value - workBounds.top.value
-        val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
+        val iconSizeDp = dockIconSizeForSlotCount(411, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
         val rowHeightDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
         val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_PADDING_DP
         val twoRowMaxDp =
@@ -3008,7 +3009,7 @@ class MainActivityRobolectricScreenshotTest {
         val resolved = resolvedDockPositions(
             state.workDockedApps.map { app -> app.id },
             state.workDockPositions,
-            state.dockIconCount,
+            dockSlotCountForIconSize(411, state.dockIconSizeDp),
         )
         val row1Apps = state.workDockedApps.filter { app -> resolved[app.id]?.row == 1 }
         val row0Apps = state.workDockedApps.filter { app -> resolved[app.id]?.row == 0 }
@@ -3023,7 +3024,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertIsDisplayed()
         val workBounds = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
         val workHeight = workBounds.bottom.value - workBounds.top.value
-        val iconSizeDp = dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount)
+        val iconSizeDp = dockIconSizeForSlotCount(411, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
         val rowHeightDp = iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
         val oneRowMaxDp = rowHeightDp + 2 * SECTION_CARD_PADDING_DP
         val twoRowMaxDp =
