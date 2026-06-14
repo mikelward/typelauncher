@@ -220,6 +220,13 @@ jobs:
         # circular icon clip instead of being sliced off at the corner.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconWorkBadgeScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run icon-only grid order screenshot tests
+        # Renders the icon-only app grid in forward and reversed sort so the
+        # PR `roborazzi-screenshots` artifact shows the highest-rank tile in
+        # the bottom-right (reversed) / top-left (forward) corner, matching
+        # the dock.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconOnlyGridOrderScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

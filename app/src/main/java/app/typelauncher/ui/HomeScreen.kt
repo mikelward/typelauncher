@@ -88,6 +88,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -1617,8 +1618,34 @@ private fun visualPageScrollDirection(up: Boolean, reverseLayout: Boolean): Floa
         else -> 1f
     }
 
+/**
+ * Cross-axis (horizontal) layout direction for the icon-only app grid.
+ *
+ * `reverseLayout` (the reversed sort orders) flips the grid's main, vertical
+ * axis so item 0 lands on the bottom row — closest to the keyboard — but
+ * Compose does not also mirror the cross axis, so item 0 would sit at the
+ * bottom-*left*. The dock ranks the same data with its highest slot at the
+ * bottom-*right* (`dockedAppIdsInGridRankOrder` ranks right columns before
+ * left under a reversed sort), so a reversed grid filling left-to-right read as
+ * a horizontal mirror of the dock. Mirroring only the cross axis in the
+ * reversed case puts item 0 at the bottom-right, matching the dock and the
+ * forward-sort grid (which already reads top-left first). Forward sorts keep
+ * the base direction unchanged, and the flip is relative to [base] so RTL
+ * locales mirror correctly too.
+ */
+internal fun iconGridCrossAxisLayoutDirection(
+    base: LayoutDirection,
+    reverseLayout: Boolean,
+): LayoutDirection =
+    if (!reverseLayout) {
+        base
+    } else when (base) {
+        LayoutDirection.Ltr -> LayoutDirection.Rtl
+        LayoutDirection.Rtl -> LayoutDirection.Ltr
+    }
+
 @Composable
-private fun IconOnlyAppGrid(
+internal fun IconOnlyAppGrid(
     apps: List<InstalledApp>,
     dockLimit: Int,
     iconSizeDp: Int,
@@ -1636,41 +1663,53 @@ private fun IconOnlyAppGrid(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive((iconSizeDp + 8).dp),
-        state = state,
-        reverseLayout = reverseLayout,
-        modifier = Modifier
-            .fillMaxSize()
-            .heightIn(min = iconSizeDp.dp)
-            .onGloballyPositioned { coords ->
-                onBoundsChanged(
-                    Rect(coords.positionInRoot(), coords.size.toSize()),
-                )
+    // Mirror only the grid's cross axis under reverseLayout so the highest-rank
+    // item (index 0) lands at the bottom-right, matching the dock. Icon and
+    // badge content keeps the original direction (restored per item below).
+    val baseLayoutDirection = LocalLayoutDirection.current
+    val gridLayoutDirection = iconGridCrossAxisLayoutDirection(baseLayoutDirection, reverseLayout)
+    CompositionLocalProvider(LocalLayoutDirection provides gridLayoutDirection) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive((iconSizeDp + 8).dp),
+            state = state,
+            reverseLayout = reverseLayout,
+            modifier = Modifier
+                .fillMaxSize()
+                .heightIn(min = iconSizeDp.dp)
+                .onGloballyPositioned { coords ->
+                    onBoundsChanged(
+                        Rect(coords.positionInRoot(), coords.size.toSize()),
+                    )
+                }
+                .testTag(APPS_LIST_TAG),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(
+                8.dp,
+                if (reverseLayout) Alignment.Bottom else Alignment.Top,
+            ),
+        ) {
+            itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
+                // Restore the original layout direction inside the cell so the
+                // cross-axis mirror only reorders the grid's columns, never the
+                // icon tile, corner badge, or anchored long-press menu.
+                CompositionLocalProvider(LocalLayoutDirection provides baseLayoutDirection) {
+                    IconOnlyAppButton(
+                        app = app,
+                        isActive = highlightFirst && index == 0,
+                        dockLimit = dockLimit,
+                        iconSizeDp = iconSizeDp,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
+                        onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
+                        onSetAppBadge = onSetAppBadge,
+                        onHideApp = onHideApp,
+                    )
+                }
             }
-            .testTag(APPS_LIST_TAG),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(
-            8.dp,
-            if (reverseLayout) Alignment.Bottom else Alignment.Top,
-        ),
-    ) {
-        itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
-            IconOnlyAppButton(
-                app = app,
-                isActive = highlightFirst && index == 0,
-                dockLimit = dockLimit,
-                iconSizeDp = iconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onResetRank = onResetRank,
-                onRenameApp = onRenameApp,
-                onSetAppIconOverride = onSetAppIconOverride,
-                onClearAppIconOverride = onClearAppIconOverride,
-                onSetAppBadge = onSetAppBadge,
-                onHideApp = onHideApp,
-            )
         }
     }
 }
