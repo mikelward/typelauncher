@@ -305,6 +305,28 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun dockIconCountDefaultsToSixOnAFreshInstall() {
+        // A fresh install has neither the per-row count nor the legacy icon-size
+        // key, so the count falls through to the legacy-size derivation seeded
+        // by DEFAULT_DOCK_APP_ICON_SIZE_DP (43dp), which maps to 6 icons per row
+        // on a standard 411dp phone — the default density.
+        assertEquals(6, DockSettingsStore(context).dockIconCount)
+    }
+
+    @Test
+    fun dockIconCountDerivesFromAPersistedLegacyIconSize() {
+        // Upgrades from the old dp-based store carry `dock_icon_size_dp`; the
+        // count derives from it rather than the fresh-install default. A 56dp
+        // legacy icon maps to 4 per row on a 411dp phone.
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putInt("dock_icon_size_dp", 56)
+            .commit()
+
+        assertEquals(4, DockSettingsStore(context).dockIconCount)
+    }
+
+    @Test
     fun keyboardReservationDefaultsToZeroWithNullFingerprint() {
         val store = DockSettingsStore(context)
 

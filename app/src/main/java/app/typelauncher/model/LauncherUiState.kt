@@ -7,17 +7,26 @@ import androidx.compose.runtime.Immutable
 
 // Bounds on the derived icon size, which in turn set the "Icons per row"
 // slider's range per screen width (see `dockSlotCountRange`). The floor is the
-// densest the user can pack a row; 36 dp keeps a ~44 dp tap cell (icon + the
-// 8 dp item padding) — just under Material's 48 dp target, the trade for
-// fitting an extra column on a typical phone. The ceiling caps the largest
-// icon; 76 dp drops the near-duplicate clamped step at the sparse end (a row
-// of 3 huge icons whose natural size overflowed the old 80 dp cap) so the
-// largest stop is a clean, unclamped size instead.
-internal const val MIN_DOCK_APP_ICON_SIZE_DP = 36
-internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 56
-internal const val MAX_DOCK_APP_ICON_SIZE_DP = 76
+// densest the user can pack a row; 32 dp opens up a 7-per-row stop on a
+// standard 411 dp phone (the typical Pixel width — see
+// DEFAULT_DOCK_SCREEN_WIDTH_DP), where that stop renders at an unclamped 34 dp
+// icon for a ~42 dp tap cell (icon + the 8 dp item padding). That is below
+// Material's 48 dp target — the trade for the extra column — but it is strictly
+// opt-in: a user only reaches it by dragging the slider to its densest stop. A
+// 36 dp floor only reached 7 per row at ~420 dp and up, so the standard Pixel
+// topped out at 6. The ceiling caps the largest icon; 72 dp drops the sparsest
+// 3-per-row stop on a standard 411 dp phone (where its icons clamped against
+// the cap anyway) so the slider runs a clean 4..7 there, with the largest stop
+// a row of 4 at 72 dp.
+//
+// DEFAULT_DOCK_APP_ICON_SIZE_DP is the size a fresh install starts at when no
+// per-row count is persisted yet (see DockedAppStore.deriveDockIconCountFromLegacySize):
+// 43 dp maps to 6 icons per row on a 411 dp phone, the default density.
+internal const val MIN_DOCK_APP_ICON_SIZE_DP = 32
+internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 43
+internal const val MAX_DOCK_APP_ICON_SIZE_DP = 72
 internal const val MIN_DOCK_ICON_COUNT = 1
-internal const val DEFAULT_DOCK_ICON_COUNT = 4
+internal const val DEFAULT_DOCK_ICON_COUNT = 6
 internal const val MAX_DOCK_ICON_COUNT = 8
 internal const val DEFAULT_DOCK_SCREEN_WIDTH_DP = 411
 private const val DOCK_HORIZONTAL_PADDING_DP = 64

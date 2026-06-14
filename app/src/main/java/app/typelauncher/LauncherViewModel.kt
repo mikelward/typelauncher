@@ -309,8 +309,12 @@ internal class LauncherViewModel(
             installedApps = loadedApps
             if (!dockedAppStore.hasBeenPrefilled) {
                 if (dockedAppStore.dockedAppIds.isEmpty()) {
+                    // Prefill against what this device can actually render (see
+                    // `deviceRenderableDockIconCount`) so a narrow phone that
+                    // clamps the rendered row keeps an empty cell for the "+".
+                    val deviceDockIconCount = deviceRenderableDockIconCount()
                     // Reserve one slot for the "+" add-button hint.
-                    prefillDock(loadedApps, dockedAppStore, (_uiState.value.dockIconCount - 1).coerceAtLeast(0))
+                    prefillDock(loadedApps, dockedAppStore, (deviceDockIconCount - 1).coerceAtLeast(0))
                     // Order matters: `prefillDock` calls `dockedAppStore.dock`,
                     // which clears the hint flag. Setting the flag here — after
                     // prefill returns — means the flag survives any number of
@@ -318,7 +322,7 @@ internal class LauncherViewModel(
                     // Skipped on upgrade installs where `prefillDock` did not
                     // run, so existing dock users never see the onboarding hint.
                     dockedAppStore.setShowAddButtonHint(
-                        dockedAppStore.dockedAppIds.size < _uiState.value.dockIconCount,
+                        dockedAppStore.dockedAppIds.size < deviceDockIconCount,
                     )
                 }
                 dockedAppStore.markPrefilled()
@@ -1053,9 +1057,9 @@ internal class LauncherViewModel(
             app.isDocked -> dockedAppStore.undock(app.id)
             app.isWorkDocked -> workDockedAppStore.undock(app.id)
             app.isWorkApp && state.isWorkDockEnabled ->
-                workDockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+                workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconCount))
             else ->
-                dockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+                dockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconCount))
         }
         refreshLists()
         logState("toggleDock")
@@ -1068,7 +1072,7 @@ internal class LauncherViewModel(
             appId = appId,
             row = row,
             column = column,
-            columnCount = state.dockIconCount,
+            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
             sortOrder = state.appListSortOrder,
         )
         refreshLists()
@@ -1093,7 +1097,7 @@ internal class LauncherViewModel(
         if (app.isWorkDocked) {
             workDockedAppStore.undock(app.id)
         } else {
-            workDockedAppStore.dock(app.id, columnCount = state.dockIconCount)
+            workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconCount))
         }
         refreshLists()
         logState("toggleWorkDock")
@@ -1106,7 +1110,7 @@ internal class LauncherViewModel(
             appId = appId,
             row = row,
             column = column,
-            columnCount = state.dockIconCount,
+            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
             sortOrder = state.appListSortOrder,
         )
         refreshLists()
@@ -1757,13 +1761,13 @@ internal class LauncherViewModel(
     private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
         dockedAppStore.dockedAppIdsFor(
             sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-            columnCount = state.dockIconCount,
+            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
         )
 
     private fun workDockedAppIdsForState(state: LauncherUiState): List<String> =
         workDockedAppStore.dockedAppIdsFor(
             sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-            columnCount = state.dockIconCount,
+            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
         )
 
     /**
@@ -1811,6 +1815,21 @@ internal class LauncherViewModel(
     }
 
     /**
+     * The per-row dock count this device can actually render: [storedCount]
+     * (defaulting to the live `dockIconCount`) coerced into [dockSlotCountRange]
+     * for the short edge. The stored count is derived from a fixed reference
+     * width ([DEFAULT_DOCK_SCREEN_WIDTH_DP]) and can fall outside what a given
+     * phone shows — HomeScreen clamps the rendered dock the same way. Every
+     * dock-store interaction that depends on the column grid (first-run prefill,
+     * `dock`/`move` position writes, and the position→rank reads that order
+     * docked apps in the list) sizes itself from this so the persisted grid
+     * always matches the grid the user sees, instead of placing or ranking apps
+     * in columns Home never renders.
+     */
+    private fun deviceRenderableDockIconCount(storedCount: Int = _uiState.value.dockIconCount): Int =
+        storedCount.coerceIn(dockSlotCountRange(app.resources.configuration.smallestScreenWidthDp))
+
+    /**
      * Runs the one-time work-dock prefill the first time the user enables the
      * work dock on a device that has a managed profile. Latched independently
      * of the personal-dock prefill flag so toggling "Show work dock" off and
@@ -1828,12 +1847,17 @@ internal class LauncherViewModel(
             return
         }
         if (loadedApps.none { it.isWorkApp && !it.isQuietMode }) return
+        // Clamp to the device's renderable column count for the same reason as
+        // the personal dock: on a narrow phone the stored count can exceed what
+        // HomeScreen renders, so the popular-fallback tier must reserve a real
+        // free cell for the "+" hint rather than fill the clamped row.
+        val deviceDockIconCount = deviceRenderableDockIconCount()
         prefillWorkDock(
             installedApps = loadedApps,
             personalDockedIds = dockedAppStore.dockedAppIds.toSet(),
             appLaunchStatsStore = appLaunchStatsStore,
             workDockStore = workDockedAppStore,
-            maxSlots = _uiState.value.dockIconCount,
+            maxSlots = deviceDockIconCount,
         )
         // Same ordering rule as the personal dock: set the hint flag *after*
         // `prefillWorkDock` returns so its internal `dock()` seeds don't
@@ -1841,7 +1865,7 @@ internal class LauncherViewModel(
         // target the full row), true when only tier (c)'s popular fallback
         // ran and reserved a slot.
         workDockedAppStore.setShowAddButtonHint(
-            workDockedAppStore.dockedAppIds.size < _uiState.value.dockIconCount,
+            workDockedAppStore.dockedAppIds.size < deviceDockIconCount,
         )
         workDockedAppStore.markPrefilled()
     }

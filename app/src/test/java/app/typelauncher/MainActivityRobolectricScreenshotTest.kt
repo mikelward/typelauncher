@@ -907,7 +907,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Hide recents from app list").assertDoesNotExist()
         composeRule.onNodeWithText("Show dock").assertExists()
         composeRule.onNodeWithText("Show agenda").assertExists()
-        composeRule.onNodeWithText("Icons per row: 4").assertIsDisplayed()
+        composeRule.onNodeWithText("Icons per row: 6").assertIsDisplayed()
         composeRule.onNodeWithTag(DEFAULT_LAUNCHER_BUTTON_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_default_launcher_button_robolectric.png")
 
@@ -1101,6 +1101,45 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_appListIconOnly_sevenPerRow_packsSevenIconsInTheTopRow() {
+        // The "Icons per row" slider's densest stop reaches 7 on this 411dp
+        // screen (the default test width — see the 32dp icon-size floor). Render
+        // the new state so CI captures the 34dp icons and their spacing, and
+        // prove the grid actually packs seven columns without wrapping.
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setAppListIconOnly(true)
+        viewModel.setDockVisibleIconCount(7)
+        composeRule.waitForIdle()
+
+        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertEquals(7, viewModel.uiState.value.dockIconCount)
+        // The densest stop renders at an unclamped 34dp icon on a 411dp screen.
+        assertEquals(34, dockIconSizeForSlotCount(411, viewModel.uiState.value.dockIconCount))
+
+        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+
+        // The seed has nine apps in the list, so seven fill the top row and two
+        // wrap to a second row: item 6 shares the first item's top edge, item 7
+        // sits below it.
+        val names = viewModel.uiState.value.filteredApps.map { it.name }
+        val firstBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:${names[0]}").getBoundsInRoot()
+        val seventhBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:${names[6]}").getBoundsInRoot()
+        val eighthBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:${names[7]}").getBoundsInRoot()
+        assertTrue(
+            "Item 7 (${names[6]}) should share the top row with item 1 (${names[0]}): " +
+                "tops ${firstBounds.top} vs ${seventhBounds.top}",
+            kotlin.math.abs((firstBounds.top - seventhBounds.top).value) <= 1f,
+        )
+        assertTrue(
+            "Item 8 (${names[7]}) should wrap to the second row, below item 1 (${names[0]}): " +
+                "tops ${firstBounds.top} vs ${eighthBounds.top}",
+            (eighthBounds.top - firstBounds.top).value > 1f,
+        )
+
+        saveScreenshot("compose_home_icon_only_seven_per_row_robolectric.png")
+    }
+
+    @Test
     fun appListIconOnlySettingShowsDockStyleIconsWithoutNames() {
         val viewModel = composeRule.activity.viewModel
         // This test compares a non-docked app's icon to the docked Calculator
@@ -1275,6 +1314,9 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
+        // Anchor the starting count below the target so the test measures a real
+        // shrink regardless of the default density.
+        viewModel.setDockVisibleIconCount(4)
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -1293,10 +1335,10 @@ class MainActivityRobolectricScreenshotTest {
         val defaultIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator", useUnmergedTree = true)
             .getBoundsInRoot()
         val defaultIconSize = defaultIconBounds.right - defaultIconBounds.left
-        viewModel.setDockVisibleIconCount(6)
+        viewModel.setDockVisibleIconCount(7)
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Icons per row: 6").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Icons per row: 7").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).performScrollTo()
         val largerIconBounds = composeRule.onNodeWithTag("$DOCK_APP_ICON_TAG:Calculator", useUnmergedTree = true)
             .getBoundsInRoot()
@@ -2289,12 +2331,13 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     // The dock wraps to additional rows so every docked app stays visible
-    // without horizontal scrolling. Under the default 4 icons per row this
-    // means 8 docked apps render as a 2-row grid; all eight icons must be
-    // present in the composition tree.
+    // without horizontal scrolling. At 4 icons per row this means 8 docked
+    // apps render as a 2-row grid; all eight icons must be present in the
+    // composition tree.
     @Test
     fun dockWrapsToTwoRowsWhenAppsExceedRowWidth() {
         val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
         }
@@ -2325,6 +2368,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun screenshot_dockSupportsSparseGridPositions() {
         val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
         val docked = viewModel.uiState.value.filteredApps.take(5)
         docked.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
         composeRule.waitForIdle()
@@ -2521,6 +2565,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun dockAddButton_hiddenWhenMoreThanOneRow() {
         val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
         viewModel.uiState.value.filteredApps.take(5).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
         }
@@ -2538,6 +2583,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun dockAddButton_hiddenWhenGridIsFull() {
         val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
         viewModel.uiState.value.filteredApps.take(8).forEach { app ->
             viewModel.toggleDock(app, maxDockedApps = 1)
         }
@@ -2888,10 +2934,10 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun workDockCard_expandsToSecondRowWhenWorkAppsExceedOneRow() {
         val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
         // Mark five seeded fake apps as work apps so the work dock has more
-        // than one row's worth of content at the default 4-icon-per-row
-        // width. Five is chosen because `dockIconCount` is 4 by default —
-        // five apps means exactly one slot bleeds onto a second row.
+        // than one row's worth of content at 4 icons per row: five apps means
+        // exactly one slot bleeds onto a second row.
         (0..4).forEach { i ->
             viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake$i")
         }
@@ -2940,6 +2986,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun workDockCard_keepsTwoRowsForSparsePersistedPositions() {
         val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
         (0..4).forEach { i ->
             viewModel.markAsActiveWorkAppForTest("app.typelauncher.fake$i")
         }

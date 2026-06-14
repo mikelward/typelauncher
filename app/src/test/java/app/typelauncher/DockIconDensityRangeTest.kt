@@ -13,38 +13,41 @@ import org.junit.Test
  */
 class DockIconDensityRangeTest {
 
-    // A ~424dp-wide phone (e.g. Pixel 10 at default display size): the width
-    // where 4 icons per row lands on an exact, unclamped 76dp — the case that
-    // motivated trimming the old 80dp step and adding the dense 36dp step.
-    private val pixel10WidthDp = 424
+    // The standard Pixel width (see DEFAULT_DOCK_SCREEN_WIDTH_DP): a Pixel at
+    // its default display size reports 411dp. A 36dp floor only reached 7 per
+    // row from ~420dp up, so this width topped out at 6; the 32dp floor opens
+    // up the 7-per-row stop here too.
+    private val standardPixelWidthDp = 411
 
     @Test
-    fun denseEnd_allowsSevenPerRowAtTheFloor() {
-        // Lowering the floor to 36dp opens up a 7-per-row stop on this phone.
-        val range = dockSlotCountRange(pixel10WidthDp)
+    fun denseEnd_allowsSevenPerRowOnAStandardPixel() {
+        val range = dockSlotCountRange(standardPixelWidthDp)
         assertTrue(
-            "Expected 7 per row to be reachable on a ${pixel10WidthDp}dp screen, got $range",
+            "Expected 7 per row to be reachable on a ${standardPixelWidthDp}dp screen, got $range",
             range.last >= 7,
         )
-        // The densest stop renders at the 36dp floor, not below it.
-        assertEquals(
-            MIN_DOCK_APP_ICON_SIZE_DP,
-            dockIconSizeForSlotCount(pixel10WidthDp, 7),
+        // The densest stop renders at an unclamped 34dp icon — above the floor,
+        // not chopped down to it.
+        val denseIconSize = dockIconSizeForSlotCount(standardPixelWidthDp, 7)
+        assertEquals(34, denseIconSize)
+        assertTrue(
+            "Densest icon $denseIconSize should sit above the ${MIN_DOCK_APP_ICON_SIZE_DP}dp floor",
+            denseIconSize > MIN_DOCK_APP_ICON_SIZE_DP,
         )
     }
 
     @Test
-    fun sparseEnd_dropsTheClampedGiantStep() {
-        // The old 80dp cap exposed a 3-per-row stop whose natural size
-        // overflowed and clamped to 80dp. With the 76dp cap the sparse end
-        // starts at 4 per row instead, and that stop is an exact, unclamped
-        // 76dp (no size is chopped down to the ceiling).
-        val range = dockSlotCountRange(pixel10WidthDp)
+    fun sparseEnd_runsFourToSevenOnAStandardPixel() {
+        // The 72dp ceiling drops the sparsest 3-per-row stop on a 411dp phone
+        // (its icons clamped against the old 76dp cap anyway), so the slider
+        // runs a clean 4..7 there. The largest stop is a row of four at the
+        // 72dp ceiling.
+        val range = dockSlotCountRange(standardPixelWidthDp)
         assertEquals(4, range.first)
-        assertEquals(76, dockIconSizeForSlotCount(pixel10WidthDp, 4))
-        assertTrue(
-            "Largest stop should be the unclamped natural size, never the ceiling",
-            dockIconSizeForSlotCount(pixel10WidthDp, range.first) <= MAX_DOCK_APP_ICON_SIZE_DP,
+        assertEquals(7, range.last)
+        assertEquals(
+            MAX_DOCK_APP_ICON_SIZE_DP,
+            dockIconSizeForSlotCount(standardPixelWidthDp, range.first),
         )
     }
 

@@ -242,7 +242,12 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_iconGrid_showsBottomChevronAndHidesTopAtRest() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true))
+        // Pin 4 icons per row (these chevron tests predate the 6-per-row
+        // default). At the denser default this LazyVerticalGrid composes enough
+        // cells that, under Robolectric, it leaves the shared Compose runtime in
+        // a state where a later test in the same JVM never reaches idle; the
+        // larger cells keep the cell count below that threshold.
+        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true, dockIconCount = 4))
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
@@ -296,7 +301,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_iconGrid_bottomChevronTapScrollsOnePage() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true))
+        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true, dockIconCount = 4))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
