@@ -133,14 +133,23 @@ class MainActivityRobolectricScreenshotTest {
         // box, dock, and an app row, so it collapses to the Compact state: the
         // search box and keyboard are hidden by default and both docks are
         // dropped, leaving the app list to fill the viewport.
-        assertEquals(
-            HomeLandscapeTier.Compact,
-            composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
-        )
+        val state = composeRule.activity.viewModel.uiState.value
+        assertEquals(HomeLandscapeTier.Compact, state.homeLandscapeTier)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
+
+        // The Compact tier always renders the app list as an icon grid, even
+        // though the persisted "App list" layout is still the default Text
+        // (proving the override is tier-driven, not a mutated setting): the
+        // icon-only button exists and the text row does not.
+        assertFalse(
+            "Compact overrides to icons without flipping the persisted layout setting",
+            state.isAppListIconOnly,
+        )
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertExists()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
 
         saveScreenshot("compose_home_landscape_compact_robolectric.png", widthPx = 2400, heightPx = 1080)
     }

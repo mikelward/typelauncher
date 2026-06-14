@@ -222,6 +222,51 @@ class LauncherViewModelShowDockedInListTest {
     }
 
     @Test
+    fun compactTierSortsListByUsageEvenUnderAlphabeticalSort() {
+        // The user has opted into alphabetical sort, but the cramped-landscape
+        // Compact state always sorts the app list by usage (the data ordering is
+        // the descending-launch-count list the UI flips to "most-used at the
+        // bottom" via reverseLayout). "Maps" is launched most, "Zebra" some,
+        // "Apple" never — so alphabetical and usage orders visibly diverge.
+        seedApp("Apple", "com.example.apple")
+        seedApp("Maps", "com.example.maps")
+        seedApp("Zebra", "com.example.zebra")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setAppListSortOrder(AppListSortOrder.Alphabetical)
+        idle()
+
+        val apps = viewModel.uiState.value.filteredApps
+        val maps = apps.first { it.name == "Maps" }
+        val zebra = apps.first { it.name == "Zebra" }
+        // Record launches straight into the store the ViewModel reads (same
+        // SharedPreferences), so we don't depend on `launchApp` resolving a
+        // real activity for the seeded packages under Robolectric.
+        val statsStore = AppLaunchStatsStore(context)
+        repeat(5) { statsStore.recordLaunch(maps.id) }
+        repeat(2) { statsStore.recordLaunch(zebra.id) }
+
+        // Full (the default tier) honors the alphabetical choice and ignores the
+        // launch counts entirely.
+        val tracked = setOf("Apple", "Maps", "Zebra")
+        val fullOrder = viewModel.uiState.value.filteredApps.map { it.name }.filter { it in tracked }
+        assertEquals(listOf("Apple", "Maps", "Zebra"), fullOrder)
+
+        // Compact overrides the sort to usage: most-launched first in the data
+        // order (Maps, Zebra, Apple), which the UI renders bottom-up.
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Compact)
+        idle()
+        val compactOrder = viewModel.uiState.value.filteredApps.map { it.name }.filter { it in tracked }
+        assertEquals(listOf("Maps", "Zebra", "Apple"), compactOrder)
+
+        // Returning to Full restores the user's alphabetical preference.
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Full)
+        idle()
+        val backToFull = viewModel.uiState.value.filteredApps.map { it.name }.filter { it in tracked }
+        assertEquals(listOf("Apple", "Maps", "Zebra"), backToFull)
+    }
+
+    @Test
     fun togglingBackOnRestoresDockedAppsToUnfilteredList() {
         seedApp("Mail", "com.example.mail")
         seedApp("Maps", "com.example.maps")
