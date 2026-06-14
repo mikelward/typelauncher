@@ -211,6 +211,50 @@ internal fun HomeScreen(
     // an island with the screen background showing in the margins, instead of
     // a bar stretched edge-to-edge. Portrait keeps the full-width card.
     val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    // In landscape, optionally flatten the dock into a single wider row (see
+    // `LandscapeDockMode`) so a two-row portrait dock collapses to one row and
+    // gives the saved vertical space to the app list. The flattened row needs
+    // as many columns as the busiest dock has apps, capped to what actually
+    // fits the landscape width at the (rotation-stable) icon size; any overflow
+    // wraps to a second row, exactly as the portrait grid would. `Same` — and
+    // all of portrait — keeps the portrait column count, so the dock renders
+    // exactly as before. The portrait positions in state are never rewritten;
+    // this is a pure render-time reflow (rotating back restores the grid).
+    val isLandscapeReflow = isWiderThanPortrait && state.landscapeDockMode != LandscapeDockMode.Same
+    val dockColumnCount = if (isLandscapeReflow) {
+        landscapeDockColumnCount(
+            isPersonalDockEnabled = state.isDockEnabled,
+            personalDockedAppCount = state.dockedApps.size,
+            isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive,
+            workDockedAppCount = state.workDockedApps.size,
+            dockIconCount = dockIconCount,
+            landscapeFitColumns = dockSlotCountForIconSize(configuration.screenWidthDp, dockIconSizeDp),
+        )
+    } else {
+        dockIconCount
+    }
+    val personalDockPositions = if (isLandscapeReflow) {
+        landscapeDockPositions(
+            state.dockedApps.map { app -> app.id },
+            state.dockPositions,
+            dockIconCount,
+            dockColumnCount,
+            state.landscapeDockMode,
+        )
+    } else {
+        state.dockPositions
+    }
+    val workDockPositions = if (isLandscapeReflow) {
+        landscapeDockPositions(
+            state.workDockedApps.map { app -> app.id },
+            state.workDockPositions,
+            dockIconCount,
+            dockColumnCount,
+            state.landscapeDockMode,
+        )
+    } else {
+        state.workDockPositions
+    }
     // Card width = the icon row's footprint + the card's own padding + a small
     // slack. The slack matters: `Modifier.weight(1f)` only avoids the
     // pixel-rounding wrap (the v403 regression) when the row has a little room
@@ -218,9 +262,11 @@ internal fun HomeScreen(
     // gets this for free — the slot-count math reserves DOCK_HORIZONTAL_PADDING_DP
     // (64) of chrome while the real chrome is only ~48 — so mirror that ~16dp
     // here, otherwise the last icon wraps to a second row at exact-fit widths.
+    // In a landscape reflow the row is wider (`dockColumnCount`), so the
+    // centered island grows to match.
     val dockRowSlackDp = DOCK_ITEM_SPACING_DP * 2
     val dockCardWidthDp = (
-        dockRowContentWidthDp(dockIconCount, dockIconSizeDp) +
+        dockRowContentWidthDp(dockColumnCount, dockIconSizeDp) +
             dockRowSlackDp + SECTION_CARD_PADDING_DP * 2
         ).dp
     // Custom Layout (not Column) so the dock's max-height constraint is
@@ -384,9 +430,9 @@ internal fun HomeScreen(
                         if (state.isDockEnabled) {
                             DockCard(
                                 dockedApps = state.dockedApps,
-                                dockPositions = state.dockPositions,
+                                dockPositions = personalDockPositions,
                                 dockIconSizeDp = dockIconSizeDp,
-                                dockIconCount = dockIconCount,
+                                dockIconCount = dockColumnCount,
                                 modifier = Modifier.weight(1f, fill = false),
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
@@ -400,6 +446,7 @@ internal fun HomeScreen(
                                 onHideApp = onHideApp,
                                 onDragStateChanged = onDockDragChanged,
                                 showAddButtonHint = state.shouldShowDockAddHint,
+                                reorderEnabled = !isLandscapeReflow,
                             )
                         }
                         if (showWorkDock) {
@@ -424,8 +471,8 @@ internal fun HomeScreen(
                             }
                             val workRows = dockRowCount(
                                 state.workDockedApps.map { app -> app.id },
-                                state.workDockPositions,
-                                dockIconCount,
+                                workDockPositions,
+                                dockColumnCount,
                             ).coerceAtMost(maxWorkRows)
                             val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
                             val workMaxHeightDp = workRows * workRowHeightDp +
@@ -433,9 +480,9 @@ internal fun HomeScreen(
                                 SECTION_CARD_PADDING_DP * 2
                             DockCard(
                                 dockedApps = state.workDockedApps,
-                                dockPositions = state.workDockPositions,
+                                dockPositions = workDockPositions,
                                 dockIconSizeDp = dockIconSizeDp,
-                                dockIconCount = dockIconCount,
+                                dockIconCount = dockColumnCount,
                                 modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
@@ -450,6 +497,7 @@ internal fun HomeScreen(
                                 onDragStateChanged = onDockDragChanged,
                                 tags = DockTestTags.Work,
                                 showAddButtonHint = state.shouldShowWorkDockAddHint,
+                                reorderEnabled = !isLandscapeReflow,
                             )
                         }
                     }
@@ -736,6 +784,11 @@ private fun DockCard(
     // The Home callsites pass `state.shouldShowDockAddHint` /
     // `state.shouldShowWorkDockAddHint` explicitly.
     showAddButtonHint: Boolean = false,
+    // Drag-to-reorder is disabled in a landscape reflow because the rendered
+    // positions are a single-row view of the portrait grid, not the persisted
+    // grid (see `DockedAppButton.reorderEnabled`). Portrait and landscape
+    // `Same` keep it on.
+    reorderEnabled: Boolean = true,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
     // the dragged icon's centre against every rendered slot, including empty
@@ -858,6 +911,7 @@ private fun DockCard(
                                 dragOffset = Offset.Zero
                             },
                             onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                            reorderEnabled = reorderEnabled,
                         )
                     } else if (showAddButton && position == firstEmptyPosition) {
                         DockAddButton(
@@ -2268,6 +2322,13 @@ private fun DockedAppButton(
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
     onLongPressArmed: (Boolean) -> Unit = {},
+    // Whether crossing the touch slop promotes the long-press into a reorder
+    // drag. False in a landscape reflow (Zip/Reading/Split), where the rendered
+    // grid uses a wider, single-row coordinate space than the persisted
+    // portrait grid: a drag there would emit columns the portrait store can't
+    // represent and corrupt the saved arrangement. The long-press menu still
+    // opens on release; reordering stays a portrait-only action.
+    reorderEnabled: Boolean = true,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
@@ -2394,7 +2455,7 @@ private fun DockedAppButton(
                                 }
                                 val delta = change.positionChange()
                                 totalDelta += delta
-                                if (!dragging && totalDelta.getDistance() > slopPx) {
+                                if (reorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
                                     dragging = true
                                     latestOnDragStart()
                                     // Carry the full pre-slop displacement into
@@ -2590,6 +2651,7 @@ internal fun SettingsScreen(
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
+    onLandscapeDockModeChanged: (LandscapeDockMode) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
@@ -2751,6 +2813,22 @@ internal fun SettingsScreen(
                     isWorkDockEnabled = state.isWorkDockEnabled,
                     isWorkProfileActive = state.isWorkProfileActive,
                     onWorkDockEnabledChanged = onWorkDockEnabledChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_landscape_dock_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                LandscapeDockModeDropdown(
+                    selected = state.landscapeDockMode,
+                    onLandscapeDockModeChanged = onLandscapeDockModeChanged,
                 )
             }
             Row(
@@ -3235,6 +3313,58 @@ private fun IconShape.optionTag(): String =
         IconShape.System -> ICON_SHAPE_OPTION_SYSTEM_TAG
         IconShape.Circle -> ICON_SHAPE_OPTION_CIRCLE_TAG
         IconShape.Squircle -> ICON_SHAPE_OPTION_SQUIRCLE_TAG
+    }
+
+@Composable
+private fun LandscapeDockModeDropdown(
+    selected: LandscapeDockMode,
+    onLandscapeDockModeChanged: (LandscapeDockMode) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(LANDSCAPE_DOCK_MODE_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(LANDSCAPE_DOCK_MODE_DROPDOWN_MENU_TAG),
+        ) {
+            LandscapeDockMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(mode.labelRes())) },
+                    modifier = Modifier.testTag(mode.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onLandscapeDockModeChanged(mode)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun LandscapeDockMode.labelRes(): Int =
+    when (this) {
+        LandscapeDockMode.Same -> R.string.settings_landscape_dock_option_same
+        LandscapeDockMode.Zip -> R.string.settings_landscape_dock_option_zip
+        LandscapeDockMode.Reading -> R.string.settings_landscape_dock_option_reading
+        LandscapeDockMode.Split -> R.string.settings_landscape_dock_option_split
+    }
+
+private fun LandscapeDockMode.optionTag(): String =
+    when (this) {
+        LandscapeDockMode.Same -> LANDSCAPE_DOCK_MODE_OPTION_SAME_TAG
+        LandscapeDockMode.Zip -> LANDSCAPE_DOCK_MODE_OPTION_ZIP_TAG
+        LandscapeDockMode.Reading -> LANDSCAPE_DOCK_MODE_OPTION_READING_TAG
+        LandscapeDockMode.Split -> LANDSCAPE_DOCK_MODE_OPTION_SPLIT_TAG
     }
 
 @Composable

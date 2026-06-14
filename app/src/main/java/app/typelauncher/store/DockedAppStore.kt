@@ -394,6 +394,22 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Settings → "Landscape dock". Picks how the dock reflows in a
+     * wider-than-portrait window. Defaults to [LandscapeDockMode.Same] so
+     * existing users see no change until they opt into a flattened landscape
+     * dock.
+     */
+    var landscapeDockMode: LandscapeDockMode
+        get() = sharedPreferences.getString(KEY_LANDSCAPE_DOCK_MODE, null)
+            ?.let { name -> runCatching { LandscapeDockMode.valueOf(name) }.getOrNull() }
+            ?: LandscapeDockMode.Same
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_LANDSCAPE_DOCK_MODE, value.name)
+                .apply()
+        }
+
+    /**
      * When true, the bug-report consent dialog is suppressed and Settings →
      * "Report bug" shares immediately. Set by the "Don't show this again"
      * checkbox on the consent dialog itself.
@@ -427,6 +443,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ICON_SHAPE = "icon_shape"
+        const val KEY_LANDSCAPE_DOCK_MODE = "landscape_dock_mode"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"
     }
 }

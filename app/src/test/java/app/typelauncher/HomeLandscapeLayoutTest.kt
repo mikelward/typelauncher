@@ -102,6 +102,7 @@ class HomeLandscapeLayoutTest {
             screenHeightDp = 393,
             densityDpi = 420,
             targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+            landscapeDockMode = LandscapeDockMode.Same,
             isPersonalDockEnabled = true,
             isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
@@ -128,6 +129,7 @@ class HomeLandscapeLayoutTest {
             screenHeightDp = 393,
             densityDpi = 320,
             targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+            landscapeDockMode = LandscapeDockMode.Same,
             isPersonalDockEnabled = true,
             isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
@@ -153,6 +155,7 @@ class HomeLandscapeLayoutTest {
             screenHeightDp = 393,
             densityDpi = 420,
             targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+            landscapeDockMode = LandscapeDockMode.Same,
             isPersonalDockEnabled = true,
             isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
@@ -172,6 +175,7 @@ class HomeLandscapeLayoutTest {
                 screenHeightDp = 800,
                 densityDpi = 420,
                 targetDockIconSizeDp = dockIconSizeForSlotCount(800, 4),
+                landscapeDockMode = LandscapeDockMode.Same,
                 isPersonalDockEnabled = personal,
                 isWorkDockVisible = workVisible,
                 workDockedAppIds = workApps,
@@ -202,6 +206,47 @@ class HomeLandscapeLayoutTest {
                 dockHeightFor(personal = true, workVisible = true, workApps = oneWorkApp),
         )
         assertEquals(0, dockHeightFor(personal = false, workVisible = false))
+    }
+
+    @Test
+    fun metricsCountFlattenedWorkDockAsASingleRow() {
+        fun dockHeightFor(mode: LandscapeDockMode, workApps: List<String>) =
+            homeLandscapeMetrics(
+                screenWidthDp = 1280,
+                screenHeightDp = 800,
+                densityDpi = 420,
+                dockIconCount = 4,
+                landscapeDockMode = mode,
+                isPersonalDockEnabled = true,
+                isWorkDockVisible = true,
+                workDockedAppIds = workApps,
+                workDockPositions = emptyMap(),
+                keyboardReservation = KeyboardReservation(),
+                reservationFingerprint = fingerprint(1280, 800, 420, navBottomPx = 0),
+            ).dockHeightDp
+
+        // Nine apps exceed the icons-per-row this 1280×800 window renders (the
+        // short edge caps it at 7), so they form a two-row portrait work dock —
+        // yet all nine still fit in one row across the 1280dp landscape width.
+        val twoPortraitRows = (1..9).map { "w$it" }
+
+        // Premise: in Same mode the nine apps wrap to a taller, two-row card.
+        assertTrue(
+            dockHeightFor(LandscapeDockMode.Same, twoPortraitRows) >
+                dockHeightFor(LandscapeDockMode.Same, listOf("w1")),
+        )
+        // A flatten mode renders the work dock as one wider row, so its card is
+        // the height of a single-row work dock — shorter than Same's two-row
+        // estimate. This is what lets the tier decision stay Full where the
+        // two-row estimate would have dropped to Compact and hidden the dock.
+        assertEquals(
+            dockHeightFor(LandscapeDockMode.Split, listOf("w1")),
+            dockHeightFor(LandscapeDockMode.Split, twoPortraitRows),
+        )
+        assertTrue(
+            dockHeightFor(LandscapeDockMode.Split, twoPortraitRows) <
+                dockHeightFor(LandscapeDockMode.Same, twoPortraitRows),
+        )
     }
 
     private fun fingerprint(widthDp: Int, heightDp: Int, densityDpi: Int, navBottomPx: Int) =

@@ -69,6 +69,7 @@ internal fun homeLandscapeMetrics(
     screenHeightDp: Int,
     densityDpi: Int,
     targetDockIconSizeDp: Int,
+    landscapeDockMode: LandscapeDockMode,
     isPersonalDockEnabled: Boolean,
     isWorkDockVisible: Boolean,
     workDockedAppIds: List<String>,
@@ -108,10 +109,23 @@ internal fun homeLandscapeMetrics(
     } else {
         1
     }
-    val workRows = if (isWorkDockVisible) {
-        dockRowCount(workDockedAppIds, workDockPositions, coercedDockIconCount).coerceAtMost(maxWorkRows)
-    } else {
-        0
+    // In a flattening landscape mode (`Zip` / `Reading` / `Split`) the work
+    // dock renders as a single wider row — wrapping only when its apps exceed
+    // what the landscape width fits — not at its portrait row count. Count that
+    // flattened height here, mirroring how `HomeScreen` reflows the work dock
+    // through `landscapeDockPositions`, so the Full/Compact fit decision doesn't
+    // drop a dock that would actually fit on a viewport that holds one work row
+    // but not two. `Same` (and portrait) keep the portrait row count.
+    val isFlattenLandscape =
+        screenWidthDp > screenHeightDp && landscapeDockMode != LandscapeDockMode.Same
+    val workRows = when {
+        !isWorkDockVisible -> 0
+        isFlattenLandscape -> {
+            val flattenColumns = dockSlotCountForIconSize(screenWidthDp, dockIconSizeDp).coerceAtLeast(1)
+            ((workDockedAppIds.size + flattenColumns - 1) / flattenColumns).coerceIn(1, maxWorkRows)
+        }
+        else -> dockRowCount(workDockedAppIds, workDockPositions, coercedDockIconCount)
+            .coerceAtMost(maxWorkRows)
     }
     val personalCardHeightDp = if (isPersonalDockEnabled) {
         workRowHeightDp + SECTION_CARD_PADDING_DP * 2

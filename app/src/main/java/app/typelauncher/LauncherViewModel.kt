@@ -185,6 +185,7 @@ internal class LauncherViewModel(
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
+            landscapeDockMode = dockSettingsStore.landscapeDockMode,
             iconTheme = dockSettingsStore.iconTheme,
             isLoadingApps = cachedMetadata.isEmpty(),
             playUpdate = PlayUpdateState.NotAvailable,
@@ -1664,6 +1665,12 @@ internal class LauncherViewModel(
         dockSettingsStore.iconShape = shape
         _uiState.update { it.copy(iconShape = shape) }
         logState("setIconShape=$shape")
+    }
+
+    fun setLandscapeDockMode(mode: LandscapeDockMode) {
+        dockSettingsStore.landscapeDockMode = mode
+        _uiState.update { it.copy(landscapeDockMode = mode) }
+        logState("setLandscapeDockMode=$mode")
     }
 
     fun setIconTheme(theme: IconTheme) {

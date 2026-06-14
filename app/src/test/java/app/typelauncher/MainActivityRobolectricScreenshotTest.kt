@@ -1701,7 +1701,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithContentDescription("Clear search text").performClick()
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
@@ -1762,7 +1762,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun manageHiddenAppsDialog_showsEmptyMessageWhenNothingIsHidden() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
@@ -2331,6 +2331,27 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(IconShape.Squircle, viewModel.uiState.value.iconShape)
     }
 
+    @Test
+    fun landscapeDockModeDropdown_inSettings_persistsSelection() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Landscape dock").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(LANDSCAPE_DOCK_MODE_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
+        assertEquals(LandscapeDockMode.Same, viewModel.uiState.value.landscapeDockMode)
+
+        saveScreenshot("compose_settings_landscape_dock_robolectric.png")
+
+        composeRule.onNodeWithTag(LANDSCAPE_DOCK_MODE_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(LANDSCAPE_DOCK_MODE_OPTION_SPLIT_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(LandscapeDockMode.Split, viewModel.uiState.value.landscapeDockMode)
+    }
+
     // The dock wraps to additional rows so every docked app stays visible
     // without horizontal scrolling. At 4 icons per row this means 8 docked
     // apps render as a 2-row grid; all eight icons must be present in the
@@ -2511,6 +2532,53 @@ class MainActivityRobolectricScreenshotTest {
 
         saveScreenshot(
             "compose_dock_landscape_centered_robolectric.png",
+            widthPx = 3360,
+            heightPx = 2362,
+        )
+    }
+
+    // With a flattening Landscape dock mode (Split here), a dock that wraps to
+    // two rows in portrait collapses to a single centered row in landscape,
+    // returning the saved vertical space to the app list. The portrait
+    // positions are never rewritten — this is a render-time reflow — so the
+    // 4×2 grid stays 4×2 when rotated back. Asserts every docked icon shares
+    // one row and records the visual.
+    @Test
+    @Config(qualifiers = "w1280dp-h900dp-420dpi")
+    fun landscapeSplitModeFlattensDockToOneRow() {
+        val config = composeRule.activity.resources.configuration
+        assertTrue(
+            "expected a landscape window (w=${config.screenWidthDp}, h=${config.screenHeightDp})",
+            config.screenWidthDp > config.screenHeightDp,
+        )
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(4)
+        viewModel.setLandscapeDockMode(LandscapeDockMode.Split)
+        composeRule.waitForIdle()
+        // Eight docked apps at 4 icons per row would be a 4×2 grid in portrait.
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        val docked = viewModel.uiState.value.dockedApps
+        assertTrue("expected ≥6 docked apps (was=${docked.size})", docked.size >= 6)
+
+        // Every docked icon shares the first row's top: the grid is one row now.
+        val tops = docked.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot().top.value
+        }
+        val firstTop = tops.first()
+        tops.forEachIndexed { index, top ->
+            assertTrue(
+                "dock icon $index should share the single landscape row " +
+                    "(firstTop=$firstTop, top=$top, allTops=$tops)",
+                kotlin.math.abs(top - firstTop) <= 1f,
+            )
+        }
+
+        saveScreenshot(
+            "compose_dock_landscape_split_one_row_robolectric.png",
             widthPx = 3360,
             heightPx = 2362,
         )

@@ -415,6 +415,7 @@ class MainActivity : ComponentActivity() {
                 screenHeightDp = config.screenHeightDp,
                 densityDpi = config.densityDpi,
                 targetDockIconSizeDp = state.dockIconSizeDp,
+                landscapeDockMode = state.landscapeDockMode,
                 isPersonalDockEnabled = state.isDockEnabled,
                 isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList(),

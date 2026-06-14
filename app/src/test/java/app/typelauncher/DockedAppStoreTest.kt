@@ -317,6 +317,28 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun landscapeDockModeDefaultsToSame() {
+        assertEquals(LandscapeDockMode.Same, DockSettingsStore(context).landscapeDockMode)
+    }
+
+    @Test
+    fun landscapeDockModePersistsExplicitSelection() {
+        DockSettingsStore(context).landscapeDockMode = LandscapeDockMode.Split
+
+        assertEquals(LandscapeDockMode.Split, DockSettingsStore(context).landscapeDockMode)
+    }
+
+    @Test
+    fun landscapeDockModeFallsBackToSameForUnknownStoredValue() {
+        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("landscape_dock_mode", "Bogus")
+            .commit()
+
+        assertEquals(LandscapeDockMode.Same, DockSettingsStore(context).landscapeDockMode)
+    }
+
+    @Test
     fun dockIconSizeReadsAPersistedLegacyIconSize() {
         // Upgrades from the original dp-based store carry `dock_icon_size_dp`;
         // the target size reads it directly.

@@ -228,6 +228,141 @@ internal fun dockedAppIdsInGridRankOrder(
     }
 }
 
+/**
+ * The dock positions to render in a wider-than-portrait (landscape) window,
+ * given the portrait grid the user actually arranged.
+ *
+ * The portrait grid in [persistedPositions] is the single source of truth and
+ * is never mutated here — this is a pure render-time transform, so rotating
+ * back to portrait always reproduces the original arrangement (including any
+ * deliberate gaps). For [LandscapeDockMode.Same] the portrait positions are
+ * returned untouched. The other modes flatten the grid into a single row by
+ * computing a left-to-right [landscapeDockFlattenOrder] and flowing it into
+ * [landscapeColumnCount] columns; when more apps are docked than fit one row
+ * (a narrow viewport, or [landscapeColumnCount] capped below the app count)
+ * the overflow wraps to a second row, exactly as the portrait grid would.
+ *
+ * Empty portrait cells are compacted away — the whole point of the flattened
+ * row is to reclaim horizontal space — so [LandscapeDockMode.Split]'s two
+ * "wings" can be uneven when the portrait grid had a gap.
+ */
+internal fun landscapeDockPositions(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    portraitColumnCount: Int,
+    landscapeColumnCount: Int,
+    mode: LandscapeDockMode,
+): Map<String, DockPosition> {
+    if (mode == LandscapeDockMode.Same) return persistedPositions
+    val order = landscapeDockFlattenOrder(
+        dockedAppIds,
+        persistedPositions,
+        portraitColumnCount,
+        mode,
+    )
+    val columns = landscapeColumnCount.coerceAtLeast(1)
+    return order.withIndex().associate { (index, appId) ->
+        appId to DockPosition(index / columns, index % columns)
+    }
+}
+
+/**
+ * Number of columns a dock renders in a flattening landscape mode: the busiest
+ * *visible* dock's app count, never fewer than [dockIconCount] (the portrait
+ * per-row count) and never more than fits the landscape width
+ * ([landscapeFitColumns]). A dock whose card isn't rendered contributes 0 — so
+ * a hidden personal dock's saved pins don't widen a work-only dock into a row
+ * of empty slots, and vice versa.
+ */
+internal fun landscapeDockColumnCount(
+    isPersonalDockEnabled: Boolean,
+    personalDockedAppCount: Int,
+    isWorkDockVisible: Boolean,
+    workDockedAppCount: Int,
+    dockIconCount: Int,
+    landscapeFitColumns: Int,
+): Int {
+    val personal = if (isPersonalDockEnabled) personalDockedAppCount else 0
+    val work = if (isWorkDockVisible) workDockedAppCount else 0
+    return maxOf(personal, work).coerceIn(dockIconCount, maxOf(landscapeFitColumns, dockIconCount))
+}
+
+/**
+ * The left-to-right order the docked apps take when flattened into a landscape
+ * row, per [mode]. Resolves the portrait grid first so the comparison runs on
+ * compacted `(row, column)` coordinates, then orders the occupied cells:
+ *
+ *  - [LandscapeDockMode.Reading]: row-major (top row, then bottom row).
+ *  - [LandscapeDockMode.Zip]: column-major (each column's pair stays adjacent).
+ *  - [LandscapeDockMode.Split]: for a two-row grid, the top row's left half,
+ *    then the whole bottom row, then the top row's right half. Any other row
+ *    count (one row, or three-plus) falls back to reading order, which still
+ *    achieves the flatten and wraps cleanly.
+ *
+ * [LandscapeDockMode.Same] never reaches here (handled by [landscapeDockPositions]).
+ */
+internal fun landscapeDockFlattenOrder(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    portraitColumnCount: Int,
+    mode: LandscapeDockMode,
+): List<String> {
+    val resolved = resolvedDockPositions(dockedAppIds, persistedPositions, portraitColumnCount)
+    val ids = dockedAppIds.distinct().filter { appId -> appId in resolved }
+    fun positionOf(appId: String): DockPosition = resolved.getValue(appId)
+    val readingOrder = compareBy<String>({ positionOf(it).row }, { positionOf(it).column })
+    return when (mode) {
+        LandscapeDockMode.Same, LandscapeDockMode.Reading -> ids.sortedWith(readingOrder)
+        LandscapeDockMode.Zip ->
+            ids.sortedWith(compareBy({ positionOf(it).column }, { positionOf(it).row }))
+        LandscapeDockMode.Split -> {
+            val rows = ids.map { positionOf(it).row }.distinct().sorted()
+            if (rows.size != 2) {
+                ids.sortedWith(readingOrder)
+            } else {
+                val (topRow, bottomRow) = rows[0] to rows[1]
+                val splitColumn = portraitColumnCount.coerceAtLeast(1) / 2
+                val topRowApps = ids.filter { positionOf(it).row == topRow }
+                    .sortedBy { positionOf(it).column }
+                val bottomRowApps = ids.filter { positionOf(it).row == bottomRow }
+                    .sortedBy { positionOf(it).column }
+                val topLeft = topRowApps.filter { positionOf(it).column < splitColumn }
+                val topRight = topRowApps.filter { positionOf(it).column >= splitColumn }
+                topLeft + bottomRowApps + topRight
+            }
+        }
+    }
+}
+
+/**
+ * How the dock reflows when the window is wider than portrait (landscape).
+ *
+ * Dock placement is persisted once, as a portrait `(row, column)` grid (see
+ * [DockPosition] / [resolvedDockPositions]). In landscape there is room for a
+ * wider, shorter dock, so a two-row portrait dock can collapse into a single
+ * row — freeing the saved vertical space for the app list. This setting picks
+ * the left-to-right order the flattened row uses; the portrait grid is never
+ * rewritten, so rotating back always reproduces the original arrangement.
+ *
+ *  - [Same]: keep the portrait grid (e.g. 6×2 stays 6×2), just centered.
+ *  - [Zip]: each portrait column's vertical pair becomes a horizontal pair
+ *    (column-major order). Best preserves an icon's horizontal position.
+ *  - [Reading]: top row first, then the bottom row appended on the right
+ *    (row-major reading order).
+ *  - [Split]: the bottom row stays contiguous in the middle while the top row
+ *    is split, its left half to the far left and its right half to the far
+ *    right. Keeps edge icons at the reachable landscape edges.
+ *
+ * See `landscapeDockPositions` for how each mode maps the portrait grid onto
+ * the flattened landscape row.
+ */
+internal enum class LandscapeDockMode {
+    Same,
+    Zip,
+    Reading,
+    Split,
+}
+
 internal enum class ThemeMode {
     System,
     Light,
@@ -506,6 +641,7 @@ internal data class LauncherUiState(
     // Shape every app icon is clipped to. `System` (default) follows the
     // device's adaptive-icon mask. Applied by `AppIcon` via `LocalAppIconShape`.
     val iconShape: IconShape = IconShape.System,
+    val landscapeDockMode: LandscapeDockMode = LandscapeDockMode.Same,
     val isLoadingApps: Boolean = false,
     // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
     // warm start `isLoadingApps` is `false` from process start because cached

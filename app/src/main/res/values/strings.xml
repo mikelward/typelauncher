@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>
@@ -122,6 +122,16 @@
     <string name="settings_icon_shape_option_system" translatable="false">System</string>
     <string name="settings_icon_shape_option_circle" translatable="false">Circle</string>
     <string name="settings_icon_shape_option_squircle" translatable="false">Squircle</string>
+    <!--
+      TODO: backfill translations for the landscape-dock strings below in every
+      values-*/ locale, then drop the tools:ignore="MissingTranslation" markers.
+      English-only for now; lint is suppressed per-string so it stays green.
+    -->
+    <string name="settings_landscape_dock_title" tools:ignore="MissingTranslation">Landscape dock</string>
+    <string name="settings_landscape_dock_option_same" tools:ignore="MissingTranslation">Same</string>
+    <string name="settings_landscape_dock_option_zip" tools:ignore="MissingTranslation">Zip</string>
+    <string name="settings_landscape_dock_option_reading" tools:ignore="MissingTranslation">Reading</string>
+    <string name="settings_landscape_dock_option_split" tools:ignore="MissingTranslation">Split</string>
     <string name="settings_icon_theme_title">Icon theme</string>
     <string name="settings_icon_theme_option_default">Default</string>
     <string name="settings_icon_theme_option_monochrome">Monochrome</string>
