@@ -30,11 +30,12 @@ import org.robolectric.annotation.GraphicsMode
  * Verifies the icon-only app grid's rank order matches the dock.
  *
  * Under a reversed sort the grid flips its vertical axis (index 0 on the bottom
- * row, nearest the keyboard) and now also mirrors its cross axis, so the
- * highest-rank app (index 0) lands at the bottom-*right* — the same corner the
- * dock pins its highest slot to. Forward sorts are unchanged: index 0 stays
- * top-left. Both are checked by measuring the rendered tile positions, with a
- * screenshot for the visual diff.
+ * row, nearest the keyboard) and fills each row left-to-right, so the
+ * highest-rank app (index 0) lands at the bottom-*left* — the same corner the
+ * dock's highest-rank icon (its bottom-left) surfaces into when the dock is
+ * hidden. Forward sorts are unchanged: index 0 stays top-left. Both are checked
+ * by measuring the rendered tile positions, with a screenshot for the visual
+ * diff.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -51,7 +52,7 @@ class IconOnlyGridOrderScreenshotTest {
     }
 
     @Test
-    fun reversedSort_placesHighestRankAtBottomRight() {
+    fun reversedSort_placesHighestRankAtBottomLeft() {
         renderGrid(reverseLayout = true)
 
         val first = boundsOf("App0")
@@ -59,9 +60,9 @@ class IconOnlyGridOrderScreenshotTest {
         val rowAbove = boundsOf("App3")
 
         assertTrue(
-            "index 0 should sit to the right of index 1 in its row " +
+            "index 0 should sit to the left of index 1 in its row " +
                 "(App0.left=${first.left}, App1.left=${rowNeighbour.left})",
-            first.left > rowNeighbour.left,
+            first.left < rowNeighbour.left,
         )
         assertSameRow(first, rowNeighbour)
         assertTrue(

@@ -223,8 +223,8 @@ jobs:
       - name: Run icon-only grid order screenshot tests
         # Renders the icon-only app grid in forward and reversed sort so the
         # PR `roborazzi-screenshots` artifact shows the highest-rank tile in
-        # the bottom-right (reversed) / top-left (forward) corner, matching
-        # the dock.
+        # the bottom-left (reversed) / top-left (forward) corner, matching the
+        # dock's bottom-left icon when the dock is hidden.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconOnlyGridOrderScreenshotTest" -Proborazzi.test.record=true
 
       - name: Print failing test details

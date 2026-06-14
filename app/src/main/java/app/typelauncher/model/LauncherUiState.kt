@@ -197,17 +197,23 @@ internal fun dockedAppIdsInGridRankOrder(
     return uniqueIds.sortedWith { left, right ->
         val leftPosition = positions.getValue(left)
         val rightPosition = positions.getValue(right)
+        // A reversed sort renders the app list bottom-up (`reverseLayout`), so
+        // the highest-rank app (index 0) lands on the bottom row. The dock's
+        // bottom row is its row closest to the keyboard, so rank the bottom dock
+        // row first under a reversed sort and the top row first otherwise.
         val rowComparison = if (sortOrder.isReversed) {
             rightPosition.row.compareTo(leftPosition.row)
         } else {
             leftPosition.row.compareTo(rightPosition.row)
         }
         if (rowComparison != 0) return@sortedWith rowComparison
-        val columnComparison = if (sortOrder.isReversed) {
-            rightPosition.column.compareTo(leftPosition.column)
-        } else {
-            leftPosition.column.compareTo(rightPosition.column)
-        }
+        // Always rank left-to-right within a row, in both sort directions. Under
+        // a reversed sort `reverseLayout` flips only the vertical axis, leaving
+        // index 0 at the bottom-*left*, so ranking the leftmost dock column first
+        // puts the dock's bottom-left icon in the app list's bottom-left corner
+        // when the dock is hidden — the position the user already has muscle
+        // memory for.
+        val columnComparison = leftPosition.column.compareTo(rightPosition.column)
         if (columnComparison != 0) return@sortedWith columnComparison
         (indexById[left] ?: 0).compareTo(indexById[right] ?: 0)
     }

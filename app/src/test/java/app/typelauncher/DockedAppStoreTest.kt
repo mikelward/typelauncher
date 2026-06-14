@@ -198,15 +198,22 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun dockedAppIdsForReversedSortRanksBottomRightFirst() {
+    fun dockedAppIdsForReversedSortRanksBottomLeftFirst() {
         val store = DockedAppStore(context)
         store.dock("a", columnCount = 4)
         store.dock("b", columnCount = 4)
         store.dock("c", columnCount = 4)
         store.move("a", row = 1, column = 0, columnCount = 4, sortOrder = AppListSortOrder.Usage)
 
+        // After the move the dock is:
+        //   .  b  c  .   (row 0)
+        //   a  .  .  .   (row 1)
+        // A reversed sort renders the list bottom-up, so the dock's bottom row
+        // ranks first and each row reads left-to-right: a (bottom-left) leads,
+        // then b, then c. The bottom-left dock icon lands in the list's
+        // bottom-left corner when the dock is hidden.
         assertEquals(
-            listOf("a", "c", "b"),
+            listOf("a", "b", "c"),
             store.dockedAppIdsFor(AppListSortOrder.UsageReversed, columnCount = 4),
         )
     }
