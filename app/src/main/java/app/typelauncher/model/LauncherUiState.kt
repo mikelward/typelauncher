@@ -601,25 +601,42 @@ internal fun stableDockReferenceWidthDp(
     stableDensityDpi: Int,
 ): Int {
     if (stableDensityDpi <= 0 || liveDensityDpi <= 0) return liveReferenceWidthDp
-    // The system "Display size" override stays within Android's own scale band:
-    // the settings slider offers roughly 0.85x–1.5x of the stable density. A
-    // ratio far outside that band means the two densities aren't a trustworthy
-    // Display-size pair — most often a host that doesn't model
+    // Only *enlarge* the reference, never shrink it. The system "Display size"
+    // override raises `densityDpi` above the stable density, so a ratio above 1
+    // is a genuine Display-size bump and the dock should grow to match. A ratio
+    // *below* 1 is not a smaller Display size, though: a non-native screen
+    // resolution (e.g. a Pixel rendering FHD+ instead of its native QHD panel)
+    // lowers the live `densityDpi` while `DENSITY_DEVICE_STABLE` stays pinned to
+    // the native panel, so `densityDpi / stable` < 1 even at the default Display
+    // size. Scaling the reference down for that ratio shrank the dock icons on
+    // those devices for no reason, so a ratio at or below 1 — and any implausibly
+    // large ratio, which usually means a host that doesn't model
     // `DisplayMetrics.DENSITY_DEVICE_STABLE` and leaves it at the 160dpi default
-    // (e.g. Robolectric) — so we fall back to the live width (no scaling, i.e.
-    // the pre-Display-size behavior) rather than distort the dock.
+    // (e.g. Robolectric) — falls back to the live width: the pre-feature behavior.
+    //
+    // TODO: separate the resolution factor from the Display-size factor so a
+    // genuinely *smaller* Display size also scales the dock (and a reduced
+    // resolution combined with an enlarged Display size scales by the full
+    // factor, not the resolution-discounted one). `densityDpi / stable` conflates
+    // the two; `Display.getSupportedModes()` exposes the current vs native
+    // (max-resolution) mode, and `currentModeWidth / maxModeWidth` is the
+    // resolution factor to divide out. Deferred: it adds device-edge surface
+    // (multi-display foldables, refresh-rate-only mode variants, devices where
+    // STABLE isn't the max-mode density) and can't be unit-tested under
+    // Robolectric, so it needs on-device verification across a few devices.
     val scale = liveDensityDpi.toDouble() / stableDensityDpi
-    if (scale < MIN_DISPLAY_SIZE_SCALE || scale > MAX_DISPLAY_SIZE_SCALE) return liveReferenceWidthDp
+    if (scale <= 1.0 || scale > MAX_DISPLAY_SIZE_SCALE) return liveReferenceWidthDp
     return (liveReferenceWidthDp.toLong() * liveDensityDpi / stableDensityDpi)
         .toInt()
         .coerceAtLeast(1)
 }
 
-// The plausible range for the system Display-size scale factor
+// Upper bound on the system Display-size scale factor
 // (`densityDpi / DENSITY_DEVICE_STABLE`). Android's own slider tops out around
-// 1.5x and bottoms out around 0.85x; the bounds here are generous so every real
-// Display-size step is honored while implausible ratios are ignored.
-private const val MIN_DISPLAY_SIZE_SCALE = 0.5
+// 1.5x; the bound here is generous so every real Display-size step is honored
+// while an implausibly large ratio (e.g. a host that doesn't model
+// `DENSITY_DEVICE_STABLE`) is ignored. There is no lower bound — only ratios
+// above 1 enlarge the dock; see `stableDockReferenceWidthDp`.
 private const val MAX_DISPLAY_SIZE_SCALE = 1.75
 
 // The dock icon size and the per-row slot count for the current configuration.

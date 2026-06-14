@@ -102,6 +102,31 @@ class DockIconSizingTest {
     }
 
     @Test
+    fun reducedScreenResolution_doesNotShrinkDock() {
+        // Regression: a Pixel 10 Pro rendering FHD+ (~405dpi) instead of its
+        // native QHD panel reports `DENSITY_DEVICE_STABLE` pinned to the native
+        // ~480dpi, so `densityDpi / stable` ≈ 0.84 < 1 *even at the default
+        // Display size*. That must not shrink the dock — the reference falls back
+        // to the live width, so the icon dp and rendered count match the
+        // pre-feature, width-fitted sizing exactly.
+        val liveWidthDp = 426
+        assertEquals(
+            "a sub-1 density ratio (reduced resolution, not a smaller Display size) must not shrink the reference",
+            liveWidthDp,
+            stableDockReferenceWidthDp(liveWidthDp, liveDensityDpi = 405, stableDensityDpi = 480),
+        )
+        val sizing = dockIconSizing(
+            liveReferenceWidthDp = liveWidthDp,
+            liveDensityDpi = 405,
+            stableDensityDpi = 480,
+            persistedIconCount = 6,
+        )
+        assertEquals(dockIconSizeForSlotCount(liveWidthDp, 6), sizing.iconSizeDp)
+        assertEquals(6, sizing.slotCount)
+        assertEquals(6, sizing.configuredCount)
+    }
+
+    @Test
     fun missingStableDensity_fallsBackToLiveWidth() {
         // A non-positive stable density (unknown) must not divide-by-zero or
         // distort the width — it falls back to the live width unchanged.
