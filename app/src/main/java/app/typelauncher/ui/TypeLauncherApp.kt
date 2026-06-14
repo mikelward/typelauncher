@@ -3,7 +3,6 @@ package app.typelauncher
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
-import android.util.DisplayMetrics
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -819,7 +818,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
         configuration.screenHeightDp,
         configuration.densityDpi,
         navBottomPx,
-        state.dockIconCount,
+        state.dockIconSizeDp,
         state.isDockEnabled,
         isWorkDockVisible,
         workDockedAppIds,
@@ -838,8 +837,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
                 screenWidthDp = configuration.screenWidthDp,
                 screenHeightDp = configuration.screenHeightDp,
                 densityDpi = configuration.densityDpi,
-                stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
-                dockIconCount = state.dockIconCount,
+                targetDockIconSizeDp = state.dockIconSizeDp,
                 isPersonalDockEnabled = state.isDockEnabled,
                 isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = workDockedAppIds,

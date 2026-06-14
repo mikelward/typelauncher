@@ -20,7 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-// These drag/carousel tests render the dock with `dockIconCount = 4` (the
+// These drag/carousel tests render the dock at 4 icons per row (the
 // per-row default they were written under). At the current 6-per-row default
 // the dock icons shrink and each render composes more cells, accumulating to
 // the point where Robolectric's shared Compose runtime can't settle a later
@@ -57,7 +57,7 @@ class DockReorderCarouselTest {
             fakeApp("App03").copy(isDocked = true),
             fakeApp("App04").copy(isDocked = true),
         )
-        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked, dockIconCount = 4))
+        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked, dockIconSizeDp = dockIconSizeForSlotCount(411, 4)))
         var showAgendaCount = 0
         var showWidgetsCount = 0
         composeRule.setContent {
@@ -145,7 +145,7 @@ class DockReorderCarouselTest {
             fakeApp("App03").copy(isDocked = true),
             fakeApp("App04").copy(isDocked = true),
         )
-        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked, dockIconCount = 4))
+        var state by mutableStateOf(LauncherUiState(filteredApps = emptyList(), dockedApps = docked, dockIconSizeDp = dockIconSizeForSlotCount(411, 4)))
         var showAgendaCount = 0
         var showWidgetsCount = 0
         composeRule.setContent {
@@ -237,7 +237,7 @@ class DockReorderCarouselTest {
             fakeApp("App04").copy(isDocked = true),
             fakeApp("App05").copy(isDocked = true),
         )
-        val state = LauncherUiState(filteredApps = emptyList(), dockedApps = docked, dockIconCount = 4)
+        val state = LauncherUiState(filteredApps = emptyList(), dockedApps = docked, dockIconSizeDp = dockIconSizeForSlotCount(411, 4))
         var reorderTarget: Triple<String, Int, Int>? = null
         composeRule.setContent {
             TypeLauncherTheme {
@@ -344,7 +344,7 @@ class DockReorderCarouselTest {
                 filteredApps = emptyList(),
                 dockedApps = docked,
                 dockPositions = positions.toMap(),
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
             ),
         )
         composeRule.setContent {
@@ -467,7 +467,7 @@ class DockReorderCarouselTest {
                 filteredApps = emptyList(),
                 dockedApps = docked,
                 dockPositions = positions.toMap(),
-                dockIconCount = 4,
+                dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
             ),
         )
         composeRule.setContent {

@@ -19,8 +19,8 @@ import androidx.compose.runtime.Immutable
 // the cap anyway) so the slider runs a clean 4..7 there, with the largest stop
 // a row of 4 at 72 dp.
 //
-// DEFAULT_DOCK_APP_ICON_SIZE_DP is the size a fresh install starts at when no
-// per-row count is persisted yet (see DockedAppStore.deriveDockIconCountFromLegacySize):
+// DEFAULT_DOCK_APP_ICON_SIZE_DP is the target icon size a fresh install starts
+// at when no dock icon size is persisted yet (see DockSettingsStore.dockIconSizeDp):
 // 43 dp maps to 6 icons per row on a 411 dp phone, the default density.
 internal const val MIN_DOCK_APP_ICON_SIZE_DP = 32
 internal const val DEFAULT_DOCK_APP_ICON_SIZE_DP = 43
@@ -444,7 +444,7 @@ internal data class LauncherUiState(
     // itself out of the main list to free vertical space — the launcher's
     // pre-toggle behavior.
     val isShowDockedAppsInList: Boolean = false,
-    val dockIconCount: Int = DEFAULT_DOCK_ICON_COUNT,
+    val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
     // True when the dock was prefilled on first run and the user has not yet
     // docked anything; renders the "+" add-button onboarding hint in the first
@@ -454,7 +454,7 @@ internal data class LauncherUiState(
     // Secondary "work apps" dock rendered below the personal dock when a
     // managed (work) profile is provisioned and unpaused. Independent
     // persistence and enable toggle, but it intentionally shares
-    // [dockIconCount] with the personal dock so the two rows stay
+    // [dockIconSizeDp] with the personal dock so the two rows stay
     // visually aligned and the user has a single slider to tune. The card
     // is hidden entirely when the profile is in quiet mode
     // (`isWorkProfileActive = false`).
@@ -581,96 +581,33 @@ internal fun dockSlotCountRange(screenWidthDp: Int): IntRange {
     return minSlotCount..maxSlotCount
 }
 
-// The dock reference width (short screen edge, in dp) re-expressed at the
-// device's *stable* density — the width the dock would see at the default
-// system Display size, with the user's "Display size" override factored out.
+// The dock icon size and the per-row slot count for an available width and a
+// target icon size (dp).
 //
-// The system "Display size" setting works by inflating the density Android
-// reports to the app ([liveDensityDpi]); a UI authored in dp/sp scales up with
-// it for free. The dock is the one surface that didn't: its icon dp was fitted
-// to the *live* `screenWidthDp`, which deflates by the very factor the density
-// inflates, so the icon's pixel size came out independent of Display size. By
-// deriving the icon dp from this stable width instead, the icon dp is pinned
-// and so grows in pixels with Display size like the rest of the screen; the
-// rendered per-row count (`dockSlotCountForIconSize` against the live width)
-// then drops to keep the larger icons fitting. [DisplayMetrics.DENSITY_DEVICE_STABLE]
-// is the stable density to pass; it ignores the Display-size override.
-internal fun stableDockReferenceWidthDp(
-    liveReferenceWidthDp: Int,
-    liveDensityDpi: Int,
-    stableDensityDpi: Int,
-): Int {
-    if (stableDensityDpi <= 0 || liveDensityDpi <= 0) return liveReferenceWidthDp
-    // Only *enlarge* the reference, never shrink it. The system "Display size"
-    // override raises `densityDpi` above the stable density, so a ratio above 1
-    // is a genuine Display-size bump and the dock should grow to match. A ratio
-    // *below* 1 is not a smaller Display size, though: a non-native screen
-    // resolution (e.g. a Pixel rendering FHD+ instead of its native QHD panel)
-    // lowers the live `densityDpi` while `DENSITY_DEVICE_STABLE` stays pinned to
-    // the native panel, so `densityDpi / stable` < 1 even at the default Display
-    // size. Scaling the reference down for that ratio shrank the dock icons on
-    // those devices for no reason, so a ratio at or below 1 — and any implausibly
-    // large ratio, which usually means a host that doesn't model
-    // `DisplayMetrics.DENSITY_DEVICE_STABLE` and leaves it at the 160dpi default
-    // (e.g. Robolectric) — falls back to the live width: the pre-feature behavior.
-    //
-    // TODO: separate the resolution factor from the Display-size factor so a
-    // genuinely *smaller* Display size also scales the dock (and a reduced
-    // resolution combined with an enlarged Display size scales by the full
-    // factor, not the resolution-discounted one). `densityDpi / stable` conflates
-    // the two; `Display.getSupportedModes()` exposes the current vs native
-    // (max-resolution) mode, and `currentModeWidth / maxModeWidth` is the
-    // resolution factor to divide out. Deferred: it adds device-edge surface
-    // (multi-display foldables, refresh-rate-only mode variants, devices where
-    // STABLE isn't the max-mode density) and can't be unit-tested under
-    // Robolectric, so it needs on-device verification across a few devices.
-    val scale = liveDensityDpi.toDouble() / stableDensityDpi
-    if (scale <= 1.0 || scale > MAX_DISPLAY_SIZE_SCALE) return liveReferenceWidthDp
-    return (liveReferenceWidthDp.toLong() * liveDensityDpi / stableDensityDpi)
-        .toInt()
-        .coerceAtLeast(1)
-}
-
-// Upper bound on the system Display-size scale factor
-// (`densityDpi / DENSITY_DEVICE_STABLE`). Android's own slider tops out around
-// 1.5x; the bound here is generous so every real Display-size step is honored
-// while an implausibly large ratio (e.g. a host that doesn't model
-// `DENSITY_DEVICE_STABLE`) is ignored. There is no lower bound — only ratios
-// above 1 enlarge the dock; see `stableDockReferenceWidthDp`.
-private const val MAX_DISPLAY_SIZE_SCALE = 1.75
-
-// The dock icon size and the per-row slot count for the current configuration.
-//
-// [iconSizeDp] is derived from the *stable* reference width and the persisted
-// "Icons per row" count, so the slider really picks a fixed icon dp that honors
-// the system Display size (it grows in pixels as the user enlarges Display
-// size). [slotCount] is how many of those icons fit the *live* width — equal to
-// [configuredCount] at the default Display size, fewer once the user enlarges
-// it. [configuredCount] is the persisted count coerced to the stable width's
-// slot range, i.e. what the Settings slider shows.
+// [slotCount] is how many [targetIconSizeDp]-sized icons fit the available
+// width; [iconSizeDp] is that target grown to fill the row at that count (so it
+// is >= the target on real widths). The system "Display size" setting is
+// honored implicitly: a larger Display size inflates the device density, which
+// shrinks the available width in dp, so fewer icons fit and each fills bigger
+// — the dock scales with Display size and is immune to resolution changes
+// because dp absorbs both for free.
 internal data class DockIconSizing(
+    // grown-to-fill size for the rendered count (>= the target on real widths)
     val iconSizeDp: Int,
+    // rendered columns
     val slotCount: Int,
-    val configuredCount: Int,
 )
 
-internal fun dockIconSizing(
-    liveReferenceWidthDp: Int,
-    liveDensityDpi: Int,
-    stableDensityDpi: Int,
-    persistedIconCount: Int,
-): DockIconSizing {
-    val stableWidthDp = stableDockReferenceWidthDp(liveReferenceWidthDp, liveDensityDpi, stableDensityDpi)
-    val configuredCount = persistedIconCount.coerceIn(dockSlotCountRange(stableWidthDp))
-    val iconSizeDp = dockIconSizeForSlotCount(stableWidthDp, configuredCount)
-    // The configured count is the ceiling on rendered columns; the system
-    // Display size only ever reduces it. Capping here also preserves parity on
-    // wide default-density windows, where `dockIconSizeForSlotCount` clamps the
-    // icon to MAX_DOCK_APP_ICON_SIZE_DP and re-packing that smaller-than-natural
-    // size would otherwise fit one extra column (e.g. 9 at 900dp for a count of
-    // 8) and exceed the store's hard cap.
-    val slotCount = dockSlotCountForIconSize(liveReferenceWidthDp, iconSizeDp).coerceAtMost(configuredCount)
-    return DockIconSizing(iconSizeDp = iconSizeDp, slotCount = slotCount, configuredCount = configuredCount)
+// Rendered dock geometry for an available width and a target icon size (dp).
+// count = how many target-sized icons fit; iconSizeDp = grown to fill the row
+// at that count. Honors the system Display size implicitly: a larger Display
+// size shrinks `availableWidthDp` (dp), so fewer, bigger icons render.
+internal fun dockIconSizing(availableWidthDp: Int, targetIconSizeDp: Int): DockIconSizing {
+    val target = targetIconSizeDp.coerceIn(MIN_DOCK_APP_ICON_SIZE_DP, MAX_DOCK_APP_ICON_SIZE_DP)
+    val slotCount = dockSlotCountForIconSize(availableWidthDp, target)
+        .coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
+    val iconSizeDp = dockIconSizeForSlotCount(availableWidthDp, slotCount)
+    return DockIconSizing(iconSizeDp = iconSizeDp, slotCount = slotCount)
 }
 
 // The width, in dp, that a single dock row of [slotCount] icons occupies at

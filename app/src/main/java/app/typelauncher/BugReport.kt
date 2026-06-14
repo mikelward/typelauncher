@@ -69,7 +69,7 @@ internal object BugReport {
             isDockEnabled = dockSettings.isDockEnabled,
             isAppListIconOnly = dockSettings.isAppListIconOnly,
             isShowDockedAppsInList = dockSettings.isShowDockedAppsInList,
-            dockIconCount = dockSettings.dockIconCount,
+            dockIconSizeDp = dockSettings.dockIconSizeDp,
             appListSortOrder = dockSettings.appListSortOrder,
             isAgendaEnabled = dockSettings.isAgendaEnabled,
             dockedAppIds = dockedApps,
@@ -201,7 +201,7 @@ internal fun buildBugReportPayload(
     isDockEnabled: Boolean,
     isAppListIconOnly: Boolean,
     isShowDockedAppsInList: Boolean,
-    dockIconCount: Int,
+    dockIconSizeDp: Int,
     appListSortOrder: AppListSortOrder,
     isAgendaEnabled: Boolean,
     dockedAppIds: List<String>,
@@ -229,7 +229,7 @@ internal fun buildBugReportPayload(
         appendLine("Dock enabled: $isDockEnabled")
         appendLine("App list icon-only: $isAppListIconOnly")
         appendLine("Show docked apps in list: $isShowDockedAppsInList")
-        appendLine("Dock icons visible: $dockIconCount")
+        appendLine("Dock icon size: ${dockIconSizeDp}dp")
         appendLine("App list sort order: $appListSortOrder")
         appendLine("Agenda enabled: $isAgendaEnabled")
         appendLine("Docked apps (${dockedAppIds.size}):")

@@ -20,7 +20,6 @@ import android.net.Uri
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
-import android.util.DisplayMetrics
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -178,7 +177,7 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
-            dockIconCount = dockSettingsStore.dockIconCount,
+            dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
@@ -1058,9 +1057,9 @@ internal class LauncherViewModel(
             app.isDocked -> dockedAppStore.undock(app.id)
             app.isWorkDocked -> workDockedAppStore.undock(app.id)
             app.isWorkApp && state.isWorkDockEnabled ->
-                workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconCount))
+                workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp))
             else ->
-                dockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconCount))
+                dockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp))
         }
         refreshLists()
         logState("toggleDock")
@@ -1073,7 +1072,7 @@ internal class LauncherViewModel(
             appId = appId,
             row = row,
             column = column,
-            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
+            columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp),
             sortOrder = state.appListSortOrder,
         )
         refreshLists()
@@ -1098,7 +1097,7 @@ internal class LauncherViewModel(
         if (app.isWorkDocked) {
             workDockedAppStore.undock(app.id)
         } else {
-            workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconCount))
+            workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp))
         }
         refreshLists()
         logState("toggleWorkDock")
@@ -1111,7 +1110,7 @@ internal class LauncherViewModel(
             appId = appId,
             row = row,
             column = column,
-            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
+            columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp),
             sortOrder = state.appListSortOrder,
         )
         refreshLists()
@@ -1680,10 +1679,17 @@ internal class LauncherViewModel(
         logState("setIconTheme=$theme")
     }
 
+    // The Settings slider still picks a per-row *count*; store the icon *size*
+    // (dp) that fills that many icons at the current width, so the rendered count
+    // round-trips and the stored size then adapts to other widths / Display
+    // sizes on its own.
     fun setDockVisibleIconCount(count: Int) {
-        val clampedCount = count.coerceIn(MIN_DOCK_ICON_COUNT, MAX_DOCK_ICON_COUNT)
-        dockSettingsStore.dockIconCount = clampedCount
-        _uiState.update { it.copy(dockIconCount = clampedCount) }
+        val configuration = app.resources.configuration
+        val shortEdgeDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+        val clampedCount = count.coerceIn(dockSlotCountRange(shortEdgeDp))
+        val targetIconSizeDp = dockIconSizeForSlotCount(shortEdgeDp, clampedCount)
+        dockSettingsStore.dockIconSizeDp = targetIconSizeDp
+        _uiState.update { it.copy(dockIconSizeDp = targetIconSizeDp) }
         logState("setDockVisibleIconCount requested=$count")
     }
 
@@ -1762,13 +1768,13 @@ internal class LauncherViewModel(
     private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
         dockedAppStore.dockedAppIdsFor(
             sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
+            columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp),
         )
 
     private fun workDockedAppIdsForState(state: LauncherUiState): List<String> =
         workDockedAppStore.dockedAppIdsFor(
             sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-            columnCount = deviceRenderableDockIconCount(state.dockIconCount),
+            columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp),
         )
 
     /**
@@ -1816,40 +1822,25 @@ internal class LauncherViewModel(
     }
 
     /**
-     * The per-row dock count this device can actually render: [storedCount]
-     * (defaulting to the live `dockIconCount`) coerced into [dockSlotCountRange]
-     * for the short edge. The stored count is derived from a fixed reference
-     * width ([DEFAULT_DOCK_SCREEN_WIDTH_DP]) and can fall outside what a given
-     * window shows — HomeScreen clamps the rendered dock the same way. Every
+     * The per-row dock count this device actually renders for [targetIconSizeDp]
+     * (defaulting to the persisted `dockIconSizeDp`): how many target-sized icons
+     * fit the current window's short edge (see [dockIconSizing]). Every
      * dock-store interaction that depends on the column grid (first-run prefill,
      * `dock`/`move` position writes, and the position→rank reads that order
-     * docked apps in the list) sizes itself from this so the persisted grid
-     * always matches the grid the user sees, instead of placing or ranking apps
-     * in columns Home never renders.
+     * docked apps in the list) sizes itself from this, so the persisted grid
+     * always matches the grid the user sees — including when the system Display
+     * size shrinks the dp-width and renders fewer, bigger icons.
      *
      * Uses the *current window's* short edge — `minOf(screenWidthDp,
      * screenHeightDp)`, the exact expression HomeScreen's `dockReferenceWidthDp`
-     * uses — rather than `smallestScreenWidthDp`. The two diverge when the app
-     * runs in a window narrower than the physical device (split-screen,
-     * free-form, a foldable cover screen): there `smallestScreenWidthDp` still
-     * reports the device's smallest width while HomeScreen renders against the
-     * narrower window, so clamping on the device width would persist a grid
-     * wider than what's drawn.
+     * uses — rather than `smallestScreenWidthDp`, which still reports the
+     * device's smallest width in a narrower window (split-screen, free-form, a
+     * foldable cover) where HomeScreen renders against the narrower window.
      */
-    private fun deviceRenderableDockIconCount(storedCount: Int = _uiState.value.dockIconCount): Int {
+    private fun deviceRenderableDockIconCount(targetIconSizeDp: Int = _uiState.value.dockIconSizeDp): Int {
         val configuration = app.resources.configuration
         val shortEdgeDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
-        // Mirror HomeScreen's `dockIconSizing` exactly: the rendered count honors
-        // both the window's short edge and the system "Display size" setting
-        // (which inflates the icon dp and so reduces how many fit), not just the
-        // width. Persisting against this keeps the stored grid in lock-step with
-        // what the user sees at any Display size.
-        return dockIconSizing(
-            liveReferenceWidthDp = shortEdgeDp,
-            liveDensityDpi = configuration.densityDpi,
-            stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
-            persistedIconCount = storedCount,
-        ).slotCount
+        return dockIconSizing(shortEdgeDp, targetIconSizeDp).slotCount
     }
 
     /**
