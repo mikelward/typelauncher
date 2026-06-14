@@ -29,6 +29,19 @@ internal object LauncherDebugLog {
         LauncherTelemetry.log(message)
     }
 
+    /**
+     * Logcat-only diagnostic for high-frequency, per-icon detail (icon-tile
+     * composition, dynamic-calendar resolution). Goes to `adb logcat -s
+     * TypeLauncherDebug` like [event], but is deliberately kept *out* of the
+     * bug-report ring buffer and Crashlytics breadcrumbs: at one line per app
+     * icon per render size it would otherwise overflow the 300-entry buffer on
+     * a cold start and evict the lifecycle/state context the bug report exists
+     * to capture.
+     */
+    fun trace(message: String) {
+        Log.d(LAUNCHER_DEBUG_TAG, message)
+    }
+
     fun warning(message: String, throwable: Throwable? = null) {
         record('W', message, throwable)
         Log.w(LAUNCHER_DEBUG_TAG, message, throwable)

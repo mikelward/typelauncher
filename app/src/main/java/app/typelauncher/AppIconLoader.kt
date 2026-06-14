@@ -618,7 +618,7 @@ internal object AppIconLoader {
         val key = dynamicCalendarIconsMetadataKey(component.packageName)
         val arrayResId = findDynamicCalendarArrayResId(packageManager, component, key)
         if (arrayResId == 0) {
-            LauncherDebugLog.event(
+            LauncherDebugLog.trace(
                 "dynamicCalendarIcon: no '$key' metadata for ${component.packageName} " +
                     "iconKeys=${dynamicCalendarMetadataKeysForLog(packageManager, component)}",
             )
@@ -639,7 +639,7 @@ internal object AppIconLoader {
                     null,
                 )
             }
-            LauncherDebugLog.event(
+            LauncherDebugLog.trace(
                 "dynamicCalendarIcon: ${component.packageName} day=$dayOfMonth " +
                     "arrayResId=$arrayResId dayResId=$dayIconResId resolved=${raw != null}",
             )

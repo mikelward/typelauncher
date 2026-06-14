@@ -36,6 +36,20 @@ class LauncherDebugLogTest {
     }
 
     @Test
+    fun traceLinesAreNotCapturedInTheBugReportBuffer() {
+        LauncherDebugLog.event("kept event")
+        LauncherDebugLog.trace("iconTile com.example sizePx=89 adaptive")
+        LauncherDebugLog.trace("dynamicCalendarIcon: com.example resolved=true")
+
+        // trace() is logcat-only: it must never reach the ring buffer the
+        // bug report dumps, so the per-icon icon firehose can't evict the
+        // lifecycle/state context that buffer exists to capture.
+        val snapshot = LauncherDebugLog.snapshot()
+        assertEquals(1, snapshot.size)
+        assertTrue(snapshot[0].contains(" D TypeLauncherDebug: kept event"))
+    }
+
+    @Test
     fun ringBufferEvictsOldestEntriesWhenAtCapacity() {
         repeat(LOG_BUFFER_MAX_ENTRIES + 50) { index ->
             LauncherDebugLog.event("event $index")

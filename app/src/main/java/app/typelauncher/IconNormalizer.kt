@@ -330,7 +330,7 @@ internal object IconNormalizer {
         glyph.recycle()
 
         if (debugLabel.isNotEmpty()) {
-            LauncherDebugLog.event(
+            LauncherDebugLog.trace(
                 "iconTile $debugLabel sizePx=$sizePx themed synthesized engrave " +
                     "field=${hexColor(Color.rgb(fieldR, fieldG, fieldB))} maxInk=${"%.2f".format(maxInk)} " +
                     "silhouetteW=${"%.2f".format(silhouetteWeight)} detail=$hasDetail " +
@@ -369,7 +369,7 @@ internal object IconNormalizer {
         glyph.setTint(themedColors.glyph)
         drawLayerFramed(canvas, glyph, sizePx)
         if (debugLabel.isNotEmpty()) {
-            LauncherDebugLog.event(
+            LauncherDebugLog.trace(
                 "iconTile $debugLabel sizePx=$sizePx themed mono=${mono.javaClass.simpleName} " +
                     "plate=${hexColor(themedColors.plate)} glyph=${hexColor(themedColors.glyph)}",
             )
@@ -391,7 +391,7 @@ internal object IconNormalizer {
         raw.recycle()
         val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
         if (debugLabel.isNotEmpty()) {
-            LauncherDebugLog.event(
+            LauncherDebugLog.trace(
                 "iconTile $debugLabel sizePx=$sizePx flat ${drawable.javaClass.simpleName} " +
                     "${analysis.describe(sizePx)} fillFraction=$fillFraction",
             )
@@ -458,7 +458,7 @@ internal object IconNormalizer {
             } else {
                 "unsupported"
             }
-            LauncherDebugLog.event(
+            LauncherDebugLog.trace(
                 "iconTile $debugLabel sizePx=$sizePx adaptive " +
                     "bg=${describe(drawable.background, backgroundAnalysis, sizePx)} " +
                     "fg=${describe(drawable.foreground, foregroundAnalysis, sizePx)} " +
