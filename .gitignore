@@ -9,6 +9,8 @@
 !/.claude
 !/.claude/**
 /.claude/settings.local.json
+# Transient agent worktrees created by the Claude Code harness; never committed.
+/.claude/worktrees/
 
 *.iml
 __pycache__/
