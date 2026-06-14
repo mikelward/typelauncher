@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.provider.Settings
+import android.util.DisplayMetrics
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.Toast
@@ -414,6 +415,7 @@ class MainActivity : ComponentActivity() {
                 screenWidthDp = config.screenWidthDp,
                 screenHeightDp = config.screenHeightDp,
                 densityDpi = config.densityDpi,
+                stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE,
                 dockIconCount = state.dockIconCount,
                 isPersonalDockEnabled = state.isDockEnabled,
                 isWorkDockVisible = isWorkDockVisible,

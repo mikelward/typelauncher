@@ -68,6 +68,7 @@ internal fun homeLandscapeMetrics(
     screenWidthDp: Int,
     screenHeightDp: Int,
     densityDpi: Int,
+    stableDensityDpi: Int,
     dockIconCount: Int,
     isPersonalDockEnabled: Boolean,
     isWorkDockVisible: Boolean,
@@ -76,11 +77,14 @@ internal fun homeLandscapeMetrics(
     keyboardReservation: KeyboardReservation,
     reservationFingerprint: KeyboardReservationConfig,
 ): HomeLandscapeMetrics {
-    // Dock icon size is derived from the short screen edge, matching
-    // `HomeScreen` so the estimate is stable across rotation.
+    // Dock icon size is derived from the short screen edge at the stable
+    // density, matching `HomeScreen`'s `dockIconSizing` so the estimate is
+    // stable across rotation and tracks the system Display size. The rendered
+    // per-row count (`slotCount`) is what the work card reflows against.
     val dockReferenceWidthDp = min(screenWidthDp, screenHeightDp)
-    val coercedDockIconCount = dockIconCount.coerceIn(dockSlotCountRange(dockReferenceWidthDp))
-    val dockIconSizeDp = dockIconSizeForSlotCount(dockReferenceWidthDp, coercedDockIconCount)
+    val dockSizing = dockIconSizing(dockReferenceWidthDp, densityDpi, stableDensityDpi, dockIconCount)
+    val coercedDockIconCount = dockSizing.slotCount
+    val dockIconSizeDp = dockSizing.iconSizeDp
 
     val appRowHeightDp = dockIconSizeDp + DOCK_ITEM_SPACING_DP * 2
     // `HomeScreen` stacks the personal and work dock cards in a Column separated
