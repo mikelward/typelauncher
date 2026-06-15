@@ -2079,12 +2079,18 @@ internal class LauncherViewModel(
 
     private fun currentLocalDateKey(): String = LocalDate.now(ZoneId.systemDefault()).toString()
 
-    // Wraps a raw app label in the locale's "Work " format string when [isWork]
-    // is true (e.g. en-US "Calendar" → "Work Calendar"), so work-profile apps
-    // are keyboard-disambiguable from their personal-profile counterparts.
-    // Returns the label unchanged for personal apps.
-    private fun workLabel(rawLabel: String, isWork: Boolean): String =
-        if (isWork) app.getString(R.string.app_label_with_work_prefix, rawLabel) else rawLabel
+    // Wraps a raw app label in the locale's work prefix when [isWork] is true
+    // (e.g. en-US "Calendar" → "Work Calendar"). Returns the label unchanged
+    // for personal apps. See [applyWorkPrefix] for the strip-then-format
+    // policy (collapsing any pre-existing leading "Work " tokens before
+    // re-prepending exactly one).
+    private fun workLabel(rawLabel: String, isWork: Boolean): String {
+        if (!isWork) return rawLabel
+        return applyWorkPrefix(
+            rawLabel = rawLabel,
+            prefixWord = app.getString(R.string.app_label_with_work_prefix, "").trimEnd(),
+        ) { stripped -> app.getString(R.string.app_label_with_work_prefix, stripped) }
+    }
 
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -2455,3 +2461,35 @@ private const val WIDGET_CELL_ESTIMATE_DP = 56
 // icon-only grid cells) plus a margin so quick scrolls also paint without flashing,
 // while keeping cold-start file IO bounded.
 private const val SNAPSHOT_TOP_LAUNCH_COUNT = 24
+
+/**
+ * Collapses any leading [prefixWord]-as-whole-word tokens in [rawLabel] and
+ * then runs the stripped label through [format] (which embeds it in the
+ * locale's "Work %1$s" template). The strip pass means a system label that
+ * already begins with the prefix doesn't double up on the work-profile copy:
+ *
+ *   "Work Email"          → "Work Email"      (one in, one out)
+ *   "Work Work Something" → "Work Something"  (doubled prefix collapses to one)
+ *   "Workplace"           → "Work Workplace"  (single word, prefix added)
+ *
+ * The whitespace-after check is what spares "Workplace" / "Workspace" — those
+ * are single words that merely *start with* the same four letters, not a
+ * leading "Work " token. Pulled out of [LauncherViewModel.workLabel] as a
+ * top-level helper so unit tests can exercise the policy without spinning up
+ * the ViewModel.
+ */
+internal fun applyWorkPrefix(
+    rawLabel: String,
+    prefixWord: String,
+    format: (String) -> String,
+): String {
+    var stripped = rawLabel
+    while (prefixWord.isNotEmpty() &&
+        stripped.length > prefixWord.length &&
+        stripped.startsWith(prefixWord, ignoreCase = true) &&
+        stripped[prefixWord.length].isWhitespace()
+    ) {
+        stripped = stripped.substring(prefixWord.length).trimStart()
+    }
+    return format(stripped)
+}
