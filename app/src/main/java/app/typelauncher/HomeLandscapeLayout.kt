@@ -76,6 +76,7 @@ internal fun homeLandscapeMetrics(
     keyboardReservation: KeyboardReservation,
     reservationFingerprint: KeyboardReservationConfig,
     dockLayout: DockLayout = DockLayout.IconOnly,
+    fontScale: Float = 1f,
 ): HomeLandscapeMetrics {
     // Dock geometry is derived from the short screen edge and the target icon
     // size, matching `HomeScreen`'s `dockIconSizing` so the estimate is stable
@@ -103,7 +104,7 @@ internal fun homeLandscapeMetrics(
     // even with no apps pinned (it shows the add hint) — and `dockRowCount`
     // already floors at one row, so an empty-but-visible work dock still
     // occupies a one-row card here.
-    val workRowHeightDp = dockSlotHeightDp(dockIconSizeDp, dockLayout)
+    val workRowHeightDp = dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale)
     val maxWorkRows = if (screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP) {
         MAX_WORK_DOCK_ROWS
     } else {
