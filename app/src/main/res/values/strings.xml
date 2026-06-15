@@ -100,10 +100,13 @@
     <string name="settings_done_button">Done</string>
     <string name="settings_default_launcher_button">Set as default launcher</string>
     <string name="settings_already_default_launcher_button">Already default launcher</string>
-    <string name="settings_app_list_layout_title">App list</string>
+    <string name="settings_app_list_layout_title">App list style</string>
     <string name="settings_app_list_layout_option_name_beside">Name beside</string>
     <string name="settings_app_list_layout_option_name_below">Name below</string>
     <string name="settings_app_list_layout_option_icon_only">Icon only</string>
+    <string name="settings_dock_layout_title">Dock style</string>
+    <string name="settings_dock_layout_option_icon_only">Icon only</string>
+    <string name="settings_dock_layout_option_title_below">Title below</string>
     <string name="settings_app_name_hint_title">Show top match name</string>
     <!-- TODO: translate -->
     <string name="settings_search_suggestion_title" tools:ignore="MissingTranslation">Show autocomplete hint</string>

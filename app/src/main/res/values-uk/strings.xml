@@ -100,10 +100,13 @@
     <string name="settings_done_button">Готово</string>
     <string name="settings_default_launcher_button">Встановити як лаунчер за замовчуванням</string>
     <string name="settings_already_default_launcher_button">Уже лаунчер за замовчуванням</string>
-    <string name="settings_app_list_layout_title">Список застосунків</string>
+    <string name="settings_app_list_layout_title">Стиль списку застосунків</string>
     <string name="settings_app_list_layout_option_name_beside">Назва збоку</string>
     <string name="settings_app_list_layout_option_name_below">Назва знизу</string>
     <string name="settings_app_list_layout_option_icon_only">Лише значок</string>
+    <string name="settings_dock_layout_title">Стиль доку</string>
+    <string name="settings_dock_layout_option_icon_only">Лише значок</string>
+    <string name="settings_dock_layout_option_title_below">Назва знизу</string>
     <string name="settings_app_name_hint_title">Показувати назву найкращого збігу</string>
     <string name="settings_app_list_sort_title">Сортувати застосунки за</string>
     <string name="settings_app_list_sort_option_usage">Використанням ↓</string>

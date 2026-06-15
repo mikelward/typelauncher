@@ -100,10 +100,13 @@
     <string name="settings_done_button">Tapos na</string>
     <string name="settings_default_launcher_button">Itakda bilang default launcher</string>
     <string name="settings_already_default_launcher_button">Default na launcher na</string>
-    <string name="settings_app_list_layout_title">Listahan ng app</string>
+    <string name="settings_app_list_layout_title">Estilo ng listahan ng app</string>
     <string name="settings_app_list_layout_option_name_beside">Pangalan sa tabi</string>
     <string name="settings_app_list_layout_option_name_below">Pangalan sa ibaba</string>
     <string name="settings_app_list_layout_option_icon_only">Icon lang</string>
+    <string name="settings_dock_layout_title">Estilo ng dock</string>
+    <string name="settings_dock_layout_option_icon_only">Icon lang</string>
+    <string name="settings_dock_layout_option_title_below">Pamagat sa ibaba</string>
     <string name="settings_app_name_hint_title">Ipakita ang pangalan ng top match</string>
     <string name="settings_app_list_sort_title">Pagsunud-sunurin ang mga app ayon sa</string>
     <string name="settings_app_list_sort_option_usage">Paggamit ↓</string>

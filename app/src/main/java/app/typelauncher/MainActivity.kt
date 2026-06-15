@@ -421,6 +421,7 @@ class MainActivity : ComponentActivity() {
                 workDockPositions = state.workDockPositions,
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,
+                dockLayout = state.dockLayout,
             ),
         )
     }

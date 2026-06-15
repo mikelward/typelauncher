@@ -405,6 +405,7 @@ internal fun HomeScreen(
                                 dockPositions = state.dockPositions,
                                 dockIconSizeDp = dockIconSizeDp,
                                 dockIconCount = dockIconCount,
+                                dockLayout = state.dockLayout,
                                 modifier = Modifier.weight(1f, fill = false),
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
@@ -445,7 +446,7 @@ internal fun HomeScreen(
                                 state.workDockPositions,
                                 dockIconCount,
                             ).coerceAtMost(maxWorkRows)
-                            val workRowHeightDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
+                            val workRowHeightDp = dockSlotHeightDp(dockIconSizeDp, state.dockLayout)
                             val workMaxHeightDp = workRows * workRowHeightDp +
                                 (workRows - 1) * DOCK_ITEM_SPACING_DP +
                                 SECTION_CARD_PADDING_DP * 2
@@ -454,6 +455,7 @@ internal fun HomeScreen(
                                 dockPositions = state.workDockPositions,
                                 dockIconSizeDp = dockIconSizeDp,
                                 dockIconCount = dockIconCount,
+                                dockLayout = state.dockLayout,
                                 modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
@@ -775,6 +777,7 @@ private fun DockCard(
     dockPositions: Map<String, DockPosition>,
     dockIconSizeDp: Int,
     dockIconCount: Int,
+    dockLayout: DockLayout,
     modifier: Modifier = Modifier,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -877,6 +880,7 @@ private fun DockCard(
                         DockedAppButton(
                             app = app,
                             dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
                             isDragged = draggedAppId == app.id,
                             dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
                             modifier = Modifier.weight(1f),
@@ -919,6 +923,7 @@ private fun DockCard(
                     } else if (showAddButton && position == firstEmptyPosition) {
                         DockAddButton(
                             dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
                             addButtonTag = tags.addButtonTag,
                             onReportSlotCenter = { center -> slotCenters[position] = center },
@@ -926,6 +931,7 @@ private fun DockCard(
                     } else {
                         EmptyDockSlot(
                             dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
                             onReportSlotCenter = { center -> slotCenters[position] = center },
                         )
@@ -2327,6 +2333,7 @@ private val AppActionsMenuPopupProperties = PopupProperties(focusable = false)
 private fun DockedAppButton(
     app: InstalledApp,
     dockIconSizeDp: Int,
+    dockLayout: DockLayout,
     isDragged: Boolean,
     dragOffset: Offset,
     modifier: Modifier = Modifier,
@@ -2388,14 +2395,31 @@ private fun DockedAppButton(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .semantics { contentDescription = app.displayName }
-                .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
+                .height(dockSlotHeightDp(dockIconSizeDp, dockLayout).dp)
                 .testTag("$appTag:${app.displayName}"),
-            contentAlignment = Alignment.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
+            Box(
+                modifier = Modifier
+                    .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
+            }
+            if (dockLayout == DockLayout.TitleBelow) {
+                Text(
+                    app.displayName,
+                    modifier = Modifier.testTag("$DOCK_APP_TITLE_TAG:${app.displayName}"),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Box(
             modifier = Modifier
@@ -2537,12 +2561,13 @@ private fun DockedAppButton(
 @Composable
 private fun EmptyDockSlot(
     dockIconSizeDp: Int,
+    dockLayout: DockLayout,
     modifier: Modifier = Modifier,
     onReportSlotCenter: (Offset) -> Unit,
 ) {
     Box(
         modifier = modifier
-            .height((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
+            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout).dp)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 onReportSlotCenter(
@@ -2558,6 +2583,7 @@ private fun EmptyDockSlot(
 @Composable
 private fun DockAddButton(
     dockIconSizeDp: Int,
+    dockLayout: DockLayout,
     modifier: Modifier = Modifier,
     addButtonTag: String = DOCK_ADD_BUTTON_TAG,
     onReportSlotCenter: ((Offset) -> Unit)? = null,
@@ -2567,7 +2593,7 @@ private fun DockAddButton(
     val description = stringResource(R.string.dock_add_button_description)
     Box(
         modifier = modifier
-            .height((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
+            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout).dp)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 onReportSlotCenter?.invoke(
@@ -2660,6 +2686,7 @@ internal fun SettingsScreen(
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
+    onDockLayoutChanged: (DockLayout) -> Unit = {},
     onShowAppNameHintChanged: (Boolean) -> Unit = {},
     onShowSearchSuggestionChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
@@ -2831,6 +2858,22 @@ internal fun SettingsScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_dock_layout_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                DockLayoutDropdown(
+                    selected = state.dockLayout,
+                    onLayoutChanged = onDockLayoutChanged,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3197,6 +3240,52 @@ private fun AppListLayoutDropdown(
                 onClick = {
                     expanded = false
                     onLayoutChanged(AppListLayout.IconOnly)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DockLayoutDropdown(
+    selected: DockLayout,
+    onLayoutChanged: (DockLayout) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = when (selected) {
+        DockLayout.IconOnly -> R.string.settings_dock_layout_option_icon_only
+        DockLayout.TitleBelow -> R.string.settings_dock_layout_option_title_below
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(DOCK_LAYOUT_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(DOCK_LAYOUT_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_dock_layout_option_icon_only)) },
+                modifier = Modifier.testTag(DOCK_LAYOUT_OPTION_ICON_ONLY_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(DockLayout.IconOnly)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_dock_layout_option_title_below)) },
+                modifier = Modifier.testTag(DOCK_LAYOUT_OPTION_TITLE_BELOW_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(DockLayout.TitleBelow)
                 },
             )
         }
@@ -3737,6 +3826,7 @@ private fun SettingsPreview(
                     dockPositions = state.dockPositions,
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
+                    dockLayout = state.dockLayout,
                     modifier = Modifier.height(previewHeight),
                     onLaunchApp = {},
                     onOpenAppInfo = {},

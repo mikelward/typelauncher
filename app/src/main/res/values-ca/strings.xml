@@ -100,10 +100,13 @@
     <string name="settings_done_button">Fet</string>
     <string name="settings_default_launcher_button">Estableix com a llançador per defecte</string>
     <string name="settings_already_default_launcher_button">Ja és el llançador per defecte</string>
-    <string name="settings_app_list_layout_title">Llista d\'aplicacions</string>
+    <string name="settings_app_list_layout_title">Estil de la llista d\'aplicacions</string>
     <string name="settings_app_list_layout_option_name_beside">Nom al costat</string>
     <string name="settings_app_list_layout_option_name_below">Nom a sota</string>
     <string name="settings_app_list_layout_option_icon_only">Només icona</string>
+    <string name="settings_dock_layout_title">Estil del dock</string>
+    <string name="settings_dock_layout_option_icon_only">Només icona</string>
+    <string name="settings_dock_layout_option_title_below">Títol a sota</string>
     <string name="settings_app_name_hint_title">Mostra el nom de la millor coincidència</string>
     <string name="settings_app_list_sort_title">Ordena les aplicacions per</string>
     <string name="settings_app_list_sort_option_usage">Ús ↓</string>

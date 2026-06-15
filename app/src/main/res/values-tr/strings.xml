@@ -100,10 +100,13 @@
     <string name="settings_done_button">Tamam</string>
     <string name="settings_default_launcher_button">Varsayılan başlatıcı olarak ayarla</string>
     <string name="settings_already_default_launcher_button">Zaten varsayılan başlatıcı</string>
-    <string name="settings_app_list_layout_title">Uygulama listesi</string>
+    <string name="settings_app_list_layout_title">Uygulama listesi stili</string>
     <string name="settings_app_list_layout_option_name_beside">Ad yanda</string>
     <string name="settings_app_list_layout_option_name_below">Ad altta</string>
     <string name="settings_app_list_layout_option_icon_only">Yalnızca simge</string>
+    <string name="settings_dock_layout_title">Dock stili</string>
+    <string name="settings_dock_layout_option_icon_only">Yalnızca simge</string>
+    <string name="settings_dock_layout_option_title_below">Başlık altta</string>
     <string name="settings_app_name_hint_title">En iyi eşleşmenin adını göster</string>
     <string name="settings_app_list_sort_title">Uygulamaları şuna göre sırala</string>
     <string name="settings_app_list_sort_option_usage">Kullanım ↓</string>

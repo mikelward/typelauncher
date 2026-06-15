@@ -100,10 +100,13 @@
     <string name="settings_done_button">முடிந்தது</string>
     <string name="settings_default_launcher_button">இயல்புநிலை துவக்கியாக அமை</string>
     <string name="settings_already_default_launcher_button">ஏற்கனவே இயல்புநிலை துவக்கி</string>
-    <string name="settings_app_list_layout_title">பயன்பாட்டுப் பட்டியல்</string>
+    <string name="settings_app_list_layout_title">பயன்பாட்டுப் பட்டியல் பாணி</string>
     <string name="settings_app_list_layout_option_name_beside">பெயர் பக்கத்தில்</string>
     <string name="settings_app_list_layout_option_name_below">பெயர் கீழே</string>
     <string name="settings_app_list_layout_option_icon_only">ஐகான் மட்டும்</string>
+    <string name="settings_dock_layout_title">டாக் பாணி</string>
+    <string name="settings_dock_layout_option_icon_only">ஐகான் மட்டும்</string>
+    <string name="settings_dock_layout_option_title_below">தலைப்பு கீழே</string>
     <string name="settings_app_name_hint_title">சிறந்த பொருத்தத்தின் பெயரைக் காட்டு</string>
     <string name="settings_app_list_sort_title">பயன்பாடுகளை வரிசைப்படுத்தும் முறை</string>
     <string name="settings_app_list_sort_option_usage">பயன்பாடு ↓</string>

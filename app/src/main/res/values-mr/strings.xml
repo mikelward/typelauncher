@@ -100,10 +100,13 @@
     <string name="settings_done_button">पूर्ण झाले</string>
     <string name="settings_default_launcher_button">डीफॉल्ट लाँचर म्हणून सेट करा</string>
     <string name="settings_already_default_launcher_button">आधीच डीफॉल्ट लाँचर आहे</string>
-    <string name="settings_app_list_layout_title">अॅप यादी</string>
+    <string name="settings_app_list_layout_title">अॅप यादी शैली</string>
     <string name="settings_app_list_layout_option_name_beside">नाव बाजूला</string>
     <string name="settings_app_list_layout_option_name_below">नाव खाली</string>
     <string name="settings_app_list_layout_option_icon_only">फक्त चिन्ह</string>
+    <string name="settings_dock_layout_title">डॉक शैली</string>
+    <string name="settings_dock_layout_option_icon_only">फक्त चिन्ह</string>
+    <string name="settings_dock_layout_option_title_below">नाव खाली</string>
     <string name="settings_app_name_hint_title">सर्वोत्तम जुळणीचे नाव दाखवा</string>
     <string name="settings_app_list_sort_title">अॅप्स यानुसार क्रमवारी लावा</string>
     <string name="settings_app_list_sort_option_usage">वापर ↓</string>

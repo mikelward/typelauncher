@@ -176,6 +176,7 @@ internal class LauncherViewModel(
             widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
+            dockLayout = dockSettingsStore.dockLayout,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             isShowAppNameHint = dockSettingsStore.isShowAppNameHint,
             isShowSearchSuggestion = dockSettingsStore.isShowSearchSuggestion,
@@ -1590,6 +1591,12 @@ internal class LauncherViewModel(
         dockSettingsStore.appListLayout = layout
         _uiState.update { it.copy(appListLayout = layout) }
         logState("setAppListLayout")
+    }
+
+    fun setDockLayout(layout: DockLayout) {
+        dockSettingsStore.dockLayout = layout
+        _uiState.update { it.copy(dockLayout = layout) }
+        logState("setDockLayout")
     }
 
     fun setShowAppNameHint(enabled: Boolean) {

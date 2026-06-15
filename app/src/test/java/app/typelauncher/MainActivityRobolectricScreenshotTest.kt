@@ -900,8 +900,10 @@ class MainActivityRobolectricScreenshotTest {
         // Match the page title by tag — onNodeWithText("Settings") would also
         // match the "Settings" app row in the apps preview.
         composeRule.onNodeWithTag(SETTINGS_TITLE_TAG).assertIsDisplayed()
-        composeRule.onNodeWithText("App list").assertIsDisplayed()
+        composeRule.onNodeWithText("App list style").assertIsDisplayed()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Dock style").assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Pull down").assertDoesNotExist()
         composeRule.onNodeWithText("Show recents").assertDoesNotExist()
         composeRule.onNodeWithText("Hide recents from app list").assertDoesNotExist()

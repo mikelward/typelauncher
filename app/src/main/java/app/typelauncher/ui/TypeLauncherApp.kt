@@ -247,6 +247,7 @@ internal fun TypeLauncherApp(
         onRequestDefaultLauncher = onRequestDefaultLauncher,
         onDockEnabledChanged = viewModel::setDockEnabled,
         onAppListLayoutChanged = viewModel::setAppListLayout,
+        onDockLayoutChanged = viewModel::setDockLayout,
         onShowAppNameHintChanged = viewModel::setShowAppNameHint,
         onShowSearchSuggestionChanged = viewModel::setShowSearchSuggestion,
         onShowDockedAppsInListChanged = viewModel::setShowDockedAppsInList,
@@ -312,6 +313,7 @@ internal fun TypeLauncherApp(
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
+    onDockLayoutChanged: (DockLayout) -> Unit = {},
     onShowAppNameHintChanged: (Boolean) -> Unit = {},
     onShowSearchSuggestionChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
@@ -648,6 +650,7 @@ internal fun TypeLauncherApp(
                         onRequestDefaultLauncher = onRequestDefaultLauncher,
                         onDockEnabledChanged = onDockEnabledChanged,
                         onAppListLayoutChanged = onAppListLayoutChanged,
+                        onDockLayoutChanged = onDockLayoutChanged,
                         onShowAppNameHintChanged = onShowAppNameHintChanged,
                         onShowSearchSuggestionChanged = onShowSearchSuggestionChanged,
                         onShowDockedAppsInListChanged = onShowDockedAppsInListChanged,
@@ -830,6 +833,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
         workDockedAppIds,
         state.workDockPositions,
         state.keyboardReservation,
+        state.dockLayout,
     ) {
         val fingerprint = KeyboardReservationConfig(
             orientation = configuration.orientation,
@@ -850,6 +854,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
                 workDockPositions = state.workDockPositions,
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,
+                dockLayout = state.dockLayout,
             ),
         )
     }

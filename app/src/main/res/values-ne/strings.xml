@@ -100,10 +100,13 @@
     <string name="settings_done_button">सम्पन्न</string>
     <string name="settings_default_launcher_button">डिफल्ट लन्चरका रूपमा सेट गर्नुहोस्</string>
     <string name="settings_already_default_launcher_button">पहिले नै डिफल्ट लन्चर</string>
-    <string name="settings_app_list_layout_title">एप सूची</string>
+    <string name="settings_app_list_layout_title">एप सूची शैली</string>
     <string name="settings_app_list_layout_option_name_beside">नाम छेउमा</string>
     <string name="settings_app_list_layout_option_name_below">नाम तल</string>
     <string name="settings_app_list_layout_option_icon_only">आइकन मात्र</string>
+    <string name="settings_dock_layout_title">डक शैली</string>
+    <string name="settings_dock_layout_option_icon_only">आइकन मात्र</string>
+    <string name="settings_dock_layout_option_title_below">नाम तल</string>
     <string name="settings_app_name_hint_title">उत्कृष्ट मिलानको नाम देखाउनुहोस्</string>
     <string name="settings_app_list_sort_title">एपहरू यसका आधारमा क्रमबद्ध गर्नुहोस्</string>
     <string name="settings_app_list_sort_option_usage">प्रयोग ↓</string>

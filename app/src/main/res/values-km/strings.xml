@@ -100,10 +100,13 @@
     <string name="settings_done_button">រួចរាល់</string>
     <string name="settings_default_launcher_button">កំណត់ជាឡានឆ័រលំនាំដើម</string>
     <string name="settings_already_default_launcher_button">ជាឡានឆ័រលំនាំដើមរួចហើយ</string>
-    <string name="settings_app_list_layout_title">បញ្ជីកម្មវិធី</string>
+    <string name="settings_app_list_layout_title">រចនាប័ទ្មបញ្ជីកម្មវិធី</string>
     <string name="settings_app_list_layout_option_name_beside">ឈ្មោះនៅចំហៀង</string>
     <string name="settings_app_list_layout_option_name_below">ឈ្មោះនៅខាងក្រោម</string>
     <string name="settings_app_list_layout_option_icon_only">តែរូបតំណាង</string>
+    <string name="settings_dock_layout_title">រចនាប័ទ្ម Dock</string>
+    <string name="settings_dock_layout_option_icon_only">តែរូបតំណាង</string>
+    <string name="settings_dock_layout_option_title_below">ចំណងជើងនៅខាងក្រោម</string>
     <string name="settings_app_name_hint_title">បង្ហាញឈ្មោះលទ្ធផលកំពូល</string>
     <string name="settings_app_list_sort_title">តម្រៀបកម្មវិធីតាម</string>
     <string name="settings_app_list_sort_option_usage">ការប្រើប្រាស់ ↓</string>

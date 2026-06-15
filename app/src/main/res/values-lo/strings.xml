@@ -100,10 +100,13 @@
     <string name="settings_done_button">ສຳເລັດ</string>
     <string name="settings_default_launcher_button">ຕັ້ງເປັນລອນເຊີເລີ່ມຕົ້ນ</string>
     <string name="settings_already_default_launcher_button">ເປັນລອນເຊີເລີ່ມຕົ້ນແລ້ວ</string>
-    <string name="settings_app_list_layout_title">ລາຍຊື່ແອັບ</string>
+    <string name="settings_app_list_layout_title">ສະໄຕລ໌ລາຍຊື່ແອັບ</string>
     <string name="settings_app_list_layout_option_name_beside">ຊື່ຢູ່ຂ້າງ</string>
     <string name="settings_app_list_layout_option_name_below">ຊື່ຢູ່ລຸ່ມ</string>
     <string name="settings_app_list_layout_option_icon_only">ໄອຄອນເທົ່ານັ້ນ</string>
+    <string name="settings_dock_layout_title">ສະໄຕລ໌ Dock</string>
+    <string name="settings_dock_layout_option_icon_only">ໄອຄອນເທົ່ານັ້ນ</string>
+    <string name="settings_dock_layout_option_title_below">ຊື່ຢູ່ລຸ່ມ</string>
     <string name="settings_app_name_hint_title">ສະແດງຊື່ຜົນທີ່ກົງທີ່ສຸດ</string>
     <string name="settings_app_list_sort_title">ຈັດລຽງແອັບຕາມ</string>
     <string name="settings_app_list_sort_option_usage">ການໃຊ້ງານ ↓</string>

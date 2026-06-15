@@ -65,4 +65,23 @@ class DockSettingsStoreLayoutTest {
         prefs().edit().putString("app_list_layout", "SomeFutureLayout").commit()
         assertEquals(AppListLayout.NameBeside, DockSettingsStore(context).appListLayout)
     }
+
+    @Test
+    fun dockLayoutDefaultsToIconOnlyWhenNothingPersisted() {
+        assertEquals(DockLayout.IconOnly, DockSettingsStore(context).dockLayout)
+    }
+
+    @Test
+    fun dockLayoutRoundTripsEachEnumValue() {
+        for (layout in DockLayout.values()) {
+            DockSettingsStore(context).dockLayout = layout
+            assertEquals(layout, DockSettingsStore(context).dockLayout)
+        }
+    }
+
+    @Test
+    fun dockLayoutUnknownPersistedNameFallsBackToIconOnly() {
+        prefs().edit().putString("dock_layout", "SomeFutureLayout").commit()
+        assertEquals(DockLayout.IconOnly, DockSettingsStore(context).dockLayout)
+    }
 }
