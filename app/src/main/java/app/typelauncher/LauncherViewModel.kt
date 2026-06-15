@@ -2099,6 +2099,20 @@ internal class LauncherViewModel(
         ) { stripped -> app.getString(R.string.app_label_with_work_prefix, stripped) }
     }
 
+    // The un-prefixed noun a work-profile app searches by — the same stripped
+    // label [workLabel] embeds in the "Work <noun>" template, so an app whose
+    // own label already starts with the locale's work token (e.g. "Work Email")
+    // still searches by its noun ("Email") rather than the still-prefixed raw
+    // name. Returns the label unchanged for personal apps; consumed by
+    // [InstalledApp.workPrefixStrippedSearchName].
+    private fun workSearchName(rawLabel: String, isWork: Boolean): String {
+        if (!isWork) return rawLabel
+        return stripWorkPrefix(
+            rawLabel = rawLabel,
+            prefixWord = app.getString(R.string.app_label_with_work_prefix, "").trimEnd(),
+        )
+    }
+
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
@@ -2138,6 +2152,7 @@ internal class LauncherViewModel(
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
                             isQuietMode = quietByUser[user] == true,
                             displayBase = workLabel(rawLabel, workApp),
+                            unprefixedName = workSearchName(rawLabel, workApp),
                         )
                     }
             }
@@ -2161,6 +2176,7 @@ internal class LauncherViewModel(
                             launchWithLauncherApps = false,
                             iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
                             displayBase = workLabel(rawLabel, workApp),
+                            unprefixedName = workSearchName(rawLabel, workApp),
                         )
                     }
             }
@@ -2489,7 +2505,19 @@ internal fun applyWorkPrefix(
     rawLabel: String,
     prefixWord: String,
     format: (String) -> String,
-): String {
+): String = format(stripWorkPrefix(rawLabel, prefixWord))
+
+/**
+ * Returns [rawLabel] with any leading [prefixWord]-as-whole-word tokens removed
+ * — the underlying noun the user thinks of the app by, before the work-profile
+ * prefix is (re-)applied. "Work Email" → "Email", "Work Work Something" →
+ * "Something", "Workplace" → "Workplace" (no leading "Work " token to strip).
+ * This is the canonical un-prefixed name used both as the base for the visible
+ * "Work <noun>" label (via [applyWorkPrefix]) and as the typed-search signal in
+ * [InstalledApp.workPrefixStrippedSearchName], so an app whose own label already
+ * begins with the locale's work token still searches by its noun.
+ */
+internal fun stripWorkPrefix(rawLabel: String, prefixWord: String): String {
     var stripped = rawLabel
     while (prefixWord.isNotEmpty() &&
         stripped.length > prefixWord.length &&
@@ -2498,5 +2526,5 @@ internal fun applyWorkPrefix(
     ) {
         stripped = stripped.substring(prefixWord.length).trimStart()
     }
-    return format(stripped)
+    return stripped
 }

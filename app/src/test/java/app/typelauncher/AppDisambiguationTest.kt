@@ -183,6 +183,18 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun workPrefixStrippedSearchNameStripsLabelThatAlreadyStartsWithWorkToken() {
+        // An app whose own launcher label already begins with the locale's work
+        // token ("Work Email") collapses to a single prefix in displayBase, so
+        // the raw `name` ("Work Email") still carries the prefix. The search
+        // name must be the stripped noun ("Email") so typing "email"
+        // prefix-matches it instead of dropping to a mid-string anchored match.
+        val app = workApp("Work Email", "com.example.email")
+        assertEquals("Work Email", app.displayName)
+        assertEquals("Email", app.workPrefixStrippedSearchName)
+    }
+
+    @Test
     fun workPrefixStrippedSearchNameIsNullForPersonalApp() {
         val app = personalApp("Calendar", "com.android.calendar")
         assertNull(app.workPrefixStrippedSearchName)
@@ -565,6 +577,9 @@ class AppDisambiguationTest {
     // for en-US).
     private fun workApp(name: String, packageName: String): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
+        // Derive displayBase / unprefixedName through the same strip-then-format
+        // helpers loadInstalledApps uses so the helper models the "Work Email"
+        // (label already prefixed) case faithfully, not just plain nouns.
         return InstalledApp(
             name = name,
             packageName = packageName,
@@ -572,7 +587,8 @@ class AppDisambiguationTest {
             user = Process.myUserHandle(),
             isWorkApp = true,
             launchWithLauncherApps = true,
-            displayBase = "Work $name",
+            displayBase = applyWorkPrefix(name, prefixWord = "Work") { "Work $it" },
+            unprefixedName = stripWorkPrefix(name, prefixWord = "Work"),
         )
     }
 }

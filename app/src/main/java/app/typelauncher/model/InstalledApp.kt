@@ -41,6 +41,15 @@ internal data class InstalledApp(
     // Defaults to `name` so existing tests and any non-VM constructor needn't
     // spell out the work prefix.
     val displayBase: String = name,
+    // The un-prefixed noun a work-profile app searches by — the same stripped
+    // label [displayBase] is built from, so it's "Calendar" for a "Work
+    // Calendar" and, crucially, "Email" for an app whose own label already
+    // starts with the locale's work token ("Work Email"), where raw `name`
+    // would still carry the prefix. Set by `LauncherViewModel.loadInstalledApps`
+    // and consumed by [workPrefixStrippedSearchName]. Defaults to `name` (the
+    // correct value for personal apps and for the common work app whose own
+    // label has no leading work token), so non-VM constructors needn't set it.
+    val unprefixedName: String = name,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
@@ -79,18 +88,18 @@ internal data class InstalledApp(
     // app's "Work " prefix never demotes the match tier: it lets a query
     // prefix-match the underlying app name ("Calendar") at the same tier as
     // the personal copy, instead of being pushed down to a mid-string anchored
-    // match on the visible "Work Calendar". `name` is the raw un-prefixed label
-    // while [displayBase] carries the prefix, so we match the un-prefixed form
-    // (with the same disambiguator suffix the visible label would carry).
-    // Null when there's nothing extra to gain: personal apps, a user-renamed
-    // work app (its [customName] already wins [displayName] with no forced
-    // prefix), or the degenerate case where the prefix didn't change the label.
+    // match on the visible "Work Calendar". Built from [unprefixedName] (the
+    // stripped noun, "Calendar" even when the raw label was "Work Calendar")
+    // with the same disambiguator suffix the visible label would carry. Null
+    // when there's nothing extra to gain: personal apps, a user-renamed work
+    // app (its [customName] already wins [displayName] with no forced prefix),
+    // or the degenerate case where stripping left the visible label unchanged.
     val workPrefixStrippedSearchName: String?
         get() {
             if (!isWorkApp) return null
             if (customName?.takeIf { it.isNotBlank() } != null) return null
-            if (name == displayBase) return null
-            return name.withDisambiguator()
+            if (unprefixedName == displayBase) return null
+            return unprefixedName.withDisambiguator()
         }
 
     // Appends the parenthesised disambiguator (e.g. "Chase (US)") when this app
