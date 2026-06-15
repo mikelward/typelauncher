@@ -299,6 +299,11 @@ internal fun HomeScreen(
                         query = state.query,
                         topMatch = state.filteredApps.firstOrNull(),
                     ),
+                    suggestion = searchInlineSuggestion(
+                        showSuggestion = state.isShowSearchSuggestion,
+                        query = state.query,
+                        topMatch = state.filteredApps.firstOrNull(),
+                    ),
                     keyboardShowRequests = keyboardShowRequests,
                     onQueryChanged = onQueryChanged,
                     onClearQuery = onClearQuery,
@@ -586,6 +591,7 @@ private fun SearchCard(
     showPlayUpdateBadge: Boolean,
     placeholderSuffix: String,
     appNameHint: String?,
+    suggestion: InlineSearchSuggestion?,
     keyboardShowRequests: SharedFlow<Unit>,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
@@ -714,6 +720,17 @@ private fun SearchCard(
                         modifier = Modifier.testTag(APP_NAME_HINT_TAG),
                     )
                 }
+            }
+            if (suggestion != null) {
+                // Overlay the inline autocomplete suggestion on the field's right
+                // edge. A plain Text consumes no pointer events, so tap-to-focus
+                // still reaches the field underneath.
+                SearchSuggestionOverlay(
+                    suggestion = suggestion,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .testTag(SEARCH_SUGGESTION_TAG),
+                )
             }
         }
     }
@@ -2644,6 +2661,7 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onShowAppNameHintChanged: (Boolean) -> Unit = {},
+    onShowSearchSuggestionChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
@@ -2757,6 +2775,28 @@ internal fun SettingsScreen(
                     // beside / Name below — keep it disabled there to signal that.
                     enabled = state.appListLayout == AppListLayout.IconOnly,
                     modifier = Modifier.testTag(APP_NAME_HINT_SWITCH_TAG),
+                )
+            }
+            // TODO: Reconcile "Show top match name" (the icon-only drop-down hint
+            //  above) and "Show autocomplete hint" (the inline in-field suggestion
+            //  below). Both preview the top match the user is about to launch and
+            //  now overlap; consolidate them into a single setting in a follow-up
+            //  rather than shipping two near-duplicate toggles long-term.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_search_suggestion_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isShowSearchSuggestion,
+                    onCheckedChange = onShowSearchSuggestionChanged,
+                    modifier = Modifier.testTag(SEARCH_SUGGESTION_SWITCH_TAG),
                 )
             }
             Row(

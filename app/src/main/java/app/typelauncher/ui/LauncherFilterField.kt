@@ -14,11 +14,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -75,6 +81,80 @@ internal fun SearchAppNameHint(
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+/**
+ * Inline autocomplete suggestion drawn right-aligned inside the search field: the
+ * top match's full title, faint, with the typed letters bolded. Rendered as a
+ * non-interactive overlay sibling of the text field so taps still fall through to
+ * the field and its focus / IME handling is left untouched.
+ *
+ * Right-aligned with an end ellipsis and a width cap so the typed text on the
+ * left keeps priority: matched letters anchor at the title's start in the common
+ * case, and end-ellipsis truncates the tail, so the highlighted run stays visible
+ * when the title is too long to fit.
+ */
+@Composable
+internal fun SearchSuggestionOverlay(
+    suggestion: InlineSearchSuggestion,
+    modifier: Modifier = Modifier,
+) {
+    val baseColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val boldColor = MaterialTheme.colorScheme.onSurface
+    val annotated = remember(suggestion, baseColor, boldColor) {
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = baseColor)) { append(suggestion.name) }
+            // Overlay a bold span on each contiguous run of matched letters; the
+            // later, narrower span wins over the base color/weight within its range.
+            for (range in suggestion.boldIndices.toContiguousRanges(suggestion.name.length)) {
+                addStyle(
+                    SpanStyle(color = boldColor, fontWeight = FontWeight.Bold),
+                    range.first,
+                    range.last + 1,
+                )
+            }
+        }
+    }
+    Text(
+        text = annotated,
+        // Cap to the right portion so a short typed query on the left never
+        // collides with the suggestion; end padding clears the trailing icon.
+        modifier = modifier
+            .fillMaxWidth(SEARCH_SUGGESTION_WIDTH_FRACTION)
+            .padding(end = 48.dp),
+        style = MaterialTheme.typography.titleMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.End,
+    )
+}
+
+// Fraction of the search field width the inline suggestion may occupy on the
+// right; the left remainder is reserved for the user's typed text.
+private const val SEARCH_SUGGESTION_WIDTH_FRACTION = 0.6f
+
+// Collapse a sorted list of matched indices into contiguous [first..last] ranges
+// so the annotated string carries one bold span per run instead of one per char.
+// Indices are clamped to the title length defensively.
+private fun List<Int>.toContiguousRanges(length: Int): List<IntRange> {
+    if (isEmpty()) return emptyList()
+    val sorted = filter { it in 0 until length }.sorted()
+    if (sorted.isEmpty()) return emptyList()
+    val ranges = mutableListOf<IntRange>()
+    var start = sorted.first()
+    var prev = start
+    for (index in 1 until sorted.size) {
+        val current = sorted[index]
+        if (current == prev + 1) {
+            prev = current
+        } else {
+            ranges.add(start..prev)
+            start = current
+            prev = current
+        }
+    }
+    ranges.add(start..prev)
+    return ranges
 }
 
 @Composable

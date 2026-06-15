@@ -464,6 +464,11 @@ internal data class LauncherUiState(
     // top match while typing, so the user can tell which icon Enter will launch.
     // Off by default; only takes effect when the list is in icon-only mode.
     val isShowAppNameHint: Boolean = false,
+    // When true, the search field shows the top match's full title inline,
+    // right-aligned and faint, with the typed letters bolded — an autocomplete
+    // hint that works in every layout, not just the icon-only grid. Off by
+    // default. See `searchInlineSuggestion`.
+    val isShowSearchSuggestion: Boolean = false,
     val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
     // True when the dock was prefilled on first run and the user has not yet
@@ -593,6 +598,43 @@ internal fun searchAppNameHint(
     topMatch: InstalledApp?,
 ): String? =
     if (showHint && effectiveIconOnly && query.isNotBlank()) topMatch?.displayName else null
+
+/**
+ * The top match's title and the title indices to bold, for the inline
+ * autocomplete suggestion rendered right-aligned inside the search field.
+ * [boldIndices] is empty when the query matched the package brand rather than
+ * the title (e.g. "virgin" -> "Credit Card") — nothing in the title to bold, so
+ * the suggestion shows faint with no highlight.
+ */
+internal data class InlineSearchSuggestion(val name: String, val boldIndices: List<Int>)
+
+/**
+ * The inline autocomplete suggestion to show in the search field, or `null` when
+ * none should appear. It previews [topMatch] — the app `launchActiveApp` launches
+ * on Enter — and unlike [searchAppNameHint] it works in every app-list layout,
+ * not just the icon-only grid (the typed letters are bolded inside the title, so
+ * it reads as autocomplete rather than a duplicate of a labelled row).
+ *
+ * Non-null only when the setting is on ([showSuggestion]), the user has typed a
+ * non-blank [query], and a [topMatch] exists. Suppressed when the query already
+ * equals the match's display name (case-insensitive): once the full name is
+ * typed there's nothing left to suggest, and echoing it just doubles the text.
+ */
+internal fun searchInlineSuggestion(
+    showSuggestion: Boolean,
+    query: String,
+    topMatch: InstalledApp?,
+): InlineSearchSuggestion? {
+    if (!showSuggestion || query.isBlank() || topMatch == null) return null
+    val name = topMatch.displayName
+    if (name.equals(query, ignoreCase = true)) return null
+    return InlineSearchSuggestion(
+        // Highlight against the raw query so the bolded run matches exactly how
+        // `filterByName` (which is passed the untrimmed query) picked this match.
+        name = name,
+        boldIndices = launcherMatchHighlightIndices(name, query),
+    )
+}
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
