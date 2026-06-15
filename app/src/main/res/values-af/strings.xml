@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Stel as verstek-laaier</string>
     <string name="settings_already_default_launcher_button">Reeds verstek-laaier</string>
     <string name="settings_app_list_layout_title">Programlys</string>
-    <string name="settings_app_list_layout_option_text">Teks</string>
-    <string name="settings_app_list_layout_option_icons">Ikone</string>
     <string name="settings_app_list_sort_title">Sorteer programme volgens</string>
     <string name="settings_app_list_sort_option_usage">Gebruik ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Gebruik ↑</string>

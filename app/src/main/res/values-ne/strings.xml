@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">डिफल्ट लन्चरका रूपमा सेट गर्नुहोस्</string>
     <string name="settings_already_default_launcher_button">पहिले नै डिफल्ट लन्चर</string>
     <string name="settings_app_list_layout_title">एप सूची</string>
-    <string name="settings_app_list_layout_option_text">पाठ</string>
-    <string name="settings_app_list_layout_option_icons">आइकन</string>
     <string name="settings_app_list_sort_title">एपहरू यसका आधारमा क्रमबद्ध गर्नुहोस्</string>
     <string name="settings_app_list_sort_option_usage">प्रयोग ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">प्रयोग ↑</string>

@@ -232,6 +232,13 @@ jobs:
         # dock's bottom-left icon when the dock is hidden.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconOnlyGridOrderScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run name-below grid screenshot tests
+        # Renders the "Name below" app-list layout (icon grid with each app's
+        # name centered beneath its icon) so the PR `roborazzi-screenshots`
+        # artifact shows the labeled tiles, including a long name truncating to
+        # two lines.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.NameBelowGridScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

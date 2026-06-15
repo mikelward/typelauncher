@@ -221,11 +221,29 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
-    var isAppListIconOnly: Boolean
-        get() = sharedPreferences.getBoolean(KEY_APP_LIST_ICON_ONLY, false)
+    /**
+     * How the installed-app list renders (see [AppListLayout]). Stored by name
+     * so an unknown value (a renamed entry from a newer build) falls back to the
+     * default. When no enum value has been written yet, migrates the pre-enum
+     * boolean [KEY_APP_LIST_ICON_ONLY]: `true` → [AppListLayout.IconOnly],
+     * `false`/absent → [AppListLayout.NameBeside].
+     */
+    var appListLayout: AppListLayout
+        get() {
+            val name = sharedPreferences.getString(KEY_APP_LIST_LAYOUT, null)
+            if (name != null) {
+                return runCatching { AppListLayout.valueOf(name) }.getOrNull()
+                    ?: AppListLayout.NameBeside
+            }
+            return if (sharedPreferences.getBoolean(KEY_APP_LIST_ICON_ONLY, false)) {
+                AppListLayout.IconOnly
+            } else {
+                AppListLayout.NameBeside
+            }
+        }
         set(value) {
             sharedPreferences.edit()
-                .putBoolean(KEY_APP_LIST_ICON_ONLY, value)
+                .putString(KEY_APP_LIST_LAYOUT, value.name)
                 .apply()
         }
 
@@ -426,7 +444,9 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_DOCK_TARGET_ICON_SIZE_DP = "dock_target_icon_size_dp"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_WORK_DOCK_ENABLED = "work_dock_enabled"
+        // Legacy boolean, kept for migration into KEY_APP_LIST_LAYOUT only.
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
+        const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
         const val KEY_SHOW_APP_NAME_HINT = "show_app_name_hint"

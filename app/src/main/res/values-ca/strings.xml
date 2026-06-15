@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Estableix com a llançador per defecte</string>
     <string name="settings_already_default_launcher_button">Ja és el llançador per defecte</string>
     <string name="settings_app_list_layout_title">Llista d\'aplicacions</string>
-    <string name="settings_app_list_layout_option_text">Text</string>
-    <string name="settings_app_list_layout_option_icons">Icones</string>
     <string name="settings_app_list_sort_title">Ordena les aplicacions per</string>
     <string name="settings_app_list_sort_option_usage">Ús ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Ús ↑</string>

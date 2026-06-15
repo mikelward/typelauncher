@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Instellen als standaard launcher</string>
     <string name="settings_already_default_launcher_button">Al standaard launcher</string>
     <string name="settings_app_list_layout_title">App-lijst</string>
-    <string name="settings_app_list_layout_option_text">Tekst</string>
-    <string name="settings_app_list_layout_option_icons">Pictogrammen</string>
     <string name="settings_app_list_sort_title">Apps sorteren op</string>
     <string name="settings_app_list_sort_option_usage">Gebruik ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Gebruik ↑</string>

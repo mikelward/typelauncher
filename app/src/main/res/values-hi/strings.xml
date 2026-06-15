@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">डिफ़ॉल्ट लॉन्चर के रूप में सेट करें</string>
     <string name="settings_already_default_launcher_button">पहले से डिफ़ॉल्ट लॉन्चर है</string>
     <string name="settings_app_list_layout_title">ऐप सूची</string>
-    <string name="settings_app_list_layout_option_text">टेक्स्ट</string>
-    <string name="settings_app_list_layout_option_icons">आइकन</string>
     <string name="settings_app_list_sort_title">ऐप्स को इस आधार पर क्रमित करें</string>
     <string name="settings_app_list_sort_option_usage">उपयोग ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">उपयोग ↑</string>

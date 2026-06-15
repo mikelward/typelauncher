@@ -65,7 +65,7 @@ class AppsListChevronTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {},
@@ -105,7 +105,7 @@ class AppsListChevronTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {},
@@ -247,7 +247,7 @@ class AppsListChevronTest {
         // cells that, under Robolectric, it leaves the shared Compose runtime in
         // a state where a later test in the same JVM never reaches idle; the
         // larger cells keep the cell count below that threshold.
-        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true, dockIconSizeDp = dockIconSizeForSlotCount(411, 4)))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.IconOnly, dockIconSizeDp = dockIconSizeForSlotCount(411, 4)))
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
@@ -301,7 +301,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_iconGrid_bottomChevronTapScrollsOnePage() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps, isAppListIconOnly = true, dockIconSizeDp = dockIconSizeForSlotCount(411, 4)))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.IconOnly, dockIconSizeDp = dockIconSizeForSlotCount(411, 4)))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
@@ -375,7 +375,7 @@ class AppsListChevronTest {
             LauncherUiState(
                 filteredApps = apps,
                 appListSortOrder = AppListSortOrder.AlphabeticalReversed,
-                isAppListIconOnly = true,
+                appListLayout = AppListLayout.IconOnly,
             ),
         )
 

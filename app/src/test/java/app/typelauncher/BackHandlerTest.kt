@@ -56,7 +56,7 @@ class BackHandlerTest {
                     },
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {},

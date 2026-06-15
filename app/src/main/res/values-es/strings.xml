@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Establecer como lanzador predeterminado</string>
     <string name="settings_already_default_launcher_button">Ya es el lanzador predeterminado</string>
     <string name="settings_app_list_layout_title">Lista de apps</string>
-    <string name="settings_app_list_layout_option_text">Texto</string>
-    <string name="settings_app_list_layout_option_icons">Iconos</string>
     <string name="settings_app_list_sort_title">Ordenar apps por</string>
     <string name="settings_app_list_sort_option_usage">Uso ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Uso ↑</string>

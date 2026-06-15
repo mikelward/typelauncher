@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Ṣètò gẹ́gẹ́ bí olùṣèdá àìpadà</string>
     <string name="settings_already_default_launcher_button">Ti jẹ́ olùṣèdá àìpadà</string>
     <string name="settings_app_list_layout_title">Àtòjọ áàpù</string>
-    <string name="settings_app_list_layout_option_text">Ọ̀rọ̀</string>
-    <string name="settings_app_list_layout_option_icons">Àmì</string>
     <string name="settings_app_list_sort_title">To áàpù nípa</string>
     <string name="settings_app_list_sort_option_usage">Lílò ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Lílò ↑</string>

@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">ಡೀಫಾಲ್ಟ್ ಲಾಂಚರ್ ಆಗಿ ಹೊಂದಿಸಿ</string>
     <string name="settings_already_default_launcher_button">ಈಗಾಗಲೇ ಡೀಫಾಲ್ಟ್ ಲಾಂಚರ್</string>
     <string name="settings_app_list_layout_title">ಆ್ಯಪ್ ಪಟ್ಟಿ</string>
-    <string name="settings_app_list_layout_option_text">ಪಠ್ಯ</string>
-    <string name="settings_app_list_layout_option_icons">ಐಕಾನ್‌ಗಳು</string>
     <string name="settings_app_list_sort_title">ಆ್ಯಪ್‌ಗಳನ್ನು ಇದರ ಆಧಾರದಲ್ಲಿ ವಿಂಗಡಿಸಿ</string>
     <string name="settings_app_list_sort_option_usage">ಬಳಕೆ ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ಬಳಕೆ ↑</string>

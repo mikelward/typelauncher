@@ -146,7 +146,7 @@ class MainActivityRobolectricScreenshotTest {
         // icon-only button exists and the text row does not.
         assertFalse(
             "Compact overrides to icons without flipping the persisted layout setting",
-            state.isAppListIconOnly,
+            state.appListLayout == AppListLayout.IconOnly,
         )
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertExists()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
@@ -674,7 +674,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICON_ONLY_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -699,7 +699,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICON_ONLY_TAG).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(APP_LIST_SORT_DROPDOWN_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
@@ -1107,11 +1107,11 @@ class MainActivityRobolectricScreenshotTest {
         // the new state so CI captures the 34dp icons and their spacing, and
         // prove the grid actually packs seven columns without wrapping.
         val viewModel = composeRule.activity.viewModel
-        viewModel.setAppListIconOnly(true)
+        viewModel.setAppListLayout(AppListLayout.IconOnly)
         viewModel.setDockVisibleIconCount(7)
         composeRule.waitForIdle()
 
-        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertEquals(AppListLayout.IconOnly, viewModel.uiState.value.appListLayout)
         // The slider stored the 34dp icon size that fills 7 per row at 411dp,
         // and the dock renders those 7 columns back.
         assertEquals(34, viewModel.uiState.value.dockIconSizeDp)
@@ -1153,10 +1153,10 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG).performClick()
+        composeRule.onNodeWithTag(APP_LIST_LAYOUT_OPTION_ICON_ONLY_TAG).performClick()
         composeRule.waitForIdle()
 
-        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertEquals(AppListLayout.IconOnly, viewModel.uiState.value.appListLayout)
 
         composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
@@ -2621,7 +2621,7 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         composeRule.waitForIdle()
 
-        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertEquals(AppListLayout.IconOnly, viewModel.uiState.value.appListLayout)
         assertTrue(viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" })
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertDoesNotExist()
@@ -2640,7 +2640,7 @@ class MainActivityRobolectricScreenshotTest {
         val viewModel = composeRule.activity.viewModel
         composeRule.waitForIdle()
 
-        assertEquals(true, viewModel.uiState.value.isAppListIconOnly)
+        assertEquals(AppListLayout.IconOnly, viewModel.uiState.value.appListLayout)
         assertTrue(viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" })
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()

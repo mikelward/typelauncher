@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Varsayılan başlatıcı olarak ayarla</string>
     <string name="settings_already_default_launcher_button">Zaten varsayılan başlatıcı</string>
     <string name="settings_app_list_layout_title">Uygulama listesi</string>
-    <string name="settings_app_list_layout_option_text">Metin</string>
-    <string name="settings_app_list_layout_option_icons">Simgeler</string>
     <string name="settings_app_list_sort_title">Uygulamaları şuna göre sırala</string>
     <string name="settings_app_list_sort_option_usage">Kullanım ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Kullanım ↑</string>

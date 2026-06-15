@@ -1,7 +1,6 @@
 package app.typelauncher
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -46,14 +45,26 @@ class AppListCompactOverrideTest {
     }
 
     @Test
-    fun compactForcesIconGridRegardlessOfPersistedLayout() {
-        assertTrue(effectiveAppListIconOnly(persistedIconOnly = false, tier = HomeLandscapeTier.Compact))
-        assertTrue(effectiveAppListIconOnly(persistedIconOnly = true, tier = HomeLandscapeTier.Compact))
+    fun compactForcesIconOnlyGridRegardlessOfPersistedLayout() {
+        // Compact collapses every persisted layout — including the labeled
+        // NameBelow grid — to the densest IconOnly grid.
+        for (persisted in AppListLayout.values()) {
+            assertEquals(
+                "Compact must force IconOnly, even from $persisted",
+                AppListLayout.IconOnly,
+                effectiveAppListLayout(persisted, HomeLandscapeTier.Compact),
+            )
+        }
     }
 
     @Test
     fun fullHonorsThePersistedLayout() {
-        assertFalse(effectiveAppListIconOnly(persistedIconOnly = false, tier = HomeLandscapeTier.Full))
-        assertTrue(effectiveAppListIconOnly(persistedIconOnly = true, tier = HomeLandscapeTier.Full))
+        for (persisted in AppListLayout.values()) {
+            assertEquals(
+                "Full must keep the persisted layout $persisted",
+                persisted,
+                effectiveAppListLayout(persisted, HomeLandscapeTier.Full),
+            )
+        }
     }
 }
