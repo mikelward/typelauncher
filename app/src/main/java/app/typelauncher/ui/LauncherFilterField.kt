@@ -11,7 +11,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -52,43 +51,6 @@ internal fun LauncherFilterField(
         ),
         keyboardActions = keyboardActions,
     )
-}
-
-/**
- * Faint drop-down hint that names the top search match, shown below the search
- * field while typing in icon-only mode. Factored out of the production `Popup`
- * wrapper so the screenshot test can render it directly — a `Popup` lives in its
- * own window and would not be captured by the activity decor-view snapshot.
- *
- * Caller sizes the pill to the search field's width via `modifier`; the text's
- * `start` padding aligns it with the field's typed-text column (past the leading
- * search icon), so the hint reads as a direct extension of the input below.
- */
-@Composable
-internal fun SearchAppNameHint(
-    name: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 3.dp,
-        shadowElevation = 3.dp,
-    ) {
-        Text(
-            text = name,
-            // Asymmetric start padding lines the hint text up with the field's
-            // typed text: 12dp (OutlinedTextField horizontal icon padding) +
-            // 24dp (leading icon) + 12dp (gap to content) = 48dp from the
-            // field's start edge.
-            modifier = Modifier.padding(start = 48.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
 }
 
 /**

@@ -28,8 +28,8 @@ import org.robolectric.annotation.GraphicsMode
  * Compose-only screenshot test for [SearchSuggestionOverlay], the inline
  * autocomplete suggestion drawn right-aligned inside the search field. Production
  * overlays it on the text field inside a `Box`; rendering it directly over a
- * fixed-width surface here (the same pattern as [SearchAppNameHintScreenshotTest])
- * captures the three styling cases — bolded prefix, faint package-only match, and
+ * fixed-width surface here captures the three styling cases — bolded prefix,
+ * faint package-only match, and
  * end-ellipsis truncation — without needing the field's focus/IME machinery.
  */
 @RunWith(RobolectricTestRunner::class)

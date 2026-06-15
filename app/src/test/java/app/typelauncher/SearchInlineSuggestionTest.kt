@@ -12,10 +12,10 @@ import org.robolectric.annotation.Config
 
 /**
  * Coverage for [searchInlineSuggestion], which decides whether (and what) the
- * inline in-field autocomplete suggestion shows. Unlike the icon-only drop-down
- * hint, it works in every layout, so there's no icon-only gate — but it must
- * stay hidden when the setting is off, the query is blank, there's no match, or
- * the query already spells the full name.
+ * inline in-field autocomplete suggestion shows. It works in every layout, so
+ * there's no icon-only gate — but it must stay hidden when the query is blank or
+ * there's no match, and stays shown (fully bold) when the query already spells
+ * the full name.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -26,7 +26,7 @@ class SearchInlineSuggestionTest {
     fun showsTopMatchWithBoldedTypedLetters() {
         assertEquals(
             InlineSearchSuggestion(name = "Calculator", boldIndices = listOf(0, 1)),
-            searchInlineSuggestion(showSuggestion = true, query = "ca", topMatch = calculator),
+            searchInlineSuggestion(query = "ca", topMatch = calculator),
         )
     }
 
@@ -35,23 +35,18 @@ class SearchInlineSuggestionTest {
         val virginMoney = installedApp("Credit Card", "com.virginmoney.cards")
         assertEquals(
             InlineSearchSuggestion(name = "Credit Card", boldIndices = emptyList()),
-            searchInlineSuggestion(showSuggestion = true, query = "virgin", topMatch = virginMoney),
+            searchInlineSuggestion(query = "virgin", topMatch = virginMoney),
         )
     }
 
     @Test
-    fun hiddenWhenSettingOff() {
-        assertNull(searchInlineSuggestion(showSuggestion = false, query = "ca", topMatch = calculator))
-    }
-
-    @Test
     fun hiddenWhenQueryBlank() {
-        assertNull(searchInlineSuggestion(showSuggestion = true, query = "   ", topMatch = calculator))
+        assertNull(searchInlineSuggestion(query = "   ", topMatch = calculator))
     }
 
     @Test
     fun hiddenWhenNoMatch() {
-        assertNull(searchInlineSuggestion(showSuggestion = true, query = "ca", topMatch = null))
+        assertNull(searchInlineSuggestion(query = "ca", topMatch = null))
     }
 
     @Test
@@ -62,15 +57,15 @@ class SearchInlineSuggestionTest {
         val up = installedApp("Up", "app.up")
         assertEquals(
             InlineSearchSuggestion(name = "Up", boldIndices = listOf(0, 1)),
-            searchInlineSuggestion(showSuggestion = true, query = "up", topMatch = up),
+            searchInlineSuggestion(query ="up", topMatch = up),
         )
         assertEquals(
             InlineSearchSuggestion(name = "Up", boldIndices = listOf(0, 1)),
-            searchInlineSuggestion(showSuggestion = true, query = "Up", topMatch = up),
+            searchInlineSuggestion(query ="Up", topMatch = up),
         )
         assertEquals(
             InlineSearchSuggestion(name = "Calculator", boldIndices = (0..9).toList()),
-            searchInlineSuggestion(showSuggestion = true, query = "Calculator", topMatch = calculator),
+            searchInlineSuggestion(query ="Calculator", topMatch = calculator),
         )
     }
 

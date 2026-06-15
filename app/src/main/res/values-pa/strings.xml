@@ -105,7 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">ਨਾਮ ਹੇਠਾਂ</string>
     <string name="settings_app_list_layout_option_icon_only">ਸਿਰਫ਼ ਆਈਕਨ</string>
     <string name="settings_dock_layout_title">ਡਾਕ ਸ਼ੈਲੀ</string>
-    <string name="settings_app_name_hint_title">ਸਭ ਤੋਂ ਵਧੀਆ ਮੇਲ ਦਾ ਨਾਮ ਦਿਖਾਓ</string>
     <string name="settings_app_list_sort_title">ਐਪਾਂ ਨੂੰ ਇਸ ਆਧਾਰ ਤੇ ਛਾਂਟੋ</string>
     <string name="settings_app_list_sort_option_usage">ਵਰਤੋਂ ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ਵਰਤੋਂ ↑</string>

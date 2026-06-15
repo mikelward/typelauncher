@@ -514,15 +514,6 @@ internal data class LauncherUiState(
     // itself out of the main list to free vertical space — the launcher's
     // pre-toggle behavior.
     val isShowDockedAppsInList: Boolean = false,
-    // When true, the icon-only app list shows a faint drop-down hint naming the
-    // top match while typing, so the user can tell which icon Enter will launch.
-    // Off by default; only takes effect when the list is in icon-only mode.
-    val isShowAppNameHint: Boolean = false,
-    // When true, the search field shows the top match's full title inline,
-    // right-aligned and faint, with the typed letters bolded — an autocomplete
-    // hint that works in every layout, not just the icon-only grid. Off by
-    // default. See `searchInlineSuggestion`.
-    val isShowSearchSuggestion: Boolean = false,
     val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
     // True when the dock was prefilled on first run and the user has not yet
@@ -636,24 +627,6 @@ internal fun effectiveAppListLayout(
     if (tier == HomeLandscapeTier.Compact) AppListLayout.IconOnly else persisted
 
 /**
- * The app name to show as the typed-search autocomplete hint, or `null` when no
- * hint should be shown.
- *
- * The hint names [topMatch] — the app `launchActiveApp` launches on Enter — so it
- * only appears when the "Show top match name" setting is on ([showHint]), the list
- * is effectively in icon-only mode ([effectiveIconOnly], where the grid has no
- * labels of its own), and the user has typed a non-blank [query]. Text/list mode
- * already shows the name on the highlighted row, so the hint is suppressed there.
- */
-internal fun searchAppNameHint(
-    showHint: Boolean,
-    effectiveIconOnly: Boolean,
-    query: String,
-    topMatch: InstalledApp?,
-): String? =
-    if (showHint && effectiveIconOnly && query.isNotBlank()) topMatch?.displayName else null
-
-/**
  * The top match's title and the title indices to bold, for the inline
  * autocomplete suggestion rendered right-aligned inside the search field.
  * [boldIndices] is empty when the query matched the package brand rather than
@@ -665,22 +638,21 @@ internal data class InlineSearchSuggestion(val name: String, val boldIndices: Li
 /**
  * The inline autocomplete suggestion to show in the search field, or `null` when
  * none should appear. It previews [topMatch] — the app `launchActiveApp` launches
- * on Enter — and unlike [searchAppNameHint] it works in every app-list layout,
- * not just the icon-only grid (the typed letters are bolded inside the title, so
- * it reads as autocomplete rather than a duplicate of a labelled row).
+ * on Enter — and works in every app-list layout (the typed letters are bolded
+ * inside the title, so it reads as autocomplete rather than a duplicate of a
+ * labelled row).
  *
- * Non-null whenever the setting is on ([showSuggestion]), the user has typed a
- * non-blank [query], and a [topMatch] exists. When the query already equals the
- * match's display name (case-insensitive) the suggestion is *still* shown — the
- * whole name renders bold — so the field keeps confirming the match (and its
- * canonical casing, e.g. typing "up" while "Up" is the match).
+ * Non-null whenever the user has typed a non-blank [query] and a [topMatch]
+ * exists. When the query already equals the match's display name (case-insensitive)
+ * the suggestion is *still* shown — the whole name renders bold — so the field
+ * keeps confirming the match (and its canonical casing, e.g. typing "up" while
+ * "Up" is the match).
  */
 internal fun searchInlineSuggestion(
-    showSuggestion: Boolean,
     query: String,
     topMatch: InstalledApp?,
 ): InlineSearchSuggestion? {
-    if (!showSuggestion || query.isBlank() || topMatch == null) return null
+    if (query.isBlank() || topMatch == null) return null
     val name = topMatch.displayName
     return InlineSearchSuggestion(
         // Highlight against the raw query so the bolded run matches exactly how
