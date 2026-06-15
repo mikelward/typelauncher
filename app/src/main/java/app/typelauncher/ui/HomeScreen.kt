@@ -1771,7 +1771,9 @@ private fun IconOnlyAppButton(
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
+                    // Single line so every tile is the same height and the grid
+                    // rows stay even; longer names ellipsize rather than wrap.
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
