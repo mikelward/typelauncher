@@ -70,6 +70,14 @@ class SearchSuggestionScreenshotTest {
                                 boldIndices = launcherMatchHighlightIndices("Settings and Privacy Dashboard", "se"),
                             ),
                         )
+                        // Full-name match: the whole title renders bold (e.g.
+                        // typing "up" while the match is "Up").
+                        SuggestionRow(
+                            suggestion = InlineSearchSuggestion(
+                                name = "Up",
+                                boldIndices = launcherMatchHighlightIndices("Up", "up"),
+                            ),
+                        )
                     }
                 }
             }
