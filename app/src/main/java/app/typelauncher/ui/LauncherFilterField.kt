@@ -119,6 +119,15 @@ internal fun SearchSuggestionOverlay(
         text = annotated,
         // Cap to the right portion so a short typed query on the left never
         // collides with the suggestion; end padding clears the trailing icon.
+        // TODO: This is a static width cap, not a measurement of the typed text.
+        //  When the user types a long *partial* query (one wider than the left
+        //  ~40% of the field, before it exactly equals the full title — the
+        //  exact-match case is already suppressed in `searchInlineSuggestion`),
+        //  this faint overlay still paints across the right 60% while the
+        //  editable text and caret render underneath, making the query hard to
+        //  read/edit in the overlap. Measure the typed text and only draw the
+        //  suggestion in the leftover space (or hide it once the query no longer
+        //  fits), rather than relying on the fixed fraction.
         modifier = modifier
             .fillMaxWidth(SEARCH_SUGGESTION_WIDTH_FRACTION)
             .padding(end = 48.dp),
