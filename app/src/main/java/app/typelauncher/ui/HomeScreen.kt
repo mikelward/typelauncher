@@ -93,6 +93,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -119,6 +120,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -143,9 +145,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -286,6 +290,12 @@ internal fun HomeScreen(
                     autoShowKeyboard = autoShowKeyboard,
                     showPlayUpdateBadge = state.playUpdate.showBadge,
                     placeholderSuffix = searchPlaceholderSuffix,
+                    appNameHint = searchAppNameHint(
+                        showHint = state.isShowAppNameHint,
+                        effectiveIconOnly = effectiveAppListIconOnly(state.isAppListIconOnly, landscapeTier),
+                        query = state.query,
+                        topMatch = state.filteredApps.firstOrNull(),
+                    ),
                     keyboardShowRequests = keyboardShowRequests,
                     onQueryChanged = onQueryChanged,
                     onClearQuery = onClearQuery,
@@ -572,6 +582,7 @@ private fun SearchCard(
     autoShowKeyboard: Boolean,
     showPlayUpdateBadge: Boolean,
     placeholderSuffix: String,
+    appNameHint: String?,
     keyboardShowRequests: SharedFlow<Unit>,
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
@@ -581,6 +592,11 @@ private fun SearchCard(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    // Measured height of the search field, so the autocomplete hint popup can be
+    // offset to sit just below it. Updated only when the field resizes (rare), so
+    // it never touches the per-keystroke path.
+    var fieldHeightPx by remember { mutableIntStateOf(0) }
+    val hintGapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
     // The auto-focus / show pair is the launcher's "type immediately on Home"
     // behavior. Gating both on the user setting is what actually keeps the IME
     // down. MainActivity also applies stateAlwaysHidden when the setting is off
@@ -602,80 +618,101 @@ private fun SearchCard(
         }
     }
     SectionCard {
-        LauncherFilterField(
-            value = query,
-            onValueChange = onQueryChanged,
-            placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
-            modifier = Modifier
-                .focusRequester(focusRequester)
-                // Swallow held-Enter key repeats before they reach the text
-                // field core: the core maps a hardware Enter ACTION_DOWN to
-                // the IME Search action (-> onSearch -> onLaunchActiveApp)
-                // and does so for *every* repeat, so a held key fired one
-                // launch per repeat — and once the first launch cleared the
-                // query, the next repeat shoved the user into settings. The
-                // preview phase runs ancestors-first, so this filter sees
-                // the event before the core consumes it. This restores the
-                // key-repeat filtering the legacy editor-action path had
-                // before the Compose rewrite.
-                .onPreviewKeyEvent { event ->
-                    event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
-                        event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
-                        event.nativeKeyEvent.repeatCount > 0
-                }
-                .onKeyEvent { event ->
-                    // Fallback for hosts whose text-field core doesn't map
-                    // Enter to the IME action; repeats never get here (the
-                    // preview filter above consumed them).
-                    if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
-                        event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN
-                    ) {
-                        onLaunchActiveApp()
-                        true
-                    } else {
-                        false
+        // The field sizes the Box; the hint Popup lives in its own window and
+        // adds nothing to the Box's height, so the search card never grows when
+        // the hint appears.
+        Box {
+            LauncherFilterField(
+                value = query,
+                onValueChange = onQueryChanged,
+                placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
+                modifier = Modifier
+                    .focusRequester(focusRequester)
+                    .onSizeChanged { size -> fieldHeightPx = size.height }
+                    // Swallow held-Enter key repeats before they reach the text
+                    // field core: the core maps a hardware Enter ACTION_DOWN to
+                    // the IME Search action (-> onSearch -> onLaunchActiveApp)
+                    // and does so for *every* repeat, so a held key fired one
+                    // launch per repeat — and once the first launch cleared the
+                    // query, the next repeat shoved the user into settings. The
+                    // preview phase runs ancestors-first, so this filter sees
+                    // the event before the core consumes it. This restores the
+                    // key-repeat filtering the legacy editor-action path had
+                    // before the Compose rewrite.
+                    .onPreviewKeyEvent { event ->
+                        event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
+                            event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                            event.nativeKeyEvent.repeatCount > 0
                     }
-                }
-                .testTag(SEARCH_FIELD_TAG),
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    FilterClearButton(
-                        onClick = onClearQuery,
-                        contentDescription = stringResource(R.string.app_search_clear_button_description),
-                    )
-                } else {
-                    IconButton(
-                        onClick = onOpenSettings,
-                        modifier = Modifier.testTag(SETTINGS_BUTTON_TAG),
-                    ) {
-                        Box {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = stringResource(R.string.settings_open_button_description),
-                            )
-                            if (showPlayUpdateBadge) {
-                                val badgeDescription = stringResource(R.string.play_update_badge_description)
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 2.dp, y = (-2).dp)
-                                        .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                        .semantics { contentDescription = badgeDescription }
-                                        .testTag(PLAY_UPDATE_BADGE_TAG),
+                    .onKeyEvent { event ->
+                        // Fallback for hosts whose text-field core doesn't map
+                        // Enter to the IME action; repeats never get here (the
+                        // preview filter above consumed them).
+                        if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
+                            event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN
+                        ) {
+                            onLaunchActiveApp()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    .testTag(SEARCH_FIELD_TAG),
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        FilterClearButton(
+                            onClick = onClearQuery,
+                            contentDescription = stringResource(R.string.app_search_clear_button_description),
+                        )
+                    } else {
+                        IconButton(
+                            onClick = onOpenSettings,
+                            modifier = Modifier.testTag(SETTINGS_BUTTON_TAG),
+                        ) {
+                            Box {
+                                Icon(
+                                    Icons.Filled.Settings,
+                                    contentDescription = stringResource(R.string.settings_open_button_description),
                                 )
+                                if (showPlayUpdateBadge) {
+                                    val badgeDescription = stringResource(R.string.play_update_badge_description)
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                            .semantics { contentDescription = badgeDescription }
+                                            .testTag(PLAY_UPDATE_BADGE_TAG),
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            },
-            keyboardActions = KeyboardActions(
-                onSearch = {
-                    focusManager.clearFocus(force = false)
-                    onLaunchActiveApp()
                 },
-            ),
-        )
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        focusManager.clearFocus(force = false)
+                        onLaunchActiveApp()
+                    },
+                ),
+            )
+            if (appNameHint != null) {
+                // Non-focusable so the popup never steals focus from the field
+                // or dismisses the IME. Anchored to the field's bottom-left and
+                // pushed down a 4dp gap so it reads as a drop-down beneath it.
+                Popup(
+                    alignment = Alignment.TopStart,
+                    offset = IntOffset(0, fieldHeightPx + hintGapPx),
+                    properties = PopupProperties(focusable = false),
+                ) {
+                    SearchAppNameHint(
+                        name = appNameHint,
+                        modifier = Modifier.testTag(APP_NAME_HINT_TAG),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -2582,6 +2619,7 @@ internal fun SettingsScreen(
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListIconOnlyChanged: (Boolean) -> Unit,
+    onShowAppNameHintChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
@@ -2674,6 +2712,27 @@ internal fun SettingsScreen(
                 AppListLayoutDropdown(
                     isIconOnly = state.isAppListIconOnly,
                     onIconOnlyChanged = onAppListIconOnlyChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_app_name_hint_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isShowAppNameHint,
+                    onCheckedChange = onShowAppNameHintChanged,
+                    // The hint only renders in icon-only mode (the grid has no
+                    // labels), so the toggle is inert in Text mode — keep it
+                    // disabled there to signal that.
+                    enabled = state.isAppListIconOnly,
+                    modifier = Modifier.testTag(APP_NAME_HINT_SWITCH_TAG),
                 )
             }
             Row(

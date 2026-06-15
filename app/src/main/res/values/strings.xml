@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>
@@ -103,6 +103,11 @@
     <string name="settings_app_list_layout_title">App list</string>
     <string name="settings_app_list_layout_option_text">Text</string>
     <string name="settings_app_list_layout_option_icons">Icons</string>
+    <!-- TODO: backfill translations for settings_app_name_hint_title in every
+         values-*/strings.xml locale, then drop the tools:ignore below. Shipped
+         English-only deliberately; tools:ignore keeps `lint` MissingTranslation
+         green in the meantime. -->
+    <string name="settings_app_name_hint_title" tools:ignore="MissingTranslation">Show app name hint</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>
     <string name="settings_app_list_sort_option_usage">Usage ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>
