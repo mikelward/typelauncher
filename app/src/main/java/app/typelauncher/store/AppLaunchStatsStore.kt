@@ -176,13 +176,18 @@ internal fun List<InstalledApp>.filterByName(
             // name and behaviour is unchanged. The package's brand segments are
             // also matched, so an app whose title hides its brand (e.g. Virgin
             // Money's "Credit Card" / com.virginmoney.cards) is still reachable
-            // by name. Both signals are always evaluated and the *best* (lowest
-            // ordinal) tier wins — rather than only checking the package when
-            // the title misses — so the ranking stays correct even if the tier
-            // order is ever changed.
+            // by name. For a work-profile app, the un-prefixed name is matched
+            // too (workPrefixStrippedSearchName), so typing "cal" prefix-matches
+            // the work "Calendar" in the same bucket as the personal copy rather
+            // than being demoted to a mid-string anchored match on the visible
+            // "Work Calendar". All signals are always evaluated and the *best*
+            // (lowest ordinal) tier wins — rather than only checking a fallback
+            // when the title misses — so the ranking stays correct even if the
+            // tier order is ever changed.
             .mapNotNull { app ->
                 val tier = listOfNotNull(
                     app.displayName.launcherMatchTier(query),
+                    app.workPrefixStrippedSearchName?.launcherMatchTier(query),
                     app.packageName.packageBrandMatchTier(query),
                 ).minByOrNull { it.ordinal }
                 tier?.let { app to it }
