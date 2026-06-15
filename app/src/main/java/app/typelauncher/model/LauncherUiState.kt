@@ -41,11 +41,11 @@ internal const val DOCK_ITEM_SPACING_DP = 8
 internal const val DOCK_ITEM_VERTICAL_PADDING_DP = 8
 
 // Vertical room each dock slot reserves for the per-icon title strip when
-// `DockLayout.TitleBelow` is selected: a single `labelSmall` line (~16 dp at
-// the default font scale) plus the 4 dp gap between the icon and the label.
-// Added to the slot height by `dockSlotHeightDp` so the carded dock and the
-// landscape-fit estimator both stay in sync with what the buttons actually
-// render.
+// `DockLayout.TitleBelow` is selected, at the default font scale: a single
+// `labelSmall` line (~16 dp at fontScale 1.0) plus the 4 dp gap between the
+// icon and the label. Scaled by the live font scale inside `dockSlotHeightDp`
+// so a large accessibility font still gets enough room for the label to draw
+// without clipping or overlapping the next row.
 internal const val DOCK_ITEM_TITLE_HEIGHT_DP = 20
 
 // Shared gap, in dp, between adjacent home-screen cards: search↔apps,
@@ -120,14 +120,32 @@ internal enum class DockLayout {
 }
 
 /**
- * Height of one dock slot, in dp, for a given [dockIconSizeDp] and [layout].
- * Used by every renderer that needs to size a fixed slot ([DockedAppButton],
- * [EmptyDockSlot], [DockAddButton]) and by the landscape-fit estimator so the
- * carded dock and the metric stay in lockstep when the layout changes.
+ * Height of one dock slot, in dp, for a given [dockIconSizeDp], [layout], and
+ * [fontScale]. Used by every renderer that needs to size a fixed slot
+ * ([DockedAppButton], [EmptyDockSlot], [DockAddButton]) and by the
+ * landscape-fit estimator so the carded dock and the metric stay in lockstep
+ * when the layout changes.
+ *
+ * [fontScale] only affects the label strip on [DockLayout.TitleBelow]: the
+ * `labelSmall` line height grows with the user's system font scale (which can
+ * reach 2.0× under Accessibility → Font size), so reserving a fixed 20 dp at
+ * the default scale clips the label on a large accessibility font. Callers
+ * inside Compose pass `LocalDensity.current.fontScale`; the configuration-only
+ * landscape-fit estimator leaves it at 1.0 since rare under-counts there
+ * degrade gracefully into the existing `verticalScroll` inside the dock card.
  */
-internal fun dockSlotHeightDp(dockIconSizeDp: Int, layout: DockLayout): Int =
-    dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP +
-        if (layout == DockLayout.TitleBelow) DOCK_ITEM_TITLE_HEIGHT_DP else 0
+internal fun dockSlotHeightDp(
+    dockIconSizeDp: Int,
+    layout: DockLayout,
+    fontScale: Float = 1f,
+): Int {
+    val titleStripDp = if (layout == DockLayout.TitleBelow) {
+        (DOCK_ITEM_TITLE_HEIGHT_DP * fontScale.coerceAtLeast(1f)).toInt()
+    } else {
+        0
+    }
+    return dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + titleStripDp
+}
 
 /**
  * The reversed variants render the apps list with `reverseLayout = true`, which
