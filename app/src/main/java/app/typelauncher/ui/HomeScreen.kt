@@ -94,7 +94,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -121,7 +120,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -146,11 +144,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -291,17 +287,7 @@ internal fun HomeScreen(
                     autoShowKeyboard = autoShowKeyboard,
                     showPlayUpdateBadge = state.playUpdate.showBadge,
                     placeholderSuffix = searchPlaceholderSuffix,
-                    appNameHint = searchAppNameHint(
-                        showHint = state.isShowAppNameHint,
-                        // Only the label-free Icon only grid needs the hint;
-                        // Name beside and Name below already show the name.
-                        effectiveIconOnly = effectiveAppListLayout(state.appListLayout, landscapeTier) ==
-                            AppListLayout.IconOnly,
-                        query = state.query,
-                        topMatch = state.filteredApps.firstOrNull(),
-                    ),
                     suggestion = searchInlineSuggestion(
-                        showSuggestion = state.isShowSearchSuggestion,
                         query = state.query,
                         topMatch = state.filteredApps.firstOrNull(),
                     ),
@@ -597,7 +583,6 @@ private fun SearchCard(
     autoShowKeyboard: Boolean,
     showPlayUpdateBadge: Boolean,
     placeholderSuffix: String,
-    appNameHint: String?,
     suggestion: InlineSearchSuggestion?,
     keyboardShowRequests: SharedFlow<Unit>,
     onQueryChanged: (String) -> Unit,
@@ -608,12 +593,6 @@ private fun SearchCard(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    // Measured size of the search field, so the autocomplete hint popup can be
-    // offset to sit just below it and stretched to its full width. Updated only
-    // when the field resizes (rare), so it never touches the per-keystroke path.
-    var fieldHeightPx by remember { mutableIntStateOf(0) }
-    var fieldWidthPx by remember { mutableIntStateOf(0) }
-    val hintGapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
     // The auto-focus / show pair is the launcher's "type immediately on Home"
     // behavior. Gating both on the user setting is what actually keeps the IME
     // down. MainActivity also applies stateAlwaysHidden when the setting is off
@@ -635,9 +614,6 @@ private fun SearchCard(
         }
     }
     SectionCard {
-        // The field sizes the Box; the hint Popup lives in its own window and
-        // adds nothing to the Box's height, so the search card never grows when
-        // the hint appears.
         Box {
             LauncherFilterField(
                 value = query,
@@ -645,10 +621,6 @@ private fun SearchCard(
                 placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
                 modifier = Modifier
                     .focusRequester(focusRequester)
-                    .onSizeChanged { size ->
-                        fieldHeightPx = size.height
-                        fieldWidthPx = size.width
-                    }
                     // Swallow held-Enter key repeats before they reach the text
                     // field core: the core maps a hardware Enter ACTION_DOWN to
                     // the IME Search action (-> onSearch -> onLaunchActiveApp)
@@ -717,27 +689,6 @@ private fun SearchCard(
                     },
                 ),
             )
-            if (appNameHint != null && fieldWidthPx > 0) {
-                // Non-focusable so the popup never steals focus from the field
-                // or dismisses the IME. Anchored to the field's bottom-left and
-                // pushed down a 4dp gap so it reads as a drop-down beneath it.
-                // Sized to the field's measured width so the pill stretches the
-                // full field width and its text column aligns with the field's
-                // typed text.
-                val fieldWidthDp = with(LocalDensity.current) { fieldWidthPx.toDp() }
-                Popup(
-                    alignment = Alignment.TopStart,
-                    offset = IntOffset(0, fieldHeightPx + hintGapPx),
-                    properties = PopupProperties(focusable = false),
-                ) {
-                    SearchAppNameHint(
-                        name = appNameHint,
-                        modifier = Modifier
-                            .width(fieldWidthDp)
-                            .testTag(APP_NAME_HINT_TAG),
-                    )
-                }
-            }
             if (suggestion != null) {
                 // Overlay the inline autocomplete suggestion on the field's right
                 // edge. A plain Text consumes no pointer events, so tap-to-focus
@@ -2712,8 +2663,6 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onDockLayoutChanged: (DockLayout) -> Unit = {},
-    onShowAppNameHintChanged: (Boolean) -> Unit = {},
-    onShowSearchSuggestionChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
@@ -2806,49 +2755,6 @@ internal fun SettingsScreen(
                 AppListLayoutDropdown(
                     selected = state.appListLayout,
                     onLayoutChanged = onAppListLayoutChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_app_name_hint_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isShowAppNameHint,
-                    onCheckedChange = onShowAppNameHintChanged,
-                    // The hint only renders in the Icon only grid (the only
-                    // layout with no labels), so the toggle is inert in Name
-                    // beside / Name below — keep it disabled there to signal that.
-                    enabled = state.appListLayout == AppListLayout.IconOnly,
-                    modifier = Modifier.testTag(APP_NAME_HINT_SWITCH_TAG),
-                )
-            }
-            // TODO: Reconcile "Show top match name" (the icon-only drop-down hint
-            //  above) and "Show autocomplete hint" (the inline in-field suggestion
-            //  below). Both preview the top match the user is about to launch and
-            //  now overlap; consolidate them into a single setting in a follow-up
-            //  rather than shipping two near-duplicate toggles long-term.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_search_suggestion_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isShowSearchSuggestion,
-                    onCheckedChange = onShowSearchSuggestionChanged,
-                    modifier = Modifier.testTag(SEARCH_SUGGESTION_SWITCH_TAG),
                 )
             }
             Row(

@@ -68,8 +68,6 @@ internal object BugReport {
             locale = Locale.getDefault(),
             isDockEnabled = dockSettings.isDockEnabled,
             appListLayout = dockSettings.appListLayout,
-            isShowAppNameHint = dockSettings.isShowAppNameHint,
-            isShowSearchSuggestion = dockSettings.isShowSearchSuggestion,
             isShowDockedAppsInList = dockSettings.isShowDockedAppsInList,
             dockIconSizeDp = dockSettings.dockIconSizeDp,
             appListSortOrder = dockSettings.appListSortOrder,
@@ -202,8 +200,6 @@ internal fun buildBugReportPayload(
     locale: Locale,
     isDockEnabled: Boolean,
     appListLayout: AppListLayout,
-    isShowAppNameHint: Boolean,
-    isShowSearchSuggestion: Boolean,
     isShowDockedAppsInList: Boolean,
     dockIconSizeDp: Int,
     appListSortOrder: AppListSortOrder,
@@ -232,8 +228,6 @@ internal fun buildBugReportPayload(
         appendLine("--- Settings ---")
         appendLine("Dock enabled: $isDockEnabled")
         appendLine("App list layout: $appListLayout")
-        appendLine("Show top match name: $isShowAppNameHint")
-        appendLine("Show autocomplete hint: $isShowSearchSuggestion")
         appendLine("Show docked apps in list: $isShowDockedAppsInList")
         appendLine("Dock icon size: ${dockIconSizeDp}dp")
         appendLine("App list sort order: $appListSortOrder")

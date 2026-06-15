@@ -105,7 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">Име отдолу</string>
     <string name="settings_app_list_layout_option_icon_only">Само икона</string>
     <string name="settings_dock_layout_title">Стил на дока</string>
-    <string name="settings_app_name_hint_title">Показване на името на най-добрия резултат</string>
     <string name="settings_app_list_sort_title">Сортирай приложенията по</string>
     <string name="settings_app_list_sort_option_usage">Употреба ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Употреба ↑</string>

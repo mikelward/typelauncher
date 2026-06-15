@@ -203,11 +203,6 @@ jobs:
         # corner radius).
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.BadgePickerDialogScreenshotTest" -Proborazzi.test.record=true
 
-      - name: Run search app-name hint screenshot tests
-        # Renders SearchAppNameHint so the PR `roborazzi-screenshots` artifact
-        # captures the faint icon-mode autocomplete hint's styling.
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SearchAppNameHintScreenshotTest" -Proborazzi.test.record=true
-
       - name: Run search suggestion screenshot tests
         # Renders SearchSuggestionOverlay so the PR `roborazzi-screenshots`
         # artifact captures the inline in-field autocomplete suggestion's styling

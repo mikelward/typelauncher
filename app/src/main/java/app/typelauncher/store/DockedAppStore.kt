@@ -294,34 +294,6 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
-    /**
-     * When true, the icon-only app list shows a faint drop-down hint naming the
-     * top match while the user types, so they can tell which icon Enter will
-     * launch even though the grid has no labels. Off by default; only takes
-     * effect when the app list is in icon-only mode.
-     */
-    var isShowAppNameHint: Boolean
-        get() = sharedPreferences.getBoolean(KEY_SHOW_APP_NAME_HINT, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_SHOW_APP_NAME_HINT, value)
-                .apply()
-        }
-
-    /**
-     * When true, the search field shows the top match's full title inline,
-     * right-aligned and faint, with the typed letters bolded — an autocomplete
-     * hint that works in every app-list layout, not just the icon-only grid.
-     * Off by default.
-     */
-    var isShowSearchSuggestion: Boolean
-        get() = sharedPreferences.getBoolean(KEY_SHOW_SEARCH_SUGGESTION, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_SHOW_SEARCH_SUGGESTION, value)
-                .apply()
-        }
-
     var appListSortOrder: AppListSortOrder
         get() = sharedPreferences.getString(KEY_APP_LIST_SORT_ORDER, null)
             ?.let { name -> runCatching { AppListSortOrder.valueOf(name) }.getOrNull() }
@@ -480,8 +452,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_DOCK_LAYOUT = "dock_layout"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
-        const val KEY_SHOW_APP_NAME_HINT = "show_app_name_hint"
-        const val KEY_SHOW_SEARCH_SUGGESTION = "show_search_suggestion"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"

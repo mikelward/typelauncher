@@ -105,7 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">নিচে নাম</string>
     <string name="settings_app_list_layout_option_icon_only">শুধু আইকন</string>
     <string name="settings_dock_layout_title">ডকের স্টাইল</string>
-    <string name="settings_app_name_hint_title">সেরা ম্যাচের নাম দেখান</string>
     <string name="settings_app_list_sort_title">অ্যাপ সাজান এই ভিত্তিতে</string>
     <string name="settings_app_list_sort_option_usage">ব্যবহার ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ব্যবহার ↑</string>

@@ -178,8 +178,6 @@ internal class LauncherViewModel(
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
-            isShowAppNameHint = dockSettingsStore.isShowAppNameHint,
-            isShowSearchSuggestion = dockSettingsStore.isShowSearchSuggestion,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -1604,18 +1602,6 @@ internal class LauncherViewModel(
         dockSettingsStore.dockLayout = layout
         _uiState.update { it.copy(dockLayout = layout) }
         logState("setDockLayout")
-    }
-
-    fun setShowAppNameHint(enabled: Boolean) {
-        dockSettingsStore.isShowAppNameHint = enabled
-        _uiState.update { it.copy(isShowAppNameHint = enabled) }
-        logState("setShowAppNameHint")
-    }
-
-    fun setShowSearchSuggestion(enabled: Boolean) {
-        dockSettingsStore.isShowSearchSuggestion = enabled
-        _uiState.update { it.copy(isShowSearchSuggestion = enabled) }
-        logState("setShowSearchSuggestion")
     }
 
     // TODO: Consider removing the "Show docked apps" setting. Now that typing

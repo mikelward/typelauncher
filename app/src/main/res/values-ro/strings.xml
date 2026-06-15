@@ -105,7 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">Nume dedesubt</string>
     <string name="settings_app_list_layout_option_icon_only">Doar pictograma</string>
     <string name="settings_dock_layout_title">Stilul dock-ului</string>
-    <string name="settings_app_name_hint_title">Afișează numele celui mai bun rezultat</string>
     <string name="settings_app_list_sort_title">Sortează aplicațiile după</string>
     <string name="settings_app_list_sort_option_usage">Utilizare ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Utilizare ↑</string>
