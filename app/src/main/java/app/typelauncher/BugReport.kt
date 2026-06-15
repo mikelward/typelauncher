@@ -230,7 +230,7 @@ internal fun buildBugReportPayload(
         appendLine("--- Settings ---")
         appendLine("Dock enabled: $isDockEnabled")
         appendLine("App list layout: $appListLayout")
-        appendLine("Show app name hint: $isShowAppNameHint")
+        appendLine("Show top match name: $isShowAppNameHint")
         appendLine("Show docked apps in list: $isShowDockedAppsInList")
         appendLine("Dock icon size: ${dockIconSizeDp}dp")
         appendLine("App list sort order: $appListSortOrder")

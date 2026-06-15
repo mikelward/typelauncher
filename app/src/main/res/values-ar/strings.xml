@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">تعيين كمشغّل افتراضي</string>
     <string name="settings_already_default_launcher_button">المشغّل الافتراضي بالفعل</string>
     <string name="settings_app_list_layout_title">قائمة التطبيقات</string>
+    <string name="settings_app_list_layout_option_name_beside">الاسم بالجانب</string>
+    <string name="settings_app_list_layout_option_name_below">الاسم بالأسفل</string>
+    <string name="settings_app_list_layout_option_icon_only">الأيقونة فقط</string>
+    <string name="settings_app_name_hint_title">إظهار اسم أفضل نتيجة</string>
     <string name="settings_app_list_sort_title">ترتيب التطبيقات حسب</string>
     <string name="settings_app_list_sort_option_usage">الاستخدام ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">الاستخدام ↑</string>

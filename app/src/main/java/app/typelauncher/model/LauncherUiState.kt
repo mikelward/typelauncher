@@ -581,7 +581,7 @@ internal fun effectiveAppListLayout(
  * hint should be shown.
  *
  * The hint names [topMatch] — the app `launchActiveApp` launches on Enter — so it
- * only appears when the "Show app name hint" setting is on ([showHint]), the list
+ * only appears when the "Show top match name" setting is on ([showHint]), the list
  * is effectively in icon-only mode ([effectiveIconOnly], where the grid has no
  * labels of its own), and the user has typed a non-blank [query]. Text/list mode
  * already shows the name on the highlighted row, so the hint is suppressed there.

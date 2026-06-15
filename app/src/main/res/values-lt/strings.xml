@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Nustatyti kaip numatytąjį paleidiklį</string>
     <string name="settings_already_default_launcher_button">Jau yra numatytasis paleidiklis</string>
     <string name="settings_app_list_layout_title">Programų sąrašas</string>
+    <string name="settings_app_list_layout_option_name_beside">Pavadinimas šalia</string>
+    <string name="settings_app_list_layout_option_name_below">Pavadinimas apačioje</string>
+    <string name="settings_app_list_layout_option_icon_only">Tik piktograma</string>
+    <string name="settings_app_name_hint_title">Rodyti geriausio atitikmens pavadinimą</string>
     <string name="settings_app_list_sort_title">Rūšiuoti programas pagal</string>
     <string name="settings_app_list_sort_option_usage">Naudojimą ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Naudojimą ↑</string>

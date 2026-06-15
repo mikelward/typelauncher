@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Tetapkan sebagai pelancar lalai</string>
     <string name="settings_already_default_launcher_button">Sudah menjadi pelancar lalai</string>
     <string name="settings_app_list_layout_title">Senarai aplikasi</string>
+    <string name="settings_app_list_layout_option_name_beside">Nama di sebelah</string>
+    <string name="settings_app_list_layout_option_name_below">Nama di bawah</string>
+    <string name="settings_app_list_layout_option_icon_only">Ikon sahaja</string>
+    <string name="settings_app_name_hint_title">Tunjukkan nama padanan terbaik</string>
     <string name="settings_app_list_sort_title">Susun aplikasi mengikut</string>
     <string name="settings_app_list_sort_option_usage">Penggunaan ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Penggunaan ↑</string>

@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">기본 런처로 설정</string>
     <string name="settings_already_default_launcher_button">이미 기본 런처</string>
     <string name="settings_app_list_layout_title">앱 목록</string>
+    <string name="settings_app_list_layout_option_name_beside">이름 옆에</string>
+    <string name="settings_app_list_layout_option_name_below">이름 아래</string>
+    <string name="settings_app_list_layout_option_icon_only">아이콘만</string>
+    <string name="settings_app_name_hint_title">최상위 검색 결과 이름 표시</string>
     <string name="settings_app_list_sort_title">앱 정렬 기준</string>
     <string name="settings_app_list_sort_option_usage">사용 빈도 ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">사용 빈도 ↑</string>

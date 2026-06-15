@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Saita a matsayin mai ƙaddamarwa na asali</string>
     <string name="settings_already_default_launcher_button">Tuni mai ƙaddamarwa na asali</string>
     <string name="settings_app_list_layout_title">Jerin manhajoji</string>
+    <string name="settings_app_list_layout_option_name_beside">Suna a gefe</string>
+    <string name="settings_app_list_layout_option_name_below">Suna a ƙasa</string>
+    <string name="settings_app_list_layout_option_icon_only">Alama kaɗai</string>
+    <string name="settings_app_name_hint_title">Nuna sunan mafi dacewa</string>
     <string name="settings_app_list_sort_title">Tsara manhajoji ta</string>
     <string name="settings_app_list_sort_option_usage">Amfani ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Amfani ↑</string>

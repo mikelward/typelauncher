@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">እንደ ነባሪ አስጀማሪ አዘጋጅ</string>
     <string name="settings_already_default_launcher_button">አስቀድሞ ነባሪ አስጀማሪ ነው</string>
     <string name="settings_app_list_layout_title">የመተግበሪያ ዝርዝር</string>
+    <string name="settings_app_list_layout_option_name_beside">ስም በጎን</string>
+    <string name="settings_app_list_layout_option_name_below">ስም ከታች</string>
+    <string name="settings_app_list_layout_option_icon_only">አዶ ብቻ</string>
+    <string name="settings_app_name_hint_title">የቀዳሚ ተዛማጅ ስም አሳይ</string>
     <string name="settings_app_list_sort_title">መተግበሪያዎችን በ ደርድር</string>
     <string name="settings_app_list_sort_option_usage">አጠቃቀም ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">አጠቃቀም ↑</string>

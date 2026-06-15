@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Definir como launcher padrão</string>
     <string name="settings_already_default_launcher_button">Já é o launcher padrão</string>
     <string name="settings_app_list_layout_title">Lista de apps</string>
+    <string name="settings_app_list_layout_option_name_beside">Nome ao lado</string>
+    <string name="settings_app_list_layout_option_name_below">Nome abaixo</string>
+    <string name="settings_app_list_layout_option_icon_only">Apenas ícone</string>
+    <string name="settings_app_name_hint_title">Mostrar o nome do melhor resultado</string>
     <string name="settings_app_list_sort_title">Ordenar apps por</string>
     <string name="settings_app_list_sort_option_usage">Uso ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Uso ↑</string>

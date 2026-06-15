@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Postavi kao zadani launcher</string>
     <string name="settings_already_default_launcher_button">Već je zadani launcher</string>
     <string name="settings_app_list_layout_title">Popis aplikacija</string>
+    <string name="settings_app_list_layout_option_name_beside">Naziv sa strane</string>
+    <string name="settings_app_list_layout_option_name_below">Naziv ispod</string>
+    <string name="settings_app_list_layout_option_icon_only">Samo ikona</string>
+    <string name="settings_app_name_hint_title">Prikaži naziv najboljeg podudaranja</string>
     <string name="settings_app_list_sort_title">Sortiraj aplikacije prema</string>
     <string name="settings_app_list_sort_option_usage">Korištenje ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Korištenje ↑</string>

@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Nastavit jako výchozí launcher</string>
     <string name="settings_already_default_launcher_button">Již výchozí launcher</string>
     <string name="settings_app_list_layout_title">Seznam aplikací</string>
+    <string name="settings_app_list_layout_option_name_beside">Název vedle</string>
+    <string name="settings_app_list_layout_option_name_below">Název pod</string>
+    <string name="settings_app_list_layout_option_icon_only">Jen ikona</string>
+    <string name="settings_app_name_hint_title">Zobrazit název nejlepší shody</string>
     <string name="settings_app_list_sort_title">Řadit aplikace podle</string>
     <string name="settings_app_list_sort_option_usage">Využití ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Využití ↑</string>

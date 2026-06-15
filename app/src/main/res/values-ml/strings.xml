@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">സ്ഥിരസ്ഥിതി ലോഞ്ചറായി സജ്ജമാക്കുക</string>
     <string name="settings_already_default_launcher_button">ഇതിനകം സ്ഥിരസ്ഥിതി ലോഞ്ചർ</string>
     <string name="settings_app_list_layout_title">ആപ്പ് പട്ടിക</string>
+    <string name="settings_app_list_layout_option_name_beside">പേര് വശത്ത്</string>
+    <string name="settings_app_list_layout_option_name_below">പേര് താഴെ</string>
+    <string name="settings_app_list_layout_option_icon_only">ഐക്കൺ മാത്രം</string>
+    <string name="settings_app_name_hint_title">മികച്ച പൊരുത്തത്തിന്റെ പേര് കാണിക്കുക</string>
     <string name="settings_app_list_sort_title">ആപ്പുകൾ ഇത് അനുസരിച്ച് അടുക്കുക</string>
     <string name="settings_app_list_sort_option_usage">ഉപയോഗം ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ഉപയോഗം ↑</string>
