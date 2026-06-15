@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">نام در زیر</string>
     <string name="settings_app_list_layout_option_icon_only">فقط نماد</string>
     <string name="settings_dock_layout_title">سبک داک</string>
-    <string name="settings_dock_layout_option_icon_only">فقط نماد</string>
-    <string name="settings_dock_layout_option_title_below">عنوان در زیر</string>
     <string name="settings_app_name_hint_title">نمایش نام بهترین نتیجه</string>
     <string name="settings_app_list_sort_title">مرتب‌سازی برنامه‌ها بر اساس</string>
     <string name="settings_app_list_sort_option_usage">استفاده ↓</string>

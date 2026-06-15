@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">Pangalan sa ibaba</string>
     <string name="settings_app_list_layout_option_icon_only">Icon lang</string>
     <string name="settings_dock_layout_title">Estilo ng dock</string>
-    <string name="settings_dock_layout_option_icon_only">Icon lang</string>
-    <string name="settings_dock_layout_option_title_below">Pamagat sa ibaba</string>
     <string name="settings_app_name_hint_title">Ipakita ang pangalan ng top match</string>
     <string name="settings_app_list_sort_title">Pagsunud-sunurin ang mga app ayon sa</string>
     <string name="settings_app_list_sort_option_usage">Paggamit ↓</string>

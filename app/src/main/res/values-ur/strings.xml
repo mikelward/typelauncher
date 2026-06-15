@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">نام نیچے</string>
     <string name="settings_app_list_layout_option_icon_only">صرف آئیکن</string>
     <string name="settings_dock_layout_title">ڈاک کا انداز</string>
-    <string name="settings_dock_layout_option_icon_only">صرف آئیکن</string>
-    <string name="settings_dock_layout_option_title_below">عنوان نیچے</string>
     <string name="settings_app_name_hint_title">بہترین مماثلت کا نام دکھائیں</string>
     <string name="settings_app_list_sort_title">ایپس کی ترتیب بمطابق</string>
     <string name="settings_app_list_sort_option_usage">استعمال ↓</string>

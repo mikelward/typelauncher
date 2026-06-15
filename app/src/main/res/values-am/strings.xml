@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">ስም ከታች</string>
     <string name="settings_app_list_layout_option_icon_only">አዶ ብቻ</string>
     <string name="settings_dock_layout_title">የዶክ ቅጥ</string>
-    <string name="settings_dock_layout_option_icon_only">አዶ ብቻ</string>
-    <string name="settings_dock_layout_option_title_below">ርዕስ ከታች</string>
     <string name="settings_app_name_hint_title">የቀዳሚ ተዛማጅ ስም አሳይ</string>
     <string name="settings_app_list_sort_title">መተግበሪያዎችን በ ደርድር</string>
     <string name="settings_app_list_sort_option_usage">አጠቃቀም ↓</string>

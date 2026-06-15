@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">名前を下に</string>
     <string name="settings_app_list_layout_option_icon_only">アイコンのみ</string>
     <string name="settings_dock_layout_title">ドックのスタイル</string>
-    <string name="settings_dock_layout_option_icon_only">アイコンのみ</string>
-    <string name="settings_dock_layout_option_title_below">タイトルを下に</string>
     <string name="settings_app_name_hint_title">最上位候補の名前を表示</string>
     <string name="settings_app_list_sort_title">アプリの並び順</string>
     <string name="settings_app_list_sort_option_usage">使用頻度 ↓</string>
