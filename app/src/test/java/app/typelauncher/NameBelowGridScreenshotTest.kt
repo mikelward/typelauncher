@@ -28,8 +28,8 @@ import org.robolectric.annotation.GraphicsMode
  * Renders the "Name below" app-list layout — the icon grid with each app's name
  * centered beneath its icon ([IconOnlyAppGrid] with `showLabel = true`) — so the
  * PR `roborazzi-screenshots` artifact captures the labeled tiles, including a
- * long name truncating to two lines with an ellipsis. Also asserts the labels
- * actually render (the icon-only grid draws no labels).
+ * long name truncating to a single line with an ellipsis. Also asserts the
+ * labels actually render (the icon-only grid draws no labels).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
