@@ -1156,15 +1156,22 @@ internal class LauncherViewModel(
     /**
      * Sets a user-supplied display label for [app] that overrides the system-
      * provided launcher name everywhere in the UI and in typed search. Passing
-     * a blank string, or one that matches the app's original [InstalledApp.
-     * name], clears any existing override (so the app reverts to whatever the
-     * system reports). The override is keyed by [InstalledApp.id], so it
-     * survives package upgrades but a fresh install (which produces a new
-     * component) starts from the system label again.
+     * a blank string, or one that matches the **currently rendered** default
+     * label ([InstalledApp.displayBase], which is the raw system name for
+     * personal apps and the work-prefixed form for work-profile apps), clears
+     * any existing override (so the app reverts to whatever the launcher
+     * would otherwise display). Comparing against `displayBase` rather than
+     * the raw `name` matters for work-profile apps: a user who explicitly
+     * renames "Work Calendar" to "Calendar" is choosing to drop the prefix,
+     * and we must keep that override rather than treating it as a clear
+     * because the trimmed text happens to match the raw system label. The
+     * override is keyed by [InstalledApp.id], so it survives package
+     * upgrades but a fresh install (which produces a new component) starts
+     * from the system label again.
      */
     fun renameApp(app: InstalledApp, newName: String) {
         val trimmed = newName.trim()
-        val effective: String? = if (trimmed.isEmpty() || trimmed == app.name) {
+        val effective: String? = if (trimmed.isEmpty() || trimmed == app.displayBase) {
             LauncherDebugLog.event("renameApp clear package=${app.packageName}")
             renamedAppStore.clear(app.id)
             null
