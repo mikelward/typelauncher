@@ -106,6 +106,47 @@ class LauncherViewModelRenameTest {
     }
 
     @Test
+    fun renameWorkAppToRawNamePreservesTheOverride() {
+        // Regression: clearing the rename when `trimmed == app.name` (the
+        // raw system label) was wrong for work-profile apps, whose rendered
+        // default is "Work <name>". A user who renames "Work Calendar" to
+        // "Calendar" is deliberately dropping the prefix, and that override
+        // must stick — falling back to the prefixed form would silently
+        // undo the user's intent.
+        seedApp("Calendar", "com.android.calendar")
+        val viewModel = freshlyLoaded(workPackages = setOf("com.android.calendar"))
+        val target = viewModel.uiState.value.filteredApps.single { it.name == "Calendar" }
+        assertEquals(true, target.isWorkApp)
+        assertEquals("Work Calendar", target.displayName)
+
+        viewModel.renameApp(target, "Calendar")
+
+        val renamed = viewModel.uiState.value.filteredApps.single { it.id == target.id }
+        assertEquals("Calendar", renamed.customName)
+        assertEquals("Calendar", renamed.displayName)
+    }
+
+    @Test
+    fun renameWorkAppToPrefixedDefaultClearsTheOverride() {
+        // The other side of the same coin: typing the launcher's own default
+        // label ("Work Calendar") must clear the override, because the user
+        // is asking to go back to the system default — not to set an
+        // override that happens to match the default.
+        seedApp("Calendar", "com.android.calendar")
+        val viewModel = freshlyLoaded(workPackages = setOf("com.android.calendar"))
+        val target = viewModel.uiState.value.filteredApps.single { it.name == "Calendar" }
+        viewModel.renameApp(target, "Daily")
+        val withOverride = viewModel.uiState.value.filteredApps.single { it.id == target.id }
+        assertEquals("Daily", withOverride.customName)
+
+        viewModel.renameApp(withOverride, "Work Calendar")
+
+        val restored = viewModel.uiState.value.filteredApps.single { it.id == target.id }
+        assertNull("Typing the default rendered label clears the override", restored.customName)
+        assertEquals("Work Calendar", restored.displayName)
+    }
+
+    @Test
     fun renameAppSurvivesProcessRestartForSearchToo() {
         // Regression: at one point `renameApp` only mirrored `customName`
         // onto the in-memory `installedApps` for the rename that just
@@ -133,10 +174,10 @@ class LauncherViewModelRenameTest {
         )
     }
 
-    private fun freshlyLoaded(): LauncherViewModel {
+    private fun freshlyLoaded(workPackages: Set<String> = emptySet()): LauncherViewModel {
         val viewModel = LauncherViewModel(
             app = ApplicationProvider.getApplicationContext(),
-            workPackages = emptySet(),
+            workPackages = workPackages,
             ioDispatcher = Dispatchers.Unconfined,
         )
         idle()
