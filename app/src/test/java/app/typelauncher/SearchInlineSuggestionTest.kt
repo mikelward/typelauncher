@@ -55,11 +55,23 @@ class SearchInlineSuggestionTest {
     }
 
     @Test
-    fun hiddenWhenQueryEqualsFullName() {
-        // Once the whole name is typed there's nothing left to suggest; echoing
-        // it would just double the text in the field.
-        assertNull(searchInlineSuggestion(showSuggestion = true, query = "Calculator", topMatch = calculator))
-        assertNull(searchInlineSuggestion(showSuggestion = true, query = "calculator", topMatch = calculator))
+    fun fullNameMatchStaysShownFullyBold() {
+        // Typing the whole name keeps the suggestion visible with every letter
+        // bold, so the field keeps confirming the match and its canonical casing
+        // (e.g. typing "up" while "Up" is the match).
+        val up = installedApp("Up", "app.up")
+        assertEquals(
+            InlineSearchSuggestion(name = "Up", boldIndices = listOf(0, 1)),
+            searchInlineSuggestion(showSuggestion = true, query = "up", topMatch = up),
+        )
+        assertEquals(
+            InlineSearchSuggestion(name = "Up", boldIndices = listOf(0, 1)),
+            searchInlineSuggestion(showSuggestion = true, query = "Up", topMatch = up),
+        )
+        assertEquals(
+            InlineSearchSuggestion(name = "Calculator", boldIndices = (0..9).toList()),
+            searchInlineSuggestion(showSuggestion = true, query = "Calculator", topMatch = calculator),
+        )
     }
 
     private fun installedApp(name: String, packageName: String): InstalledApp {

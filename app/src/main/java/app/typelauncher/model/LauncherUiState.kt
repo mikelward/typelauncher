@@ -651,10 +651,11 @@ internal data class InlineSearchSuggestion(val name: String, val boldIndices: Li
  * not just the icon-only grid (the typed letters are bolded inside the title, so
  * it reads as autocomplete rather than a duplicate of a labelled row).
  *
- * Non-null only when the setting is on ([showSuggestion]), the user has typed a
- * non-blank [query], and a [topMatch] exists. Suppressed when the query already
- * equals the match's display name (case-insensitive): once the full name is
- * typed there's nothing left to suggest, and echoing it just doubles the text.
+ * Non-null whenever the setting is on ([showSuggestion]), the user has typed a
+ * non-blank [query], and a [topMatch] exists. When the query already equals the
+ * match's display name (case-insensitive) the suggestion is *still* shown — the
+ * whole name renders bold — so the field keeps confirming the match (and its
+ * canonical casing, e.g. typing "up" while "Up" is the match).
  */
 internal fun searchInlineSuggestion(
     showSuggestion: Boolean,
@@ -663,7 +664,6 @@ internal fun searchInlineSuggestion(
 ): InlineSearchSuggestion? {
     if (!showSuggestion || query.isBlank() || topMatch == null) return null
     val name = topMatch.displayName
-    if (name.equals(query, ignoreCase = true)) return null
     return InlineSearchSuggestion(
         // Highlight against the raw query so the bolded run matches exactly how
         // `filterByName` (which is passed the untrimmed query) picked this match.
