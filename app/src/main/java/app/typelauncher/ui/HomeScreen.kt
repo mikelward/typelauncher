@@ -608,10 +608,11 @@ private fun SearchCard(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    // Measured height of the search field, so the autocomplete hint popup can be
-    // offset to sit just below it. Updated only when the field resizes (rare), so
-    // it never touches the per-keystroke path.
+    // Measured size of the search field, so the autocomplete hint popup can be
+    // offset to sit just below it and stretched to its full width. Updated only
+    // when the field resizes (rare), so it never touches the per-keystroke path.
     var fieldHeightPx by remember { mutableIntStateOf(0) }
+    var fieldWidthPx by remember { mutableIntStateOf(0) }
     val hintGapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
     // The auto-focus / show pair is the launcher's "type immediately on Home"
     // behavior. Gating both on the user setting is what actually keeps the IME
@@ -644,7 +645,10 @@ private fun SearchCard(
                 placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
                 modifier = Modifier
                     .focusRequester(focusRequester)
-                    .onSizeChanged { size -> fieldHeightPx = size.height }
+                    .onSizeChanged { size ->
+                        fieldHeightPx = size.height
+                        fieldWidthPx = size.width
+                    }
                     // Swallow held-Enter key repeats before they reach the text
                     // field core: the core maps a hardware Enter ACTION_DOWN to
                     // the IME Search action (-> onSearch -> onLaunchActiveApp)
@@ -713,10 +717,14 @@ private fun SearchCard(
                     },
                 ),
             )
-            if (appNameHint != null) {
+            if (appNameHint != null && fieldWidthPx > 0) {
                 // Non-focusable so the popup never steals focus from the field
                 // or dismisses the IME. Anchored to the field's bottom-left and
                 // pushed down a 4dp gap so it reads as a drop-down beneath it.
+                // Sized to the field's measured width so the pill stretches the
+                // full field width and its text column aligns with the field's
+                // typed text.
+                val fieldWidthDp = with(LocalDensity.current) { fieldWidthPx.toDp() }
                 Popup(
                     alignment = Alignment.TopStart,
                     offset = IntOffset(0, fieldHeightPx + hintGapPx),
@@ -724,7 +732,9 @@ private fun SearchCard(
                 ) {
                     SearchAppNameHint(
                         name = appNameHint,
-                        modifier = Modifier.testTag(APP_NAME_HINT_TAG),
+                        modifier = Modifier
+                            .width(fieldWidthDp)
+                            .testTag(APP_NAME_HINT_TAG),
                     )
                 }
             }

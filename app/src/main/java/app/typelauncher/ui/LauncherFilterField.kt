@@ -59,6 +59,10 @@ internal fun LauncherFilterField(
  * field while typing in icon-only mode. Factored out of the production `Popup`
  * wrapper so the screenshot test can render it directly — a `Popup` lives in its
  * own window and would not be captured by the activity decor-view snapshot.
+ *
+ * Caller sizes the pill to the search field's width via `modifier`; the text's
+ * `start` padding aligns it with the field's typed-text column (past the leading
+ * search icon), so the hint reads as a direct extension of the input below.
  */
 @Composable
 internal fun SearchAppNameHint(
@@ -74,7 +78,11 @@ internal fun SearchAppNameHint(
     ) {
         Text(
             text = name,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            // Asymmetric start padding lines the hint text up with the field's
+            // typed text: 12dp (OutlinedTextField horizontal icon padding) +
+            // 24dp (leading icon) + 12dp (gap to content) = 48dp from the
+            // field's start edge.
+            modifier = Modifier.padding(start = 48.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
