@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -446,7 +447,11 @@ internal fun HomeScreen(
                                 state.workDockPositions,
                                 dockIconCount,
                             ).coerceAtMost(maxWorkRows)
-                            val workRowHeightDp = dockSlotHeightDp(dockIconSizeDp, state.dockLayout)
+                            val workRowHeightDp = dockSlotHeightDp(
+                                dockIconSizeDp,
+                                state.dockLayout,
+                                LocalDensity.current.fontScale,
+                            )
                             val workMaxHeightDp = workRows * workRowHeightDp +
                                 (workRows - 1) * DOCK_ITEM_SPACING_DP +
                                 SECTION_CARD_PADDING_DP * 2
@@ -2356,7 +2361,11 @@ private fun DockedAppButton(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
-    val slopPx = with(LocalDensity.current) { 8.dp.toPx() }
+    val density = LocalDensity.current
+    val slopPx = with(density) { 8.dp.toPx() }
+    // Honor the system font scale so a larger accessibility font lifts the
+    // floor and the `labelSmall` line never clips against the next row.
+    val slotMinHeight = dockSlotHeightDp(dockIconSizeDp, dockLayout, density.fontScale).dp
     // Wrap the parent's drag callbacks in updated-state holders so the
     // long-running pointerInput coroutine always invokes the freshest
     // closure (recompositions reallocate the lambdas every frame).
@@ -2398,7 +2407,11 @@ private fun DockedAppButton(
         Column(
             modifier = Modifier
                 .semantics { contentDescription = app.displayName }
-                .height(dockSlotHeightDp(dockIconSizeDp, dockLayout).dp)
+                // `defaultMinSize` so the `labelSmall` line can grow past the
+                // 20 dp default-scale floor at large accessibility font sizes
+                // (where the line height alone exceeds it); the Column then
+                // sizes to its content and lifts the FlowRow row with it.
+                .defaultMinSize(minHeight = slotMinHeight)
                 .testTag("$appTag:${app.displayName}"),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -2565,9 +2578,10 @@ private fun EmptyDockSlot(
     modifier: Modifier = Modifier,
     onReportSlotCenter: (Offset) -> Unit,
 ) {
+    val fontScale = LocalDensity.current.fontScale
     Box(
         modifier = modifier
-            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout).dp)
+            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale).dp)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 onReportSlotCenter(
@@ -2591,9 +2605,10 @@ private fun DockAddButton(
     val context = LocalContext.current
     val hint = stringResource(R.string.dock_add_button_hint)
     val description = stringResource(R.string.dock_add_button_description)
+    val fontScale = LocalDensity.current.fontScale
     Box(
         modifier = modifier
-            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout).dp)
+            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale).dp)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 onReportSlotCenter?.invoke(
@@ -3758,14 +3773,28 @@ private fun SettingsPreview(
     dockIconCount: Int,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
+    // The dock preview tracks the live `state.dockLayout`: `TitleBelow` adds a
+    // `labelSmall` strip beneath each icon, so a fixed `previewHeight` would
+    // clip the title in the preview the moment the user picks the option from
+    // the dropdown sitting just above. `SETTINGS_PREVIEW_CARD_CHROME_DP` is
+    // exactly `DOCK_ITEM_VERTICAL_PADDING_DP + SECTION_CARD_PADDING_DP * 2`,
+    // so adding the slot delta on top keeps the chrome math consistent.
+    val dockPreviewHeight = previewHeight +
+        (dockSlotHeightDp(dockIconSizeDp, state.dockLayout, LocalDensity.current.fontScale) -
+            (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP)).dp
     // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
     // user can see the space reserved for secondary bars and the dock.
     val totalPreviewHeight =
         previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
             SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
-    val fixedBarCount = (if (state.isDockEnabled) 1 else 0) + 1
-    val appListHeight =
-        totalPreviewHeight - (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) * fixedBarCount
+    val dockPreviewBudget = if (state.isDockEnabled) {
+        dockPreviewHeight + SETTINGS_PREVIEW_SPACING_DP.dp
+    } else {
+        0.dp
+    }
+    val appListHeight = totalPreviewHeight -
+        (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) -
+        dockPreviewBudget
     // The preview is visual-only on every interaction surface:
     //   - clearAndSetSemantics on the wrapper strips the cards' descendant
     //     semantics from the MERGED tree, so TalkBack, Switch Access,
@@ -3827,7 +3856,7 @@ private fun SettingsPreview(
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
                     dockLayout = state.dockLayout,
-                    modifier = Modifier.height(previewHeight),
+                    modifier = Modifier.height(dockPreviewHeight),
                     onLaunchApp = {},
                     onOpenAppInfo = {},
                     onToggleDock = { _, _ -> },
