@@ -549,11 +549,38 @@ class LauncherFilterOrderingTest {
             appLaunchStatsStore = store,
             excludedAppIds = emptySet(),
         )
-        // Personal Calendar wins on the Prefix tier; the work copy falls into
-        // Anchored because "Cal" lives mid-string in "Work Calendar".
+        // Both copies land in the Prefix tier — the work copy is matched on its
+        // un-prefixed "Calendar" name, so "cal" treats it the same as the
+        // personal one rather than demoting it to a mid-string anchored match on
+        // "Work Calendar". With no launches the tie breaks alphabetically, so
+        // "Calendar" sorts ahead of "Work Calendar".
         assertEquals(listOf("Calendar", "Calendar"), calQuery.map { it.name })
         assertEquals(false, calQuery[0].isWorkApp)
         assertEquals(true, calQuery[1].isWorkApp)
+    }
+
+    @Test
+    fun filterByNamePlacesWorkCopyInSameTierAsPersonalForUnprefixedQuery() {
+        // "cal" must put the work "Calendar" in the *same* bucket as the
+        // personal copy, not a lower one. Proven by usage: the work copy has
+        // more launches, so if both share the Prefix tier the launch-count
+        // tie-breaker floats it above the personal copy. If the work copy were
+        // still demoted to the Anchored tier (the pre-fix behaviour), the tier
+        // would dominate and the personal copy would always come first
+        // regardless of launch count.
+        val personalCalendar = installedApp("Calendar")
+        val workCalendar = workInstalledApp("Calendar")
+        repeat(5) { store.recordLaunch(workCalendar.id) }
+
+        val filtered = listOf(personalCalendar, workCalendar).filterByName(
+            query = "cal",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("Calendar", "Calendar"), filtered.map { it.name })
+        assertEquals(true, filtered[0].isWorkApp)
+        assertEquals(false, filtered[1].isWorkApp)
     }
 
     private fun installedApp(

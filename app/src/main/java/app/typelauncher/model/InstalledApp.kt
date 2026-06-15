@@ -72,15 +72,40 @@ internal data class InstalledApp(
     val displayName: String
         get() {
             customName?.takeIf { it.isNotBlank() }?.let { return it }
-            val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return displayBase
-            // Strip surrounding punctuation so a name like "Bank (US)" with a
-            // "US" disambiguator doesn't render as "Bank (US) (US)".
-            val nameTokens = displayBase
-                .split(WHITESPACE_REGEX)
-                .map { it.trim('(', ')', '[', ']', '-', '–', '—').trim() }
-            if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return displayBase
-            return "$displayBase ($tag)"
+            return displayBase.withDisambiguator()
         }
+
+    // Extra label the typed-search filter matches against so a work-profile
+    // app's "Work " prefix never demotes the match tier: it lets a query
+    // prefix-match the underlying app name ("Calendar") at the same tier as
+    // the personal copy, instead of being pushed down to a mid-string anchored
+    // match on the visible "Work Calendar". `name` is the raw un-prefixed label
+    // while [displayBase] carries the prefix, so we match the un-prefixed form
+    // (with the same disambiguator suffix the visible label would carry).
+    // Null when there's nothing extra to gain: personal apps, a user-renamed
+    // work app (its [customName] already wins [displayName] with no forced
+    // prefix), or the degenerate case where the prefix didn't change the label.
+    val workPrefixStrippedSearchName: String?
+        get() {
+            if (!isWorkApp) return null
+            if (customName?.takeIf { it.isNotBlank() } != null) return null
+            if (name == displayBase) return null
+            return name.withDisambiguator()
+        }
+
+    // Appends the parenthesised disambiguator (e.g. "Chase (US)") when this app
+    // shares an icon-level identity with peers. Skips the suffix if the
+    // disambiguator already appears as a whitespace-separated token — "Amex UK"
+    // with a "UK" badge stays "Amex UK" rather than the redundant "Amex UK (UK)".
+    private fun String.withDisambiguator(): String {
+        val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return this
+        // Strip surrounding punctuation so a name like "Bank (US)" with a
+        // "US" disambiguator doesn't render as "Bank (US) (US)".
+        val nameTokens = split(WHITESPACE_REGEX)
+            .map { it.trim('(', ')', '[', ']', '-', '–', '—').trim() }
+        if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return this
+        return "$this ($tag)"
+    }
 
     /**
      * Label used to pick the corner badge (country flag / globe). When the

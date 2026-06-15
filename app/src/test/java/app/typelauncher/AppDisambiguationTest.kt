@@ -164,6 +164,40 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun workPrefixStrippedSearchNameMatchesUnprefixedNameForWorkApp() {
+        // The work copy's visible label is "Work Calendar", but it must also be
+        // searchable by the un-prefixed "Calendar" so a typed "cal" prefix-
+        // matches it in the same bucket as the personal copy.
+        val app = workApp("Calendar", "com.android.calendar")
+        assertEquals("Work Calendar", app.displayName)
+        assertEquals("Calendar", app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameCarriesDisambiguatorSuffix() {
+        // A regional work app keeps the disambiguator suffix on the un-prefixed
+        // search name too, so "(US)" stays searchable without the work prefix.
+        val app = workApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("Work Chase (US)", app.displayName)
+        assertEquals("Chase (US)", app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameIsNullForPersonalApp() {
+        val app = personalApp("Calendar", "com.android.calendar")
+        assertNull(app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameIsNullWhenWorkAppHasCustomName() {
+        // A user-renamed work app already shows its custom label with no forced
+        // prefix, so there's no separate un-prefixed name to match.
+        val app = workApp("Calendar", "com.android.calendar").copy(customName = "Cal")
+        assertEquals("Cal", app.displayName)
+        assertNull(app.workPrefixStrippedSearchName)
+    }
+
+    @Test
     fun effectiveDisambiguatorFallsBackToModelDisambiguatorWithoutOverride() {
         val app = personalApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
         assertEquals("US", app.effectiveDisambiguator)
