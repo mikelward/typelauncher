@@ -459,11 +459,58 @@ class AppDisambiguationTest {
     }
 
     @Test
+    fun applyWorkPrefixWrapsAPlainLabel() {
+        assertEquals("Work Calendar", workPrefix("Calendar"))
+    }
+
+    @Test
+    fun applyWorkPrefixCollapsesASingleLeadingWorkToken() {
+        // Some OEMs ship work-profile-only apps named "Work Email" / "Work
+        // Calendar" already. Re-prepending another "Work " would produce
+        // "Work Work Email", so the helper strips one leading token before
+        // formatting.
+        assertEquals("Work Email", workPrefix("Work Email"))
+    }
+
+    @Test
+    fun applyWorkPrefixCollapsesRepeatedLeadingWorkTokens() {
+        // Pathological but possible: a label that already carries two
+        // "Work " tokens (one from a previous mis-prefix, one inherent) must
+        // still collapse down to a single prefix.
+        assertEquals("Work Something", workPrefix("Work Work Something"))
+        assertEquals("Work Foo", workPrefix("Work Work Work Foo"))
+    }
+
+    @Test
+    fun applyWorkPrefixLeavesSingleWordsAlone() {
+        // "Workplace" / "Workspace" / "Workout" start with the same four
+        // letters but are single words, not a leading "Work " token. They
+        // should still receive the prefix verbatim.
+        assertEquals("Work Workplace", workPrefix("Workplace"))
+        assertEquals("Work Workspace", workPrefix("Workspace"))
+        assertEquals("Work Workout", workPrefix("Workout"))
+    }
+
+    @Test
+    fun applyWorkPrefixHandlesCaseInsensitively() {
+        // Some labels lowercase the prefix; the strip must still recognize
+        // it so we don't render "Work work mail".
+        assertEquals("Work mail", workPrefix("work mail"))
+    }
+
+    @Test
     fun displayNameForPersonalAppIsUnchanged() {
         // Sanity check: introducing displayBase must not drift personal apps.
         val app = personalApp("Calendar", "com.android.calendar")
         assertEquals("Calendar", app.displayName)
     }
+
+    // Drives [applyWorkPrefix] with the en-US format string the production
+    // ViewModel uses, so the tests don't have to know about R.string.
+    private fun workPrefix(rawLabel: String): String =
+        applyWorkPrefix(rawLabel = rawLabel, prefixWord = "Work") { stripped ->
+            "Work $stripped"
+        }
 
     private fun personalApp(name: String, packageName: String): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
