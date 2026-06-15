@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>
@@ -105,6 +105,8 @@
     <string name="settings_app_list_layout_option_name_below">Name below</string>
     <string name="settings_app_list_layout_option_icon_only">Icon only</string>
     <string name="settings_app_name_hint_title">Show top match name</string>
+    <!-- TODO: translate -->
+    <string name="settings_search_suggestion_title" tools:ignore="MissingTranslation">Show autocomplete hint</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>
     <string name="settings_app_list_sort_option_usage">Usage ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>

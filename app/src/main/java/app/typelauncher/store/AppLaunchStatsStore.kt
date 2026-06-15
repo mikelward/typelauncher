@@ -275,6 +275,28 @@ internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
 }
 
 /**
+ * The indices of [name] that [query] matched, for the *best* (lowest-ordinal)
+ * tier that hits — mirroring the precedence in [launcherMatchTier]. Used to bold
+ * the matched letters in the inline search suggestion. Returns an empty list
+ * when the title doesn't match at all (the package-brand case, e.g. typing
+ * "virgin" to reach the "Credit Card" app whose package is `com.virginmoney.cards`):
+ * there's nothing in the title to highlight, so the suggestion renders faint with
+ * no bold. The tiers are checked in the same order as [launcherMatchTier] so the
+ * highlighted run always corresponds to how the match actually ranked.
+ */
+internal fun launcherMatchHighlightIndices(name: String, query: String): List<Int> {
+    if (query.isEmpty()) return emptyList()
+    if (name.startsWith(query, ignoreCase = true)) return (0 until query.length).toList()
+    name.anchoredMatchIndices(query)?.let { return it }
+    val substringStart = name.indexOf(query, ignoreCase = true)
+    if (substringStart >= 0) return (substringStart until substringStart + query.length).toList()
+    if (query.length >= FUZZY_MIN_QUERY_LENGTH) {
+        name.fuzzyMatchIndices(query)?.let { return it }
+    }
+    return emptyList()
+}
+
+/**
  * Tier for a package-name match used as a fallback when the visible label does
  * not match at all — e.g. the Virgin Money app whose title is "Credit Card" but
  * whose package is `com.virginmoney.cards`. Matches [query] as a case-insensitive
@@ -321,6 +343,76 @@ internal fun String.matchesLauncherQueryFuzzy(query: String): Boolean {
         if (isLooseSubsequenceFrom(query, queryStart = 1, nameStart = anchor + 1)) return true
     }
     return false
+}
+
+/**
+ * Index-collecting variant of [matchesLauncherQuery]: returns the matched
+ * indices along the first anchor path that completes, or `null` if none does.
+ * Greedy in the same way as the boolean matcher, so the highlighted run matches
+ * the path that decided the tier.
+ */
+private fun String.anchoredMatchIndices(query: String): List<Int>? {
+    if (query.isEmpty()) return emptyList()
+    val firstQueryChar = query[0]
+    for (anchor in indices) {
+        if (!isAnchorBoundary(anchor)) continue
+        if (!this[anchor].equalsIgnoreCase(firstQueryChar)) continue
+        matchIndicesFrom(query, queryStart = 1, nameStart = anchor + 1)?.let { rest ->
+            return listOf(anchor) + rest
+        }
+    }
+    return null
+}
+
+/** Index-collecting variant of [matchesLauncherQueryFuzzy]. */
+private fun String.fuzzyMatchIndices(query: String): List<Int>? {
+    if (query.isEmpty()) return emptyList()
+    val firstQueryChar = query[0]
+    for (anchor in indices) {
+        if (!isAnchorBoundary(anchor)) continue
+        if (!this[anchor].equalsIgnoreCase(firstQueryChar)) continue
+        looseSubsequenceIndicesFrom(query, queryStart = 1, nameStart = anchor + 1)?.let { rest ->
+            return listOf(anchor) + rest
+        }
+    }
+    return null
+}
+
+/** Index-collecting variant of [matchesQueryFrom]. */
+private fun String.matchIndicesFrom(query: String, queryStart: Int, nameStart: Int): List<Int>? {
+    val matched = mutableListOf<Int>()
+    var nameIndex = nameStart
+    var queryIndex = queryStart
+    var skippedSinceLastMatch = false
+    while (queryIndex < query.length) {
+        if (nameIndex >= length) return null
+        val matches = this[nameIndex].equalsIgnoreCase(query[queryIndex])
+        if (matches && (!skippedSinceLastMatch || isSkipBoundary(nameIndex))) {
+            matched.add(nameIndex)
+            queryIndex++
+            skippedSinceLastMatch = false
+        } else {
+            skippedSinceLastMatch = true
+        }
+        nameIndex++
+    }
+    return matched
+}
+
+/** Index-collecting variant of [isLooseSubsequenceFrom]. */
+private fun String.looseSubsequenceIndicesFrom(query: String, queryStart: Int, nameStart: Int): List<Int>? {
+    val matched = mutableListOf<Int>()
+    var nameIndex = nameStart
+    var queryIndex = queryStart
+    while (queryIndex < query.length) {
+        if (nameIndex >= length) return null
+        if (this[nameIndex].equalsIgnoreCase(query[queryIndex])) {
+            matched.add(nameIndex)
+            queryIndex++
+        }
+        nameIndex++
+    }
+    return matched
 }
 
 private fun String.isLooseSubsequenceFrom(query: String, queryStart: Int, nameStart: Int): Boolean {
