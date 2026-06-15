@@ -422,6 +422,7 @@ class MainActivity : ComponentActivity() {
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,
                 dockLayout = state.dockLayout,
+                fontScale = config.fontScale,
             ),
         )
     }
