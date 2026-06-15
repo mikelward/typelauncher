@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
@@ -38,8 +39,14 @@ class SearchAppNameHintScreenshotTest {
             TypeLauncherTheme {
                 SearchAppNameHint(
                     name = "Calculator",
+                    // Width matches the search field's measured width in the
+                    // w411dp test config (411dp screen − 2 × 16dp SectionCard
+                    // padding), so the screenshot reflects the production
+                    // full-width pill stretching the full field below the
+                    // input.
                     modifier = Modifier
                         .padding(16.dp)
+                        .width(379.dp)
                         .testTag(APP_NAME_HINT_TAG),
                 )
             }
