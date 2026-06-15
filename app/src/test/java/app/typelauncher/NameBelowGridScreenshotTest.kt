@@ -81,6 +81,54 @@ class NameBelowGridScreenshotTest {
         capture("compose_name_below_grid_robolectric.png")
     }
 
+    @Test
+    fun nameBelowGrid_workProfileAppShowsWorkPrefix() {
+        // Mixed personal + work-profile list: the work copy carries the
+        // formatted "Work <name>" displayBase so its label disambiguates from
+        // its personal twin in both the rendered grid and the typed-search
+        // filter. The screenshot doubles as the spacing check — the longer
+        // "Work Calendar" / "Work Photos" labels must wrap or ellipse without
+        // pushing the icon row off the 4dp grid.
+        val workMixedApps = listOf(
+            installedApp("Calendar"),
+            workInstalledApp("Calendar"),
+            installedApp("Photos"),
+            workInstalledApp("Photos"),
+            installedApp("Settings"),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Box(
+                    modifier = Modifier
+                        .width(208.dp)
+                        .height(280.dp)
+                        .background(MaterialBackground),
+                ) {
+                    IconOnlyAppGrid(
+                        apps = workMixedApps,
+                        dockLimit = Int.MAX_VALUE,
+                        iconSizeDp = 43,
+                        highlightFirst = false,
+                        state = rememberLazyGridState(),
+                        showLabel = true,
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onRenameApp = { _, _ -> },
+                        onHideApp = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Calendar", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText("Work Calendar", useUnmergedTree = true).assertExists()
+
+        capture("compose_name_below_grid_work_prefix_robolectric.png")
+    }
+
     private fun installedApp(name: String): InstalledApp {
         val component = ComponentName("com.example.${name.filter { it.isLetter() }}", "Main")
         return InstalledApp(
@@ -90,6 +138,22 @@ class NameBelowGridScreenshotTest {
             user = Process.myUserHandle(),
             isWorkApp = false,
             launchWithLauncherApps = true,
+        )
+    }
+
+    // Same-package work-profile clone. Component name differs from
+    // [installedApp]'s "Main" so InstalledApp.id stays distinct.
+    private fun workInstalledApp(name: String): InstalledApp {
+        val pkg = "com.example.${name.filter { it.isLetter() }}"
+        val component = ComponentName(pkg, "WorkMain")
+        return InstalledApp(
+            name = name,
+            packageName = pkg,
+            launchIntent = Intent.makeMainActivity(component),
+            user = Process.myUserHandle(),
+            isWorkApp = true,
+            launchWithLauncherApps = true,
+            displayBase = "Work $name",
         )
     }
 

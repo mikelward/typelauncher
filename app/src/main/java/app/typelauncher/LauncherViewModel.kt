@@ -2079,6 +2079,13 @@ internal class LauncherViewModel(
 
     private fun currentLocalDateKey(): String = LocalDate.now(ZoneId.systemDefault()).toString()
 
+    // Wraps a raw app label in the locale's "Work " format string when [isWork]
+    // is true (e.g. en-US "Calendar" → "Work Calendar"), so work-profile apps
+    // are keyboard-disambiguable from their personal-profile counterparts.
+    // Returns the label unchanged for personal apps.
+    private fun workLabel(rawLabel: String, isWork: Boolean): String =
+        if (isWork) app.getString(R.string.app_label_with_work_prefix, rawLabel) else rawLabel
+
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
@@ -2105,15 +2112,19 @@ internal class LauncherViewModel(
                 )
                 activities
                     .map { activity ->
+                        val rawLabel = activity.label.toString()
+                        val workApp = user != personalUser ||
+                            activity.applicationInfo.packageName in workPackages
                         InstalledApp(
-                            name = activity.label.toString(),
+                            name = rawLabel,
                             packageName = activity.applicationInfo.packageName,
                             launchIntent = Intent.makeMainActivity(activity.componentName),
                             user = user,
-                            isWorkApp = user != personalUser || activity.applicationInfo.packageName in workPackages,
+                            isWorkApp = workApp,
                             launchWithLauncherApps = true,
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
                             isQuietMode = quietByUser[user] == true,
+                            displayBase = workLabel(rawLabel, workApp),
                         )
                     }
             }
@@ -2124,16 +2135,19 @@ internal class LauncherViewModel(
                 resolveInfos
                     .map { resolveInfo ->
                         val activityInfo = resolveInfo.activityInfo
+                        val rawLabel = resolveInfo.loadLabel(app.packageManager).toString()
+                        val workApp = activityInfo.packageName in workPackages
                         InstalledApp(
-                            name = resolveInfo.loadLabel(app.packageManager).toString(),
+                            name = rawLabel,
                             packageName = activityInfo.packageName,
                             launchIntent = Intent.makeMainActivity(
                                 ComponentName(activityInfo.packageName, activityInfo.name),
                             ),
                             user = personalUser,
-                            isWorkApp = activityInfo.packageName in workPackages,
+                            isWorkApp = workApp,
                             launchWithLauncherApps = false,
                             iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
+                            displayBase = workLabel(rawLabel, workApp),
                         )
                     }
             }

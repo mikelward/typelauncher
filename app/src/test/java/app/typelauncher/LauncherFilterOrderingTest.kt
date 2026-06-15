@@ -523,6 +523,39 @@ class LauncherFilterOrderingTest {
         }
     }
 
+    @Test
+    fun filterByNameSurfacesWorkProfileAppByItsPrefix() {
+        // Personal "Calendar" and the work-profile clone both live in the
+        // installed list. The work copy's displayBase is "Work Calendar" (the
+        // formatted prefix), so typing "work" must surface it — that's the
+        // user-typable disambiguator. Typing "cal" must still surface both
+        // copies because the capital C in "Work Calendar" anchors the match.
+        val personalCalendar = installedApp("Calendar")
+        val workCalendar = workInstalledApp("Calendar")
+        val apps = listOf(personalCalendar, workCalendar, installedApp("Slack"))
+
+        val workQuery = apps.filterByName(
+            query = "work",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+        // Only the work-profile copy carries "Work " in its displayBase, so
+        // the prefix tier collapses to the single work entry.
+        assertEquals(listOf("Calendar"), workQuery.map { it.name })
+        assertEquals(true, workQuery.single().isWorkApp)
+
+        val calQuery = apps.filterByName(
+            query = "cal",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+        // Personal Calendar wins on the Prefix tier; the work copy falls into
+        // Anchored because "Cal" lives mid-string in "Work Calendar".
+        assertEquals(listOf("Calendar", "Calendar"), calQuery.map { it.name })
+        assertEquals(false, calQuery[0].isWorkApp)
+        assertEquals(true, calQuery[1].isWorkApp)
+    }
+
     private fun installedApp(
         name: String,
         packageName: String = "app.${name.lowercase().replace(' ', '.')}",
@@ -535,6 +568,25 @@ class LauncherFilterOrderingTest {
             user = Process.myUserHandle(),
             isWorkApp = false,
             launchWithLauncherApps = true,
+        )
+    }
+
+    // Mirrors the production ViewModel path: the work-profile clone of an app
+    // gets its displayBase pre-formatted as "Work <name>" so filterByName
+    // (which matches against displayName) treats the prefix as typable.
+    // Same package as the personal copy is fine — the InstalledApp.id is
+    // derived from the launch intent's component, not from the package alone.
+    private fun workInstalledApp(name: String): InstalledApp {
+        val packageName = "app.${name.lowercase().replace(' ', '.')}"
+        val component = ComponentName(packageName, "$packageName.WorkActivity")
+        return InstalledApp(
+            name = name,
+            packageName = packageName,
+            launchIntent = Intent.makeMainActivity(component),
+            user = Process.myUserHandle(),
+            isWorkApp = true,
+            launchWithLauncherApps = true,
+            displayBase = "Work $name",
         )
     }
 }

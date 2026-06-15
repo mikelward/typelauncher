@@ -33,6 +33,14 @@ internal data class InstalledApp(
     // [iconCacheId] so a re-upload produces a fresh `AppIconLoader` cache key
     // rather than handing back the previous bitmap.
     val customIconVersion: Long = 0L,
+    // `name` for personal apps; the work-prefixed form (e.g. "Work Calendar",
+    // formatted via R.string.app_label_with_work_prefix) for work-profile apps.
+    // Pre-formatted at load time because the model is Context-free, and used as
+    // the base for [displayName] so the prefix is both visible in every render
+    // site and matchable by the keyboard-driven filter in `filterByName`.
+    // Defaults to `name` so existing tests and any non-VM constructor needn't
+    // spell out the work prefix.
+    val displayBase: String = name,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
@@ -52,23 +60,26 @@ internal data class InstalledApp(
     // Display label. A user-supplied [customName] always wins so a renamed app
     // (e.g. a "ChatGPT" PWA renamed to "Codex") shows the chosen label across
     // every surface and search matches the override rather than the system
-    // label. Falling through, appends a parenthesised disambiguator (e.g.
-    // "Chase (US)") when this app shares an icon-level identity with peers;
-    // falls back to the raw `name` when no disambiguator was assigned. Skips
-    // the suffix if the disambiguator already appears as a whitespace-
-    // separated token in the name — "Amex UK" with a "UK" badge stays
-    // "Amex UK" rather than becoming the redundant "Amex UK (UK)".
+    // label — and a user who renames a work-profile app gets their chosen
+    // label verbatim, no "Work " prefix forced on top. Falling through, builds
+    // on [displayBase] (raw `name` for personal apps, "Work <name>" for
+    // work-profile apps) so the prefix is visible everywhere and typable in
+    // search, then appends a parenthesised disambiguator (e.g. "Chase (US)")
+    // when this app shares an icon-level identity with peers. Skips the
+    // suffix if the disambiguator already appears as a whitespace-separated
+    // token — "Amex UK" with a "UK" badge stays "Amex UK" rather than
+    // becoming the redundant "Amex UK (UK)".
     val displayName: String
         get() {
             customName?.takeIf { it.isNotBlank() }?.let { return it }
-            val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return name
+            val tag = disambiguator?.takeIf { it.isNotEmpty() } ?: return displayBase
             // Strip surrounding punctuation so a name like "Bank (US)" with a
             // "US" disambiguator doesn't render as "Bank (US) (US)".
-            val nameTokens = name
+            val nameTokens = displayBase
                 .split(WHITESPACE_REGEX)
                 .map { it.trim('(', ')', '[', ']', '-', '–', '—').trim() }
-            if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return name
-            return "$name ($tag)"
+            if (nameTokens.any { it.equals(tag, ignoreCase = true) }) return displayBase
+            return "$displayBase ($tag)"
         }
 
     /**

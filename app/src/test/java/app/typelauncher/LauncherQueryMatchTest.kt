@@ -209,4 +209,39 @@ class LauncherQueryMatchTest {
     fun emptyQueryFallsIntoPrefixTier() {
         assertEquals(LauncherMatchTier.Prefix, "Gmail".launcherMatchTier(""))
     }
+
+    // --- Work-profile "Work " prefix --------------------------------------
+    //
+    // Work-profile apps render as "Work <name>" so users can disambiguate them
+    // from their personal-profile counterparts by typing. The match tiers below
+    // verify that the prefix really is typable both wholesale ("work cal") and
+    // that the personal-vs-work pair remain searchable by the original noun.
+
+    @Test
+    fun workPrefixTierMatchesLeadingWord() {
+        assertEquals(LauncherMatchTier.Prefix, "Work Calendar".launcherMatchTier("work"))
+        assertEquals(LauncherMatchTier.Prefix, "Work Calendar".launcherMatchTier("work cal"))
+        assertEquals(LauncherMatchTier.Prefix, "Work Calendar".launcherMatchTier("w"))
+    }
+
+    @Test
+    fun originalNameInsideWorkPrefixedLabelAnchorsOnTheCapital() {
+        // Typing "cal" must still surface the work-profile Calendar — the
+        // capital C in "Work Calendar" anchors the match (Anchored tier) and
+        // ranks below a personal "Calendar" that wins the Prefix tier.
+        assertEquals(LauncherMatchTier.Anchored, "Work Calendar".launcherMatchTier("cal"))
+        assertEquals(LauncherMatchTier.Anchored, "Work Calendar".launcherMatchTier("c"))
+        assertEquals(LauncherMatchTier.Prefix, "Calendar".launcherMatchTier("cal"))
+    }
+
+    @Test
+    fun workPrefixedLabelOfAppStartingWithWorkStillMatchesBothWords() {
+        // "Workplace" already starts with "Work"; the prefixed label is
+        // "Work Workplace". A plain "work" is still a prefix match (the label
+        // literally starts with it); typing further past the leading word
+        // drops to Anchored on the second capital W ("workp" anchors at the
+        // second W and walks "orkp").
+        assertEquals(LauncherMatchTier.Prefix, "Work Workplace".launcherMatchTier("work"))
+        assertEquals(LauncherMatchTier.Anchored, "Work Workplace".launcherMatchTier("workp"))
+    }
 }
