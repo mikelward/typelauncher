@@ -32,6 +32,8 @@
     <string name="agenda_day_tomorrow">Tomorrow</string>
     <string name="agenda_event_untitled">Untitled event</string>
     <string name="agenda_swipe_hint">Swipe right to return home</string>
+    <!-- TODO: translate -->
+    <string name="app_label_with_work_prefix" tools:ignore="MissingTranslation">Work %1$s</string>
     <string name="app_menu_app_info">App info</string>
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>

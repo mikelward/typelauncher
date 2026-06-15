@@ -427,6 +427,44 @@ class AppDisambiguationTest {
         assertEquals("UK", disambig[apps[1].id])
     }
 
+    @Test
+    fun displayNameForWorkAppPrependsWorkPrefix() {
+        val app = workApp("Calendar", "com.android.calendar")
+        assertEquals("Work Calendar", app.displayName)
+    }
+
+    @Test
+    fun displayNameForWorkAppCombinesPrefixAndDisambiguator() {
+        // The disambiguator suffix is appended to the prefixed base, so a
+        // work-profile Chase that auto-picks a "US" regional badge shows up
+        // as "Work Chase (US)" rather than dropping either piece.
+        val app = workApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("Work Chase (US)", app.displayName)
+    }
+
+    @Test
+    fun displayNameForWorkAppRespectsCustomNameVerbatim() {
+        // A user who renames a work-profile app explicitly chose that label;
+        // do not force "Work " on top of it.
+        val app = workApp("Calendar", "com.android.calendar").copy(customName = "Daily")
+        assertEquals("Daily", app.displayName)
+    }
+
+    @Test
+    fun displayNameForWorkAppPrependsEvenWhenNameStartsWithWork() {
+        // "Workplace by Meta" still gets "Work " prepended — the prefix is
+        // applied uniformly so users always know how to type for the work copy.
+        val app = workApp("Workplace", "com.facebook.workplace")
+        assertEquals("Work Workplace", app.displayName)
+    }
+
+    @Test
+    fun displayNameForPersonalAppIsUnchanged() {
+        // Sanity check: introducing displayBase must not drift personal apps.
+        val app = personalApp("Calendar", "com.android.calendar")
+        assertEquals("Calendar", app.displayName)
+    }
+
     private fun personalApp(name: String, packageName: String): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")
         return InstalledApp(
@@ -436,6 +474,24 @@ class AppDisambiguationTest {
             user = Process.myUserHandle(),
             isWorkApp = false,
             launchWithLauncherApps = true,
+        )
+    }
+
+    // Mirror of [personalApp] for work-profile apps. We can't construct a
+    // foreign UserHandle in a unit test, so set `isWorkApp = true` directly
+    // and pre-format displayBase the way LauncherViewModel.loadInstalledApps
+    // would in production (R.string.app_label_with_work_prefix → "Work %1$s"
+    // for en-US).
+    private fun workApp(name: String, packageName: String): InstalledApp {
+        val component = ComponentName(packageName, "$packageName.LaunchActivity")
+        return InstalledApp(
+            name = name,
+            packageName = packageName,
+            launchIntent = Intent.makeMainActivity(component),
+            user = Process.myUserHandle(),
+            isWorkApp = true,
+            launchWithLauncherApps = true,
+            displayBase = "Work $name",
         )
     }
 }
