@@ -583,6 +583,29 @@ class LauncherFilterOrderingTest {
         assertEquals(false, filtered[1].isWorkApp)
     }
 
+    @Test
+    fun filterByNamePlacesWorkCopyInSameTierWhenItsOwnLabelStartsWithWork() {
+        // A work app whose own label already begins with the locale's work
+        // token ("Work Email") collapses to a single "Work Email" displayBase,
+        // so raw `name` still carries the prefix. Typing the noun ("email")
+        // must still land it in the same tier as the personal "Email" — proven
+        // by usage: with more launches the work copy floats above the personal
+        // one, which only happens if they share a tier.
+        val personalEmail = installedApp("Email")
+        val workEmail = workInstalledApp("Work Email")
+        repeat(5) { store.recordLaunch(workEmail.id) }
+
+        val filtered = listOf(personalEmail, workEmail).filterByName(
+            query = "email",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("Work Email", "Email"), filtered.map { it.name })
+        assertEquals(true, filtered[0].isWorkApp)
+        assertEquals(false, filtered[1].isWorkApp)
+    }
+
     private fun installedApp(
         name: String,
         packageName: String = "app.${name.lowercase().replace(' ', '.')}",
@@ -606,6 +629,9 @@ class LauncherFilterOrderingTest {
     private fun workInstalledApp(name: String): InstalledApp {
         val packageName = "app.${name.lowercase().replace(' ', '.')}"
         val component = ComponentName(packageName, "$packageName.WorkActivity")
+        // Derive displayBase / unprefixedName through the same strip-then-format
+        // helpers loadInstalledApps uses, so a raw label that already starts
+        // with "Work " models production faithfully.
         return InstalledApp(
             name = name,
             packageName = packageName,
@@ -613,7 +639,8 @@ class LauncherFilterOrderingTest {
             user = Process.myUserHandle(),
             isWorkApp = true,
             launchWithLauncherApps = true,
-            displayBase = "Work $name",
+            displayBase = applyWorkPrefix(name, prefixWord = "Work") { "Work $it" },
+            unprefixedName = stripWorkPrefix(name, prefixWord = "Work"),
         )
     }
 }
