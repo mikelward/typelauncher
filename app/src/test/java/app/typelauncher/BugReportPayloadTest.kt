@@ -20,7 +20,7 @@ class BugReportPayloadTest {
             androidSdkInt = 34,
             locale = Locale.US,
             isDockEnabled = true,
-            isAppListIconOnly = false,
+            appListLayout = AppListLayout.NameBeside,
             isShowAppNameHint = true,
             isShowDockedAppsInList = true,
             dockIconSizeDp = 5,
@@ -39,7 +39,7 @@ class BugReportPayloadTest {
         assertTrue("includes android release", payload.contains("Android: 14 (SDK 34)"))
         assertTrue("includes locale", payload.contains("Locale: en-US"))
         assertTrue("includes dock enabled", payload.contains("Dock enabled: true"))
-        assertTrue("includes icon only", payload.contains("App list icon-only: false"))
+        assertTrue("includes app list layout", payload.contains("App list layout: NameBeside"))
         assertTrue("includes app name hint", payload.contains("Show app name hint: true"))
         assertTrue("includes show docked in list", payload.contains("Show docked apps in list: true"))
         assertTrue("includes dock icon size", payload.contains("Dock icon size: 5dp"))
@@ -68,7 +68,7 @@ class BugReportPayloadTest {
             androidSdkInt = 34,
             locale = Locale.US,
             isDockEnabled = false,
-            isAppListIconOnly = true,
+            appListLayout = AppListLayout.IconOnly,
             isShowAppNameHint = false,
             isShowDockedAppsInList = false,
             dockIconSizeDp = 4,

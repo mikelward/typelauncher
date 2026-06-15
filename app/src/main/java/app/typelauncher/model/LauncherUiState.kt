@@ -81,6 +81,22 @@ internal enum class AppListSortOrder {
 }
 
 /**
+ * How the installed-app list renders.
+ *
+ * - [NameBeside]: full-width text rows, icon beside the name (the default).
+ * - [NameBelow]: an icon grid with the app name centered beneath each icon.
+ * - [IconOnly]: an icon grid with no labels.
+ *
+ * [NameBelow] and [IconOnly] share the same `LazyVerticalGrid` machinery; the
+ * only difference is whether the label is drawn.
+ */
+internal enum class AppListLayout {
+    NameBeside,
+    NameBelow,
+    IconOnly,
+}
+
+/**
  * The reversed variants render the apps list with `reverseLayout = true`, which
  * draws item 0 at the visual bottom of the card and grows the list upwards.
  * The persisted launch-count / alphabetical ordering is the same as the forward
@@ -433,7 +449,7 @@ internal data class LauncherUiState(
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
-    val isAppListIconOnly: Boolean = false,
+    val appListLayout: AppListLayout = AppListLayout.NameBeside,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by
@@ -544,18 +560,21 @@ internal fun effectiveAppListSortOrder(
     if (tier == HomeLandscapeTier.Compact) AppListSortOrder.UsageReversed else persisted
 
 /**
- * Whether the app list renders as an icon grid rather than text rows, given the
- * persisted "App list" layout [persistedIconOnly] choice and the current
- * landscape [tier].
+ * The layout the app list actually renders under, given the persisted "App list"
+ * [persisted] choice and the current landscape [tier].
  *
- * The cramped-landscape [HomeLandscapeTier.Compact] state always uses icons: the
- * short viewport fits far more apps as a grid than as full-width text rows.
- * Every other state honors [persistedIconOnly].
+ * The cramped-landscape [HomeLandscapeTier.Compact] state always uses the
+ * label-free icon grid ([AppListLayout.IconOnly]): the short viewport fits far
+ * more apps as a dense grid than as full-width rows, and labels under each icon
+ * would waste the scarce vertical space the override exists to reclaim. Every
+ * other state — all of portrait, and the Full landscape tier — honors
+ * [persisted].
  */
-internal fun effectiveAppListIconOnly(
-    persistedIconOnly: Boolean,
+internal fun effectiveAppListLayout(
+    persisted: AppListLayout,
     tier: HomeLandscapeTier,
-): Boolean = persistedIconOnly || tier == HomeLandscapeTier.Compact
+): AppListLayout =
+    if (tier == HomeLandscapeTier.Compact) AppListLayout.IconOnly else persisted
 
 /**
  * The app name to show as the typed-search autocomplete hint, or `null` when no

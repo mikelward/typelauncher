@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Setează ca launcher implicit</string>
     <string name="settings_already_default_launcher_button">Deja launcher implicit</string>
     <string name="settings_app_list_layout_title">Lista de aplicații</string>
-    <string name="settings_app_list_layout_option_text">Text</string>
-    <string name="settings_app_list_layout_option_icons">Pictograme</string>
     <string name="settings_app_list_sort_title">Sortează aplicațiile după</string>
     <string name="settings_app_list_sort_option_usage">Utilizare ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Utilizare ↑</string>

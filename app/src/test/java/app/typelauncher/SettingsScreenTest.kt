@@ -24,7 +24,7 @@ class SettingsScreenTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onUnhideApp = {},

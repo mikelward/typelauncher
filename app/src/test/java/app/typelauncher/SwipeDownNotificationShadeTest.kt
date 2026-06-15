@@ -47,7 +47,7 @@ class SwipeDownNotificationShadeTest {
                 onCloseSettings = {},
                 onRequestDefaultLauncher = {},
                 onDockEnabledChanged = {},
-                onAppListIconOnlyChanged = {},
+                onAppListLayoutChanged = {},
                 onDockVisibleIconCountChanged = {},
                 onAppListSortOrderChanged = {},
                 onShowAgenda = {},

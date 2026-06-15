@@ -292,7 +292,10 @@ internal fun HomeScreen(
                     placeholderSuffix = searchPlaceholderSuffix,
                     appNameHint = searchAppNameHint(
                         showHint = state.isShowAppNameHint,
-                        effectiveIconOnly = effectiveAppListIconOnly(state.isAppListIconOnly, landscapeTier),
+                        // Only the label-free Icon only grid needs the hint;
+                        // Name beside and Name below already show the name.
+                        effectiveIconOnly = effectiveAppListLayout(state.appListLayout, landscapeTier) ==
+                            AppListLayout.IconOnly,
                         query = state.query,
                         topMatch = state.filteredApps.firstOrNull(),
                     ),
@@ -326,7 +329,7 @@ internal fun HomeScreen(
                     // surface there, so it favors density and thumb-reach. Both
                     // read the live `landscapeTier` param (which can lead the
                     // `state.homeLandscapeTier` snapshot by a frame on rotation).
-                    isIconOnly = effectiveAppListIconOnly(state.isAppListIconOnly, landscapeTier),
+                    layout = effectiveAppListLayout(state.appListLayout, landscapeTier),
                     iconSizeDp = dockIconSizeDp,
                     highlightFirst = state.query.isNotBlank(),
                     reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
@@ -1454,7 +1457,7 @@ private fun AppsCard(
     isLoading: Boolean = false,
     overflowChevronsReady: Boolean = true,
     dockLimit: Int,
-    isIconOnly: Boolean,
+    layout: AppListLayout,
     iconSizeDp: Int,
     highlightFirst: Boolean,
     reverseLayout: Boolean = false,
@@ -1484,10 +1487,13 @@ private fun AppsCard(
             onAppListBoundsChanged(null)
         }
     }
-    val chevronLayoutKey = remember(apps, isIconOnly, reverseLayout) {
+    // NameBelow and IconOnly both render the grid; only NameBeside renders rows.
+    val isGrid = layout != AppListLayout.NameBeside
+    val showLabels = layout == AppListLayout.NameBelow
+    val chevronLayoutKey = remember(apps, layout, reverseLayout) {
         AppListChevronLayoutKey(
             appIds = apps.map { it.id },
-            isIconOnly = isIconOnly,
+            layout = layout,
             reverseLayout = reverseLayout,
         )
     }
@@ -1513,7 +1519,7 @@ private fun AppsCard(
             )
         } else {
             val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
-            if (isIconOnly) {
+            if (isGrid) {
                 val gridState = rememberLazyGridState()
                 LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
                 // In reverseLayout, the visual top is at the END of the data,
@@ -1550,6 +1556,7 @@ private fun AppsCard(
                         apps = apps,
                         dockLimit = dockLimit,
                         iconSizeDp = iconSizeDp,
+                        showLabel = showLabels,
                         highlightFirst = highlightFirst,
                         reverseLayout = reverseLayout,
                         state = gridState,
@@ -1633,7 +1640,7 @@ private fun AppsCard(
 
 private data class AppListChevronLayoutKey(
     val appIds: List<String>,
-    val isIconOnly: Boolean,
+    val layout: AppListLayout,
     val reverseLayout: Boolean,
 )
 
@@ -1665,6 +1672,7 @@ internal fun IconOnlyAppGrid(
     iconSizeDp: Int,
     highlightFirst: Boolean,
     state: LazyGridState,
+    showLabel: Boolean = false,
     reverseLayout: Boolean = false,
     onBoundsChanged: (Rect?) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
@@ -1702,6 +1710,7 @@ internal fun IconOnlyAppGrid(
                 isActive = highlightFirst && index == 0,
                 dockLimit = dockLimit,
                 iconSizeDp = iconSizeDp,
+                showLabel = showLabel,
                 onLaunchApp = onLaunchApp,
                 onOpenAppInfo = onOpenAppInfo,
                 onToggleDock = onToggleDock,
@@ -1722,6 +1731,7 @@ private fun IconOnlyAppButton(
     isActive: Boolean,
     dockLimit: Int,
     iconSizeDp: Int,
+    showLabel: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -1734,6 +1744,7 @@ private fun IconOnlyAppButton(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
     val containerColor = if (isActive) highlightColor else Color.Transparent
     Box {
         Column(
@@ -1753,6 +1764,17 @@ private fun IconOnlyAppButton(
                 testTag = APP_ICON_ONLY_ICON_TAG,
                 backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
             )
+            if (showLabel) {
+                Text(
+                    app.displayName,
+                    modifier = Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Box(
             modifier = Modifier
@@ -2618,7 +2640,7 @@ internal fun SettingsScreen(
     onCloseSettings: () -> Unit,
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
-    onAppListIconOnlyChanged: (Boolean) -> Unit,
+    onAppListLayoutChanged: (AppListLayout) -> Unit,
     onShowAppNameHintChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
@@ -2710,8 +2732,8 @@ internal fun SettingsScreen(
                     Text(stringResource(R.string.settings_app_list_layout_title), style = MaterialTheme.typography.titleMedium)
                 }
                 AppListLayoutDropdown(
-                    isIconOnly = state.isAppListIconOnly,
-                    onIconOnlyChanged = onAppListIconOnlyChanged,
+                    selected = state.appListLayout,
+                    onLayoutChanged = onAppListLayoutChanged,
                 )
             }
             Row(
@@ -2728,10 +2750,10 @@ internal fun SettingsScreen(
                 Switch(
                     checked = state.isShowAppNameHint,
                     onCheckedChange = onShowAppNameHintChanged,
-                    // The hint only renders in icon-only mode (the grid has no
-                    // labels), so the toggle is inert in Text mode — keep it
-                    // disabled there to signal that.
-                    enabled = state.isAppListIconOnly,
+                    // The hint only renders in the Icon only grid (the only
+                    // layout with no labels), so the toggle is inert in Name
+                    // beside / Name below — keep it disabled there to signal that.
+                    enabled = state.appListLayout == AppListLayout.IconOnly,
                     modifier = Modifier.testTag(APP_NAME_HINT_SWITCH_TAG),
                 )
             }
@@ -3086,14 +3108,14 @@ private fun rememberBuildSourceInfo(): BuildSourceInfo? =
 
 @Composable
 private fun AppListLayoutDropdown(
-    isIconOnly: Boolean,
-    onIconOnlyChanged: (Boolean) -> Unit,
+    selected: AppListLayout,
+    onLayoutChanged: (AppListLayout) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabelRes = if (isIconOnly) {
-        R.string.settings_app_list_layout_option_icons
-    } else {
-        R.string.settings_app_list_layout_option_text
+    val selectedLabelRes = when (selected) {
+        AppListLayout.NameBeside -> R.string.settings_app_list_layout_option_name_beside
+        AppListLayout.NameBelow -> R.string.settings_app_list_layout_option_name_below
+        AppListLayout.IconOnly -> R.string.settings_app_list_layout_option_icon_only
     }
     Box {
         TextButton(
@@ -3112,19 +3134,27 @@ private fun AppListLayoutDropdown(
             modifier = Modifier.testTag(APP_LIST_LAYOUT_DROPDOWN_MENU_TAG),
         ) {
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_text)) },
-                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_TEXT_TAG),
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_beside)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_NAME_BESIDE_TAG),
                 onClick = {
                     expanded = false
-                    onIconOnlyChanged(false)
+                    onLayoutChanged(AppListLayout.NameBeside)
                 },
             )
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icons)) },
-                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_ICONS_TAG),
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_below)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_NAME_BELOW_TAG),
                 onClick = {
                     expanded = false
-                    onIconOnlyChanged(true)
+                    onLayoutChanged(AppListLayout.NameBelow)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icon_only)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_ICON_ONLY_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(AppListLayout.IconOnly)
                 },
             )
         }
@@ -3643,7 +3673,7 @@ private fun SettingsPreview(
             AppsCard(
                 apps = state.filteredApps,
                 dockLimit = Int.MAX_VALUE,
-                isIconOnly = state.isAppListIconOnly,
+                layout = state.appListLayout,
                 iconSizeDp = dockIconSizeDp,
                 highlightFirst = state.query.isNotBlank(),
                 reverseLayout = state.appListSortOrder.isReversed,

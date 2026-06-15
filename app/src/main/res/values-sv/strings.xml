@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Ange som standard launcher</string>
     <string name="settings_already_default_launcher_button">Redan standard launcher</string>
     <string name="settings_app_list_layout_title">Applista</string>
-    <string name="settings_app_list_layout_option_text">Text</string>
-    <string name="settings_app_list_layout_option_icons">Ikoner</string>
     <string name="settings_app_list_sort_title">Sortera appar efter</string>
     <string name="settings_app_list_sort_option_usage">Användning ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Användning ↑</string>

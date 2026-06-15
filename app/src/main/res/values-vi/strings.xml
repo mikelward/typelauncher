@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Đặt làm trình khởi chạy mặc định</string>
     <string name="settings_already_default_launcher_button">Đã là trình khởi chạy mặc định</string>
     <string name="settings_app_list_layout_title">Danh sách ứng dụng</string>
-    <string name="settings_app_list_layout_option_text">Văn bản</string>
-    <string name="settings_app_list_layout_option_icons">Biểu tượng</string>
     <string name="settings_app_list_sort_title">Sắp xếp ứng dụng theo</string>
     <string name="settings_app_list_sort_option_usage">Sử dụng ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Sử dụng ↑</string>

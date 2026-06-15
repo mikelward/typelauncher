@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">កំណត់ជាឡានឆ័រលំនាំដើម</string>
     <string name="settings_already_default_launcher_button">ជាឡានឆ័រលំនាំដើមរួចហើយ</string>
     <string name="settings_app_list_layout_title">បញ្ជីកម្មវិធី</string>
-    <string name="settings_app_list_layout_option_text">អត្ថបទ</string>
-    <string name="settings_app_list_layout_option_icons">រូបតំណាង</string>
     <string name="settings_app_list_sort_title">តម្រៀបកម្មវិធីតាម</string>
     <string name="settings_app_list_sort_option_usage">ការប្រើប្រាស់ ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ការប្រើប្រាស់ ↑</string>

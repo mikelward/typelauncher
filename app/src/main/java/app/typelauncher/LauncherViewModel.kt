@@ -175,7 +175,7 @@ internal class LauncherViewModel(
             widgetPages = widgetStore.widgetPages,
             widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
-            isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
+            appListLayout = dockSettingsStore.appListLayout,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             isShowAppNameHint = dockSettingsStore.isShowAppNameHint,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
@@ -1585,10 +1585,10 @@ internal class LauncherViewModel(
         logState("setDockEnabled")
     }
 
-    fun setAppListIconOnly(isIconOnly: Boolean) {
-        dockSettingsStore.isAppListIconOnly = isIconOnly
-        _uiState.update { it.copy(isAppListIconOnly = isIconOnly) }
-        logState("setAppListIconOnly")
+    fun setAppListLayout(layout: AppListLayout) {
+        dockSettingsStore.appListLayout = layout
+        _uiState.update { it.copy(appListLayout = layout) }
+        logState("setAppListLayout")
     }
 
     fun setShowAppNameHint(enabled: Boolean) {

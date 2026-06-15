@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">ਡਿਫੌਲਟ ਲਾਂਚਰ ਵਜੋਂ ਸੈੱਟ ਕਰੋ</string>
     <string name="settings_already_default_launcher_button">ਪਹਿਲਾਂ ਹੀ ਡਿਫੌਲਟ ਲਾਂਚਰ ਹੈ</string>
     <string name="settings_app_list_layout_title">ਐਪ ਸੂਚੀ</string>
-    <string name="settings_app_list_layout_option_text">ਟੈਕਸਟ</string>
-    <string name="settings_app_list_layout_option_icons">ਆਈਕਨ</string>
     <string name="settings_app_list_sort_title">ਐਪਾਂ ਨੂੰ ਇਸ ਆਧਾਰ ਤੇ ਛਾਂਟੋ</string>
     <string name="settings_app_list_sort_option_usage">ਵਰਤੋਂ ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ਵਰਤੋਂ ↑</string>

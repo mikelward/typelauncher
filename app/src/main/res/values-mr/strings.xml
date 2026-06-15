@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">डीफॉल्ट लाँचर म्हणून सेट करा</string>
     <string name="settings_already_default_launcher_button">आधीच डीफॉल्ट लाँचर आहे</string>
     <string name="settings_app_list_layout_title">अॅप यादी</string>
-    <string name="settings_app_list_layout_option_text">मजकूर</string>
-    <string name="settings_app_list_layout_option_icons">आयकॉन</string>
     <string name="settings_app_list_sort_title">अॅप्स यानुसार क्रमवारी लावा</string>
     <string name="settings_app_list_sort_option_usage">वापर ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">वापर ↑</string>

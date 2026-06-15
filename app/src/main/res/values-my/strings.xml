@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">မူရင်းလောင်ချာအဖြစ်သတ်မှတ်မည်</string>
     <string name="settings_already_default_launcher_button">မူရင်းလောင်ချာဖြစ်ပြီးပါပြီ</string>
     <string name="settings_app_list_layout_title">အက်ပ်စာရင်း</string>
-    <string name="settings_app_list_layout_option_text">စာသား</string>
-    <string name="settings_app_list_layout_option_icons">အိုင်ကွန်များ</string>
     <string name="settings_app_list_sort_title">အက်ပ်များ စီရန်</string>
     <string name="settings_app_list_sort_option_usage">အသုံးပြုမှု ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">အသုံးပြုမှု ↑</string>

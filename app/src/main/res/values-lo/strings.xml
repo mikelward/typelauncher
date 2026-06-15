@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">ຕັ້ງເປັນລອນເຊີເລີ່ມຕົ້ນ</string>
     <string name="settings_already_default_launcher_button">ເປັນລອນເຊີເລີ່ມຕົ້ນແລ້ວ</string>
     <string name="settings_app_list_layout_title">ລາຍຊື່ແອັບ</string>
-    <string name="settings_app_list_layout_option_text">ຂໍ້ຄວາມ</string>
-    <string name="settings_app_list_layout_option_icons">ໄອຄອນ</string>
     <string name="settings_app_list_sort_title">ຈັດລຽງແອັບຕາມ</string>
     <string name="settings_app_list_sort_option_usage">ການໃຊ້ງານ ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ການໃຊ້ງານ ↑</string>

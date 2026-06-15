@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">இயல்புநிலை துவக்கியாக அமை</string>
     <string name="settings_already_default_launcher_button">ஏற்கனவே இயல்புநிலை துவக்கி</string>
     <string name="settings_app_list_layout_title">பயன்பாட்டுப் பட்டியல்</string>
-    <string name="settings_app_list_layout_option_text">உரை</string>
-    <string name="settings_app_list_layout_option_icons">படவுருக்கள்</string>
     <string name="settings_app_list_sort_title">பயன்பாடுகளை வரிசைப்படுத்தும் முறை</string>
     <string name="settings_app_list_sort_option_usage">பயன்பாடு ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">பயன்பாடு ↑</string>

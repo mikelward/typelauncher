@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Nastavi kot privzeti zaganjalnik</string>
     <string name="settings_already_default_launcher_button">Je že privzeti zaganjalnik</string>
     <string name="settings_app_list_layout_title">Seznam aplikacij</string>
-    <string name="settings_app_list_layout_option_text">Besedilo</string>
-    <string name="settings_app_list_layout_option_icons">Ikone</string>
     <string name="settings_app_list_sort_title">Razvrsti aplikacije po</string>
     <string name="settings_app_list_sort_option_usage">Uporaba ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Uporaba ↑</string>

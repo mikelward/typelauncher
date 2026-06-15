@@ -78,7 +78,7 @@ class DockReorderCarouselTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {
@@ -166,7 +166,7 @@ class DockReorderCarouselTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {
@@ -257,7 +257,7 @@ class DockReorderCarouselTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onReorderDock = { id, row, column ->
@@ -365,7 +365,7 @@ class DockReorderCarouselTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onReorderDock = { id, row, column ->
@@ -488,7 +488,7 @@ class DockReorderCarouselTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onReorderDock = { id, row, column ->

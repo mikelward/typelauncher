@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">设为默认启动器</string>
     <string name="settings_already_default_launcher_button">已是默认启动器</string>
     <string name="settings_app_list_layout_title">应用列表</string>
-    <string name="settings_app_list_layout_option_text">文字</string>
-    <string name="settings_app_list_layout_option_icons">图标</string>
     <string name="settings_app_list_sort_title">应用排序方式</string>
     <string name="settings_app_list_sort_option_usage">使用次数 ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">使用次数 ↑</string>

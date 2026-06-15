@@ -246,7 +246,7 @@ internal fun TypeLauncherApp(
         onDismissPlayUpdate = viewModel::dismissPlayUpdate,
         onRequestDefaultLauncher = onRequestDefaultLauncher,
         onDockEnabledChanged = viewModel::setDockEnabled,
-        onAppListIconOnlyChanged = viewModel::setAppListIconOnly,
+        onAppListLayoutChanged = viewModel::setAppListLayout,
         onShowAppNameHintChanged = viewModel::setShowAppNameHint,
         onShowDockedAppsInListChanged = viewModel::setShowDockedAppsInList,
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
@@ -310,7 +310,7 @@ internal fun TypeLauncherApp(
     onDismissPlayUpdate: () -> Unit = {},
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
-    onAppListIconOnlyChanged: (Boolean) -> Unit,
+    onAppListLayoutChanged: (AppListLayout) -> Unit,
     onShowAppNameHintChanged: (Boolean) -> Unit = {},
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
@@ -343,7 +343,7 @@ internal fun TypeLauncherApp(
     onSwipeDown: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
-    LaunchedEffect(state.destination, state.isSettingsOpen, state.isAppListIconOnly) {
+    LaunchedEffect(state.destination, state.isSettingsOpen, state.appListLayout) {
         LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.destination}")
     }
     // Back closes the topmost launcher surface — the settings page (which
@@ -645,7 +645,7 @@ internal fun TypeLauncherApp(
                         onCloseSettings = onCloseSettings,
                         onRequestDefaultLauncher = onRequestDefaultLauncher,
                         onDockEnabledChanged = onDockEnabledChanged,
-                        onAppListIconOnlyChanged = onAppListIconOnlyChanged,
+                        onAppListLayoutChanged = onAppListLayoutChanged,
                         onShowAppNameHintChanged = onShowAppNameHintChanged,
                         onShowDockedAppsInListChanged = onShowDockedAppsInListChanged,
                         onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,

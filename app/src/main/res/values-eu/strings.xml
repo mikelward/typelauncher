@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Ezarri abiarazle lehenetsi gisa</string>
     <string name="settings_already_default_launcher_button">Dagoeneko abiarazle lehenetsia</string>
     <string name="settings_app_list_layout_title">Aplikazio-zerrenda</string>
-    <string name="settings_app_list_layout_option_text">Testua</string>
-    <string name="settings_app_list_layout_option_icons">Ikonoak</string>
     <string name="settings_app_list_sort_title">Ordenatu aplikazioak honen arabera</string>
     <string name="settings_app_list_sort_option_usage">Erabilera ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Erabilera ↑</string>

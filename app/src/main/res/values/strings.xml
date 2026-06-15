@@ -101,12 +101,12 @@
     <string name="settings_default_launcher_button">Set as default launcher</string>
     <string name="settings_already_default_launcher_button">Already default launcher</string>
     <string name="settings_app_list_layout_title">App list</string>
-    <string name="settings_app_list_layout_option_text">Text</string>
-    <string name="settings_app_list_layout_option_icons">Icons</string>
-    <!-- TODO: backfill translations for settings_app_name_hint_title in every
-         values-*/strings.xml locale, then drop the tools:ignore below. Shipped
-         English-only deliberately; tools:ignore keeps `lint` MissingTranslation
-         green in the meantime. -->
+    <!-- TODO: translate these "App list" / app-name-hint settings strings into every
+         values-*/ locale and drop the tools:ignore once done. Shipped English-only for
+         now; tools:ignore keeps `lint` MissingTranslation green in the meantime. -->
+    <string name="settings_app_list_layout_option_name_beside" tools:ignore="MissingTranslation">Name beside</string>
+    <string name="settings_app_list_layout_option_name_below" tools:ignore="MissingTranslation">Name below</string>
+    <string name="settings_app_list_layout_option_icon_only" tools:ignore="MissingTranslation">Icon only</string>
     <string name="settings_app_name_hint_title" tools:ignore="MissingTranslation">Show app name hint</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>
     <string name="settings_app_list_sort_option_usage">Usage ↓</string>

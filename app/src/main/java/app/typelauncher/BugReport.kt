@@ -67,7 +67,7 @@ internal object BugReport {
             androidSdkInt = Build.VERSION.SDK_INT,
             locale = Locale.getDefault(),
             isDockEnabled = dockSettings.isDockEnabled,
-            isAppListIconOnly = dockSettings.isAppListIconOnly,
+            appListLayout = dockSettings.appListLayout,
             isShowAppNameHint = dockSettings.isShowAppNameHint,
             isShowDockedAppsInList = dockSettings.isShowDockedAppsInList,
             dockIconSizeDp = dockSettings.dockIconSizeDp,
@@ -200,7 +200,7 @@ internal fun buildBugReportPayload(
     androidSdkInt: Int,
     locale: Locale,
     isDockEnabled: Boolean,
-    isAppListIconOnly: Boolean,
+    appListLayout: AppListLayout,
     isShowAppNameHint: Boolean,
     isShowDockedAppsInList: Boolean,
     dockIconSizeDp: Int,
@@ -229,7 +229,7 @@ internal fun buildBugReportPayload(
         appendLine()
         appendLine("--- Settings ---")
         appendLine("Dock enabled: $isDockEnabled")
-        appendLine("App list icon-only: $isAppListIconOnly")
+        appendLine("App list layout: $appListLayout")
         appendLine("Show app name hint: $isShowAppNameHint")
         appendLine("Show docked apps in list: $isShowDockedAppsInList")
         appendLine("Dock icon size: ${dockIconSizeDp}dp")

@@ -89,7 +89,7 @@ class WidgetScrollCarouselTest {
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},
-                    onAppListIconOnlyChanged = {},
+                    onAppListLayoutChanged = {},
                     onDockVisibleIconCountChanged = {},
                     onAppListSortOrderChanged = {},
                     onShowAgenda = {

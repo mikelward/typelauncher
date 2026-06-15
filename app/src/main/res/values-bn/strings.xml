@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">ডিফল্ট লঞ্চার হিসেবে সেট করুন</string>
     <string name="settings_already_default_launcher_button">ইতিমধ্যেই ডিফল্ট লঞ্চার</string>
     <string name="settings_app_list_layout_title">অ্যাপ তালিকা</string>
-    <string name="settings_app_list_layout_option_text">টেক্সট</string>
-    <string name="settings_app_list_layout_option_icons">আইকন</string>
     <string name="settings_app_list_sort_title">অ্যাপ সাজান এই ভিত্তিতে</string>
     <string name="settings_app_list_sort_option_usage">ব্যবহার ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ব্যবহার ↑</string>

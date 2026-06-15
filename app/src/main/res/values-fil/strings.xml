@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">Itakda bilang default launcher</string>
     <string name="settings_already_default_launcher_button">Default na launcher na</string>
     <string name="settings_app_list_layout_title">Listahan ng app</string>
-    <string name="settings_app_list_layout_option_text">Teksto</string>
-    <string name="settings_app_list_layout_option_icons">Mga icon</string>
     <string name="settings_app_list_sort_title">Pagsunud-sunurin ang mga app ayon sa</string>
     <string name="settings_app_list_sort_option_usage">Paggamit ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Paggamit ↑</string>

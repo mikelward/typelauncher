@@ -101,8 +101,6 @@
     <string name="settings_default_launcher_button">طے شدہ لانچر بنائیں</string>
     <string name="settings_already_default_launcher_button">پہلے ہی طے شدہ لانچر ہے</string>
     <string name="settings_app_list_layout_title">ایپس کی فہرست</string>
-    <string name="settings_app_list_layout_option_text">متن</string>
-    <string name="settings_app_list_layout_option_icons">آئیکنز</string>
     <string name="settings_app_list_sort_title">ایپس کی ترتیب بمطابق</string>
     <string name="settings_app_list_sort_option_usage">استعمال ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">استعمال ↑</string>
