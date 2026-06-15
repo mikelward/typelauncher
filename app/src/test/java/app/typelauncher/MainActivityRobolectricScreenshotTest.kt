@@ -1701,7 +1701,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithContentDescription("Clear search text").performClick()
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
@@ -1762,7 +1762,7 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     fun manageHiddenAppsDialog_showsEmptyMessageWhenNothingIsHidden() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()

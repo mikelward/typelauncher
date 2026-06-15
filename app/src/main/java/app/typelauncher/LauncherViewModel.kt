@@ -177,6 +177,7 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             isAppListIconOnly = dockSettingsStore.isAppListIconOnly,
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
+            isShowAppNameHint = dockSettingsStore.isShowAppNameHint,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -1588,6 +1589,12 @@ internal class LauncherViewModel(
         dockSettingsStore.isAppListIconOnly = isIconOnly
         _uiState.update { it.copy(isAppListIconOnly = isIconOnly) }
         logState("setAppListIconOnly")
+    }
+
+    fun setShowAppNameHint(enabled: Boolean) {
+        dockSettingsStore.isShowAppNameHint = enabled
+        _uiState.update { it.copy(isShowAppNameHint = enabled) }
+        logState("setShowAppNameHint")
     }
 
     // TODO: Consider removing the "Show docked apps" setting. Now that typing

@@ -444,6 +444,10 @@ internal data class LauncherUiState(
     // itself out of the main list to free vertical space — the launcher's
     // pre-toggle behavior.
     val isShowDockedAppsInList: Boolean = false,
+    // When true, the icon-only app list shows a faint drop-down hint naming the
+    // top match while typing, so the user can tell which icon Enter will launch.
+    // Off by default; only takes effect when the list is in icon-only mode.
+    val isShowAppNameHint: Boolean = false,
     val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
     // True when the dock was prefilled on first run and the user has not yet
@@ -552,6 +556,24 @@ internal fun effectiveAppListIconOnly(
     persistedIconOnly: Boolean,
     tier: HomeLandscapeTier,
 ): Boolean = persistedIconOnly || tier == HomeLandscapeTier.Compact
+
+/**
+ * The app name to show as the typed-search autocomplete hint, or `null` when no
+ * hint should be shown.
+ *
+ * The hint names [topMatch] — the app `launchActiveApp` launches on Enter — so it
+ * only appears when the "Show app name hint" setting is on ([showHint]), the list
+ * is effectively in icon-only mode ([effectiveIconOnly], where the grid has no
+ * labels of its own), and the user has typed a non-blank [query]. Text/list mode
+ * already shows the name on the highlighted row, so the hint is suppressed there.
+ */
+internal fun searchAppNameHint(
+    showHint: Boolean,
+    effectiveIconOnly: Boolean,
+    query: String,
+    topMatch: InstalledApp?,
+): String? =
+    if (showHint && effectiveIconOnly && query.isNotBlank()) topMatch?.displayName else null
 
 internal fun dockSlotCountForIconSize(screenWidthDp: Int, iconSizeDp: Int): Int {
     val availableWidthDp = (screenWidthDp - DOCK_HORIZONTAL_PADDING_DP).coerceAtLeast(0)
