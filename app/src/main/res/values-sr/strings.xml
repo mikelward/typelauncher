@@ -100,10 +100,13 @@
     <string name="settings_done_button">Готово</string>
     <string name="settings_default_launcher_button">Постави као подразумевани лаунчер</string>
     <string name="settings_already_default_launcher_button">Већ је подразумевани лаунчер</string>
-    <string name="settings_app_list_layout_title">Списак апликација</string>
+    <string name="settings_app_list_layout_title">Стил списка апликација</string>
     <string name="settings_app_list_layout_option_name_beside">Назив поред</string>
     <string name="settings_app_list_layout_option_name_below">Назив испод</string>
     <string name="settings_app_list_layout_option_icon_only">Само икона</string>
+    <string name="settings_dock_layout_title">Стил докa</string>
+    <string name="settings_dock_layout_option_icon_only">Само икона</string>
+    <string name="settings_dock_layout_option_title_below">Наслов испод</string>
     <string name="settings_app_name_hint_title">Прикажи назив најбољег подударања</string>
     <string name="settings_app_list_sort_title">Сортирај апликације по</string>
     <string name="settings_app_list_sort_option_usage">Коришћење ↓</string>

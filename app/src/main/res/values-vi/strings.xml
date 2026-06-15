@@ -100,10 +100,13 @@
     <string name="settings_done_button">Xong</string>
     <string name="settings_default_launcher_button">Đặt làm trình khởi chạy mặc định</string>
     <string name="settings_already_default_launcher_button">Đã là trình khởi chạy mặc định</string>
-    <string name="settings_app_list_layout_title">Danh sách ứng dụng</string>
+    <string name="settings_app_list_layout_title">Kiểu danh sách ứng dụng</string>
     <string name="settings_app_list_layout_option_name_beside">Tên bên cạnh</string>
     <string name="settings_app_list_layout_option_name_below">Tên bên dưới</string>
     <string name="settings_app_list_layout_option_icon_only">Chỉ biểu tượng</string>
+    <string name="settings_dock_layout_title">Kiểu dock</string>
+    <string name="settings_dock_layout_option_icon_only">Chỉ biểu tượng</string>
+    <string name="settings_dock_layout_option_title_below">Tiêu đề bên dưới</string>
     <string name="settings_app_name_hint_title">Hiện tên kết quả phù hợp nhất</string>
     <string name="settings_app_list_sort_title">Sắp xếp ứng dụng theo</string>
     <string name="settings_app_list_sort_option_usage">Sử dụng ↓</string>

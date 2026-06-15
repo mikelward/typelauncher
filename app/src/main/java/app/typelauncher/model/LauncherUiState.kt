@@ -40,6 +40,14 @@ internal const val DOCK_ITEM_SPACING_DP = 8
 // can derive the chrome height from the same constant the buttons use.
 internal const val DOCK_ITEM_VERTICAL_PADDING_DP = 8
 
+// Vertical room each dock slot reserves for the per-icon title strip when
+// `DockLayout.TitleBelow` is selected: a single `labelSmall` line (~16 dp at
+// the default font scale) plus the 4 dp gap between the icon and the label.
+// Added to the slot height by `dockSlotHeightDp` so the carded dock and the
+// landscape-fit estimator both stay in sync with what the buttons actually
+// render.
+internal const val DOCK_ITEM_TITLE_HEIGHT_DP = 20
+
 // Shared gap, in dp, between adjacent home-screen cards: search↔apps,
 // apps↔personal-dock, and personal-dock↔work-dock. Driving every card-to-card
 // gap from the same constant keeps the dock-to-app-list margin visually
@@ -95,6 +103,31 @@ internal enum class AppListLayout {
     NameBelow,
     IconOnly,
 }
+
+/**
+ * How each dock slot renders.
+ *
+ * - [IconOnly] (the default and previous behavior): icon-only tiles.
+ * - [TitleBelow]: an `labelSmall` line with the app's display name beneath the
+ *   icon, matching the styling of [AppListLayout.NameBelow] in the apps list.
+ *
+ * The chosen layout adds [DOCK_ITEM_TITLE_HEIGHT_DP] to every dock slot's
+ * height when [TitleBelow]; see [dockSlotHeightDp].
+ */
+internal enum class DockLayout {
+    IconOnly,
+    TitleBelow,
+}
+
+/**
+ * Height of one dock slot, in dp, for a given [dockIconSizeDp] and [layout].
+ * Used by every renderer that needs to size a fixed slot ([DockedAppButton],
+ * [EmptyDockSlot], [DockAddButton]) and by the landscape-fit estimator so the
+ * carded dock and the metric stay in lockstep when the layout changes.
+ */
+internal fun dockSlotHeightDp(dockIconSizeDp: Int, layout: DockLayout): Int =
+    dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP +
+        if (layout == DockLayout.TitleBelow) DOCK_ITEM_TITLE_HEIGHT_DP else 0
 
 /**
  * The reversed variants render the apps list with `reverseLayout = true`, which
@@ -450,6 +483,9 @@ internal data class LauncherUiState(
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
     val appListLayout: AppListLayout = AppListLayout.NameBeside,
+    // How each dock slot renders. `IconOnly` (default) preserves the previous
+    // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
+    val dockLayout: DockLayout = DockLayout.IconOnly,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by

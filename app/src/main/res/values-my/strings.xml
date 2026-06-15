@@ -100,10 +100,13 @@
     <string name="settings_done_button">ပြီးပါပြီ</string>
     <string name="settings_default_launcher_button">မူရင်းလောင်ချာအဖြစ်သတ်မှတ်မည်</string>
     <string name="settings_already_default_launcher_button">မူရင်းလောင်ချာဖြစ်ပြီးပါပြီ</string>
-    <string name="settings_app_list_layout_title">အက်ပ်စာရင်း</string>
+    <string name="settings_app_list_layout_title">အက်ပ်စာရင်း စတိုင်</string>
     <string name="settings_app_list_layout_option_name_beside">ဘေးတွင် အမည်</string>
     <string name="settings_app_list_layout_option_name_below">အောက်တွင် အမည်</string>
     <string name="settings_app_list_layout_option_icon_only">သင်္ကေတသာ</string>
+    <string name="settings_dock_layout_title">Dock စတိုင်</string>
+    <string name="settings_dock_layout_option_icon_only">သင်္ကေတသာ</string>
+    <string name="settings_dock_layout_option_title_below">အောက်တွင် အမည်</string>
     <string name="settings_app_name_hint_title">အကိုက်ညီဆုံး ရလဒ်အမည်ကို ပြရန်</string>
     <string name="settings_app_list_sort_title">အက်ပ်များ စီရန်</string>
     <string name="settings_app_list_sort_option_usage">အသုံးပြုမှု ↓</string>

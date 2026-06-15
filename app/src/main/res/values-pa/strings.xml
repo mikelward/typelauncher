@@ -100,10 +100,13 @@
     <string name="settings_done_button">ਹੋ ਗਿਆ</string>
     <string name="settings_default_launcher_button">ਡਿਫੌਲਟ ਲਾਂਚਰ ਵਜੋਂ ਸੈੱਟ ਕਰੋ</string>
     <string name="settings_already_default_launcher_button">ਪਹਿਲਾਂ ਹੀ ਡਿਫੌਲਟ ਲਾਂਚਰ ਹੈ</string>
-    <string name="settings_app_list_layout_title">ਐਪ ਸੂਚੀ</string>
+    <string name="settings_app_list_layout_title">ਐਪ ਸੂਚੀ ਸ਼ੈਲੀ</string>
     <string name="settings_app_list_layout_option_name_beside">ਨਾਮ ਨਾਲ</string>
     <string name="settings_app_list_layout_option_name_below">ਨਾਮ ਹੇਠਾਂ</string>
     <string name="settings_app_list_layout_option_icon_only">ਸਿਰਫ਼ ਆਈਕਨ</string>
+    <string name="settings_dock_layout_title">ਡਾਕ ਸ਼ੈਲੀ</string>
+    <string name="settings_dock_layout_option_icon_only">ਸਿਰਫ਼ ਆਈਕਨ</string>
+    <string name="settings_dock_layout_option_title_below">ਨਾਮ ਹੇਠਾਂ</string>
     <string name="settings_app_name_hint_title">ਸਭ ਤੋਂ ਵਧੀਆ ਮੇਲ ਦਾ ਨਾਮ ਦਿਖਾਓ</string>
     <string name="settings_app_list_sort_title">ਐਪਾਂ ਨੂੰ ਇਸ ਆਧਾਰ ਤੇ ਛਾਂਟੋ</string>
     <string name="settings_app_list_sort_option_usage">ਵਰਤੋਂ ↓</string>

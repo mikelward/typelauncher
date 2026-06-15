@@ -100,10 +100,13 @@
     <string name="settings_done_button">完成</string>
     <string name="settings_default_launcher_button">设为默认启动器</string>
     <string name="settings_already_default_launcher_button">已是默认启动器</string>
-    <string name="settings_app_list_layout_title">应用列表</string>
+    <string name="settings_app_list_layout_title">应用列表样式</string>
     <string name="settings_app_list_layout_option_name_beside">名称在旁</string>
     <string name="settings_app_list_layout_option_name_below">名称在下</string>
     <string name="settings_app_list_layout_option_icon_only">仅图标</string>
+    <string name="settings_dock_layout_title">Dock 样式</string>
+    <string name="settings_dock_layout_option_icon_only">仅图标</string>
+    <string name="settings_dock_layout_option_title_below">名称在下</string>
     <string name="settings_app_name_hint_title">显示最佳匹配的名称</string>
     <string name="settings_app_list_sort_title">应用排序方式</string>
     <string name="settings_app_list_sort_option_usage">使用次数 ↓</string>

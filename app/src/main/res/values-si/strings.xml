@@ -100,10 +100,13 @@
     <string name="settings_done_button">සිදු කර ඇත</string>
     <string name="settings_default_launcher_button">පෙරනිමි ලොන්චරය ලෙස සකසන්න</string>
     <string name="settings_already_default_launcher_button">දැනටමත් පෙරනිමි ලොන්චරය</string>
-    <string name="settings_app_list_layout_title">යෙදුම් ලැයිස්තුව</string>
+    <string name="settings_app_list_layout_title">යෙදුම් ලැයිස්තු මෝස්තරය</string>
     <string name="settings_app_list_layout_option_name_beside">නම පැත්තේ</string>
     <string name="settings_app_list_layout_option_name_below">නම පහළ</string>
     <string name="settings_app_list_layout_option_icon_only">නිරූපකය පමණයි</string>
+    <string name="settings_dock_layout_title">ඩොක් මෝස්තරය</string>
+    <string name="settings_dock_layout_option_icon_only">නිරූපකය පමණයි</string>
+    <string name="settings_dock_layout_option_title_below">මාතෘකාව පහළ</string>
     <string name="settings_app_name_hint_title">හොඳම ගැළපීමේ නම පෙන්වන්න</string>
     <string name="settings_app_list_sort_title">යෙදුම් වර්ග කරන්න</string>
     <string name="settings_app_list_sort_option_usage">භාවිතය ↓</string>

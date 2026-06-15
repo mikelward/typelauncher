@@ -248,6 +248,22 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * How every dock slot renders (see [DockLayout]). Stored by name so an
+     * unknown value (a renamed entry from a newer build) falls back to the
+     * default. Defaults to [DockLayout.IconOnly], which matches the
+     * pre-setting behavior.
+     */
+    var dockLayout: DockLayout
+        get() = sharedPreferences.getString(KEY_DOCK_LAYOUT, null)
+            ?.let { name -> runCatching { DockLayout.valueOf(name) }.getOrNull() }
+            ?: DockLayout.IconOnly
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_DOCK_LAYOUT, value.name)
+                .apply()
+        }
+
+    /**
      * How every app icon's tile is rendered. [IconTheme.Default] keeps each
      * app's own icon art; [IconTheme.Monochrome] re-renders icons from their
      * app's monochrome themed-icon glyph in theme colors. Stored by name so an
@@ -447,6 +463,7 @@ internal class DockSettingsStore(context: Context) {
         // Legacy boolean, kept for migration into KEY_APP_LIST_LAYOUT only.
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
+        const val KEY_DOCK_LAYOUT = "dock_layout"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
         const val KEY_SHOW_APP_NAME_HINT = "show_app_name_hint"

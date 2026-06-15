@@ -100,10 +100,13 @@
     <string name="settings_done_button">ସମ୍ପନ୍ନ</string>
     <string name="settings_default_launcher_button">ଡିଫଲ୍ଟ ଲଞ୍ଚର୍ ଭାବେ ସେଟ୍ କରନ୍ତୁ</string>
     <string name="settings_already_default_launcher_button">ପୂର୍ବରୁ ଡିଫଲ୍ଟ ଲଞ୍ଚର୍</string>
-    <string name="settings_app_list_layout_title">ଆପ୍ ତାଲିକା</string>
+    <string name="settings_app_list_layout_title">ଆପ୍ ତାଲିକା ଶୈଳୀ</string>
     <string name="settings_app_list_layout_option_name_beside">ପାର୍ଶ୍ୱରେ ନାମ</string>
     <string name="settings_app_list_layout_option_name_below">ତଳେ ନାମ</string>
     <string name="settings_app_list_layout_option_icon_only">କେବଳ ଆଇକନ୍</string>
+    <string name="settings_dock_layout_title">ଡକ୍ ଶୈଳୀ</string>
+    <string name="settings_dock_layout_option_icon_only">କେବଳ ଆଇକନ୍</string>
+    <string name="settings_dock_layout_option_title_below">ତଳେ ନାମ</string>
     <string name="settings_app_name_hint_title">ସର୍ବୋତ୍ତମ ମେଳର ନାମ ଦେଖାନ୍ତୁ</string>
     <string name="settings_app_list_sort_title">ଆପ୍‌ଗୁଡ଼ିକୁ ସଜାନ୍ତୁ</string>
     <string name="settings_app_list_sort_option_usage">ବ୍ୟବହାର ↓</string>
