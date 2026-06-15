@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">Navn nedenunder</string>
     <string name="settings_app_list_layout_option_icon_only">Kun ikon</string>
     <string name="settings_dock_layout_title">Dockstil</string>
-    <string name="settings_dock_layout_option_icon_only">Kun ikon</string>
-    <string name="settings_dock_layout_option_title_below">Titel nedenunder</string>
     <string name="settings_app_name_hint_title">Vis navn på bedste match</string>
     <string name="settings_app_list_sort_title">Sortér apps efter</string>
     <string name="settings_app_list_sort_option_usage">Brug ↓</string>

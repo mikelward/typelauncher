@@ -105,8 +105,6 @@
     <string name="settings_app_list_layout_option_name_below">အောက်တွင် အမည်</string>
     <string name="settings_app_list_layout_option_icon_only">သင်္ကေတသာ</string>
     <string name="settings_dock_layout_title">Dock စတိုင်</string>
-    <string name="settings_dock_layout_option_icon_only">သင်္ကေတသာ</string>
-    <string name="settings_dock_layout_option_title_below">အောက်တွင် အမည်</string>
     <string name="settings_app_name_hint_title">အကိုက်ညီဆုံး ရလဒ်အမည်ကို ပြရန်</string>
     <string name="settings_app_list_sort_title">အက်ပ်များ စီရန်</string>
     <string name="settings_app_list_sort_option_usage">အသုံးပြုမှု ↓</string>

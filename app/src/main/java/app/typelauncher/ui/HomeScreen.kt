@@ -3268,8 +3268,8 @@ private fun DockLayoutDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedLabelRes = when (selected) {
-        DockLayout.IconOnly -> R.string.settings_dock_layout_option_icon_only
-        DockLayout.TitleBelow -> R.string.settings_dock_layout_option_title_below
+        DockLayout.IconOnly -> R.string.settings_app_list_layout_option_icon_only
+        DockLayout.TitleBelow -> R.string.settings_app_list_layout_option_name_below
     }
     Box {
         TextButton(
@@ -3288,7 +3288,7 @@ private fun DockLayoutDropdown(
             modifier = Modifier.testTag(DOCK_LAYOUT_DROPDOWN_MENU_TAG),
         ) {
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.settings_dock_layout_option_icon_only)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icon_only)) },
                 modifier = Modifier.testTag(DOCK_LAYOUT_OPTION_ICON_ONLY_TAG),
                 onClick = {
                     expanded = false
@@ -3296,7 +3296,7 @@ private fun DockLayoutDropdown(
                 },
             )
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.settings_dock_layout_option_title_below)) },
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_below)) },
                 modifier = Modifier.testTag(DOCK_LAYOUT_OPTION_TITLE_BELOW_TAG),
                 onClick = {
                     expanded = false
