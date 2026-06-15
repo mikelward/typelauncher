@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">הגדרה כמשגר ברירת מחדל</string>
     <string name="settings_already_default_launcher_button">כבר משגר ברירת המחדל</string>
     <string name="settings_app_list_layout_title">רשימת אפליקציות</string>
+    <string name="settings_app_list_layout_option_name_beside">שם לצד</string>
+    <string name="settings_app_list_layout_option_name_below">שם מתחת</string>
+    <string name="settings_app_list_layout_option_icon_only">סמל בלבד</string>
+    <string name="settings_app_name_hint_title">הצגת השם של ההתאמה הטובה ביותר</string>
     <string name="settings_app_list_sort_title">מיון אפליקציות לפי</string>
     <string name="settings_app_list_sort_option_usage">שימוש ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">שימוש ↑</string>

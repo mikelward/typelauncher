@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">ตั้งเป็นลอนเชอร์เริ่มต้น</string>
     <string name="settings_already_default_launcher_button">เป็นลอนเชอร์เริ่มต้นแล้ว</string>
     <string name="settings_app_list_layout_title">รายการแอป</string>
+    <string name="settings_app_list_layout_option_name_beside">ชื่อด้านข้าง</string>
+    <string name="settings_app_list_layout_option_name_below">ชื่อด้านล่าง</string>
+    <string name="settings_app_list_layout_option_icon_only">ไอคอนเท่านั้น</string>
+    <string name="settings_app_name_hint_title">แสดงชื่อผลลัพธ์ที่ตรงที่สุด</string>
     <string name="settings_app_list_sort_title">จัดเรียงแอปตาม</string>
     <string name="settings_app_list_sort_option_usage">การใช้งาน ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">การใช้งาน ↑</string>

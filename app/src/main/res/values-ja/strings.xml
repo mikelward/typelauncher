@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">既定のランチャーに設定</string>
     <string name="settings_already_default_launcher_button">すでに既定のランチャー</string>
     <string name="settings_app_list_layout_title">アプリ一覧</string>
+    <string name="settings_app_list_layout_option_name_beside">名前を横に</string>
+    <string name="settings_app_list_layout_option_name_below">名前を下に</string>
+    <string name="settings_app_list_layout_option_icon_only">アイコンのみ</string>
+    <string name="settings_app_name_hint_title">最上位候補の名前を表示</string>
     <string name="settings_app_list_sort_title">アプリの並び順</string>
     <string name="settings_app_list_sort_option_usage">使用頻度 ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">使用頻度 ↑</string>

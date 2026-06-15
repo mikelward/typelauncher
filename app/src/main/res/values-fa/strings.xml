@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">تنظیم به‌عنوان لانچر پیش‌فرض</string>
     <string name="settings_already_default_launcher_button">از قبل لانچر پیش‌فرض است</string>
     <string name="settings_app_list_layout_title">فهرست برنامه‌ها</string>
+    <string name="settings_app_list_layout_option_name_beside">نام در کنار</string>
+    <string name="settings_app_list_layout_option_name_below">نام در زیر</string>
+    <string name="settings_app_list_layout_option_icon_only">فقط نماد</string>
+    <string name="settings_app_name_hint_title">نمایش نام بهترین نتیجه</string>
     <string name="settings_app_list_sort_title">مرتب‌سازی برنامه‌ها بر اساس</string>
     <string name="settings_app_list_sort_option_usage">استفاده ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">استفاده ↑</string>

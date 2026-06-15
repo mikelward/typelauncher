@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Définir comme lanceur par défaut</string>
     <string name="settings_already_default_launcher_button">Déjà lanceur par défaut</string>
     <string name="settings_app_list_layout_title">Liste des applications</string>
+    <string name="settings_app_list_layout_option_name_beside">Nom à côté</string>
+    <string name="settings_app_list_layout_option_name_below">Nom en dessous</string>
+    <string name="settings_app_list_layout_option_icon_only">Icône seule</string>
+    <string name="settings_app_name_hint_title">Afficher le nom du meilleur résultat</string>
     <string name="settings_app_list_sort_title">Trier les applications par</string>
     <string name="settings_app_list_sort_option_usage">Utilisation ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Utilisation ↑</string>

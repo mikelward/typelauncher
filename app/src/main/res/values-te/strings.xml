@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">డిఫాల్ట్ లాంచర్‌గా సెట్ చేయి</string>
     <string name="settings_already_default_launcher_button">ఇప్పటికే డిఫాల్ట్ లాంచర్</string>
     <string name="settings_app_list_layout_title">యాప్ జాబితా</string>
+    <string name="settings_app_list_layout_option_name_beside">పేరు పక్కన</string>
+    <string name="settings_app_list_layout_option_name_below">పేరు కింద</string>
+    <string name="settings_app_list_layout_option_icon_only">చిహ్నం మాత్రమే</string>
+    <string name="settings_app_name_hint_title">ఉత్తమ సరిపోలిక పేరును చూపు</string>
     <string name="settings_app_list_sort_title">యాప్‌లను దీని ప్రకారం క్రమబద్ధీకరించు</string>
     <string name="settings_app_list_sort_option_usage">వాడుక ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">వాడుక ↑</string>

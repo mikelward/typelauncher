@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Ορισμός ως προεπιλεγμένος launcher</string>
     <string name="settings_already_default_launcher_button">Ήδη προεπιλεγμένος launcher</string>
     <string name="settings_app_list_layout_title">Λίστα εφαρμογών</string>
+    <string name="settings_app_list_layout_option_name_beside">Όνομα στο πλάι</string>
+    <string name="settings_app_list_layout_option_name_below">Όνομα από κάτω</string>
+    <string name="settings_app_list_layout_option_icon_only">Μόνο εικονίδιο</string>
+    <string name="settings_app_name_hint_title">Εμφάνιση ονόματος καλύτερης αντιστοίχισης</string>
     <string name="settings_app_list_sort_title">Ταξινόμηση εφαρμογών κατά</string>
     <string name="settings_app_list_sort_option_usage">Χρήση ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Χρήση ↑</string>

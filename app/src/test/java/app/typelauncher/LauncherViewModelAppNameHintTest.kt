@@ -14,7 +14,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * Coverage for the "Show app name hint" setting. Off by default; the setter
+ * Coverage for the "Show top match name" setting. Off by default; the setter
  * flips the in-memory state and persists so a fresh launcher process reads the
  * choice back.
  */

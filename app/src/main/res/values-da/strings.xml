@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Indstil som standard launcher</string>
     <string name="settings_already_default_launcher_button">Allerede standard launcher</string>
     <string name="settings_app_list_layout_title">Appliste</string>
+    <string name="settings_app_list_layout_option_name_beside">Navn ved siden</string>
+    <string name="settings_app_list_layout_option_name_below">Navn nedenunder</string>
+    <string name="settings_app_list_layout_option_icon_only">Kun ikon</string>
+    <string name="settings_app_name_hint_title">Vis navn på bedste match</string>
     <string name="settings_app_list_sort_title">Sortér apps efter</string>
     <string name="settings_app_list_sort_option_usage">Brug ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Brug ↑</string>

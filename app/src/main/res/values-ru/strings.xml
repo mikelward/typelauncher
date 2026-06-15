@@ -101,6 +101,10 @@
     <string name="settings_default_launcher_button">Сделать лаунчером по умолчанию</string>
     <string name="settings_already_default_launcher_button">Уже лаунчер по умолчанию</string>
     <string name="settings_app_list_layout_title">Список приложений</string>
+    <string name="settings_app_list_layout_option_name_beside">Название сбоку</string>
+    <string name="settings_app_list_layout_option_name_below">Название снизу</string>
+    <string name="settings_app_list_layout_option_icon_only">Только значок</string>
+    <string name="settings_app_name_hint_title">Показывать название лучшего совпадения</string>
     <string name="settings_app_list_sort_title">Сортировать приложения по</string>
     <string name="settings_app_list_sort_option_usage">Использованию ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Использованию ↑</string>
