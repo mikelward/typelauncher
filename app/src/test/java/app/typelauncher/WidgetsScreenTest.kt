@@ -4,12 +4,17 @@ import android.content.ComponentName
 import android.os.Process
 import android.os.UserHandle
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import org.junit.Rule
@@ -285,6 +290,65 @@ class WidgetsScreenTest {
             .assertIsDisplayed()
         composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
             .assertDoesNotExist()
+    }
+
+    @Test
+    fun widgetPage_resetsScrollToTopWhenItStopsBeingCurrentPage() {
+        // A page that survives a trip away from the widgets carousel keeps its
+        // remembered LazyListState, so a page left scrolled down would hide the
+        // first widget above the fold on return. The reset must fire when the
+        // page stops being current (while it is off-screen), so it is already
+        // at the top before the carousel translates it back on — resetting only
+        // once it is current again would snap the list after the page is already
+        // visible, producing a jump.
+        val widgetIds = (1..30).toList()
+        var isCurrentPage by mutableStateOf(true)
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = widgetIds,
+                    availableWidgets = emptyList(),
+                    isAddingWidget = false,
+                    // No host binds, so every card renders as the lightweight
+                    // "Widget unavailable" surface — enough to make the column
+                    // overflow and scroll without a real AppWidgetHost.
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    isCurrentPage = isCurrentPage,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        // Scroll the bottom widget into view; the first widget leaves the fold.
+        // A LazyColumn recycles far-off items out of composition entirely, so
+        // the off-screen card is scrolled to by node (not the un-composed item's
+        // own performScrollTo) and the card that leaves the fold is asserted
+        // absent rather than "not displayed".
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG)
+            .performScrollToNode(hasTestTag("$WIDGET_CARD_TAG:30"))
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").assertDoesNotExist()
+
+        // Leaving the page (it stops being current) must reset it to the top
+        // while it is off-screen — asserted here before it becomes current
+        // again, so the reset cannot be the post-reveal snap the carousel's
+        // settle-then-flip ordering would otherwise produce.
+        isCurrentPage = false
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:30").assertDoesNotExist()
+
+        // Returning to the page keeps it at the top.
+        isCurrentPage = true
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:30").assertDoesNotExist()
     }
 
     private fun fakeWidgetProvider(
