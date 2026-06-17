@@ -48,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -101,6 +102,24 @@ internal fun WidgetsScreen(
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
 ) {
     val listState = rememberLazyListState()
+    // Snap back to the top as soon as this page stops being the current page.
+    // The widget page's LazyListState is remembered for the lifetime of its
+    // carousel slot — the page subtree is keyed by destination, so it survives
+    // navigating away and back — which means a page left scrolled down would
+    // otherwise stay scrolled down on return, hiding the first widget above the
+    // fold. The reset fires on leave rather than on (re-)entry because the
+    // carousel only flips `currentPage` (and thus isCurrentPage) once the settle
+    // animation has finished: resetting on entry would let the stale offset
+    // slide into view and then snap to the top, the exact jump this avoids. By
+    // the time isCurrentPage flips false the page has already translated
+    // off-screen, so the snap is invisible and the page is at the top before it
+    // is ever translated back on. Keyed on isCurrentPage alone so adding or
+    // removing a widget while the page is open doesn't move the scroll position.
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            listState.scrollToItem(0)
+        }
+    }
     val widgetScreenTag = if (isCurrentPage) WIDGETS_SCREEN_TAG else "$WIDGETS_SCREEN_TAG:offscreen"
     val addWidgetCardTag = if (isCurrentPage) ADD_WIDGET_CARD_TAG else "$ADD_WIDGET_CARD_TAG:offscreen"
     LazyColumn(
