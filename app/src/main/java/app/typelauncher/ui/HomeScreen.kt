@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.view.KeyEvent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -13,6 +14,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -118,7 +120,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -145,14 +146,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -813,11 +809,6 @@ private fun DockCard(
     // The folder whose popup grid is open, or null. Cleared on rotation /
     // recomposition reset like the actions menu.
     var openFolderId by remember { mutableStateOf<String?>(null) }
-    // The dock card's bounds in window space, captured so the open-folder popup
-    // can expand *in place* — anchored to the dock's own footprint instead of
-    // floating in the screen center. Null until the card is first laid out, so
-    // the popup is gated on it below.
-    var dockCardBounds by remember { mutableStateOf<Rect?>(null) }
     val slotCenters = remember { mutableStateMapOf<DockPosition, Offset>() }
     // Occupant id list = loose docked apps + folders. Both flow through the
     // same grid machinery; `resolvedDockPositions` keys by id regardless.
@@ -882,11 +873,21 @@ private fun DockCard(
         hoveredMergeTargetId = null
     }
 
-    SectionCard(
-        modifier
-            .testTag(tags.cardTag)
-            .onGloballyPositioned { coords -> dockCardBounds = coords.boundsInWindow() },
-    ) {
+    // The folder whose grid is open in place of the dock, or null. Opening a
+    // folder is NOT gated on `foldersEnabled`: a user who created folders and
+    // later turned the setting off must still open them to launch members, move
+    // one out, or explode — otherwise the foldered apps are stranded (they are
+    // deduped out of the app list too). The setting only gates *creating*
+    // folders (the merge path), not opening or dismantling existing ones.
+    val openFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
+    SectionCard(modifier.testTag(tags.cardTag)) {
+        // The dock grid and the open-folder grid share one Box so the card keeps
+        // the dock's exact footprint when a folder opens — the folder takes the
+        // dock's place with no reflow of anything else on screen. The dock grid
+        // stays composed (just hidden + non-interactive via the opaque overlay)
+        // so it still defines the card's size; the folder overlay matches that
+        // size and scrolls internally when the folder has more apps than fit.
+        Box(modifier = Modifier.fillMaxWidth()) {
         // Every dock slot is a direct sibling under one parent so each
         // `key(slotKey)` movable group lives in the same Compose
         // slot-table parent. That preserves per-icon `pointerInput`
@@ -921,6 +922,10 @@ private fun DockCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
+                // Kept composed while a folder is open so it still sizes the card
+                // (no reflow), but hidden — the opaque folder overlay above it
+                // intercepts all touches, so these slots are inert meanwhile.
+                .then(if (openFolder != null) Modifier.alpha(0f) else Modifier)
                 .testTag(tags.listTag),
             horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
             verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
@@ -999,38 +1004,35 @@ private fun DockCard(
                 }
             }
         }
-    }
-    // Opening a folder is NOT gated on `foldersEnabled`: a user who created
-    // folders and later turned the setting off must still be able to open them
-    // (launch members, move one out, or explode) — otherwise the apps inside are
-    // stranded, since folder members are also deduped out of the app list. The
-    // setting only gates *creating* folders (the merge path), not opening or
-    // dismantling existing ones.
-    val openFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
-    val cardBounds = dockCardBounds
-    if (openFolder != null && cardBounds != null) {
-        DockFolderInPlacePopup(
-            folder = openFolder,
-            anchorBounds = cardBounds,
-            dockIconSizeDp = dockIconSizeDp,
-            dockIconCount = dockIconCount,
-            dockLayout = dockLayout,
-            appIconTag = tags.appIconTag,
-            onDismiss = { openFolderId = null },
-            onLaunchApp = { app ->
-                openFolderId = null
-                onLaunchApp(app)
-            },
-            onOpenAppInfo = onOpenAppInfo,
-            onRemoveFromFolder = { appId -> onRemoveFromFolder(openFolder.id, appId) },
-            onUndockFromFolder = { appId -> onUndockFromFolder(openFolder.id, appId) },
-            onRenameApp = onRenameApp,
-            onResetRank = onResetRank,
-            onSetAppIconOverride = onSetAppIconOverride,
-            onClearAppIconOverride = onClearAppIconOverride,
-            onSetAppBadge = onSetAppBadge,
-            onHideApp = onHideApp,
-        )
+            // The open folder, in the dock's exact footprint. matchParentSize
+            // ties it to the (hidden) dock grid's size, so the card never reflows
+            // when a folder opens; the folder scrolls internally if it has more
+            // apps than the dock had slots.
+            if (openFolder != null) {
+                DockFolderInPlace(
+                    folder = openFolder,
+                    dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = dockIconCount,
+                    dockLayout = dockLayout,
+                    appIconTag = tags.appIconTag,
+                    modifier = Modifier.matchParentSize(),
+                    onClose = { openFolderId = null },
+                    onLaunchApp = { app ->
+                        openFolderId = null
+                        onLaunchApp(app)
+                    },
+                    onOpenAppInfo = onOpenAppInfo,
+                    onRemoveFromFolder = { appId -> onRemoveFromFolder(openFolder.id, appId) },
+                    onUndockFromFolder = { appId -> onUndockFromFolder(openFolder.id, appId) },
+                    onRenameApp = onRenameApp,
+                    onResetRank = onResetRank,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
+                    onHideApp = onHideApp,
+                )
+            }
+        }
     }
 }
 
@@ -1298,35 +1300,26 @@ private fun DockFolderActionsMenu(
     }
 }
 
-// Breathing margin kept between the top of a height-capped folder grid and the
-// top of the window, plus a floor so even a short window shows a usable strip of
-// the grid. Both on the 4dp grid.
-private const val DOCK_FOLDER_TOP_INSET_DP = 24
-private const val DOCK_FOLDER_MIN_GRID_HEIGHT_DP = 120
-
 /**
- * The open folder, expanded *in place* over the dock's own footprint rather than
- * floating in the screen center. Hosted in a [Popup] (not a [Dialog], so there is
- * no scrim) anchored by [anchorBounds] — the dock card's window bounds — so the
- * member grid grows upward from exactly where the dock sat. The user can tap the
- * same spot twice: once on the folder tile to open it, again on the member that
- * lands in that spot.
+ * The open folder, rendered *in place of the dock* inside the same [SectionCard].
+ * [modifier] is `matchParentSize()` tying this overlay to the (hidden) dock grid's
+ * bounds, so the card keeps the dock's exact footprint and nothing on screen
+ * reflows when a folder opens. The folder's apps use the dock's own tile/grid
+ * ([DockFolderGrid]); if the folder holds more apps than the dock had slots the
+ * grid scrolls within this footprint, otherwise it simply uses the space.
  *
- * The popup is focusable, so the system back gesture and a tap anywhere outside
- * the grid both dismiss it; an explicit close tile in the grid dismisses it too.
- * The body is [DockFolderGrid], factored out so the screenshot test can render it
- * without the popup window (it has no `TextField`, so the Robolectric Dialog-idle
- * cascade does not apply, but the split keeps the render deterministic).
+ * The overlay intercepts touches so the hidden dock grid beneath stays inert, a
+ * tap on empty space closes the folder, and the system back gesture closes it
+ * too. An explicit close tile in the grid is the primary dismiss affordance.
  */
 @Composable
-private fun DockFolderInPlacePopup(
+internal fun DockFolderInPlace(
     folder: ResolvedDockFolder,
-    anchorBounds: Rect,
     dockIconSizeDp: Int,
     dockIconCount: Int,
     dockLayout: DockLayout,
     appIconTag: String,
-    onDismiss: () -> Unit,
+    onClose: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onRemoveFromFolder: (String) -> Unit,
@@ -1337,73 +1330,39 @@ private fun DockFolderInPlacePopup(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val density = LocalDensity.current
-    val widthDp = with(density) { anchorBounds.width.toDp() }
-    // Bottom-align the popup to the dock card's bottom edge and grow upward, so
-    // the folder occupies the dock's place and expands into the apps list above
-    // instead of pushing off the bottom. Clamp so a tall folder (small dock,
-    // many members) never overflows the top of the window. The provider uses the
-    // captured dock-card rect, not the placeholder anchor the Popup is declared
-    // at, so the placement is independent of where this call sits in the tree.
-    val dockLeftPx = anchorBounds.left.roundToInt()
-    val dockBottomPx = anchorBounds.bottom.roundToInt()
-    // Floor the card at the dock's own height so the popup always covers the
-    // dock's full footprint — including a multi-row dock's upper rows. Without
-    // this a short folder (e.g. two members) on a two-row dock would open as a
-    // one-row card over the *bottom* row, and a tap back on the folder's original
-    // (upper) row would land outside the popup and dismiss it. Covering the whole
-    // dock keeps "tap the same spot twice" working regardless of the folder's row.
-    val dockCardHeightDp = with(density) { anchorBounds.height.toDp() }
-    // Cap the grid to the room above the dock's bottom edge so a near-cap folder
-    // on a narrow / large-icon dock (where `dockIconCount` can be 1, giving up to
-    // 16 rows) stays fully reachable: the grid scrolls inside this height instead
-    // of running off the top of the window. Subtract the card chrome and a small
-    // top breathing margin; floor it so a tiny window still shows a usable strip.
-    val maxGridHeightDp = (with(density) { dockBottomPx.toDp() } -
-        (SECTION_CARD_PADDING_DP * 2 + DOCK_FOLDER_TOP_INSET_DP).dp)
-        .coerceAtLeast(DOCK_FOLDER_MIN_GRID_HEIGHT_DP.dp)
-    val positionProvider = remember(dockLeftPx, dockBottomPx) {
-        object : PopupPositionProvider {
-            override fun calculatePosition(
-                anchorBounds: IntRect,
-                windowSize: IntSize,
-                layoutDirection: LayoutDirection,
-                popupContentSize: IntSize,
-            ): IntOffset {
-                val maxTop = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
-                val top = (dockBottomPx - popupContentSize.height).coerceIn(0, maxTop)
-                return IntOffset(dockLeftPx, top)
-            }
-        }
-    }
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true),
+    BackHandler(enabled = true, onBack = onClose)
+    Box(
+        modifier = modifier
+            // A tap on empty space (between/around the tiles, or below a short
+            // folder) closes — and this also stops taps from reaching the hidden
+            // dock grid underneath.
+            .pointerInput(folder.id) { detectTapGestures { onClose() } },
     ) {
-        Box(modifier = Modifier.width(widthDp)) {
-            SectionCard(modifier = Modifier.heightIn(min = dockCardHeightDp)) {
-                DockFolderGrid(
-                    folder = folder,
-                    dockIconSizeDp = dockIconSizeDp,
-                    dockIconCount = dockIconCount,
-                    dockLayout = dockLayout,
-                    maxHeightDp = maxGridHeightDp,
-                    appIconTag = appIconTag,
-                    onClose = onDismiss,
-                    onLaunchApp = onLaunchApp,
-                    onOpenAppInfo = onOpenAppInfo,
-                    onRemoveFromFolder = onRemoveFromFolder,
-                    onUndockFromFolder = onUndockFromFolder,
-                    onRenameApp = onRenameApp,
-                    onResetRank = onResetRank,
-                    onSetAppIconOverride = onSetAppIconOverride,
-                    onClearAppIconOverride = onClearAppIconOverride,
-                    onSetAppBadge = onSetAppBadge,
-                    onHideApp = onHideApp,
-                )
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            DockFolderGrid(
+                folder = folder,
+                dockIconSizeDp = dockIconSizeDp,
+                dockIconCount = dockIconCount,
+                dockLayout = dockLayout,
+                appIconTag = appIconTag,
+                onClose = onClose,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onRemoveFromFolder = onRemoveFromFolder,
+                onUndockFromFolder = onUndockFromFolder,
+                onRenameApp = onRenameApp,
+                onResetRank = onResetRank,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+            )
         }
     }
 }
@@ -1416,16 +1375,14 @@ private fun DockFolderInPlacePopup(
  * padded with empty cells so every tile keeps its `1 / columns` width instead of
  * a lone trailing tile stretching across the row.
  *
- * The grid scrolls the same way the dock does — a `verticalScroll` on the
- * `FlowRow` — bounded by [maxHeightDp] (the room above the dock's bottom edge), so
- * a near-cap folder on a narrow / large-icon dock (where `dockIconCount` can be 1,
- * giving up to 16 rows) stays fully reachable instead of running off the top of
- * the window. [maxHeightDp] left `Dp.Unspecified` leaves the grid unbounded (the
- * screenshot test renders it that way).
+ * The caller ([DockFolderInPlace]) wraps this in a fixed-height, scrollable box
+ * sized to the dock's footprint, so the grid itself just lays the tiles out at
+ * their natural height — when the folder has more apps than the dock had slots
+ * the caller's scroll takes over.
  *
- * Factored out of [DockFolderInPlacePopup] so the screenshot test renders it
- * without the popup window (the [DockFolderMemberTile]s and their long-press
- * menus are all that the snapshot needs).
+ * Factored out of [DockFolderInPlace] so the screenshot test renders it directly
+ * (the [DockFolderMemberTile]s and their long-press menus are all the snapshot
+ * needs).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1435,7 +1392,6 @@ internal fun DockFolderGrid(
     dockIconCount: Int,
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
-    maxHeightDp: Dp = Dp.Unspecified,
     appIconTag: String = DOCK_APP_ICON_TAG,
     onClose: () -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
@@ -1474,10 +1430,7 @@ internal fun DockFolderGrid(
             )
         }
         FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (maxHeightDp == Dp.Unspecified) Modifier else Modifier.heightIn(max = maxHeightDp))
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
             verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
             maxItemsInEachRow = columns,
