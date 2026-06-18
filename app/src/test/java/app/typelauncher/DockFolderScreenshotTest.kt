@@ -59,16 +59,22 @@ class DockFolderScreenshotTest {
     }
 
     @Test
-    fun folderPopup_rendersMemberGrid() {
+    fun folderGrid_rendersInDockLayout() {
         composeRule.setContent {
             TypeLauncherTheme {
-                DockFolderPopupContent(
+                // The open folder reuses the dock's grid: five members across a
+                // four-column dock wrap to a second row, with the trailing cell
+                // padded so each tile keeps its 1/columns width.
+                DockFolderGrid(
                     folder = sampleFolder(memberCount = 5, name = "Social"),
                     dockIconSizeDp = 43,
+                    dockIconCount = 4,
+                    dockLayout = DockLayout.TitleBelow,
+                    modifier = Modifier.padding(16.dp),
                     onLaunchApp = {},
                     onOpenAppInfo = {},
                     onRemoveFromFolder = {},
-                    onExplodeFolder = {},
+                    onUndockFromFolder = {},
                     onRenameApp = { _, _ -> },
                     onResetRank = {},
                     onSetAppIconOverride = {},
