@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Ne prikaži več</string>
     <string name="bug_report_consent_dialog_confirm">Nadaljuj</string>
     <string name="bug_report_consent_dialog_cancel">Prekliči</string>
+    <string name="app_menu_move_out">Premakni ven</string>
+    <string name="app_menu_open_folder">Odpri mapo</string>
+    <string name="app_menu_explode">Razdruži</string>
+    <string name="dock_folder_content_description">Mapa</string>
+    <string name="dock_folder_close_description">Zapri mapo</string>
+    <string name="app_label_with_work_prefix">Služba %1$s</string>
 </resources>

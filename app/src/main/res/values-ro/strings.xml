@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Nu mai afișa acest mesaj</string>
     <string name="bug_report_consent_dialog_confirm">Continuă</string>
     <string name="bug_report_consent_dialog_cancel">Anulează</string>
+    <string name="app_menu_move_out">Mută în afară</string>
+    <string name="app_menu_open_folder">Deschide folderul</string>
+    <string name="app_menu_explode">Desfă grupul</string>
+    <string name="dock_folder_content_description">Folder</string>
+    <string name="dock_folder_close_description">Închide folderul</string>
+    <string name="app_label_with_work_prefix">Serviciu %1$s</string>
 </resources>

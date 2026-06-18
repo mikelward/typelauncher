@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ਇਹ ਮੁੜ ਨਾ ਦਿਖਾਓ</string>
     <string name="bug_report_consent_dialog_confirm">ਜਾਰੀ ਰੱਖੋ</string>
     <string name="bug_report_consent_dialog_cancel">ਰੱਦ ਕਰੋ</string>
+    <string name="app_menu_move_out">ਬਾਹਰ ਲਿਜਾਓ</string>
+    <string name="app_menu_open_folder">ਫੋਲਡਰ ਖੋਲ੍ਹੋ</string>
+    <string name="app_menu_explode">ਗਰੁੱਪ ਵੱਖ ਕਰੋ</string>
+    <string name="dock_folder_content_description">ਫੋਲਡਰ</string>
+    <string name="dock_folder_close_description">ਫੋਲਡਰ ਬੰਦ ਕਰੋ</string>
+    <string name="app_label_with_work_prefix">ਕੰਮ %1$s</string>
 </resources>

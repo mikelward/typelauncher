@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ಮತ್ತೆ ತೋರಿಸಬೇಡಿ</string>
     <string name="bug_report_consent_dialog_confirm">ಮುಂದುವರಿಸಿ</string>
     <string name="bug_report_consent_dialog_cancel">ರದ್ದುಮಾಡಿ</string>
+    <string name="app_menu_move_out">ಹೊರಗೆ ಸರಿಸಿ</string>
+    <string name="app_menu_open_folder">ಫೋಲ್ಡರ್ ತೆರೆಯಿರಿ</string>
+    <string name="app_menu_explode">ಗುಂಪು ಬೇರ್ಪಡಿಸಿ</string>
+    <string name="dock_folder_content_description">ಫೋಲ್ಡರ್</string>
+    <string name="dock_folder_close_description">ಫೋಲ್ಡರ್ ಮುಚ್ಚಿ</string>
+    <string name="app_label_with_work_prefix">ಕೆಲಸ %1$s</string>
 </resources>

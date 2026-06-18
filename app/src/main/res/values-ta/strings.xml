@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">மீண்டும் காட்டாதே</string>
     <string name="bug_report_consent_dialog_confirm">தொடர்</string>
     <string name="bug_report_consent_dialog_cancel">ரத்துசெய்</string>
+    <string name="app_menu_move_out">வெளியே நகர்த்து</string>
+    <string name="app_menu_open_folder">கோப்புறையைத் திற</string>
+    <string name="app_menu_explode">பிரி</string>
+    <string name="dock_folder_content_description">கோப்புறை</string>
+    <string name="dock_folder_close_description">கோப்புறையை மூடு</string>
+    <string name="app_label_with_work_prefix">பணி %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ይህንን ዳግም አታሳይ</string>
     <string name="bug_report_consent_dialog_confirm">ቀጥል</string>
     <string name="bug_report_consent_dialog_cancel">ሰርዝ</string>
+    <string name="app_menu_move_out">አውጣ</string>
+    <string name="app_menu_open_folder">አቃፊ ክፈት</string>
+    <string name="app_menu_explode">ቡድን አፍርስ</string>
+    <string name="dock_folder_content_description">አቃፊ</string>
+    <string name="dock_folder_close_description">አቃፊ ዝጋ</string>
+    <string name="app_label_with_work_prefix">የሥራ %1$s</string>
 </resources>

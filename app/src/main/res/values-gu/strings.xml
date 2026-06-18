@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ફરીથી બતાવશો નહીં</string>
     <string name="bug_report_consent_dialog_confirm">ચાલુ રાખો</string>
     <string name="bug_report_consent_dialog_cancel">રદ કરો</string>
+    <string name="app_menu_move_out">બહાર ખસેડો</string>
+    <string name="app_menu_open_folder">ફોલ્ડર ખોલો</string>
+    <string name="app_menu_explode">જૂથ રદ કરો</string>
+    <string name="dock_folder_content_description">ફોલ્ડર</string>
+    <string name="dock_folder_close_description">ફોલ્ડર બંધ કરો</string>
+    <string name="app_label_with_work_prefix">કાર્ય %1$s</string>
 </resources>

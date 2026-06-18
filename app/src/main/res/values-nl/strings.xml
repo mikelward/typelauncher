@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Niet meer tonen</string>
     <string name="bug_report_consent_dialog_confirm">Doorgaan</string>
     <string name="bug_report_consent_dialog_cancel">Annuleren</string>
+    <string name="app_menu_move_out">Eruit halen</string>
+    <string name="app_menu_open_folder">Map openen</string>
+    <string name="app_menu_explode">Groepering opheffen</string>
+    <string name="dock_folder_content_description">Map</string>
+    <string name="dock_folder_close_description">Map sluiten</string>
+    <string name="app_label_with_work_prefix">Werk %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">دیگر نمایش داده نشود</string>
     <string name="bug_report_consent_dialog_confirm">ادامه</string>
     <string name="bug_report_consent_dialog_cancel">لغو</string>
+    <string name="app_menu_move_out">خارج کردن</string>
+    <string name="app_menu_open_folder">باز کردن پوشه</string>
+    <string name="app_menu_explode">لغو گروه‌بندی</string>
+    <string name="dock_folder_content_description">پوشه</string>
+    <string name="dock_folder_close_description">بستن پوشه</string>
+    <string name="app_label_with_work_prefix">کاری %1$s</string>
 </resources>

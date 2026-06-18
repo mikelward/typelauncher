@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">මෙය නැවත නොපෙන්වන්න</string>
     <string name="bug_report_consent_dialog_confirm">ඉදිරියට</string>
     <string name="bug_report_consent_dialog_cancel">අවලංගු කරන්න</string>
+    <string name="app_menu_move_out">පිටතට ගෙන යන්න</string>
+    <string name="app_menu_open_folder">ෆෝල්ඩරය විවෘත කරන්න</string>
+    <string name="app_menu_explode">කණ්ඩායම වෙන් කරන්න</string>
+    <string name="dock_folder_content_description">ෆෝල්ඩරය</string>
+    <string name="dock_folder_close_description">ෆෝල්ඩරය වසන්න</string>
+    <string name="app_label_with_work_prefix">කාර්යාල %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">عدم الإظهار مرة أخرى</string>
     <string name="bug_report_consent_dialog_confirm">متابعة</string>
     <string name="bug_report_consent_dialog_cancel">إلغاء</string>
+    <string name="app_menu_move_out">إخراج</string>
+    <string name="app_menu_open_folder">فتح المجلد</string>
+    <string name="app_menu_explode">إلغاء التجميع</string>
+    <string name="dock_folder_content_description">مجلد</string>
+    <string name="dock_folder_close_description">إغلاق المجلد</string>
+    <string name="app_label_with_work_prefix">عمل %1$s</string>
 </resources>

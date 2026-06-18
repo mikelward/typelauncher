@@ -32,27 +32,21 @@
     <string name="agenda_day_tomorrow">Tomorrow</string>
     <string name="agenda_event_untitled">Untitled event</string>
     <string name="agenda_swipe_hint">Swipe right to return home</string>
-    <!-- TODO: translate -->
-    <string name="app_label_with_work_prefix" tools:ignore="MissingTranslation">Work %1$s</string>
+    <string name="app_label_with_work_prefix">Work %1$s</string>
     <string name="app_menu_app_info">App info</string>
     <string name="app_menu_dock">Dock</string>
     <string name="app_menu_undock">Undock</string>
     <string name="app_menu_reset_rank">Reset rank</string>
     <string name="app_menu_edit">Edit</string>
     <string name="app_menu_hide">Hide</string>
-    <!-- TODO: translate -->
-    <string name="app_menu_move_out" tools:ignore="MissingTranslation">Move out</string>
-    <!-- TODO: translate -->
-    <string name="app_menu_open_folder" tools:ignore="MissingTranslation">Open folder</string>
-    <!-- TODO: translate -->
+    <string name="app_menu_move_out">Move out</string>
+    <string name="app_menu_open_folder">Open folder</string>
     <!-- TODO: rename the "explode" code symbols (app_menu_explode, explodeFolder,
          explodeDockFolder, onExplodeDockFolder, onExplodeFolder, onExplode) to "ungroup"
          to match this user-facing label. -->
-    <string name="app_menu_explode" tools:ignore="MissingTranslation">Ungroup</string>
-    <!-- TODO: translate -->
-    <string name="dock_folder_content_description" tools:ignore="MissingTranslation">Folder</string>
-    <!-- TODO: translate -->
-    <string name="dock_folder_close_description" tools:ignore="MissingTranslation">Close folder</string>
+    <string name="app_menu_explode">Ungroup</string>
+    <string name="dock_folder_content_description">Folder</string>
+    <string name="dock_folder_close_description">Close folder</string>
     <string name="app_menu_dismiss">Dismiss</string>
     <string name="app_menu_settings">Settings</string>
     <string name="edit_app_dialog_title">Edit app</string>

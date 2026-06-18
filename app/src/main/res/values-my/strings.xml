@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ဤအချက်ကို ထပ်မပြပါနှင့်</string>
     <string name="bug_report_consent_dialog_confirm">ဆက်လုပ်မည်</string>
     <string name="bug_report_consent_dialog_cancel">ပယ်ဖျက်မည်</string>
+    <string name="app_menu_move_out">အပြင်သို့ ရွှေ့မည်</string>
+    <string name="app_menu_open_folder">ဖိုလ်ဒါ ဖွင့်မည်</string>
+    <string name="app_menu_explode">အုပ်စုဖျက်မည်</string>
+    <string name="dock_folder_content_description">ဖိုလ်ဒါ</string>
+    <string name="dock_folder_close_description">ဖိုလ်ဒါ ပိတ်မည်</string>
+    <string name="app_label_with_work_prefix">အလုပ် %1$s</string>
 </resources>

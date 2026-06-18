@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">次回から表示しない</string>
     <string name="bug_report_consent_dialog_confirm">続行</string>
     <string name="bug_report_consent_dialog_cancel">キャンセル</string>
+    <string name="app_menu_move_out">外に出す</string>
+    <string name="app_menu_open_folder">フォルダを開く</string>
+    <string name="app_menu_explode">グループを解除</string>
+    <string name="dock_folder_content_description">フォルダ</string>
+    <string name="dock_folder_close_description">フォルダを閉じる</string>
+    <string name="app_label_with_work_prefix">仕事用 %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Не показвай отново</string>
     <string name="bug_report_consent_dialog_confirm">Продължи</string>
     <string name="bug_report_consent_dialog_cancel">Отказ</string>
+    <string name="app_menu_move_out">Извади</string>
+    <string name="app_menu_open_folder">Отвори папката</string>
+    <string name="app_menu_explode">Разгрупирай</string>
+    <string name="dock_folder_content_description">Папка</string>
+    <string name="dock_folder_close_description">Затвори папката</string>
+    <string name="app_label_with_work_prefix">Служебно %1$s</string>
 </resources>

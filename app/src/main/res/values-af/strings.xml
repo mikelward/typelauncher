@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Moenie weer wys nie</string>
     <string name="bug_report_consent_dialog_confirm">Gaan voort</string>
     <string name="bug_report_consent_dialog_cancel">Kanselleer</string>
+    <string name="app_menu_move_out">Skuif uit</string>
+    <string name="app_menu_open_folder">Open vouer</string>
+    <string name="app_menu_explode">Ontgroepeer</string>
+    <string name="dock_folder_content_description">Vouer</string>
+    <string name="dock_folder_close_description">Maak vouer toe</string>
+    <string name="app_label_with_work_prefix">Werk %1$s</string>
 </resources>

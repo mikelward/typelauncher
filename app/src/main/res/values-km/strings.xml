@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">កុំបង្ហាញរឿងនេះម្តងទៀត</string>
     <string name="bug_report_consent_dialog_confirm">បន្ត</string>
     <string name="bug_report_consent_dialog_cancel">បោះបង់</string>
+    <string name="app_menu_move_out">ផ្លាស់ទីចេញ</string>
+    <string name="app_menu_open_folder">បើកថត</string>
+    <string name="app_menu_explode">បំបែកក្រុម</string>
+    <string name="dock_folder_content_description">ថត</string>
+    <string name="dock_folder_close_description">បិទថត</string>
+    <string name="app_label_with_work_prefix">ការងារ %1$s</string>
 </resources>

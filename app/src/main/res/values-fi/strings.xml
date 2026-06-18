@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Älä näytä tätä uudelleen</string>
     <string name="bug_report_consent_dialog_confirm">Jatka</string>
     <string name="bug_report_consent_dialog_cancel">Peruuta</string>
+    <string name="app_menu_move_out">Siirrä pois</string>
+    <string name="app_menu_open_folder">Avaa kansio</string>
+    <string name="app_menu_explode">Pura ryhmä</string>
+    <string name="dock_folder_content_description">Kansio</string>
+    <string name="dock_folder_close_description">Sulje kansio</string>
+    <string name="app_label_with_work_prefix">Työ %1$s</string>
 </resources>

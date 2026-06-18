@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">No ho tornis a mostrar</string>
     <string name="bug_report_consent_dialog_confirm">Continua</string>
     <string name="bug_report_consent_dialog_cancel">Cancel·la</string>
+    <string name="app_menu_move_out">Treu-la</string>
+    <string name="app_menu_open_folder">Obre la carpeta</string>
+    <string name="app_menu_explode">Desagrupa</string>
+    <string name="dock_folder_content_description">Carpeta</string>
+    <string name="dock_folder_close_description">Tanca la carpeta</string>
+    <string name="app_label_with_work_prefix">Feina %1$s</string>
 </resources>
