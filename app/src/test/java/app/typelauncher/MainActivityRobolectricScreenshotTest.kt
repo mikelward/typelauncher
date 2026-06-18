@@ -2464,6 +2464,50 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_six_slots_one_row_robolectric.png")
     }
 
+    // A folder tile sits on the dock next to loose app icons, so its size can
+    // be compared against a sibling icon directly. The folder mini-icon fills
+    // the full dock slot (icon size + vertical padding), matching the loose
+    // icons' footprint rather than reading as a smaller cluster. Renders the
+    // dock with real (colored) app icons — unlike DockFolderScreenshotTest,
+    // which composes the mini-icon in isolation with placeholder bitmaps.
+    @Test
+    fun dockFolderTileMatchesLooseIconSize() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(6)
+        viewModel.setDockFoldersEnabled(true)
+        composeRule.waitForIdle()
+        val apps = viewModel.uiState.value.filteredApps.take(6)
+        apps.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+        // Build a four-member folder (the 2×2 mini-icon fully populated, the
+        // common case) so the dock shows a folder tile alongside loose icons at
+        // the same dock icon size.
+        viewModel.mergeDockItems(sourceId = apps[1].id, targetId = apps[0].id)
+        composeRule.waitForIdle()
+        val folderId = viewModel.uiState.value.dockFolders.single().id
+        viewModel.addAppToDockFolder(folderId, apps[2].id)
+        viewModel.addAppToDockFolder(folderId, apps[3].id)
+        composeRule.waitForIdle()
+
+        val folder = viewModel.uiState.value.dockFolders.single()
+        val looseIcon = viewModel.uiState.value.dockedApps.first()
+        val folderBounds = composeRule
+            .onNodeWithTag("$DOCK_FOLDER_TAG:${folder.id}", useUnmergedTree = true)
+            .getBoundsInRoot()
+        val iconBounds = composeRule
+            .onNodeWithTag("$DOCK_APP_TAG:${looseIcon.displayName}")
+            .getBoundsInRoot()
+        // The folder tile is at least as wide as a loose icon's slot box.
+        val folderWidth = folderBounds.right.value - folderBounds.left.value
+        val iconWidth = iconBounds.right.value - iconBounds.left.value
+        assertTrue(
+            "folder tile ($folderWidth) should be >= a loose icon slot ($iconWidth)",
+            folderWidth >= iconWidth - 1f,
+        )
+
+        saveScreenshot("compose_dock_folder_in_dock_robolectric.png")
+    }
+
     // In a window wider than portrait (here a tall tablet landscape, which is
     // the only landscape that stays in the Full state and therefore renders the
     // dock), the dock keeps its portrait icon size and the gray card is narrowed
