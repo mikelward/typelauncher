@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Usionyeshe tena</string>
     <string name="bug_report_consent_dialog_confirm">Endelea</string>
     <string name="bug_report_consent_dialog_cancel">Ghairi</string>
+    <string name="app_menu_move_out">Toa nje</string>
+    <string name="app_menu_open_folder">Fungua folda</string>
+    <string name="app_menu_explode">Tenganisha</string>
+    <string name="dock_folder_content_description">Folda</string>
+    <string name="dock_folder_close_description">Funga folda</string>
+    <string name="app_label_with_work_prefix">Kazi %1$s</string>
 </resources>

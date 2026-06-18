@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Non mostrare più</string>
     <string name="bug_report_consent_dialog_confirm">Continua</string>
     <string name="bug_report_consent_dialog_cancel">Annulla</string>
+    <string name="app_menu_move_out">Sposta fuori</string>
+    <string name="app_menu_open_folder">Apri cartella</string>
+    <string name="app_menu_explode">Separa gruppo</string>
+    <string name="dock_folder_content_description">Cartella</string>
+    <string name="dock_folder_close_description">Chiudi cartella</string>
+    <string name="app_label_with_work_prefix">Lavoro %1$s</string>
 </resources>

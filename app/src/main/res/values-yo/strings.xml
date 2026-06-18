@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Má fihàn èyí mọ́</string>
     <string name="bug_report_consent_dialog_confirm">Tẹ̀ síwájú</string>
     <string name="bug_report_consent_dialog_cancel">Fagilé</string>
+    <string name="app_menu_move_out">Gbé jáde</string>
+    <string name="app_menu_open_folder">Ṣí fódà</string>
+    <string name="app_menu_explode">Pín ẹgbẹ́ ká</string>
+    <string name="dock_folder_content_description">Fódà</string>
+    <string name="dock_folder_close_description">Ti fódà</string>
+    <string name="app_label_with_work_prefix">Iṣẹ́ %1$s</string>
 </resources>

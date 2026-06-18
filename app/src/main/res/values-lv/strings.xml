@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Vairs nerādīt</string>
     <string name="bug_report_consent_dialog_confirm">Turpināt</string>
     <string name="bug_report_consent_dialog_cancel">Atcelt</string>
+    <string name="app_menu_move_out">Pārvietot ārā</string>
+    <string name="app_menu_open_folder">Atvērt mapi</string>
+    <string name="app_menu_explode">Atgrupēt</string>
+    <string name="dock_folder_content_description">Mape</string>
+    <string name="dock_folder_close_description">Aizvērt mapi</string>
+    <string name="app_label_with_work_prefix">Darba %1$s</string>
 </resources>

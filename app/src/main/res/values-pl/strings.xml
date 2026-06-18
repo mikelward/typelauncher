@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Nie pokazuj ponownie</string>
     <string name="bug_report_consent_dialog_confirm">Kontynuuj</string>
     <string name="bug_report_consent_dialog_cancel">Anuluj</string>
+    <string name="app_menu_move_out">Przenieś na zewnątrz</string>
+    <string name="app_menu_open_folder">Otwórz folder</string>
+    <string name="app_menu_explode">Rozgrupuj</string>
+    <string name="dock_folder_content_description">Folder</string>
+    <string name="dock_folder_close_description">Zamknij folder</string>
+    <string name="app_label_with_work_prefix">Służbowe %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Ez erakutsi berriro</string>
     <string name="bug_report_consent_dialog_confirm">Jarraitu</string>
     <string name="bug_report_consent_dialog_cancel">Utzi</string>
+    <string name="app_menu_move_out">Atera</string>
+    <string name="app_menu_open_folder">Ireki karpeta</string>
+    <string name="app_menu_explode">Banandu</string>
+    <string name="dock_folder_content_description">Karpeta</string>
+    <string name="dock_folder_close_description">Itxi karpeta</string>
+    <string name="app_label_with_work_prefix">Laneko %1$s</string>
 </resources>

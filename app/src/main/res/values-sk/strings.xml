@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Nabudúce nezobrazovať</string>
     <string name="bug_report_consent_dialog_confirm">Pokračovať</string>
     <string name="bug_report_consent_dialog_cancel">Zrušiť</string>
+    <string name="app_menu_move_out">Presunúť von</string>
+    <string name="app_menu_open_folder">Otvoriť priečinok</string>
+    <string name="app_menu_explode">Zrušiť zoskupenie</string>
+    <string name="dock_folder_content_description">Priečinok</string>
+    <string name="dock_folder_close_description">Zavrieť priečinok</string>
+    <string name="app_label_with_work_prefix">Pracovné %1$s</string>
 </resources>

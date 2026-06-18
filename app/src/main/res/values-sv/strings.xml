@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Visa inte detta igen</string>
     <string name="bug_report_consent_dialog_confirm">Fortsätt</string>
     <string name="bug_report_consent_dialog_cancel">Avbryt</string>
+    <string name="app_menu_move_out">Flytta ut</string>
+    <string name="app_menu_open_folder">Öppna mapp</string>
+    <string name="app_menu_explode">Dela upp</string>
+    <string name="dock_folder_content_description">Mapp</string>
+    <string name="dock_folder_close_description">Stäng mapp</string>
+    <string name="app_label_with_work_prefix">Jobb %1$s</string>
 </resources>

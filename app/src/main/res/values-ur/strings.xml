@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">یہ دوبارہ نہ دکھائیں</string>
     <string name="bug_report_consent_dialog_confirm">جاری رکھیں</string>
     <string name="bug_report_consent_dialog_cancel">منسوخ کریں</string>
+    <string name="app_menu_move_out">باہر منتقل کریں</string>
+    <string name="app_menu_open_folder">فولڈر کھولیں</string>
+    <string name="app_menu_explode">گروپ ختم کریں</string>
+    <string name="dock_folder_content_description">فولڈر</string>
+    <string name="dock_folder_close_description">فولڈر بند کریں</string>
+    <string name="app_label_with_work_prefix">کام %1$s</string>
 </resources>

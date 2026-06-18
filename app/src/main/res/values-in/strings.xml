@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Jangan tampilkan lagi</string>
     <string name="bug_report_consent_dialog_confirm">Lanjutkan</string>
     <string name="bug_report_consent_dialog_cancel">Batal</string>
+    <string name="app_menu_move_out">Pindahkan keluar</string>
+    <string name="app_menu_open_folder">Buka folder</string>
+    <string name="app_menu_explode">Bubarkan grup</string>
+    <string name="dock_folder_content_description">Folder</string>
+    <string name="dock_folder_close_description">Tutup folder</string>
+    <string name="app_label_with_work_prefix">Kerja %1$s</string>
 </resources>

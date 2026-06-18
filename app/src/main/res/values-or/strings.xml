@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ଆଉ ଦେଖାନ୍ତୁ ନାହିଁ</string>
     <string name="bug_report_consent_dialog_confirm">ଜାରି ରଖନ୍ତୁ</string>
     <string name="bug_report_consent_dialog_cancel">ବାତିଲ୍</string>
+    <string name="app_menu_move_out">ବାହାରକୁ ନିଅନ୍ତୁ</string>
+    <string name="app_menu_open_folder">ଫୋଲ୍ଡର୍ ଖୋଲନ୍ତୁ</string>
+    <string name="app_menu_explode">ଗୋଷ୍ଠୀ ଅଲଗା କରନ୍ତୁ</string>
+    <string name="dock_folder_content_description">ଫୋଲ୍ଡର୍</string>
+    <string name="dock_folder_close_description">ଫୋଲ୍ଡର୍ ବନ୍ଦ କରନ୍ତୁ</string>
+    <string name="app_label_with_work_prefix">କାର୍ଯ୍ୟ %1$s</string>
 </resources>

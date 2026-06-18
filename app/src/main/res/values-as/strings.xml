@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">পুনৰ নেদেখুৱাব</string>
     <string name="bug_report_consent_dialog_confirm">আগবাঢ়ক</string>
     <string name="bug_report_consent_dialog_cancel">বাতিল</string>
+    <string name="app_menu_move_out">বাহিৰ কৰক</string>
+    <string name="app_menu_open_folder">ফ\'ল্ডাৰ খোলক</string>
+    <string name="app_menu_explode">গোট বিভক্ত কৰক</string>
+    <string name="dock_folder_content_description">ফ\'ল্ডাৰ</string>
+    <string name="dock_folder_close_description">ফ\'ল্ডাৰ বন্ধ কৰক</string>
+    <string name="app_label_with_work_prefix">কৰ্ম %1$s</string>
 </resources>

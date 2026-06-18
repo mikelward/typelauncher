@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Daugiau nerodyti</string>
     <string name="bug_report_consent_dialog_confirm">Tęsti</string>
     <string name="bug_report_consent_dialog_cancel">Atšaukti</string>
+    <string name="app_menu_move_out">Iškelti</string>
+    <string name="app_menu_open_folder">Atidaryti aplanką</string>
+    <string name="app_menu_explode">Išgrupuoti</string>
+    <string name="dock_folder_content_description">Aplankas</string>
+    <string name="dock_folder_close_description">Uždaryti aplanką</string>
+    <string name="app_label_with_work_prefix">Darbo %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">আবার দেখাবেন না</string>
     <string name="bug_report_consent_dialog_confirm">চালিয়ে যান</string>
     <string name="bug_report_consent_dialog_cancel">বাতিল</string>
+    <string name="app_menu_move_out">বের করুন</string>
+    <string name="app_menu_open_folder">ফোল্ডার খুলুন</string>
+    <string name="app_menu_explode">গ্রুপ আলাদা করুন</string>
+    <string name="dock_folder_content_description">ফোল্ডার</string>
+    <string name="dock_folder_close_description">ফোল্ডার বন্ধ করুন</string>
+    <string name="app_label_with_work_prefix">কর্মক্ষেত্র %1$s</string>
 </resources>

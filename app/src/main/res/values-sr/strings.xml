@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Не приказуј поново</string>
     <string name="bug_report_consent_dialog_confirm">Настави</string>
     <string name="bug_report_consent_dialog_cancel">Откажи</string>
+    <string name="app_menu_move_out">Премести напоље</string>
+    <string name="app_menu_open_folder">Отвори фасциклу</string>
+    <string name="app_menu_explode">Разгрупиши</string>
+    <string name="dock_folder_content_description">Фасцикла</string>
+    <string name="dock_folder_close_description">Затвори фасциклу</string>
+    <string name="app_label_with_work_prefix">Посао %1$s</string>
 </resources>

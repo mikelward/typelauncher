@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Bunu bir daha gösterme</string>
     <string name="bug_report_consent_dialog_confirm">Devam et</string>
     <string name="bug_report_consent_dialog_cancel">İptal</string>
+    <string name="app_menu_move_out">Dışarı taşı</string>
+    <string name="app_menu_open_folder">Klasörü aç</string>
+    <string name="app_menu_explode">Grubu çöz</string>
+    <string name="dock_folder_content_description">Klasör</string>
+    <string name="dock_folder_close_description">Klasörü kapat</string>
+    <string name="app_label_with_work_prefix">İş %1$s</string>
 </resources>

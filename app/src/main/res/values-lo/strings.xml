@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ຢ່າສະແດງອີກ</string>
     <string name="bug_report_consent_dialog_confirm">ຕໍ່ໄປ</string>
     <string name="bug_report_consent_dialog_cancel">ຍົກເລີກ</string>
+    <string name="app_menu_move_out">ຍ້າຍອອກ</string>
+    <string name="app_menu_open_folder">ເປີດໂຟນເດີ</string>
+    <string name="app_menu_explode">ແຍກກຸ່ມ</string>
+    <string name="dock_folder_content_description">ໂຟນເດີ</string>
+    <string name="dock_folder_close_description">ປິດໂຟນເດີ</string>
+    <string name="app_label_with_work_prefix">ວຽກ %1$s</string>
 </resources>

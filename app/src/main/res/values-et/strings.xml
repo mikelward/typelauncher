@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Ära kuva enam</string>
     <string name="bug_report_consent_dialog_confirm">Jätka</string>
     <string name="bug_report_consent_dialog_cancel">Tühista</string>
+    <string name="app_menu_move_out">Tõsta välja</string>
+    <string name="app_menu_open_folder">Ava kaust</string>
+    <string name="app_menu_explode">Lõhu rühm</string>
+    <string name="dock_folder_content_description">Kaust</string>
+    <string name="dock_folder_close_description">Sulge kaust</string>
+    <string name="app_label_with_work_prefix">Töö %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Більше не показувати</string>
     <string name="bug_report_consent_dialog_confirm">Продовжити</string>
     <string name="bug_report_consent_dialog_cancel">Скасувати</string>
+    <string name="app_menu_move_out">Перемістити назовні</string>
+    <string name="app_menu_open_folder">Відкрити папку</string>
+    <string name="app_menu_explode">Розгрупувати</string>
+    <string name="dock_folder_content_description">Папка</string>
+    <string name="dock_folder_close_description">Закрити папку</string>
+    <string name="app_label_with_work_prefix">Робоча %1$s</string>
 </resources>

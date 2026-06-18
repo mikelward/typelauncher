@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Huwag nang ipakita ulit</string>
     <string name="bug_report_consent_dialog_confirm">Magpatuloy</string>
     <string name="bug_report_consent_dialog_cancel">Kanselahin</string>
+    <string name="app_menu_move_out">Ilipat palabas</string>
+    <string name="app_menu_open_folder">Buksan ang folder</string>
+    <string name="app_menu_explode">Alisin sa grupo</string>
+    <string name="dock_folder_content_description">Folder</string>
+    <string name="dock_folder_close_description">Isara ang folder</string>
+    <string name="app_label_with_work_prefix">Trabaho %1$s</string>
 </resources>

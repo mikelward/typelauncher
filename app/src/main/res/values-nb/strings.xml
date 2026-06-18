@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Ikke vis dette igjen</string>
     <string name="bug_report_consent_dialog_confirm">Fortsett</string>
     <string name="bug_report_consent_dialog_cancel">Avbryt</string>
+    <string name="app_menu_move_out">Flytt ut</string>
+    <string name="app_menu_open_folder">Åpne mappe</string>
+    <string name="app_menu_explode">Del opp gruppe</string>
+    <string name="dock_folder_content_description">Mappe</string>
+    <string name="dock_folder_close_description">Lukk mappe</string>
+    <string name="app_label_with_work_prefix">Jobb %1$s</string>
 </resources>

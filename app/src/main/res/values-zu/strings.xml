@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Ungaphindi ukukhombise lokhu</string>
     <string name="bug_report_consent_dialog_confirm">Qhubeka</string>
     <string name="bug_report_consent_dialog_cancel">Khansela</string>
+    <string name="app_menu_move_out">Khipha ngaphandle</string>
+    <string name="app_menu_open_folder">Vula ifolda</string>
+    <string name="app_menu_explode">Hlukanisa</string>
+    <string name="dock_folder_content_description">Ifolda</string>
+    <string name="dock_folder_close_description">Vala ifolda</string>
+    <string name="app_label_with_work_prefix">Umsebenzi %1$s</string>
 </resources>

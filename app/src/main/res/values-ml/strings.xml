@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">വീണ്ടും കാണിക്കരുത്</string>
     <string name="bug_report_consent_dialog_confirm">തുടരുക</string>
     <string name="bug_report_consent_dialog_cancel">റദ്ദാക്കുക</string>
+    <string name="app_menu_move_out">പുറത്തേക്ക് നീക്കുക</string>
+    <string name="app_menu_open_folder">ഫോൾഡർ തുറക്കുക</string>
+    <string name="app_menu_explode">ഗ്രൂപ്പ് പിരിക്കുക</string>
+    <string name="dock_folder_content_description">ഫോൾഡർ</string>
+    <string name="dock_folder_close_description">ഫോൾഡർ അടയ്ക്കുക</string>
+    <string name="app_label_with_work_prefix">ജോലി %1$s</string>
 </resources>

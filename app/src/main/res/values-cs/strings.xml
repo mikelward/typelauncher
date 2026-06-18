@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Příště nezobrazovat</string>
     <string name="bug_report_consent_dialog_confirm">Pokračovat</string>
     <string name="bug_report_consent_dialog_cancel">Zrušit</string>
+    <string name="app_menu_move_out">Přesunout ven</string>
+    <string name="app_menu_open_folder">Otevřít složku</string>
+    <string name="app_menu_explode">Zrušit seskupení</string>
+    <string name="dock_folder_content_description">Složka</string>
+    <string name="dock_folder_close_description">Zavřít složku</string>
+    <string name="app_label_with_work_prefix">Pracovní %1$s</string>
 </resources>

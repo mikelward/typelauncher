@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">不再顯示</string>
     <string name="bug_report_consent_dialog_confirm">繼續</string>
     <string name="bug_report_consent_dialog_cancel">取消</string>
+    <string name="app_menu_move_out">移出</string>
+    <string name="app_menu_open_folder">開啟資料夾</string>
+    <string name="app_menu_explode">取消群組</string>
+    <string name="dock_folder_content_description">資料夾</string>
+    <string name="dock_folder_close_description">關閉資料夾</string>
+    <string name="app_label_with_work_prefix">工作 %1$s</string>
 </resources>

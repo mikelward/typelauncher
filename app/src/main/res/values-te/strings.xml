@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">మళ్లీ చూపించవద్దు</string>
     <string name="bug_report_consent_dialog_confirm">కొనసాగించు</string>
     <string name="bug_report_consent_dialog_cancel">రద్దు చేయి</string>
+    <string name="app_menu_move_out">బయటకు తరలించు</string>
+    <string name="app_menu_open_folder">ఫోల్డర్‌ను తెరువు</string>
+    <string name="app_menu_explode">విడదీయి</string>
+    <string name="dock_folder_content_description">ఫోల్డర్</string>
+    <string name="dock_folder_close_description">ఫోల్డర్‌ను మూసివేయి</string>
+    <string name="app_label_with_work_prefix">వర్క్ %1$s</string>
 </resources>

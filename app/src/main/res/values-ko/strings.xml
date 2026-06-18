@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">다시 표시하지 않음</string>
     <string name="bug_report_consent_dialog_confirm">계속</string>
     <string name="bug_report_consent_dialog_cancel">취소</string>
+    <string name="app_menu_move_out">밖으로 이동</string>
+    <string name="app_menu_open_folder">폴더 열기</string>
+    <string name="app_menu_explode">그룹 해제</string>
+    <string name="dock_folder_content_description">폴더</string>
+    <string name="dock_folder_close_description">폴더 닫기</string>
+    <string name="app_label_with_work_prefix">업무용 %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Više ne prikazuj</string>
     <string name="bug_report_consent_dialog_confirm">Nastavi</string>
     <string name="bug_report_consent_dialog_cancel">Odustani</string>
+    <string name="app_menu_move_out">Premjesti van</string>
+    <string name="app_menu_open_folder">Otvori mapu</string>
+    <string name="app_menu_explode">Razgrupiraj</string>
+    <string name="dock_folder_content_description">Mapa</string>
+    <string name="dock_folder_close_description">Zatvori mapu</string>
+    <string name="app_label_with_work_prefix">Poslovni %1$s</string>
 </resources>

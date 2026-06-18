@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Não mostrar novamente</string>
     <string name="bug_report_consent_dialog_confirm">Continuar</string>
     <string name="bug_report_consent_dialog_cancel">Cancelar</string>
+    <string name="app_menu_move_out">Mover para fora</string>
+    <string name="app_menu_open_folder">Abrir pasta</string>
+    <string name="app_menu_explode">Desagrupar</string>
+    <string name="dock_folder_content_description">Pasta</string>
+    <string name="dock_folder_close_description">Fechar pasta</string>
+    <string name="app_label_with_work_prefix">Trabalho %1$s</string>
 </resources>

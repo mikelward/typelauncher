@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Να μην εμφανιστεί ξανά</string>
     <string name="bug_report_consent_dialog_confirm">Συνέχεια</string>
     <string name="bug_report_consent_dialog_cancel">Άκυρο</string>
+    <string name="app_menu_move_out">Μετακίνηση έξω</string>
+    <string name="app_menu_open_folder">Άνοιγμα φακέλου</string>
+    <string name="app_menu_explode">Κατάργηση ομαδοποίησης</string>
+    <string name="dock_folder_content_description">Φάκελος</string>
+    <string name="dock_folder_close_description">Κλείσιμο φακέλου</string>
+    <string name="app_label_with_work_prefix">Εργασία %1$s</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">फिर से न दिखाएं</string>
     <string name="bug_report_consent_dialog_confirm">जारी रखें</string>
     <string name="bug_report_consent_dialog_cancel">रद्द करें</string>
+    <string name="app_menu_move_out">बाहर ले जाएं</string>
+    <string name="app_menu_open_folder">फ़ोल्डर खोलें</string>
+    <string name="app_menu_explode">समूह हटाएं</string>
+    <string name="dock_folder_content_description">फ़ोल्डर</string>
+    <string name="dock_folder_close_description">फ़ोल्डर बंद करें</string>
+    <string name="app_label_with_work_prefix">कार्य %1$s</string>
 </resources>

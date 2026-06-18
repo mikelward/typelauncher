@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Kar a sake nuna wannan</string>
     <string name="bug_report_consent_dialog_confirm">Ci gaba</string>
     <string name="bug_report_consent_dialog_cancel">Soke</string>
+    <string name="app_menu_move_out">Fitar da shi</string>
+    <string name="app_menu_open_folder">Buɗe babban fayil</string>
+    <string name="app_menu_explode">Raba ƙungiya</string>
+    <string name="dock_folder_content_description">Babban fayil</string>
+    <string name="dock_folder_close_description">Rufe babban fayil</string>
+    <string name="app_label_with_work_prefix">Aiki %1$s</string>
 </resources>

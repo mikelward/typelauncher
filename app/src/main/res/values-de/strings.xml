@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">Nicht mehr anzeigen</string>
     <string name="bug_report_consent_dialog_confirm">Weiter</string>
     <string name="bug_report_consent_dialog_cancel">Abbrechen</string>
+    <string name="app_menu_move_out">Herausnehmen</string>
+    <string name="app_menu_open_folder">Ordner öffnen</string>
+    <string name="app_menu_explode">Gruppierung aufheben</string>
+    <string name="dock_folder_content_description">Ordner</string>
+    <string name="dock_folder_close_description">Ordner schließen</string>
+    <string name="app_label_with_work_prefix">Arbeit %1$s</string>
 </resources>

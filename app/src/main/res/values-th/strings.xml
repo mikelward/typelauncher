@@ -146,4 +146,10 @@
     <string name="bug_report_consent_dialog_dont_show_again">ไม่ต้องแสดงอีก</string>
     <string name="bug_report_consent_dialog_confirm">ดำเนินการต่อ</string>
     <string name="bug_report_consent_dialog_cancel">ยกเลิก</string>
+    <string name="app_menu_move_out">ย้ายออก</string>
+    <string name="app_menu_open_folder">เปิดโฟลเดอร์</string>
+    <string name="app_menu_explode">ยกเลิกการจัดกลุ่ม</string>
+    <string name="dock_folder_content_description">โฟลเดอร์</string>
+    <string name="dock_folder_close_description">ปิดโฟลเดอร์</string>
+    <string name="app_label_with_work_prefix">งาน %1$s</string>
 </resources>
