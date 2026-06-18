@@ -1030,9 +1030,11 @@ private const val DOCK_FOLDER_POPUP_COLUMNS = 4
 // Tile padding stays on the 4dp grid. The 2dp inter-cell gap is intentionally
 // off-grid: it is the *intra-glyph* gap between the four sub-icons of one
 // composite folder tile, not layout spacing between sibling elements (the 4dp
-// grid governs the latter). At the default 43dp icon the tile's inner area is
-// ~35dp and each sub-icon is ~17dp, so two sub-icons plus a 4dp gap would
-// overflow the tile; 2dp keeps the 2x2 reading as a single folder mark.
+// grid governs the latter). The folder tile fills the full dock slot
+// (`dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP`), so at the default 43dp
+// icon the tile is 51dp, its inner area (minus 4dp padding per side) is ~43dp,
+// and each sub-icon is ~20dp; two sub-icons plus a 4dp gap would overflow that
+// area, so 2dp keeps the 2x2 reading as a single folder mark.
 private const val DOCK_FOLDER_MINI_GAP_DP = 2
 private const val DOCK_FOLDER_TILE_PADDING_DP = 4
 
@@ -1200,6 +1202,13 @@ private fun DockFolderButton(
  * The 2×2 mini-icon for a folder tile: the first four members, one per corner,
  * inside a rounded tile. Unused corners stay blank; members past four appear
  * only in the open popup.
+ *
+ * The tile fills the full dock slot — the same `dockIconSizeDp +
+ * DOCK_ITEM_VERTICAL_PADDING_DP` footprint a loose app's box occupies, and the
+ * same size as the closed-folder merge preview in [DockedAppButton] — so a
+ * folder reads at least as large as a sibling app icon rather than as a small
+ * cluster floating in its slot. The four sub-icons are sized to fill the tile's
+ * inner area (tile minus padding on both sides and the inter-cell gap).
  */
 @Composable
 internal fun DockFolderMiniIcon(
@@ -1208,8 +1217,9 @@ internal fun DockFolderMiniIcon(
     appIconTag: String = DOCK_APP_ICON_TAG,
     emphasized: Boolean = false,
 ) {
-    val tileSizeDp = dockIconSizeDp.dp
-    val cellSizeDp = (dockIconSizeDp * 0.4f).dp
+    val tileSizeDp = (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp
+    val cellSizeDp =
+        (tileSizeDp - (DOCK_FOLDER_TILE_PADDING_DP * 2 + DOCK_FOLDER_MINI_GAP_DP).dp) / 2
     val corners = folder.members.take(4)
     val tileColor = if (emphasized) {
         MaterialTheme.colorScheme.secondaryContainer
@@ -1217,7 +1227,7 @@ internal fun DockFolderMiniIcon(
         MaterialTheme.colorScheme.surfaceVariant
     }
     Box(
-        modifier = Modifier.size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp),
+        modifier = Modifier.size(tileSizeDp),
         contentAlignment = Alignment.Center,
     ) {
         Box(
