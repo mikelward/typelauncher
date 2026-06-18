@@ -923,9 +923,20 @@ private fun DockCard(
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
                 // Kept composed while a folder is open so it still sizes the card
-                // (no reflow), but hidden — the opaque folder overlay above it
-                // intercepts all touches, so these slots are inert meanwhile.
-                .then(if (openFolder != null) Modifier.alpha(0f) else Modifier)
+                // (no reflow), but hidden and made inert: alpha(0f) hides it, the
+                // opaque folder overlay above intercepts touches, and
+                // clearAndSetSemantics strips the dock slots' descendant semantics
+                // so TalkBack / keyboard / D-pad focus can't reach or activate the
+                // hidden dock items behind the folder.
+                .then(
+                    if (openFolder != null) {
+                        Modifier
+                            .alpha(0f)
+                            .clearAndSetSemantics {}
+                    } else {
+                        Modifier
+                    },
+                )
                 .testTag(tags.listTag),
             horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
             verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
@@ -1333,7 +1344,23 @@ internal fun DockFolderInPlace(
     modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = true, onBack = onClose)
-    Box(
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    // Same top/bottom scroll chevrons the apps list uses: shown only while there
+    // is more folder to scroll to, and a tap pages by one viewport.
+    AppListOverflowChevronBox(
+        canScrollUp = scrollState.canScrollBackward,
+        canScrollDown = scrollState.canScrollForward,
+        chevronsReady = true,
+        chevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
+        onScrollPageUp = {
+            scope.launch { scrollState.animateScrollBy(-scrollState.viewportSize.toFloat()) }
+        },
+        onScrollPageDown = {
+            scope.launch { scrollState.animateScrollBy(scrollState.viewportSize.toFloat()) }
+        },
+        topChevronTestTag = DOCK_FOLDER_SCROLL_TOP_CHEVRON_TAG,
+        bottomChevronTestTag = DOCK_FOLDER_SCROLL_BOTTOM_CHEVRON_TAG,
         modifier = modifier
             // A tap on empty space (between/around the tiles, or below a short
             // folder) closes — and this also stops taps from reaching the hidden
@@ -1342,8 +1369,8 @@ internal fun DockFolderInPlace(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+                .fillMaxSize()
+                .verticalScroll(scrollState),
         ) {
             DockFolderGrid(
                 folder = folder,
@@ -2110,6 +2137,8 @@ private fun AppListOverflowChevronBox(
     onScrollPageUp: () -> Unit,
     onScrollPageDown: () -> Unit,
     modifier: Modifier = Modifier,
+    topChevronTestTag: String = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+    bottomChevronTestTag: String = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
@@ -2123,7 +2152,7 @@ private fun AppListOverflowChevronBox(
                 AppListOverflowChevron(
                     icon = Icons.Filled.KeyboardArrowUp,
                     contentDescription = chevronContentDescription,
-                    testTag = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+                    testTag = topChevronTestTag,
                     onClick = onScrollPageUp,
                 )
             }
@@ -2137,7 +2166,7 @@ private fun AppListOverflowChevronBox(
                 AppListOverflowChevron(
                     icon = Icons.Filled.KeyboardArrowDown,
                     contentDescription = chevronContentDescription,
-                    testTag = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
+                    testTag = bottomChevronTestTag,
                     onClick = onScrollPageDown,
                 )
             }
