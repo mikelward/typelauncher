@@ -14,6 +14,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -1063,6 +1064,14 @@ private fun DockCard(
 // Corner radius of a folder tile / merge-preview background, on the 4dp grid.
 private const val DOCK_FOLDER_CORNER_RADIUS_DP = 12
 
+// Width of the accent outline drawn around a merge/drop target. This is an
+// emphasis stroke, not layout spacing, so it is exempt from the 4dp grid; 2dp
+// reads clearly without crowding the 2×2 sub-icons. The fill alone
+// (secondaryContainer) can be tonally close to the dock card under light /
+// dynamic color schemes, so the primary-colored outline is what guarantees the
+// drop target is visible in both light and dark mode.
+private const val DOCK_FOLDER_EMPHASIS_BORDER_DP = 2
+
 // Tile padding stays on the 4dp grid. The 2dp inter-cell gap is intentionally
 // off-grid: it is the *intra-glyph* gap between the four sub-icons of one
 // composite folder tile, not layout spacing between sibling elements (the 4dp
@@ -1266,10 +1275,24 @@ internal fun DockFolderMiniIcon(
     val cellSizeDp =
         (tileSizeDp - (DOCK_FOLDER_TILE_PADDING_DP * 2 + DOCK_FOLDER_MINI_GAP_DP).dp) / 2
     val corners = folder.members.take(4)
-    val tileColor = if (emphasized) {
-        MaterialTheme.colorScheme.secondaryContainer
+    // At rest the folder reads as the bare 2×2 mini-icon: no background plate.
+    // The rounded tile appears only while the folder is a merge/drop target,
+    // where the primary outline keeps it visible against the dock card in both
+    // light and dark mode (the secondaryContainer fill alone washes out in light
+    // schemes). This mirrors the loose-app merge preview in DockedAppButton.
+    val tileDecoration = if (emphasized) {
+        Modifier
+            .border(
+                DOCK_FOLDER_EMPHASIS_BORDER_DP.dp,
+                MaterialTheme.colorScheme.primary,
+                RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+            )
+            .background(
+                MaterialTheme.colorScheme.secondaryContainer,
+                RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+            )
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        Modifier
     }
     Box(
         modifier = Modifier.size(tileSizeDp),
@@ -1278,7 +1301,7 @@ internal fun DockFolderMiniIcon(
         Box(
             modifier = Modifier
                 .size(tileSizeDp)
-                .background(tileColor, RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp))
+                .then(tileDecoration)
                 .padding(DOCK_FOLDER_TILE_PADDING_DP.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -3358,11 +3381,19 @@ private fun DockedAppButton(
             .testTag("$appTag:${app.displayName}"),
         // Tint the slot into a forming-folder preview while another icon is
         // dragged onto it (the icon itself shrinks to read as sitting inside).
+        // The primary outline matches the folder's own drop affordance and keeps
+        // the target visible against the dock card in light / dynamic schemes.
         iconBoxModifier = if (isMergeTarget) {
-            Modifier.background(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
-            )
+            Modifier
+                .border(
+                    width = DOCK_FOLDER_EMPHASIS_BORDER_DP.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+                )
+                .background(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+                )
         } else {
             Modifier
         },
