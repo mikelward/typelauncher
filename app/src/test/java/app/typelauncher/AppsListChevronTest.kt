@@ -131,7 +131,7 @@ class AppsListChevronTest {
         // screen; the list starts scrolled to the top so only the bottom-edge
         // chevron should be visible.
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
@@ -144,6 +144,7 @@ class AppsListChevronTest {
         val stateHolder = renderMutableHome(
             LauncherUiState(
                 filteredApps = apps,
+                appListLayout = AppListLayout.NameBeside,
                 isLoadingApps = false,
                 isFreshAppLoadComplete = false,
             ),
@@ -165,6 +166,7 @@ class AppsListChevronTest {
         val stateHolder = renderMutableHome(
             LauncherUiState(
                 filteredApps = cachedApps,
+                appListLayout = AppListLayout.NameBeside,
                 isLoadingApps = false,
                 isFreshAppLoadComplete = true,
             ),
@@ -184,6 +186,7 @@ class AppsListChevronTest {
         val stateHolder = renderMutableHome(
             LauncherUiState(
                 filteredApps = emptyList(),
+                appListLayout = AppListLayout.NameBeside,
                 isLoadingApps = true,
                 isFreshAppLoadComplete = false,
             ),
@@ -206,7 +209,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_textRows_placesBottomChevronAtOuterCardEdge() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val appsListBounds = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
@@ -232,7 +235,7 @@ class AppsListChevronTest {
     @Test
     fun appsListWithoutOverflow_textRows_hidesBothChevrons() {
         val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertDoesNotExist()
@@ -257,7 +260,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_textRows_topChevronAppearsAfterScrollingDown() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
@@ -268,7 +271,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_textRows_bottomChevronTapScrollsOnePage() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
@@ -282,7 +285,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_textRows_topChevronTapScrollsOnePageBackUp() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         val firstAppBoundsAtTop = composeRule.onNodeWithTag("$APP_ROW_TAG:App01").getBoundsInRoot()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
@@ -314,7 +317,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_reversedTextRows_topChevronTapScrollsOnePageVisuallyUp() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps, appListSortOrder = AppListSortOrder.UsageReversed))
+        renderHome(LauncherUiState(filteredApps = apps, appListSortOrder = AppListSortOrder.UsageReversed, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
@@ -328,7 +331,7 @@ class AppsListChevronTest {
     @Test
     fun appsListOverflow_textRows_placesTopChevronAtOuterCardEdgeAfterScrollingDown() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
@@ -353,7 +356,7 @@ class AppsListChevronTest {
         // tap it next to the keyboard, even when there's plenty of empty
         // space above (short list / single search match).
         val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
-        renderHome(LauncherUiState(filteredApps = apps, appListSortOrder = AppListSortOrder.UsageReversed))
+        renderHome(LauncherUiState(filteredApps = apps, appListSortOrder = AppListSortOrder.UsageReversed, appListLayout = AppListLayout.NameBeside))
 
         val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val firstAppBounds = composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").getBoundsInRoot()
@@ -390,7 +393,7 @@ class AppsListChevronTest {
     @Test
     fun appsListShortList_forwardTextRows_anchorsFirstResultToCardTop() {
         val apps = listOf(fakeApp(name = "Calculator"), fakeApp(name = "Calendar"))
-        renderHome(LauncherUiState(filteredApps = apps))
+        renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val firstAppBounds = composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").getBoundsInRoot()

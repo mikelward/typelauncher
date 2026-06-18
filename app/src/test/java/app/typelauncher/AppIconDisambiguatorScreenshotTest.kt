@@ -162,6 +162,12 @@ class AppIconDisambiguatorScreenshotTest {
                         application.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
                             .edit().clear().commit()
                     }
+                    // The product default app-list layout is the "Name below"
+                    // icon grid; this test asserts the text-row disambiguator
+                    // labels and captures a text-row screenshot, so pin the
+                    // "Name beside" layout it was authored against.
+                    application.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+                        .edit().putString("app_list_layout", AppListLayout.NameBeside.name).commit()
                     seedAmbiguousApps()
                     base.evaluate()
                 }

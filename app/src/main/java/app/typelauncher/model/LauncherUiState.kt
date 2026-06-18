@@ -500,7 +500,7 @@ internal data class LauncherUiState(
     val agenda: AgendaUiState = AgendaUiState.PermissionRequired,
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
-    val appListLayout: AppListLayout = AppListLayout.NameBeside,
+    val appListLayout: AppListLayout = AppListLayout.NameBelow,
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,

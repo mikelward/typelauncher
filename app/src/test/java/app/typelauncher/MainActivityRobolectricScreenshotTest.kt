@@ -141,9 +141,9 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
 
         // The Compact tier always renders the app list as an icon grid, even
-        // though the persisted "App list" layout is still the default Text
-        // (proving the override is tier-driven, not a mutated setting): the
-        // icon-only button exists and the text row does not.
+        // though the persisted "App list" layout is the text-row "Name beside"
+        // pinned by the seed rule (proving the override is tier-driven, not a
+        // mutated setting): the icon-only button exists and the text row does not.
         assertFalse(
             "Compact overrides to icons without flipping the persisted layout setting",
             state.appListLayout == AppListLayout.IconOnly,
@@ -3259,6 +3259,17 @@ class MainActivityRobolectricScreenshotTest {
                             .commit()
                     }
                     seedFakeLauncherApps()
+                    // The product default app-list layout is "Name below" (an
+                    // icon grid). This suite's baselines and `APP_ROW_TAG`
+                    // assertions were authored against the text-row "Name beside"
+                    // layout, so pin it here to keep these tests exercising the
+                    // text-row surface. The default itself is covered by
+                    // DockSettingsStoreLayoutTest and NameBelowGridScreenshotTest.
+                    application
+                        .getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("app_list_layout", AppListLayout.NameBeside.name)
+                        .commit()
                     if (description.methodName in listOf(
                             "screenshot_appListIconOnly_overflowingGrid",
                             "screenshot_appListIconOnly_overflowingGrid_pixel9ProWidth",
@@ -3268,7 +3279,7 @@ class MainActivityRobolectricScreenshotTest {
                         application
                             .getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
                             .edit()
-                            .putBoolean("app_list_icon_only", true)
+                            .putString("app_list_layout", AppListLayout.IconOnly.name)
                             .commit()
                     }
                     if (description.methodName == "dockAddButton_hiddenOnUpgradeInstall") {

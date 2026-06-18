@@ -98,7 +98,7 @@ class AppsListScrollResetTest {
     @Test
     fun textRows_queryChange_resetsScrollToTop() {
         val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
-        val stateHolder = renderHome(LauncherUiState(filteredApps = apps))
+        val stateHolder = renderHome(LauncherUiState(filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()
@@ -119,7 +119,7 @@ class AppsListScrollResetTest {
         // Mirror the post-launch state: user typed something, scrolled down to
         // pick a substring match, tapped it. `launchApp` clears the query —
         // simulate the resulting query transition from "a" back to "".
-        val stateHolder = renderHome(LauncherUiState(query = "a", filteredApps = apps))
+        val stateHolder = renderHome(LauncherUiState(query = "a", filteredApps = apps, appListLayout = AppListLayout.NameBeside))
 
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
         composeRule.waitForIdle()

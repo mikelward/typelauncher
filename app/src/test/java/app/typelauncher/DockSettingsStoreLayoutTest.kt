@@ -27,8 +27,8 @@ class DockSettingsStoreLayoutTest {
     }
 
     @Test
-    fun defaultsToNameBesideWhenNothingPersisted() {
-        assertEquals(AppListLayout.NameBeside, DockSettingsStore(context).appListLayout)
+    fun defaultsToNameBelowWhenNothingPersisted() {
+        assertEquals(AppListLayout.NameBelow, DockSettingsStore(context).appListLayout)
     }
 
     @Test
@@ -61,9 +61,9 @@ class DockSettingsStoreLayoutTest {
     }
 
     @Test
-    fun unknownPersistedNameFallsBackToNameBeside() {
+    fun unknownPersistedNameFallsBackToNameBelow() {
         prefs().edit().putString("app_list_layout", "SomeFutureLayout").commit()
-        assertEquals(AppListLayout.NameBeside, DockSettingsStore(context).appListLayout)
+        assertEquals(AppListLayout.NameBelow, DockSettingsStore(context).appListLayout)
     }
 
     @Test

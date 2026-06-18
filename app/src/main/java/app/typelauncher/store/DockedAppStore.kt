@@ -224,22 +224,27 @@ internal class DockSettingsStore(context: Context) {
     /**
      * How the installed-app list renders (see [AppListLayout]). Stored by name
      * so an unknown value (a renamed entry from a newer build) falls back to the
-     * default. When no enum value has been written yet, migrates the pre-enum
-     * boolean [KEY_APP_LIST_ICON_ONLY]: `true` → [AppListLayout.IconOnly],
-     * `false`/absent → [AppListLayout.NameBeside].
+     * default [AppListLayout.NameBelow]. When no enum value has been written yet
+     * but the pre-enum boolean [KEY_APP_LIST_ICON_ONLY] was, migrates it to
+     * preserve the upgrading user's layout: `true` → [AppListLayout.IconOnly],
+     * `false` → [AppListLayout.NameBeside]. A fresh install with neither key set
+     * takes the default [AppListLayout.NameBelow].
      */
     var appListLayout: AppListLayout
         get() {
             val name = sharedPreferences.getString(KEY_APP_LIST_LAYOUT, null)
             if (name != null) {
                 return runCatching { AppListLayout.valueOf(name) }.getOrNull()
-                    ?: AppListLayout.NameBeside
+                    ?: AppListLayout.NameBelow
             }
-            return if (sharedPreferences.getBoolean(KEY_APP_LIST_ICON_ONLY, false)) {
-                AppListLayout.IconOnly
-            } else {
-                AppListLayout.NameBeside
+            if (sharedPreferences.contains(KEY_APP_LIST_ICON_ONLY)) {
+                return if (sharedPreferences.getBoolean(KEY_APP_LIST_ICON_ONLY, false)) {
+                    AppListLayout.IconOnly
+                } else {
+                    AppListLayout.NameBeside
+                }
             }
+            return AppListLayout.NameBelow
         }
         set(value) {
             sharedPreferences.edit()
