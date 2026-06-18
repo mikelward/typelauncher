@@ -118,6 +118,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -144,9 +145,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -807,6 +813,11 @@ private fun DockCard(
     // The folder whose popup grid is open, or null. Cleared on rotation /
     // recomposition reset like the actions menu.
     var openFolderId by remember { mutableStateOf<String?>(null) }
+    // The dock card's bounds in window space, captured so the open-folder popup
+    // can expand *in place* — anchored to the dock's own footprint instead of
+    // floating in the screen center. Null until the card is first laid out, so
+    // the popup is gated on it below.
+    var dockCardBounds by remember { mutableStateOf<Rect?>(null) }
     val slotCenters = remember { mutableStateMapOf<DockPosition, Offset>() }
     // Occupant id list = loose docked apps + folders. Both flow through the
     // same grid machinery; `resolvedDockPositions` keys by id regardless.
@@ -871,7 +882,11 @@ private fun DockCard(
         hoveredMergeTargetId = null
     }
 
-    SectionCard(modifier.testTag(tags.cardTag)) {
+    SectionCard(
+        modifier
+            .testTag(tags.cardTag)
+            .onGloballyPositioned { coords -> dockCardBounds = coords.boundsInWindow() },
+    ) {
         // Every dock slot is a direct sibling under one parent so each
         // `key(slotKey)` movable group lives in the same Compose
         // slot-table parent. That preserves per-icon `pointerInput`
@@ -992,10 +1007,14 @@ private fun DockCard(
     // setting only gates *creating* folders (the merge path), not opening or
     // dismantling existing ones.
     val openFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
-    if (openFolder != null) {
-        DockFolderPopup(
+    val cardBounds = dockCardBounds
+    if (openFolder != null && cardBounds != null) {
+        DockFolderInPlacePopup(
             folder = openFolder,
+            anchorBounds = cardBounds,
             dockIconSizeDp = dockIconSizeDp,
+            dockIconCount = dockIconCount,
+            dockLayout = dockLayout,
             appIconTag = tags.appIconTag,
             onDismiss = { openFolderId = null },
             onLaunchApp = { app ->
@@ -1005,10 +1024,6 @@ private fun DockCard(
             onOpenAppInfo = onOpenAppInfo,
             onRemoveFromFolder = { appId -> onRemoveFromFolder(openFolder.id, appId) },
             onUndockFromFolder = { appId -> onUndockFromFolder(openFolder.id, appId) },
-            onExplodeFolder = {
-                onExplodeFolder(openFolder.id)
-                openFolderId = null
-            },
             onRenameApp = onRenameApp,
             onResetRank = onResetRank,
             onSetAppIconOverride = onSetAppIconOverride,
@@ -1021,11 +1036,6 @@ private fun DockCard(
 
 // Corner radius of a folder tile / merge-preview background, on the 4dp grid.
 private const val DOCK_FOLDER_CORNER_RADIUS_DP = 12
-
-// Fixed width of the folder popup grid (the documented 4×4 cap). Independent of
-// the dock's own column count, so a narrow dock / large icons can't force the
-// popup into a tall single-column list that overflows the dialog.
-private const val DOCK_FOLDER_POPUP_COLUMNS = 4
 
 // Tile padding stays on the 4dp grid. The 2dp inter-cell gap is intentionally
 // off-grid: it is the *intra-glyph* gap between the four sub-icons of one
@@ -1288,26 +1298,39 @@ private fun DockFolderActionsMenu(
     }
 }
 
+// Breathing margin kept between the top of a height-capped folder grid and the
+// top of the window, plus a floor so even a short window shows a usable strip of
+// the grid. Both on the 4dp grid.
+private const val DOCK_FOLDER_TOP_INSET_DP = 24
+private const val DOCK_FOLDER_MIN_GRID_HEIGHT_DP = 120
+
 /**
- * The folder popup: a grid of the folder's member apps hosted in a [Dialog] so
- * it floats above the dock's `FlowRow` instead of participating in its layout.
- * Tapping a member launches it; long-pressing a member opens a menu with
- * "Move out" plus the usual app actions. No `TextField` lives here,
- * so the Robolectric Dialog-idle hang does not apply; the body is split into
- * [DockFolderPopupContent] so the screenshot test can render it without the
- * popup window anyway.
+ * The open folder, expanded *in place* over the dock's own footprint rather than
+ * floating in the screen center. Hosted in a [Popup] (not a [Dialog], so there is
+ * no scrim) anchored by [anchorBounds] — the dock card's window bounds — so the
+ * member grid grows upward from exactly where the dock sat. The user can tap the
+ * same spot twice: once on the folder tile to open it, again on the member that
+ * lands in that spot.
+ *
+ * The popup is focusable, so the system back gesture and a tap anywhere outside
+ * the grid both dismiss it; an explicit close tile in the grid dismisses it too.
+ * The body is [DockFolderGrid], factored out so the screenshot test can render it
+ * without the popup window (it has no `TextField`, so the Robolectric Dialog-idle
+ * cascade does not apply, but the split keeps the render deterministic).
  */
 @Composable
-private fun DockFolderPopup(
+private fun DockFolderInPlacePopup(
     folder: ResolvedDockFolder,
+    anchorBounds: Rect,
     dockIconSizeDp: Int,
+    dockIconCount: Int,
+    dockLayout: DockLayout,
     appIconTag: String,
     onDismiss: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onRemoveFromFolder: (String) -> Unit,
     onUndockFromFolder: (String) -> Unit,
-    onExplodeFolder: () -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit,
@@ -1315,43 +1338,110 @@ private fun DockFolderPopup(
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-        ) {
-            DockFolderPopupContent(
-                folder = folder,
-                dockIconSizeDp = dockIconSizeDp,
-                appIconTag = appIconTag,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onRemoveFromFolder = onRemoveFromFolder,
-                onUndockFromFolder = onUndockFromFolder,
-                onExplodeFolder = onExplodeFolder,
-                onRenameApp = onRenameApp,
-                onResetRank = onResetRank,
-                onSetAppIconOverride = onSetAppIconOverride,
-                onClearAppIconOverride = onClearAppIconOverride,
-                onSetAppBadge = onSetAppBadge,
-                onHideApp = onHideApp,
-            )
+    val density = LocalDensity.current
+    val widthDp = with(density) { anchorBounds.width.toDp() }
+    // Bottom-align the popup to the dock card's bottom edge and grow upward, so
+    // the folder occupies the dock's place and expands into the apps list above
+    // instead of pushing off the bottom. Clamp so a tall folder (small dock,
+    // many members) never overflows the top of the window. The provider uses the
+    // captured dock-card rect, not the placeholder anchor the Popup is declared
+    // at, so the placement is independent of where this call sits in the tree.
+    val dockLeftPx = anchorBounds.left.roundToInt()
+    val dockBottomPx = anchorBounds.bottom.roundToInt()
+    // Floor the card at the dock's own height so the popup always covers the
+    // dock's full footprint — including a multi-row dock's upper rows. Without
+    // this a short folder (e.g. two members) on a two-row dock would open as a
+    // one-row card over the *bottom* row, and a tap back on the folder's original
+    // (upper) row would land outside the popup and dismiss it. Covering the whole
+    // dock keeps "tap the same spot twice" working regardless of the folder's row.
+    val dockCardHeightDp = with(density) { anchorBounds.height.toDp() }
+    // Cap the grid to the room above the dock's bottom edge so a near-cap folder
+    // on a narrow / large-icon dock (where `dockIconCount` can be 1, giving up to
+    // 16 rows) stays fully reachable: the grid scrolls inside this height instead
+    // of running off the top of the window. Subtract the card chrome and a small
+    // top breathing margin; floor it so a tiny window still shows a usable strip.
+    val maxGridHeightDp = (with(density) { dockBottomPx.toDp() } -
+        (SECTION_CARD_PADDING_DP * 2 + DOCK_FOLDER_TOP_INSET_DP).dp)
+        .coerceAtLeast(DOCK_FOLDER_MIN_GRID_HEIGHT_DP.dp)
+    val positionProvider = remember(dockLeftPx, dockBottomPx) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBounds: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize,
+            ): IntOffset {
+                val maxTop = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+                val top = (dockBottomPx - popupContentSize.height).coerceIn(0, maxTop)
+                return IntOffset(dockLeftPx, top)
+            }
+        }
+    }
+    Popup(
+        popupPositionProvider = positionProvider,
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Box(modifier = Modifier.width(widthDp)) {
+            SectionCard(modifier = Modifier.heightIn(min = dockCardHeightDp)) {
+                DockFolderGrid(
+                    folder = folder,
+                    dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = dockIconCount,
+                    dockLayout = dockLayout,
+                    maxHeightDp = maxGridHeightDp,
+                    appIconTag = appIconTag,
+                    onClose = onDismiss,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onRemoveFromFolder = onRemoveFromFolder,
+                    onUndockFromFolder = onUndockFromFolder,
+                    onRenameApp = onRenameApp,
+                    onResetRank = onResetRank,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
+                    onHideApp = onHideApp,
+                )
+            }
         }
     }
 }
 
+/**
+ * The open folder's body: the member apps laid out in the *same* grid the dock
+ * uses — [dockIconCount] columns of equal-width tiles at [dockIconSizeDp] — so an
+ * open folder reads as if its apps were the docked apps, followed by a close tile
+ * (an X in the next cell) as an explicit dismiss affordance. The final row is
+ * padded with empty cells so every tile keeps its `1 / columns` width instead of
+ * a lone trailing tile stretching across the row.
+ *
+ * The grid scrolls the same way the dock does — a `verticalScroll` on the
+ * `FlowRow` — bounded by [maxHeightDp] (the room above the dock's bottom edge), so
+ * a near-cap folder on a narrow / large-icon dock (where `dockIconCount` can be 1,
+ * giving up to 16 rows) stays fully reachable instead of running off the top of
+ * the window. [maxHeightDp] left `Dp.Unspecified` leaves the grid unbounded (the
+ * screenshot test renders it that way).
+ *
+ * Factored out of [DockFolderInPlacePopup] so the screenshot test renders it
+ * without the popup window (the [DockFolderMemberTile]s and their long-press
+ * menus are all that the snapshot needs).
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun DockFolderPopupContent(
+internal fun DockFolderGrid(
     folder: ResolvedDockFolder,
     dockIconSizeDp: Int,
+    dockIconCount: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    maxHeightDp: Dp = Dp.Unspecified,
     appIconTag: String = DOCK_APP_ICON_TAG,
+    onClose: () -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onRemoveFromFolder: (String) -> Unit,
     onUndockFromFolder: (String) -> Unit = {},
-    onExplodeFolder: () -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onResetRank: (InstalledApp) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit,
@@ -1359,31 +1449,45 @@ internal fun DockFolderPopupContent(
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
-    // A fixed 4-wide grid (the folder cap), independent of the dock's column
-    // count, plus a bounded scroll so even a full 16-member folder stays
-    // reachable on a short viewport or a narrow / large-icon dock.
-    val perRow = folder.members.size.coerceAtMost(DOCK_FOLDER_POPUP_COLUMNS).coerceAtLeast(1)
-    val maxPopupHeightDp = (LocalConfiguration.current.screenHeightDp * 0.7f).dp
+    val columns = dockIconCount.coerceAtLeast(1)
+    // Members plus the trailing close tile occupy `members + 1` cells; pad the
+    // last row up to a full `columns` so each tile stays 1/columns wide (a partial
+    // last row of weighted tiles would otherwise stretch to fill).
+    val cellCount = folder.members.size + 1
+    val trailingEmpty = (columns - cellCount % columns) % columns
+    // Members pack from the top-left, like a standard launcher folder. We do NOT
+    // offset the first member to sit under the exact dock cell that was tapped:
+    // doing so (prepending `column` blank cells) would leave a gap before the
+    // apps, which reads worse than the packed grid. The popup already covers the
+    // dock's footprint, so the second same-spot tap lands on the grid.
+    // TODO: revisit exact tapped-slot alignment if the "tap twice" feel needs it
+    //  — would require threading the folder's resolved DockPosition through.
     Column(
-        modifier = Modifier
-            .padding(SECTION_CARD_PADDING_DP.dp)
-            .heightIn(max = maxPopupHeightDp)
-            .verticalScroll(rememberScrollState())
-            .testTag(DOCK_FOLDER_POPUP_TAG),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.testTag(DOCK_FOLDER_POPUP_TAG),
+        verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
     ) {
         folder.name?.let { name ->
-            Text(name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                name,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            maxItemsInEachRow = perRow,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (maxHeightDp == Dp.Unspecified) Modifier else Modifier.heightIn(max = maxHeightDp))
+                .verticalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            maxItemsInEachRow = columns,
         ) {
             folder.members.forEach { member ->
-                DockFolderMemberButton(
+                DockFolderMemberTile(
                     app = member,
                     dockIconSizeDp = dockIconSizeDp,
+                    dockLayout = dockLayout,
+                    modifier = Modifier.weight(1f),
                     appIconTag = appIconTag,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
@@ -1397,15 +1501,139 @@ internal fun DockFolderPopupContent(
                     onHideApp = onHideApp,
                 )
             }
+            DockFolderCloseTile(
+                dockIconSizeDp = dockIconSizeDp,
+                dockLayout = dockLayout,
+                modifier = Modifier.weight(1f),
+                onClose = onClose,
+            )
+            repeat(trailingEmpty) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 }
 
+/**
+ * Shared visual + hit-target skeleton for a dock-style icon cell, used by
+ * [DockedAppButton], [DockFolderMemberTile], and [DockFolderCloseTile] so their
+ * sizing, slot footprint, and hit target can't drift apart (which is exactly how
+ * the folder tile once ended up with a smaller tap target than the dock).
+ *
+ * It lays out a centered [icon] box of the dock slot footprint
+ * (`dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP`) with an optional [title]
+ * beneath it (only in [DockLayout.TitleBelow]), and a `matchParentSize()` overlay
+ * that owns the gesture and semantics ([overlayModifier]) so the *whole* cell —
+ * not just the centered content — is the hit target. The caller supplies its own
+ * gesture, menu, and decoration; this composable owns only the layout.
+ */
 @Composable
-private fun DockFolderMemberButton(
+private fun DockTileScaffold(
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    title: String?,
+    overlayModifier: Modifier,
+    modifier: Modifier = Modifier,
+    visualModifier: Modifier = Modifier,
+    iconBoxModifier: Modifier = Modifier,
+    titleTestTag: String? = null,
+    titleColor: Color = MaterialTheme.colorScheme.onBackground,
+    menu: @Composable () -> Unit = {},
+    icon: @Composable () -> Unit,
+) {
+    // Honor the system font scale so a larger accessibility font lifts the floor
+    // and the `labelSmall` line never clips against the next row.
+    val slotMinHeight = dockSlotHeightDp(dockIconSizeDp, dockLayout, LocalDensity.current.fontScale).dp
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .defaultMinSize(minHeight = slotMinHeight)
+                .then(visualModifier),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
+                    .then(iconBoxModifier),
+                contentAlignment = Alignment.Center,
+            ) {
+                icon()
+            }
+            if (dockLayout == DockLayout.TitleBelow && title != null) {
+                Text(
+                    title,
+                    modifier = if (titleTestTag != null) Modifier.testTag(titleTestTag) else Modifier,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = titleColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(modifier = Modifier.matchParentSize().then(overlayModifier))
+        menu()
+    }
+}
+
+/**
+ * The close affordance inside the open folder: an X icon occupying one grid cell
+ * (the same footprint as a member tile) so it reads as "the cell that closes the
+ * folder." A faint circular background distinguishes it from the square app
+ * icons. Back and a tap outside the grid also dismiss the folder; this is the
+ * explicit in-grid affordance. Shares [DockTileScaffold], so its hit target spans
+ * the whole weighted cell like the member tiles and the dock's own slots.
+ */
+@Composable
+private fun DockFolderCloseTile(
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+) {
+    val description = stringResource(R.string.dock_folder_close_description)
+    DockTileScaffold(
+        dockIconSizeDp = dockIconSizeDp,
+        dockLayout = dockLayout,
+        title = null,
+        modifier = modifier,
+        iconBoxModifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+        overlayModifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = onClose,
+            )
+            .semantics { contentDescription = description },
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.Clear,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size((dockIconSizeDp * 0.6f).dp),
+            )
+        },
+    )
+}
+
+/**
+ * One member app inside the open folder, rendered to match [DockedAppButton] via
+ * the shared [DockTileScaffold]: the icon in the dock slot footprint with the
+ * title below only in [DockLayout.TitleBelow], so a folder member is visually
+ * indistinguishable from a docked app. A tap launches it (and closes the folder
+ * via [onLaunchApp]); a long-press opens the member actions menu. The scaffold's
+ * `matchParentSize()` overlay makes the *whole* weighted cell the hit target — so
+ * on a wide dock (or `dockIconCount == 1`) the user can tap the same spot twice
+ * (open, then launch) without the cell's sides going dead.
+ */
+@Composable
+private fun DockFolderMemberTile(
     app: InstalledApp,
     dockIconSizeDp: Int,
-    appIconTag: String,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    appIconTag: String = DOCK_APP_ICON_TAG,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onRemoveFromFolder: () -> Unit,
@@ -1419,47 +1647,44 @@ private fun DockFolderMemberButton(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
-    Box {
-        Column(
-            modifier = Modifier
-                .width((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP * 2).dp)
-                .combinedClickable(
-                    onClick = { onLaunchApp(app) },
-                    onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        menuExpanded = true
-                    },
-                )
-                .padding(vertical = 4.dp)
-                .testTag("$DOCK_FOLDER_POPUP_TAG:${app.displayName}"),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
-            Text(
-                app.displayName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+    DockTileScaffold(
+        dockIconSizeDp = dockIconSizeDp,
+        dockLayout = dockLayout,
+        title = app.displayName,
+        modifier = modifier,
+        visualModifier = Modifier.testTag("$DOCK_FOLDER_POPUP_TAG:${app.displayName}"),
+        overlayModifier = Modifier
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = { onLaunchApp(app) },
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    menuExpanded = true
+                },
             )
-        }
-        DockFolderMemberActionsMenu(
-            expanded = menuExpanded,
-            app = app,
-            onDismiss = { menuExpanded = false },
-            onOpenAppInfo = onOpenAppInfo,
-            onRemoveFromFolder = onRemoveFromFolder,
-            onUndockFromFolder = onUndockFromFolder,
-            onRenameApp = onRenameApp,
-            onResetRank = onResetRank,
-            onSetAppIconOverride = onSetAppIconOverride,
-            onClearAppIconOverride = onClearAppIconOverride,
-            onSetAppBadge = onSetAppBadge,
-            onHideApp = onHideApp,
-        )
-    }
+            .semantics { contentDescription = app.displayName },
+        icon = {
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
+        },
+        menu = {
+            DockFolderMemberActionsMenu(
+                expanded = menuExpanded,
+                app = app,
+                onDismiss = { menuExpanded = false },
+                onOpenAppInfo = onOpenAppInfo,
+                onRemoveFromFolder = onRemoveFromFolder,
+                onUndockFromFolder = onUndockFromFolder,
+                onRenameApp = onRenameApp,
+                onResetRank = onResetRank,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+            )
+        },
+    )
 }
 
 @Composable
@@ -3008,9 +3233,6 @@ private fun DockedAppButton(
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val slopPx = with(density) { 8.dp.toPx() }
-    // Honor the system font scale so a larger accessibility font lifts the
-    // floor and the `labelSmall` line never clips against the next row.
-    val slotMinHeight = dockSlotHeightDp(dockIconSizeDp, dockLayout, density.fontScale).dp
     // Wrap the parent's drag callbacks in updated-state holders so the
     // long-running pointerInput coroutine always invokes the freshest
     // closure (recompositions reallocate the lambdas every frame).
@@ -3019,16 +3241,20 @@ private fun DockedAppButton(
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
     val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
-    Box(
+    DockTileScaffold(
+        dockIconSizeDp = dockIconSizeDp,
+        dockLayout = dockLayout,
+        title = app.displayName,
+        titleTestTag = "$DOCK_APP_TITLE_TAG:${app.displayName}",
+        // onGloballyPositioned sits outside the graphicsLayer so it
+        // reports the icon's static slot centre, not its translated
+        // visual centre — that's what the parent compares against.
+        // positionInRoot() (not positionInParent()) puts every slot in
+        // one window-wide coordinate space; with the dock's slots laid
+        // out by FlowRow as siblings of one parent, positionInParent()
+        // would lose the per-row vertical offset and the drag handler
+        // could not tell rows apart on multi-row docks.
         modifier = modifier
-            // onGloballyPositioned sits outside the graphicsLayer so it
-            // reports the icon's static slot centre, not its translated
-            // visual centre — that's what the parent compares against.
-            // positionInRoot() (not positionInParent()) puts every slot in
-            // one window-wide coordinate space; with the dock's slots laid
-            // out by FlowRow as siblings of one parent, positionInParent()
-            // would lose the per-row vertical offset and the drag handler
-            // could not tell rows apart on multi-row docks.
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInRoot()
                 val center = Offset(
@@ -3047,189 +3273,165 @@ private fun DockedAppButton(
                     alpha = 0.85f
                 }
             },
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .semantics { contentDescription = app.displayName }
-                // `defaultMinSize` so the `labelSmall` line can grow past the
-                // 20 dp default-scale floor at large accessibility font sizes
-                // (where the line height alone exceeds it); the Column then
-                // sizes to its content and lifts the FlowRow row with it.
-                .defaultMinSize(minHeight = slotMinHeight)
-                .testTag("$appTag:${app.displayName}"),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
-                    .then(
-                        if (isMergeTarget) {
-                            Modifier.background(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
-                            )
-                        } else {
-                            Modifier
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                // Shrink the icon when it becomes a merge target so it reads as
-                // sitting *inside* the forming folder tile.
-                AppIcon(
-                    app = app,
-                    size = (if (isMergeTarget) (dockIconSizeDp * 0.6f) else dockIconSizeDp.toFloat()).dp,
-                    testTag = appIconTag,
-                )
-            }
-            if (dockLayout == DockLayout.TitleBelow) {
-                Text(
-                    app.displayName,
-                    modifier = Modifier.testTag("$DOCK_APP_TITLE_TAG:${app.displayName}"),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    role = Role.Button,
-                    onClick = { onLaunchApp(app) },
-                )
-                // Long-press fires haptic feedback and arms the dock for
-                // either a reorder (if the finger crosses 8 dp slop) or for
-                // opening the AppActionsMenu (if the user releases without
-                // crossing slop). The menu is intentionally not opened at
-                // the long-press timeout: `DropdownMenu` uses a `Popup` whose
-                // window remains touch-modal within its own bounds even with
-                // `focusable = false`, so the moment the user dragged their
-                // finger into the popup region Android would send the
-                // original window an `ACTION_CANCEL` and the drag would
-                // drop one slot in. Deferring the menu until release means
-                // the popup never exists while a reorder is in flight, so
-                // the drag survives until the finger actually lifts.
-                //
-                // `latestOnLongPressArmed(true)` runs the moment the
-                // long-press fires (before any slop accounting) so the
-                // carousel's gesture surface is suppressed from then on:
-                // small pre-long-press drift within the long-press touch
-                // slop can already push the carousel's accumulated rawDragX
-                // above its own 8 dp claim threshold, and without the early
-                // signal a small post-long-press move would let the carousel
-                // page Home → Widgets/Agenda before the dock's own slop
-                // accounting (which restarts at zero after long-press) had a
-                // chance to set the suppression latch.
-                //
-                // The pointerInput is attached per-icon (not at the
-                // DockCard level) on purpose: the parent dock is a single
-                // FlowRow with every slot's `key(app.id)` keyed group as a
-                // direct sibling, so a slot swap mid-drag is recognised by
-                // Compose as a sibling move and this pointerInput modifier
-                // node — and its in-flight gesture coroutine — survive the
-                // recomposition. Hoisting drag detection up the tree
-                // would force a slot-centre hit-test on every press
-                // (problematic for taps in card padding or near empty
-                // cells); keeping it on the icon means the icon's
-                // `clickable` hit region is the natural press boundary.
-                .pointerInput(app.id) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val longPress = awaitLongPressOrCancellation(down.id)
-                            ?: return@awaitEachGesture
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        longPress.consume()
-                        latestOnLongPressArmed(true)
-                        var dragging = false
-                        var totalDelta = Offset.Zero
-                        try {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == down.id }
-                                    ?: break
-                                if (!change.pressed) {
-                                    // A release that arrives already consumed
-                                    // is the framework's cancel signal (the
-                                    // system stole the gesture), not a user
-                                    // lift — the same convention
-                                    // waitForUpOrCancellation uses. A canceled
-                                    // long-press must not pop the actions
-                                    // menu.
-                                    if (!dragging && !change.isConsumed) {
-                                        menuExpanded = true
-                                    }
-                                    change.consume()
-                                    break
-                                }
-                                val delta = change.positionChange()
-                                totalDelta += delta
-                                if (!dragging && totalDelta.getDistance() > slopPx) {
-                                    dragging = true
-                                    latestOnDragStart()
-                                    // Carry the full pre-slop displacement into
-                                    // the first dispatch so the icon snaps to
-                                    // where the finger actually is, not back to
-                                    // its slot centre.
-                                    latestOnDrag(totalDelta)
-                                } else if (dragging) {
-                                    latestOnDrag(delta)
+        // The scaffold supplies the `defaultMinSize` floor (so the `labelSmall`
+        // line can grow past the 20 dp default-scale floor at large accessibility
+        // font sizes); here we add only the icon's content description and tag.
+        visualModifier = Modifier
+            .semantics { contentDescription = app.displayName }
+            .testTag("$appTag:${app.displayName}"),
+        // Tint the slot into a forming-folder preview while another icon is
+        // dragged onto it (the icon itself shrinks to read as sitting inside).
+        iconBoxModifier = if (isMergeTarget) {
+            Modifier.background(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+            )
+        } else {
+            Modifier
+        },
+        overlayModifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = { onLaunchApp(app) },
+            )
+            // Long-press fires haptic feedback and arms the dock for
+            // either a reorder (if the finger crosses 8 dp slop) or for
+            // opening the AppActionsMenu (if the user releases without
+            // crossing slop). The menu is intentionally not opened at
+            // the long-press timeout: `DropdownMenu` uses a `Popup` whose
+            // window remains touch-modal within its own bounds even with
+            // `focusable = false`, so the moment the user dragged their
+            // finger into the popup region Android would send the
+            // original window an `ACTION_CANCEL` and the drag would
+            // drop one slot in. Deferring the menu until release means
+            // the popup never exists while a reorder is in flight, so
+            // the drag survives until the finger actually lifts.
+            //
+            // `latestOnLongPressArmed(true)` runs the moment the
+            // long-press fires (before any slop accounting) so the
+            // carousel's gesture surface is suppressed from then on:
+            // small pre-long-press drift within the long-press touch
+            // slop can already push the carousel's accumulated rawDragX
+            // above its own 8 dp claim threshold, and without the early
+            // signal a small post-long-press move would let the carousel
+            // page Home → Widgets/Agenda before the dock's own slop
+            // accounting (which restarts at zero after long-press) had a
+            // chance to set the suppression latch.
+            //
+            // The pointerInput is attached per-icon (not at the
+            // DockCard level) on purpose: the parent dock is a single
+            // FlowRow with every slot's `key(app.id)` keyed group as a
+            // direct sibling, so a slot swap mid-drag is recognised by
+            // Compose as a sibling move and this pointerInput modifier
+            // node — and its in-flight gesture coroutine — survive the
+            // recomposition. Hoisting drag detection up the tree
+            // would force a slot-centre hit-test on every press
+            // (problematic for taps in card padding or near empty
+            // cells); keeping it on the icon means the icon's
+            // `clickable` hit region is the natural press boundary.
+            .pointerInput(app.id) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val longPress = awaitLongPressOrCancellation(down.id)
+                        ?: return@awaitEachGesture
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    longPress.consume()
+                    latestOnLongPressArmed(true)
+                    var dragging = false
+                    var totalDelta = Offset.Zero
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: break
+                            if (!change.pressed) {
+                                // A release that arrives already consumed
+                                // is the framework's cancel signal (the
+                                // system stole the gesture), not a user
+                                // lift — the same convention
+                                // waitForUpOrCancellation uses. A canceled
+                                // long-press must not pop the actions
+                                // menu.
+                                if (!dragging && !change.isConsumed) {
+                                    menuExpanded = true
                                 }
                                 change.consume()
+                                break
                             }
-                        } finally {
-                            // Runs on every exit: clean release, the tracked
-                            // pointer vanishing from the stream, and
-                            // cancellation of the gesture coroutine (activity
-                            // pause mid-drag, node detach). Ending the drag
-                            // only on the clean-release path left DockCard's
-                            // draggedAppId/dragOffset latched, so the icon
-                            // kept rendering lifted at its last offset until
-                            // some new drag overwrote the state.
-                            if (dragging) {
-                                latestOnDragEnd()
+                            val delta = change.positionChange()
+                            totalDelta += delta
+                            if (!dragging && totalDelta.getDistance() > slopPx) {
+                                dragging = true
+                                latestOnDragStart()
+                                // Carry the full pre-slop displacement into
+                                // the first dispatch so the icon snaps to
+                                // where the finger actually is, not back to
+                                // its slot centre.
+                                latestOnDrag(totalDelta)
+                            } else if (dragging) {
+                                latestOnDrag(delta)
                             }
-                            latestOnLongPressArmed(false)
+                            change.consume()
                         }
+                    } finally {
+                        // Runs on every exit: clean release, the tracked
+                        // pointer vanishing from the stream, and
+                        // cancellation of the gesture coroutine (activity
+                        // pause mid-drag, node detach). Ending the drag
+                        // only on the clean-release path left DockCard's
+                        // draggedAppId/dragOffset latched, so the icon
+                        // kept rendering lifted at its last offset until
+                        // some new drag overwrote the state.
+                        if (dragging) {
+                            latestOnDragEnd()
+                        }
+                        latestOnLongPressArmed(false)
                     }
                 }
-                .semantics {
-                    role = Role.Button
-                    contentDescription = app.displayName
-                    // The pointerInput drag detector above only fires on
-                    // touch, so accessibility services / keyboard / switch
-                    // input would otherwise have no path to the long-press
-                    // menu. Re-expose it as a SemanticsAction so TalkBack's
-                    // "long press" gesture and equivalent non-touch entry
-                    // points still surface App info / Undock / Reset rank /
-                    // Hide on dock icons.
-                    onLongClick(label = null) {
-                        menuExpanded = true
-                        true
-                    }
-                },
-        )
-        AppActionsMenu(
-            expanded = menuExpanded,
-            app = app,
-            dockLimit = Int.MAX_VALUE,
-            onDismiss = { menuExpanded = false },
-            onOpenAppInfo = onOpenAppInfo,
-            onToggleDock = onToggleDock,
-            onResetRank = onResetRank,
-            onRenameApp = onRenameApp,
-            onSetAppIconOverride = onSetAppIconOverride,
-            onClearAppIconOverride = onClearAppIconOverride,
-            onSetAppBadge = onSetAppBadge,
-            onHideApp = onHideApp,
-        )
-    }
+            }
+            .semantics {
+                role = Role.Button
+                contentDescription = app.displayName
+                // The pointerInput drag detector above only fires on
+                // touch, so accessibility services / keyboard / switch
+                // input would otherwise have no path to the long-press
+                // menu. Re-expose it as a SemanticsAction so TalkBack's
+                // "long press" gesture and equivalent non-touch entry
+                // points still surface App info / Undock / Reset rank /
+                // Hide on dock icons.
+                onLongClick(label = null) {
+                    menuExpanded = true
+                    true
+                }
+            },
+        icon = {
+            // Shrink the icon when it becomes a merge target so it reads as
+            // sitting *inside* the forming folder tile.
+            AppIcon(
+                app = app,
+                size = (if (isMergeTarget) (dockIconSizeDp * 0.6f) else dockIconSizeDp.toFloat()).dp,
+                testTag = appIconTag,
+            )
+        },
+        menu = {
+            AppActionsMenu(
+                expanded = menuExpanded,
+                app = app,
+                dockLimit = Int.MAX_VALUE,
+                onDismiss = { menuExpanded = false },
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onRenameApp = onRenameApp,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+            )
+        },
+    )
 }
 
 @Composable

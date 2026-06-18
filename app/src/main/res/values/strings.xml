@@ -48,6 +48,8 @@
     <string name="app_menu_explode" tools:ignore="MissingTranslation">Explode</string>
     <!-- TODO: translate -->
     <string name="dock_folder_content_description" tools:ignore="MissingTranslation">Folder</string>
+    <!-- TODO: translate -->
+    <string name="dock_folder_close_description" tools:ignore="MissingTranslation">Close folder</string>
     <string name="app_menu_dismiss">Dismiss</string>
     <string name="app_menu_settings">Settings</string>
     <string name="edit_app_dialog_title">Edit app</string>
