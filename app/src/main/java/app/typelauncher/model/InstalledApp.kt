@@ -22,6 +22,11 @@ internal data class InstalledApp(
     val iconCacheToken: String? = null,
     val isDocked: Boolean = false,
     val isWorkDocked: Boolean = false,
+    // True when this app is a member of a dock folder (personal or work). It is
+    // "on the dock" inside a folder, so it is not a loose occupant (isDocked is
+    // false), but its app-list menu offers "Move out of folder" instead of the
+    // no-op "Dock".
+    val isInFolder: Boolean = false,
     val isHidden: Boolean = false,
     val isQuietMode: Boolean = false,
     val disambiguator: String? = null,

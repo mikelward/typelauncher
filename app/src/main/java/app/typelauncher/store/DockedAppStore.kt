@@ -32,11 +32,60 @@ internal class DockedAppStore(
     private var dockPositions = sharedPreferences.getString(KEY_DOCKED_APP_POSITIONS, "").orEmpty()
         .parseDockPositions()
 
+    // Folders are occupants too: their ids live in `dockedIds` / `dockPositions`
+    // alongside app ids, and only the member-app mapping lives here. Keyed by
+    // folder id, insertion-ordered for a stable serialization round-trip.
+    private var folders: LinkedHashMap<String, DockFolder> =
+        sharedPreferences.getString(KEY_DOCK_FOLDERS, "").orEmpty().parseDockFolders()
+
     val dockedAppIds: List<String>
         get() = synchronized(lock) { dockedIds.toList() }
 
     val dockedAppPositions: Map<String, DockPosition>
         get() = synchronized(lock) { dockPositions.toMap() }
+
+    /** Snapshot of every folder in this dock (occupant id, members, name). */
+    val dockFolders: List<DockFolder>
+        get() = synchronized(lock) { folders.values.toList() }
+
+    /** Every app id that currently lives inside any folder in this dock. */
+    val folderMemberAppIds: Set<String>
+        get() = synchronized(lock) { folders.values.flatMapTo(mutableSetOf()) { it.memberAppIds } }
+
+    /**
+     * Every app id that is "on the dock": loose docked apps ∪ all folder members
+     * (folder occupant ids themselves excluded). The single source of truth for
+     * "is this app docked?" — used by the main-list dedup, search docked-first
+     * ranking, cold-start icon-snapshot priority, and work-dock prefill — so a
+     * folder member is treated like a docked app everywhere without each
+     * call-site re-deriving the union.
+     */
+    val dockedOrFolderedAppIds: Set<String>
+        get() = synchronized(lock) {
+            dockedIds.filterNotTo(mutableSetOf()) { it.isDockFolderId() } +
+                folders.values.flatMap { it.memberAppIds }
+        }
+
+    /**
+     * Expand any folder occupant in [occupantIds] to its members **in place**,
+     * preserving order; a loose app id passes through unchanged. Used by the
+     * search docked-first ranking so a foldered app floats at the folder's own
+     * dock-rank position rather than after every top-level occupant.
+     */
+    fun expandFolderOccupants(occupantIds: List<String>): List<String> = synchronized(lock) {
+        occupantIds.flatMap { id -> folders[id]?.memberAppIds ?: listOf(id) }
+    }
+
+    private fun isFolderMemberLocked(appId: String): Boolean =
+        folders.values.any { folder -> appId in folder.memberAppIds }
+
+    /** True when [appId] is a member of any folder in this dock. */
+    fun isFolderMember(appId: String): Boolean = synchronized(lock) { isFolderMemberLocked(appId) }
+
+    /** The id of the folder containing [appId], or null if it is not in one. */
+    fun folderIdContaining(appId: String): String? = synchronized(lock) {
+        folders.entries.firstOrNull { (_, folder) -> appId in folder.memberAppIds }?.key
+    }
 
     fun dockedAppIdsFor(sortOrder: AppListSortOrder, columnCount: Int): List<String> =
         synchronized(lock) {
@@ -46,7 +95,10 @@ internal class DockedAppStore(
     fun contains(appId: String): Boolean = synchronized(lock) { appId in dockedIds }
 
     fun dock(appId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) = synchronized(lock) {
-        if (appId in dockedIds) {
+        // A folder member is already on the dock (inside a folder), so dock() is
+        // a no-op for it. Taking it out of the folder is the explicit
+        // "Move out of folder" action (see [folderIdContaining] / removeFromFolder).
+        if (appId in dockedIds || isFolderMemberLocked(appId)) {
             return@synchronized
         }
         // Re-resolve the persisted coordinates into their compacted form before
@@ -106,6 +158,156 @@ internal class DockedAppStore(
             save()
         }
 
+    /**
+     * Merge two dock occupants into a folder and return the resulting folder id.
+     * When [targetId] is already a folder, [sourceId] (or, if it too is a folder,
+     * its members) is appended to it. Otherwise a new folder is created at the
+     * target's slot holding `[targetId, sourceId]` (target first, so the existing
+     * icon stays the primary mini-icon corner). The source occupant is removed
+     * from the top-level list; the resulting folder takes the target's slot.
+     * No-op (returns null) when the ids are equal, an id is missing, or the
+     * merge would exceed [MAX_DOCK_FOLDER_MEMBERS].
+     */
+    fun mergeIntoFolder(sourceId: String, targetId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT): String? =
+        synchronized(lock) {
+            if (sourceId == targetId) return@synchronized null
+            if (sourceId !in dockedIds || targetId !in dockedIds) return@synchronized null
+            val columns = columnCount.coerceAtLeast(1)
+            compactLocked(columns)
+            val sourceMembers = folders[sourceId]?.memberAppIds ?: listOf(sourceId)
+            val targetFolder = folders[targetId]
+            val resultId: String
+            if (targetFolder != null) {
+                val merged = (targetFolder.memberAppIds + sourceMembers).distinct()
+                if (merged.size > MAX_DOCK_FOLDER_MEMBERS) return@synchronized null
+                folders[targetId] = targetFolder.copy(memberAppIds = merged)
+                removeOccupantLocked(sourceId)
+                resultId = targetId
+            } else {
+                val members = (listOf(targetId) + sourceMembers).distinct()
+                if (members.size > MAX_DOCK_FOLDER_MEMBERS) return@synchronized null
+                val targetPosition = dockPositions[targetId] ?: return@synchronized null
+                val folderId = newDockFolderId()
+                removeOccupantLocked(sourceId)
+                removeOccupantLocked(targetId)
+                folders[folderId] = DockFolder(folderId, members)
+                dockedIds.add(folderId)
+                dockPositions[folderId] = targetPosition
+                resultId = folderId
+            }
+            compactLocked(columns)
+            save()
+            resultId
+        }
+
+    /** Add a loose docked app into an existing folder. */
+    fun addToFolder(folderId: String, appId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) =
+        synchronized(lock) {
+            val folder = folders[folderId] ?: return@synchronized
+            if (appId !in dockedIds || appId.isDockFolderId()) return@synchronized
+            if (appId in folder.memberAppIds) return@synchronized
+            if (folder.memberAppIds.size >= MAX_DOCK_FOLDER_MEMBERS) return@synchronized
+            val columns = columnCount.coerceAtLeast(1)
+            compactLocked(columns)
+            folders[folderId] = folder.copy(memberAppIds = folder.memberAppIds + appId)
+            removeOccupantLocked(appId)
+            compactLocked(columns)
+            save()
+        }
+
+    /**
+     * Remove [appId] from [folderId] and re-dock it as a loose icon. If the
+     * folder is left with a single member, it auto-collapses: the lone member takes
+     * over the folder's slot and the folder record is deleted.
+     */
+    fun removeFromFolder(folderId: String, appId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) =
+        synchronized(lock) {
+            val folder = folders[folderId] ?: return@synchronized
+            if (appId !in folder.memberAppIds) return@synchronized
+            val columns = columnCount.coerceAtLeast(1)
+            compactLocked(columns)
+            val remaining = folder.memberAppIds - appId
+            if (remaining.size <= 1) {
+                val folderPosition = dockPositions[folderId]
+                removeOccupantLocked(folderId)
+                folders.remove(folderId)
+                val lone = remaining.firstOrNull()
+                if (lone != null) {
+                    dockedIds.add(lone)
+                    if (folderPosition != null) {
+                        dockPositions[lone] = folderPosition
+                    } else {
+                        dockPositions[lone] = nextAvailableDockPosition(dockedIds.toList(), dockPositions, columns)
+                    }
+                }
+                placeAtNextSlotLocked(appId, columns)
+            } else {
+                folders[folderId] = folder.copy(memberAppIds = remaining)
+                placeAtNextSlotLocked(appId, columns)
+            }
+            compactLocked(columns)
+            save()
+        }
+
+    /**
+     * Rename a folder. A blank name clears it back to unnamed. The name is
+     * sanitized of the field/record separators (`\t`, `\n`, `\r`) used by the
+     * `docked_folders` serialization, so a pasted name containing one can't
+     * corrupt the on-disk format and make the folder unparsable on reload.
+     */
+    fun renameFolder(folderId: String, name: String?) = synchronized(lock) {
+        val folder = folders[folderId] ?: return@synchronized
+        val sanitized = name
+            ?.replace('\t', ' ')
+            ?.replace('\n', ' ')
+            ?.replace('\r', ' ')
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        folders[folderId] = folder.copy(name = sanitized)
+        save()
+    }
+
+    /**
+     * Explode a folder: replace the folder occupant with its members as loose
+     * icons (the first member takes the folder's slot, the rest fill the next
+     * available slots).
+     */
+    fun explodeFolder(folderId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) = synchronized(lock) {
+        val folder = folders[folderId] ?: return@synchronized
+        val columns = columnCount.coerceAtLeast(1)
+        compactLocked(columns)
+        val folderPosition = dockPositions[folderId]
+        removeOccupantLocked(folderId)
+        folders.remove(folderId)
+        folder.memberAppIds.forEachIndexed { index, memberId ->
+            if (index == 0 && folderPosition != null) {
+                dockedIds.add(memberId)
+                dockPositions[memberId] = folderPosition
+            } else {
+                placeAtNextSlotLocked(memberId, columns)
+            }
+        }
+        compactLocked(columns)
+        save()
+    }
+
+    // Re-resolve the persisted coordinates into their compacted form, matching
+    // what `dock` / `move` do before mutating. Keeps the persisted map and any
+    // newly chosen slot in the same coordinate space.
+    private fun compactLocked(columns: Int) {
+        dockPositions = resolvedDockPositions(dockedIds.toList(), dockPositions, columns).toMutableMap()
+    }
+
+    private fun removeOccupantLocked(occupantId: String) {
+        dockedIds.remove(occupantId)
+        dockPositions.remove(occupantId)
+    }
+
+    private fun placeAtNextSlotLocked(occupantId: String, columns: Int) {
+        dockPositions[occupantId] = nextAvailableDockPosition(dockedIds.toList(), dockPositions, columns)
+        dockedIds.add(occupantId)
+    }
+
     val hasBeenPrefilled: Boolean
         get() = sharedPreferences.getBoolean(KEY_DOCK_PREFILLED, false)
 
@@ -128,12 +330,19 @@ internal class DockedAppStore(
     }
 
     private fun save(clearShowAddButtonHint: Boolean = false) {
+        // Drop folders that are no longer valid occupants (their id fell out of
+        // `dockedIds`, e.g. undocked) or that have decayed to zero members, so a
+        // stale record can never be re-loaded as a phantom slot.
+        folders.entries.removeAll { (folderId, folder) ->
+            folderId !in dockedIds || folder.memberAppIds.isEmpty()
+        }
         val editor = sharedPreferences.edit()
             .putString(KEY_DOCKED_APP_IDS, dockedIds.joinToString(DOCKED_APP_ID_SEPARATOR))
             .putString(
                 KEY_DOCKED_APP_POSITIONS,
                 dockPositions.filterKeys { appId -> appId in dockedIds }.toPreferencesString(),
             )
+            .putString(KEY_DOCK_FOLDERS, foldersToPreferencesString(folders))
         if (clearShowAddButtonHint) {
             editor.putBoolean(KEY_SHOW_ADD_BUTTON_HINT, false)
         }
@@ -145,10 +354,12 @@ internal class DockedAppStore(
         internal const val WORK_PREFERENCES_NAME = "work_docked_apps"
         private const val KEY_DOCKED_APP_IDS = "docked_app_ids"
         private const val KEY_DOCKED_APP_POSITIONS = "docked_app_positions"
+        private const val KEY_DOCK_FOLDERS = "docked_folders"
         private const val KEY_DOCK_PREFILLED = "dock_prefilled"
         private const val KEY_SHOW_ADD_BUTTON_HINT = "show_add_button_hint"
         private const val DOCKED_APP_ID_SEPARATOR = "\n"
         private const val DOCK_POSITION_FIELD_SEPARATOR = "\t"
+        private const val DOCK_FOLDER_MEMBER_SEPARATOR = ","
     }
 
     private fun String.parseDockPositions(): MutableMap<String, DockPosition> =
@@ -167,6 +378,33 @@ internal class DockedAppStore(
         entries.joinToString(DOCKED_APP_ID_SEPARATOR) { (appId, position) ->
             listOf(appId, position.row.toString(), position.column.toString())
                 .joinToString(DOCK_POSITION_FIELD_SEPARATOR)
+        }
+
+    // One folder per line: folderId \t name \t memberId,memberId,... The name
+    // field may be empty (unnamed). Member ids are "${int}:${component}" and
+    // never contain a comma, so a comma-joined list round-trips cleanly.
+    private fun String.parseDockFolders(): LinkedHashMap<String, DockFolder> {
+        val result = LinkedHashMap<String, DockFolder>()
+        lineSequence().forEach { line ->
+            if (line.isBlank()) return@forEach
+            val fields = line.split(DOCK_POSITION_FIELD_SEPARATOR)
+            if (fields.size != 3) return@forEach
+            val folderId = fields[0].takeIf { it.isNotBlank() } ?: return@forEach
+            val name = fields[1].takeIf { it.isNotBlank() }
+            val members = fields[2].split(DOCK_FOLDER_MEMBER_SEPARATOR).filter { it.isNotBlank() }
+            if (members.isEmpty()) return@forEach
+            result[folderId] = DockFolder(folderId, members, name)
+        }
+        return result
+    }
+
+    private fun foldersToPreferencesString(folders: Map<String, DockFolder>): String =
+        folders.entries.joinToString(DOCKED_APP_ID_SEPARATOR) { (folderId, folder) ->
+            listOf(
+                folderId,
+                folder.name.orEmpty(),
+                folder.memberAppIds.joinToString(DOCK_FOLDER_MEMBER_SEPARATOR),
+            ).joinToString(DOCK_POSITION_FIELD_SEPARATOR)
         }
 }
 
@@ -218,6 +456,20 @@ internal class DockSettingsStore(context: Context) {
         set(value) {
             sharedPreferences.edit()
                 .putBoolean(KEY_WORK_DOCK_ENABLED, value)
+                .apply()
+        }
+
+    /**
+     * Settings → "Enable folders". When false (the default), the dock behaves
+     * exactly as it did before folders existed: dragging an icon onto another
+     * swap-reorders, no folder is ever created, and no folder UI renders. When
+     * true, dragging an icon onto another groups them into a folder.
+     */
+    var isDockFoldersEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_DOCK_FOLDERS_ENABLED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_DOCK_FOLDERS_ENABLED, value)
                 .apply()
         }
 
@@ -446,6 +698,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_DOCK_TARGET_ICON_SIZE_DP = "dock_target_icon_size_dp"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_WORK_DOCK_ENABLED = "work_dock_enabled"
+        const val KEY_DOCK_FOLDERS_ENABLED = "dock_folders_enabled"
         // Legacy boolean, kept for migration into KEY_APP_LIST_LAYOUT only.
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
