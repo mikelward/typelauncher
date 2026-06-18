@@ -640,9 +640,9 @@ class DockReorderCarouselTest {
     }
 
     @Test
-    fun dockDragMergesOntoOccupiedNeighborInsteadOfSwapping() {
-        // With folders enabled, dragging onto an occupied neighbor must arm a
-        // merge at the reorder boundary — never swap first.
+    fun dockDragMergesOnCenterDropOntoOccupiedNeighbor() {
+        // With folders enabled, dropping on the *center* of an occupied neighbor
+        // arms a merge (held to release), never a live swap-reorder.
         val a = fakeApp("App01").copy(isDocked = true)
         val b = fakeApp("App02").copy(isDocked = true)
         val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
@@ -656,9 +656,10 @@ class DockReorderCarouselTest {
         )
         var reordered = false
         var mergeTarget: String? = null
+        var swapTarget: DockPosition? = null
 
         handleDockDrag(
-            // Drag fully onto b's slot.
+            // Drag fully onto b's center.
             delta = Offset(100f, 0f),
             draggedAppId = a.id,
             currentOccupantIds = setOf(a.id, b.id),
@@ -669,11 +670,73 @@ class DockReorderCarouselTest {
             setOffset = { },
             mergeEnabled = true,
             occupantByPosition = occupantByPosition,
+            // pitch = 100, so the merge zone is the inner 35px around b's center.
+            mergeRadiusPx = 35f,
             onMergeTarget = { mergeTarget = it },
+            onSwapTarget = { swapTarget = it },
         )
 
         assertEquals(b.id, mergeTarget)
+        assertNull("a center drop must not arm a swap", swapTarget)
         assertFalse("must not swap-reorder onto an occupied merge target", reordered)
+    }
+
+    @Test
+    fun dockDragSwapsOnEdgeDropOntoOccupiedNeighbor() {
+        // With folders enabled, landing on the *edge* of an occupied neighbor
+        // (past the reorder boundary but outside the merge radius) arms a swap,
+        // committed on release — not a merge, and not a live reorder.
+        val a = fakeApp("App01").copy(isDocked = true)
+        val b = fakeApp("App02").copy(isDocked = true)
+        val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
+        val slotCenters = mapOf(
+            DockPosition(0, 0) to Offset(50f, 50f),
+            DockPosition(0, 1) to Offset(150f, 50f),
+        )
+        val occupantByPosition = mapOf(
+            DockPosition(0, 0) to a.id,
+            DockPosition(0, 1) to b.id,
+        )
+        var reordered = false
+        var mergeTarget: String? = null
+        var swapTarget: DockPosition? = null
+
+        handleDockDrag(
+            // Nudge a to x=105: past the x=100 boundary, 45px from b's center —
+            // outside the 35px merge radius, so b's edge, not its center.
+            delta = Offset(55f, 0f),
+            draggedAppId = a.id,
+            currentOccupantIds = setOf(a.id, b.id),
+            currentDockPositions = positions,
+            slotCenters = slotCenters,
+            onReorder = { _, _, _ -> reordered = true },
+            currentOffset = Offset.Zero,
+            setOffset = { },
+            mergeEnabled = true,
+            occupantByPosition = occupantByPosition,
+            mergeRadiusPx = 35f,
+            onMergeTarget = { mergeTarget = it },
+            onSwapTarget = { swapTarget = it },
+        )
+
+        assertEquals(DockPosition(0, 1), swapTarget)
+        assertNull("an edge drop must not arm a merge", mergeTarget)
+        assertFalse("swap is committed on release, not as a live reorder", reordered)
+    }
+
+    @Test
+    fun dockSlotPitchIsTheSmallestCenterDistance() {
+        val centers = mapOf(
+            DockPosition(0, 0) to Offset(50f, 50f),
+            DockPosition(0, 1) to Offset(150f, 50f),
+            DockPosition(1, 0) to Offset(50f, 170f),
+        )
+        // Nearest pair is the 100px horizontal step, not the 120px vertical one.
+        assertEquals(100f, dockSlotPitch(centers))
+        assertFalse(
+            "a single slot has no pair to merge against",
+            dockSlotPitch(mapOf(DockPosition(0, 0) to Offset.Zero)).isFinite(),
+        )
     }
 
     @Test

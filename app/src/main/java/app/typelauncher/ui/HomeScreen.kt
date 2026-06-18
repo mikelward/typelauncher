@@ -806,6 +806,12 @@ private fun DockCard(
     // joins this target's folder). Always null when folders are disabled, so
     // the dock keeps its pre-folders reorder/swap physics.
     var hoveredMergeTargetId by remember { mutableStateOf<String?>(null) }
+    // When folders are enabled, the slot the dragged icon is hovering over for a
+    // swap (null = no swap pending; on release the dragged icon trades slots with
+    // that position's occupant). Set when the drag lands on an occupied
+    // neighbor's *edge* — outside the central merge radius — and is mutually
+    // exclusive with `hoveredMergeTargetId`. Always null when folders are off.
+    var hoveredSwapTargetPosition by remember { mutableStateOf<DockPosition?>(null) }
     // The folder whose popup grid is open, or null. Cleared on rotation /
     // recomposition reset like the actions menu.
     var openFolderId by remember { mutableStateOf<String?>(null) }
@@ -844,10 +850,17 @@ private fun DockCard(
         draggedAppId = occupantId
         dragOffset = Offset.Zero
         hoveredMergeTargetId = null
+        hoveredSwapTargetPosition = null
     }
     val onOccupantDrag: (String, Offset) -> Unit = { occupantId, delta ->
         val visibleCenters = slotCenters.filterKeys { slot ->
             slot.row in 0 until rowCount && slot.column in 0 until columns
+        }
+        val pitch = dockSlotPitch(visibleCenters)
+        val mergeRadiusPx = if (pitch.isFinite()) {
+            pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+        } else {
+            Float.POSITIVE_INFINITY
         }
         handleDockDrag(
             delta = delta,
@@ -860,17 +873,25 @@ private fun DockCard(
             setOffset = { dragOffset = it },
             mergeEnabled = foldersEnabled,
             occupantByPosition = occupantByPosition,
+            mergeRadiusPx = mergeRadiusPx,
             onMergeTarget = { hoveredMergeTargetId = it },
+            onSwapTarget = { hoveredSwapTargetPosition = it },
         )
     }
     val onOccupantDragEnd: (String) -> Unit = { occupantId ->
-        val target = hoveredMergeTargetId
-        if (foldersEnabled && target != null && target != occupantId) {
-            latestOnMergeDock(occupantId, target)
+        val mergeTarget = hoveredMergeTargetId
+        val swapTarget = hoveredSwapTargetPosition
+        if (foldersEnabled && mergeTarget != null && mergeTarget != occupantId) {
+            latestOnMergeDock(occupantId, mergeTarget)
+        } else if (foldersEnabled && swapTarget != null) {
+            // Edge drop onto an occupied neighbor: trade slots. `move` swaps the
+            // neighbor back into the dragged icon's previous coordinate.
+            latestOnReorderDock(occupantId, swapTarget.row, swapTarget.column)
         }
         draggedAppId = null
         dragOffset = Offset.Zero
         hoveredMergeTargetId = null
+        hoveredSwapTargetPosition = null
     }
 
     // The folder whose grid is open in place of the dock, or null. Opening a
@@ -1761,6 +1782,33 @@ private fun DockFolderMemberActionsMenu(
  * sneak through first. [onMergeTarget] is called once per invocation with the
  * current target (or null), so the caller can render / clear the preview.
  */
+// A drop within this fraction of the slot pitch from an occupied neighbor's
+// center folds the two icons into a folder; landing farther out (on the
+// neighbor's edge) swaps them. Centering is the deliberate folder gesture; the
+// edge keeps the pre-folders swap reachable even in a fully packed dock that has
+// no empty slot to reorder into.
+private const val DOCK_MERGE_CENTER_RADIUS_FRACTION = 0.35f
+
+/**
+ * Smallest center-to-center distance between any two dock slots — the dock's
+ * slot pitch. Used to size the merge hit-radius relative to the icon spacing so
+ * the center/edge split scales with the dock's icon size and density. Returns
+ * `+∞` when fewer than two slot centers are known (nothing to merge against).
+ */
+internal fun dockSlotPitch(slotCenters: Map<DockPosition, Offset>): Float {
+    val centers = slotCenters.values.toList()
+    var pitch = Float.POSITIVE_INFINITY
+    for (i in centers.indices) {
+        for (j in i + 1 until centers.size) {
+            val distance = (centers[i] - centers[j]).getDistance()
+            if (distance > 0f && distance < pitch) {
+                pitch = distance
+            }
+        }
+    }
+    return pitch
+}
+
 internal fun handleDockDrag(
     delta: Offset,
     draggedAppId: String?,
@@ -1774,22 +1822,31 @@ internal fun handleDockDrag(
     setOffset: (Offset) -> Unit,
     mergeEnabled: Boolean = false,
     occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    // Radius in pixels around an occupied neighbor's center within which a drop
+    // arms a folder merge; landing past the reorder boundary but outside this
+    // radius (on the neighbor's edge) arms a swap instead. Defaults to +∞ so
+    // callers that don't care about the split keep the merge-everywhere behavior.
+    mergeRadiusPx: Float = Float.POSITIVE_INFINITY,
     onMergeTarget: (String?) -> Unit = {},
+    onSwapTarget: (DockPosition?) -> Unit = {},
 ) {
     if (draggedAppId == null) return
     if (draggedAppId !in currentOccupantIds) return
     var newOffset = currentOffset + delta
     var currentPosition = currentDockPositions[draggedAppId] ?: run {
         onMergeTarget(null)
+        onSwapTarget(null)
         setOffset(newOffset)
         return
     }
     var currentCenter = slotCenters[currentPosition] ?: run {
         onMergeTarget(null)
+        onSwapTarget(null)
         setOffset(newOffset)
         return
     }
     var mergeTarget: String? = null
+    var swapTarget: DockPosition? = null
     while (true) {
         val draggedCenter = currentCenter + newOffset
         val nearest = slotCenters.minByOrNull { (_, center) -> (center - draggedCenter).getDistance() }
@@ -1804,10 +1861,18 @@ internal fun handleDockDrag(
         }
         val occupant = occupantByPosition[targetPosition]
         if (mergeEnabled && occupant != null && occupant != draggedAppId) {
-            // Closer to an occupied neighbor than to our own slot: this is a
-            // merge, not a swap. Hold position and report the target; release
-            // commits the merge.
-            mergeTarget = occupant
+            // Crossed the reorder boundary onto an occupied neighbor. Where the
+            // dragged center sits on that neighbor decides the outcome on
+            // release: within the central hit-radius it merges into a folder,
+            // out on the neighbor's edge the two swap. Either way hold position
+            // (no live reorder) so both zones stay reachable from the same
+            // approach — a live swap would shove the neighbor away before the
+            // finger could reach its center.
+            if ((targetCenter - draggedCenter).getDistance() <= mergeRadiusPx) {
+                mergeTarget = occupant
+            } else {
+                swapTarget = targetPosition
+            }
             break
         }
         onReorder(draggedAppId, targetPosition.row, targetPosition.column)
@@ -1816,6 +1881,7 @@ internal fun handleDockDrag(
         currentCenter = targetCenter
     }
     onMergeTarget(mergeTarget)
+    onSwapTarget(swapTarget)
     setOffset(newOffset)
 }
 
