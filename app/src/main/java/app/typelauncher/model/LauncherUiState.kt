@@ -516,6 +516,14 @@ internal data class LauncherUiState(
     val isShowDockedAppsInList: Boolean = false,
     val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
+    // Settings → "Enable folders". When false (the default) the dock keeps its
+    // pre-folders physics: dragging an icon onto another swap-reorders and no
+    // folder can be created. Gates the whole folder feature in the UI.
+    val isDockFoldersEnabled: Boolean = false,
+    // Folders in the personal dock. Each occupies one dock slot; its position
+    // lives in [dockPositions] keyed by the folder id (a "folder:"-prefixed id
+    // that never collides with an app id).
+    val dockFolders: List<ResolvedDockFolder> = emptyList(),
     // True when the dock was prefilled on first run and the user has not yet
     // docked anything; renders the "+" add-button onboarding hint in the first
     // empty slot of the personal dock's first row. Cleared permanently on the
@@ -530,6 +538,8 @@ internal data class LauncherUiState(
     // (`isWorkProfileActive = false`).
     val workDockedApps: List<InstalledApp> = emptyList(),
     val workDockPositions: Map<String, DockPosition> = emptyMap(),
+    // Folders in the work dock (see [dockFolders]).
+    val workDockFolders: List<ResolvedDockFolder> = emptyList(),
     // Per-dock equivalent of [shouldShowDockAddHint] for the work dock.
     val shouldShowWorkDockAddHint: Boolean = false,
     val isWorkDockEnabled: Boolean = false,

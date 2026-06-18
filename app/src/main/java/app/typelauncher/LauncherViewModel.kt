@@ -180,6 +180,7 @@ internal class LauncherViewModel(
             isShowDockedAppsInList = dockSettingsStore.isShowDockedAppsInList,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
+            isDockFoldersEnabled = dockSettingsStore.isDockFoldersEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             keyboardReservation = dockSettingsStore.keyboardReservation,
@@ -281,11 +282,13 @@ internal class LauncherViewModel(
                             .filterDocked(dockedIds)
                             .markVisibility(),
                         dockPositions = dockedAppStore.dockedAppPositions,
+                        dockFolders = resolvedDockFolders(visibleApps, dockedAppStore),
                         shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
                         workDockedApps = visibleApps
                             .filterDocked(workDockedIds)
                             .markVisibility(),
                         workDockPositions = workDockedAppStore.dockedAppPositions,
+                        workDockFolders = resolvedDockFolders(visibleApps, workDockedAppStore),
                         shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                         isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                         isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
@@ -346,11 +349,13 @@ internal class LauncherViewModel(
                         .filterDocked(dockedIds)
                         .markVisibility(),
                     dockPositions = dockedAppStore.dockedAppPositions,
+                    dockFolders = resolvedDockFolders(visibleApps, dockedAppStore),
                     shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
                     workDockedApps = visibleApps
                         .filterDocked(workDockedIds)
                         .markVisibility(),
                     workDockPositions = workDockedAppStore.dockedAppPositions,
+                    workDockFolders = resolvedDockFolders(visibleApps, workDockedAppStore),
                     shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                     isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                     isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
@@ -874,7 +879,10 @@ internal class LauncherViewModel(
         IconSnapshotStore.rendererState(AppIconLoader.iconTheme, AppIconLoader.themedIconColors)
 
     private fun priorityIconCacheIds(): Set<String> {
-        val docked = dockedAppStore.dockedAppIds.toSet() + workDockedAppStore.dockedAppIds.toSet()
+        // `dockedOrFolderedAppIds` already unions loose docked apps with folder
+        // members, so a folder of rarely-launched apps keeps its members' icon
+        // snapshots and the dock paints real mini-icons on the next cold start.
+        val docked = dockedAppStore.dockedOrFolderedAppIds + workDockedAppStore.dockedOrFolderedAppIds
         val topByLaunches = installedApps
             .asSequence()
             .map { app -> app.id to appLaunchStatsStore.launchCount(app.id) }
@@ -1054,13 +1062,14 @@ internal class LauncherViewModel(
                 "workDocked=${app.isWorkDocked} workDockEnabled=${state.isWorkDockEnabled} " +
                 "max=$maxDockedApps",
         )
+        val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
         when {
             app.isDocked -> dockedAppStore.undock(app.id)
             app.isWorkDocked -> workDockedAppStore.undock(app.id)
             app.isWorkApp && state.isWorkDockEnabled ->
-                workDockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp))
+                workDockedAppStore.dock(app.id, columnCount = columns)
             else ->
-                dockedAppStore.dock(app.id, columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp))
+                dockedAppStore.dock(app.id, columnCount = columns)
         }
         refreshLists()
         logState("toggleDock")
@@ -1117,6 +1126,106 @@ internal class LauncherViewModel(
         refreshLists()
         logState("reorderWorkDockedApps")
     }
+
+    // region Dock folders
+
+    /**
+     * Merge two personal-dock occupants into a folder (the drag-onto-icon
+     * gesture). [targetId] may already be a folder, in which case [sourceId] is
+     * added to it. No-op when folders are disabled.
+     */
+    fun mergeDockItems(sourceId: String, targetId: String) =
+        mergeDockItems(sourceId, targetId, dockedAppStore, "mergeDockItems")
+
+    fun mergeWorkDockItems(sourceId: String, targetId: String) =
+        mergeDockItems(sourceId, targetId, workDockedAppStore, "mergeWorkDockItems")
+
+    private fun mergeDockItems(sourceId: String, targetId: String, store: DockedAppStore, tag: String) {
+        if (!_uiState.value.isDockFoldersEnabled) return
+        LauncherDebugLog.event("$tag source=$sourceId target=$targetId")
+        store.mergeIntoFolder(sourceId, targetId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
+        refreshLists()
+        logState(tag)
+    }
+
+    fun addAppToDockFolder(folderId: String, appId: String) =
+        addAppToFolder(folderId, appId, dockedAppStore, "addAppToDockFolder")
+
+    fun addAppToWorkDockFolder(folderId: String, appId: String) =
+        addAppToFolder(folderId, appId, workDockedAppStore, "addAppToWorkDockFolder")
+
+    private fun addAppToFolder(folderId: String, appId: String, store: DockedAppStore, tag: String) {
+        LauncherDebugLog.event("$tag folder=$folderId app=$appId")
+        store.addToFolder(folderId, appId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
+        refreshLists()
+        logState(tag)
+    }
+
+    fun removeAppFromDockFolder(folderId: String, appId: String) =
+        removeAppFromFolder(folderId, appId, dockedAppStore, "removeAppFromDockFolder")
+
+    fun removeAppFromWorkDockFolder(folderId: String, appId: String) =
+        removeAppFromFolder(folderId, appId, workDockedAppStore, "removeAppFromWorkDockFolder")
+
+    private fun removeAppFromFolder(folderId: String, appId: String, store: DockedAppStore, tag: String) {
+        LauncherDebugLog.event("$tag folder=$folderId app=$appId")
+        store.removeFromFolder(folderId, appId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
+        refreshLists()
+        logState(tag)
+    }
+
+    fun undockAppFromDockFolder(folderId: String, appId: String) =
+        undockAppFromFolder(folderId, appId, dockedAppStore, "undockAppFromDockFolder")
+
+    fun undockAppFromWorkDockFolder(folderId: String, appId: String) =
+        undockAppFromFolder(folderId, appId, workDockedAppStore, "undockAppFromWorkDockFolder")
+
+    /**
+     * "Undock" a folder member: take it out of the folder and off the dock
+     * entirely (vs "Move out", which pops it back to a loose dock icon). The
+     * member is removed from the folder, which would normally re-dock it loose,
+     * then immediately undocked so it leaves the dock altogether.
+     */
+    private fun undockAppFromFolder(folderId: String, appId: String, store: DockedAppStore, tag: String) {
+        LauncherDebugLog.event("$tag folder=$folderId app=$appId")
+        val columns = deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp)
+        store.removeFromFolder(folderId, appId, columns)
+        store.undock(appId)
+        refreshLists()
+        logState(tag)
+    }
+
+    fun renameDockFolder(folderId: String, name: String?) {
+        LauncherDebugLog.event("renameDockFolder folder=$folderId")
+        (folderStoreFor(folderId)).renameFolder(folderId, name)
+        refreshLists()
+        logState("renameDockFolder")
+    }
+
+    fun explodeDockFolder(folderId: String) {
+        LauncherDebugLog.event("explodeDockFolder folder=$folderId")
+        folderStoreFor(folderId).explodeFolder(folderId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
+        refreshLists()
+        logState("explodeDockFolder")
+    }
+
+    // A folder id is unique across both stores, so route a rename/explode to
+    // whichever dock actually owns it.
+    private fun folderStoreFor(folderId: String): DockedAppStore =
+        if (workDockedAppStore.dockFolders.any { it.id == folderId }) workDockedAppStore else dockedAppStore
+
+    private fun resolvedDockFolders(
+        visibleApps: List<InstalledApp>,
+        store: DockedAppStore,
+    ): List<ResolvedDockFolder> {
+        val byId = visibleApps.associateBy { it.id }
+        return store.dockFolders.mapNotNull { folder ->
+            val members = folder.memberAppIds.mapNotNull { byId[it] }
+            if (members.isEmpty()) null else ResolvedDockFolder(folder.id, members, folder.name)
+        }
+    }
+
+    // endregion
 
     fun resetRank(app: InstalledApp) {
         LauncherDebugLog.event("resetRank package=${app.packageName}")
@@ -1729,6 +1838,12 @@ internal class LauncherViewModel(
         logState("setWorkDockEnabled=$isEnabled")
     }
 
+    fun setDockFoldersEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isDockFoldersEnabled = isEnabled
+        _uiState.update { it.copy(isDockFoldersEnabled = isEnabled) }
+        logState("setDockFoldersEnabled=$isEnabled")
+    }
+
     private fun refreshLists() {
         val query = _uiState.value.query.trim()
         _uiState.update { state ->
@@ -1750,9 +1865,11 @@ internal class LauncherViewModel(
                 ).markVisibility(),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
+                dockFolders = resolvedDockFolders(visibleApps, dockedAppStore),
                 shouldShowDockAddHint = dockedAppStore.shouldShowAddButtonHint,
                 workDockedApps = visibleApps.filterDocked(workDockedIds).markVisibility(),
                 workDockPositions = workDockedAppStore.dockedAppPositions,
+                workDockFolders = resolvedDockFolders(visibleApps, workDockedAppStore),
                 shouldShowWorkDockAddHint = workDockedAppStore.shouldShowAddButtonHint,
                 isWorkProfileConfigured = installedApps.any { it.isWorkApp },
                 isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
@@ -1812,13 +1929,19 @@ internal class LauncherViewModel(
         personalDockedIds: List<String>,
         workDockedIds: List<String>,
     ): List<String> {
+        // Folder members are docked too (inside a folder), so they float in the
+        // list like loose docked apps when the dock is hidden. Expand folder
+        // occupants to their members *in place* so a foldered app floats at the
+        // folder's own dock-rank position, not after every top-level occupant.
+        val personalFloating = dockedAppStore.expandFolderOccupants(personalDockedIds)
+        val workFloating = workDockedAppStore.expandFolderOccupants(workDockedIds)
         // The work dock row is hidden — so its apps belong in the list and float
         // like personal pins — whenever a query is active or the Compact state
         // has dropped the docks. A blank query in Full keeps the work dock on
         // screen, so only personal pins float then.
         val workDockHidden = state.query.isNotBlank() ||
             state.homeLandscapeTier == HomeLandscapeTier.Compact
-        if (!workDockHidden) return personalDockedIds
+        if (!workDockHidden) return personalFloating
         // Re-derive the active-profile flag from `installedApps` for the same
         // reason `excludedFromAppList` does: the `state` snapshot visible here
         // can lag the package reload by a frame.
@@ -1829,9 +1952,9 @@ internal class LauncherViewModel(
             // coordinates. Without it, `filterByName`'s `withIndex().associate`
             // would let the later work-dock index overwrite the personal one
             // and demote the app below its intended personal-order position.
-            (personalDockedIds + workDockedIds).distinct()
+            (personalFloating + workFloating).distinct()
         } else {
-            personalDockedIds
+            personalFloating
         }
     }
 
@@ -1882,7 +2005,11 @@ internal class LauncherViewModel(
         val deviceDockIconCount = deviceRenderableDockIconCount()
         prefillWorkDock(
             installedApps = loadedApps,
-            personalDockedIds = dockedAppStore.dockedAppIds.toSet(),
+            // Include personal-folder members: a work app pinned to the personal
+            // dock and then grouped into a folder is still "on the personal
+            // dock", so tier (a) should copy it into the work dock on first
+            // enable (its loose id is gone — only the folder occupant remains).
+            personalDockedIds = dockedAppStore.dockedOrFolderedAppIds,
             appLaunchStatsStore = appLaunchStatsStore,
             workDockStore = workDockedAppStore,
             maxSlots = deviceDockIconCount,
@@ -1928,7 +2055,10 @@ internal class LauncherViewModel(
         val isDockUiVisible = state.query.isBlank() &&
             state.homeLandscapeTier == HomeLandscapeTier.Full
         if (isDockUiVisible && state.isDockEnabled && !state.isShowDockedAppsInList) {
-            excluded.addAll(dockedIds)
+            // Loose docked apps ∪ folder members (folder occupant ids excluded)
+            // — a folder member dedupes out of the list under the same rule as a
+            // loose docked app.
+            excluded.addAll(dockedAppStore.dockedOrFolderedAppIds)
         }
         // Re-derive `isWorkProfileActive` from the authoritative
         // `installedApps` instead of reading `state.isWorkProfileActive`.
@@ -1948,7 +2078,7 @@ internal class LauncherViewModel(
             isWorkProfileActive &&
             !state.isShowDockedAppsInList
         ) {
-            excluded.addAll(workDockedAppStore.dockedAppIds)
+            excluded.addAll(workDockedAppStore.dockedOrFolderedAppIds)
         }
         return excluded
     }
@@ -2322,6 +2452,8 @@ internal class LauncherViewModel(
         map { app ->
             val isDocked = dockedAppStore.contains(app.id)
             val isWorkDocked = workDockedAppStore.contains(app.id)
+            val isInFolder = dockedAppStore.isFolderMember(app.id) ||
+                workDockedAppStore.isFolderMember(app.id)
             val isHidden = hiddenAppStore.contains(app.id)
             val customName = renamedAppStore.customNameFor(app.id)
             val customBadge = customBadgeStore.customBadgeFor(app.id)
@@ -2330,6 +2462,7 @@ internal class LauncherViewModel(
             val customIconVersion = overrideFile?.lastModified() ?: 0L
             if (app.isDocked == isDocked &&
                 app.isWorkDocked == isWorkDocked &&
+                app.isInFolder == isInFolder &&
                 app.isHidden == isHidden &&
                 app.customName == customName &&
                 app.customBadge == customBadge &&
@@ -2341,6 +2474,7 @@ internal class LauncherViewModel(
                 app.copy(
                     isDocked = isDocked,
                     isWorkDocked = isWorkDocked,
+                    isInFolder = isInFolder,
                     isHidden = isHidden,
                     customName = customName,
                     customBadge = customBadge,
