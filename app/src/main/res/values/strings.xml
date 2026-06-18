@@ -45,7 +45,10 @@
     <!-- TODO: translate -->
     <string name="app_menu_open_folder" tools:ignore="MissingTranslation">Open folder</string>
     <!-- TODO: translate -->
-    <string name="app_menu_explode" tools:ignore="MissingTranslation">Explode</string>
+    <!-- TODO: rename the "explode" code symbols (app_menu_explode, explodeFolder,
+         explodeDockFolder, onExplodeDockFolder, onExplodeFolder, onExplode) to "ungroup"
+         to match this user-facing label. -->
+    <string name="app_menu_explode" tools:ignore="MissingTranslation">Ungroup</string>
     <!-- TODO: translate -->
     <string name="dock_folder_content_description" tools:ignore="MissingTranslation">Folder</string>
     <!-- TODO: translate -->
