@@ -1339,21 +1339,43 @@ private fun DockFolderActionsMenu(
         onDismissRequest = onDismiss,
         properties = AppActionsMenuPopupProperties,
     ) {
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_open_folder)) },
-            onClick = {
-                onDismiss()
-                onOpenFolder()
-            },
-        )
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_explode)) },
-            onClick = {
-                onDismiss()
-                onExplodeFolder()
-            },
+        DockFolderActionsMenuContent(
+            onOpenFolder = onOpenFolder,
+            onExplodeFolder = onExplodeFolder,
+            onDismiss = onDismiss,
         )
     }
+}
+
+/**
+ * The body of [DockFolderActionsMenu] — the menu items only, without the
+ * [LauncherDropdownMenu] popup wrapper. Factored out so a screenshot test can
+ * render the items inside an activity-hosted Compose tree rather than the popup
+ * window: Roborazzi can't capture a [androidx.compose.ui.window.Popup]'s own
+ * window, and composing the popup under Robolectric risks the cascade
+ * documented in CLAUDE.md. Mirrors the EditAppDialog / EditAppDialogContent
+ * split. Production keeps the popup wrapper; only the items live here.
+ */
+@Composable
+internal fun DockFolderActionsMenuContent(
+    onOpenFolder: () -> Unit,
+    onExplodeFolder: () -> Unit,
+    onDismiss: () -> Unit = {},
+) {
+    DropdownMenuItem(
+        text = { LauncherMenuItemText(stringResource(R.string.app_menu_open_folder)) },
+        onClick = {
+            onDismiss()
+            onOpenFolder()
+        },
+    )
+    DropdownMenuItem(
+        text = { LauncherMenuItemText(stringResource(R.string.app_menu_explode)) },
+        onClick = {
+            onDismiss()
+            onExplodeFolder()
+        },
+    )
 }
 
 /**

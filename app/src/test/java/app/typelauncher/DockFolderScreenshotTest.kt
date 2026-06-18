@@ -9,10 +9,13 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -88,6 +91,34 @@ class DockFolderScreenshotTest {
 
         composeRule.onNodeWithTag(DOCK_FOLDER_POPUP_TAG, useUnmergedTree = true).assertExists()
         captureSnapshot("compose_dock_folder_popup_robolectric.png")
+    }
+
+    @Test
+    fun folderActionsMenu_showsOpenFolderAndUngroup() {
+        // The folder long-press menu's body (Open folder / Ungroup), rendered
+        // without the LauncherDropdownMenu popup wrapper so Robolectric can
+        // capture it — the EditAppDialogContent precedent. A fixed width stands
+        // in for the popup surface the items would otherwise size against.
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Surface(
+                    tonalElevation = 3.dp,
+                    modifier = Modifier.padding(24.dp).width(220.dp),
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        DockFolderActionsMenuContent(
+                            onOpenFolder = {},
+                            onExplodeFolder = {},
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Open folder", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText("Ungroup", useUnmergedTree = true).assertExists()
+        captureSnapshot("compose_dock_folder_actions_menu_robolectric.png")
     }
 
     private fun sampleFolder(memberCount: Int, name: String? = null): ResolvedDockFolder {
