@@ -2508,6 +2508,42 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_dock_folder_in_dock_robolectric.png")
     }
 
+    // Tapping a dock folder opens it *in place of the dock* — same card
+    // footprint, the app list above unchanged. Seeds a dock with a folder, taps
+    // it open, and captures the whole home so the open folder is shown in real
+    // context with colored icons (unlike DockFolderInPlaceScreenshotTest, which
+    // composes the open folder in an isolated stub dock card).
+    @Test
+    fun homeWithOpenDockFolder_rendersFolderInDockFootprint() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(6)
+        viewModel.setDockFoldersEnabled(true)
+        composeRule.waitForIdle()
+        val apps = viewModel.uiState.value.filteredApps.take(6)
+        apps.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+        // A four-member folder (full 2×2 mini-icon) alongside the two remaining
+        // loose dock icons.
+        viewModel.mergeDockItems(sourceId = apps[1].id, targetId = apps[0].id)
+        composeRule.waitForIdle()
+        val folderId = viewModel.uiState.value.dockFolders.single().id
+        viewModel.addAppToDockFolder(folderId, apps[2].id)
+        viewModel.addAppToDockFolder(folderId, apps[3].id)
+        composeRule.waitForIdle()
+
+        val folder = viewModel.uiState.value.dockFolders.single()
+        composeRule
+            .onNodeWithTag("$DOCK_FOLDER_TAG:${folder.id}", useUnmergedTree = true)
+            .performClick()
+        composeRule.waitForIdle()
+
+        // The open folder's grid now occupies the dock card in place of the dock.
+        composeRule
+            .onNodeWithTag(DOCK_FOLDER_POPUP_TAG, useUnmergedTree = true)
+            .assertExists()
+        saveScreenshot("compose_home_open_dock_folder_robolectric.png")
+    }
+
     // In a window wider than portrait (here a tall tablet landscape, which is
     // the only landscape that stays in the Full state and therefore renders the
     // dock), the dock keeps its portrait icon size and the gray card is narrowed
