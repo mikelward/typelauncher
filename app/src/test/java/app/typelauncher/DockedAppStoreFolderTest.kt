@@ -119,6 +119,40 @@ class DockedAppStoreFolderTest {
     }
 
     @Test
+    fun explodeFolderFillsSlotsForwardFromTheFolder() {
+        // a→(0,0) b→(0,1) z→(0,2); merge a onto b puts a folder [b,a] at (0,1)
+        // and frees (0,0); adding z (members [b,a,z]) leaves (0,2)/(0,3) free too.
+        val store = DockedAppStore(context)
+        listOf("a", "b", "z").forEach { store.dock(it, columnCount = 4) }
+        val folderId = store.mergeIntoFolder("a", "b", columnCount = 4)!!
+        store.addToFolder(folderId, "z", columnCount = 4)
+        val folderPosition = store.dockedAppPositions[folderId]!!
+
+        store.explodeFolder(folderId, columnCount = 4)
+
+        // First member keeps the folder's slot; the rest take the nearest free
+        // cells forward from it, not the freed top-left cell (0,0).
+        assertEquals(folderPosition, store.dockedAppPositions["b"])
+        assertEquals(DockPosition(0, 2), store.dockedAppPositions["a"])
+        assertEquals(DockPosition(0, 3), store.dockedAppPositions["z"])
+    }
+
+    @Test
+    fun explodeFolderWrapsToEarlierGapWhenNoForwardSlot() {
+        // a(0,0) b(0,1) c(0,2) d(0,3); merge a onto b → folder [b,a] at (0,1),
+        // freeing (0,0). c and d fill (0,2)/(0,3), so the only gap is before the
+        // folder — the second member must wrap into it rather than grow a new row.
+        val store = DockedAppStore(context)
+        listOf("a", "b", "c", "d").forEach { store.dock(it, columnCount = 4) }
+        val folderId = store.mergeIntoFolder("a", "b", columnCount = 4)!!
+
+        store.explodeFolder(folderId, columnCount = 4)
+
+        assertEquals(DockPosition(0, 1), store.dockedAppPositions["b"])
+        assertEquals(DockPosition(0, 0), store.dockedAppPositions["a"])
+    }
+
+    @Test
     fun renameFolderPersistsName() {
         val store = DockedAppStore(context)
         listOf("a", "b").forEach { store.dock(it, columnCount = 4) }

@@ -261,6 +261,37 @@ internal fun nextAvailableDockPosition(
     }
 }
 
+/**
+ * Like [nextAvailableDockPosition] but biased toward [origin]: returns the first
+ * empty cell at or after [origin] in reading order within the current row
+ * footprint, wrapping to the earliest empty cell before it, and only appending a
+ * brand new slot (via [nextAvailableDockPosition], which may add a row) when
+ * every cell in the existing rows is full. Used when a folder explodes so its
+ * freed members land next to the folder's old slot — filling existing gaps
+ * before growing the dock — rather than at the top-left.
+ */
+internal fun nextAvailableDockPositionFrom(
+    dockedAppIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    columnCount: Int,
+    origin: DockPosition,
+): DockPosition {
+    val columns = columnCount.coerceAtLeast(1)
+    val occupied = resolvedDockPositions(dockedAppIds, persistedPositions, columnCount)
+        .values
+        .toSet()
+    val originIndex = origin.row * columns + origin.column
+    // Every cell in the occupied rows (full width per row), not just up to the
+    // last occupied cell — so a forward gap past the last icon in a row counts.
+    val maxRow = occupied.maxOfOrNull { it.row } ?: -1
+    val empties = (0..maxRow)
+        .flatMap { row -> (0 until columns).map { column -> DockPosition(row, column) } }
+        .filter { it !in occupied }
+    return empties.firstOrNull { it.row * columns + it.column >= originIndex }
+        ?: empties.firstOrNull()
+        ?: nextAvailableDockPosition(dockedAppIds, persistedPositions, columnCount)
+}
+
 internal fun dockedAppIdsInGridRankOrder(
     dockedAppIds: List<String>,
     persistedPositions: Map<String, DockPosition>,

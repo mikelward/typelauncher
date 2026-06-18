@@ -269,8 +269,10 @@ internal class DockedAppStore(
 
     /**
      * Explode a folder: replace the folder occupant with its members as loose
-     * icons (the first member takes the folder's slot, the rest fill the next
-     * available slots).
+     * icons. The first member takes the folder's slot; the rest fill the nearest
+     * free slots forward from it (wrapping to earlier gaps before growing the
+     * dock), so the freed apps stay near the folder's old spot rather than
+     * jumping to the top-left.
      */
     fun explodeFolder(folderId: String, columnCount: Int = DEFAULT_DOCK_ICON_COUNT) = synchronized(lock) {
         val folder = folders[folderId] ?: return@synchronized
@@ -283,6 +285,16 @@ internal class DockedAppStore(
             if (index == 0 && folderPosition != null) {
                 dockedIds.add(memberId)
                 dockPositions[memberId] = folderPosition
+            } else if (folderPosition != null) {
+                // Each placement is added before the next is computed, so the
+                // members fan out forward from the folder's slot.
+                dockPositions[memberId] = nextAvailableDockPositionFrom(
+                    dockedIds.toList(),
+                    dockPositions,
+                    columns,
+                    folderPosition,
+                )
+                dockedIds.add(memberId)
             } else {
                 placeAtNextSlotLocked(memberId, columns)
             }
