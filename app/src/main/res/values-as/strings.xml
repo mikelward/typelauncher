@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">নাম ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">নাম ↑</string>
     <string name="settings_dock_enabled_title">ডক দেখুৱাওক</string>
-    <string name="settings_show_docked_apps_in_list_title">ডক কৰা এপ দেখুৱাওক</string>
     <string name="settings_work_dock_enabled_title">কামৰ ডক দেখুৱাওক</string>
     <string name="settings_work_dock_disabled_toast">কামৰ প্ৰ\'ফাইল স্থগিত</string>
     <string name="settings_keyboard_auto_show_title">কীব\'ৰ্ড স্বয়ংক্ৰিয়ভাৱে দেখুৱাওক</string>

@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Namn ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Namn ↑</string>
     <string name="settings_dock_enabled_title">Visa dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Visa dockade appar</string>
     <string name="settings_work_dock_enabled_title">Visa jobbdock</string>
     <string name="settings_work_dock_disabled_toast">Jobbprofilen är pausad</string>
     <string name="settings_keyboard_auto_show_title">Visa tangentbordet automatiskt</string>

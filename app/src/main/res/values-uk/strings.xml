@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Назвою ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Назвою ↑</string>
     <string name="settings_dock_enabled_title">Показувати док</string>
-    <string name="settings_show_docked_apps_in_list_title">Показувати застосунки дока</string>
     <string name="settings_work_dock_enabled_title">Показувати робочий док</string>
     <string name="settings_work_dock_disabled_toast">Робочий профіль призупинено</string>
     <string name="settings_keyboard_auto_show_title">Автоматично показувати клавіатуру</string>

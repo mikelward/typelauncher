@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">ชื่อ ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">ชื่อ ↑</string>
     <string name="settings_dock_enabled_title">แสดง Dock</string>
-    <string name="settings_show_docked_apps_in_list_title">แสดงแอปใน Dock</string>
     <string name="settings_work_dock_enabled_title">แสดง Dock งาน</string>
     <string name="settings_work_dock_disabled_toast">โปรไฟล์งานถูกหยุดชั่วคราว</string>
     <string name="settings_keyboard_auto_show_title">แสดงแป้นพิมพ์อัตโนมัติ</string>

@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Naam ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Naam ↑</string>
     <string name="settings_dock_enabled_title">Dock tonen</string>
-    <string name="settings_show_docked_apps_in_list_title">Gedockte apps tonen</string>
     <string name="settings_work_dock_enabled_title">Werkdock tonen</string>
     <string name="settings_work_dock_disabled_toast">Werkprofiel is gepauzeerd</string>
     <string name="settings_keyboard_auto_show_title">Toetsenbord automatisch tonen</string>

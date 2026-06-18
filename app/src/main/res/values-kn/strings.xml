@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">ಹೆಸರು ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">ಹೆಸರು ↑</string>
     <string name="settings_dock_enabled_title">ಡಾಕ್ ತೋರಿಸಿ</string>
-    <string name="settings_show_docked_apps_in_list_title">ಡಾಕ್ ಮಾಡಿದ ಆ್ಯಪ್‌ಗಳನ್ನು ತೋರಿಸಿ</string>
     <string name="settings_work_dock_enabled_title">ಕೆಲಸದ ಡಾಕ್ ತೋರಿಸಿ</string>
     <string name="settings_work_dock_disabled_toast">ಕೆಲಸದ ಪ್ರೊಫೈಲ್ ವಿರಾಮಗೊಂಡಿದೆ</string>
     <string name="settings_keyboard_auto_show_title">ಕೀಬೋರ್ಡ್ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ತೋರಿಸಿ</string>
