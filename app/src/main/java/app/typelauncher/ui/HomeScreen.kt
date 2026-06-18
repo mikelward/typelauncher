@@ -806,12 +806,6 @@ private fun DockCard(
     // joins this target's folder). Always null when folders are disabled, so
     // the dock keeps its pre-folders reorder/swap physics.
     var hoveredMergeTargetId by remember { mutableStateOf<String?>(null) }
-    // When folders are enabled, the slot the dragged icon is hovering over for a
-    // swap (null = no swap pending; on release the dragged icon trades slots with
-    // that position's occupant). Set when the drag lands on an occupied
-    // neighbor's *edge* — outside the central merge radius — and is mutually
-    // exclusive with `hoveredMergeTargetId`. Always null when folders are off.
-    var hoveredSwapTargetPosition by remember { mutableStateOf<DockPosition?>(null) }
     // The folder whose popup grid is open, or null. Cleared on rotation /
     // recomposition reset like the actions menu.
     var openFolderId by remember { mutableStateOf<String?>(null) }
@@ -850,18 +844,16 @@ private fun DockCard(
         draggedAppId = occupantId
         dragOffset = Offset.Zero
         hoveredMergeTargetId = null
-        hoveredSwapTargetPosition = null
     }
     val onOccupantDrag: (String, Offset) -> Unit = { occupantId, delta ->
         val visibleCenters = slotCenters.filterKeys { slot ->
             slot.row in 0 until rowCount && slot.column in 0 until columns
         }
-        val pitch = dockSlotPitch(visibleCenters)
-        val mergeRadiusPx = if (pitch.isFinite()) {
-            pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
-        } else {
-            Float.POSITIVE_INFINITY
-        }
+        // The slot pitch only drives the folder merge/swap thresholds, so skip
+        // the scan entirely on the common folders-off path where they're ignored.
+        val pitch = if (foldersEnabled) dockSlotPitch(visibleCenters) else Float.POSITIVE_INFINITY
+        val mergeRadiusPx = if (pitch.isFinite()) pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION else Float.POSITIVE_INFINITY
+        val swapBufferPx = if (pitch.isFinite()) pitch * DOCK_SWAP_BUFFER_FRACTION else 0f
         handleDockDrag(
             delta = delta,
             draggedAppId = occupantId,
@@ -874,24 +866,24 @@ private fun DockCard(
             mergeEnabled = foldersEnabled,
             occupantByPosition = occupantByPosition,
             mergeRadiusPx = mergeRadiusPx,
+            swapBufferPx = swapBufferPx,
             onMergeTarget = { hoveredMergeTargetId = it },
-            onSwapTarget = { hoveredSwapTargetPosition = it },
         )
     }
-    val onOccupantDragEnd: (String) -> Unit = { occupantId ->
+    // [canceled] is true when the gesture ended abnormally (the system stole the
+    // pointer stream, the tracked pointer vanished, or the gesture coroutine was
+    // canceled). Swaps are already persisted live, so a cancel just drops the
+    // icon; but a pending *merge* must NOT commit on an abnormal end — that would
+    // create a folder the user never released onto. So merge commits on a clean
+    // release only.
+    val onOccupantDragEnd: (String, Boolean) -> Unit = { occupantId, canceled ->
         val mergeTarget = hoveredMergeTargetId
-        val swapTarget = hoveredSwapTargetPosition
-        if (foldersEnabled && mergeTarget != null && mergeTarget != occupantId) {
+        if (!canceled && foldersEnabled && mergeTarget != null && mergeTarget != occupantId) {
             latestOnMergeDock(occupantId, mergeTarget)
-        } else if (foldersEnabled && swapTarget != null) {
-            // Edge drop onto an occupied neighbor: trade slots. `move` swaps the
-            // neighbor back into the dragged icon's previous coordinate.
-            latestOnReorderDock(occupantId, swapTarget.row, swapTarget.column)
         }
         draggedAppId = null
         dragOffset = Offset.Zero
         hoveredMergeTargetId = null
-        hoveredSwapTargetPosition = null
     }
 
     // The folder whose grid is open in place of the dock, or null. Opening a
@@ -998,7 +990,7 @@ private fun DockCard(
                             onReportSlotCenter = { center -> slotCenters[position] = center },
                             onDragStart = { onOccupantDragStart(app.id) },
                             onDrag = { delta -> onOccupantDrag(app.id, delta) },
-                            onDragEnd = { onOccupantDragEnd(app.id) },
+                            onDragEnd = { canceled -> onOccupantDragEnd(app.id, canceled) },
                             onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
                         )
                         folder != null -> DockFolderButton(
@@ -1016,7 +1008,7 @@ private fun DockCard(
                             onReportSlotCenter = { center -> slotCenters[position] = center },
                             onDragStart = { onOccupantDragStart(folder.id) },
                             onDrag = { delta -> onOccupantDrag(folder.id, delta) },
-                            onDragEnd = { onOccupantDragEnd(folder.id) },
+                            onDragEnd = { canceled -> onOccupantDragEnd(folder.id, canceled) },
                             onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
                         )
                         showAddButton && position == firstEmptyPosition -> DockAddButton(
@@ -1109,7 +1101,10 @@ private fun DockFolderButton(
     onReportSlotCenter: (Offset) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
-    onDragEnd: () -> Unit,
+    // [Boolean] = canceled: true when the gesture ended abnormally (system
+    // cancel, tracked pointer vanished, or gesture coroutine canceled) rather
+    // than on a clean lift.
+    onDragEnd: (Boolean) -> Unit,
     onLongPressArmed: (Boolean) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -1193,6 +1188,11 @@ private fun DockFolderButton(
                         latestOnLongPressArmed(true)
                         var dragging = false
                         var totalDelta = Offset.Zero
+                        // Stays false unless we see an unconsumed up — a clean
+                        // user lift. A consumed up (system cancel), the pointer
+                        // vanishing, or coroutine cancellation all leave it
+                        // false, so a pending merge is not committed.
+                        var releasedCleanly = false
                         try {
                             while (true) {
                                 val event = awaitPointerEvent()
@@ -1202,6 +1202,7 @@ private fun DockFolderButton(
                                     if (!dragging && !change.isConsumed) {
                                         menuExpanded = true
                                     }
+                                    releasedCleanly = !change.isConsumed
                                     change.consume()
                                     break
                                 }
@@ -1218,7 +1219,7 @@ private fun DockFolderButton(
                             }
                         } finally {
                             if (dragging) {
-                                latestOnDragEnd()
+                                latestOnDragEnd(!releasedCleanly)
                             }
                             latestOnLongPressArmed(false)
                         }
@@ -1772,22 +1773,38 @@ private fun DockFolderMemberActionsMenu(
  * slot center to the new slot center so the lifted icon stays under the finger
  * while the grid recomposes around it.
  *
- * When [mergeEnabled] is true (folders on), the same nearest-slot boundary that
- * used to *swap* onto an occupied neighbor instead arms a *merge*: if the
- * nearest slot is closer than the current slot AND occupied by a different
- * occupant, the drag holds position (no reorder) and reports that occupant via
- * [onMergeTarget]. An empty nearest slot still reorders, so dragging *past* an
- * occupied icon toward an empty slot reorders exactly as before. Merge therefore
- * wins precisely where a swap used to — there is no radius gap for a swap to
- * sneak through first. [onMergeTarget] is called once per invocation with the
- * current target (or null), so the caller can render / clear the preview.
+ * When [mergeEnabled] is true (folders on), an occupied neighbor splits the
+ * gesture by *how far onto it* the dragged center has reached, measured along
+ * the approach axis, with a deadzone and a far-side buffer that reserve the
+ * neighbor's center for merging:
+ *  - **Pushed more than [swapBufferPx] past the neighbor's center**: a live
+ *    *swap* — [onReorder] fires immediately and the loop keeps going, so
+ *    reordering across the dock feels exactly like the folders-off path. Drag
+ *    back through to undo. The buffer means a swap takes a deliberate push
+ *    through the center, not a hair's-breadth crossing.
+ *  - **Within [mergeRadiusPx] of the center (and not yet past the swap
+ *    buffer)**: arms a *merge*, reported via [onMergeTarget]; the drag holds
+ *    position (no swap) so the neighbor stays put and the merge commits on
+ *    release.
+ *  - **In between** (past the reorder boundary but short of the merge radius):
+ *    holds with nothing armed, so a release there just drops the icon back.
+ *
+ * An empty nearest slot always reorders live. [onMergeTarget] is called once per
+ * invocation with the current merge target (or null) so the caller can render /
+ * clear the closed-folder preview; swaps leave it null because they have already
+ * been persisted via [onReorder].
  */
-// A drop within this fraction of the slot pitch from an occupied neighbor's
-// center folds the two icons into a folder; landing farther out (on the
-// neighbor's edge) swaps them. Centering is the deliberate folder gesture; the
-// edge keeps the pre-folders swap reachable even in a fully packed dock that has
-// no empty slot to reorder into.
-private const val DOCK_MERGE_CENTER_RADIUS_FRACTION = 0.35f
+// Merge zone reach: a drag settled within this fraction of the slot pitch from
+// an occupied neighbor's center folds the two icons into a folder. ~0.4 puts the
+// near edge of the zone about one icon-radius from the center ("you're on the
+// neighbor"), leaving a thin deadzone back to the reorder boundary at 0.5·pitch.
+private const val DOCK_MERGE_CENTER_RADIUS_FRACTION = 0.4f
+
+// Swap buffer: how far past the neighbor's center (as a fraction of the slot
+// pitch) the dragged center must travel before a live swap fires. A small buffer
+// keeps a merge from flipping to a swap on a hair's-breadth overshoot at the
+// center, while staying well short of having to drag a full slot over.
+private const val DOCK_SWAP_BUFFER_FRACTION = 0.15f
 
 /**
  * Smallest center-to-center distance between any two dock slots — the dock's
@@ -1822,31 +1839,31 @@ internal fun handleDockDrag(
     setOffset: (Offset) -> Unit,
     mergeEnabled: Boolean = false,
     occupantByPosition: Map<DockPosition, String> = emptyMap(),
-    // Radius in pixels around an occupied neighbor's center within which a drop
-    // arms a folder merge; landing past the reorder boundary but outside this
-    // radius (on the neighbor's edge) arms a swap instead. Defaults to +∞ so
-    // callers that don't care about the split keep the merge-everywhere behavior.
+    // Radius in pixels around an occupied neighbor's center within which the
+    // drag arms a folder merge. Pushing more than [swapBufferPx] past the center
+    // swaps live regardless of this radius. Defaults to +∞, which makes the whole
+    // approaching side a merge zone (no deadzone) up to the swap buffer.
     mergeRadiusPx: Float = Float.POSITIVE_INFINITY,
+    // Distance in pixels past an occupied neighbor's center, along the approach
+    // axis, before a live swap fires. Defaults to 0 (swap the instant the center
+    // is crossed).
+    swapBufferPx: Float = 0f,
     onMergeTarget: (String?) -> Unit = {},
-    onSwapTarget: (DockPosition?) -> Unit = {},
 ) {
     if (draggedAppId == null) return
     if (draggedAppId !in currentOccupantIds) return
     var newOffset = currentOffset + delta
     var currentPosition = currentDockPositions[draggedAppId] ?: run {
         onMergeTarget(null)
-        onSwapTarget(null)
         setOffset(newOffset)
         return
     }
     var currentCenter = slotCenters[currentPosition] ?: run {
         onMergeTarget(null)
-        onSwapTarget(null)
         setOffset(newOffset)
         return
     }
     var mergeTarget: String? = null
-    var swapTarget: DockPosition? = null
     while (true) {
         val draggedCenter = currentCenter + newOffset
         val nearest = slotCenters.minByOrNull { (_, center) -> (center - draggedCenter).getDistance() }
@@ -1861,19 +1878,29 @@ internal fun handleDockDrag(
         }
         val occupant = occupantByPosition[targetPosition]
         if (mergeEnabled && occupant != null && occupant != draggedAppId) {
-            // Crossed the reorder boundary onto an occupied neighbor. Where the
-            // dragged center sits on that neighbor decides the outcome on
-            // release: within the central hit-radius it merges into a folder,
-            // out on the neighbor's edge the two swap. Either way hold position
-            // (no live reorder) so both zones stay reachable from the same
-            // approach — a live swap would shove the neighbor away before the
-            // finger could reach its center.
-            if ((targetCenter - draggedCenter).getDistance() <= mergeRadiusPx) {
-                mergeTarget = occupant
+            // Crossed the reorder boundary onto an occupied neighbor. How far is
+            // the dragged center past that neighbor's center, along the approach
+            // axis? Beyond the swap buffer it's a live swap — fall through to the
+            // reorder below. Short of that, the center is still reachable: settle
+            // within the merge radius to arm a folder (committed on release),
+            // otherwise hold with nothing armed. The deadzone before the merge
+            // radius and the buffer past the center are what let the user park on
+            // the neighbor to merge instead of shoving it away on a tiny drift.
+            val axisX = targetCenter.x - currentCenter.x
+            val axisY = targetCenter.y - currentCenter.y
+            val axisLength = kotlin.math.hypot(axisX, axisY)
+            val pastCenterPx = if (axisLength > 0f) {
+                ((draggedCenter.x - targetCenter.x) * axisX +
+                    (draggedCenter.y - targetCenter.y) * axisY) / axisLength
             } else {
-                swapTarget = targetPosition
+                0f
             }
-            break
+            if (pastCenterPx <= swapBufferPx) {
+                if ((targetCenter - draggedCenter).getDistance() <= mergeRadiusPx) {
+                    mergeTarget = occupant
+                }
+                break
+            }
         }
         onReorder(draggedAppId, targetPosition.row, targetPosition.column)
         newOffset += currentCenter - targetCenter
@@ -1881,7 +1908,6 @@ internal fun handleDockDrag(
         currentCenter = targetCenter
     }
     onMergeTarget(mergeTarget)
-    onSwapTarget(swapTarget)
     setOffset(newOffset)
 }
 
@@ -3274,7 +3300,10 @@ private fun DockedAppButton(
     onReportSlotCenter: (Offset) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
-    onDragEnd: () -> Unit,
+    // [Boolean] = canceled: true when the gesture ended abnormally (system
+    // cancel, tracked pointer vanished, or gesture coroutine canceled) rather
+    // than on a clean lift.
+    onDragEnd: (Boolean) -> Unit,
     onLongPressArmed: (Boolean) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -3389,6 +3418,12 @@ private fun DockedAppButton(
                     latestOnLongPressArmed(true)
                     var dragging = false
                     var totalDelta = Offset.Zero
+                    // Only an unconsumed up flips this true — the same
+                    // clean-lift signal the menu check below uses. A consumed
+                    // up (system cancel), pointer vanishing, or coroutine
+                    // cancellation leaves it false so a pending merge is not
+                    // committed on an abnormal end.
+                    var releasedCleanly = false
                     try {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -3405,6 +3440,7 @@ private fun DockedAppButton(
                                 if (!dragging && !change.isConsumed) {
                                     menuExpanded = true
                                 }
+                                releasedCleanly = !change.isConsumed
                                 change.consume()
                                 break
                             }
@@ -3431,9 +3467,11 @@ private fun DockedAppButton(
                         // only on the clean-release path left DockCard's
                         // draggedAppId/dragOffset latched, so the icon
                         // kept rendering lifted at its last offset until
-                        // some new drag overwrote the state.
+                        // some new drag overwrote the state. The canceled
+                        // flag (true on any non-clean exit) tells DockCard not
+                        // to commit a pending folder merge.
                         if (dragging) {
-                            latestOnDragEnd()
+                            latestOnDragEnd(!releasedCleanly)
                         }
                         latestOnLongPressArmed(false)
                     }

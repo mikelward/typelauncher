@@ -639,89 +639,147 @@ class DockReorderCarouselTest {
         assertEquals(Offset(-20f, 0f), updatedOffset)
     }
 
-    @Test
-    fun dockDragMergesOnCenterDropOntoOccupiedNeighbor() {
-        // With folders enabled, dropping on the *center* of an occupied neighbor
-        // arms a merge (held to release), never a live swap-reorder.
+    // Geometry shared by the merge/swap-deadzone tests: a 2-icon row with
+    // centers 100px apart, so the reorder boundary sits at x=100. The tests pass
+    // a 40px merge radius and a 15px swap buffer (i.e. pitch 100 × 0.4 / 0.15),
+    // so b's merge zone is x in [110, 165] (40px short of center through 15px
+    // past it) and a swap only fires past x=165.
+    private fun twoIconRow(): Triple<InstalledApp, InstalledApp, Map<DockPosition, String>> {
         val a = fakeApp("App01").copy(isDocked = true)
         val b = fakeApp("App02").copy(isDocked = true)
-        val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
-        val slotCenters = mapOf(
-            DockPosition(0, 0) to Offset(50f, 50f),
-            DockPosition(0, 1) to Offset(150f, 50f),
-        )
         val occupantByPosition = mapOf(
             DockPosition(0, 0) to a.id,
             DockPosition(0, 1) to b.id,
         )
+        return Triple(a, b, occupantByPosition)
+    }
+
+    private val twoIconSlots = mapOf(
+        DockPosition(0, 0) to Offset(50f, 50f),
+        DockPosition(0, 1) to Offset(150f, 50f),
+    )
+
+    @Test
+    fun dockDragMergesWhenSettledOnOccupiedNeighborCenter() {
+        // With folders enabled, settling within the merge radius of an occupied
+        // neighbor's center (without crossing it) arms a merge, held to release —
+        // no live swap-reorder.
+        val (a, b, occupantByPosition) = twoIconRow()
+        val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
         var reordered = false
         var mergeTarget: String? = null
-        var swapTarget: DockPosition? = null
 
         handleDockDrag(
-            // Drag fully onto b's center.
-            delta = Offset(100f, 0f),
+            // Drag a to x=140: 10px short of b's center, inside the 40px radius.
+            delta = Offset(90f, 0f),
             draggedAppId = a.id,
             currentOccupantIds = setOf(a.id, b.id),
             currentDockPositions = positions,
-            slotCenters = slotCenters,
+            slotCenters = twoIconSlots,
             onReorder = { _, _, _ -> reordered = true },
             currentOffset = Offset.Zero,
             setOffset = { },
             mergeEnabled = true,
             occupantByPosition = occupantByPosition,
-            // pitch = 100, so the merge zone is the inner 35px around b's center.
-            mergeRadiusPx = 35f,
+            mergeRadiusPx = 40f,
+            swapBufferPx = 15f,
             onMergeTarget = { mergeTarget = it },
-            onSwapTarget = { swapTarget = it },
         )
 
         assertEquals(b.id, mergeTarget)
-        assertNull("a center drop must not arm a swap", swapTarget)
-        assertFalse("must not swap-reorder onto an occupied merge target", reordered)
+        assertFalse("must not swap-reorder while arming a merge", reordered)
     }
 
     @Test
-    fun dockDragSwapsOnEdgeDropOntoOccupiedNeighbor() {
-        // With folders enabled, landing on the *edge* of an occupied neighbor
-        // (past the reorder boundary but outside the merge radius) arms a swap,
-        // committed on release — not a merge, and not a live reorder.
-        val a = fakeApp("App01").copy(isDocked = true)
-        val b = fakeApp("App02").copy(isDocked = true)
+    fun dockDragStillMergesJustPastCenterWithinSwapBuffer() {
+        // A hair past the center — within the swap buffer — still merges, so a
+        // tiny overshoot doesn't flip a fold into a swap.
+        val (a, b, occupantByPosition) = twoIconRow()
         val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
-        val slotCenters = mapOf(
-            DockPosition(0, 0) to Offset(50f, 50f),
-            DockPosition(0, 1) to Offset(150f, 50f),
-        )
-        val occupantByPosition = mapOf(
-            DockPosition(0, 0) to a.id,
-            DockPosition(0, 1) to b.id,
-        )
         var reordered = false
         var mergeTarget: String? = null
-        var swapTarget: DockPosition? = null
 
         handleDockDrag(
-            // Nudge a to x=105: past the x=100 boundary, 45px from b's center —
-            // outside the 35px merge radius, so b's edge, not its center.
+            // Drag a to x=160: 10px past b's center, inside the 15px swap buffer.
+            delta = Offset(110f, 0f),
+            draggedAppId = a.id,
+            currentOccupantIds = setOf(a.id, b.id),
+            currentDockPositions = positions,
+            slotCenters = twoIconSlots,
+            onReorder = { _, _, _ -> reordered = true },
+            currentOffset = Offset.Zero,
+            setOffset = { },
+            mergeEnabled = true,
+            occupantByPosition = occupantByPosition,
+            mergeRadiusPx = 40f,
+            swapBufferPx = 15f,
+            onMergeTarget = { mergeTarget = it },
+        )
+
+        assertEquals(b.id, mergeTarget)
+        assertFalse("within the swap buffer must not swap", reordered)
+    }
+
+    @Test
+    fun dockDragSwapsLiveWhenPushedPastSwapBuffer() {
+        // Pushing past the center by more than the swap buffer swaps live
+        // (onReorder fires during the drag), so reordering feels like the
+        // folders-off path.
+        val (a, b, occupantByPosition) = twoIconRow()
+        val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
+        var movedTo: DockPosition? = null
+        var mergeTarget: String? = "unset"
+
+        handleDockDrag(
+            // Drag a to x=170: 20px past b's center, beyond the 15px swap buffer.
+            delta = Offset(120f, 0f),
+            draggedAppId = a.id,
+            currentOccupantIds = setOf(a.id, b.id),
+            currentDockPositions = positions,
+            slotCenters = twoIconSlots,
+            onReorder = { _, row, column -> movedTo = DockPosition(row, column) },
+            currentOffset = Offset.Zero,
+            setOffset = { },
+            mergeEnabled = true,
+            occupantByPosition = occupantByPosition,
+            mergeRadiusPx = 40f,
+            swapBufferPx = 15f,
+            onMergeTarget = { mergeTarget = it },
+        )
+
+        assertEquals("pushing past the buffer must swap into the neighbor's slot", DockPosition(0, 1), movedTo)
+        assertNull("a live swap must not also arm a merge", mergeTarget)
+    }
+
+    @Test
+    fun dockDragHoldsInDeadzoneBeforeMergeZone() {
+        // Past the reorder boundary but short of the merge radius and not past
+        // the center: hold with nothing armed, so a release there just drops back.
+        val (a, b, occupantByPosition) = twoIconRow()
+        val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
+        var reordered = false
+        var mergeTarget: String? = "unset"
+
+        handleDockDrag(
+            // Drag a to x=105: past the x=100 boundary, 45px from b's center —
+            // outside the 40px merge radius and not past the center.
             delta = Offset(55f, 0f),
             draggedAppId = a.id,
             currentOccupantIds = setOf(a.id, b.id),
             currentDockPositions = positions,
-            slotCenters = slotCenters,
+            slotCenters = twoIconSlots,
             onReorder = { _, _, _ -> reordered = true },
             currentOffset = Offset.Zero,
             setOffset = { },
             mergeEnabled = true,
             occupantByPosition = occupantByPosition,
-            mergeRadiusPx = 35f,
+            mergeRadiusPx = 40f,
+            swapBufferPx = 15f,
             onMergeTarget = { mergeTarget = it },
-            onSwapTarget = { swapTarget = it },
         )
 
-        assertEquals(DockPosition(0, 1), swapTarget)
-        assertNull("an edge drop must not arm a merge", mergeTarget)
-        assertFalse("swap is committed on release, not as a live reorder", reordered)
+        assertFalse("the deadzone before the merge zone must not swap", reordered)
+        assertNull("the deadzone before the merge zone must not arm a merge", mergeTarget)
     }
 
     @Test
