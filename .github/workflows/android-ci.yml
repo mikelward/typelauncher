@@ -242,9 +242,13 @@ jobs:
 
       - name: Run dock folder screenshot tests
         # Renders the dock folder mini-icon (2x2 corners) and the open folder
-        # popup grid so the PR `roborazzi-screenshots` artifact shows the
-        # folder UI.
+        # grid so the PR `roborazzi-screenshots` artifact shows the folder UI.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run dock folder in-place screenshot tests
+        # Renders the open folder occupying the dock's footprint — the
+        # fewer-than-slots (fits, no reflow) and more-than-slots (scrolls) cases.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderInPlaceScreenshotTest" -Proborazzi.test.record=true
 
       - name: Print failing test details
         if: failure()
