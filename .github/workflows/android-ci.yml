@@ -240,6 +240,12 @@ jobs:
         # two lines.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.NameBelowGridScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run dock folder screenshot tests
+        # Renders the dock folder mini-icon (2x2 corners) and the open folder
+        # popup grid so the PR `roborazzi-screenshots` artifact shows the
+        # folder UI.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

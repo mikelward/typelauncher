@@ -12,7 +12,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -593,7 +595,7 @@ class DockReorderCarouselTest {
             // slot existed.
             delta = Offset(0f, 200f),
             draggedAppId = docked[0].id,
-            currentDockedApps = docked,
+            currentOccupantIds = docked.map { it.id }.toSet(),
             currentDockPositions = positions,
             slotCenters = slotCenters,
             onReorder = { _, row, column -> movedTo = DockPosition(row, column) },
@@ -625,7 +627,7 @@ class DockReorderCarouselTest {
         handleDockDrag(
             delta = Offset(80f, 0f),
             draggedAppId = app.id,
-            currentDockedApps = docked,
+            currentOccupantIds = docked.map { it.id }.toSet(),
             currentDockPositions = positions,
             slotCenters = slotCenters,
             onReorder = { _, row, column -> movedTo = DockPosition(row, column) },
@@ -635,6 +637,73 @@ class DockReorderCarouselTest {
 
         assertEquals(DockPosition(row = 0, column = 1), movedTo)
         assertEquals(Offset(-20f, 0f), updatedOffset)
+    }
+
+    @Test
+    fun dockDragMergesOntoOccupiedNeighborInsteadOfSwapping() {
+        // With folders enabled, dragging onto an occupied neighbor must arm a
+        // merge at the reorder boundary — never swap first.
+        val a = fakeApp("App01").copy(isDocked = true)
+        val b = fakeApp("App02").copy(isDocked = true)
+        val positions = mapOf(a.id to DockPosition(0, 0), b.id to DockPosition(0, 1))
+        val slotCenters = mapOf(
+            DockPosition(0, 0) to Offset(50f, 50f),
+            DockPosition(0, 1) to Offset(150f, 50f),
+        )
+        val occupantByPosition = mapOf(
+            DockPosition(0, 0) to a.id,
+            DockPosition(0, 1) to b.id,
+        )
+        var reordered = false
+        var mergeTarget: String? = null
+
+        handleDockDrag(
+            // Drag fully onto b's slot.
+            delta = Offset(100f, 0f),
+            draggedAppId = a.id,
+            currentOccupantIds = setOf(a.id, b.id),
+            currentDockPositions = positions,
+            slotCenters = slotCenters,
+            onReorder = { _, _, _ -> reordered = true },
+            currentOffset = Offset.Zero,
+            setOffset = { },
+            mergeEnabled = true,
+            occupantByPosition = occupantByPosition,
+            onMergeTarget = { mergeTarget = it },
+        )
+
+        assertEquals(b.id, mergeTarget)
+        assertFalse("must not swap-reorder onto an occupied merge target", reordered)
+    }
+
+    @Test
+    fun dockDragReordersOntoEmptySlotEvenWithMergeEnabled() {
+        val a = fakeApp("App01").copy(isDocked = true)
+        val positions = mapOf(a.id to DockPosition(0, 0))
+        val slotCenters = mapOf(
+            DockPosition(0, 0) to Offset(50f, 50f),
+            DockPosition(0, 1) to Offset(150f, 50f),
+        )
+        var movedTo: DockPosition? = null
+        var mergeTarget: String? = "unset"
+
+        handleDockDrag(
+            delta = Offset(100f, 0f),
+            draggedAppId = a.id,
+            currentOccupantIds = setOf(a.id),
+            currentDockPositions = positions,
+            slotCenters = slotCenters,
+            onReorder = { _, row, column -> movedTo = DockPosition(row, column) },
+            currentOffset = Offset.Zero,
+            setOffset = { },
+            mergeEnabled = true,
+            // (0,1) is empty — not in occupantByPosition.
+            occupantByPosition = mapOf(DockPosition(0, 0) to a.id),
+            onMergeTarget = { mergeTarget = it },
+        )
+
+        assertEquals(DockPosition(0, 1), movedTo)
+        assertNull("empty target must not arm a merge", mergeTarget)
     }
 
     @Test
@@ -665,7 +734,7 @@ class DockReorderCarouselTest {
         handleDockDrag(
             delta = Offset(0f, 80f),
             draggedAppId = docked[0].id,
-            currentDockedApps = docked,
+            currentOccupantIds = docked.map { it.id }.toSet(),
             currentDockPositions = positions,
             slotCenters = slotCenters,
             onReorder = { _, row, column -> movedTo = DockPosition(row, column) },

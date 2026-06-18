@@ -417,7 +417,11 @@ class MainActivity : ComponentActivity() {
                 targetDockIconSizeDp = state.dockIconSizeDp,
                 isPersonalDockEnabled = state.isDockEnabled,
                 isWorkDockVisible = isWorkDockVisible,
-                workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList(),
+                workDockedAppIds = if (isWorkDockVisible) {
+                    state.workDockedApps.map { it.id } + state.workDockFolders.map { it.id }
+                } else {
+                    emptyList()
+                },
                 workDockPositions = state.workDockPositions,
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,

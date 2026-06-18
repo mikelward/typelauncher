@@ -218,6 +218,13 @@ internal fun TypeLauncherApp(
         onToggleWorkDock = viewModel::toggleWorkDock,
         onReorderDock = viewModel::reorderDockedApps,
         onReorderWorkDock = viewModel::reorderWorkDockedApps,
+        onMergeDock = viewModel::mergeDockItems,
+        onMergeWorkDock = viewModel::mergeWorkDockItems,
+        onRemoveFromDockFolder = viewModel::removeAppFromDockFolder,
+        onRemoveFromWorkDockFolder = viewModel::removeAppFromWorkDockFolder,
+        onUndockFromDockFolder = viewModel::undockAppFromDockFolder,
+        onUndockFromWorkDockFolder = viewModel::undockAppFromWorkDockFolder,
+        onExplodeDockFolder = viewModel::explodeDockFolder,
         onResetRank = viewModel::resetRank,
         onRenameApp = viewModel::renameApp,
         onSetAppIconOverride = { app ->
@@ -251,6 +258,7 @@ internal fun TypeLauncherApp(
         onShowDockedAppsInListChanged = viewModel::setShowDockedAppsInList,
         onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
         onWorkDockEnabledChanged = viewModel::setWorkDockEnabled,
+        onFoldersEnabledChanged = viewModel::setDockFoldersEnabled,
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
@@ -294,6 +302,13 @@ internal fun TypeLauncherApp(
     onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
     onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
     onReorderWorkDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onMergeDock: (String, String) -> Unit = { _, _ -> },
+    onMergeWorkDock: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromDockFolder: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
+    onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
@@ -315,6 +330,7 @@ internal fun TypeLauncherApp(
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
+    onFoldersEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
@@ -650,6 +666,7 @@ internal fun TypeLauncherApp(
                         onShowDockedAppsInListChanged = onShowDockedAppsInListChanged,
                         onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                         onWorkDockEnabledChanged = onWorkDockEnabledChanged,
+                        onFoldersEnabledChanged = onFoldersEnabledChanged,
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
@@ -746,6 +763,13 @@ internal fun TypeLauncherApp(
                                 onToggleWorkDock = onToggleWorkDock,
                                 onReorderDock = onReorderDock,
                                 onReorderWorkDock = onReorderWorkDock,
+                                onMergeDock = onMergeDock,
+                                onMergeWorkDock = onMergeWorkDock,
+                                onRemoveFromDockFolder = onRemoveFromDockFolder,
+                                onRemoveFromWorkDockFolder = onRemoveFromWorkDockFolder,
+                                onUndockFromDockFolder = onUndockFromDockFolder,
+                                onUndockFromWorkDockFolder = onUndockFromWorkDockFolder,
+                                onExplodeDockFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
                                 onSetAppIconOverride = onSetAppIconOverride,
@@ -814,7 +838,13 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
     val density = LocalDensity.current
     val navBottomPx = WindowInsets.navigationBars.getBottom(density)
     val isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive
-    val workDockedAppIds = if (isWorkDockVisible) state.workDockedApps.map { it.id } else emptyList()
+    // Folders are occupants too, so count them when sizing the work dock for the
+    // landscape-tier fit (a work folder can occupy a second row).
+    val workDockedAppIds = if (isWorkDockVisible) {
+        state.workDockedApps.map { it.id } + state.workDockFolders.map { it.id }
+    } else {
+        emptyList()
+    }
     return remember(
         configuration.orientation,
         configuration.screenWidthDp,

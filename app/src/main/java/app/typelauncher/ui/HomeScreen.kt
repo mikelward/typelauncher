@@ -174,6 +174,13 @@ internal fun HomeScreen(
     onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
     onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
     onReorderWorkDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onMergeDock: (String, String) -> Unit = { _, _ -> },
+    onMergeWorkDock: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromDockFolder: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
+    onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
@@ -390,6 +397,8 @@ internal fun HomeScreen(
                             DockCard(
                                 dockedApps = state.dockedApps,
                                 dockPositions = state.dockPositions,
+                                dockFolders = state.dockFolders,
+                                foldersEnabled = state.isDockFoldersEnabled,
                                 dockIconSizeDp = dockIconSizeDp,
                                 dockIconCount = dockIconCount,
                                 dockLayout = state.dockLayout,
@@ -398,6 +407,10 @@ internal fun HomeScreen(
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleDock,
                                 onReorderDock = onReorderDock,
+                                onMergeDock = onMergeDock,
+                                onRemoveFromFolder = onRemoveFromDockFolder,
+                                onUndockFromFolder = onUndockFromDockFolder,
+                                onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
                                 onSetAppIconOverride = onSetAppIconOverride,
@@ -429,7 +442,8 @@ internal fun HomeScreen(
                                 1
                             }
                             val workRows = dockRowCount(
-                                state.workDockedApps.map { app -> app.id },
+                                state.workDockedApps.map { app -> app.id } +
+                                    state.workDockFolders.map { folder -> folder.id },
                                 state.workDockPositions,
                                 dockIconCount,
                             ).coerceAtMost(maxWorkRows)
@@ -444,6 +458,8 @@ internal fun HomeScreen(
                             DockCard(
                                 dockedApps = state.workDockedApps,
                                 dockPositions = state.workDockPositions,
+                                dockFolders = state.workDockFolders,
+                                foldersEnabled = state.isDockFoldersEnabled,
                                 dockIconSizeDp = dockIconSizeDp,
                                 dockIconCount = dockIconCount,
                                 dockLayout = state.dockLayout,
@@ -452,6 +468,10 @@ internal fun HomeScreen(
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleWorkDock,
                                 onReorderDock = onReorderWorkDock,
+                                onMergeDock = onMergeWorkDock,
+                                onRemoveFromFolder = onRemoveFromWorkDockFolder,
+                                onUndockFromFolder = onUndockFromWorkDockFolder,
+                                onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
                                 onSetAppIconOverride = onSetAppIconOverride,
@@ -717,6 +737,7 @@ internal data class DockTestTags(
     val appTag: String,
     val appIconTag: String,
     val addButtonTag: String,
+    val folderTag: String,
 ) {
     companion object {
         val Personal = DockTestTags(
@@ -725,6 +746,7 @@ internal data class DockTestTags(
             appTag = DOCK_APP_TAG,
             appIconTag = DOCK_APP_ICON_TAG,
             addButtonTag = DOCK_ADD_BUTTON_TAG,
+            folderTag = DOCK_FOLDER_TAG,
         )
         val Work = DockTestTags(
             cardTag = WORK_DOCK_CARD_TAG,
@@ -732,6 +754,7 @@ internal data class DockTestTags(
             appTag = WORK_DOCK_APP_TAG,
             appIconTag = WORK_DOCK_APP_ICON_TAG,
             addButtonTag = WORK_DOCK_ADD_BUTTON_TAG,
+            folderTag = WORK_DOCK_FOLDER_TAG,
         )
     }
 }
@@ -745,10 +768,16 @@ private fun DockCard(
     dockIconCount: Int,
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
+    dockFolders: List<ResolvedDockFolder> = emptyList(),
+    foldersEnabled: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onReorderDock: (String, Int, Int) -> Unit,
+    onMergeDock: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromFolder: (String, String) -> Unit = { _, _ -> },
+    onExplodeFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
     onSetAppIconOverride: (InstalledApp) -> Unit = {},
@@ -764,19 +793,29 @@ private fun DockCard(
     showAddButtonHint: Boolean = false,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
-    // the dragged icon's centre against every rendered slot, including empty
+    // the dragged icon's center against every rendered slot, including empty
     // cells. This keeps sparse dock locations addressable instead of forcing
-    // the icons through a packed list.
+    // the icons through a packed list. `draggedAppId` holds the occupant being
+    // dragged — an app id *or* a folder id.
     var draggedAppId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    // When folders are enabled, the occupant id the dragged icon is hovering
+    // over for a merge (null = no merge pending; on release the dragged icon
+    // joins this target's folder). Always null when folders are disabled, so
+    // the dock keeps its pre-folders reorder/swap physics.
+    var hoveredMergeTargetId by remember { mutableStateOf<String?>(null) }
+    // The folder whose popup grid is open, or null. Cleared on rotation /
+    // recomposition reset like the actions menu.
+    var openFolderId by remember { mutableStateOf<String?>(null) }
     val slotCenters = remember { mutableStateMapOf<DockPosition, Offset>() }
-    val latestDockedApps by rememberUpdatedState(dockedApps)
-    val resolvedPositions = resolvedDockPositions(
-        dockedApps.map { app -> app.id },
-        dockPositions,
-        dockIconCount,
-    )
+    // Occupant id list = loose docked apps + folders. Both flow through the
+    // same grid machinery; `resolvedDockPositions` keys by id regardless.
+    val occupantIds = dockedApps.map { app -> app.id } + dockFolders.map { folder -> folder.id }
+    val latestOccupantIds by rememberUpdatedState(occupantIds.toSet())
+    val resolvedPositions = resolvedDockPositions(occupantIds, dockPositions, dockIconCount)
+    val occupantByPosition = resolvedPositions.entries.associate { (id, position) -> position to id }
     val latestOnReorderDock by rememberUpdatedState(onReorderDock)
+    val latestOnMergeDock by rememberUpdatedState(onMergeDock)
     val latestOnDragStateChanged by rememberUpdatedState(onDragStateChanged)
     val scrollState = rememberScrollState()
     val columns = dockIconCount.coerceAtLeast(1)
@@ -786,6 +825,9 @@ private fun DockCard(
     val appByPosition = dockedApps.mapNotNull { app ->
         resolvedPositions[app.id]?.let { position -> position to app }
     }.toMap()
+    val folderByPosition = dockFolders.mapNotNull { folder ->
+        resolvedPositions[folder.id]?.let { position -> position to folder }
+    }.toMap()
     val firstEmptyPosition = (0 until rowCount)
         .asSequence()
         .flatMap { row -> (0 until columns).asSequence().map { column -> DockPosition(row, column) } }
@@ -794,6 +836,40 @@ private fun DockCard(
         draggedAppId == null &&
         rowCount == 1 &&
         firstEmptyPosition != null
+
+    // Shared drag handlers for both app and folder slots, keyed by occupant id.
+    val onOccupantDragStart: (String) -> Unit = { occupantId ->
+        draggedAppId = occupantId
+        dragOffset = Offset.Zero
+        hoveredMergeTargetId = null
+    }
+    val onOccupantDrag: (String, Offset) -> Unit = { occupantId, delta ->
+        val visibleCenters = slotCenters.filterKeys { slot ->
+            slot.row in 0 until rowCount && slot.column in 0 until columns
+        }
+        handleDockDrag(
+            delta = delta,
+            draggedAppId = occupantId,
+            currentOccupantIds = latestOccupantIds,
+            currentDockPositions = resolvedPositions,
+            slotCenters = visibleCenters,
+            onReorder = latestOnReorderDock,
+            currentOffset = dragOffset,
+            setOffset = { dragOffset = it },
+            mergeEnabled = foldersEnabled,
+            occupantByPosition = occupantByPosition,
+            onMergeTarget = { hoveredMergeTargetId = it },
+        )
+    }
+    val onOccupantDragEnd: (String) -> Unit = { occupantId ->
+        val target = hoveredMergeTargetId
+        if (foldersEnabled && target != null && target != occupantId) {
+            latestOnMergeDock(occupantId, target)
+        }
+        draggedAppId = null
+        dragOffset = Offset.Zero
+        hoveredMergeTargetId = null
+    }
 
     SectionCard(modifier.testTag(tags.cardTag)) {
         // Every dock slot is a direct sibling under one parent so each
@@ -840,14 +916,20 @@ private fun DockCard(
                 val column = slotIndex % columns
                 val position = DockPosition(row, column)
                 val app = appByPosition[position]
-                val slotKey = app?.id ?: "dock-empty-${position.row}-${position.column}"
+                val folder = folderByPosition[position]
+                // The key wraps the whole `when` (invariant 1) and every slot
+                // is a flat sibling of the one FlowRow (invariants 2 + 3); a
+                // folder occupant keys by its `folder:`-prefixed id, which can
+                // never collide with an app id or the empty-slot sentinel.
+                val slotKey = app?.id ?: folder?.id ?: "dock-empty-${position.row}-${position.column}"
                 key(slotKey) {
-                    if (app != null) {
-                        DockedAppButton(
+                    when {
+                        app != null -> DockedAppButton(
                             app = app,
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             isDragged = draggedAppId == app.id,
+                            isMergeTarget = foldersEnabled && hoveredMergeTargetId == app.id,
                             dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
                             modifier = Modifier.weight(1f),
                             appTag = tags.appTag,
@@ -862,40 +944,37 @@ private fun DockCard(
                             onSetAppBadge = onSetAppBadge,
                             onHideApp = onHideApp,
                             onReportSlotCenter = { center -> slotCenters[position] = center },
-                            onDragStart = {
-                                draggedAppId = app.id
-                                dragOffset = Offset.Zero
-                            },
-                            onDrag = { delta ->
-                                handleDockDrag(
-                                    delta = delta,
-                                    draggedAppId = draggedAppId,
-                                    currentDockedApps = latestDockedApps,
-                                    currentDockPositions = resolvedPositions,
-                                    slotCenters = slotCenters.filterKeys { slot ->
-                                        slot.row in 0 until rowCount && slot.column in 0 until columns
-                                    },
-                                    onReorder = latestOnReorderDock,
-                                    currentOffset = dragOffset,
-                                    setOffset = { dragOffset = it },
-                                )
-                            },
-                            onDragEnd = {
-                                draggedAppId = null
-                                dragOffset = Offset.Zero
-                            },
+                            onDragStart = { onOccupantDragStart(app.id) },
+                            onDrag = { delta -> onOccupantDrag(app.id, delta) },
+                            onDragEnd = { onOccupantDragEnd(app.id) },
                             onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
                         )
-                    } else if (showAddButton && position == firstEmptyPosition) {
-                        DockAddButton(
+                        folder != null -> DockFolderButton(
+                            folder = folder,
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
+                            isDragged = draggedAppId == folder.id,
+                            isMergeTarget = foldersEnabled && hoveredMergeTargetId == folder.id,
+                            dragOffset = if (draggedAppId == folder.id) dragOffset else Offset.Zero,
+                            modifier = Modifier.weight(1f),
+                            folderTag = tags.folderTag,
+                            appIconTag = tags.appIconTag,
+                            onOpen = { openFolderId = folder.id },
+                            onExplode = { onExplodeFolder(folder.id) },
+                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                            onDragStart = { onOccupantDragStart(folder.id) },
+                            onDrag = { delta -> onOccupantDrag(folder.id, delta) },
+                            onDragEnd = { onOccupantDragEnd(folder.id) },
+                            onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                        )
+                        showAddButton && position == firstEmptyPosition -> DockAddButton(
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
                             addButtonTag = tags.addButtonTag,
                             onReportSlotCenter = { center -> slotCenters[position] = center },
                         )
-                    } else {
-                        EmptyDockSlot(
+                        else -> EmptyDockSlot(
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
@@ -906,35 +985,596 @@ private fun DockCard(
             }
         }
     }
+    // Opening a folder is NOT gated on `foldersEnabled`: a user who created
+    // folders and later turned the setting off must still be able to open them
+    // (launch members, move one out, or explode) — otherwise the apps inside are
+    // stranded, since folder members are also deduped out of the app list. The
+    // setting only gates *creating* folders (the merge path), not opening or
+    // dismantling existing ones.
+    val openFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
+    if (openFolder != null) {
+        DockFolderPopup(
+            folder = openFolder,
+            dockIconSizeDp = dockIconSizeDp,
+            appIconTag = tags.appIconTag,
+            onDismiss = { openFolderId = null },
+            onLaunchApp = { app ->
+                openFolderId = null
+                onLaunchApp(app)
+            },
+            onOpenAppInfo = onOpenAppInfo,
+            onRemoveFromFolder = { appId -> onRemoveFromFolder(openFolder.id, appId) },
+            onUndockFromFolder = { appId -> onUndockFromFolder(openFolder.id, appId) },
+            onExplodeFolder = {
+                onExplodeFolder(openFolder.id)
+                openFolderId = null
+            },
+            onRenameApp = onRenameApp,
+            onResetRank = onResetRank,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
+            onHideApp = onHideApp,
+        )
+    }
+}
+
+// Corner radius of a folder tile / merge-preview background, on the 4dp grid.
+private const val DOCK_FOLDER_CORNER_RADIUS_DP = 12
+
+// Fixed width of the folder popup grid (the documented 4×4 cap). Independent of
+// the dock's own column count, so a narrow dock / large icons can't force the
+// popup into a tall single-column list that overflows the dialog.
+private const val DOCK_FOLDER_POPUP_COLUMNS = 4
+
+// Tile padding stays on the 4dp grid. The 2dp inter-cell gap is intentionally
+// off-grid: it is the *intra-glyph* gap between the four sub-icons of one
+// composite folder tile, not layout spacing between sibling elements (the 4dp
+// grid governs the latter). At the default 43dp icon the tile's inner area is
+// ~35dp and each sub-icon is ~17dp, so two sub-icons plus a 4dp gap would
+// overflow the tile; 2dp keeps the 2x2 reading as a single folder mark.
+private const val DOCK_FOLDER_MINI_GAP_DP = 2
+private const val DOCK_FOLDER_TILE_PADDING_DP = 4
+
+/**
+ * A folder occupying one dock slot. Renders a 2×2 mini-icon (the first four
+ * members, one per corner) inside a rounded tile; a tap opens the folder popup,
+ * a long-press arms the same drag the apps use (so a folder reorders or merges
+ * like any occupant), and a long-press-release opens a small folder menu.
+ *
+ * The outer `Box` mirrors [DockedAppButton]'s contract exactly — same
+ * `onReportSlotCenter` via `positionInRoot`, same `zIndex` / `graphicsLayer`
+ * lift — so the drag hit-testing in [DockCard] treats a folder slot
+ * identically to an app slot.
+ */
+@Composable
+private fun DockFolderButton(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    isDragged: Boolean,
+    dragOffset: Offset,
+    modifier: Modifier = Modifier,
+    isMergeTarget: Boolean = false,
+    folderTag: String = DOCK_FOLDER_TAG,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    onOpen: () -> Unit,
+    onExplode: () -> Unit = {},
+    onReportSlotCenter: (Offset) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onLongPressArmed: (Boolean) -> Unit = {},
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val slopPx = with(density) { 8.dp.toPx() }
+    val slotMinHeight = dockSlotHeightDp(dockIconSizeDp, dockLayout, density.fontScale).dp
+    val folderName = folder.name
+    val contentDescription = folderName ?: stringResource(R.string.dock_folder_content_description)
+    val latestOnReportSlotCenter by rememberUpdatedState(onReportSlotCenter)
+    val latestOnOpen by rememberUpdatedState(onOpen)
+    val latestOnExplode by rememberUpdatedState(onExplode)
+    val latestOnDragStart by rememberUpdatedState(onDragStart)
+    val latestOnDrag by rememberUpdatedState(onDrag)
+    val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    Box(
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                latestOnReportSlotCenter(
+                    Offset(pos.x + coords.size.width / 2f, pos.y + coords.size.height / 2f),
+                )
+            }
+            .zIndex(if (isDragged) 1f else 0f)
+            .graphicsLayer {
+                if (isDragged) {
+                    translationX = dragOffset.x
+                    translationY = dragOffset.y
+                    scaleX = 1.1f
+                    scaleY = 1.1f
+                    alpha = 0.85f
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .semantics { this.contentDescription = contentDescription }
+                .defaultMinSize(minHeight = slotMinHeight)
+                .testTag("$folderTag:${folder.id}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            DockFolderMiniIcon(
+                folder = folder,
+                dockIconSizeDp = dockIconSizeDp,
+                appIconTag = appIconTag,
+                emphasized = isMergeTarget,
+            )
+            if (dockLayout == DockLayout.TitleBelow && folderName != null) {
+                Text(
+                    folderName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { latestOnOpen() },
+                )
+                // Same gesture skeleton as DockedAppButton: long-press arms a
+                // drag (so a folder can be reordered or merged), and a
+                // release without crossing slop opens the folder menu rather
+                // than launching.
+                .pointerInput(folder.id) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val longPress = awaitLongPressOrCancellation(down.id)
+                            ?: return@awaitEachGesture
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longPress.consume()
+                        latestOnLongPressArmed(true)
+                        var dragging = false
+                        var totalDelta = Offset.Zero
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                    ?: break
+                                if (!change.pressed) {
+                                    if (!dragging && !change.isConsumed) {
+                                        menuExpanded = true
+                                    }
+                                    change.consume()
+                                    break
+                                }
+                                val delta = change.positionChange()
+                                totalDelta += delta
+                                if (!dragging && totalDelta.getDistance() > slopPx) {
+                                    dragging = true
+                                    latestOnDragStart()
+                                    latestOnDrag(totalDelta)
+                                } else if (dragging) {
+                                    latestOnDrag(delta)
+                                }
+                                change.consume()
+                            }
+                        } finally {
+                            if (dragging) {
+                                latestOnDragEnd()
+                            }
+                            latestOnLongPressArmed(false)
+                        }
+                    }
+                }
+                .semantics {
+                    role = Role.Button
+                    this.contentDescription = contentDescription
+                    onLongClick(label = null) {
+                        menuExpanded = true
+                        true
+                    }
+                },
+        )
+        DockFolderActionsMenu(
+            expanded = menuExpanded,
+            onDismiss = { menuExpanded = false },
+            onOpenFolder = latestOnOpen,
+            onExplodeFolder = latestOnExplode,
+        )
+    }
+}
+
+/**
+ * The 2×2 mini-icon for a folder tile: the first four members, one per corner,
+ * inside a rounded tile. Unused corners stay blank; members past four appear
+ * only in the open popup.
+ */
+@Composable
+internal fun DockFolderMiniIcon(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    emphasized: Boolean = false,
+) {
+    val tileSizeDp = dockIconSizeDp.dp
+    val cellSizeDp = (dockIconSizeDp * 0.4f).dp
+    val corners = folder.members.take(4)
+    val tileColor = if (emphasized) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    Box(
+        modifier = Modifier.size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(tileSizeDp)
+                .background(tileColor, RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp))
+                .padding(DOCK_FOLDER_TILE_PADDING_DP.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(DOCK_FOLDER_MINI_GAP_DP.dp)) {
+                for (rowIndex in 0 until 2) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(DOCK_FOLDER_MINI_GAP_DP.dp)) {
+                        for (columnIndex in 0 until 2) {
+                            val member = corners.getOrNull(rowIndex * 2 + columnIndex)
+                            if (member != null) {
+                                AppIcon(
+                                    app = member,
+                                    size = cellSizeDp,
+                                    testTag = appIconTag,
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(cellSizeDp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DockFolderActionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onOpenFolder: () -> Unit,
+    onExplodeFolder: () -> Unit,
+) {
+    LauncherDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        properties = AppActionsMenuPopupProperties,
+    ) {
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_open_folder)) },
+            onClick = {
+                onDismiss()
+                onOpenFolder()
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_explode)) },
+            onClick = {
+                onDismiss()
+                onExplodeFolder()
+            },
+        )
+    }
+}
+
+/**
+ * The folder popup: a grid of the folder's member apps hosted in a [Dialog] so
+ * it floats above the dock's `FlowRow` instead of participating in its layout.
+ * Tapping a member launches it; long-pressing a member opens a menu with
+ * "Move out" plus the usual app actions. No `TextField` lives here,
+ * so the Robolectric Dialog-idle hang does not apply; the body is split into
+ * [DockFolderPopupContent] so the screenshot test can render it without the
+ * popup window anyway.
+ */
+@Composable
+private fun DockFolderPopup(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    appIconTag: String,
+    onDismiss: () -> Unit,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: (String) -> Unit,
+    onUndockFromFolder: (String) -> Unit,
+    onExplodeFolder: () -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+        ) {
+            DockFolderPopupContent(
+                folder = folder,
+                dockIconSizeDp = dockIconSizeDp,
+                appIconTag = appIconTag,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onRemoveFromFolder = onRemoveFromFolder,
+                onUndockFromFolder = onUndockFromFolder,
+                onExplodeFolder = onExplodeFolder,
+                onRenameApp = onRenameApp,
+                onResetRank = onResetRank,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun DockFolderPopupContent(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: (String) -> Unit,
+    onUndockFromFolder: (String) -> Unit = {},
+    onExplodeFolder: () -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+) {
+    // A fixed 4-wide grid (the folder cap), independent of the dock's column
+    // count, plus a bounded scroll so even a full 16-member folder stays
+    // reachable on a short viewport or a narrow / large-icon dock.
+    val perRow = folder.members.size.coerceAtMost(DOCK_FOLDER_POPUP_COLUMNS).coerceAtLeast(1)
+    val maxPopupHeightDp = (LocalConfiguration.current.screenHeightDp * 0.7f).dp
+    Column(
+        modifier = Modifier
+            .padding(SECTION_CARD_PADDING_DP.dp)
+            .heightIn(max = maxPopupHeightDp)
+            .verticalScroll(rememberScrollState())
+            .testTag(DOCK_FOLDER_POPUP_TAG),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        folder.name?.let { name ->
+            Text(name, style = MaterialTheme.typography.titleMedium)
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            maxItemsInEachRow = perRow,
+        ) {
+            folder.members.forEach { member ->
+                DockFolderMemberButton(
+                    app = member,
+                    dockIconSizeDp = dockIconSizeDp,
+                    appIconTag = appIconTag,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onRemoveFromFolder = { onRemoveFromFolder(member.id) },
+                    onUndockFromFolder = { onUndockFromFolder(member.id) },
+                    onRenameApp = onRenameApp,
+                    onResetRank = onResetRank,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
+                    onHideApp = onHideApp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DockFolderMemberButton(
+    app: InstalledApp,
+    dockIconSizeDp: Int,
+    appIconTag: String,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: () -> Unit,
+    onUndockFromFolder: () -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    Box {
+        Column(
+            modifier = Modifier
+                .width((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP * 2).dp)
+                .combinedClickable(
+                    onClick = { onLaunchApp(app) },
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuExpanded = true
+                    },
+                )
+                .padding(vertical = 4.dp)
+                .testTag("$DOCK_FOLDER_POPUP_TAG:${app.displayName}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
+            Text(
+                app.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        DockFolderMemberActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            onDismiss = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onRemoveFromFolder = onRemoveFromFolder,
+            onUndockFromFolder = onUndockFromFolder,
+            onRenameApp = onRenameApp,
+            onResetRank = onResetRank,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
+            onHideApp = onHideApp,
+        )
+    }
+}
+
+@Composable
+private fun DockFolderMemberActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    onDismiss: () -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: () -> Unit,
+    onUndockFromFolder: () -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+) {
+    var editDialogVisible by remember { mutableStateOf(false) }
+    LauncherDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        properties = AppActionsMenuPopupProperties,
+    ) {
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+            onClick = {
+                onDismiss()
+                onOpenAppInfo(app)
+            },
+        )
+        // "Move out" pops the app back to a loose dock icon; "Undock" takes it
+        // off the dock entirely. Both leave the folder.
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_move_out)) },
+            onClick = {
+                onDismiss()
+                onRemoveFromFolder()
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_undock)) },
+            onClick = {
+                onDismiss()
+                onUndockFromFolder()
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_edit)) },
+            onClick = {
+                onDismiss()
+                editDialogVisible = true
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_hide)) },
+            onClick = {
+                onDismiss()
+                onHideApp(app)
+            },
+        )
+    }
+    if (editDialogVisible) {
+        EditAppDialog(
+            app = app,
+            onSave = { newName ->
+                onRenameApp(app, newName)
+                editDialogVisible = false
+            },
+            onRestoreDefaults = {
+                onRenameApp(app, "")
+                editDialogVisible = false
+            },
+            onPickIcon = { onSetAppIconOverride(app) },
+            onClearIcon = { onClearAppIconOverride(app) },
+            onSetBadge = { glyph -> onSetAppBadge(app, glyph) },
+            onDismiss = { editDialogVisible = false },
+        )
+    }
 }
 
 /**
  * Moves the dragged icon to the nearest rendered dock slot, including empty
  * cells. After each persisted move the visual offset is rebased from the old
- * slot centre to the new slot centre so the lifted icon stays under the finger
+ * slot center to the new slot center so the lifted icon stays under the finger
  * while the grid recomposes around it.
+ *
+ * When [mergeEnabled] is true (folders on), the same nearest-slot boundary that
+ * used to *swap* onto an occupied neighbor instead arms a *merge*: if the
+ * nearest slot is closer than the current slot AND occupied by a different
+ * occupant, the drag holds position (no reorder) and reports that occupant via
+ * [onMergeTarget]. An empty nearest slot still reorders, so dragging *past* an
+ * occupied icon toward an empty slot reorders exactly as before. Merge therefore
+ * wins precisely where a swap used to — there is no radius gap for a swap to
+ * sneak through first. [onMergeTarget] is called once per invocation with the
+ * current target (or null), so the caller can render / clear the preview.
  */
 internal fun handleDockDrag(
     delta: Offset,
     draggedAppId: String?,
-    currentDockedApps: List<InstalledApp>,
+    // Occupant ids currently in the dock — app ids *and* folder ids. A folder
+    // is dragged exactly like an app, so the guard accepts any live occupant.
+    currentOccupantIds: Set<String>,
     currentDockPositions: Map<String, DockPosition>,
     slotCenters: Map<DockPosition, Offset>,
     onReorder: (String, Int, Int) -> Unit,
     currentOffset: Offset,
     setOffset: (Offset) -> Unit,
+    mergeEnabled: Boolean = false,
+    occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    onMergeTarget: (String?) -> Unit = {},
 ) {
     if (draggedAppId == null) return
-    if (currentDockedApps.none { app -> app.id == draggedAppId }) return
+    if (draggedAppId !in currentOccupantIds) return
     var newOffset = currentOffset + delta
     var currentPosition = currentDockPositions[draggedAppId] ?: run {
+        onMergeTarget(null)
         setOffset(newOffset)
         return
     }
     var currentCenter = slotCenters[currentPosition] ?: run {
+        onMergeTarget(null)
         setOffset(newOffset)
         return
     }
+    var mergeTarget: String? = null
     while (true) {
         val draggedCenter = currentCenter + newOffset
         val nearest = slotCenters.minByOrNull { (_, center) -> (center - draggedCenter).getDistance() }
@@ -947,11 +1587,20 @@ internal fun handleDockDrag(
         if ((targetCenter - draggedCenter).getDistance() >= (currentCenter - draggedCenter).getDistance()) {
             break
         }
+        val occupant = occupantByPosition[targetPosition]
+        if (mergeEnabled && occupant != null && occupant != draggedAppId) {
+            // Closer to an occupied neighbor than to our own slot: this is a
+            // merge, not a swap. Hold position and report the target; release
+            // commits the merge.
+            mergeTarget = occupant
+            break
+        }
         onReorder(draggedAppId, targetPosition.row, targetPosition.column)
         newOffset += currentCenter - targetCenter
         currentPosition = targetPosition
         currentCenter = targetCenter
     }
+    onMergeTarget(mergeTarget)
     setOffset(newOffset)
 }
 
@@ -1796,6 +2445,7 @@ private fun IconOnlyAppButton(
             onClearAppIconOverride = onClearAppIconOverride,
             onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
+            isFlatSurface = true,
         )
     }
 }
@@ -1860,6 +2510,7 @@ private fun AppRow(
             onClearAppIconOverride = onClearAppIconOverride,
             onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
+            isFlatSurface = true,
         )
     }
 }
@@ -1878,6 +2529,11 @@ private fun AppActionsMenu(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    // True on the flat app list / recents, where a folder member should not
+    // offer a dock toggle (folder membership is managed in the folder popup).
+    // Dock tiles pass false so a tile always toggles its own dock, even when
+    // the same app is foldered on the other dock (the cross-dock case).
+    isFlatSurface: Boolean = false,
 ) {
     // Boolean rather than the InstalledApp itself so dialog visibility doesn't
     // re-evaluate identity-based equality on every parent recomposition; the
@@ -1896,21 +2552,27 @@ private fun AppActionsMenu(
                 onOpenAppInfo(app)
             },
         )
-        DropdownMenuItem(
-            text = {
-                LauncherMenuItemText(
-                    stringResource(
-                        if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
-                        else R.string.app_menu_dock,
-                    ),
-                )
-            },
-            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
-            onClick = {
-                onDismiss()
-                onToggleDock(app, dockLimit)
-            },
-        )
+        // A folder member on a flat surface (app list / recents) gets no dock
+        // toggle: re-docking it no-ops in the store and folder membership is
+        // managed in the folder popup (Move out / Undock). Dock tiles still
+        // show the toggle for their own dock.
+        if (!(isFlatSurface && app.isInFolder)) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
+                            else R.string.app_menu_dock,
+                        ),
+                    )
+                },
+                modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onToggleDock(app, dockLimit)
+                },
+            )
+        }
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_menu_reset_rank)) },
             modifier = Modifier.testTag("$RESET_RANK_ACTION_TAG:${app.displayName}"),
@@ -2263,21 +2925,29 @@ private fun RecentAppActionsMenu(
                 onOpenAppInfo(app)
             },
         )
-        DropdownMenuItem(
-            text = {
-                LauncherMenuItemText(
-                    stringResource(
-                        if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
-                        else R.string.app_menu_dock,
-                    ),
-                )
-            },
-            modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
-            onClick = {
-                onDismissMenu()
-                onToggleDock(app, Int.MAX_VALUE)
-            },
-        )
+        // A folder member has no plain dock toggle here: re-docking a foldered
+        // app no-ops in the store, so the item would be a dead button. Folder
+        // membership is managed in the folder popup (Move out / Undock).
+        if (!app.isInFolder) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (app.isDocked || app.isWorkDocked) {
+                                R.string.app_menu_undock
+                            } else {
+                                R.string.app_menu_dock
+                            },
+                        ),
+                    )
+                },
+                modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismissMenu()
+                    onToggleDock(app, Int.MAX_VALUE)
+                },
+            )
+        }
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_menu_dismiss)) },
             modifier = Modifier.testTag("$DISMISS_RECENT_ACTION_TAG:${app.displayName}"),
@@ -2303,6 +2973,10 @@ private fun DockedAppButton(
     isDragged: Boolean,
     dragOffset: Offset,
     modifier: Modifier = Modifier,
+    // True while another icon is being dragged onto this one: the slot morphs
+    // into a closed-folder preview tile (the existing app shown inside a folder
+    // background) so a release here reads as "drop to put these in a folder."
+    isMergeTarget: Boolean = false,
     appTag: String = DOCK_APP_TAG,
     appIconTag: String = DOCK_APP_ICON_TAG,
     onLaunchApp: (InstalledApp) -> Unit,
@@ -2378,10 +3052,26 @@ private fun DockedAppButton(
         ) {
             Box(
                 modifier = Modifier
-                    .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp),
+                    .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
+                    .then(
+                        if (isMergeTarget) {
+                            Modifier.background(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+                            )
+                        } else {
+                            Modifier
+                        },
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
+                // Shrink the icon when it becomes a merge target so it reads as
+                // sitting *inside* the forming folder tile.
+                AppIcon(
+                    app = app,
+                    size = (if (isMergeTarget) (dockIconSizeDp * 0.6f) else dockIconSizeDp.toFloat()).dp,
+                    testTag = appIconTag,
+                )
             }
             if (dockLayout == DockLayout.TitleBelow) {
                 Text(
@@ -2666,6 +3356,7 @@ internal fun SettingsScreen(
     onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
+    onFoldersEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
@@ -2848,6 +3539,30 @@ internal fun SettingsScreen(
                     isWorkDockEnabled = state.isWorkDockEnabled,
                     isWorkProfileActive = state.isWorkProfileActive,
                     onWorkDockEnabledChanged = onWorkDockEnabledChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_dock_folders_enabled_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        stringResource(R.string.settings_dock_folders_enabled_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.isDockFoldersEnabled,
+                    onCheckedChange = onFoldersEnabledChanged,
+                    enabled = state.isDockEnabled ||
+                        (state.isWorkDockEnabled && state.isWorkProfileActive),
+                    modifier = Modifier.testTag(DOCK_FOLDERS_ENABLED_SWITCH_TAG),
                 )
             }
             Row(
@@ -3769,6 +4484,8 @@ private fun SettingsPreview(
                 DockCard(
                     dockedApps = state.dockedApps,
                     dockPositions = state.dockPositions,
+                    dockFolders = state.dockFolders,
+                    foldersEnabled = state.isDockFoldersEnabled,
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
                     dockLayout = state.dockLayout,
