@@ -11,6 +11,8 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.DpRect
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,5 +128,113 @@ class DockDragCancelTest {
             1f,
         )
         assertEquals(before.top.value, after.top.value, 1f)
+    }
+
+    // Renders two loose docked apps with folders enabled and captures every
+    // (source, target) merge the dock requests. App01 sits at column 0 and
+    // App02 at column 1, so dragging App01 onto App02's center arms a folder
+    // merge that commits on a clean release.
+    private fun setFolderDockContent(merges: MutableList<Pair<String, String>>) {
+        val docked = listOf(
+            fakeApp("App01").copy(isDocked = true),
+            fakeApp("App02").copy(isDocked = true),
+        )
+        val state = LauncherUiState(
+            filteredApps = emptyList(),
+            dockedApps = docked,
+            isDockFoldersEnabled = true,
+            dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onMergeDock = { source, target -> merges.add(source to target) },
+                    onShowAgenda = {},
+                    onShowWidgets = {},
+                    onShowHome = {},
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    // Horizontal px offset that brings App01's center onto App02's center, so a
+    // single moveBy lands the dragged icon squarely in the merge zone.
+    private fun app01ToApp02CenterDeltaPx(): Float {
+        val a1 = composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").getBoundsInRoot()
+        val a2 = composeRule.onNodeWithTag("$DOCK_APP_TAG:App02").getBoundsInRoot()
+        val a1CenterX = (a1.left + a1.right) / 2
+        val a2CenterX = (a2.left + a2.right) / 2
+        return (a2CenterX - a1CenterX).value * composeRule.density.density
+    }
+
+    @Test
+    fun cleanReleaseOnNeighborCenterCommitsMerge() {
+        val merges = mutableListOf<Pair<String, String>>()
+        setFolderDockContent(merges)
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        val deltaPx = app01ToApp02CenterDeltaPx()
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            down(Offset(width / 2f, height / 2f))
+            move(longPressMs + 100)
+            moveBy(Offset(deltaPx, 0f))
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(
+            "a clean release on the neighbor's center must commit a merge (got $merges)",
+            merges.size == 1,
+        )
+    }
+
+    @Test
+    fun canceledDragOnNeighborCenterDoesNotCommitMerge() {
+        val merges = mutableListOf<Pair<String, String>>()
+        setFolderDockContent(merges)
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        val deltaPx = app01ToApp02CenterDeltaPx()
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
+            down(Offset(width / 2f, height / 2f))
+            move(longPressMs + 100)
+            // Same drag that arms the merge above, but the system cancels the
+            // gesture instead of a clean lift — no folder should be created.
+            moveBy(Offset(deltaPx, 0f))
+            cancel()
+        }
+        composeRule.waitForIdle()
+
+        assertFalse(
+            "a canceled drag must not commit a merge (got $merges)",
+            merges.isNotEmpty(),
+        )
     }
 }
