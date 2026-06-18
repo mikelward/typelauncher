@@ -1886,11 +1886,15 @@ internal class LauncherViewModel(
     /**
      * Returns the IDs of apps that should be omitted from the main app list
      * because they already render on another always-visible surface. Docked
-     * apps are hidden from the list only while the dock row is actually on
-     * screen (the dock row already shows them) — that is, with an empty query.
-     * A non-blank query hides the dock row, so docked apps always surface in
-     * the typed-search list (where they float to the top of their tier).
-     * Secondary bars such as recents do not dedupe from the app list.
+     * apps are hidden from the list only while their dock row is actually on
+     * screen (the dock row already shows them): the query is blank, the layout
+     * is the Full landscape tier (Compact drops the docks entirely), and the
+     * relevant dock is enabled — the personal dock for personal-docked apps,
+     * the work dock (with the work profile active) for work-docked apps. A
+     * non-blank query or the Compact tier hides the dock row, so docked apps
+     * then surface in the list (where typed search floats them to the top of
+     * their tier). Secondary bars such as recents do not dedupe from the app
+     * list.
      */
     private fun excludedFromAppList(
         state: LauncherUiState,
