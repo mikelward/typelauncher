@@ -967,11 +967,6 @@ private fun DockCard(
     // close button), so the in-place hiding/grid below is gated off for it.
     val isOverlayStyle = dockFolderOpenStyle == DockFolderOpenStyle.Overlay
     val inPlaceFolder = renderedFolder?.takeIf { !isOverlayStyle }
-    // Float the overlay card one whole dock row above the folder cell, so it
-    // reads as a card hovering over the app list rather than hugging the dock.
-    val overlayGapPx = with(LocalDensity.current) {
-        dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale).dp.roundToPx()
-    }
     // A non-focusable overlay popup (below) can't catch Back; close on Back here
     // while it's open, matching the in-place folder's BackHandler.
     BackHandler(enabled = isOverlayStyle && renderedFolderId != null) {
@@ -1090,7 +1085,7 @@ private fun DockCard(
                                 )
                                 renderedFolder?.let { overlayFolder ->
                                     Popup(
-                                        popupPositionProvider = dockFolderOverlayPositionProvider(overlayGapPx),
+                                        popupPositionProvider = dockFolderOverlayPositionProvider(),
                                         onDismissRequest = { openFolderId = null },
                                         // Non-focusable so opening the folder doesn't steal focus
                                         // from the search field and collapse the keyboard (which
@@ -1800,10 +1795,15 @@ internal fun DockFolderGrid(
 
 /**
  * Positions the [DockFolderOpenStyle.Overlay] folder card centered on the folder
- * cell it anchors to, floating [gapPx] above it (over the app list), clamped to
- * the window so a folder near an edge stays fully on screen.
+ * cell it anchors to, with its bottom edge sitting directly on the folder cell's
+ * top edge (no gap) so it reads as the dock growing another row straight up out
+ * of the folder rather than a card hovering over the app list. The dock card and
+ * the overlay card share the same filled-`Card` color with no shadow, so the
+ * overlay's bottom padding overlapping the dock card's top padding strip merges
+ * seamlessly. Clamped to the window so a folder near an edge stays fully on
+ * screen.
  */
-private fun dockFolderOverlayPositionProvider(gapPx: Int): PopupPositionProvider =
+internal fun dockFolderOverlayPositionProvider(): PopupPositionProvider =
     object : PopupPositionProvider {
         override fun calculatePosition(
             anchorBounds: IntRect,
@@ -1814,7 +1814,7 @@ private fun dockFolderOverlayPositionProvider(gapPx: Int): PopupPositionProvider
             val anchorCenterX = anchorBounds.left + anchorBounds.width / 2
             val x = (anchorCenterX - popupContentSize.width / 2)
                 .coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-            val y = (anchorBounds.top - popupContentSize.height - gapPx).coerceAtLeast(0)
+            val y = (anchorBounds.top - popupContentSize.height).coerceAtLeast(0)
             return IntOffset(x, y)
         }
     }
