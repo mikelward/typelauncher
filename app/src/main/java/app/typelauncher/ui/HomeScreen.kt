@@ -916,11 +916,13 @@ private fun DockCard(
     val expandProgress = remember { Animatable(if (openFolderId != null) 1f else 0f) }
     var renderedFolderId by remember { mutableStateOf(openFolderId) }
     // The system animator duration scale, read once off the main thread
-    // (`Settings.Global.getFloat` goes through ContentResolver, which can block).
-    // Until it resolves we assume normal speed, so opening a folder never waits on
-    // the read — and the open/close effect below stays free of any blocking call,
-    // so it sets `renderedFolderId` and drives the animation synchronously.
-    var animatorScale by remember { mutableStateOf(1f) }
+    // (`Settings.Global.getFloat` goes through ContentResolver, which can block);
+    // null until that read resolves. The open/close effect below stays free of any
+    // blocking call so it reveals the folder and drives the animation
+    // synchronously, and treats a not-yet-known scale as "snap" — so a folder
+    // opened with animations disabled, before the read lands, still snaps instead
+    // of playing the expand. (Once known, a scale of 0 keeps snapping.)
+    var animatorScale by remember { mutableStateOf<Float?>(null) }
     LaunchedEffect(Unit) {
         animatorScale = withContext(Dispatchers.IO) {
             runCatching {
@@ -932,8 +934,13 @@ private fun DockCard(
             }.getOrDefault(1f)
         }
     }
+    // Keyed on `openFolderId` only (not `animatorScale`): re-running when the scale
+    // resolves would snap an already-open folder back to collapsed and replay the
+    // expand. Capturing the scale at open time is enough — by the first real (user)
+    // open the startup read has long since landed; only a folder opened within that
+    // window snaps, which is the safe degradation.
     LaunchedEffect(openFolderId) {
-        val durationMs = (DOCK_FOLDER_EXPAND_DURATION_MS * animatorScale).toInt()
+        val durationMs = dockFolderExpandDurationMs(animatorScale)
         // Linear driver — the per-tile easing/stagger in DockFolderGrid owns the
         // curve, so easing here too would double-apply it.
         if (openFolderId != null) {
@@ -1210,6 +1217,21 @@ private const val DOCK_FOLDER_TILE_MIN_SCALE = 0.4f
 private const val DOCK_FOLDER_STAGGER_PORTION = 0.4f
 // Duration of the open/close fly-out, before the system animator scale is applied.
 private const val DOCK_FOLDER_EXPAND_DURATION_MS = 220
+
+/**
+ * Folder fly-out duration in ms for the given system animator [animatorScale],
+ * or 0 (snap, no animation) when animations are disabled (`scale <= 0`, e.g.
+ * "Remove animations" / battery saver) or the scale is not yet known (`null`,
+ * before the off-main read lands) — so a folder opened with animations off never
+ * plays the expand. A fractional scale shortens/lengthens the duration per the
+ * system setting.
+ */
+internal fun dockFolderExpandDurationMs(animatorScale: Float?): Int =
+    if (animatorScale == null || animatorScale <= 0f) {
+        0
+    } else {
+        (DOCK_FOLDER_EXPAND_DURATION_MS * animatorScale).toInt()
+    }
 // Starting scale for the Overlay-style floating card as it grows out of the folder.
 private const val DOCK_FOLDER_OVERLAY_MIN_SCALE = 0.8f
 // Overlay card column cap — kept independent of the dock's column count (which can
