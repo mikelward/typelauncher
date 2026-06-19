@@ -103,4 +103,23 @@ class DockSettingsStoreLayoutTest {
         prefs().edit().putString("dock_folder_open_style", "SomeFutureStyle").commit()
         assertEquals(DockFolderOpenStyle.Zoom, DockSettingsStore(context).dockFolderOpenStyle)
     }
+
+    @Test
+    fun dockFolderOverlayShapeDefaultsToCompactWhenNothingPersisted() {
+        assertEquals(DockFolderOverlayShape.Compact, DockSettingsStore(context).dockFolderOverlayShape)
+    }
+
+    @Test
+    fun dockFolderOverlayShapeRoundTripsEachEnumValue() {
+        for (shape in DockFolderOverlayShape.values()) {
+            DockSettingsStore(context).dockFolderOverlayShape = shape
+            assertEquals(shape, DockSettingsStore(context).dockFolderOverlayShape)
+        }
+    }
+
+    @Test
+    fun dockFolderOverlayShapeUnknownPersistedNameFallsBackToCompact() {
+        prefs().edit().putString("dock_folder_overlay_shape", "SomeFutureShape").commit()
+        assertEquals(DockFolderOverlayShape.Compact, DockSettingsStore(context).dockFolderOverlayShape)
+    }
 }
