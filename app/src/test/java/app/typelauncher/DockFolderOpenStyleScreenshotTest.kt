@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -40,6 +43,15 @@ class DockFolderOpenStyleScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    // Distinct tile colors so the Overlay preview reads as real app icons.
+    private val PREVIEW_COLORS = intArrayOf(
+        0xFF4285F4.toInt(), // blue
+        0xFFEA4335.toInt(), // red
+        0xFF34A853.toInt(), // green
+        0xFFFBBC05.toInt(), // yellow
+        0xFFA142F4.toInt(), // purple
+    )
+
     private val iconDp = 43
     private val columns = 6
     // Folder near the right edge: the interesting case where Directional flows
@@ -63,8 +75,20 @@ class DockFolderOpenStyleScreenshotTest {
 
     @Test
     fun overlay_floatsCompactCard() {
+        // Unique package names so the injected colored icons below don't leak
+        // into other tests' snapshots via the process-wide AppIconLoader cache.
+        val folder = sampleFolder(5, name = "Social", packagePrefix = "com.example.overlaypreview")
         composeRule.setContent {
             TypeLauncherTheme {
+                // Real screenshots have icon art; give the placeholder apps solid
+                // colored tiles so the preview isn't gray icons on a gray card.
+                val sizePx = with(LocalDensity.current) { iconDp.dp.roundToPx() }
+                remember(sizePx) {
+                    folder.members.forEachIndexed { index, app ->
+                        AppIconLoader.put(app.iconCacheId, sizePx, solidIcon(sizePx, PREVIEW_COLORS[index]))
+                    }
+                    0
+                }
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -72,7 +96,7 @@ class DockFolderOpenStyleScreenshotTest {
                 ) {
                     Text("Overlay — compact floating card")
                     DockFolderOverlayCard(
-                        folder = sampleFolder(5, name = "Social"),
+                        folder = folder,
                         dockIconSizeDp = iconDp,
                         dockIconCount = columns,
                         dockLayout = DockLayout.TitleBelow,
@@ -136,9 +160,13 @@ class DockFolderOpenStyleScreenshotTest {
         captureSnapshot("compose_dock_folder_style_${name}_robolectric.png")
     }
 
-    private fun sampleFolder(memberCount: Int, name: String? = null): ResolvedDockFolder {
+    private fun sampleFolder(
+        memberCount: Int,
+        name: String? = null,
+        packagePrefix: String = "com.example.app",
+    ): ResolvedDockFolder {
         val members = (0 until memberCount).map { index ->
-            installedApp(name = "App${index + 1}", packageName = "com.example.app${index + 1}")
+            installedApp(name = "App${index + 1}", packageName = "$packagePrefix${index + 1}")
         }
         return ResolvedDockFolder(
             id = DOCK_FOLDER_ID_PREFIX + "sample",
@@ -146,6 +174,11 @@ class DockFolderOpenStyleScreenshotTest {
             name = name,
         )
     }
+
+    private fun solidIcon(sizePx: Int, color: Int) =
+        Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
+            Canvas(this).drawColor(color)
+        }.asImageBitmap()
 
     private fun installedApp(name: String, packageName: String): InstalledApp {
         val component = ComponentName(packageName, "$packageName.LaunchActivity")

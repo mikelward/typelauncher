@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
@@ -166,7 +167,9 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -913,25 +916,31 @@ private fun DockCard(
     val expandProgress = remember { Animatable(if (openFolderId != null) 1f else 0f) }
     var renderedFolderId by remember { mutableStateOf(openFolderId) }
     LaunchedEffect(openFolderId) {
-        val durationScale = runCatching {
-            android.provider.Settings.Global.getFloat(
-                context.contentResolver,
-                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-                1f,
-            )
-        }.getOrDefault(1f)
+        // `Settings.Global.getFloat` goes through ContentResolver, which can block,
+        // so read it off the main thread before driving the animation on it.
+        val durationScale = withContext(Dispatchers.IO) {
+            runCatching {
+                android.provider.Settings.Global.getFloat(
+                    context.contentResolver,
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                    1f,
+                )
+            }.getOrDefault(1f)
+        }
         val durationMs = (DOCK_FOLDER_EXPAND_DURATION_MS * durationScale).toInt()
+        // Linear driver — the per-tile easing/stagger in DockFolderGrid owns the
+        // curve, so easing here too would double-apply it.
         if (openFolderId != null) {
             renderedFolderId = openFolderId
             expandProgress.snapTo(0f)
             if (durationMs > 0) {
-                expandProgress.animateTo(1f, tween(durationMs))
+                expandProgress.animateTo(1f, tween(durationMs, easing = LinearEasing))
             } else {
                 expandProgress.snapTo(1f)
             }
         } else if (renderedFolderId != null) {
             if (durationMs > 0) {
-                expandProgress.animateTo(0f, tween(durationMs))
+                expandProgress.animateTo(0f, tween(durationMs, easing = LinearEasing))
             } else {
                 expandProgress.snapTo(0f)
             }
@@ -1197,6 +1206,12 @@ private const val DOCK_FOLDER_STAGGER_PORTION = 0.4f
 private const val DOCK_FOLDER_EXPAND_DURATION_MS = 220
 // Starting scale for the Overlay-style floating card as it grows out of the folder.
 private const val DOCK_FOLDER_OVERLAY_MIN_SCALE = 0.8f
+// Overlay card column cap — kept independent of the dock's column count (which can
+// be as low as 1) so a full folder never collapses into an unreachably tall column.
+private const val DOCK_FOLDER_OVERLAY_MAX_COLUMNS = 5
+// Rows shown before the overlay card scrolls, so even a small/large-icon dock can
+// reach every app instead of clipping the bottom rows off-screen.
+private const val DOCK_FOLDER_OVERLAY_MAX_ROWS = 4
 
 /**
  * A folder occupying one dock slot. Renders a 2×2 mini-icon (the first four
@@ -1797,20 +1812,30 @@ internal fun DockFolderOverlayCard(
     onHideApp: (InstalledApp) -> Unit,
     onReorderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
 ) {
-    // Only as wide as the apps need: at most the dock's column count, fewer when
-    // the folder holds fewer apps, so the card stays compact.
-    val columns = folder.members.size.coerceIn(1, dockIconCount.coerceAtLeast(1))
     val tileWidth = (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp
+    // Only as wide as the apps need, but sized to the *screen* (not the dock's
+    // column count, which can be as low as 1) so the card fits across and a full
+    // folder never becomes an off-screen-tall single column. Capped for compactness.
+    val configuration = LocalConfiguration.current
+    val tileStepDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + DOCK_ITEM_SPACING_DP
+    val widthBudgetDp = configuration.screenWidthDp - 2 * SECTION_CARD_PADDING_DP
+    val maxColumnsForWidth = ((widthBudgetDp + DOCK_ITEM_SPACING_DP) / tileStepDp).coerceAtLeast(1)
+    val columns = folder.members.size
+        .coerceIn(1, minOf(DOCK_FOLDER_OVERLAY_MAX_COLUMNS, maxColumnsForWidth))
     // Drag-to-reorder: the lifted tile follows the finger; on release we map the
     // accumulated offset to a new index (tile pitch in, columns across) and commit
     // once. Committing on release keeps the grid from relaying out mid-drag.
     var draggedMemberId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
+    val slotHeightDp = dockSlotHeightDp(dockIconSizeDp, dockLayout, density.fontScale)
     val pitchXPx = with(density) { (tileWidth + DOCK_ITEM_SPACING_DP.dp).toPx() }
-    val pitchYPx = with(density) {
-        (dockSlotHeightDp(dockIconSizeDp, dockLayout, density.fontScale) + DOCK_ITEM_SPACING_DP).dp.toPx()
-    }
+    val pitchYPx = with(density) { (slotHeightDp + DOCK_ITEM_SPACING_DP).dp.toPx() }
+    // Cap the grid height so a folder taller than the cap scrolls inside the card
+    // (matching the in-place folder) rather than clipping its bottom rows off-screen.
+    val maxGridHeightDp =
+        (DOCK_FOLDER_OVERLAY_MAX_ROWS * slotHeightDp +
+            (DOCK_FOLDER_OVERLAY_MAX_ROWS - 1) * DOCK_ITEM_SPACING_DP).dp
     Card(
         modifier = modifier
             .graphicsLayer {
@@ -1838,6 +1863,9 @@ internal fun DockFolderOverlayCard(
                 )
             }
             FlowRow(
+                modifier = Modifier
+                    .heightIn(max = maxGridHeightDp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
                 verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
                 maxItemsInEachRow = columns,
