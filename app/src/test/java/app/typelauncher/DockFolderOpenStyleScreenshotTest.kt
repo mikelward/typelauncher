@@ -115,7 +115,9 @@ class DockFolderOpenStyleScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        captureSnapshot("compose_dock_folder_overlay_robolectric.png")
+        // Taller canvas: the near-square grid makes the card multi-row, so 700px
+        // would clip the bottom row's labels.
+        captureSnapshot("compose_dock_folder_overlay_robolectric.png", heightPx = 900)
     }
 
     @Composable

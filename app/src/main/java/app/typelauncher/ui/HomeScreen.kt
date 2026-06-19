@@ -173,6 +173,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 @Composable
 internal fun HomeScreen(
@@ -1247,11 +1248,9 @@ internal fun dockFolderExpandDurationMs(animatorScale: Float?): Int =
     }
 // Starting scale for the Overlay-style floating card as it grows out of the folder.
 private const val DOCK_FOLDER_OVERLAY_MIN_SCALE = 0.8f
-// Overlay card column cap — kept independent of the dock's column count (which can
-// be as low as 1) so a full folder never collapses into an unreachably tall column.
-private const val DOCK_FOLDER_OVERLAY_MAX_COLUMNS = 5
 // Rows shown before the overlay card scrolls, so even a small/large-icon dock can
-// reach every app instead of clipping the bottom rows off-screen.
+// reach every app instead of clipping the bottom rows off-screen. A 16-app folder
+// laid out near-square is 4×4, so this is also the practical maximum.
 private const val DOCK_FOLDER_OVERLAY_MAX_ROWS = 4
 
 /**
@@ -1854,15 +1853,16 @@ internal fun DockFolderOverlayCard(
     onReorderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
 ) {
     val tileWidth = (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp
-    // Only as wide as the apps need, but sized to the *screen* (not the dock's
-    // column count, which can be as low as 1) so the card fits across and a full
-    // folder never becomes an off-screen-tall single column. Capped for compactness.
+    // Lay the apps out as the most compact near-square grid — the folder's own 2×2
+    // mini-icon grown up (4 apps → 2×2, 9 → 3×3, 16 → 4×4) — rather than one wide
+    // row. `ceil(sqrt(n))` columns, then clamped to what fits the screen width (the
+    // dock's column count can be as low as 1, so it isn't used here).
     val configuration = LocalConfiguration.current
     val tileStepDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + DOCK_ITEM_SPACING_DP
     val widthBudgetDp = configuration.screenWidthDp - 2 * SECTION_CARD_PADDING_DP
     val maxColumnsForWidth = ((widthBudgetDp + DOCK_ITEM_SPACING_DP) / tileStepDp).coerceAtLeast(1)
-    val columns = folder.members.size
-        .coerceIn(1, minOf(DOCK_FOLDER_OVERLAY_MAX_COLUMNS, maxColumnsForWidth))
+    val squareColumns = ceil(sqrt(folder.members.size.toDouble())).toInt().coerceAtLeast(1)
+    val columns = squareColumns.coerceAtMost(maxColumnsForWidth)
     // Drag-to-reorder: the lifted tile follows the finger; on release we map the
     // accumulated offset to a new index (tile pitch in, columns across) and commit
     // once. Committing on release keeps the grid from relaying out mid-drag.
