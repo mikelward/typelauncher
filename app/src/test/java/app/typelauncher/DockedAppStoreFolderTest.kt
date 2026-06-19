@@ -59,6 +59,36 @@ class DockedAppStoreFolderTest {
     }
 
     @Test
+    fun reorderFolderMemberMovesAppToTargetIndex() {
+        val store = DockedAppStore(context)
+        listOf("a", "b", "c").forEach { store.dock(it, columnCount = 4) }
+        val folderId = store.mergeIntoFolder("a", "b", columnCount = 4)!!
+        store.addToFolder(folderId, "c", columnCount = 4)
+        // Members start as [b, a, c].
+
+        store.reorderFolderMember(folderId, appId = "c", targetIndex = 0)
+
+        assertEquals(listOf("c", "b", "a"), store.dockFolders.single().memberAppIds)
+    }
+
+    @Test
+    fun reorderFolderMemberClampsAndIgnoresNoOps() {
+        val store = DockedAppStore(context)
+        listOf("a", "b", "c").forEach { store.dock(it, columnCount = 4) }
+        val folderId = store.mergeIntoFolder("a", "b", columnCount = 4)!!
+        store.addToFolder(folderId, "c", columnCount = 4) // [b, a, c]
+
+        // Past-the-end index clamps to the last slot.
+        store.reorderFolderMember(folderId, appId = "b", targetIndex = 99)
+        assertEquals(listOf("a", "c", "b"), store.dockFolders.single().memberAppIds)
+
+        // Same index is a no-op; an unknown app is ignored.
+        store.reorderFolderMember(folderId, appId = "a", targetIndex = 0)
+        store.reorderFolderMember(folderId, appId = "zzz", targetIndex = 1)
+        assertEquals(listOf("a", "c", "b"), store.dockFolders.single().memberAppIds)
+    }
+
+    @Test
     fun addToFolderMovesLooseAppIn() {
         val store = DockedAppStore(context)
         listOf("a", "b", "c").forEach { store.dock(it, columnCount = 4) }

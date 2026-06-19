@@ -250,6 +250,11 @@ jobs:
         # fewer-than-slots (fits, no reflow) and more-than-slots (scrolls) cases.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderInPlaceScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run dock folder open-style screenshot tests
+        # Renders the folder open styles (Directional / Bloom / Zoom anchored to a
+        # right-half folder, and the floating Overlay card) at rest.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderOpenStyleScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

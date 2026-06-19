@@ -177,6 +177,7 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
+            dockFolderOpenStyle = dockSettingsStore.dockFolderOpenStyle,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -1206,6 +1207,15 @@ internal class LauncherViewModel(
         logState("explodeDockFolder")
     }
 
+    // Reorder a member within its folder (Overlay-style drag). Folder ids are
+    // unique across both stores, so route to whichever dock owns it.
+    fun reorderDockFolderMember(folderId: String, appId: String, targetIndex: Int) {
+        LauncherDebugLog.event("reorderDockFolderMember folder=$folderId app=$appId target=$targetIndex")
+        folderStoreFor(folderId).reorderFolderMember(folderId, appId, targetIndex)
+        refreshLists()
+        logState("reorderDockFolderMember")
+    }
+
     // A folder id is unique across both stores, so route a rename/explode to
     // whichever dock actually owns it.
     private fun folderStoreFor(folderId: String): DockedAppStore =
@@ -1708,6 +1718,12 @@ internal class LauncherViewModel(
         dockSettingsStore.dockLayout = layout
         _uiState.update { it.copy(dockLayout = layout) }
         logState("setDockLayout")
+    }
+
+    fun setDockFolderOpenStyle(style: DockFolderOpenStyle) {
+        dockSettingsStore.dockFolderOpenStyle = style
+        _uiState.update { it.copy(dockFolderOpenStyle = style) }
+        logState("setDockFolderOpenStyle")
     }
 
     fun setAppListSortOrder(sortOrder: AppListSortOrder) {

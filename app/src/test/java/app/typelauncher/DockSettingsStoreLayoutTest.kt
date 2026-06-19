@@ -84,4 +84,23 @@ class DockSettingsStoreLayoutTest {
         prefs().edit().putString("dock_layout", "SomeFutureLayout").commit()
         assertEquals(DockLayout.IconOnly, DockSettingsStore(context).dockLayout)
     }
+
+    @Test
+    fun dockFolderOpenStyleDefaultsToTopLeftWhenNothingPersisted() {
+        assertEquals(DockFolderOpenStyle.TopLeft, DockSettingsStore(context).dockFolderOpenStyle)
+    }
+
+    @Test
+    fun dockFolderOpenStyleRoundTripsEachEnumValue() {
+        for (style in DockFolderOpenStyle.values()) {
+            DockSettingsStore(context).dockFolderOpenStyle = style
+            assertEquals(style, DockSettingsStore(context).dockFolderOpenStyle)
+        }
+    }
+
+    @Test
+    fun dockFolderOpenStyleUnknownPersistedNameFallsBackToTopLeft() {
+        prefs().edit().putString("dock_folder_open_style", "SomeFutureStyle").commit()
+        assertEquals(DockFolderOpenStyle.TopLeft, DockSettingsStore(context).dockFolderOpenStyle)
+    }
 }

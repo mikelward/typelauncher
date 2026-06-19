@@ -268,6 +268,24 @@ internal class DockedAppStore(
     }
 
     /**
+     * Move [appId] to [targetIndex] within [folderId]'s member order (a no-op if
+     * the folder or app is gone, or the index is unchanged). Backs the Overlay
+     * folder card's drag-to-reorder. The index is clamped into range.
+     */
+    fun reorderFolderMember(folderId: String, appId: String, targetIndex: Int) = synchronized(lock) {
+        val folder = folders[folderId] ?: return@synchronized
+        val currentIndex = folder.memberAppIds.indexOf(appId)
+        if (currentIndex < 0) return@synchronized
+        val clamped = targetIndex.coerceIn(0, folder.memberAppIds.size - 1)
+        if (clamped == currentIndex) return@synchronized
+        val reordered = folder.memberAppIds.toMutableList()
+        reordered.removeAt(currentIndex)
+        reordered.add(clamped, appId)
+        folders[folderId] = folder.copy(memberAppIds = reordered)
+        save()
+    }
+
+    /**
      * Explode a folder: replace the folder occupant with its members as loose
      * icons (the first member takes the folder's slot, the rest fill the next
      * available slots).
@@ -502,6 +520,22 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * How an opened dock folder arranges its apps relative to the folder's cell.
+     * Stored by name so an unknown value (a renamed entry from a newer build)
+     * falls back to [DockFolderOpenStyle.TopLeft], which matches the pre-setting
+     * behavior.
+     */
+    var dockFolderOpenStyle: DockFolderOpenStyle
+        get() = sharedPreferences.getString(KEY_DOCK_FOLDER_OPEN_STYLE, null)
+            ?.let { name -> runCatching { DockFolderOpenStyle.valueOf(name) }.getOrNull() }
+            ?: DockFolderOpenStyle.TopLeft
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_DOCK_FOLDER_OPEN_STYLE, value.name)
+                .apply()
+        }
+
+    /**
      * How every app icon's tile is rendered. [IconTheme.Default] keeps each
      * app's own icon art; [IconTheme.Monochrome] re-renders icons from their
      * app's monochrome themed-icon glyph in theme colors. Stored by name so an
@@ -674,6 +708,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_DOCK_LAYOUT = "dock_layout"
+        const val KEY_DOCK_FOLDER_OPEN_STYLE = "dock_folder_open_style"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
