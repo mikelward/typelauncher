@@ -86,8 +86,8 @@ class DockSettingsStoreLayoutTest {
     }
 
     @Test
-    fun dockFolderOpenStyleDefaultsToTopLeftWhenNothingPersisted() {
-        assertEquals(DockFolderOpenStyle.TopLeft, DockSettingsStore(context).dockFolderOpenStyle)
+    fun dockFolderOpenStyleDefaultsToZoomWhenNothingPersisted() {
+        assertEquals(DockFolderOpenStyle.Zoom, DockSettingsStore(context).dockFolderOpenStyle)
     }
 
     @Test
@@ -99,8 +99,8 @@ class DockSettingsStoreLayoutTest {
     }
 
     @Test
-    fun dockFolderOpenStyleUnknownPersistedNameFallsBackToTopLeft() {
+    fun dockFolderOpenStyleUnknownPersistedNameFallsBackToZoom() {
         prefs().edit().putString("dock_folder_open_style", "SomeFutureStyle").commit()
-        assertEquals(DockFolderOpenStyle.TopLeft, DockSettingsStore(context).dockFolderOpenStyle)
+        assertEquals(DockFolderOpenStyle.Zoom, DockSettingsStore(context).dockFolderOpenStyle)
     }
 }

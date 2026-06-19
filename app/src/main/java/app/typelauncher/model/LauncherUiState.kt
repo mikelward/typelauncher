@@ -126,15 +126,16 @@ internal enum class DockLayout {
  * (see `DockFolderGrid`) expands the tiles out of the folder cell regardless of
  * style.
  *
- * - [TopLeft] (default, previous behavior): pack from the top-left of the dock
+ * - [TopLeft] (previous behavior): pack from the top-left of the dock
  *   footprint, ignoring the folder's position.
  * - [Directional]: the first member sits at the folder's cell and the apps flow
  *   outward toward the open side — left-to-right for a left-half folder,
  *   right-to-left for a right-half one — wrapping downward.
  * - [Bloom]: members claim the cells nearest the folder cell in every direction
  *   (deterministic distance order, so the arrangement is the same every open).
- * - [Zoom]: the first four members form a 2×2 block around the folder cell (a
- *   1×N line on a single-row dock), with any extras filling outward by distance.
+ * - [Zoom] (default): the first four members form a 2×2 block around the folder
+ *   cell (a 1×N line on a single-row dock), with any extras filling outward by
+ *   distance.
  * - [Overlay]: instead of replacing the dock, float a compact card (sized to its
  *   apps, in the same card style as the dock and app list) over the app list,
  *   leaving a close button where the folder was. Members can be dragged to
@@ -689,7 +690,7 @@ internal data class LauncherUiState(
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
-    val dockFolderOpenStyle: DockFolderOpenStyle = DockFolderOpenStyle.TopLeft,
+    val dockFolderOpenStyle: DockFolderOpenStyle = DockFolderOpenStyle.Zoom,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by

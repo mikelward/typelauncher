@@ -522,13 +522,12 @@ internal class DockSettingsStore(context: Context) {
     /**
      * How an opened dock folder arranges its apps relative to the folder's cell.
      * Stored by name so an unknown value (a renamed entry from a newer build)
-     * falls back to [DockFolderOpenStyle.TopLeft], which matches the pre-setting
-     * behavior.
+     * falls back to [DockFolderOpenStyle.Zoom], the default.
      */
     var dockFolderOpenStyle: DockFolderOpenStyle
         get() = sharedPreferences.getString(KEY_DOCK_FOLDER_OPEN_STYLE, null)
             ?.let { name -> runCatching { DockFolderOpenStyle.valueOf(name) }.getOrNull() }
-            ?: DockFolderOpenStyle.TopLeft
+            ?: DockFolderOpenStyle.Zoom
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_DOCK_FOLDER_OPEN_STYLE, value.name)
