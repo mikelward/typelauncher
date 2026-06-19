@@ -1224,7 +1224,8 @@ private const val DOCK_FOLDER_TILE_MIN_SCALE = 0.4f
 // anchor (nearest start at 0, farthest start this far into the sweep).
 private const val DOCK_FOLDER_STAGGER_PORTION = 0.4f
 // Duration of the open/close fly-out, before the system animator scale is applied.
-private const val DOCK_FOLDER_EXPAND_DURATION_MS = 220
+// Kept short so opening a folder feels immediate rather than a slow expand.
+private const val DOCK_FOLDER_EXPAND_DURATION_MS = 110
 
 /**
  * Folder fly-out duration in ms for the given system animator [animatorScale],

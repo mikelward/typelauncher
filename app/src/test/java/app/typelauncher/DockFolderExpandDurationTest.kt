@@ -29,16 +29,16 @@ class DockFolderExpandDurationTest {
 
     @Test
     fun normalScaleUsesFullDuration() {
-        assertEquals(220, dockFolderExpandDurationMs(1f))
+        assertEquals(110, dockFolderExpandDurationMs(1f))
     }
 
     @Test
     fun fractionalScaleShortensDuration() {
-        assertEquals(110, dockFolderExpandDurationMs(0.5f))
+        assertEquals(55, dockFolderExpandDurationMs(0.5f))
     }
 
     @Test
     fun largerScaleLengthensDuration() {
-        assertEquals(440, dockFolderExpandDurationMs(2f))
+        assertEquals(220, dockFolderExpandDurationMs(2f))
     }
 }
