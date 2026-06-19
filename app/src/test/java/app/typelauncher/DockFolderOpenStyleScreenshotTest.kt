@@ -133,13 +133,13 @@ class DockFolderOpenStyleScreenshotTest {
     }
 
     @Test
-    fun overlay_fullWidthCard() {
+    fun overlay_rectangleCard() {
         captureOverlayShape(
-            name = "compose_dock_folder_overlay_full_width_robolectric.png",
-            title = "Overlay — full width",
+            name = "compose_dock_folder_overlay_rectangle_robolectric.png",
+            title = "Overlay — rectangle (full width)",
             memberCount = 4,
-            shape = DockFolderOverlayShape.FullWidth,
-            packagePrefix = "com.example.overlayfullwidth",
+            shape = DockFolderOverlayShape.Rectangle,
+            packagePrefix = "com.example.overlayrectangle",
         )
     }
 
