@@ -509,17 +509,8 @@ internal data class LauncherUiState(
     // layer keep their normal icon. Applied at rasterization time by
     // `AppIconLoader` / `IconNormalizer`, not at composition time.
     val iconTheme: IconTheme = IconTheme.Default,
-    // When true, docked apps stay visible in the typed-search app list in
-    // addition to the dock row. When false (the default), the dock dedupes
-    // itself out of the main list to free vertical space — the launcher's
-    // pre-toggle behavior.
-    val isShowDockedAppsInList: Boolean = false,
     val dockIconSizeDp: Int = DEFAULT_DOCK_APP_ICON_SIZE_DP,
     val dockPositions: Map<String, DockPosition> = emptyMap(),
-    // Settings → "Enable folders". When false (the default) the dock keeps its
-    // pre-folders physics: dragging an icon onto another swap-reorders and no
-    // folder can be created. Gates the whole folder feature in the UI.
-    val isDockFoldersEnabled: Boolean = false,
     // Folders in the personal dock. Each occupies one dock slot; its position
     // lives in [dockPositions] keyed by the folder id (a "folder:"-prefixed id
     // that never collides with an app id).

@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Nosaukuma ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Nosaukuma ↑</string>
     <string name="settings_dock_enabled_title">Rādīt doku</string>
-    <string name="settings_show_docked_apps_in_list_title">Rādīt piespraustās lietotnes</string>
     <string name="settings_work_dock_enabled_title">Rādīt darba doku</string>
     <string name="settings_work_dock_disabled_toast">Darba profils ir apturēts</string>
     <string name="settings_keyboard_auto_show_title">Rādīt tastatūru automātiski</string>

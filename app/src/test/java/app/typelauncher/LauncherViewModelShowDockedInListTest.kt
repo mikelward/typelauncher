@@ -18,9 +18,10 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * Coverage for the "Show docked apps" toggle. Default is off, so the dock
- * dedupes itself out of the main list; turning it on keeps docked apps in the
- * typed-search list as well as the dock row.
+ * Coverage for the dock's main-list dedup. Docked apps are always deduped out
+ * of the empty-query browse list (the dock row already shows them); typing or
+ * the cramped-landscape Compact state hides the dock, so they resurface in the
+ * filtered list and float to the top of their tier.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -57,67 +58,27 @@ class LauncherViewModelShowDockedInListTest {
         viewModel.toggleDock(mail, maxDockedApps = 4)
         idle()
 
-        assertFalse(viewModel.uiState.value.isShowDockedAppsInList)
         val names = viewModel.uiState.value.filteredApps.map { it.name }
         assertFalse(
-            "Default dedupes docked apps out of the typed-search list, got $names",
+            "Docked apps dedupe out of the empty-query list, got $names",
             "Mail" in names,
         )
         assertTrue("Non-docked Maps should remain visible, got $names", "Maps" in names)
     }
 
     @Test
-    fun togglingOnKeepsDockedAppsInUnfilteredList() {
-        seedApp("Mail", "com.example.mail")
-        seedApp("Maps", "com.example.maps")
-        val viewModel = newViewModel()
-        idle()
-        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
-        viewModel.toggleDock(mail, maxDockedApps = 4)
-        viewModel.setShowDockedAppsInList(true)
-        idle()
-
-        assertTrue(viewModel.uiState.value.isShowDockedAppsInList)
-        assertTrue(
-            "Turning the toggle on keeps docked apps in the typed-search list",
-            viewModel.uiState.value.filteredApps.any { it.name == "Mail" },
-        )
-    }
-
-    @Test
-    fun togglingOffHidesDockedAppsFromUnfilteredList() {
-        seedApp("Mail", "com.example.mail")
-        seedApp("Maps", "com.example.maps")
-        val viewModel = newViewModel()
-        idle()
-        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
-        viewModel.toggleDock(mail, maxDockedApps = 4)
-        viewModel.setShowDockedAppsInList(false)
-        idle()
-
-        assertFalse(viewModel.uiState.value.isShowDockedAppsInList)
-        // The real Type Launcher activity from the manifest also surfaces via
-        // `queryIntentActivities`, so we assert what's filtered out (Mail)
-        // rather than the full set.
-        val names = viewModel.uiState.value.filteredApps.map { it.name }
-        assertFalse("Docked Mail should be hidden from list, got $names", "Mail" in names)
-        assertTrue("Non-docked Maps should remain visible, got $names", "Maps" in names)
-    }
-
-    @Test
     fun typingSurfacesDockedAppsAtTopEvenWhenDedupedFromUnfilteredList() {
-        // With "Show docked apps" off the dock dedupes itself out of the
-        // unfiltered list. But typing hides the dock row entirely, so the
-        // docked apps must reappear in the filtered results — and float to the
-        // top of their tier, as if they had the highest usage — or they would
-        // be buried (or unreachable) mid-search.
+        // The dock dedupes itself out of the unfiltered list. But typing hides
+        // the dock row entirely, so the docked apps must reappear in the
+        // filtered results — and float to the top of their tier, as if they
+        // had the highest usage — or they would be buried (or unreachable)
+        // mid-search.
         seedApp("Mail", "com.example.mail")
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
         idle()
         val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
         viewModel.toggleDock(maps, maxDockedApps = 4)
-        viewModel.setShowDockedAppsInList(false)
         idle()
 
         // Empty query: docked Maps is deduped out (the dock row shows it).
@@ -146,17 +107,15 @@ class LauncherViewModelShowDockedInListTest {
     fun compactTierSurfacesDockedAppsInUnfilteredList() {
         // The cramped-landscape Compact state drops the docks entirely, so the
         // blank-query app list is the only surface for launching apps. Docked
-        // apps must therefore reappear in it (even with "Show docked apps" off),
-        // or they would be unreachable until the user reveals search — the same
-        // reasoning as the typed-search case above, but driven by the tier
-        // rather than the query.
+        // apps must therefore reappear in it, or they would be unreachable
+        // until the user reveals search — the same reasoning as the
+        // typed-search case above, but driven by the tier rather than the query.
         seedApp("Mail", "com.example.mail")
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
         idle()
         val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
         viewModel.toggleDock(maps, maxDockedApps = 4)
-        viewModel.setShowDockedAppsInList(false)
         idle()
 
         // Full (the default tier): docked Maps is deduped out — the dock shows it.
@@ -202,8 +161,8 @@ class LauncherViewModelShowDockedInListTest {
         viewModel.toggleWorkDock(workApp, maxDockedApps = 6)
         idle()
 
-        // Full (the default tier) with "Show docked apps" off: the work pin is
-        // deduped out — the work dock row shows it.
+        // Full (the default tier): the work pin is deduped out — the work
+        // dock row shows it.
         assertFalse(
             "Work pin is deduped from the Full blank-query list",
             viewModel.uiState.value.filteredApps.any { it.name == "Zzz Work" },
@@ -264,26 +223,6 @@ class LauncherViewModelShowDockedInListTest {
         idle()
         val backToFull = viewModel.uiState.value.filteredApps.map { it.name }.filter { it in tracked }
         assertEquals(listOf("Apple", "Maps", "Zebra"), backToFull)
-    }
-
-    @Test
-    fun togglingBackOnRestoresDockedAppsToUnfilteredList() {
-        seedApp("Mail", "com.example.mail")
-        seedApp("Maps", "com.example.maps")
-        val viewModel = newViewModel()
-        idle()
-        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
-        viewModel.toggleDock(mail, maxDockedApps = 4)
-        viewModel.setShowDockedAppsInList(false)
-        idle()
-        viewModel.setShowDockedAppsInList(true)
-        idle()
-
-        assertTrue(viewModel.uiState.value.isShowDockedAppsInList)
-        assertTrue(
-            "Re-enabling the toggle puts the docked app back into the main list",
-            viewModel.uiState.value.filteredApps.any { it.name == "Mail" },
-        )
     }
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(

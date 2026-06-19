@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Назив ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Назив ↑</string>
     <string name="settings_dock_enabled_title">Прикажи док</string>
-    <string name="settings_show_docked_apps_in_list_title">Прикажи закачене апликације</string>
     <string name="settings_work_dock_enabled_title">Прикажи пословни док</string>
     <string name="settings_work_dock_disabled_toast">Пословни профил је паузиран</string>
     <string name="settings_keyboard_auto_show_title">Аутоматски приказуј тастатуру</string>

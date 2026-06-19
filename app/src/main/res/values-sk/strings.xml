@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Názov ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Názov ↑</string>
     <string name="settings_dock_enabled_title">Zobraziť dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Zobraziť zadokované aplikácie</string>
     <string name="settings_work_dock_enabled_title">Zobraziť pracovný dock</string>
     <string name="settings_work_dock_disabled_toast">Pracovný profil je pozastavený</string>
     <string name="settings_keyboard_auto_show_title">Zobrazovať klávesnicu automaticky</string>

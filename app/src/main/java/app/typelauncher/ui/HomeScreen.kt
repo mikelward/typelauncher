@@ -401,7 +401,6 @@ internal fun HomeScreen(
                                 dockedApps = state.dockedApps,
                                 dockPositions = state.dockPositions,
                                 dockFolders = state.dockFolders,
-                                foldersEnabled = state.isDockFoldersEnabled,
                                 dockIconSizeDp = dockIconSizeDp,
                                 dockIconCount = dockIconCount,
                                 dockLayout = state.dockLayout,
@@ -462,7 +461,6 @@ internal fun HomeScreen(
                                 dockedApps = state.workDockedApps,
                                 dockPositions = state.workDockPositions,
                                 dockFolders = state.workDockFolders,
-                                foldersEnabled = state.isDockFoldersEnabled,
                                 dockIconSizeDp = dockIconSizeDp,
                                 dockIconCount = dockIconCount,
                                 dockLayout = state.dockLayout,
@@ -772,7 +770,6 @@ private fun DockCard(
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
     dockFolders: List<ResolvedDockFolder> = emptyList(),
-    foldersEnabled: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
@@ -850,9 +847,8 @@ private fun DockCard(
         val visibleCenters = slotCenters.filterKeys { slot ->
             slot.row in 0 until rowCount && slot.column in 0 until columns
         }
-        // The slot pitch only drives the folder merge/swap thresholds, so skip
-        // the scan entirely on the common folders-off path where they're ignored.
-        val pitch = if (foldersEnabled) dockSlotPitch(visibleCenters) else Float.POSITIVE_INFINITY
+        // The slot pitch drives the folder merge/swap thresholds.
+        val pitch = dockSlotPitch(visibleCenters)
         val mergeRadiusPx = if (pitch.isFinite()) pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION else Float.POSITIVE_INFINITY
         val swapBufferPx = if (pitch.isFinite()) pitch * DOCK_SWAP_BUFFER_FRACTION else 0f
         handleDockDrag(
@@ -864,7 +860,7 @@ private fun DockCard(
             onReorder = latestOnReorderDock,
             currentOffset = dragOffset,
             setOffset = { dragOffset = it },
-            mergeEnabled = foldersEnabled,
+            mergeEnabled = true,
             occupantByPosition = occupantByPosition,
             mergeRadiusPx = mergeRadiusPx,
             swapBufferPx = swapBufferPx,
@@ -879,7 +875,7 @@ private fun DockCard(
     // release only.
     val onOccupantDragEnd: (String, Boolean) -> Unit = { occupantId, canceled ->
         val mergeTarget = hoveredMergeTargetId
-        if (!canceled && foldersEnabled && mergeTarget != null && mergeTarget != occupantId) {
+        if (!canceled && mergeTarget != null && mergeTarget != occupantId) {
             latestOnMergeDock(occupantId, mergeTarget)
         }
         draggedAppId = null
@@ -887,12 +883,7 @@ private fun DockCard(
         hoveredMergeTargetId = null
     }
 
-    // The folder whose grid is open in place of the dock, or null. Opening a
-    // folder is NOT gated on `foldersEnabled`: a user who created folders and
-    // later turned the setting off must still open them to launch members, move
-    // one out, or explode — otherwise the foldered apps are stranded (they are
-    // deduped out of the app list too). The setting only gates *creating*
-    // folders (the merge path), not opening or dismantling existing ones.
+    // The folder whose grid is open in place of the dock, or null.
     val openFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
     SectionCard(modifier.testTag(tags.cardTag)) {
         // The dock grid and the open-folder grid share one Box so the card keeps
@@ -974,7 +965,7 @@ private fun DockCard(
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             isDragged = draggedAppId == app.id,
-                            isMergeTarget = foldersEnabled && hoveredMergeTargetId == app.id,
+                            isMergeTarget = hoveredMergeTargetId == app.id,
                             dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
                             modifier = Modifier.weight(1f),
                             appTag = tags.appTag,
@@ -999,7 +990,7 @@ private fun DockCard(
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             isDragged = draggedAppId == folder.id,
-                            isMergeTarget = foldersEnabled && hoveredMergeTargetId == folder.id,
+                            isMergeTarget = hoveredMergeTargetId == folder.id,
                             dragOffset = if (draggedAppId == folder.id) dragOffset else Offset.Zero,
                             modifier = Modifier.weight(1f),
                             folderTag = tags.folderTag,
@@ -3704,10 +3695,8 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onDockLayoutChanged: (DockLayout) -> Unit = {},
-    onShowDockedAppsInListChanged: (Boolean) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
-    onFoldersEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
@@ -3861,59 +3850,11 @@ internal fun SettingsScreen(
                     modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_show_docked_apps_in_list_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isShowDockedAppsInList,
-                    onCheckedChange = onShowDockedAppsInListChanged,
-                    // The flag controls the main-list dedup for both docks,
-                    // so keep the switch interactable whenever either dock
-                    // is actually rendered — otherwise a user with the
-                    // personal dock off and the work dock on would have no
-                    // way to make work-docked apps searchable again.
-                    enabled = state.isDockEnabled ||
-                        (state.isWorkDockEnabled && state.isWorkProfileActive),
-                    modifier = Modifier.testTag(SHOW_DOCKED_APPS_IN_LIST_SWITCH_TAG),
-                )
-            }
             if (state.isWorkProfileConfigured) {
                 WorkDockSettingsRow(
                     isWorkDockEnabled = state.isWorkDockEnabled,
                     isWorkProfileActive = state.isWorkProfileActive,
                     onWorkDockEnabledChanged = onWorkDockEnabledChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_dock_folders_enabled_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        stringResource(R.string.settings_dock_folders_enabled_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = state.isDockFoldersEnabled,
-                    onCheckedChange = onFoldersEnabledChanged,
-                    enabled = state.isDockEnabled ||
-                        (state.isWorkDockEnabled && state.isWorkProfileActive),
-                    modifier = Modifier.testTag(DOCK_FOLDERS_ENABLED_SWITCH_TAG),
                 )
             }
             Row(
@@ -4836,7 +4777,6 @@ private fun SettingsPreview(
                     dockedApps = state.dockedApps,
                     dockPositions = state.dockPositions,
                     dockFolders = state.dockFolders,
-                    foldersEnabled = state.isDockFoldersEnabled,
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
                     dockLayout = state.dockLayout,

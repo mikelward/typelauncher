@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Pavadinimą ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Pavadinimą ↑</string>
     <string name="settings_dock_enabled_title">Rodyti doką</string>
-    <string name="settings_show_docked_apps_in_list_title">Rodyti prisegtas programas</string>
     <string name="settings_work_dock_enabled_title">Rodyti darbo doką</string>
     <string name="settings_work_dock_disabled_toast">Darbo profilis sustabdytas</string>
     <string name="settings_keyboard_auto_show_title">Rodyti klaviatūrą automatiškai</string>

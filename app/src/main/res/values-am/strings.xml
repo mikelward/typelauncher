@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">ስም ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">ስም ↑</string>
     <string name="settings_dock_enabled_title">ዶክ አሳይ</string>
-    <string name="settings_show_docked_apps_in_list_title">የተጣበቁ መተግበሪያዎችን አሳይ</string>
     <string name="settings_work_dock_enabled_title">የሥራ ዶክ አሳይ</string>
     <string name="settings_work_dock_disabled_toast">የሥራ መገለጫ ቆሟል</string>
     <string name="settings_keyboard_auto_show_title">ኪቦርድ በራስ-ሰር አሳይ</string>

@@ -2,10 +2,6 @@ package app.typelauncher
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
-import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,34 +36,5 @@ class SettingsScreenTest {
             }
         }
         composeRule.waitForIdle()
-    }
-
-    @Test
-    fun enableFoldersSwitchTogglesFromTheSettingsScreen() {
-        var folderToggle: Boolean? = null
-        composeRule.setContent {
-            TypeLauncherTheme {
-                SettingsScreen(
-                    state = LauncherUiState(isDockEnabled = true),
-                    innerPadding = PaddingValues(),
-                    onCloseSettings = {},
-                    onRequestDefaultLauncher = {},
-                    onDockEnabledChanged = {},
-                    onAppListLayoutChanged = {},
-                    onDockVisibleIconCountChanged = {},
-                    onFoldersEnabledChanged = { folderToggle = it },
-                    onAppListSortOrderChanged = {},
-                    onUnhideApp = {},
-                    onOpenLauncherAppInfo = {},
-                    onOpenPlayUpdate = {},
-                    onCompletePlayUpdate = {},
-                    onDismissPlayUpdate = {},
-                )
-            }
-        }
-        composeRule.onNodeWithTag(DOCK_FOLDERS_ENABLED_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(true, folderToggle)
     }
 }

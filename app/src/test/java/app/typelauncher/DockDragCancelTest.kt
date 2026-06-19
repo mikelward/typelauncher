@@ -130,10 +130,10 @@ class DockDragCancelTest {
         assertEquals(before.top.value, after.top.value, 1f)
     }
 
-    // Renders two loose docked apps with folders enabled and captures every
-    // (source, target) merge the dock requests. App01 sits at column 0 and
-    // App02 at column 1, so dragging App01 onto App02's center arms a folder
-    // merge that commits on a clean release.
+    // Renders two loose docked apps and captures every (source, target) merge
+    // the dock requests. App01 sits at column 0 and App02 at column 1, so
+    // dragging App01 onto App02's center arms a folder merge that commits on a
+    // clean release.
     private fun setFolderDockContent(merges: MutableList<Pair<String, String>>) {
         val docked = listOf(
             fakeApp("App01").copy(isDocked = true),
@@ -142,7 +142,6 @@ class DockDragCancelTest {
         val state = LauncherUiState(
             filteredApps = emptyList(),
             dockedApps = docked,
-            isDockFoldersEnabled = true,
             dockIconSizeDp = dockIconSizeForSlotCount(411, 4),
         )
         composeRule.setContent {

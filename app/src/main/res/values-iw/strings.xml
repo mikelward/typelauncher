@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">שם ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">שם ↑</string>
     <string name="settings_dock_enabled_title">הצגת הדוק</string>
-    <string name="settings_show_docked_apps_in_list_title">הצגת אפליקציות הדוק</string>
     <string name="settings_work_dock_enabled_title">הצגת דוק עבודה</string>
     <string name="settings_work_dock_disabled_toast">פרופיל העבודה מושהה</string>
     <string name="settings_keyboard_auto_show_title">הצגת מקלדת אוטומטית</string>

@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Igama ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Igama ↑</string>
     <string name="settings_dock_enabled_title">Bonisa i-dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Bonisa izinhlelo zokusebenza ze-dock</string>
     <string name="settings_work_dock_enabled_title">Bonisa i-dock yomsebenzi</string>
     <string name="settings_work_dock_disabled_toast">Iphrofayela yomsebenzi imisiwe</string>
     <string name="settings_keyboard_auto_show_title">Bonisa ikhibhodi ngokuzenzakalelayo</string>
