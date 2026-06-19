@@ -915,10 +915,14 @@ private fun DockCard(
     val context = LocalContext.current
     val expandProgress = remember { Animatable(if (openFolderId != null) 1f else 0f) }
     var renderedFolderId by remember { mutableStateOf(openFolderId) }
-    LaunchedEffect(openFolderId) {
-        // `Settings.Global.getFloat` goes through ContentResolver, which can block,
-        // so read it off the main thread before driving the animation on it.
-        val durationScale = withContext(Dispatchers.IO) {
+    // The system animator duration scale, read once off the main thread
+    // (`Settings.Global.getFloat` goes through ContentResolver, which can block).
+    // Until it resolves we assume normal speed, so opening a folder never waits on
+    // the read — and the open/close effect below stays free of any blocking call,
+    // so it sets `renderedFolderId` and drives the animation synchronously.
+    var animatorScale by remember { mutableStateOf(1f) }
+    LaunchedEffect(Unit) {
+        animatorScale = withContext(Dispatchers.IO) {
             runCatching {
                 android.provider.Settings.Global.getFloat(
                     context.contentResolver,
@@ -927,7 +931,9 @@ private fun DockCard(
                 )
             }.getOrDefault(1f)
         }
-        val durationMs = (DOCK_FOLDER_EXPAND_DURATION_MS * durationScale).toInt()
+    }
+    LaunchedEffect(openFolderId) {
+        val durationMs = (DOCK_FOLDER_EXPAND_DURATION_MS * animatorScale).toInt()
         // Linear driver — the per-tile easing/stagger in DockFolderGrid owns the
         // curve, so easing here too would double-apply it.
         if (openFolderId != null) {
