@@ -104,6 +104,25 @@ class LauncherViewModelReturnHomeTest {
         )
     }
 
+    @Test
+    fun returnToLauncherHomeBumpsHomeReturnTokenEachTime() {
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+
+        val before = viewModel.uiState.value.homeReturnToken
+        viewModel.returnToLauncherHome()
+        val afterFirst = viewModel.uiState.value.homeReturnToken
+        viewModel.returnToLauncherHome()
+        val afterSecond = viewModel.uiState.value.homeReturnToken
+
+        // The token is what an open dock folder watches to close itself; it must
+        // change on every return to Home, including a plain home press on an
+        // already-empty Home (which otherwise leaves the rest of the state alone).
+        assertEquals(before + 1, afterFirst)
+        assertEquals(before + 2, afterSecond)
+    }
+
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
