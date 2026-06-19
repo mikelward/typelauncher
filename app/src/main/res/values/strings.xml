@@ -114,26 +114,6 @@
     <string name="settings_app_list_layout_option_name_below">Name below</string>
     <string name="settings_app_list_layout_option_icon_only">Icon only</string>
     <string name="settings_dock_layout_title">Dock style</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_open_style_title" tools:ignore="MissingTranslation">Folder open style</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_open_style_option_top_left" tools:ignore="MissingTranslation">Top-left</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_open_style_option_flow" tools:ignore="MissingTranslation">Flow</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_open_style_option_bloom" tools:ignore="MissingTranslation">Bloom</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_open_style_option_zoom" tools:ignore="MissingTranslation">Zoom</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_open_style_option_overlay" tools:ignore="MissingTranslation">Overlay</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_overlay_shape_title" tools:ignore="MissingTranslation">Overlay shape</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_overlay_shape_option_compact" tools:ignore="MissingTranslation">Compact</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_overlay_shape_option_rectangle" tools:ignore="MissingTranslation">Rectangle</string>
-    <!-- TODO: translate -->
-    <string name="settings_dock_folder_overlay_shape_option_square" tools:ignore="MissingTranslation">Square</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>
     <string name="settings_app_list_sort_option_usage">Usage ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>

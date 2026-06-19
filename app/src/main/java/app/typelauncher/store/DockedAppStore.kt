@@ -520,36 +520,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * How an opened dock folder arranges its apps relative to the folder's cell.
-     * Stored by name so an unknown value (a renamed entry from a newer build)
-     * falls back to [DockFolderOpenStyle.Zoom], the default.
-     */
-    var dockFolderOpenStyle: DockFolderOpenStyle
-        get() = sharedPreferences.getString(KEY_DOCK_FOLDER_OPEN_STYLE, null)
-            ?.let { name -> runCatching { DockFolderOpenStyle.valueOf(name) }.getOrNull() }
-            ?: DockFolderOpenStyle.Zoom
-        set(value) {
-            sharedPreferences.edit()
-                .putString(KEY_DOCK_FOLDER_OPEN_STYLE, value.name)
-                .apply()
-        }
-
-    /**
-     * How the [DockFolderOpenStyle.Overlay] card sizes its grid. Stored by name so
-     * an unknown value (a renamed entry from a newer build) falls back to
-     * [DockFolderOverlayShape.Compact], the default.
-     */
-    var dockFolderOverlayShape: DockFolderOverlayShape
-        get() = sharedPreferences.getString(KEY_DOCK_FOLDER_OVERLAY_SHAPE, null)
-            ?.let { name -> runCatching { DockFolderOverlayShape.valueOf(name) }.getOrNull() }
-            ?: DockFolderOverlayShape.Compact
-        set(value) {
-            sharedPreferences.edit()
-                .putString(KEY_DOCK_FOLDER_OVERLAY_SHAPE, value.name)
-                .apply()
-        }
-
-    /**
      * How every app icon's tile is rendered. [IconTheme.Default] keeps each
      * app's own icon art; [IconTheme.Monochrome] re-renders icons from their
      * app's monochrome themed-icon glyph in theme colors. Stored by name so an
@@ -722,8 +692,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_DOCK_LAYOUT = "dock_layout"
-        const val KEY_DOCK_FOLDER_OPEN_STYLE = "dock_folder_open_style"
-        const val KEY_DOCK_FOLDER_OVERLAY_SHAPE = "dock_folder_overlay_shape"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
