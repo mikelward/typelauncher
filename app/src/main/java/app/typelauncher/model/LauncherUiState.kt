@@ -289,9 +289,9 @@ internal sealed interface FolderSlot {
  * the dock" rule: anchoring is best-effort and degrades to packing rather than
  * adding rows.
  *
- * The first member lands on (or nearest) the anchor cell and the close tile
- * takes the farthest assigned cell, so opening a folder always puts an app where
- * the folder was.
+ * The first member lands on (or nearest) the anchor cell, so opening a folder
+ * always puts an app where the folder was; the close tile follows the members in
+ * the same anchored order (so it sits in or just past the 2×2 block).
  */
 internal fun dockFolderSlots(
     memberCount: Int,
@@ -311,12 +311,9 @@ internal fun dockFolderSlots(
     }
     val anchorCol = anchor.column.coerceIn(0, cols - 1)
     val anchorRow = anchor.row.coerceIn(0, rowCount - 1)
+    // `zoomCellOrder` always returns a full `cols * rowCount` ordering, and
+    // `tiles.size <= capacity` is guaranteed above, so every tile gets a cell.
     val cellOrder = zoomCellOrder(anchorCol, anchorRow, cols, rowCount)
-    // The anchored order can run short of cells (e.g. on the last row); fall back
-    // to packing rather than dropping tiles.
-    if (cellOrder.size < tiles.size) {
-        return packedFolderSlots(tiles, cols)
-    }
     val grid = arrayOfNulls<FolderSlot>(capacity)
     tiles.forEachIndexed { tileIndex, tile ->
         grid[cellOrder[tileIndex]] = tile
