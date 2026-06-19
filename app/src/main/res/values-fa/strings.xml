@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">نام ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">نام ↑</string>
     <string name="settings_dock_enabled_title">نمایش داک</string>
-    <string name="settings_show_docked_apps_in_list_title">نمایش برنامه‌های داک</string>
     <string name="settings_work_dock_enabled_title">نمایش داک کاری</string>
     <string name="settings_work_dock_disabled_toast">پروفایل کاری متوقف شده است</string>
     <string name="settings_keyboard_auto_show_title">نمایش خودکار صفحه‌کلید</string>

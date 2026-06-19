@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">ਨਾਮ ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">ਨਾਮ ↑</string>
     <string name="settings_dock_enabled_title">ਡਾਕ ਦਿਖਾਓ</string>
-    <string name="settings_show_docked_apps_in_list_title">ਡਾਕ ਕੀਤੀਆਂ ਐਪਾਂ ਦਿਖਾਓ</string>
     <string name="settings_work_dock_enabled_title">ਵਰਕ ਡਾਕ ਦਿਖਾਓ</string>
     <string name="settings_work_dock_disabled_toast">ਵਰਕ ਪ੍ਰੋਫਾਈਲ ਰੋਕੀ ਗਈ ਹੈ</string>
     <string name="settings_keyboard_auto_show_title">ਕੀਬੋਰਡ ਆਪਣੇ ਆਪ ਦਿਖਾਓ</string>

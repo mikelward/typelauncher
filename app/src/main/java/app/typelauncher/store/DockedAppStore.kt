@@ -460,20 +460,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * Settings → "Enable folders". When false (the default), the dock behaves
-     * exactly as it did before folders existed: dragging an icon onto another
-     * swap-reorders, no folder is ever created, and no folder UI renders. When
-     * true, dragging an icon onto another groups them into a folder.
-     */
-    var isDockFoldersEnabled: Boolean
-        get() = sharedPreferences.getBoolean(KEY_DOCK_FOLDERS_ENABLED, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_DOCK_FOLDERS_ENABLED, value)
-                .apply()
-        }
-
-    /**
      * How the installed-app list renders (see [AppListLayout]). Stored by name
      * so an unknown value (a renamed entry from a newer build) falls back to the
      * default. When no enum value has been written yet, migrates the pre-enum
@@ -529,20 +515,6 @@ internal class DockSettingsStore(context: Context) {
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_ICON_THEME, value.name)
-                .apply()
-        }
-
-    /**
-     * When true, docked apps remain visible in the typed-search app list in
-     * addition to the dock row. When false (the default), the dock acts as a
-     * deduplicating shortcut surface and docked apps are hidden from the main
-     * list to free vertical space — the launcher's pre-toggle behavior.
-     */
-    var isShowDockedAppsInList: Boolean
-        get() = sharedPreferences.getBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_SHOW_DOCKED_APPS_IN_LIST, value)
                 .apply()
         }
 
@@ -698,13 +670,11 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_DOCK_TARGET_ICON_SIZE_DP = "dock_target_icon_size_dp"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"
         const val KEY_WORK_DOCK_ENABLED = "work_dock_enabled"
-        const val KEY_DOCK_FOLDERS_ENABLED = "dock_folders_enabled"
         // Legacy boolean, kept for migration into KEY_APP_LIST_LAYOUT only.
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_DOCK_LAYOUT = "dock_layout"
         const val KEY_ICON_THEME = "icon_theme"
-        const val KEY_SHOW_DOCKED_APPS_IN_LIST = "show_docked_apps_in_list"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"

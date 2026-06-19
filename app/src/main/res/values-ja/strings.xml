@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">名前 ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">名前 ↑</string>
     <string name="settings_dock_enabled_title">ドックを表示</string>
-    <string name="settings_show_docked_apps_in_list_title">ドックのアプリを表示</string>
     <string name="settings_work_dock_enabled_title">仕事用ドックを表示</string>
     <string name="settings_work_dock_disabled_toast">仕事用プロファイルは一時停止中</string>
     <string name="settings_keyboard_auto_show_title">キーボードを自動表示</string>

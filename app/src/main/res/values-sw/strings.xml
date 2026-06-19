@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Jina ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Jina ↑</string>
     <string name="settings_dock_enabled_title">Onyesha dock</string>
-    <string name="settings_show_docked_apps_in_list_title">Onyesha programu za dock</string>
     <string name="settings_work_dock_enabled_title">Onyesha dock ya kazi</string>
     <string name="settings_work_dock_disabled_toast">Wasifu wa kazi umesitishwa</string>
     <string name="settings_keyboard_auto_show_title">Onyesha kibodi kiotomatiki</string>

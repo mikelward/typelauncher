@@ -19,8 +19,8 @@ import org.robolectric.annotation.Config
 
 /**
  * Coverage for dock folders at the ViewModel layer: merging via
- * [LauncherViewModel.mergeDockItems], the enable-folders gate, removing a
- * member, the main-list dedup of folder members, and the work-dock variant.
+ * [LauncherViewModel.mergeDockItems], removing a member, the main-list dedup
+ * of folder members, and the work-dock variant.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -50,7 +50,6 @@ class LauncherViewModelFolderTest {
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val mail = dockApp(viewModel, "Mail")
         val maps = dockApp(viewModel, "Maps")
 
@@ -66,28 +65,11 @@ class LauncherViewModelFolderTest {
     }
 
     @Test
-    fun mergeIsNoOpWhenFoldersDisabled() {
-        seedApp("Mail", "com.example.mail")
-        seedApp("Maps", "com.example.maps")
-        val viewModel = newViewModel()
-        idle()
-        // Folders disabled (the default).
-        val mail = dockApp(viewModel, "Mail")
-        val maps = dockApp(viewModel, "Maps")
-
-        viewModel.mergeDockItems(sourceId = mail.id, targetId = maps.id)
-        idle()
-
-        assertTrue("No folder should form while disabled", viewModel.uiState.value.dockFolders.isEmpty())
-    }
-
-    @Test
     fun removingMemberDownToOneDissolvesFolder() {
         seedApp("Mail", "com.example.mail")
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val mail = dockApp(viewModel, "Mail")
         val maps = dockApp(viewModel, "Maps")
         viewModel.mergeDockItems(sourceId = mail.id, targetId = maps.id)
@@ -109,14 +91,13 @@ class LauncherViewModelFolderTest {
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val mail = dockApp(viewModel, "Mail")
         val maps = dockApp(viewModel, "Maps")
         viewModel.mergeDockItems(sourceId = mail.id, targetId = maps.id)
         idle()
 
-        // Default "Show docked apps" is off, blank query, Full tier: folder
-        // members dedupe out of the list exactly like loose docked apps.
+        // Blank query, Full tier: folder members dedupe out of the list
+        // exactly like loose docked apps.
         val names = viewModel.uiState.value.filteredApps.map { it.name }
         assertFalse("Folder member Mail must hide from the list, got $names", "Mail" in names)
         assertFalse("Folder member Maps must hide from the list, got $names", "Maps" in names)
@@ -128,7 +109,6 @@ class LauncherViewModelFolderTest {
         seedApp("Maps", "com.example.maps")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val mail = dockApp(viewModel, "Mail")
         val maps = dockApp(viewModel, "Maps")
         viewModel.mergeDockItems(sourceId = mail.id, targetId = maps.id)
@@ -148,7 +128,6 @@ class LauncherViewModelFolderTest {
         seedApp("Photos", "com.example.photos")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val mail = dockApp(viewModel, "Mail")
         val maps = dockApp(viewModel, "Maps")
         val photos = dockApp(viewModel, "Photos")
@@ -175,7 +154,6 @@ class LauncherViewModelFolderTest {
         seedApp("Photos", "com.example.photos")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val mail = dockApp(viewModel, "Mail")
         val maps = dockApp(viewModel, "Maps")
         val photos = dockApp(viewModel, "Photos")
@@ -201,7 +179,6 @@ class LauncherViewModelFolderTest {
         seedApp("Mask", "com.example.mask")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         val maps = dockApp(viewModel, "Maps")
         val mail = dockApp(viewModel, "Mail")
         viewModel.mergeDockItems(sourceId = maps.id, targetId = mail.id)
@@ -216,24 +193,11 @@ class LauncherViewModelFolderTest {
     }
 
     @Test
-    fun setDockFoldersEnabledRoundTripsState() {
-        seedApp("Mail", "com.example.mail")
-        val viewModel = newViewModel()
-        idle()
-
-        assertFalse(viewModel.uiState.value.isDockFoldersEnabled)
-        viewModel.setDockFoldersEnabled(true)
-        idle()
-        assertTrue(viewModel.uiState.value.isDockFoldersEnabled)
-    }
-
-    @Test
     fun mergeWorkDockItemsGroupsWorkApps() {
         seedApp("Ztwo Work", "com.example.work2")
         seedApp("Zone Work", "com.example.work1")
         val viewModel = newViewModel()
         idle()
-        viewModel.setDockFoldersEnabled(true)
         viewModel.markAsActiveWorkAppForTest("com.example.work1")
         viewModel.markAsActiveWorkAppForTest("com.example.work2")
         viewModel.setWorkDockEnabled(true)

@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">Ad ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Ad ↑</string>
     <string name="settings_dock_enabled_title">Dock\'u göster</string>
-    <string name="settings_show_docked_apps_in_list_title">Dock\'taki uygulamaları göster</string>
     <string name="settings_work_dock_enabled_title">İş dock\'unu göster</string>
     <string name="settings_work_dock_disabled_toast">İş profili duraklatıldı</string>
     <string name="settings_keyboard_auto_show_title">Klavyeyi otomatik göster</string>

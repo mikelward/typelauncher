@@ -21,7 +21,6 @@ class BugReportPayloadTest {
             locale = Locale.US,
             isDockEnabled = true,
             appListLayout = AppListLayout.NameBeside,
-            isShowDockedAppsInList = true,
             dockIconSizeDp = 5,
             appListSortOrder = AppListSortOrder.Usage,
             isAgendaEnabled = true,
@@ -39,7 +38,6 @@ class BugReportPayloadTest {
         assertTrue("includes locale", payload.contains("Locale: en-US"))
         assertTrue("includes dock enabled", payload.contains("Dock enabled: true"))
         assertTrue("includes app list layout", payload.contains("App list layout: NameBeside"))
-        assertTrue("includes show docked in list", payload.contains("Show docked apps in list: true"))
         assertTrue("includes dock icon size", payload.contains("Dock icon size: 5dp"))
         assertTrue("includes sort order", payload.contains("App list sort order: Usage"))
         assertTrue("includes agenda setting", payload.contains("Agenda enabled: true"))
@@ -67,7 +65,6 @@ class BugReportPayloadTest {
             locale = Locale.US,
             isDockEnabled = false,
             appListLayout = AppListLayout.IconOnly,
-            isShowDockedAppsInList = false,
             dockIconSizeDp = 4,
             appListSortOrder = AppListSortOrder.Alphabetical,
             isAgendaEnabled = false,

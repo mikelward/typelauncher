@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">نام ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">نام ↑</string>
     <string name="settings_dock_enabled_title">ڈاک دکھائیں</string>
-    <string name="settings_show_docked_apps_in_list_title">ڈاک کی ایپس دکھائیں</string>
     <string name="settings_work_dock_enabled_title">ورک ڈاک دکھائیں</string>
     <string name="settings_work_dock_disabled_toast">ورک پروفائل روک دی گئی ہے</string>
     <string name="settings_keyboard_auto_show_title">کی بورڈ خودکار طور پر دکھائیں</string>

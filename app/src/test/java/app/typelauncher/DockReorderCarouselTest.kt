@@ -536,15 +536,20 @@ class DockReorderCarouselTest {
         // event would arrive at a freshly-restarted `awaitFirstDown`
         // (because the cross-row move detached the per-icon pointerInput
         // on the first event) and only one reorder would fire.
+        //
+        // Each move overshoots the neighbor's center by well over the swap
+        // buffer (0.15 of the slot pitch) so it fires a live swap rather than
+        // arming a folder merge — folders are always on, so a drag that merely
+        // settles on a neighbor's center would group instead of reorder.
         composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
             val start = Offset(width / 2f, height / 2f)
             down(start)
             move(longPressMs + 100)
-            moveBy(Offset(0f, 280f))
+            moveBy(Offset(0f, 400f))
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$DOCK_APP_TAG:App01").performTouchInput {
-            moveBy(Offset(300f, 0f))
+            moveBy(Offset(400f, 0f))
             up()
         }
         composeRule.waitForIdle()

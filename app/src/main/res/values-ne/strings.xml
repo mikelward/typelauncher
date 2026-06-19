@@ -111,7 +111,6 @@
     <string name="settings_app_list_sort_option_name">नाम ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">नाम ↑</string>
     <string name="settings_dock_enabled_title">डक देखाउनुहोस्</string>
-    <string name="settings_show_docked_apps_in_list_title">डक गरिएका एप देखाउनुहोस्</string>
     <string name="settings_work_dock_enabled_title">कार्य डक देखाउनुहोस्</string>
     <string name="settings_work_dock_disabled_toast">कार्य प्रोफाइल रोकिएको छ</string>
     <string name="settings_keyboard_auto_show_title">कुञ्जीपाटी स्वचालित रूपमा देखाउनुहोस्</string>
