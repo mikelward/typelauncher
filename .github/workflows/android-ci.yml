@@ -252,8 +252,15 @@ jobs:
 
       - name: Run dock folder open-style screenshot tests
         # Renders the folder open styles (Directional / Bloom / Zoom anchored to a
-        # right-half folder, and the floating Overlay card) at rest.
+        # right-half folder, and the floating Overlay card in its compact / square /
+        # full-width shapes) at rest.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderOpenStyleScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run dock folder overlay popup screenshot tests
+        # Renders the Overlay card through the live positioned Popup over a stand-in
+        # dock and captures every window, so the no-gap overlay/dock seam shows up
+        # in the PR roborazzi-screenshots artifact.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderOverlayPopupScreenshotTest" -Proborazzi.test.record=true
 
       - name: Print failing test details
         if: failure()
