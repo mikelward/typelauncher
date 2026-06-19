@@ -126,6 +126,14 @@
     <string name="settings_dock_folder_open_style_option_zoom" tools:ignore="MissingTranslation">Zoom</string>
     <!-- TODO: translate -->
     <string name="settings_dock_folder_open_style_option_overlay" tools:ignore="MissingTranslation">Overlay</string>
+    <!-- TODO: translate -->
+    <string name="settings_dock_folder_overlay_shape_title" tools:ignore="MissingTranslation">Overlay shape</string>
+    <!-- TODO: translate -->
+    <string name="settings_dock_folder_overlay_shape_option_compact" tools:ignore="MissingTranslation">Compact</string>
+    <!-- TODO: translate -->
+    <string name="settings_dock_folder_overlay_shape_option_full_width" tools:ignore="MissingTranslation">Full width</string>
+    <!-- TODO: translate -->
+    <string name="settings_dock_folder_overlay_shape_option_square" tools:ignore="MissingTranslation">Square</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>
     <string name="settings_app_list_sort_option_usage">Usage ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>

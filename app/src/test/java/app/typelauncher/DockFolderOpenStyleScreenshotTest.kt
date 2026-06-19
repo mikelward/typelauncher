@@ -118,6 +118,79 @@ class DockFolderOpenStyleScreenshotTest {
         captureSnapshot("compose_dock_folder_overlay_robolectric.png")
     }
 
+    @Test
+    fun overlay_squareGridForFourApps() {
+        captureOverlayShape(
+            name = "compose_dock_folder_overlay_square_robolectric.png",
+            title = "Overlay — square (4 apps = 2×2)",
+            memberCount = 4,
+            shape = DockFolderOverlayShape.Square,
+            packagePrefix = "com.example.overlaysquare",
+            // Two rows of TitleBelow tiles plus the title need more height than the
+            // single-row default so the bottom row's labels aren't clipped.
+            heightPx = 900,
+        )
+    }
+
+    @Test
+    fun overlay_fullWidthCard() {
+        captureOverlayShape(
+            name = "compose_dock_folder_overlay_full_width_robolectric.png",
+            title = "Overlay — full width",
+            memberCount = 4,
+            shape = DockFolderOverlayShape.FullWidth,
+            packagePrefix = "com.example.overlayfullwidth",
+        )
+    }
+
+    private fun captureOverlayShape(
+        name: String,
+        title: String,
+        memberCount: Int,
+        shape: DockFolderOverlayShape,
+        packagePrefix: String,
+        heightPx: Int = 700,
+    ) {
+        val folder = sampleFolder(memberCount, name = "Social", packagePrefix = packagePrefix)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                val sizePx = with(LocalDensity.current) { iconDp.dp.roundToPx() }
+                remember(sizePx) {
+                    folder.members.forEachIndexed { index, app ->
+                        AppIconLoader.put(app.iconCacheId, sizePx, solidIcon(sizePx, PREVIEW_COLORS[index % PREVIEW_COLORS.size]))
+                    }
+                    0
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(title)
+                    DockFolderOverlayCard(
+                        folder = folder,
+                        dockIconSizeDp = iconDp,
+                        dockIconCount = columns,
+                        dockLayout = DockLayout.TitleBelow,
+                        shape = shape,
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onRemoveFromFolder = {},
+                        onUndockFromFolder = {},
+                        onRenameApp = { _, _ -> },
+                        onResetRank = {},
+                        onSetAppIconOverride = {},
+                        onClearAppIconOverride = {},
+                        onSetAppBadge = { _, _ -> },
+                        onHideApp = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        captureSnapshot(name, heightPx = heightPx)
+    }
+
     @Composable
     private fun StyledGrid(style: DockFolderOpenStyle) {
         DockFolderGrid(

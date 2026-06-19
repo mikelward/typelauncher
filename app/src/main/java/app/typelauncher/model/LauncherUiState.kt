@@ -154,6 +154,23 @@ internal enum class DockFolderOpenStyle {
 }
 
 /**
+ * How the [DockFolderOpenStyle.Overlay] card sizes its grid of apps. Only the
+ * Overlay style consults this; the in-place styles ignore it.
+ *
+ * - [Compact] (default, previous behavior): as wide as the apps need, up to five
+ *   per row, so a small folder is a tight card.
+ * - [FullWidth]: the card spans the full content width (like the dock and app
+ *   list cards) and the apps flow across as many columns as fit.
+ * - [Square]: a roughly-square grid — four apps make a 2×2 block, nine make 3×3
+ *   (`ceil(sqrt(count))` columns) — so the card reads as a square.
+ */
+internal enum class DockFolderOverlayShape {
+    Compact,
+    FullWidth,
+    Square,
+}
+
+/**
  * Height of one dock slot, in dp, for a given [dockIconSizeDp], [layout], and
  * [fontScale]. Used by every renderer that needs to size a fixed slot
  * ([DockedAppButton], [EmptyDockSlot], [DockAddButton]) and by the
@@ -691,6 +708,8 @@ internal data class LauncherUiState(
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
     val dockFolderOpenStyle: DockFolderOpenStyle = DockFolderOpenStyle.Zoom,
+    // Only consulted by the Overlay open style; see `DockFolderOverlayShape`.
+    val dockFolderOverlayShape: DockFolderOverlayShape = DockFolderOverlayShape.Compact,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by

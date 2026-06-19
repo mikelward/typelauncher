@@ -140,6 +140,13 @@ internal const val DOCK_FOLDER_OPEN_STYLE_DROPDOWN_MENU_TAG = "dock_folder_open_
 internal fun dockFolderOpenStyleOptionTag(style: DockFolderOpenStyle): String =
     "dock_folder_open_style_option_${style.name.lowercase()}"
 
+internal const val DOCK_FOLDER_OVERLAY_SHAPE_DROPDOWN_TAG = "dock_folder_overlay_shape_dropdown"
+internal const val DOCK_FOLDER_OVERLAY_SHAPE_DROPDOWN_MENU_TAG = "dock_folder_overlay_shape_dropdown_menu"
+
+/** Per-option test tag for the dock folder overlay-shape dropdown, keyed by enum name. */
+internal fun dockFolderOverlayShapeOptionTag(shape: DockFolderOverlayShape): String =
+    "dock_folder_overlay_shape_option_${shape.name.lowercase()}"
+
 internal const val DOCK_ICON_COUNT_SLIDER_TAG = "dock_icon_count_slider"
 internal const val APP_LIST_SORT_DROPDOWN_TAG = "app_list_sort_dropdown"
 internal const val APP_LIST_SORT_DROPDOWN_MENU_TAG = "app_list_sort_dropdown_menu"
