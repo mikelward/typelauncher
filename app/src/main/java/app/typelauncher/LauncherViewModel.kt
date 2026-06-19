@@ -806,6 +806,7 @@ internal class LauncherViewModel(
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
                 query = "",
+                homeReturnToken = it.homeReturnToken + 1,
             )
         }
         // Clearing the query has to rebuild the filtered list so the app list

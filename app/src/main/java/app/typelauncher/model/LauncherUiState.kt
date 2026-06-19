@@ -605,6 +605,11 @@ internal data class LauncherUiState(
     // A pull-down closes it; a second pull-up re-shows the search keyboard.
     // Reset on app launch / screen change / settings open / resume to Home.
     val isRecentsOpen: Boolean = false,
+    // Bumped each time the launcher returns to a fresh Home via a launcher entry
+    // intent (HOME press / launcher icon); see `returnToLauncherHome`. Transient
+    // Home UI that should not survive leaving and re-entering Home — currently an
+    // open dock-folder grid — observes this token and resets when it changes.
+    val homeReturnToken: Int = 0,
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
     val widgetHeights: Map<Int, Int> = emptyMap(),
