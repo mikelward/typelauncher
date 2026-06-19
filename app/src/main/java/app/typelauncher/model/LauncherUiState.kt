@@ -120,57 +120,6 @@ internal enum class DockLayout {
 }
 
 /**
- * How an opened dock folder arranges its member apps relative to the folder's
- * own cell. All non-[TopLeft] styles anchor the apps near where the folder sits
- * so opening reads as "these apps came from here"; the shared fly-out animation
- * (see `DockFolderGrid`) expands the tiles out of the folder cell regardless of
- * style.
- *
- * - [TopLeft] (previous behavior): pack from the top-left of the dock
- *   footprint, ignoring the folder's position.
- * - [Directional]: the first member sits at the folder's cell and the apps flow
- *   outward toward the open side — left-to-right for a left-half folder,
- *   right-to-left for a right-half one — wrapping downward.
- * - [Bloom]: members claim the cells nearest the folder cell in every direction
- *   (deterministic distance order, so the arrangement is the same every open).
- * - [Zoom] (default): the first four members form a 2×2 block around the folder
- *   cell (a 1×N line on a single-row dock), with any extras filling outward by
- *   distance.
- * - [Overlay]: instead of replacing the dock, float a compact card (sized to its
- *   apps, in the same card style as the dock and app list) over the app list,
- *   leaving a close button where the folder was. Members can be dragged to
- *   reorder. This style does not use the in-dock [dockFolderSlots] grid.
- *
- * Every in-place style falls back to [TopLeft] packing when the anchored
- * arrangement would need more cells than the dock footprint has (so the dock
- * never grows; the existing folder scroll takes over). See [dockFolderSlots].
- */
-internal enum class DockFolderOpenStyle {
-    TopLeft,
-    Directional,
-    Bloom,
-    Zoom,
-    Overlay,
-}
-
-/**
- * How the [DockFolderOpenStyle.Overlay] card sizes its grid of apps. Only the
- * Overlay style consults this; the in-place styles ignore it.
- *
- * - [Compact] (default, previous behavior): as wide as the apps need, up to five
- *   per row, so a small folder is a tight card.
- * - [Rectangle]: the card spans the full content width (matching the dock and app
- *   list cards) and the apps flow across as many columns as fit.
- * - [Square]: a roughly-square grid — four apps make a 2×2 block, nine make 3×3
- *   (`ceil(sqrt(count))` columns) — so the card reads as a square.
- */
-internal enum class DockFolderOverlayShape {
-    Compact,
-    Rectangle,
-    Square,
-}
-
-/**
  * Height of one dock slot, in dp, for a given [dockIconSizeDp], [layout], and
  * [fontScale]. Used by every renderer that needs to size a fixed slot
  * ([DockedAppButton], [EmptyDockSlot], [DockAddButton]) and by the
@@ -315,8 +264,7 @@ internal fun nextAvailableDockPosition(
 /**
  * One cell of an opened dock folder's grid: a member tile (by display order), the
  * close (✕) tile, or an empty filler. [dockFolderSlots] returns these row-major so
- * the renderer can lay them out in the same `FlowRow` the dock uses, and the
- * fly-out animation can map each tile to its resting cell.
+ * the renderer can lay them out in the same `FlowRow` the dock uses.
  */
 internal sealed interface FolderSlot {
     data class Member(val index: Int) : FolderSlot
@@ -329,15 +277,17 @@ internal sealed interface FolderSlot {
 /**
  * Row-major cell assignment for an opened folder of [memberCount] members plus a
  * trailing close tile, laid out in a [columns]×[rows] grid anchored on the
- * folder's own [anchor] cell per [style].
+ * folder's own [anchor] cell. The first four members form a 2×2 block around the
+ * anchor (a 1×N line on a single-row dock) so the open reads as the folder's 2×2
+ * mini-icon unfolding in place; any extras fill outward by distance.
  *
  * The returned list is exactly `columns * rows` long (padded with
  * [FolderSlot.Empty]) when the anchored arrangement fits the dock footprint.
- * When it would not fit — more tiles than the footprint has cells, a single
- * column, or [DockFolderOpenStyle.TopLeft] — it falls back to a top-left packed
- * list (members then close, padded to a whole last row), which the caller's
- * scroll absorbs. This is the "never grow the dock" rule: anchoring is
- * best-effort and degrades to packing rather than adding rows.
+ * When it would not fit — more tiles than the footprint has cells, or a single
+ * column — it falls back to a top-left packed list (members then close, padded to
+ * a whole last row), which the caller's scroll absorbs. This is the "never grow
+ * the dock" rule: anchoring is best-effort and degrades to packing rather than
+ * adding rows.
  *
  * The first member lands on (or nearest) the anchor cell and the close tile
  * takes the farthest assigned cell, so opening a folder always puts an app where
@@ -348,7 +298,6 @@ internal fun dockFolderSlots(
     anchor: DockPosition,
     columns: Int,
     rows: Int,
-    style: DockFolderOpenStyle,
 ): List<FolderSlot> {
     val cols = columns.coerceAtLeast(1)
     val rowCount = rows.coerceAtLeast(1)
@@ -357,27 +306,14 @@ internal fun dockFolderSlots(
         add(FolderSlot.Close)
     }
     val capacity = cols * rowCount
-    // [Overlay] renders its own floating card, not this in-dock grid; if it ever
-    // reaches here, pack like [TopLeft].
-    if (style == DockFolderOpenStyle.TopLeft ||
-        style == DockFolderOpenStyle.Overlay ||
-        cols == 1 ||
-        tiles.size > capacity
-    ) {
+    if (cols == 1 || tiles.size > capacity) {
         return packedFolderSlots(tiles, cols)
     }
     val anchorCol = anchor.column.coerceIn(0, cols - 1)
     val anchorRow = anchor.row.coerceIn(0, rowCount - 1)
-    val cellOrder = when (style) {
-        DockFolderOpenStyle.Directional -> directionalCellOrder(anchorCol, anchorRow, cols, rowCount)
-        DockFolderOpenStyle.Bloom -> distanceCellOrder(anchorCol, anchorRow, cols, rowCount)
-        DockFolderOpenStyle.Zoom -> zoomCellOrder(anchorCol, anchorRow, cols, rowCount)
-        DockFolderOpenStyle.TopLeft, DockFolderOpenStyle.Overlay ->
-            emptyList() // unreachable, handled above
-    }
-    // A style can run short of cells on the anchor side (e.g. a directional flow
-    // that wraps past the last row); fall back to packing rather than dropping
-    // tiles.
+    val cellOrder = zoomCellOrder(anchorCol, anchorRow, cols, rowCount)
+    // The anchored order can run short of cells (e.g. on the last row); fall back
+    // to packing rather than dropping tiles.
     if (cellOrder.size < tiles.size) {
         return packedFolderSlots(tiles, cols)
     }
@@ -395,29 +331,7 @@ private fun packedFolderSlots(tiles: List<FolderSlot>, columns: Int): List<Folde
 }
 
 /**
- * Directional flow: start at the anchor cell and walk toward the open horizontal
- * edge (right for a left-half folder, left for a right-half one), wrapping to the
- * full rows below. Cells before the anchor on its row, and the rows above it,
- * stay empty (the leading-cell offset).
- */
-private fun directionalCellOrder(
-    anchorCol: Int,
-    anchorRow: Int,
-    columns: Int,
-    rows: Int,
-): List<Int> = buildList {
-    val flowRight = anchorCol < columns / 2
-    if (flowRight) {
-        for (c in anchorCol until columns) add(anchorRow * columns + c)
-        for (r in anchorRow + 1 until rows) for (c in 0 until columns) add(r * columns + c)
-    } else {
-        for (c in anchorCol downTo 0) add(anchorRow * columns + c)
-        for (r in anchorRow + 1 until rows) for (c in columns - 1 downTo 0) add(r * columns + c)
-    }
-}
-
-/**
- * Bloom: every cell ordered by Manhattan distance from the anchor, with a fixed
+ * Every cell ordered by Manhattan distance from the anchor, with a fixed
  * tie-break (horizontal spread before vertical, right before left, down before
  * up) so the arrangement is identical on every open — stable for muscle memory.
  */
@@ -707,9 +621,6 @@ internal data class LauncherUiState(
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
-    val dockFolderOpenStyle: DockFolderOpenStyle = DockFolderOpenStyle.Zoom,
-    // Only consulted by the Overlay open style; see `DockFolderOverlayShape`.
-    val dockFolderOverlayShape: DockFolderOverlayShape = DockFolderOverlayShape.Compact,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by

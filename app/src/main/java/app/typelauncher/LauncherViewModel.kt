@@ -177,8 +177,6 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
-            dockFolderOpenStyle = dockSettingsStore.dockFolderOpenStyle,
-            dockFolderOverlayShape = dockSettingsStore.dockFolderOverlayShape,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -1719,18 +1717,6 @@ internal class LauncherViewModel(
         dockSettingsStore.dockLayout = layout
         _uiState.update { it.copy(dockLayout = layout) }
         logState("setDockLayout")
-    }
-
-    fun setDockFolderOpenStyle(style: DockFolderOpenStyle) {
-        dockSettingsStore.dockFolderOpenStyle = style
-        _uiState.update { it.copy(dockFolderOpenStyle = style) }
-        logState("setDockFolderOpenStyle")
-    }
-
-    fun setDockFolderOverlayShape(shape: DockFolderOverlayShape) {
-        dockSettingsStore.dockFolderOverlayShape = shape
-        _uiState.update { it.copy(dockFolderOverlayShape = shape) }
-        logState("setDockFolderOverlayShape")
     }
 
     fun setAppListSortOrder(sortOrder: AppListSortOrder) {
