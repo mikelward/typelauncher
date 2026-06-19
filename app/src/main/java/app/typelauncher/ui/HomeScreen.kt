@@ -967,7 +967,16 @@ private fun DockCard(
     // close button), so the in-place hiding/grid below is gated off for it.
     val isOverlayStyle = dockFolderOpenStyle == DockFolderOpenStyle.Overlay
     val inPlaceFolder = renderedFolder?.takeIf { !isOverlayStyle }
-    val overlayGapPx = with(LocalDensity.current) { DOCK_ITEM_SPACING_DP.dp.roundToPx() }
+    // Float the overlay card one whole dock row above the folder cell, so it
+    // reads as a card hovering over the app list rather than hugging the dock.
+    val overlayGapPx = with(LocalDensity.current) {
+        dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale).dp.roundToPx()
+    }
+    // A non-focusable overlay popup (below) can't catch Back; close on Back here
+    // while it's open, matching the in-place folder's BackHandler.
+    BackHandler(enabled = isOverlayStyle && renderedFolderId != null) {
+        openFolderId = null
+    }
     SectionCard(modifier.testTag(tags.cardTag)) {
         // The dock grid and the open-folder grid share one Box so the card keeps
         // the dock's exact footprint when a folder opens — the folder takes the
@@ -1083,7 +1092,11 @@ private fun DockCard(
                                     Popup(
                                         popupPositionProvider = dockFolderOverlayPositionProvider(overlayGapPx),
                                         onDismissRequest = { openFolderId = null },
-                                        properties = PopupProperties(focusable = true),
+                                        // Non-focusable so opening the folder doesn't steal focus
+                                        // from the search field and collapse the keyboard (which
+                                        // would reflow the whole home screen) — same rationale as
+                                        // AppActionsMenuPopupProperties. Back is handled above.
+                                        properties = PopupProperties(focusable = false),
                                     ) {
                                         DockFolderOverlayCard(
                                             folder = overlayFolder,
