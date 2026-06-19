@@ -58,4 +58,25 @@ class DockFolderOverlayPositionTest {
         val offset = position(anchor, IntSize(1080, 1920), IntSize(300, 400))
         assertEquals(0, offset.y)
     }
+
+    @Test
+    fun fullWidthAlignsToTheDockCardLeftNotTheFolderCellCenter() {
+        // Rectangle/full-width: the card is sized to the dock card and pinned to
+        // its left edge (8 dp Home inset), not centered on the folder cell.
+        val provider = dockFolderOverlayPositionProvider(fullWidth = true, dockCardLeftPx = { 24 })
+        val anchor = IntRect(left = 700, top = 1000, right = 800, bottom = 1100)
+        val popup = IntSize(width = 1032, height = 200)
+        val offset = provider.calculatePosition(anchor, IntSize(1080, 1920), LayoutDirection.Ltr, popup)
+        assertEquals(24, offset.x)
+        assertEquals(800, offset.y)
+    }
+
+    @Test
+    fun fullWidthFallsBackToCenteredWhenDockLeftUnknown() {
+        // Before the dock card reports its bounds, full-width still centers + clamps.
+        val provider = dockFolderOverlayPositionProvider(fullWidth = true, dockCardLeftPx = { null })
+        val anchor = IntRect(left = 400, top = 1000, right = 500, bottom = 1100)
+        val offset = provider.calculatePosition(anchor, IntSize(1080, 1920), LayoutDirection.Ltr, IntSize(300, 200))
+        assertEquals(300, offset.x)
+    }
 }

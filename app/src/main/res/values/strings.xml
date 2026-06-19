@@ -131,7 +131,7 @@
     <!-- TODO: translate -->
     <string name="settings_dock_folder_overlay_shape_option_compact" tools:ignore="MissingTranslation">Compact</string>
     <!-- TODO: translate -->
-    <string name="settings_dock_folder_overlay_shape_option_full_width" tools:ignore="MissingTranslation">Full width</string>
+    <string name="settings_dock_folder_overlay_shape_option_rectangle" tools:ignore="MissingTranslation">Rectangle</string>
     <!-- TODO: translate -->
     <string name="settings_dock_folder_overlay_shape_option_square" tools:ignore="MissingTranslation">Square</string>
     <string name="settings_app_list_sort_title">Sort apps by</string>

@@ -22,10 +22,10 @@ class DockFolderOverlayColumnsTest {
     }
 
     @Test
-    fun fullWidthFillsEveryColumnTheWidthAllows() {
-        assertEquals(6, columns(4, DockFolderOverlayShape.FullWidth))
+    fun rectangleFillsEveryColumnTheWidthAllows() {
+        assertEquals(6, columns(4, DockFolderOverlayShape.Rectangle))
         // Fills the row even when there are fewer members than columns.
-        assertEquals(6, columns(2, DockFolderOverlayShape.FullWidth))
+        assertEquals(6, columns(2, DockFolderOverlayShape.Rectangle))
     }
 
     @Test
@@ -41,7 +41,7 @@ class DockFolderOverlayColumnsTest {
     fun everyShapeIsClampedToTheWidthBudget() {
         // A narrow screen (maxForWidth = 2) caps each shape at two columns.
         assertEquals(2, columns(7, DockFolderOverlayShape.Compact, maxForWidth = 2))
-        assertEquals(2, columns(4, DockFolderOverlayShape.FullWidth, maxForWidth = 2))
+        assertEquals(2, columns(4, DockFolderOverlayShape.Rectangle, maxForWidth = 2))
         assertEquals(2, columns(9, DockFolderOverlayShape.Square, maxForWidth = 2))
     }
 
@@ -49,6 +49,6 @@ class DockFolderOverlayColumnsTest {
     fun emptyOrDegenerateInputsNeverGoBelowOneColumn() {
         assertEquals(1, columns(0, DockFolderOverlayShape.Compact))
         assertEquals(1, columns(0, DockFolderOverlayShape.Square))
-        assertEquals(1, columns(0, DockFolderOverlayShape.FullWidth, maxForWidth = 0))
+        assertEquals(1, columns(0, DockFolderOverlayShape.Rectangle, maxForWidth = 0))
     }
 }

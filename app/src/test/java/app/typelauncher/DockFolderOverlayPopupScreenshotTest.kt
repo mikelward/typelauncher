@@ -15,10 +15,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
@@ -31,6 +35,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.math.roundToInt
 
 /**
  * Screenshot coverage for the [DockFolderOpenStyle.Overlay] card *through the live
@@ -39,7 +44,11 @@ import org.robolectric.annotation.GraphicsMode
  * deliberately skips (it renders the card alone so a decor-view capture can see
  * it). Here a stand-in dock card hosts the folder cell, the real popup floats the
  * overlay above it, and `captureScreenRoboImage` grabs every window so the
- * no-gap overlay/dock seam and the on-screen clamped placement are reviewable.
+ * no-gap overlay/dock seam and the on-screen placement are reviewable.
+ *
+ * The Rectangle case also feeds the stand-in dock card's measured width/left into
+ * the overlay (as `DockCard` does in production), so the capture shows the
+ * full-width card matching the dock card's bounds rather than the popup window.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -59,16 +68,48 @@ class DockFolderOverlayPopupScreenshotTest {
     private val iconDp = 43
 
     @Test
-    fun overlay_popupSitsFlushAboveTheFolderCell() {
-        val folder = sampleFolder(4, name = "Social", packagePrefix = "com.example.overlaypopup")
+    fun overlay_compactPopupSitsFlushAboveTheFolderCell() {
+        captureOverlayPopup(
+            name = "compose_dock_folder_overlay_popup_robolectric.png",
+            shape = DockFolderOverlayShape.Compact,
+            packagePrefix = "com.example.overlaypopup",
+        )
+    }
+
+    @Test
+    fun overlay_rectanglePopupMatchesTheDockCardWidth() {
+        captureOverlayPopup(
+            name = "compose_dock_folder_overlay_popup_rectangle_robolectric.png",
+            shape = DockFolderOverlayShape.Rectangle,
+            packagePrefix = "com.example.overlaypopuprect",
+        )
+    }
+
+    private fun captureOverlayPopup(
+        name: String,
+        shape: DockFolderOverlayShape,
+        packagePrefix: String,
+    ) {
+        val folder = sampleFolder(4, name = "Social", packagePrefix = packagePrefix)
         composeRule.setContent {
             TypeLauncherTheme {
-                val sizePx = with(LocalDensity.current) { iconDp.dp.roundToPx() }
+                val density = LocalDensity.current
+                val sizePx = with(density) { iconDp.dp.roundToPx() }
                 remember(sizePx) {
                     folder.members.forEachIndexed { index, app ->
                         AppIconLoader.put(app.iconCacheId, sizePx, solidIcon(sizePx, PREVIEW_COLORS[index]))
                     }
                     0
+                }
+                // Mirror DockCard: capture the dock card's window bounds so the
+                // Rectangle overlay matches its width/left edge.
+                var dockCardLeftPx by remember { mutableStateOf<Int?>(null) }
+                var dockCardWidthDp by remember { mutableStateOf<Int?>(null) }
+                val positionProvider = remember(shape) {
+                    dockFolderOverlayPositionProvider(
+                        fullWidth = shape == DockFolderOverlayShape.Rectangle,
+                        dockCardLeftPx = { dockCardLeftPx },
+                    )
                 }
                 Box(
                     modifier = Modifier
@@ -79,7 +120,12 @@ class DockFolderOverlayPopupScreenshotTest {
                     // floats above its anchor, has room to land un-clamped.
                     Column(modifier = Modifier.fillMaxSize()) {
                         Spacer(modifier = Modifier.weight(1f))
-                        SectionCard {
+                        SectionCard(
+                            modifier = Modifier.onGloballyPositioned { coords ->
+                                dockCardLeftPx = coords.positionInWindow().x.roundToInt()
+                                dockCardWidthDp = with(density) { coords.size.width.toDp().value.roundToInt() }
+                            },
+                        ) {
                             androidx.compose.foundation.layout.Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -104,7 +150,7 @@ class DockFolderOverlayPopupScreenshotTest {
                                             .background(MaterialTheme.colorScheme.secondaryContainer),
                                     )
                                     Popup(
-                                        popupPositionProvider = dockFolderOverlayPositionProvider(),
+                                        popupPositionProvider = positionProvider,
                                         properties = PopupProperties(focusable = false),
                                     ) {
                                         DockFolderOverlayCard(
@@ -112,6 +158,8 @@ class DockFolderOverlayPopupScreenshotTest {
                                             dockIconSizeDp = iconDp,
                                             dockIconCount = 5,
                                             dockLayout = DockLayout.TitleBelow,
+                                            shape = shape,
+                                            dockCardWidthDp = dockCardWidthDp,
                                             onLaunchApp = {},
                                             onOpenAppInfo = {},
                                             onRemoveFromFolder = {},
@@ -132,7 +180,7 @@ class DockFolderOverlayPopupScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        captureScreen("compose_dock_folder_overlay_popup_robolectric.png")
+        captureScreen(name)
     }
 
     private fun captureScreen(name: String) {

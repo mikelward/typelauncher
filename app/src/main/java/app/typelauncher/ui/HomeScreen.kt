@@ -132,6 +132,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -303,7 +304,10 @@ internal fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(bottom = primaryBottomPadding)
             .padding(innerPadding)
-            .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
+            .padding(
+                horizontal = HOME_CONTENT_HORIZONTAL_INSET_DP.dp,
+                vertical = HOME_CONTENT_HORIZONTAL_INSET_DP.dp,
+            )
             .testTag(HOME_SCREEN_TAG),
         content = {
             // Index 0: search card, or a zero-size spacer when the cramped
@@ -845,9 +849,21 @@ private fun DockCard(
     val latestOnMergeDock by rememberUpdatedState(onMergeDock)
     val latestOnDragStateChanged by rememberUpdatedState(onDragStateChanged)
     val scrollState = rememberScrollState()
-    // Stable across recompositions (including the drag-reorder recompositions
-    // while the overlay is open) so the popup keeps one provider instance.
-    val overlayPositionProvider = remember { dockFolderOverlayPositionProvider() }
+    val density = LocalDensity.current
+    // The dock card's own window bounds, captured once it lays out, so the
+    // Rectangle overlay can match the dock card's width and left edge instead of
+    // the (wider) popup window. Null until the first layout pass.
+    var dockCardLeftPx by remember { mutableStateOf<Int?>(null) }
+    var dockCardWidthDp by remember { mutableStateOf<Int?>(null) }
+    // Stable across the frequent drag-reorder recompositions while the overlay is
+    // open (re-created only when the shape flips, which can't happen mid-drag);
+    // reads the dock card's left lazily so it tracks layout changes.
+    val overlayPositionProvider = remember(dockFolderOverlayShape) {
+        dockFolderOverlayPositionProvider(
+            fullWidth = dockFolderOverlayShape == DockFolderOverlayShape.Rectangle,
+            dockCardLeftPx = { dockCardLeftPx },
+        )
+    }
     val columns = dockIconCount.coerceAtLeast(1)
     val occupiedPositions = resolvedPositions.values.toSet()
     val maxOccupiedRow = occupiedPositions.maxOfOrNull { position -> position.row } ?: 0
@@ -979,7 +995,14 @@ private fun DockCard(
     BackHandler(enabled = isOverlayStyle && renderedFolderId != null) {
         openFolderId = null
     }
-    SectionCard(modifier.testTag(tags.cardTag)) {
+    SectionCard(
+        modifier
+            .testTag(tags.cardTag)
+            .onGloballyPositioned { coords ->
+                dockCardLeftPx = coords.positionInWindow().x.roundToInt()
+                dockCardWidthDp = with(density) { coords.size.width.toDp().value.roundToInt() }
+            },
+    ) {
         // The dock grid and the open-folder grid share one Box so the card keeps
         // the dock's exact footprint when a folder opens — the folder takes the
         // dock's place with no reflow of anything else on screen. The dock grid
@@ -1106,6 +1129,7 @@ private fun DockCard(
                                             dockIconCount = dockIconCount,
                                             dockLayout = dockLayout,
                                             shape = dockFolderOverlayShape,
+                                            dockCardWidthDp = dockCardWidthDp,
                                             appearProgress = { expandProgress.value },
                                             appIconTag = tags.appIconTag,
                                             onLaunchApp = { app ->
@@ -1254,6 +1278,10 @@ private const val DOCK_FOLDER_OVERLAY_MIN_SCALE = 0.8f
 // Overlay card column cap — kept independent of the dock's column count (which can
 // be as low as 1) so a full folder never collapses into an unreachably tall column.
 private const val DOCK_FOLDER_OVERLAY_MAX_COLUMNS = 5
+// Horizontal (and vertical) inset around the Home content column, so the dock and
+// app-list cards sit as islands rather than edge-to-edge. Shared with the overlay's
+// pre-measurement width fallback so the Rectangle shape matches the same bounds.
+private const val HOME_CONTENT_HORIZONTAL_INSET_DP = 8
 // Rows shown before the overlay card scrolls, so even a small/large-icon dock can
 // reach every app instead of clipping the bottom rows off-screen.
 private const val DOCK_FOLDER_OVERLAY_MAX_ROWS = 4
@@ -1803,16 +1831,25 @@ internal fun DockFolderGrid(
 }
 
 /**
- * Positions the [DockFolderOpenStyle.Overlay] folder card centered on the folder
- * cell it anchors to, with its bottom edge sitting directly on the folder cell's
- * top edge (no gap) so it reads as the dock growing another row straight up out
- * of the folder rather than a card hovering over the app list. The dock card and
- * the overlay card share the same filled-`Card` color with no shadow, so the
- * overlay's bottom padding overlapping the dock card's top padding strip merges
- * seamlessly. Clamped to the window so a folder near an edge stays fully on
- * screen.
+ * Positions the [DockFolderOpenStyle.Overlay] folder card with its bottom edge
+ * sitting directly on the folder cell's top edge (no gap) so it reads as the dock
+ * growing another row straight up out of the folder rather than a card hovering
+ * over the app list. The dock card and the overlay card share the same
+ * filled-`Card` color with no shadow, so the overlay's bottom padding overlapping
+ * the dock card's top padding strip merges seamlessly.
+ *
+ * Horizontally: a Compact / Square card is centered on the folder cell. A
+ * [fullWidth] card is sized to the dock card (see `DockFolderOverlayCard`), so it
+ * is left-aligned to the dock card's window left ([dockCardLeftPx]) instead of
+ * centered — that keeps it matched to the dock and app-list cards rather than the
+ * wider popup window (which would clamp it to the screen edge and underlap the
+ * Home inset in landscape / multi-window). Always clamped to the window so a
+ * folder near an edge stays fully on screen.
  */
-internal fun dockFolderOverlayPositionProvider(): PopupPositionProvider =
+internal fun dockFolderOverlayPositionProvider(
+    fullWidth: Boolean = false,
+    dockCardLeftPx: () -> Int? = { null },
+): PopupPositionProvider =
     object : PopupPositionProvider {
         override fun calculatePosition(
             anchorBounds: IntRect,
@@ -1821,8 +1858,9 @@ internal fun dockFolderOverlayPositionProvider(): PopupPositionProvider =
             popupContentSize: IntSize,
         ): IntOffset {
             val anchorCenterX = anchorBounds.left + anchorBounds.width / 2
-            val x = (anchorCenterX - popupContentSize.width / 2)
-                .coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+            val centeredX = anchorCenterX - popupContentSize.width / 2
+            val targetX = if (fullWidth) dockCardLeftPx() ?: centeredX else centeredX
+            val x = targetX.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
             val y = (anchorBounds.top - popupContentSize.height).coerceAtLeast(0)
             return IntOffset(x, y)
         }
@@ -1835,7 +1873,7 @@ internal fun dockFolderOverlayPositionProvider(): PopupPositionProvider =
  *
  * - [DockFolderOverlayShape.Compact]: as wide as the apps need, capped at
  *   [DOCK_FOLDER_OVERLAY_MAX_COLUMNS] (and the width).
- * - [DockFolderOverlayShape.FullWidth]: fill the row — as many columns as the
+ * - [DockFolderOverlayShape.Rectangle]: fill the row — as many columns as the
  *   width allows — so the card spans the full content width.
  * - [DockFolderOverlayShape.Square]: `ceil(sqrt(count))` columns (four apps → a
  *   2×2 block, nine → 3×3), capped at [DOCK_FOLDER_OVERLAY_MAX_COLUMNS] and the
@@ -1851,7 +1889,7 @@ internal fun dockFolderOverlayColumns(
     val compactCap = minOf(DOCK_FOLDER_OVERLAY_MAX_COLUMNS, widthCap)
     return when (shape) {
         DockFolderOverlayShape.Compact -> members.coerceAtMost(compactCap)
-        DockFolderOverlayShape.FullWidth -> widthCap
+        DockFolderOverlayShape.Rectangle -> widthCap
         DockFolderOverlayShape.Square ->
             ceil(sqrt(members.toDouble())).toInt().coerceAtMost(compactCap)
     }
@@ -1878,6 +1916,7 @@ internal fun DockFolderOverlayCard(
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
     shape: DockFolderOverlayShape = DockFolderOverlayShape.Compact,
+    dockCardWidthDp: Int? = null,
     appearProgress: () -> Float = { 1f },
     appIconTag: String = DOCK_APP_ICON_TAG,
     onLaunchApp: (InstalledApp) -> Unit,
@@ -1893,12 +1932,15 @@ internal fun DockFolderOverlayCard(
     onReorderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
 ) {
     val tileWidth = (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp
-    // The most columns that fit the screen width (not the dock's column count,
-    // which can be as low as 1) so the card fits across and a full folder never
-    // becomes an off-screen-tall single column.
+    // Size to the dock card's own content width (passed in once it lays out) so
+    // the overlay matches the dock and app-list cards, not the wider popup window
+    // — which would let Rectangle overflow the dock footprint and pick more
+    // columns than fit in landscape / multi-window. Until the dock card reports
+    // its width, fall back to the screen minus the Home horizontal inset.
     val configuration = LocalConfiguration.current
+    val cardWidthDp = dockCardWidthDp ?: (configuration.screenWidthDp - 2 * HOME_CONTENT_HORIZONTAL_INSET_DP)
     val tileStepDp = dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP + DOCK_ITEM_SPACING_DP
-    val widthBudgetDp = configuration.screenWidthDp - 2 * SECTION_CARD_PADDING_DP
+    val widthBudgetDp = cardWidthDp - 2 * SECTION_CARD_PADDING_DP
     val maxColumnsForWidth = ((widthBudgetDp + DOCK_ITEM_SPACING_DP) / tileStepDp).coerceAtLeast(1)
     val columns = dockFolderOverlayColumns(folder.members.size, shape, maxColumnsForWidth)
     // Drag-to-reorder: the lifted tile follows the finger; on release we map the
@@ -1927,9 +1969,16 @@ internal fun DockFolderOverlayCard(
                 // Grow up out of the folder cell (the card sits above the anchor).
                 transformOrigin = TransformOrigin(0.5f, 1f)
             }
-            // FullWidth spans the whole content width like the dock / app list
-            // cards; Compact and Square wrap to the apps.
-            .then(if (shape == DockFolderOverlayShape.FullWidth) Modifier.fillMaxWidth() else Modifier)
+            // Rectangle matches the dock card's width (so it lines up with the
+            // dock / app list cards); before the dock card reports its width it
+            // falls back to filling the popup. Compact and Square wrap to the apps.
+            .then(
+                when {
+                    shape != DockFolderOverlayShape.Rectangle -> Modifier
+                    dockCardWidthDp != null -> Modifier.width(dockCardWidthDp.dp)
+                    else -> Modifier.fillMaxWidth()
+                },
+            )
             .testTag(DOCK_FOLDER_OVERLAY_TAG),
         colors = CardDefaults.cardColors(),
     ) {
@@ -4880,7 +4929,7 @@ private fun DockFolderOverlayShapeDropdown(
 
 private fun DockFolderOverlayShape.labelRes(): Int = when (this) {
     DockFolderOverlayShape.Compact -> R.string.settings_dock_folder_overlay_shape_option_compact
-    DockFolderOverlayShape.FullWidth -> R.string.settings_dock_folder_overlay_shape_option_full_width
+    DockFolderOverlayShape.Rectangle -> R.string.settings_dock_folder_overlay_shape_option_rectangle
     DockFolderOverlayShape.Square -> R.string.settings_dock_folder_overlay_shape_option_square
 }
 

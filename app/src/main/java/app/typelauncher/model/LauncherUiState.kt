@@ -159,14 +159,14 @@ internal enum class DockFolderOpenStyle {
  *
  * - [Compact] (default, previous behavior): as wide as the apps need, up to five
  *   per row, so a small folder is a tight card.
- * - [FullWidth]: the card spans the full content width (like the dock and app
+ * - [Rectangle]: the card spans the full content width (matching the dock and app
  *   list cards) and the apps flow across as many columns as fit.
  * - [Square]: a roughly-square grid — four apps make a 2×2 block, nine make 3×3
  *   (`ceil(sqrt(count))` columns) — so the card reads as a square.
  */
 internal enum class DockFolderOverlayShape {
     Compact,
-    FullWidth,
+    Rectangle,
     Square,
 }
 
