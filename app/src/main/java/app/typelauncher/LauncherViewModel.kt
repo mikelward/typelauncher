@@ -646,7 +646,7 @@ internal class LauncherViewModel(
             it.copy(
                 destination = LauncherDestination.Agenda,
                 isRecentsOpen = false,
-            )
+            ).withHomeTransientUiReset()
         }
         logState("showAgenda")
         loadAgendaAsync(reason = "showAgenda", traceName = "agenda_load")
@@ -663,7 +663,7 @@ internal class LauncherViewModel(
                 destination = LauncherDestination.Widgets(clamped),
                 lastWidgetPage = clamped,
                 isRecentsOpen = false,
-            )
+            ).withHomeTransientUiReset()
         }
         logState("showWidgets")
     }
@@ -732,20 +732,22 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Closes the open bottom bar (recents) when the launcher is resumed to
-     * Home, so returning from another app starts with a clean Home rather than
-     * carrying a stale open bar back.
+     * Clears transient Home UI when the launcher is resumed to Home, so
+     * returning from another app starts with a clean Home rather than carrying a
+     * stale open bar or dock folder back.
      */
-    fun closeSecondaryTrayOnResume() {
+    fun resetHomeTransientUiOnResume() {
         val state = _uiState.value
         if (
             state.destination is LauncherDestination.Home &&
             !state.isSettingsOpen &&
-            !state.isAddingWidget &&
-            state.isRecentsOpen
+            !state.isAddingWidget
         ) {
-            _uiState.update { it.copy(isRecentsOpen = false) }
-            LauncherDebugLog.event("closeSecondaryTrayOnResume")
+            _uiState.update {
+                it.copy(isRecentsOpen = false)
+                    .withHomeTransientUiReset()
+            }
+            LauncherDebugLog.event("resetHomeTransientUiOnResume")
         }
     }
 
@@ -765,7 +767,7 @@ internal class LauncherViewModel(
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = true,
                 availableWidgets = emptyList(),
-            )
+            ).withHomeTransientUiReset()
         }
         logState("showWidgetPicker loading")
         viewModelScope.launch {
@@ -791,7 +793,10 @@ internal class LauncherViewModel(
     }
 
     fun showHome() {
-        _uiState.update { it.copy(destination = LauncherDestination.Home) }
+        _uiState.update {
+            it.copy(destination = LauncherDestination.Home)
+                .withHomeTransientUiReset()
+        }
         logState("showHome")
     }
 
@@ -806,8 +811,7 @@ internal class LauncherViewModel(
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
                 query = "",
-                homeReturnToken = it.homeReturnToken + 1,
-            )
+            ).withHomeTransientUiReset()
         }
         // Clearing the query has to rebuild the filtered list so the app list
         // matches the now-empty search field. Skip the rebuild when nothing was
@@ -929,6 +933,7 @@ internal class LauncherViewModel(
 
     fun openAgendaEvent(event: AgendaEvent) {
         LauncherDebugLog.event("openAgendaEvent eventId=${event.eventId} begin=${event.beginMillis}")
+        _uiState.update { it.withHomeTransientUiReset() }
         val eventUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
         val intent = Intent(Intent.ACTION_VIEW, eventUri)
             .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.beginMillis)
@@ -951,6 +956,7 @@ internal class LauncherViewModel(
         }
         if (trimmedQuery.equals(SETTINGS_QUERY, ignoreCase = true)) {
             LauncherDebugLog.event("launchActiveApp opening system settings")
+            _uiState.update { it.withHomeTransientUiReset() }
             startActivity(Intent(Settings.ACTION_SETTINGS).asLauncherTaskIntent())
             setQuery("")
             return
@@ -1000,7 +1006,10 @@ internal class LauncherViewModel(
         refreshLists()
         // Close the recents panel as we leave Home — when the user comes back
         // it should be tucked away again, not still expanded from before.
-        _uiState.update { it.copy(isRecentsOpen = false) }
+        _uiState.update {
+            it.copy(isRecentsOpen = false)
+                .withHomeTransientUiReset()
+        }
         setQuery("")
     }
 
@@ -1008,6 +1017,7 @@ internal class LauncherViewModel(
         LauncherDebugLog.event(
             "openAppInfo package=${app.packageName} work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
         )
+        _uiState.update { it.withHomeTransientUiReset() }
         // ACTION_APPLICATION_DETAILS_SETTINGS resolves the package against the
         // current user only, so a work-profile app routed through it lands on the
         // personal-profile copy (or 404s if there isn't one). LauncherApps is the
@@ -1037,6 +1047,7 @@ internal class LauncherViewModel(
      */
     fun openLauncherAppInfo() {
         LauncherDebugLog.event("openLauncherAppInfo package=${app.packageName}")
+        _uiState.update { it.withHomeTransientUiReset() }
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             .setData(Uri.parse("package:${app.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -1592,7 +1603,10 @@ internal class LauncherViewModel(
     }
 
     fun openSettings() {
-        _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false) }
+        _uiState.update {
+            it.copy(isSettingsOpen = true, isRecentsOpen = false)
+                .withHomeTransientUiReset()
+        }
         logState("openSettings")
     }
 
@@ -1680,6 +1694,7 @@ internal class LauncherViewModel(
 
     fun openPlayStoreListing() {
         LauncherDebugLog.event("openPlayStoreListing package=${app.packageName}")
+        _uiState.update { it.withHomeTransientUiReset() }
         val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${app.packageName}"))
         try {
             startActivity(marketIntent)
@@ -2419,7 +2434,7 @@ internal class LauncherViewModel(
                 isAddingWidget = true,
                 isLoadingAvailableWidgets = false,
                 availableWidgets = availableWidgets,
-            )
+            ).withHomeTransientUiReset()
         }
         logState("showWidgetPicker")
     }
@@ -2575,6 +2590,9 @@ internal fun dynamicCalendarIconToken(packageName: String, baseToken: String?, t
  */
 internal fun isDynamicCalendarIconId(iconCacheId: String): Boolean =
     DYNAMIC_CALENDAR_PACKAGES.any { pkg -> iconCacheId.contains("$pkg/") }
+
+private fun LauncherUiState.withHomeTransientUiReset(): LauncherUiState =
+    copy(homeTransientResetToken = homeTransientResetToken + 1)
 
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L

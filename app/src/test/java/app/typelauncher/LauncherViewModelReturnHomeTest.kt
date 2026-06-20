@@ -105,22 +105,59 @@ class LauncherViewModelReturnHomeTest {
     }
 
     @Test
-    fun returnToLauncherHomeBumpsHomeReturnTokenEachTime() {
+    fun returnToLauncherHomeBumpsHomeTransientResetTokenEachTime() {
         seedApp("Mail", "com.example.mail")
         val viewModel = newViewModel()
         idle()
 
-        val before = viewModel.uiState.value.homeReturnToken
+        val before = viewModel.uiState.value.homeTransientResetToken
         viewModel.returnToLauncherHome()
-        val afterFirst = viewModel.uiState.value.homeReturnToken
+        val afterFirst = viewModel.uiState.value.homeTransientResetToken
         viewModel.returnToLauncherHome()
-        val afterSecond = viewModel.uiState.value.homeReturnToken
+        val afterSecond = viewModel.uiState.value.homeTransientResetToken
 
         // The token is what an open dock folder watches to close itself; it must
         // change on every return to Home, including a plain home press on an
         // already-empty Home (which otherwise leaves the rest of the state alone).
         assertEquals(before + 1, afterFirst)
         assertEquals(before + 2, afterSecond)
+    }
+
+    @Test
+    fun homeTransientResetTokenBumpsWhenLeavingEnteringAndResumingHome() {
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+
+        val before = viewModel.uiState.value.homeTransientResetToken
+        viewModel.showWidgets()
+        val afterLeavingHome = viewModel.uiState.value.homeTransientResetToken
+        viewModel.showHome()
+        val afterEnteringHome = viewModel.uiState.value.homeTransientResetToken
+        viewModel.resetHomeTransientUiOnResume()
+        val afterResumingHome = viewModel.uiState.value.homeTransientResetToken
+
+        // Dock folders hold their open/closed state in Compose, so the ViewModel
+        // token must move across every Home boundary the UI should reset for.
+        assertEquals(before + 1, afterLeavingHome)
+        assertEquals(before + 2, afterEnteringHome)
+        assertEquals(before + 3, afterResumingHome)
+    }
+
+    @Test
+    fun openAppInfoBumpsHomeTransientResetToken() {
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        val app = viewModel.uiState.value.filteredApps.single { it.packageName == "com.example.mail" }
+
+        val before = viewModel.uiState.value.homeTransientResetToken
+        viewModel.openAppInfo(app)
+        val after = viewModel.uiState.value.homeTransientResetToken
+
+        // App info is an external activity launched while Home remains the
+        // current destination, so it must still close any open Home-only UI.
+        assertEquals(before + 1, after)
     }
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(

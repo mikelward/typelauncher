@@ -87,11 +87,11 @@ class LauncherViewModelKeyboardTest {
     }
 
     @Test
-    fun closeSecondaryTrayOnResume_closesOpenTrayOnHome() {
+    fun resetHomeTransientUiOnResume_closesOpenTrayOnHome() {
         val viewModel = newViewModel()
         viewModel.setRecentsOpen(true)
 
-        viewModel.closeSecondaryTrayOnResume()
+        viewModel.resetHomeTransientUiOnResume()
         idle()
 
         // Returning to Home starts with the tray hidden, not carrying a stale
@@ -100,13 +100,13 @@ class LauncherViewModelKeyboardTest {
     }
 
     @Test
-    fun closeSecondaryTrayOnResume_skipsOffHome() {
+    fun resetHomeTransientUiOnResume_skipsOffHome() {
         val viewModel = newViewModel()
         viewModel.showWidgets()
         viewModel.setRecentsOpen(true)
         idle()
 
-        viewModel.closeSecondaryTrayOnResume()
+        viewModel.resetHomeTransientUiOnResume()
         idle()
 
         // Resuming onto a non-Home page must not touch Home's tray state.

@@ -426,7 +426,7 @@ internal fun HomeScreen(
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
                                 onDragStateChanged = onDockDragChanged,
-                                homeReturnToken = state.homeReturnToken,
+                                homeTransientResetToken = state.homeTransientResetToken,
                                 showAddButtonHint = state.shouldShowDockAddHint,
                             )
                         }
@@ -489,7 +489,7 @@ internal fun HomeScreen(
                                 onHideApp = onHideApp,
                                 onDragStateChanged = onDockDragChanged,
                                 tags = DockTestTags.Work,
-                                homeReturnToken = state.homeReturnToken,
+                                homeTransientResetToken = state.homeTransientResetToken,
                                 showAddButtonHint = state.shouldShowWorkDockAddHint,
                             )
                         }
@@ -796,12 +796,13 @@ private fun DockCard(
     onHideApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
     tags: DockTestTags = DockTestTags.Personal,
-    // Changes whenever the launcher returns to a fresh Home (see
-    // `LauncherUiState.homeReturnToken`); an open folder closes when it does, so
-    // launching an app and pressing Home — or any other return to Home — never
-    // carries a stale open folder back. Defaults to a constant for inert callsites
-    // (Settings preview, screenshot-only renders) that never return to Home.
-    homeReturnToken: Int = 0,
+    // Changes whenever Home transient UI must reset (see
+    // `LauncherUiState.homeTransientResetToken`); an open folder closes when it
+    // does, so entering Home, leaving Home, or returning from an external
+    // activity never carries a stale open folder. Defaults to a constant for
+    // inert callsites (Settings preview, screenshot-only renders) that never
+    // navigate.
+    homeTransientResetToken: Int = 0,
     // Defaults to false so inert callsites (Settings preview, future
     // screenshot-only renders) never advertise the onboarding affordance.
     // The Home callsites pass `state.shouldShowDockAddHint` /
@@ -821,11 +822,11 @@ private fun DockCard(
     // the dock keeps its pre-folders reorder/swap physics.
     var hoveredMergeTargetId by remember { mutableStateOf<String?>(null) }
     // The folder whose grid is open, or null. Cleared on rotation / recomposition
-    // reset like the actions menu, and whenever the launcher returns to a fresh
-    // Home (see `homeReturnToken`) so leaving and re-entering Home never carries a
-    // stale open folder back.
+    // reset like the actions menu, and whenever the Home transient reset token
+    // changes so leaving, entering, or resuming Home never carries a stale open
+    // folder back.
     var openFolderId by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(homeReturnToken) { openFolderId = null }
+    LaunchedEffect(homeTransientResetToken) { openFolderId = null }
     val slotCenters = remember { mutableStateMapOf<DockPosition, Offset>() }
     // Occupant id list = loose docked apps + folders. Both flow through the
     // same grid machinery; `resolvedDockPositions` keys by id regardless.

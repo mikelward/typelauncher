@@ -2549,6 +2549,34 @@ class MainActivityRobolectricScreenshotTest {
             .assertDoesNotExist()
     }
 
+    @Test
+    fun openingAppInfoClosesOpenDockFolder() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setDockVisibleIconCount(6)
+        composeRule.waitForIdle()
+        val apps = viewModel.uiState.value.filteredApps.take(2)
+        apps.forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        composeRule.waitForIdle()
+        viewModel.mergeDockItems(sourceId = apps[1].id, targetId = apps[0].id)
+        composeRule.waitForIdle()
+
+        val folder = viewModel.uiState.value.dockFolders.single()
+        composeRule
+            .onNodeWithTag("$DOCK_FOLDER_TAG:${folder.id}", useUnmergedTree = true)
+            .performClick()
+        composeRule.waitForIdle()
+        composeRule
+            .onNodeWithTag(DOCK_FOLDER_POPUP_TAG, useUnmergedTree = true)
+            .assertExists()
+
+        viewModel.openAppInfo(folder.members.first())
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag(DOCK_FOLDER_POPUP_TAG, useUnmergedTree = true)
+            .assertDoesNotExist()
+    }
+
     // In a window wider than portrait (here a tall tablet landscape, which is
     // the only landscape that stays in the Full state and therefore renders the
     // dock), the dock keeps its portrait icon size and the gray card is narrowed
