@@ -847,6 +847,10 @@ private fun DockCard(
     // shows through while the dragged icon floats above (see the open-folder block).
     var dockBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var memberDragExited by remember { mutableStateOf(false) }
+    // Latched once a *loose dock app* is dragged off the dock card (up into the
+    // app list): the reorder/merge stops and a release outside the card undocks
+    // it. Folders never set this — dragging a folder out is not an undock.
+    var occupantDragExited by remember { mutableStateOf(false) }
     // The folder whose grid is open, or null. Cleared on rotation / recomposition
     // reset like the actions menu, and whenever the launcher returns to a fresh
     // Home (see `homeReturnToken`) so leaving and re-entering Home never carries a
@@ -888,30 +892,53 @@ private fun DockCard(
         draggedAppId = occupantId
         dragOffset = Offset.Zero
         hoveredMergeTargetId = null
+        occupantDragExited = false
     }
     val onOccupantDrag: (String, Offset) -> Unit = { occupantId, delta ->
-        val visibleCenters = slotCenters.filterKeys { slot ->
-            slot.row in 0 until rowCount && slot.column in 0 until columns
+        if (occupantDragExited) {
+            // Off the dock: track the finger raw and float the icon — no reorder.
+            dragOffset += delta
+        } else {
+            val visibleCenters = slotCenters.filterKeys { slot ->
+                slot.row in 0 until rowCount && slot.column in 0 until columns
+            }
+            // The slot pitch drives the folder merge/swap thresholds.
+            val pitch = dockSlotPitch(visibleCenters)
+            val mergeRadiusPx =
+                if (pitch.isFinite()) pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION else Float.POSITIVE_INFINITY
+            val swapBufferPx = if (pitch.isFinite()) pitch * DOCK_SWAP_BUFFER_FRACTION else 0f
+            handleDockDrag(
+                delta = delta,
+                draggedAppId = occupantId,
+                currentOccupantIds = latestOccupantIds,
+                currentDockPositions = resolvedPositions,
+                slotCenters = visibleCenters,
+                onReorder = latestOnReorderDock,
+                currentOffset = dragOffset,
+                setOffset = { dragOffset = it },
+                mergeEnabled = true,
+                occupantByPosition = occupantByPosition,
+                mergeRadiusPx = mergeRadiusPx,
+                swapBufferPx = swapBufferPx,
+                onMergeTarget = { hoveredMergeTargetId = it },
+            )
         }
-        // The slot pitch drives the folder merge/swap thresholds.
-        val pitch = dockSlotPitch(visibleCenters)
-        val mergeRadiusPx = if (pitch.isFinite()) pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION else Float.POSITIVE_INFINITY
-        val swapBufferPx = if (pitch.isFinite()) pitch * DOCK_SWAP_BUFFER_FRACTION else 0f
-        handleDockDrag(
-            delta = delta,
-            draggedAppId = occupantId,
-            currentOccupantIds = latestOccupantIds,
-            currentDockPositions = resolvedPositions,
-            slotCenters = visibleCenters,
-            onReorder = latestOnReorderDock,
-            currentOffset = dragOffset,
-            setOffset = { dragOffset = it },
-            mergeEnabled = true,
-            occupantByPosition = occupantByPosition,
-            mergeRadiusPx = mergeRadiusPx,
-            swapBufferPx = swapBufferPx,
-            onMergeTarget = { hoveredMergeTargetId = it },
-        )
+        // A loose dock app dragged off the card lifts into the floating overlay so
+        // it can be released over the app list to undock. Folders are exempt.
+        val origin = resolvedPositions[occupantId]?.let { position -> slotCenters[position] }
+        if (origin != null) {
+            val center = origin + dragOffset
+            val draggedApp = dockedApps.firstOrNull { app -> app.id == occupantId }
+            if (!occupantDragExited && draggedApp != null &&
+                dockBoundsInRoot?.contains(center) == false
+            ) {
+                occupantDragExited = true
+                hoveredMergeTargetId = null
+            }
+            if (occupantDragExited) {
+                onFolderMemberDragFloat(draggedApp, center)
+            }
+        }
     }
     // [canceled] is true when the gesture ended abnormally (the system stole the
     // pointer stream, the tracked pointer vanished, or the gesture coroutine was
@@ -920,13 +947,28 @@ private fun DockCard(
     // create a folder the user never released onto. So merge commits on a clean
     // release only.
     val onOccupantDragEnd: (String, Boolean) -> Unit = { occupantId, canceled ->
-        val mergeTarget = hoveredMergeTargetId
-        if (!canceled && mergeTarget != null && mergeTarget != occupantId) {
-            latestOnMergeDock(occupantId, mergeTarget)
+        if (occupantDragExited) {
+            onFolderMemberDragFloat(null, Offset.Zero)
+            val draggedApp = dockedApps.firstOrNull { app -> app.id == occupantId }
+            val origin = resolvedPositions[occupantId]?.let { position -> slotCenters[position] }
+            val center = origin?.let { it + dragOffset }
+            // Released off the dock card → undock (toggleDock removes a docked
+            // app). Released back inside → no change; the lifted icon drops home.
+            if (!canceled && draggedApp != null && center != null &&
+                dockBoundsInRoot?.contains(center) == false
+            ) {
+                onToggleDock(draggedApp, Int.MAX_VALUE)
+            }
+        } else {
+            val mergeTarget = hoveredMergeTargetId
+            if (!canceled && mergeTarget != null && mergeTarget != occupantId) {
+                latestOnMergeDock(occupantId, mergeTarget)
+            }
         }
         draggedAppId = null
         dragOffset = Offset.Zero
         hoveredMergeTargetId = null
+        occupantDragExited = false
     }
 
     // The folder whose grid is open in place of the dock, or null. Opening swaps
