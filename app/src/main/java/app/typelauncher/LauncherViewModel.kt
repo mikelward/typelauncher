@@ -1216,6 +1216,49 @@ internal class LauncherViewModel(
         logState("reorderDockFolderMember")
     }
 
+    /**
+     * Drag a member out of [folderId] and drop it onto the dock at ([row],
+     * [column]) as a loose icon. Removing it from the folder re-docks it loose
+     * (auto-collapsing a now-single-member folder); the follow-up move places it
+     * where it was dropped, swapping any occupant aside exactly like a dock drag.
+     */
+    fun moveDockFolderMemberToDock(folderId: String, appId: String, row: Int, column: Int) {
+        LauncherDebugLog.event("moveDockFolderMemberToDock folder=$folderId app=$appId row=$row column=$column")
+        val state = _uiState.value
+        val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
+        val store = folderStoreFor(folderId)
+        store.removeFromFolder(folderId, appId, columns)
+        store.move(appId, row, column, columns, state.appListSortOrder)
+        refreshLists()
+        logState("moveDockFolderMemberToDock")
+    }
+
+    /**
+     * Drag a member out of [folderId] and drop it onto another dock occupant
+     * [targetId], merging the two into a folder (the dock's center-drop gesture).
+     * The member is first removed from its folder (re-docked loose) so the merge
+     * sees it as a top-level occupant.
+     */
+    fun mergeDockFolderMemberInto(folderId: String, appId: String, targetId: String) {
+        LauncherDebugLog.event("mergeDockFolderMemberInto folder=$folderId app=$appId target=$targetId")
+        val state = _uiState.value
+        val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
+        val store = folderStoreFor(folderId)
+        // Bail before touching the source folder if the merge can't land: dropping
+        // onto a target folder already at the member cap would otherwise strip the
+        // member from its folder (and possibly collapse it) for a merge that then
+        // no-ops — unlike a normal dock merge, which is an atomic no-op. Merging
+        // onto a loose app always lands (it forms a new 2-member folder).
+        val targetFolder = store.dockFolders.firstOrNull { it.id == targetId }
+        if (targetFolder != null && targetFolder.memberAppIds.size >= MAX_DOCK_FOLDER_MEMBERS) {
+            return
+        }
+        store.removeFromFolder(folderId, appId, columns)
+        store.mergeIntoFolder(appId, targetId, columns)
+        refreshLists()
+        logState("mergeDockFolderMemberInto")
+    }
+
     // A folder id is unique across both stores, so route a rename/explode to
     // whichever dock actually owns it.
     private fun folderStoreFor(folderId: String): DockedAppStore =

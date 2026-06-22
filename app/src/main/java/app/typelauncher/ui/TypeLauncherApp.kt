@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.isImeVisible
@@ -60,6 +62,9 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -72,6 +77,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlin.math.sign
 
 // Drag must clear this many pixels before the launcher decides whether a child
@@ -225,6 +231,8 @@ internal fun TypeLauncherApp(
         onUndockFromDockFolder = viewModel::undockAppFromDockFolder,
         onUndockFromWorkDockFolder = viewModel::undockAppFromWorkDockFolder,
         onReorderDockFolderMember = viewModel::reorderDockFolderMember,
+        onMoveDockFolderMemberToDock = viewModel::moveDockFolderMemberToDock,
+        onMergeDockFolderMemberInto = viewModel::mergeDockFolderMemberInto,
         onExplodeDockFolder = viewModel::explodeDockFolder,
         onResetRank = viewModel::resetRank,
         onRenameApp = viewModel::renameApp,
@@ -308,6 +316,8 @@ internal fun TypeLauncherApp(
     onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
     onReorderDockFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
+    onMoveDockFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
+    onMergeDockFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
     onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -677,6 +687,11 @@ internal fun TypeLauncherApp(
                     )
                 } else {
                     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+                    // The member icon currently being dragged out of an open dock
+                    // folder, with its center in root coordinates — rendered as a
+                    // top-level overlay (below) so it floats over the app list,
+                    // unclipped by the dock card. Null when no drag-out is active.
+                    var folderMemberDragFloat by remember { mutableStateOf<FolderMemberDragFloat?>(null) }
                     // Held by reference (not a plain value param) so the open
                     // bar's per-frame bounds updates during its expand/collapse
                     // animation flow to the carousel's pointer loop via `.value`
@@ -741,7 +756,8 @@ internal fun TypeLauncherApp(
                         isWidgetScrollingState = isWidgetScrollingState,
                     ) { page, isCurrentPage ->
                         when (page.screen) {
-                            LauncherScreen.Home -> HomeScreen(
+                            LauncherScreen.Home -> Box(modifier = Modifier.fillMaxSize()) {
+                            HomeScreen(
                                 state = state,
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
@@ -766,6 +782,12 @@ internal fun TypeLauncherApp(
                                 onUndockFromDockFolder = onUndockFromDockFolder,
                                 onUndockFromWorkDockFolder = onUndockFromWorkDockFolder,
                                 onReorderDockFolderMember = onReorderDockFolderMember,
+                                onMoveDockFolderMemberToDock = onMoveDockFolderMemberToDock,
+                                onMergeDockFolderMemberInto = onMergeDockFolderMemberInto,
+                                onFolderMemberDragFloat = { app, center ->
+                                    folderMemberDragFloat =
+                                        app?.let { FolderMemberDragFloat(it, center) }
+                                },
                                 onExplodeDockFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
@@ -781,6 +803,24 @@ internal fun TypeLauncherApp(
                                 },
                                 onDockDragChanged = { isDockDraggingState.value = it },
                             )
+                            // Floats the dragged-out folder member above everything
+                            // (incl. the app list), positioned in root coordinates.
+                            // Only on the live Home page, never on carousel copies.
+                            folderMemberDragFloat?.let { float ->
+                                if (isCurrentPage) {
+                                    FolderMemberDragOverlay(
+                                        float = float,
+                                        iconSizeDp = dockIconSizing(
+                                            minOf(
+                                                configuration.screenWidthDp,
+                                                configuration.screenHeightDp,
+                                            ),
+                                            state.dockIconSizeDp,
+                                        ).iconSizeDp,
+                                    )
+                                }
+                            }
+                            }
                             LauncherScreen.Widgets -> WidgetsScreen(
                             widgetIds = state.widgetPages.getOrElse(
                                 page.widgetPageIndex.coerceIn(0, state.widgetPages.lastIndex.coerceAtLeast(0)),
@@ -818,6 +858,56 @@ internal fun TypeLauncherApp(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * The folder member currently being dragged out of an open dock folder:
+ * [app] is the dragged app and [centerInRoot] is its visual center in window
+ * (root) coordinates, updated each pointer event.
+ */
+private data class FolderMemberDragFloat(val app: InstalledApp, val centerInRoot: Offset)
+
+/**
+ * Renders the dragged-out folder member as a free-floating icon above the whole
+ * Home page — unclipped by the dock card (which a `Card` shape clips), so it can
+ * track the finger up over the app list. The overlay reports its own origin in
+ * root coordinates and offsets the icon by `centerInRoot - origin`, so the icon
+ * lands under the finger regardless of system-bar insets. It is purely visual
+ * (no pointer modifiers), so it never intercepts the in-flight drag gesture,
+ * which the folder member tile still owns.
+ */
+@Composable
+private fun FolderMemberDragOverlay(
+    float: FolderMemberDragFloat,
+    iconSizeDp: Int,
+    modifier: Modifier = Modifier,
+) {
+    var originInRoot by remember { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coords -> originInRoot = coords.positionInRoot() },
+    ) {
+        val iconPx = with(LocalDensity.current) { iconSizeDp.dp.toPx() }
+        val local = float.centerInRoot - originInRoot
+        Box(
+            modifier = Modifier
+                .offset {
+                    IntOffset(
+                        (local.x - iconPx / 2f).roundToInt(),
+                        (local.y - iconPx / 2f).roundToInt(),
+                    )
+                }
+                .size(iconSizeDp.dp)
+                .graphicsLayer {
+                    scaleX = 1.1f
+                    scaleY = 1.1f
+                    alpha = 0.85f
+                },
+        ) {
+            AppIcon(app = float.app, size = iconSizeDp.dp)
         }
     }
 }
