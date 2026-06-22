@@ -1071,6 +1071,10 @@ private fun DockCard(
                     onClearAppIconOverride = onClearAppIconOverride,
                     onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
+                    onReorderFolderMember = { appId, index ->
+                        onReorderFolderMember(inPlaceFolder.id, appId, index)
+                    },
+                    onMemberDragStateChanged = { armed -> latestOnDragStateChanged(armed) },
                 )
             }
         }
@@ -1431,6 +1435,8 @@ internal fun DockFolderInPlace(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onReorderFolderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
+    onMemberDragStateChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = true, onBack = onClose)
@@ -1481,6 +1487,8 @@ internal fun DockFolderInPlace(
                 onClearAppIconOverride = onClearAppIconOverride,
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
+                onReorderFolderMember = onReorderFolderMember,
+                onMemberDragStateChanged = onMemberDragStateChanged,
             )
         }
     }
@@ -1525,6 +1533,12 @@ internal fun DockFolderGrid(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    // Moves the member [appId] to the given display index within this folder.
+    // Default no-op keeps inert callsites (screenshot renders) reorder-free.
+    onReorderFolderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
+    // Latched true while a member long-press is armed so the Home carousel stops
+    // claiming the same horizontal motion (see [DockFolderMemberTile]).
+    onMemberDragStateChanged: (Boolean) -> Unit = {},
 ) {
     val columns = dockIconCount.coerceAtLeast(1)
     val rows = dockRows.coerceAtLeast(1)
@@ -1533,6 +1547,39 @@ internal fun DockFolderGrid(
     // the single-column / overflow cases). `slots` is row-major, so the FlowRow
     // lays it out directly.
     val slots = dockFolderSlots(folder.members.size, anchor, columns, rows)
+
+    // Drag-to-reorder state, keyed by folder id so it survives the recompositions
+    // a live reorder triggers (the member list changes, the folder id does not)
+    // and resets when a different folder opens. `memberCenters` is the per-member
+    // cell-center lattice the drag handler settles against; the close/empty cells
+    // never report into it, so they are not drop targets.
+    var draggedMemberId by remember(folder.id) { mutableStateOf<String?>(null) }
+    var dragOffset by remember(folder.id) { mutableStateOf(Offset.Zero) }
+    val memberCenters = remember(folder.id) { mutableStateMapOf<String, Offset>() }
+    val memberIds = folder.members.map { member -> member.id }
+    val latestMemberIds by rememberUpdatedState(memberIds)
+    val latestOnReorderFolderMember by rememberUpdatedState(onReorderFolderMember)
+    val onMemberDragStart: (String) -> Unit = { id ->
+        draggedMemberId = id
+        dragOffset = Offset.Zero
+    }
+    val onMemberDrag: (String, Offset) -> Unit = { id, delta ->
+        handleFolderDrag(
+            delta = delta,
+            draggedAppId = id,
+            memberIds = latestMemberIds,
+            memberCenters = memberCenters,
+            onReorder = { appId, index -> latestOnReorderFolderMember(appId, index) },
+            currentOffset = dragOffset,
+            setOffset = { dragOffset = it },
+        )
+    }
+    val onMemberDragEnd: (String, Boolean) -> Unit = { _, _ ->
+        // Reorders persist live as the icon crosses each neighbor, so a cancel
+        // simply drops the lifted tile back into its (already-updated) slot.
+        draggedMemberId = null
+        dragOffset = Offset.Zero
+    }
 
     Column(
         modifier = modifier.testTag(DOCK_FOLDER_POPUP_TAG),
@@ -1551,35 +1598,57 @@ internal fun DockFolderGrid(
             verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
             maxItemsInEachRow = columns,
         ) {
-            slots.forEach { slot ->
-                when (slot) {
-                    is FolderSlot.Member -> {
-                        val member = folder.members[slot.index]
-                        DockFolderMemberTile(
-                            app = member,
+            // Every slot is a keyed sibling of the one FlowRow, keyed by the app
+            // id for members (a stable per-app namespace, distinct from the close /
+            // empty sentinels). A live reorder shuffles which member each cell
+            // renders, so without the key Compose would reuse the cell's group
+            // positionally and tear down the dragged tile's `pointerInput(app.id)`
+            // mid-drag — ending the gesture after one move. Keying by app id makes
+            // the reorder a sibling *move*, so the in-flight gesture coroutine
+            // survives, exactly as the dock's `key(app.id)` slots do.
+            slots.forEachIndexed { slotIndex, slot ->
+                val slotKey = when (slot) {
+                    is FolderSlot.Member -> folder.members[slot.index].id
+                    FolderSlot.Close -> "dock-folder-close"
+                    FolderSlot.Empty -> "dock-folder-empty-$slotIndex"
+                }
+                key(slotKey) {
+                    when (slot) {
+                        is FolderSlot.Member -> {
+                            val member = folder.members[slot.index]
+                            DockFolderMemberTile(
+                                app = member,
+                                dockIconSizeDp = dockIconSizeDp,
+                                dockLayout = dockLayout,
+                                modifier = Modifier.weight(1f),
+                                appIconTag = appIconTag,
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onRemoveFromFolder = { onRemoveFromFolder(member.id) },
+                                onUndockFromFolder = { onUndockFromFolder(member.id) },
+                                onRenameApp = onRenameApp,
+                                onResetRank = onResetRank,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
+                                onHideApp = onHideApp,
+                                isDragged = draggedMemberId == member.id,
+                                dragOffset = if (draggedMemberId == member.id) dragOffset else Offset.Zero,
+                                onDragStart = { onMemberDragStart(member.id) },
+                                onDrag = { delta -> onMemberDrag(member.id, delta) },
+                                onDragEnd = { canceled -> onMemberDragEnd(member.id, canceled) },
+                                onReportCenter = { center -> memberCenters[member.id] = center },
+                                onLongPressArmed = onMemberDragStateChanged,
+                            )
+                        }
+                        FolderSlot.Close -> DockFolderCloseTile(
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
-                            appIconTag = appIconTag,
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onRemoveFromFolder = { onRemoveFromFolder(member.id) },
-                            onUndockFromFolder = { onUndockFromFolder(member.id) },
-                            onRenameApp = onRenameApp,
-                            onResetRank = onResetRank,
-                            onSetAppIconOverride = onSetAppIconOverride,
-                            onClearAppIconOverride = onClearAppIconOverride,
-                            onSetAppBadge = onSetAppBadge,
-                            onHideApp = onHideApp,
+                            onClose = onClose,
                         )
+                        FolderSlot.Empty -> Spacer(modifier = Modifier.weight(1f))
                     }
-                    FolderSlot.Close -> DockFolderCloseTile(
-                        dockIconSizeDp = dockIconSizeDp,
-                        dockLayout = dockLayout,
-                        modifier = Modifier.weight(1f),
-                        onClose = onClose,
-                    )
-                    FolderSlot.Empty -> Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -1726,6 +1795,15 @@ private fun DockFolderMemberTile(
     onDragStart: (() -> Unit)? = null,
     onDrag: (Offset) -> Unit = {},
     onDragEnd: (Boolean) -> Unit = {},
+    // Reports the tile's static (un-translated) center in root coordinates so the
+    // parent grid's drag handler can compare the dragged icon against every
+    // member cell. Inert unless drag-to-reorder is wired ([onDragStart] non-null).
+    onReportCenter: (Offset) -> Unit = {},
+    // Fires `true` the instant the long-press arms (before any slop accounting)
+    // and `false` when the gesture ends, exactly like DockedAppButton — the open
+    // folder sits on the Home carousel page, so without this the carousel's raw
+    // gesture surface could page Home → Widgets/Agenda during a member reorder.
+    onLongPressArmed: (Boolean) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
@@ -1733,7 +1811,19 @@ private fun DockFolderMemberTile(
     val latestOnDragStart by rememberUpdatedState(onDragStart)
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnReportCenter by rememberUpdatedState(onReportCenter)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
     val tileModifier = modifier
+        // Outside the graphicsLayer below so it reports the slot's static center,
+        // not the lifted tile's translated one — the same split DockedAppButton
+        // uses. positionInRoot() keeps every cell in one window-wide space so the
+        // handler can tell rows apart when the folder wraps.
+        .onGloballyPositioned { coords ->
+            val pos = coords.positionInRoot()
+            latestOnReportCenter(
+                Offset(pos.x + coords.size.width / 2f, pos.y + coords.size.height / 2f),
+            )
+        }
         .zIndex(if (isDragged) 1f else 0f)
         .graphicsLayer {
             if (isDragged) {
@@ -1761,6 +1851,7 @@ private fun DockFolderMemberTile(
                     val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     longPress.consume()
+                    latestOnLongPressArmed(true)
                     var dragging = false
                     var totalDelta = Offset.Zero
                     var releasedCleanly = false
@@ -1791,6 +1882,7 @@ private fun DockFolderMemberTile(
                         if (dragging) {
                             latestOnDragEnd(!releasedCleanly)
                         }
+                        latestOnLongPressArmed(false)
                     }
                 }
             }
@@ -2064,6 +2156,63 @@ internal fun handleDockDrag(
         currentCenter = targetCenter
     }
     onMergeTarget(mergeTarget)
+    setOffset(newOffset)
+}
+
+/**
+ * Live drag-to-reorder for an opened folder's member tiles. Same "settle toward
+ * the nearest cell, commit only while it is strictly closer than the current one"
+ * physics as [handleDockDrag], but the drop targets are the member tiles alone —
+ * the close (✕) tile and empty filler cells never report a center, so a drag past
+ * them simply holds. The dragged member moves to the display index of whichever
+ * member cell its center is now nearest, and the lifted-tile offset is rebased
+ * onto that cell so the icon keeps tracking the finger without a jump.
+ *
+ * [memberIds] is the members' display order and [memberCenters] maps each member's
+ * id to its cell center in root coordinates; both are captured at the start of the
+ * gesture event, exactly like [handleDockDrag]'s position snapshot.
+ */
+internal fun handleFolderDrag(
+    delta: Offset,
+    draggedAppId: String?,
+    memberIds: List<String>,
+    memberCenters: Map<String, Offset>,
+    onReorder: (appId: String, targetIndex: Int) -> Unit,
+    currentOffset: Offset,
+    setOffset: (Offset) -> Unit,
+) {
+    if (draggedAppId == null) return
+    var newOffset = currentOffset + delta
+    val memberIdSet = memberIds.toHashSet()
+    if (draggedAppId !in memberIdSet) {
+        setOffset(newOffset)
+        return
+    }
+    // Only current members are drop targets. A member removed (moved out /
+    // undocked / hidden) while the folder stays open leaves a stale center in the
+    // remembered, folder-id-keyed map; without this filter that disposed id could
+    // win the nearest-cell search below and break the loop early, blocking
+    // reorders through its old slot until the folder is reopened.
+    val liveCenters = memberCenters.filterKeys { it in memberIdSet }
+    var currentCenter = liveCenters[draggedAppId] ?: run {
+        setOffset(newOffset)
+        return
+    }
+    while (true) {
+        val draggedCenter = currentCenter + newOffset
+        val nearest = liveCenters.minByOrNull { (_, center) -> (center - draggedCenter).getDistance() }
+            ?: break
+        if (nearest.key == draggedAppId) break
+        val targetCenter = nearest.value
+        if ((targetCenter - draggedCenter).getDistance() >= (currentCenter - draggedCenter).getDistance()) {
+            break
+        }
+        val targetIndex = memberIds.indexOf(nearest.key)
+        if (targetIndex < 0) break
+        onReorder(draggedAppId, targetIndex)
+        newOffset += currentCenter - targetCenter
+        currentCenter = targetCenter
+    }
     setOffset(newOffset)
 }
 
