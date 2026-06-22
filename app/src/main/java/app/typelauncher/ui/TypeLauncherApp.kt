@@ -233,6 +233,8 @@ internal fun TypeLauncherApp(
         onReorderDockFolderMember = viewModel::reorderDockFolderMember,
         onMoveDockFolderMemberToDock = viewModel::moveDockFolderMemberToDock,
         onMergeDockFolderMemberInto = viewModel::mergeDockFolderMemberInto,
+        onDockAppAtPosition = viewModel::dockAppAtPosition,
+        onDockAppIntoOccupant = viewModel::dockAppIntoDockOccupant,
         onExplodeDockFolder = viewModel::explodeDockFolder,
         onResetRank = viewModel::resetRank,
         onRenameApp = viewModel::renameApp,
@@ -318,6 +320,8 @@ internal fun TypeLauncherApp(
     onReorderDockFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
     onMoveDockFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
     onMergeDockFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
+    onDockAppAtPosition: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onDockAppIntoOccupant: (String, String) -> Unit = { _, _ -> },
     onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -788,6 +792,8 @@ internal fun TypeLauncherApp(
                                     folderMemberDragFloat =
                                         app?.let { FolderMemberDragFloat(it, center) }
                                 },
+                                onDockAppAtPosition = onDockAppAtPosition,
+                                onDockAppIntoOccupant = onDockAppIntoOccupant,
                                 onExplodeDockFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,

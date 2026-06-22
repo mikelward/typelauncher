@@ -1089,6 +1089,45 @@ internal class LauncherViewModel(
     }
 
     /**
+     * Dock an app from the app list onto the personal dock at ([row], [column])
+     * (the drag-from-list-to-dock gesture). Docks it, then moves it where it was
+     * dropped — `move` swaps any occupant aside, exactly like a dock drag.
+     *
+     * TODO: only the personal dock is a drop target today. Dropping onto the work
+     * dock, and dragging an icon directly from one dock to the other (a cross-dock
+     * move), are not yet supported — see SPEC "Dragging apps onto / off the dock".
+     */
+    fun dockAppAtPosition(appId: String, row: Int, column: Int) {
+        val state = _uiState.value
+        LauncherDebugLog.event("dockAppAtPosition appId=$appId row=$row column=$column")
+        val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
+        dockedAppStore.dock(appId, columns)
+        dockedAppStore.move(appId, row, column, columns, state.appListSortOrder)
+        refreshLists()
+        logState("dockAppAtPosition")
+    }
+
+    /**
+     * Dock an app from the app list and merge it onto an existing personal-dock
+     * occupant [targetId], grouping them into a folder (the dock's center-drop
+     * gesture). Guarded like [mergeDockFolderMemberInto]: a no-op if the target
+     * folder is already at the member cap, so the app stays in the list.
+     */
+    fun dockAppIntoDockOccupant(appId: String, targetId: String) {
+        val state = _uiState.value
+        LauncherDebugLog.event("dockAppIntoDockOccupant appId=$appId target=$targetId")
+        val targetFolder = dockedAppStore.dockFolders.firstOrNull { it.id == targetId }
+        if (targetFolder != null && targetFolder.memberAppIds.size >= MAX_DOCK_FOLDER_MEMBERS) {
+            return
+        }
+        val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
+        dockedAppStore.dock(appId, columns)
+        dockedAppStore.mergeIntoFolder(appId, targetId, columns)
+        refreshLists()
+        logState("dockAppIntoDockOccupant")
+    }
+
+    /**
      * Explicit work-dock toggle invoked from the long-press menu on a
      * [WorkDockCard] entry. Operates only on the work-dock store, so the
      * dual-pin edge case (a work app prefilled into the work dock while still

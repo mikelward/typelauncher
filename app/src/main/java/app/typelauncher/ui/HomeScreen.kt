@@ -193,6 +193,10 @@ internal fun HomeScreen(
     // The floating dragged-out member icon, rendered as a top-level overlay above
     // the app list; (null, Zero) hides it.
     onFolderMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    // Drag an app from the app list onto the (personal) dock: dock it at a slot,
+    // or merge it onto an existing occupant.
+    onDockAppAtPosition: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onDockAppIntoOccupant: (String, String) -> Unit = { _, _ -> },
     onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -226,6 +230,71 @@ internal fun HomeScreen(
     val dockSizing = dockIconSizing(dockReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
+
+    // --- App-list → dock drag (long-press a list app, drop it on the dock). ---
+    // The personal dock publishes its drop geometry here (it's a sibling of the
+    // list), the list items report their cell centers, and on release the drop is
+    // resolved against the dock with the same `resolveFolderMemberDrop` the folder
+    // drag-out uses (an empty source-folder id means it can only land as a loose
+    // dock icon or a merge, never "keep in folder").
+    var personalDockDropTarget by remember { mutableStateOf<DockDropTarget?>(null) }
+    // The apps card's bounds in root coordinates, so a dock icon dragged up only
+    // undocks when released over the card (not the search field / margins / other
+    // dock). Fed by the card itself (not the scrollable list), so it stays valid
+    // even when every app is docked and the list shows its empty state.
+    var appListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var listDragOffset by remember { mutableStateOf(Offset.Zero) }
+    val listAppCenters = remember { mutableStateMapOf<String, Offset>() }
+    val latestPersonalDockDropTarget by rememberUpdatedState(personalDockDropTarget)
+    val latestOnFolderMemberDragFloat by rememberUpdatedState(onFolderMemberDragFloat)
+    val latestOnDockAppAtPosition by rememberUpdatedState(onDockAppAtPosition)
+    val latestOnDockAppIntoOccupant by rememberUpdatedState(onDockAppIntoOccupant)
+    val latestOnDockDragChanged by rememberUpdatedState(onDockDragChanged)
+    val appListDragHandlers = AppDragHandlers(
+        onDragStart = { _ -> listDragOffset = Offset.Zero },
+        onDrag = { app, delta ->
+            listDragOffset += delta
+            listAppCenters[app.id]?.let { origin ->
+                latestOnFolderMemberDragFloat(app, origin + listDragOffset)
+            }
+        },
+        onDragEnd = { app, canceled ->
+            latestOnFolderMemberDragFloat(null, Offset.Zero)
+            val origin = listAppCenters[app.id]
+            val target = latestPersonalDockDropTarget
+            if (!canceled && origin != null && target != null) {
+                val center = origin + listDragOffset
+                val pitch = dockSlotPitch(target.slotCenters)
+                val mergeRadiusPx = if (pitch.isFinite()) {
+                    pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                } else {
+                    Float.POSITIVE_INFINITY
+                }
+                // An empty source-folder id never matches a dock occupant, so the
+                // result is DockSlot / MergeWith / (off-dock) Undock — the latter
+                // and KeepInFolder are no-ops here (the app stays in the list).
+                when (
+                    val drop = resolveFolderMemberDrop(
+                        dropCenter = center,
+                        sourceFolderId = "",
+                        dockBounds = target.bounds,
+                        dockSlotCenters = target.slotCenters,
+                        occupantByPosition = target.occupants,
+                        mergeRadiusPx = mergeRadiusPx,
+                    )
+                ) {
+                    is FolderMemberDropTarget.DockSlot ->
+                        latestOnDockAppAtPosition(app.id, drop.row, drop.column)
+                    is FolderMemberDropTarget.MergeWith ->
+                        latestOnDockAppIntoOccupant(app.id, drop.occupantId)
+                    FolderMemberDropTarget.Undock, FolderMemberDropTarget.KeepInFolder -> {}
+                }
+            }
+            listDragOffset = Offset.Zero
+        },
+        onReportCenter = { app, center -> listAppCenters[app.id] = center },
+        onLongPressArmed = { armed -> latestOnDockDragChanged(armed) },
+    )
     // Once the window is wider than portrait (landscape), the fixed-size dock
     // no longer fills the row. Narrow the dock card to the width its icons
     // occupy and center it (see the dock slot below) so the gray card sits as
@@ -272,6 +341,14 @@ internal fun HomeScreen(
         bodyReady && state.query.isBlank() &&
             landscapeTier == HomeLandscapeTier.Full &&
             (state.isDockEnabled || showWorkDock)
+    // The personal dock is the only app-list → dock drop target. Drop its stale
+    // geometry whenever the dock leaves composition (typing, Compact landscape,
+    // or Show dock off), so a list drag over the old bounds can't dock into a
+    // dock that isn't on screen. It republishes when the dock returns.
+    val isPersonalDockPresent = isDockSlotPresent && state.isDockEnabled
+    LaunchedEffect(isPersonalDockPresent) {
+        if (!isPersonalDockPresent) personalDockDropTarget = null
+    }
     val isHome = state.destination is LauncherDestination.Home
     // In the cramped-landscape Compact state the search box doesn't fit alongside
     // the keyboard and an app row, so it's hidden until the user reveals it with a
@@ -359,6 +436,10 @@ internal fun HomeScreen(
                     onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
                     onAppListBoundsChanged = onAppListBoundsChanged,
+                    // Undock targets the whole card (present even when the list is
+                    // empty), so drag-to-undock works when every app is docked.
+                    onCardBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
+                    appDrag = appListDragHandlers,
                 )
             } else {
                 Spacer(modifier = Modifier.fillMaxSize())
@@ -429,6 +510,10 @@ internal fun HomeScreen(
                                 onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
                                 onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                                 onFolderMemberDragFloat = onFolderMemberDragFloat,
+                                onDockGeometryChanged = { geometry ->
+                                    personalDockDropTarget = geometry
+                                },
+                                appListBoundsInRoot = appListBoundsInRoot,
                                 onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
@@ -494,6 +579,7 @@ internal fun HomeScreen(
                                 onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
                                 onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                                 onFolderMemberDragFloat = onFolderMemberDragFloat,
+                                appListBoundsInRoot = appListBoundsInRoot,
                                 onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
@@ -808,6 +894,15 @@ private fun DockCard(
     // Reports the floating, dragged-out member icon up to the host (which renders
     // it as a top-level overlay above the app list); (null, Zero) hides it.
     onFolderMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    // Publishes this dock's live drop geometry (bounds + slot lattice + occupancy)
+    // up to the host so an app dragged out of the app list can be hit-tested
+    // against the dock. Only the personal dock wires this today.
+    onDockGeometryChanged: (DockDropTarget) -> Unit = {},
+    // The app list's bounds in root coordinates. A loose dock app dragged off the
+    // dock only undocks when released *over the app list* — releasing over the
+    // search field, the margins, or the other dock (the deferred cross-dock move)
+    // is ignored so the pinned icon isn't lost.
+    appListBoundsInRoot: Rect? = null,
     onExplodeFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -952,10 +1047,12 @@ private fun DockCard(
             val draggedApp = dockedApps.firstOrNull { app -> app.id == occupantId }
             val origin = resolvedPositions[occupantId]?.let { position -> slotCenters[position] }
             val center = origin?.let { it + dragOffset }
-            // Released off the dock card → undock (toggleDock removes a docked
-            // app). Released back inside → no change; the lifted icon drops home.
+            // Undock only when released *over the app list* (toggleDock removes a
+            // docked app). Released over the dock, the search field, the margins,
+            // or the other dock (the deferred cross-dock move) is ignored — the
+            // lifted icon just drops home, so a pinned icon is never lost.
             if (!canceled && draggedApp != null && center != null &&
-                dockBoundsInRoot?.contains(center) == false
+                appListBoundsInRoot?.contains(center) == true
             ) {
                 onToggleDock(draggedApp, Int.MAX_VALUE)
             }
@@ -975,10 +1072,40 @@ private fun DockCard(
     // the dock card's content to the folder's apps with no animation; closing
     // swaps it straight back.
     val inPlaceFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
+    // Publishes the dock's drop geometry up for app-list → dock drops. Called both
+    // when the card is positioned (bounds) and as each slot reports its center,
+    // since slot-center updates don't recompose the card. While a folder is open
+    // the dock grid is hidden behind the folder overlay, so it publishes an empty
+    // target (null bounds) — a list app released over the open folder must not
+    // dock/merge into the invisible top-level slots behind it.
+    val latestOnDockGeometryChanged by rememberUpdatedState(onDockGeometryChanged)
+    val reportDockGeometry = {
+        latestOnDockGeometryChanged(
+            if (inPlaceFolder != null) {
+                DockDropTarget(null, emptyMap(), emptyMap())
+            } else {
+                // Only currently-visible cells: `slotCenters` is remembered and
+                // never pruned, so after the grid shrinks (e.g. two rows to one)
+                // it still holds stale row-1 centers. Filtering to the live grid
+                // (as the reorder path does) keeps a drop in the lower padding
+                // from resolving to a phantom row.
+                val visibleCenters = slotCenters.filterKeys { slot ->
+                    slot.row in 0 until rowCount && slot.column in 0 until columns
+                }
+                DockDropTarget(dockBoundsInRoot, visibleCenters, occupantByPosition)
+            },
+        )
+    }
+    // Republish when a folder opens or closes (no layout event fires on its own),
+    // so the suppressed/restored target lands in the host immediately.
+    LaunchedEffect(inPlaceFolder != null) { reportDockGeometry() }
     SectionCard(
         modifier
             .testTag(tags.cardTag)
-            .onGloballyPositioned { coords -> dockBoundsInRoot = coords.boundsInRoot() },
+            .onGloballyPositioned { coords ->
+                dockBoundsInRoot = coords.boundsInRoot()
+                reportDockGeometry()
+            },
     ) {
         // The dock grid and the open-folder grid share one Box so the card keeps
         // the dock's exact footprint when a folder opens — the folder takes the
@@ -1076,7 +1203,10 @@ private fun DockCard(
                             onClearAppIconOverride = onClearAppIconOverride,
                             onSetAppBadge = onSetAppBadge,
                             onHideApp = onHideApp,
-                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
                             onDragStart = { onOccupantDragStart(app.id) },
                             onDrag = { delta -> onOccupantDrag(app.id, delta) },
                             onDragEnd = { canceled -> onOccupantDragEnd(app.id, canceled) },
@@ -1094,7 +1224,10 @@ private fun DockCard(
                             appIconTag = tags.appIconTag,
                             onOpen = { openFolderId = folder.id },
                             onExplode = { onExplodeFolder(folder.id) },
-                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
                             onDragStart = { onOccupantDragStart(folder.id) },
                             onDrag = { delta -> onOccupantDrag(folder.id, delta) },
                             onDragEnd = { canceled -> onOccupantDragEnd(folder.id, canceled) },
@@ -1105,13 +1238,19 @@ private fun DockCard(
                             dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
                             addButtonTag = tags.addButtonTag,
-                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
                         )
                         else -> EmptyDockSlot(
                             dockIconSizeDp = dockIconSizeDp,
                             dockLayout = dockLayout,
                             modifier = Modifier.weight(1f),
-                            onReportSlotCenter = { center -> slotCenters[position] = center },
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
                         )
                     }
                 }
@@ -2435,6 +2574,34 @@ internal sealed interface FolderMemberDropTarget {
 }
 
 /**
+ * The personal dock's live drop geometry, lifted up to `HomeScreen` so an app
+ * dragged out of the app list can be hit-tested against the dock (a sibling of
+ * the list). [bounds] is the dock card in root coordinates; [slotCenters] and
+ * [occupants] are its slot lattice and occupancy. Captured by the dock and read
+ * on release — the dock doesn't move during an app-list drag, so a snapshot is
+ * enough.
+ */
+internal data class DockDropTarget(
+    val bounds: Rect?,
+    val slotCenters: Map<DockPosition, Offset>,
+    val occupants: Map<DockPosition, String>,
+)
+
+/**
+ * Drag callbacks an app-list item invokes once it is long-press-dragged. Bundled
+ * into one object so the gesture can be threaded through the list rendering as a
+ * single nullable parameter; null means the item keeps its plain tap / long-press
+ * menu behavior (e.g. the hidden-apps list, previews).
+ */
+internal class AppDragHandlers(
+    val onDragStart: (InstalledApp) -> Unit,
+    val onDrag: (InstalledApp, Offset) -> Unit,
+    val onDragEnd: (InstalledApp, Boolean) -> Unit,
+    val onReportCenter: (InstalledApp, Offset) -> Unit,
+    val onLongPressArmed: (Boolean) -> Unit,
+)
+
+/**
  * Resolves the drop of a folder member dragged out of [sourceFolderId], given the
  * release point [dropCenter] in root coordinates. See [FolderMemberDropTarget] for
  * the rules. [dockBounds] is the hosting dock card's bounds; [dockSlotCenters] and
@@ -2981,6 +3148,12 @@ private fun AppsCard(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     onAppListBoundsChanged: (Rect?) -> Unit = {},
+    // The whole apps card's bounds in root coordinates, reported even in the
+    // loading / empty state (unlike [onAppListBoundsChanged], which is the
+    // scrollable list and goes null when empty). Used as the drag-to-undock drop
+    // target so undock still works when every app is docked and the list is empty.
+    onCardBoundsChanged: (Rect?) -> Unit = {},
+    appDrag: AppDragHandlers? = null,
 ) {
     LaunchedEffect(isLoading, apps.isEmpty()) {
         if (isLoading || apps.isEmpty()) {
@@ -2999,7 +3172,13 @@ private fun AppsCard(
     }
     var measuredChevronLayoutKey by remember { mutableStateOf<AppListChevronLayoutKey?>(null) }
     val isCurrentAppSetMeasured = measuredChevronLayoutKey == chevronLayoutKey
-    SectionCard(modifier.testTag(APPS_CARD_TAG)) {
+    SectionCard(
+        modifier
+            .testTag(APPS_CARD_TAG)
+            .onGloballyPositioned { coords ->
+                onCardBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+            },
+    ) {
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -3073,6 +3252,7 @@ private fun AppsCard(
                         onClearAppIconOverride = onClearAppIconOverride,
                         onSetAppBadge = onSetAppBadge,
                         onHideApp = onHideApp,
+                        appDrag = appDrag,
                     )
                 }
             } else {
@@ -3129,6 +3309,7 @@ private fun AppsCard(
                                 onClearAppIconOverride = onClearAppIconOverride,
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
+                                appDrag = appDrag,
                             )
                         }
                     }
@@ -3184,6 +3365,7 @@ internal fun IconOnlyAppGrid(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    appDrag: AppDragHandlers? = null,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive((iconSizeDp + 8).dp),
@@ -3220,9 +3402,97 @@ internal fun IconOnlyAppGrid(
                 onClearAppIconOverride = onClearAppIconOverride,
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
+                appDrag = appDrag,
             )
         }
     }
+}
+
+/**
+ * Long-press-to-pick-up gesture for an app-list item, mirroring the dock / folder
+ * tile: a tap launches; a long-press fires haptics and arms the carousel
+ * suppression; crossing 8 dp of slop starts dragging the app toward the dock; and
+ * a long-press release without crossing slop opens the actions menu. The list
+ * scroll still wins a pre-long-press swipe (the gesture consumes nothing until the
+ * long-press fires), so flings are unaffected. The item also reports its cell
+ * center (in root coordinates) so the floating drag icon can anchor to the finger.
+ */
+@Composable
+private fun Modifier.appPickUpGesture(
+    app: InstalledApp,
+    appDrag: AppDragHandlers,
+    onLaunch: () -> Unit,
+    onOpenMenu: () -> Unit,
+): Modifier {
+    val haptics = LocalHapticFeedback.current
+    val slopPx = with(LocalDensity.current) { 8.dp.toPx() }
+    val latestOnDragStart by rememberUpdatedState(appDrag.onDragStart)
+    val latestOnDrag by rememberUpdatedState(appDrag.onDrag)
+    val latestOnDragEnd by rememberUpdatedState(appDrag.onDragEnd)
+    val latestOnReportCenter by rememberUpdatedState(appDrag.onReportCenter)
+    val latestOnLongPressArmed by rememberUpdatedState(appDrag.onLongPressArmed)
+    val latestOnLaunch by rememberUpdatedState(onLaunch)
+    val latestOnOpenMenu by rememberUpdatedState(onOpenMenu)
+    // The item's top-left in root coordinates, so the drag can anchor to the
+    // *actual* press point (top-left + the down position), not the item's
+    // geometric center. A full-width `AppRow` is much wider than its icon, so a
+    // center anchor would shift every drop by the press-to-center offset.
+    var itemTopLeftInRoot by remember { mutableStateOf(Offset.Zero) }
+    return this
+        .onGloballyPositioned { coords -> itemTopLeftInRoot = coords.positionInRoot() }
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            role = Role.Button,
+            onClick = { latestOnLaunch() },
+        )
+        .pointerInput(app.id) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                longPress.consume()
+                latestOnLongPressArmed(true)
+                var dragging = false
+                var totalDelta = Offset.Zero
+                var releasedCleanly = false
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            if (!dragging && !change.isConsumed) latestOnOpenMenu()
+                            releasedCleanly = !change.isConsumed
+                            change.consume()
+                            break
+                        }
+                        val delta = change.positionChange()
+                        totalDelta += delta
+                        if (!dragging && totalDelta.getDistance() > slopPx) {
+                            dragging = true
+                            // Anchor to the press point in root coordinates; the
+                            // host adds the running offset to track the finger.
+                            latestOnReportCenter(app, itemTopLeftInRoot + down.position)
+                            latestOnDragStart(app)
+                            latestOnDrag(app, totalDelta)
+                        } else if (dragging) {
+                            latestOnDrag(app, delta)
+                        }
+                        change.consume()
+                    }
+                } finally {
+                    if (dragging) latestOnDragEnd(app, !releasedCleanly)
+                    latestOnLongPressArmed(false)
+                }
+            }
+        }
+        .semantics {
+            role = Role.Button
+            onLongClick(label = null) {
+                latestOnOpenMenu()
+                true
+            }
+        }
 }
 
 @Composable
@@ -3241,6 +3511,7 @@ private fun IconOnlyAppButton(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    appDrag: AppDragHandlers? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val highlightColor = selectionHighlightColor()
@@ -3281,15 +3552,25 @@ private fun IconOnlyAppButton(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    role = Role.Button,
-                    onClick = { onLaunchApp(app) },
-                    onLongClick = { menuExpanded = true },
+                .then(
+                    if (appDrag != null) {
+                        Modifier.appPickUpGesture(
+                            app = app,
+                            appDrag = appDrag,
+                            onLaunch = { onLaunchApp(app) },
+                            onOpenMenu = { menuExpanded = true },
+                        )
+                    } else {
+                        Modifier.combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            role = Role.Button,
+                            onClick = { onLaunchApp(app) },
+                            onLongClick = { menuExpanded = true },
+                        )
+                    },
                 )
                 .semantics {
-                    role = Role.Button
                     contentDescription = app.displayName
                     selected = isActive
                 },
@@ -3326,6 +3607,7 @@ private fun AppRow(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    appDrag: AppDragHandlers? = null,
 ) {
     val highlightColor = selectionHighlightColor()
     val highlightOnColor = selectionHighlightOnColor()
@@ -3338,9 +3620,20 @@ private fun AppRow(
                 .fillMaxWidth()
                 .background(rowColor, RoundedCornerShape(8.dp))
                 .semantics { selected = isActive }
-                .combinedClickable(
-                    onClick = { onLaunchApp(app) },
-                    onLongClick = { menuExpanded = true },
+                .then(
+                    if (appDrag != null) {
+                        Modifier.appPickUpGesture(
+                            app = app,
+                            appDrag = appDrag,
+                            onLaunch = { onLaunchApp(app) },
+                            onOpenMenu = { menuExpanded = true },
+                        )
+                    } else {
+                        Modifier.combinedClickable(
+                            onClick = { onLaunchApp(app) },
+                            onLongClick = { menuExpanded = true },
+                        )
+                    },
                 )
                 .padding(horizontal = 4.dp, vertical = 8.dp)
                 .testTag("$APP_ROW_TAG:${app.displayName}"),
