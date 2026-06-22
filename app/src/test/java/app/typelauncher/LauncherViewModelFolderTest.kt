@@ -311,6 +311,38 @@ class LauncherViewModelFolderTest {
         assertTrue("Dragged member stays in its source folder", source.members.any { it.id == s1.id })
     }
 
+    @Test
+    fun draggingAListAppOntoTheDockDocksItThere() {
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
+        assertFalse("Mail starts undocked", viewModel.uiState.value.dockedApps.any { it.name == "Mail" })
+
+        viewModel.dockAppAtPosition(mail.id, row = 0, column = 0)
+        idle()
+
+        assertTrue("Mail is now a loose dock icon", viewModel.uiState.value.dockedApps.any { it.name == "Mail" })
+    }
+
+    @Test
+    fun draggingAListAppOntoADockIconMergesThemIntoAFolder() {
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        val maps = dockApp(viewModel, "Maps")
+        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
+
+        viewModel.dockAppIntoDockOccupant(mail.id, maps.id)
+        idle()
+
+        val folder = viewModel.uiState.value.dockFolders.single()
+        assertEquals(setOf("Maps", "Mail"), folder.members.map { it.name }.toSet())
+        assertFalse("Mail left the loose list/dock into the folder", viewModel.uiState.value.dockedApps.any { it.name == "Mail" })
+    }
+
     private fun dockApp(viewModel: LauncherViewModel, name: String): InstalledApp {
         val app = viewModel.uiState.value.filteredApps.first { it.name == name }
         viewModel.toggleDock(app, maxDockedApps = 6)
