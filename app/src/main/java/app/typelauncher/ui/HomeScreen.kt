@@ -123,6 +123,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
@@ -185,6 +186,13 @@ internal fun HomeScreen(
     onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
     onReorderDockFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
+    // Drag-a-member-out-of-the-folder drops (folder ids are unique across the two
+    // docks, so the ViewModel routes each by id — one callback serves both docks).
+    onMoveDockFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
+    onMergeDockFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
+    // The floating dragged-out member icon, rendered as a top-level overlay above
+    // the app list; (null, Zero) hides it.
+    onFolderMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
     onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -418,6 +426,9 @@ internal fun HomeScreen(
                                 onRemoveFromFolder = onRemoveFromDockFolder,
                                 onUndockFromFolder = onUndockFromDockFolder,
                                 onReorderFolderMember = onReorderDockFolderMember,
+                                onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
+                                onMergeFolderMemberInto = onMergeDockFolderMemberInto,
+                                onFolderMemberDragFloat = onFolderMemberDragFloat,
                                 onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
@@ -480,6 +491,9 @@ internal fun HomeScreen(
                                 onRemoveFromFolder = onRemoveFromWorkDockFolder,
                                 onUndockFromFolder = onUndockFromWorkDockFolder,
                                 onReorderFolderMember = onReorderDockFolderMember,
+                                onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
+                                onMergeFolderMemberInto = onMergeDockFolderMemberInto,
+                                onFolderMemberDragFloat = onFolderMemberDragFloat,
                                 onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
                                 onRenameApp = onRenameApp,
@@ -787,6 +801,13 @@ private fun DockCard(
     onRemoveFromFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromFolder: (String, String) -> Unit = { _, _ -> },
     onReorderFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
+    // Drag-a-member-out-of-the-folder drops: move it loose to a dock slot, merge
+    // it into another dock occupant, or (via [onUndockFromFolder]) undock it.
+    onMoveFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
+    onMergeFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
+    // Reports the floating, dragged-out member icon up to the host (which renders
+    // it as a top-level overlay above the app list); (null, Zero) hides it.
+    onFolderMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
     onExplodeFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -820,6 +841,12 @@ private fun DockCard(
     // joins this target's folder). Always null when folders are disabled, so
     // the dock keeps its pre-folders reorder/swap physics.
     var hoveredMergeTargetId by remember { mutableStateOf<String?>(null) }
+    // The dock card's bounds in root coordinates and whether a member dragged out
+    // of the open folder has left them. Together they drive the collapse-on-exit:
+    // the hidden dock grid is revealed and the folder overlay hidden so the dock
+    // shows through while the dragged icon floats above (see the open-folder block).
+    var dockBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var memberDragExited by remember { mutableStateOf(false) }
     // The folder whose grid is open, or null. Cleared on rotation / recomposition
     // reset like the actions menu, and whenever the launcher returns to a fresh
     // Home (see `homeReturnToken`) so leaving and re-entering Home never carries a
@@ -907,7 +934,9 @@ private fun DockCard(
     // swaps it straight back.
     val inPlaceFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
     SectionCard(
-        modifier.testTag(tags.cardTag),
+        modifier
+            .testTag(tags.cardTag)
+            .onGloballyPositioned { coords -> dockBoundsInRoot = coords.boundsInRoot() },
     ) {
         // The dock grid and the open-folder grid share one Box so the card keeps
         // the dock's exact footprint when a folder opens — the folder takes the
@@ -957,7 +986,10 @@ private fun DockCard(
                 // so TalkBack / keyboard / D-pad focus can't reach or activate the
                 // hidden dock items behind the folder.
                 .then(
-                    if (inPlaceFolder != null) {
+                    // Hidden while the folder is open — unless a member has been
+                    // dragged out, when the folder collapses and the dock is
+                    // revealed underneath so the user can see the drop targets.
+                    if (inPlaceFolder != null && !memberDragExited) {
                         Modifier
                             .alpha(0f)
                             .clearAndSetSemantics {}
@@ -1056,8 +1088,16 @@ private fun DockCard(
                     appIconTag = tags.appIconTag,
                     anchor = resolvedPositions[inPlaceFolder.id] ?: DockPosition(0, 0),
                     dockRows = rowCount,
-                    modifier = Modifier.matchParentSize(),
-                    onClose = { openFolderId = null },
+                    // Hidden (but kept composed, so the dragged tile's gesture
+                    // survives) once a member is dragged out: the dock shows
+                    // through and the dragged icon floats above at the host level.
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(if (memberDragExited) Modifier.alpha(0f) else Modifier),
+                    onClose = {
+                        openFolderId = null
+                        memberDragExited = false
+                    },
                     onLaunchApp = { app ->
                         openFolderId = null
                         onLaunchApp(app)
@@ -1075,6 +1115,18 @@ private fun DockCard(
                         onReorderFolderMember(inPlaceFolder.id, appId, index)
                     },
                     onMemberDragStateChanged = { armed -> latestOnDragStateChanged(armed) },
+                    dockBoundsInRoot = dockBoundsInRoot,
+                    dockSlotCenters = slotCenters,
+                    occupantByPosition = occupantByPosition,
+                    onMemberDragExitedChanged = { exited -> memberDragExited = exited },
+                    onMemberDragFloat = onFolderMemberDragFloat,
+                    onMoveMemberToDock = { appId, row, column ->
+                        onMoveFolderMemberToDock(inPlaceFolder.id, appId, row, column)
+                    },
+                    onMergeMemberInto = { appId, targetId ->
+                        onMergeFolderMemberInto(inPlaceFolder.id, appId, targetId)
+                    },
+                    onUndockMember = { appId -> onUndockFromFolder(inPlaceFolder.id, appId) },
                 )
             }
         }
@@ -1437,6 +1489,14 @@ internal fun DockFolderInPlace(
     onHideApp: (InstalledApp) -> Unit,
     onReorderFolderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
     onMemberDragStateChanged: (Boolean) -> Unit = {},
+    dockBoundsInRoot: Rect? = null,
+    dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
+    occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    onMemberDragExitedChanged: (Boolean) -> Unit = {},
+    onMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    onMoveMemberToDock: (appId: String, row: Int, column: Int) -> Unit = { _, _, _ -> },
+    onMergeMemberInto: (appId: String, targetId: String) -> Unit = { _, _ -> },
+    onUndockMember: (appId: String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = true, onBack = onClose)
@@ -1489,6 +1549,14 @@ internal fun DockFolderInPlace(
                 onHideApp = onHideApp,
                 onReorderFolderMember = onReorderFolderMember,
                 onMemberDragStateChanged = onMemberDragStateChanged,
+                dockBoundsInRoot = dockBoundsInRoot,
+                dockSlotCenters = dockSlotCenters,
+                occupantByPosition = occupantByPosition,
+                onMemberDragExitedChanged = onMemberDragExitedChanged,
+                onMemberDragFloat = onMemberDragFloat,
+                onMoveMemberToDock = onMoveMemberToDock,
+                onMergeMemberInto = onMergeMemberInto,
+                onUndockMember = onUndockMember,
             )
         }
     }
@@ -1539,6 +1607,24 @@ internal fun DockFolderGrid(
     // Latched true while a member long-press is armed so the Home carousel stops
     // claiming the same horizontal motion (see [DockFolderMemberTile]).
     onMemberDragStateChanged: (Boolean) -> Unit = {},
+    // --- Drag a member out of the folder onto the dock / app list. ---
+    // The hosting dock card's bounds and its live slot lattice / occupancy, used
+    // to detect when the drag leaves the folder and to resolve the drop. The
+    // folder itself appears in [occupantByPosition] under its own id.
+    dockBoundsInRoot: Rect? = null,
+    dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
+    occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    // Fires true the first time the dragged member leaves the dock card (so the
+    // host collapses the folder to reveal the dock), false when the drag ends.
+    onMemberDragExitedChanged: (Boolean) -> Unit = {},
+    // Reports the floating, dragged-out icon (app + center in root coordinates),
+    // or (null, Zero) to hide it. The host renders it as a top-level overlay so it
+    // can float over the app list, unclipped by the dock card.
+    onMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    // Drop resolutions for a member dragged out of the folder.
+    onMoveMemberToDock: (appId: String, row: Int, column: Int) -> Unit = { _, _, _ -> },
+    onMergeMemberInto: (appId: String, targetId: String) -> Unit = { _, _ -> },
+    onUndockMember: (appId: String) -> Unit = {},
 ) {
     val columns = dockIconCount.coerceAtLeast(1)
     val rows = dockRows.coerceAtLeast(1)
@@ -1555,30 +1641,96 @@ internal fun DockFolderGrid(
     // never report into it, so they are not drop targets.
     var draggedMemberId by remember(folder.id) { mutableStateOf<String?>(null) }
     var dragOffset by remember(folder.id) { mutableStateOf(Offset.Zero) }
+    // Latched once the dragged member leaves the dock card: the within-folder
+    // reorder stops and the drag becomes a drag-out (collapse + float + drop).
+    var memberDragExited by remember(folder.id) { mutableStateOf(false) }
     val memberCenters = remember(folder.id) { mutableStateMapOf<String, Offset>() }
     val memberIds = folder.members.map { member -> member.id }
+    val appById = folder.members.associateBy { member -> member.id }
     val latestMemberIds by rememberUpdatedState(memberIds)
     val latestOnReorderFolderMember by rememberUpdatedState(onReorderFolderMember)
+    val latestDockBounds by rememberUpdatedState(dockBoundsInRoot)
+    val latestDockSlotCenters by rememberUpdatedState(dockSlotCenters)
+    val latestOccupantByPosition by rememberUpdatedState(occupantByPosition)
+    val latestOnMemberDragExitedChanged by rememberUpdatedState(onMemberDragExitedChanged)
+    val latestOnMemberDragFloat by rememberUpdatedState(onMemberDragFloat)
+    val latestOnMoveMemberToDock by rememberUpdatedState(onMoveMemberToDock)
+    val latestOnMergeMemberInto by rememberUpdatedState(onMergeMemberInto)
+    val latestOnUndockMember by rememberUpdatedState(onUndockMember)
+    val latestOnClose by rememberUpdatedState(onClose)
     val onMemberDragStart: (String) -> Unit = { id ->
         draggedMemberId = id
         dragOffset = Offset.Zero
+        memberDragExited = false
     }
     val onMemberDrag: (String, Offset) -> Unit = { id, delta ->
-        handleFolderDrag(
-            delta = delta,
-            draggedAppId = id,
-            memberIds = latestMemberIds,
-            memberCenters = memberCenters,
-            onReorder = { appId, index -> latestOnReorderFolderMember(appId, index) },
-            currentOffset = dragOffset,
-            setOffset = { dragOffset = it },
-        )
+        if (memberDragExited) {
+            // Out of the folder: track the finger raw — no within-folder reorder.
+            dragOffset += delta
+        } else {
+            handleFolderDrag(
+                delta = delta,
+                draggedAppId = id,
+                memberIds = latestMemberIds,
+                memberCenters = memberCenters,
+                onReorder = { appId, index -> latestOnReorderFolderMember(appId, index) },
+                currentOffset = dragOffset,
+                setOffset = { dragOffset = it },
+            )
+        }
+        val origin = memberCenters[id]
+        if (origin != null) {
+            val center = origin + dragOffset
+            if (!memberDragExited) {
+                val bounds = latestDockBounds
+                if (bounds != null && !bounds.contains(center)) {
+                    memberDragExited = true
+                    latestOnMemberDragExitedChanged(true)
+                }
+            }
+            if (memberDragExited) {
+                latestOnMemberDragFloat(appById[id], center)
+            }
+        }
     }
-    val onMemberDragEnd: (String, Boolean) -> Unit = { _, _ ->
-        // Reorders persist live as the icon crosses each neighbor, so a cancel
-        // simply drops the lifted tile back into its (already-updated) slot.
+    val onMemberDragEnd: (String, Boolean) -> Unit = { id, canceled ->
+        if (memberDragExited) {
+            latestOnMemberDragFloat(null, Offset.Zero)
+            latestOnMemberDragExitedChanged(false)
+            val origin = memberCenters[id]
+            // A clean release routes the member by where it landed; a cancel
+            // (system stole the gesture) just drops the drag with no change.
+            if (!canceled && origin != null) {
+                val center = origin + dragOffset
+                val pitch = dockSlotPitch(latestDockSlotCenters)
+                val mergeRadiusPx = if (pitch.isFinite()) {
+                    pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                } else {
+                    Float.POSITIVE_INFINITY
+                }
+                val target = resolveFolderMemberDrop(
+                    dropCenter = center,
+                    sourceFolderId = folder.id,
+                    dockBounds = latestDockBounds,
+                    dockSlotCenters = latestDockSlotCenters,
+                    occupantByPosition = latestOccupantByPosition,
+                    mergeRadiusPx = mergeRadiusPx,
+                )
+                when (target) {
+                    FolderMemberDropTarget.KeepInFolder -> {}
+                    is FolderMemberDropTarget.DockSlot ->
+                        latestOnMoveMemberToDock(id, target.row, target.column)
+                    is FolderMemberDropTarget.MergeWith ->
+                        latestOnMergeMemberInto(id, target.occupantId)
+                    FolderMemberDropTarget.Undock -> latestOnUndockMember(id)
+                }
+                // Dragging a member out closes the folder.
+                latestOnClose()
+            }
+        }
         draggedMemberId = null
         dragOffset = Offset.Zero
+        memberDragExited = false
     }
 
     Column(
@@ -2214,6 +2366,60 @@ internal fun handleFolderDrag(
         currentCenter = targetCenter
     }
     setOffset(newOffset)
+}
+
+/**
+ * Where a folder member ends up when it is dragged *out* of the open folder and
+ * released. The open folder occupies the dock card's footprint, so the release
+ * point is hit-tested against the dock's own slot lattice (still reported even
+ * while the folder hides it) plus the dock card bounds:
+ *
+ *  - released off the dock card entirely (the app list, search field, empty space)
+ *    → [Undock];
+ *  - released on the source folder's own slot → [KeepInFolder] (the member stays);
+ *  - settled within [mergeRadiusPx] of another occupant's center → [MergeWith]
+ *    (forms / joins a folder, the dock's own center-drop behavior);
+ *  - released anywhere else on the dock → [DockSlot], i.e. a loose icon at that
+ *    slot (the store's `move` swaps any occupant aside, matching a dock drag).
+ */
+internal sealed interface FolderMemberDropTarget {
+    object KeepInFolder : FolderMemberDropTarget
+
+    data class DockSlot(val row: Int, val column: Int) : FolderMemberDropTarget
+
+    data class MergeWith(val occupantId: String) : FolderMemberDropTarget
+
+    object Undock : FolderMemberDropTarget
+}
+
+/**
+ * Resolves the drop of a folder member dragged out of [sourceFolderId], given the
+ * release point [dropCenter] in root coordinates. See [FolderMemberDropTarget] for
+ * the rules. [dockBounds] is the hosting dock card's bounds; [dockSlotCenters] and
+ * [occupantByPosition] are the dock's live slot lattice and occupancy (the folder
+ * itself appears in both as its `folder:`-prefixed occupant id).
+ */
+internal fun resolveFolderMemberDrop(
+    dropCenter: Offset,
+    sourceFolderId: String,
+    dockBounds: Rect?,
+    dockSlotCenters: Map<DockPosition, Offset>,
+    occupantByPosition: Map<DockPosition, String>,
+    mergeRadiusPx: Float,
+): FolderMemberDropTarget {
+    if (dockBounds == null || !dockBounds.contains(dropCenter)) {
+        return FolderMemberDropTarget.Undock
+    }
+    val nearest = dockSlotCenters.minByOrNull { (_, center) -> (center - dropCenter).getDistance() }
+        ?: return FolderMemberDropTarget.Undock
+    val occupant = occupantByPosition[nearest.key]
+    return when {
+        occupant == sourceFolderId -> FolderMemberDropTarget.KeepInFolder
+        occupant != null &&
+            (nearest.value - dropCenter).getDistance() <= mergeRadiusPx ->
+            FolderMemberDropTarget.MergeWith(occupant)
+        else -> FolderMemberDropTarget.DockSlot(nearest.key.row, nearest.key.column)
+    }
 }
 
 /**

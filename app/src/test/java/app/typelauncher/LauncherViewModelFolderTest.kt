@@ -217,6 +217,100 @@ class LauncherViewModelFolderTest {
         assertTrue(viewModel.uiState.value.dockFolders.isEmpty())
     }
 
+    @Test
+    fun draggingAMemberOntoTheDockLeavesItLooseAtThatPosition() {
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        seedApp("Photos", "com.example.photos")
+        val viewModel = newViewModel()
+        idle()
+        val mail = dockApp(viewModel, "Mail")
+        val maps = dockApp(viewModel, "Maps")
+        val photos = dockApp(viewModel, "Photos")
+        viewModel.mergeDockItems(sourceId = mail.id, targetId = maps.id)
+        idle()
+        val folderId = viewModel.uiState.value.dockFolders.single().id
+        viewModel.addAppToDockFolder(folderId, photos.id)
+        idle()
+
+        viewModel.moveDockFolderMemberToDock(folderId, mail.id, row = 0, column = 1)
+        idle()
+
+        val folder = viewModel.uiState.value.dockFolders.single()
+        assertFalse("Mail left the folder", "Mail" in folder.members.map { it.name })
+        assertTrue("Mail is a loose dock icon", viewModel.uiState.value.dockedApps.any { it.name == "Mail" })
+    }
+
+    @Test
+    fun draggingAMemberOntoAnotherDockIconMergesThemIntoAFolder() {
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        seedApp("Photos", "com.example.photos")
+        seedApp("Music", "com.example.music")
+        val viewModel = newViewModel()
+        idle()
+        val mail = dockApp(viewModel, "Mail")
+        val maps = dockApp(viewModel, "Maps")
+        val photos = dockApp(viewModel, "Photos")
+        val music = dockApp(viewModel, "Music")
+        viewModel.mergeDockItems(sourceId = mail.id, targetId = maps.id)
+        idle()
+        val folderId = viewModel.uiState.value.dockFolders.single().id
+        viewModel.addAppToDockFolder(folderId, photos.id)
+        idle()
+
+        // Drag Mail out of its folder and drop it onto the loose Music icon.
+        viewModel.mergeDockFolderMemberInto(folderId, mail.id, music.id)
+        idle()
+
+        val folders = viewModel.uiState.value.dockFolders
+        val mailFolder = folders.firstOrNull { f -> f.members.any { it.name == "Mail" } }
+        assertTrue("Mail and Music form a folder", mailFolder != null)
+        assertTrue("Music is in the new folder", mailFolder!!.members.any { it.name == "Music" })
+        val source = folders.first { it.id == folderId }
+        assertFalse("Mail left the source folder", "Mail" in source.members.map { it.name })
+    }
+
+    @Test
+    fun mergingAMemberOntoAFullFolderKeepsItInItsSourceFolder() {
+        // 18 apps: 16 fill the target folder, 2 form the source folder.
+        (1..18).forEach { i -> seedApp("App$i", "com.example.app$i") }
+        val viewModel = newViewModel()
+        idle()
+
+        // Build a 16-member target folder by docking then folding one app at a
+        // time, so no more than two loose icons sit on the dock at once (under the
+        // dock cap). Start from a 2-member folder, then add 14 more.
+        val first = dockApp(viewModel, "App1")
+        val second = dockApp(viewModel, "App2")
+        viewModel.mergeDockItems(sourceId = first.id, targetId = second.id)
+        idle()
+        val targetId = viewModel.uiState.value.dockFolders.single().id
+        (3..16).forEach { i ->
+            val app = dockApp(viewModel, "App$i")
+            viewModel.addAppToDockFolder(targetId, app.id)
+            idle()
+        }
+        assertEquals(16, viewModel.uiState.value.dockFolders.first { it.id == targetId }.members.size)
+
+        // A separate 2-member source folder.
+        val s1 = dockApp(viewModel, "App17")
+        val s2 = dockApp(viewModel, "App18")
+        viewModel.mergeDockItems(sourceId = s1.id, targetId = s2.id)
+        idle()
+        val sourceId = viewModel.uiState.value.dockFolders.first { it.id != targetId }.id
+
+        // Dropping s1 onto the full target folder must be a no-op: the merge can't
+        // land, so the member stays in its source folder rather than being stripped.
+        viewModel.mergeDockFolderMemberInto(sourceId, s1.id, targetId)
+        idle()
+
+        val target = viewModel.uiState.value.dockFolders.first { it.id == targetId }
+        assertEquals("Full target folder is unchanged", 16, target.members.size)
+        val source = viewModel.uiState.value.dockFolders.first { it.id == sourceId }
+        assertTrue("Dragged member stays in its source folder", source.members.any { it.id == s1.id })
+    }
+
     private fun dockApp(viewModel: LauncherViewModel, name: String): InstalledApp {
         val app = viewModel.uiState.value.filteredApps.first { it.name == name }
         viewModel.toggleDock(app, maxDockedApps = 6)
