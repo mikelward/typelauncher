@@ -343,6 +343,58 @@ class LauncherViewModelFolderTest {
         assertFalse("Mail left the loose list/dock into the folder", viewModel.uiState.value.dockedApps.any { it.name == "Mail" })
     }
 
+    @Test
+    fun draggingAWorkListAppOntoTheWorkDockDocksItThere() {
+        seedApp("Zone Work", "com.example.work1")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.markAsActiveWorkAppForTest("com.example.work1")
+        viewModel.setWorkDockEnabled(true)
+        idle()
+        val work = viewModel.uiState.value.filteredApps.first { it.name == "Zone Work" }
+        assertFalse(
+            "Zone Work starts off the work dock",
+            viewModel.uiState.value.workDockedApps.any { it.name == "Zone Work" },
+        )
+
+        viewModel.dockAppAtWorkDockPosition(work.id, row = 0, column = 0)
+        idle()
+
+        assertTrue(
+            "Zone Work is now a loose work-dock icon",
+            viewModel.uiState.value.workDockedApps.any { it.name == "Zone Work" },
+        )
+        assertFalse(
+            "Dropping on the work dock must not touch the personal dock",
+            viewModel.uiState.value.dockedApps.any { it.name == "Zone Work" },
+        )
+    }
+
+    @Test
+    fun draggingAWorkListAppOntoAWorkDockIconMergesThemIntoAFolder() {
+        seedApp("Zone Work", "com.example.work1")
+        seedApp("Ztwo Work", "com.example.work2")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.markAsActiveWorkAppForTest("com.example.work1")
+        viewModel.markAsActiveWorkAppForTest("com.example.work2")
+        viewModel.setWorkDockEnabled(true)
+        idle()
+        val one = workApp(viewModel, "Zone Work")
+        val two = viewModel.uiState.value.filteredApps.first { it.name == "Ztwo Work" }
+
+        viewModel.dockAppIntoWorkDockOccupant(two.id, one.id)
+        idle()
+
+        val folder = viewModel.uiState.value.workDockFolders.single()
+        assertEquals(setOf("Zone Work", "Ztwo Work"), folder.members.map { it.name }.toSet())
+        assertFalse(
+            "Ztwo Work left the loose list/dock into the work folder",
+            viewModel.uiState.value.workDockedApps.any { it.name == "Ztwo Work" },
+        )
+        assertTrue("No personal folder is created", viewModel.uiState.value.dockFolders.isEmpty())
+    }
+
     private fun dockApp(viewModel: LauncherViewModel, name: String): InstalledApp {
         val app = viewModel.uiState.value.filteredApps.first { it.name == name }
         viewModel.toggleDock(app, maxDockedApps = 6)

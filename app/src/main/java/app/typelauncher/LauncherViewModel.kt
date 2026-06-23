@@ -1092,19 +1092,32 @@ internal class LauncherViewModel(
      * Dock an app from the app list onto the personal dock at ([row], [column])
      * (the drag-from-list-to-dock gesture). Docks it, then moves it where it was
      * dropped — `move` swaps any occupant aside, exactly like a dock drag.
-     *
-     * TODO: only the personal dock is a drop target today. Dropping onto the work
-     * dock, and dragging an icon directly from one dock to the other (a cross-dock
-     * move), are not yet supported — see SPEC "Dragging apps onto / off the dock".
      */
-    fun dockAppAtPosition(appId: String, row: Int, column: Int) {
+    fun dockAppAtPosition(appId: String, row: Int, column: Int) =
+        dockAppAtPosition(appId, row, column, dockedAppStore, "dockAppAtPosition")
+
+    /**
+     * Work-dock variant of [dockAppAtPosition]. The caller only routes a drop
+     * here when the dragged app is a work app released over the work dock, so the
+     * work dock stays work-apps-only.
+     */
+    fun dockAppAtWorkDockPosition(appId: String, row: Int, column: Int) =
+        dockAppAtPosition(appId, row, column, workDockedAppStore, "dockAppAtWorkDockPosition")
+
+    private fun dockAppAtPosition(
+        appId: String,
+        row: Int,
+        column: Int,
+        store: DockedAppStore,
+        tag: String,
+    ) {
         val state = _uiState.value
-        LauncherDebugLog.event("dockAppAtPosition appId=$appId row=$row column=$column")
+        LauncherDebugLog.event("$tag appId=$appId row=$row column=$column")
         val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
-        dockedAppStore.dock(appId, columns)
-        dockedAppStore.move(appId, row, column, columns, state.appListSortOrder)
+        store.dock(appId, columns)
+        store.move(appId, row, column, columns, state.appListSortOrder)
         refreshLists()
-        logState("dockAppAtPosition")
+        logState(tag)
     }
 
     /**
@@ -1113,18 +1126,34 @@ internal class LauncherViewModel(
      * gesture). Guarded like [mergeDockFolderMemberInto]: a no-op if the target
      * folder is already at the member cap, so the app stays in the list.
      */
-    fun dockAppIntoDockOccupant(appId: String, targetId: String) {
+    fun dockAppIntoDockOccupant(appId: String, targetId: String) =
+        dockAppIntoDockOccupant(appId, targetId, dockedAppStore, "dockAppIntoDockOccupant")
+
+    /**
+     * Work-dock variant of [dockAppIntoDockOccupant]. Routed only for a work app
+     * released onto a work-dock occupant, so a work folder never gains a personal
+     * member.
+     */
+    fun dockAppIntoWorkDockOccupant(appId: String, targetId: String) =
+        dockAppIntoDockOccupant(appId, targetId, workDockedAppStore, "dockAppIntoWorkDockOccupant")
+
+    private fun dockAppIntoDockOccupant(
+        appId: String,
+        targetId: String,
+        store: DockedAppStore,
+        tag: String,
+    ) {
         val state = _uiState.value
-        LauncherDebugLog.event("dockAppIntoDockOccupant appId=$appId target=$targetId")
-        val targetFolder = dockedAppStore.dockFolders.firstOrNull { it.id == targetId }
+        LauncherDebugLog.event("$tag appId=$appId target=$targetId")
+        val targetFolder = store.dockFolders.firstOrNull { it.id == targetId }
         if (targetFolder != null && targetFolder.memberAppIds.size >= MAX_DOCK_FOLDER_MEMBERS) {
             return
         }
         val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
-        dockedAppStore.dock(appId, columns)
-        dockedAppStore.mergeIntoFolder(appId, targetId, columns)
+        store.dock(appId, columns)
+        store.mergeIntoFolder(appId, targetId, columns)
         refreshLists()
-        logState("dockAppIntoDockOccupant")
+        logState(tag)
     }
 
     /**

@@ -197,6 +197,10 @@ internal fun HomeScreen(
     // or merge it onto an existing occupant.
     onDockAppAtPosition: (String, Int, Int) -> Unit = { _, _, _ -> },
     onDockAppIntoOccupant: (String, String) -> Unit = { _, _ -> },
+    // Same, for the work dock. Only routed here when the dragged app is a work app
+    // released over the work dock, so the work dock stays work-apps-only.
+    onDockAppAtWorkDockPosition: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onDockAppIntoWorkDockOccupant: (String, String) -> Unit = { _, _ -> },
     onExplodeDockFolder: (String) -> Unit = {},
     onResetRank: (InstalledApp) -> Unit,
     onRenameApp: (InstalledApp, String) -> Unit,
@@ -238,6 +242,10 @@ internal fun HomeScreen(
     // drag-out uses (an empty source-folder id means it can only land as a loose
     // dock icon or a merge, never "keep in folder").
     var personalDockDropTarget by remember { mutableStateOf<DockDropTarget?>(null) }
+    // The work dock publishes its own drop geometry here. A list app released over
+    // it docks/merges into the work store, but only when it's a work app — the
+    // work dock holds work apps only (see the drop resolution in onDragEnd).
+    var workDockDropTarget by remember { mutableStateOf<DockDropTarget?>(null) }
     // The apps card's bounds in root coordinates, so a dock icon dragged up only
     // undocks when released over the card (not the search field / margins / other
     // dock). Fed by the card itself (not the scrollable list), so it stays valid
@@ -246,9 +254,12 @@ internal fun HomeScreen(
     var listDragOffset by remember { mutableStateOf(Offset.Zero) }
     val listAppCenters = remember { mutableStateMapOf<String, Offset>() }
     val latestPersonalDockDropTarget by rememberUpdatedState(personalDockDropTarget)
+    val latestWorkDockDropTarget by rememberUpdatedState(workDockDropTarget)
     val latestOnFolderMemberDragFloat by rememberUpdatedState(onFolderMemberDragFloat)
     val latestOnDockAppAtPosition by rememberUpdatedState(onDockAppAtPosition)
     val latestOnDockAppIntoOccupant by rememberUpdatedState(onDockAppIntoOccupant)
+    val latestOnDockAppAtWorkDockPosition by rememberUpdatedState(onDockAppAtWorkDockPosition)
+    val latestOnDockAppIntoWorkDockOccupant by rememberUpdatedState(onDockAppIntoWorkDockOccupant)
     val latestOnDockDragChanged by rememberUpdatedState(onDockDragChanged)
     val appListDragHandlers = AppDragHandlers(
         onDragStart = { _ -> listDragOffset = Offset.Zero },
@@ -261,33 +272,58 @@ internal fun HomeScreen(
         onDragEnd = { app, canceled ->
             latestOnFolderMemberDragFloat(null, Offset.Zero)
             val origin = listAppCenters[app.id]
-            val target = latestPersonalDockDropTarget
-            if (!canceled && origin != null && target != null) {
+            if (!canceled && origin != null) {
                 val center = origin + listDragOffset
-                val pitch = dockSlotPitch(target.slotCenters)
-                val mergeRadiusPx = if (pitch.isFinite()) {
-                    pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
-                } else {
-                    Float.POSITIVE_INFINITY
+                // Resolve the drop against whichever dock the release point is
+                // over. The two dock cards never overlap (personal above work), so
+                // at most one bounds-contains check passes. An empty source-folder
+                // id never matches a dock occupant, so the result is DockSlot /
+                // MergeWith / (off-dock) Undock — the latter and KeepInFolder are
+                // no-ops here (the app stays in the list).
+                fun dropOnto(
+                    target: DockDropTarget,
+                    onAtPosition: (String, Int, Int) -> Unit,
+                    onIntoOccupant: (String, String) -> Unit,
+                ): Boolean {
+                    if (target.bounds?.contains(center) != true) return false
+                    val pitch = dockSlotPitch(target.slotCenters)
+                    val mergeRadiusPx = if (pitch.isFinite()) {
+                        pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                    } else {
+                        Float.POSITIVE_INFINITY
+                    }
+                    when (
+                        val drop = resolveFolderMemberDrop(
+                            dropCenter = center,
+                            sourceFolderId = "",
+                            dockBounds = target.bounds,
+                            dockSlotCenters = target.slotCenters,
+                            occupantByPosition = target.occupants,
+                            mergeRadiusPx = mergeRadiusPx,
+                        )
+                    ) {
+                        is FolderMemberDropTarget.DockSlot ->
+                            onAtPosition(app.id, drop.row, drop.column)
+                        is FolderMemberDropTarget.MergeWith ->
+                            onIntoOccupant(app.id, drop.occupantId)
+                        FolderMemberDropTarget.Undock, FolderMemberDropTarget.KeepInFolder -> {}
+                    }
+                    return true
                 }
-                // An empty source-folder id never matches a dock occupant, so the
-                // result is DockSlot / MergeWith / (off-dock) Undock — the latter
-                // and KeepInFolder are no-ops here (the app stays in the list).
-                when (
-                    val drop = resolveFolderMemberDrop(
-                        dropCenter = center,
-                        sourceFolderId = "",
-                        dockBounds = target.bounds,
-                        dockSlotCenters = target.slotCenters,
-                        occupantByPosition = target.occupants,
-                        mergeRadiusPx = mergeRadiusPx,
-                    )
-                ) {
-                    is FolderMemberDropTarget.DockSlot ->
-                        latestOnDockAppAtPosition(app.id, drop.row, drop.column)
-                    is FolderMemberDropTarget.MergeWith ->
-                        latestOnDockAppIntoOccupant(app.id, drop.occupantId)
-                    FolderMemberDropTarget.Undock, FolderMemberDropTarget.KeepInFolder -> {}
+
+                val landedOnPersonal = latestPersonalDockDropTarget?.let { target ->
+                    dropOnto(target, latestOnDockAppAtPosition, latestOnDockAppIntoOccupant)
+                } ?: false
+                // The work dock is work-apps-only: a personal app released over it
+                // falls through (no-op), staying in the list.
+                if (!landedOnPersonal && app.isWorkApp) {
+                    latestWorkDockDropTarget?.let { target ->
+                        dropOnto(
+                            target,
+                            latestOnDockAppAtWorkDockPosition,
+                            latestOnDockAppIntoWorkDockOccupant,
+                        )
+                    }
                 }
             }
             listDragOffset = Offset.Zero
@@ -322,6 +358,12 @@ internal fun HomeScreen(
     // makes the apps-list minimum a hard constraint that the dock can never
     // squeeze, regardless of how many apps the user has docked.
     val showWorkDock = state.isWorkDockEnabled && state.isWorkProfileActive
+    // When the work dock leaves composition (profile paused, flag off) its card
+    // stops republishing geometry, so drop its stale bounds — otherwise a later
+    // app-list drop could resolve against a region no longer on screen.
+    LaunchedEffect(showWorkDock) {
+        if (!showWorkDock) workDockDropTarget = null
+    }
     // The dock slot is reserved whenever *either* dock has content to render,
     // but only while the search field is empty. Typing a query hides both
     // docks so the freed space goes to the filtered results the user is
@@ -579,6 +621,9 @@ internal fun HomeScreen(
                                 onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
                                 onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                                 onFolderMemberDragFloat = onFolderMemberDragFloat,
+                                onDockGeometryChanged = { geometry ->
+                                    workDockDropTarget = geometry
+                                },
                                 appListBoundsInRoot = appListBoundsInRoot,
                                 onExplodeFolder = onExplodeDockFolder,
                                 onResetRank = onResetRank,
