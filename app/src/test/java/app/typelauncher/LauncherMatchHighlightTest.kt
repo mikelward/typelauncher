@@ -2,14 +2,21 @@ package app.typelauncher
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Coverage for [launcherMatchHighlightIndices], which decides *which* title
  * letters the inline search suggestion bolds. The returned indices must follow
  * the same tier precedence as [launcherMatchTier] so the highlighted run matches
  * how the app actually ranked, and must be empty when only the package brand
- * matched (nothing in the title to bold).
+ * matched (nothing in the title to bold). Runs under Robolectric because the
+ * digit-word band spells numbers out via on-device ICU, which needs the Android
+ * runtime.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
 class LauncherMatchHighlightTest {
     @Test
     fun prefixHighlightsLeadingRun() {
@@ -39,6 +46,21 @@ class LauncherMatchHighlightTest {
         // "vw" -> "Volkswagen": 'v' anchors at 0, 'w' is mid-word so only the
         // loose fuzzy tier matches it (index 5).
         assertEquals(listOf(0, 5), launcherMatchHighlightIndices("Volkswagen", "vw"))
+    }
+
+    @Test
+    fun digitWordPrefixHighlightsSpelledOutRun() {
+        // "3" spells out to "three", which prefix-matches "Three" — the whole
+        // title is the matched run, so every letter bolds rather than rendering
+        // faint like a package-brand-only match.
+        assertEquals(listOf(0, 1, 2, 3, 4), launcherMatchHighlightIndices("Three", "3"))
+    }
+
+    @Test
+    fun digitWordSubstringHighlightsSpelledOutRun() {
+        // "1" -> "one" sits mid-label in "Phone", so the substring run (indices
+        // 2..4) bolds.
+        assertEquals(listOf(2, 3, 4), launcherMatchHighlightIndices("Phone", "1"))
     }
 
     @Test
