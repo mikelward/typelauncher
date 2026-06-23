@@ -252,6 +252,11 @@ internal fun HomeScreen(
     // even when every app is docked and the list shows its empty state.
     var appListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var listDragOffset by remember { mutableStateOf(Offset.Zero) }
+    // The app currently being dragged out of the list, if any. The list item for
+    // this app hides itself (its content goes to alpha 0 while keeping its layout
+    // slot) so the icon reads as "picked up" into the floating drag overlay rather
+    // than left duplicated in place.
+    var draggingListAppId by remember { mutableStateOf<String?>(null) }
     val listAppCenters = remember { mutableStateMapOf<String, Offset>() }
     val latestPersonalDockDropTarget by rememberUpdatedState(personalDockDropTarget)
     val latestWorkDockDropTarget by rememberUpdatedState(workDockDropTarget)
@@ -262,7 +267,10 @@ internal fun HomeScreen(
     val latestOnDockAppIntoWorkDockOccupant by rememberUpdatedState(onDockAppIntoWorkDockOccupant)
     val latestOnDockDragChanged by rememberUpdatedState(onDockDragChanged)
     val appListDragHandlers = AppDragHandlers(
-        onDragStart = { _ -> listDragOffset = Offset.Zero },
+        onDragStart = { app ->
+            listDragOffset = Offset.Zero
+            draggingListAppId = app.id
+        },
         onDrag = { app, delta ->
             listDragOffset += delta
             listAppCenters[app.id]?.let { origin ->
@@ -271,6 +279,7 @@ internal fun HomeScreen(
         },
         onDragEnd = { app, canceled ->
             latestOnFolderMemberDragFloat(null, Offset.Zero)
+            draggingListAppId = null
             val origin = listAppCenters[app.id]
             if (!canceled && origin != null) {
                 val center = origin + listDragOffset
@@ -485,6 +494,7 @@ internal fun HomeScreen(
                     // empty), so drag-to-undock works when every app is docked.
                     onCardBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
                     appDrag = appListDragHandlers,
+                    draggedAppId = draggingListAppId,
                 )
             } else {
                 Spacer(modifier = Modifier.fillMaxSize())
@@ -3202,6 +3212,10 @@ private fun AppsCard(
     // target so undock still works when every app is docked and the list is empty.
     onCardBoundsChanged: (Rect?) -> Unit = {},
     appDrag: AppDragHandlers? = null,
+    // The app currently being dragged out of the list, if any. Its list item
+    // renders empty (content at alpha 0, layout slot preserved) so the icon reads
+    // as picked up into the floating drag overlay instead of duplicated in place.
+    draggedAppId: String? = null,
 ) {
     LaunchedEffect(isLoading, apps.isEmpty()) {
         if (isLoading || apps.isEmpty()) {
@@ -3301,6 +3315,7 @@ private fun AppsCard(
                         onSetAppBadge = onSetAppBadge,
                         onHideApp = onHideApp,
                         appDrag = appDrag,
+                        draggedAppId = draggedAppId,
                     )
                 }
             } else {
@@ -3358,6 +3373,7 @@ private fun AppsCard(
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
                                 appDrag = appDrag,
+                                isDragged = appDrag != null && app.id == draggedAppId,
                             )
                         }
                     }
@@ -3414,6 +3430,9 @@ internal fun IconOnlyAppGrid(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     appDrag: AppDragHandlers? = null,
+    // The app currently being dragged out of the list, if any; its tile renders
+    // empty so the icon reads as picked up into the floating drag overlay.
+    draggedAppId: String? = null,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive((iconSizeDp + 8).dp),
@@ -3451,6 +3470,7 @@ internal fun IconOnlyAppGrid(
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
                 appDrag = appDrag,
+                isDragged = appDrag != null && app.id == draggedAppId,
             )
         }
     }
@@ -3560,6 +3580,10 @@ private fun IconOnlyAppButton(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     appDrag: AppDragHandlers? = null,
+    // True while this app is being dragged out of the list: its content hides
+    // (alpha 0, layout slot preserved) so the icon reads as picked up into the
+    // floating drag overlay rather than duplicated in place.
+    isDragged: Boolean = false,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val highlightColor = selectionHighlightColor()
@@ -3568,6 +3592,10 @@ private fun IconOnlyAppButton(
     Box {
         Column(
             modifier = Modifier
+                // Only the dragged item gets a layer; applying graphicsLayer to
+                // every item would composite a render layer per app on the hot
+                // scroll path even when nothing is being dragged.
+                .then(if (isDragged) Modifier.graphicsLayer { alpha = 0f } else Modifier)
                 .background(containerColor, RoundedCornerShape(8.dp))
                 .semantics {
                     contentDescription = app.displayName
@@ -3656,6 +3684,10 @@ private fun AppRow(
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
     appDrag: AppDragHandlers? = null,
+    // True while this app is being dragged out of the list: its content hides
+    // (alpha 0, layout slot preserved) so the icon reads as picked up into the
+    // floating drag overlay rather than duplicated in place.
+    isDragged: Boolean = false,
 ) {
     val highlightColor = selectionHighlightColor()
     val highlightOnColor = selectionHighlightOnColor()
@@ -3666,6 +3698,10 @@ private fun AppRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // Only the dragged item gets a layer; applying graphicsLayer to
+                // every item would composite a render layer per app on the hot
+                // scroll path even when nothing is being dragged.
+                .then(if (isDragged) Modifier.graphicsLayer { alpha = 0f } else Modifier)
                 .background(rowColor, RoundedCornerShape(8.dp))
                 .semantics { selected = isActive }
                 .then(

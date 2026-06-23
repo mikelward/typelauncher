@@ -250,6 +250,12 @@ jobs:
         # fewer-than-slots (fits, no reflow) and more-than-slots (scrolls) cases.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderInPlaceScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run app list pick-up screenshot tests
+        # Renders an app being dragged out of the list: its tile hides its icon
+        # (picked up into the floating drag overlay) while keeping its layout
+        # slot, so the PR `roborazzi-screenshots` artifact shows the empty gap.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppListPickUpScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
