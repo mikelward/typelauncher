@@ -2,8 +2,10 @@ package app.typelauncher
 
 import android.content.ComponentName
 import android.content.Intent
+import android.os.LocaleList
 import android.os.Process
 import androidx.test.core.app.ApplicationProvider
+import java.util.Locale
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -471,6 +473,98 @@ class LauncherFilterOrderingTest {
         // as a substring and stay in their incoming alphabetical order;
         // "Snake" drops out.
         assertEquals(listOf("Cool", "Door", "Foo"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameMatchesSpelledOutNumberFromDigitQuery() {
+        // Typing "3" must surface the carrier "Three" apps even though neither
+        // their label nor their package carries the digit. Both installs share
+        // the "Three" label; the spelled-out digit prefix-matches each.
+        val apps = listOf(
+            installedApp("Three", packageName = "com.hutchison3g.planet3"),
+            installedApp("Three+", packageName = "com.hutchison3g.threeplus"),
+            installedApp("Slack"),
+        )
+
+        val filtered = apps.filterByName(
+            query = "3",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("Three", "Three+"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameRanksLiteralDigitAboveSpelledOutNumber() {
+        // A label that contains the digit itself is a precise match and must
+        // outrank the spelled-out reading: typing "3" puts "3D Scanner"
+        // (literal prefix) above "Three" (digit-word tier).
+        val apps = listOf(
+            installedApp("Three", packageName = "com.hutchison3g.planet3"),
+            installedApp("3D Scanner"),
+        )
+
+        val filtered = apps.filterByName(
+            query = "3",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("3D Scanner", "Three"), filtered.map { it.name })
+    }
+
+    @Test
+    fun filterByNameMatchesLocalizedNumberWordOnNonEnglishDevice() {
+        // The digit-word band is locale-aware: on a French device "3" spells out
+        // to "trois" (via ICU), so a French-labeled app matches. English is always
+        // in the locale set too — app branding is overwhelmingly English even on a
+        // non-English device — so the English-branded "Three" still matches "3".
+        val originalLocale = Locale.getDefault()
+        val originalList = LocaleList.getDefault()
+        try {
+            Locale.setDefault(Locale.FRENCH)
+            LocaleList.setDefault(LocaleList(Locale.FRENCH))
+            val apps = listOf(
+                installedApp("Trois"),
+                installedApp("Three"),
+                installedApp("Slack"),
+            )
+
+            val filtered = apps.filterByName(
+                query = "3",
+                appLaunchStatsStore = store,
+                excludedAppIds = emptySet(),
+            )
+
+            val names = filtered.map { it.name }
+            assertTrue("French \"Trois\" should match \"3\" on a French device", "Trois" in names)
+            assertTrue("English-branded \"Three\" should still match \"3\"", "Three" in names)
+            assertTrue("non-number labels must not match", "Slack" !in names)
+        } finally {
+            Locale.setDefault(originalLocale)
+            LocaleList.setDefault(originalList)
+        }
+    }
+
+    @Test
+    fun filterByNameRanksDigitWordPrefixAboveDigitWordSubstringDespiteUsage() {
+        // Query "1" spells out to "one": "OneDrive" is a digit-word prefix,
+        // "Phone" an incidental digit-word substring ("one" sits mid-label).
+        // Even when the substring app is launched far more often, the prefix
+        // must win — the digit-word band keeps the prefix/substring split rather
+        // than collapsing both into one tier where usage would reorder them.
+        val oneDrive = installedApp("OneDrive")
+        val phone = installedApp("Phone")
+        repeat(10) { store.recordLaunch(phone.id) }
+
+        val filtered = listOf(phone, oneDrive).filterByName(
+            query = "1",
+            appLaunchStatsStore = store,
+            excludedAppIds = emptySet(),
+        )
+
+        assertEquals(listOf("OneDrive", "Phone"), filtered.map { it.name })
     }
 
     @Test

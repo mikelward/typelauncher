@@ -2,6 +2,9 @@ package app.typelauncher
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.icu.text.MessageFormat
+import android.os.LocaleList
+import java.util.Locale
 
 internal class AppLaunchStatsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -169,6 +172,11 @@ internal fun List<InstalledApp>.filterByName(
                 .thenBy(DISPLAY_NAME_ORDER) { (app, _) -> app.displayName }
             else -> dockedFirstByPair
         }
+        // Spell the digits out once for the whole refresh, not per row — a numeric
+        // query otherwise re-allocates this set and re-enters the synchronized
+        // digit-map lookup for every app on the keystroke path. Empty (a cheap
+        // singleton) for the common non-numeric query.
+        val digitSpellings = DigitSpeller.expansions(query)
         candidates
             // Match against `displayName` so the disambiguator suffix (e.g.
             // "(US)" / "(UK)") is searchable when a brand has multiple regional
@@ -186,8 +194,8 @@ internal fun List<InstalledApp>.filterByName(
             // tier order is ever changed.
             .mapNotNull { app ->
                 val tier = listOfNotNull(
-                    app.displayName.launcherMatchTier(query),
-                    app.workPrefixStrippedSearchName?.launcherMatchTier(query),
+                    app.displayName.launcherMatchTier(query, digitSpellings),
+                    app.workPrefixStrippedSearchName?.launcherMatchTier(query, digitSpellings),
                     app.packageName.packageBrandMatchTier(query),
                 ).minByOrNull { it.ordinal }
                 tier?.let { app to it }
@@ -239,10 +247,26 @@ internal fun List<InstalledApp>.filterHidden(hiddenAppIds: List<String>): List<I
         .sortedBy { app -> hiddenAppIds.indexOf(app.id) }
 
 // Match quality, best first — the `ordinal` drives result ranking, so order
-// matters. `Fuzzy` and `PackageBrand` are the looser fallback tiers and sit
-// below the precise title tiers so they only surface when nothing better
-// matches, and never outrank a prefix/anchored/substring hit.
-internal enum class LauncherMatchTier { Prefix, Anchored, Substring, Fuzzy, PackageBrand }
+// matters. `Fuzzy`, the `DigitWord*` band, and `PackageBrand` are the looser
+// fallback tiers and sit below the precise literal title tiers so they only
+// surface when nothing better matches, and never outrank a prefix/anchored/
+// substring hit. The digit-word band (a numeric query matched after spelling the
+// digit out, e.g. "1" -> "one") sits below the literal title tiers — a label
+// that contains the digit itself always wins — but above `PackageBrand` (a
+// spelled-out title match beats a package-segment match). It keeps its own
+// prefix/anchored/substring split rather than collapsing to one tier, so a
+// digit-word prefix like "OneDrive" for "1" still outranks an incidental
+// digit-word substring like "Phone" (which carries "one") regardless of usage.
+internal enum class LauncherMatchTier {
+    Prefix,
+    Anchored,
+    Substring,
+    Fuzzy,
+    DigitWordPrefix,
+    DigitWordAnchored,
+    DigitWordSubstring,
+    PackageBrand,
+}
 
 // Below this query length the fuzzy tier stays off: a 1-char fuzzy match
 // reduces to "some word in the label starts with this letter", which Prefix
@@ -259,7 +283,15 @@ private val GENERIC_PACKAGE_SEGMENTS = setOf(
     "com", "org", "net", "io", "co", "app", "apps", "android", "mobile",
 )
 
-internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
+internal fun String.launcherMatchTier(
+    query: String,
+    // The spelled-out digit candidates for [query], hoisted out of the per-app
+    // loop by `filterByName` so a numeric search computes them once per keystroke
+    // instead of once per row (each call would otherwise re-allocate the set and
+    // re-enter the synchronized digit-map path). Defaults to computing them here
+    // so direct/test callers keep the simple one-arg form.
+    digitSpellings: Set<String> = DigitSpeller.expansions(query),
+): LauncherMatchTier? {
     if (query.isEmpty()) return LauncherMatchTier.Prefix
     if (startsWith(query, ignoreCase = true)) return LauncherMatchTier.Prefix
     if (matchesLauncherQuery(query)) return LauncherMatchTier.Anchored
@@ -276,7 +308,108 @@ internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
     if (query.length >= FUZZY_MIN_QUERY_LENGTH && matchesLauncherQueryFuzzy(query)) {
         return LauncherMatchTier.Fuzzy
     }
+    // Numeric query -> spelled-out word: typing "3" reaches "Three"
+    // (com.hutchison3g.planet3 / com.hutchison3g.threeplus), "1" reaches
+    // "OneDrive", etc. Checked only after every literal title tier, so a label
+    // that contains the digit itself always outranks the spelled-out reading,
+    // and limited to the precise prefix/anchored/substring matches (no fuzzy) so
+    // the looser interpretation can't add subsequence noise. The prefix/anchored/
+    // substring split is preserved as its own band so a digit-word prefix always
+    // outranks a digit-word substring — otherwise a frequently-launched
+    // incidental substring (e.g. "Phone" for "1", "one" mid-label) could float
+    // above the intended prefix ("OneDrive") under the usage sort.
+    if (digitSpellings.isNotEmpty()) {
+        // Precedence-first across all candidate spellings, so a prefix hit in one
+        // locale always beats an anchored/substring hit in another — same band
+        // ordering the literal tiers use.
+        when {
+            digitSpellings.any { startsWith(it, ignoreCase = true) } -> return LauncherMatchTier.DigitWordPrefix
+            digitSpellings.any { matchesLauncherQuery(it) } -> return LauncherMatchTier.DigitWordAnchored
+            digitSpellings.any { contains(it, ignoreCase = true) } -> return LauncherMatchTier.DigitWordSubstring
+        }
+    }
     return null
+}
+
+/**
+ * Spells the ASCII digits of a query out as words so a numeric query can reach an
+ * app whose label writes the number as a word — typing "3" finds "Three". Rather
+ * than a hardcoded English table (which wouldn't scale past one language), the
+ * words come from ICU's `{0,spellout}` [MessageFormat] type, which delegates to
+ * the on-device `RuleBasedNumberFormat` and gives `3` -> `three` / `trois` /
+ * `drei` per locale. (ICU's `RuleBasedNumberFormat` itself is `@hide` in the SDK,
+ * but `MessageFormat` exposes the same spell-out without bundling the ~13 MB
+ * `icu4j` artifact.)
+ *
+ * The locale set is the user's full preference list ([LocaleList.getDefault])
+ * plus English, because app branding is overwhelmingly English even on a
+ * non-English device ("Three" stays "Three" in France), so English has to be in
+ * the mix regardless of the device language. A query is expanded once per locale,
+ * spelling *every* digit with that locale's words, which bounds the candidate
+ * count by the number of locales (no cross-product blow-up); multi-digit queries
+ * are spelled digit-by-digit ("12" -> "onetwo"), which won't reach a "Twelve"
+ * label but also can't mis-fire.
+ *
+ * Building the formatters isn't free, so the per-locale digit maps are cached and
+ * only rebuilt when the device locale set changes.
+ */
+private object DigitSpeller {
+    @Volatile private var cachedKey: String? = null
+    @Volatile private var perLocaleDigits: List<Map<Char, String>> = emptyList()
+
+    /**
+     * Expansions of [query] with its digits spelled out, one per locale in the
+     * current set, lowercased. Empty when [query] holds no ASCII digit — letting
+     * callers skip the extra match pass on the common all-letters query.
+     */
+    fun expansions(query: String): Set<String> {
+        if (query.none { it in '0'..'9' }) return emptySet()
+        return digitMaps().mapTo(LinkedHashSet()) { digitMap ->
+            buildString {
+                for (ch in query) append(digitMap[ch] ?: ch.toString())
+            }
+        }
+    }
+
+    @Synchronized
+    private fun digitMaps(): List<Map<Char, String>> {
+        // Defensive: spelling a number out is a search nicety, never worth
+        // crashing the app list over. If the locale lookup or ICU formatting ever
+        // throws, degrade to "no digit expansion" (and cache that) rather than
+        // letting it propagate into filterByName on every keystroke.
+        val locales = try {
+            currentLocales()
+        } catch (_: Throwable) {
+            return emptyList()
+        }
+        val key = locales.joinToString(",") { it.toLanguageTag() }
+        if (key == cachedKey) return perLocaleDigits
+        // Build each locale independently so one locale whose ICU spellout throws
+        // drops only that locale, not the whole list — in particular the English
+        // fallback that currentLocales() always appends must survive a failure in
+        // some other locale, or typing "3" would stop finding an English-branded
+        // "Three" for that locale set.
+        perLocaleDigits = locales.mapNotNull { locale ->
+            try {
+                val speller = MessageFormat("{0,spellout}", locale)
+                ('0'..'9').associateWith { digit ->
+                    speller.format(arrayOf<Any>((digit - '0').toLong())).lowercase(locale)
+                }
+            } catch (_: Throwable) {
+                null
+            }
+        }
+        cachedKey = key
+        return perLocaleDigits
+    }
+
+    private fun currentLocales(): List<Locale> {
+        val list = LocaleList.getDefault()
+        val locales = LinkedHashSet<Locale>()
+        for (i in 0 until list.size()) locales.add(list[i])
+        locales.add(Locale.ENGLISH)
+        return locales.toList()
+    }
 }
 
 /**
@@ -287,7 +420,10 @@ internal fun String.launcherMatchTier(query: String): LauncherMatchTier? {
  * "virgin" to reach the "Credit Card" app whose package is `com.virginmoney.cards`):
  * there's nothing in the title to highlight, so the suggestion renders faint with
  * no bold. The tiers are checked in the same order as [launcherMatchTier] so the
- * highlighted run always corresponds to how the match actually ranked.
+ * highlighted run always corresponds to how the match actually ranked — including
+ * the digit-word band, where the spelled-out form of the digit (e.g. "three" for
+ * "3") is what bolds the title run, so "Three" highlights instead of rendering
+ * faint like a package-brand-only match.
  */
 internal fun launcherMatchHighlightIndices(name: String, query: String): List<Int> {
     if (query.isEmpty()) return emptyList()
@@ -297,6 +433,18 @@ internal fun launcherMatchHighlightIndices(name: String, query: String): List<In
     if (substringStart >= 0) return (substringStart until substringStart + query.length).toList()
     if (query.length >= FUZZY_MIN_QUERY_LENGTH) {
         name.fuzzyMatchIndices(query)?.let { return it }
+    }
+    // Digit-word band: mirror the prefix/anchored/substring precedence of
+    // launcherMatchTier against the spelled-out query so the bolded run reflects
+    // the tier that selected the app. No fuzzy step here either, matching the
+    // tier helper.
+    val spellings = DigitSpeller.expansions(query)
+    spellings.firstOrNull { name.startsWith(it, ignoreCase = true) }
+        ?.let { return (0 until it.length).toList() }
+    for (spelled in spellings) name.anchoredMatchIndices(spelled)?.let { return it }
+    for (spelled in spellings) {
+        val start = name.indexOf(spelled, ignoreCase = true)
+        if (start >= 0) return (start until start + spelled.length).toList()
     }
     return emptyList()
 }
