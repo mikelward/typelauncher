@@ -358,12 +358,6 @@ internal fun HomeScreen(
     // makes the apps-list minimum a hard constraint that the dock can never
     // squeeze, regardless of how many apps the user has docked.
     val showWorkDock = state.isWorkDockEnabled && state.isWorkProfileActive
-    // When the work dock leaves composition (profile paused, flag off) its card
-    // stops republishing geometry, so drop its stale bounds — otherwise a later
-    // app-list drop could resolve against a region no longer on screen.
-    LaunchedEffect(showWorkDock) {
-        if (!showWorkDock) workDockDropTarget = null
-    }
     // The dock slot is reserved whenever *either* dock has content to render,
     // but only while the search field is empty. Typing a query hides both
     // docks so the freed space goes to the filtered results the user is
@@ -390,6 +384,15 @@ internal fun HomeScreen(
     val isPersonalDockPresent = isDockSlotPresent && state.isDockEnabled
     LaunchedEffect(isPersonalDockPresent) {
         if (!isPersonalDockPresent) personalDockDropTarget = null
+    }
+    // Same presence-based clearing for the work dock: `showWorkDock` stays true
+    // while typing or in Compact landscape (which hide the dock card without
+    // flipping the flag), so key the clear on the actual rendered presence — not
+    // on `showWorkDock` alone — to drop stale geometry a list drag could resolve
+    // against an off-screen work dock. It republishes when the dock returns.
+    val isWorkDockPresent = isDockSlotPresent && showWorkDock
+    LaunchedEffect(isWorkDockPresent) {
+        if (!isWorkDockPresent) workDockDropTarget = null
     }
     val isHome = state.destination is LauncherDestination.Home
     // In the cramped-landscape Compact state the search box doesn't fit alongside
