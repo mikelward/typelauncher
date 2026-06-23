@@ -906,6 +906,7 @@ private fun FolderMemberDragOverlay(
         val local = float.centerInRoot - originInRoot
         Box(
             modifier = Modifier
+                .testTag(DRAG_OVERLAY_TAG)
                 .offset {
                     IntOffset(
                         (local.x - iconPx / 2f).roundToInt(),
