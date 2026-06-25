@@ -859,6 +859,7 @@ internal fun TypeLauncherApp(
                             onRemoveWidget = onRemoveWidget,
                             onResizeWidget = onResizeWidget,
                             onMoveWidget = onMoveWidget,
+                            workProfileWidgetRefreshToken = state.workProfileWidgetRefreshToken,
                             )
                             LauncherScreen.Agenda -> AgendaScreen(
                                 agenda = state.agenda,
