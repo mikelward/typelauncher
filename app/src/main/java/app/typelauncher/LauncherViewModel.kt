@@ -141,6 +141,19 @@ internal class LauncherViewModel(
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action ?: return
             scheduleReload("managedProfile:$action")
+            // When the profile becomes available again — resumed from quiet mode
+            // (AVAILABLE) or unlocked with its credential (UNLOCKED) — the
+            // platform stops painting its "Couldn't add widget" placeholder
+            // inside work-profile host views, but the already-rendered
+            // placeholder isn't refreshed until the host view re-attaches. Nudge
+            // the work-profile widget cards to recreate their host views so they
+            // re-fetch RemoteViews now. Both transitions are covered because a
+            // locked profile resumes via UNLOCKED, not AVAILABLE.
+            if (action == Intent.ACTION_MANAGED_PROFILE_AVAILABLE ||
+                action == Intent.ACTION_MANAGED_PROFILE_UNLOCKED
+            ) {
+                refreshWorkProfileWidgets()
+            }
         }
     }
     private var managedProfileReceiverRegistered = false
@@ -415,17 +428,20 @@ internal class LauncherViewModel(
      * Registers a runtime receiver for `ACTION_MANAGED_PROFILE_AVAILABLE` /
      * `ACTION_MANAGED_PROFILE_UNAVAILABLE` so toggling "Pause work apps" in
      * system settings reactively repaints work-profile icons in their
-     * dimmed/normal state. Reuses `scheduleReload` so quiet-mode flips share
-     * the same coalescing + cold-start deferral as package events.
-     * `RECEIVER_NOT_EXPORTED` is required on API 34+ for runtime receivers;
-     * both actions are protected system broadcasts only the OS can send, so
-     * not-exported is the correct flag. Idempotent.
+     * dimmed/normal state, plus `ACTION_MANAGED_PROFILE_UNLOCKED` so a profile
+     * resumed by entering its credential refreshes its widgets too (a locked
+     * profile resumes via UNLOCKED, not AVAILABLE). Reuses `scheduleReload` so
+     * quiet-mode flips share the same coalescing + cold-start deferral as
+     * package events. `RECEIVER_NOT_EXPORTED` is required on API 34+ for runtime
+     * receivers; all three actions are protected system broadcasts only the OS
+     * can send, so not-exported is the correct flag. Idempotent.
      */
     private fun registerManagedProfileReceiver() {
         if (managedProfileReceiverRegistered) return
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
             addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
+            addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
         }
         try {
             app.registerReceiver(managedProfileReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -1661,6 +1677,23 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(widgetHeights = widgetStore.customHeights) }
         logState("resizeWidget")
     }
+
+    /**
+     * Bumps [LauncherUiState.workProfileWidgetRefreshToken] so work-profile
+     * widget cards recreate their host view and re-fetch RemoteViews now that
+     * the managed profile is available again. See the token's doc in
+     * `LauncherUiState`; driven by `ACTION_MANAGED_PROFILE_AVAILABLE`.
+     */
+    private fun refreshWorkProfileWidgets() {
+        _uiState.update {
+            it.copy(workProfileWidgetRefreshToken = it.workProfileWidgetRefreshToken + 1)
+        }
+        LauncherDebugLog.event(
+            "refreshWorkProfileWidgets token=${_uiState.value.workProfileWidgetRefreshToken}",
+        )
+    }
+
+    internal fun refreshWorkProfileWidgetsForTest() = refreshWorkProfileWidgets()
 
     internal fun refreshAvailableWidgetsForTest() {
         _uiState.update { it.copy(availableWidgets = loadAvailableWidgets()) }

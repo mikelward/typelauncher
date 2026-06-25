@@ -7,6 +7,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Process
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
@@ -100,6 +101,7 @@ internal fun WidgetsScreen(
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
+    workProfileWidgetRefreshToken: Int = 0,
 ) {
     val listState = rememberLazyListState()
     // Snap back to the top as soon as this page stops being the current page.
@@ -143,6 +145,7 @@ internal fun WidgetsScreen(
                 onRemoveWidget = onRemoveWidget,
                 onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
                 onMoveWidget = onMoveWidget,
+                workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
             )
         }
         if (isAddingWidget) {
@@ -574,6 +577,10 @@ internal fun HostedWidgetCard(
     onRemoveWidget: (Int) -> Unit,
     onResizeWidget: (Int) -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
+    // Bumped when a work profile becomes available again; see the token's doc in
+    // LauncherUiState. Only work-profile cards fold it into the host-view key so
+    // the stale "Couldn't add widget" placeholder is replaced by a re-fetch.
+    workProfileWidgetRefreshToken: Int = 0,
     // Test seams (default null = production behavior). The hosted-view path
     // needs a real AppWidgetHost binding, which doesn't resolve under
     // Robolectric, so a test supplies the provider info directly and creates a
@@ -650,6 +657,25 @@ internal fun HostedWidgetCard(
         return
     }
 
+    // A work-profile widget renders the platform's "Couldn't add widget"
+    // placeholder while its profile is unavailable, and that placeholder isn't
+    // refreshed until the host view re-attaches. Fold the refresh token into the
+    // host-view key for work-profile widgets only, so turning the profile back on
+    // (which bumps the token) recreates the view and re-fetches RemoteViews.
+    // Personal widgets keep a constant key component, so the common case never
+    // recreates a host view on a profile toggle.
+    val hostViewRefreshKey = remember(providerInfo, workProfileWidgetRefreshToken) {
+        // AppWidgetProviderInfo.getProfile() derives the profile from the
+        // provider's applicationInfo rather than a plain field, so guard against
+        // a malformed info whose applicationInfo is missing. Defaulting an
+        // unknown profile to "personal" only forgoes the (rare) refresh nudge —
+        // it never recreates a host view spuriously.
+        val isWorkProfileWidget = runCatching {
+            val profile = providerInfo.profile
+            profile != null && profile != Process.myUserHandle()
+        }.getOrDefault(false)
+        if (isWorkProfileWidget) workProfileWidgetRefreshToken else 0
+    }
     val density = LocalDensity.current
     val defaultHeightDp = widgetCardHeight(providerInfo.minHeight, providerInfo.targetCellHeightCompat, density)
     var isResizing by remember { mutableStateOf(initiallyResizing) }
@@ -696,7 +722,7 @@ internal fun HostedWidgetCard(
         // is not re-run, so a recycled view keeps the previous widget's binding
         // and both cards end up showing the same widget. The key forces the old
         // AndroidView to be disposed and a fresh one created for the new id.
-        key(widgetId) {
+        key(widgetId, hostViewRefreshKey) {
             AndroidView(
                 factory = { context ->
                     val hostView = createWidgetView?.invoke(context, widgetId)

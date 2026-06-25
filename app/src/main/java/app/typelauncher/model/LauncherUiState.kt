@@ -613,6 +613,17 @@ internal data class LauncherUiState(
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
     val widgetHeights: Map<Int, Int> = emptyMap(),
+    // Bumped each time a managed (work) profile becomes available again — the
+    // user resumes "Pause work apps" or otherwise turns the work profile back
+    // on. While the profile was unavailable the platform painted its own
+    // "Couldn't add widget" placeholder inside every work-profile
+    // AppWidgetHostView, and that stale placeholder is not refreshed until the
+    // host view re-attaches (e.g. the user navigates away from the widgets page
+    // and back). Work-profile widget cards observe this token and recreate their
+    // host view when it bumps, forcing a re-fetch of the now-available
+    // RemoteViews so the widget recovers promptly. Personal-profile widgets
+    // ignore it, so the common case never recreates a host view.
+    val workProfileWidgetRefreshToken: Int = 0,
     val availableWidgets: List<WidgetProvider> = emptyList(),
     val isAddingWidget: Boolean = false,
     val isLoadingAvailableWidgets: Boolean = false,
