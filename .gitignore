@@ -11,6 +11,9 @@
 /.claude/settings.local.json
 # Transient agent worktrees created by the Claude Code harness; never committed.
 /.claude/worktrees/
+# Transient scheduler lock/state from the Claude Code harness; session-local only.
+/.claude/scheduled_tasks.lock
+/.claude/scheduled_tasks.json
 
 *.iml
 __pycache__/
