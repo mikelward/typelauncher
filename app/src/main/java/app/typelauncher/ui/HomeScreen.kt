@@ -4092,8 +4092,13 @@ private fun EditAppDialogBadgeRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
+            // Match the 48 dp icon footprint in the row above so the "Badge" /
+            // "Choose badge" column lines up vertically with the "Choose icon"
+            // column (both start at 48 + 12 = 60 dp from the row's start). A
+            // narrower box left the badge column 16 dp to the left of the icon
+            // column and clipped the "Default" placeholder to "Defa…".
             modifier = Modifier
-                .size(32.dp)
+                .size(48.dp)
                 .testTag(EDIT_APP_DIALOG_BADGE_PREVIEW_TAG)
                 .semantics {
                     contentDescription =
@@ -4121,6 +4126,11 @@ private fun EditAppDialogBadgeRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.edit_app_dialog_badge_label),
+                // Indent by the TextButton's horizontal content padding so the
+                // "Badge" header lines up with the "Choose badge" button text
+                // directly below it (and "Choose icon" in the row above), rather
+                // than jutting 12 dp to the left as a plain Text with no padding.
+                modifier = Modifier.padding(start = 12.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
