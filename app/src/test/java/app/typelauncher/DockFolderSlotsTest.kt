@@ -94,6 +94,38 @@ class DockFolderSlotsTest {
     }
 
     @Test
+    fun rowLayoutPacksMembersThenCloseFromTopLeftIgnoringAnchor() {
+        val slots = dockFolderSlots(
+            memberCount = 4,
+            anchor = DockPosition(0, 1),
+            columns = 4,
+            rows = 2,
+            layout = FolderOpenLayout.Row,
+        )
+        // Row style ignores the anchor: members pack top-left in rank order (the
+        // dock's own fill), the close tile follows last, padded to a whole row.
+        assertEquals(
+            listOf(
+                M(0), M(1), M(2), M(3),
+                C, E, E, E,
+            ),
+            slots,
+        )
+    }
+
+    @Test
+    fun rowLayoutOnSingleRowIsAPlainLineMembersThenClose() {
+        val slots = dockFolderSlots(
+            memberCount = 3,
+            anchor = DockPosition(0, 2),
+            columns = 5,
+            rows = 1,
+            layout = FolderOpenLayout.Row,
+        )
+        assertEquals(listOf(M(0), M(1), M(2), C, E), slots)
+    }
+
+    @Test
     fun alwaysContainsEveryMemberAndExactlyOneCloseRegardlessOfAnchor() {
         for (anchorCol in 0 until 6) {
             val slots = dockFolderSlots(

@@ -85,11 +85,27 @@ class DockFolderInPlaceScreenshotTest {
         )
     }
 
+    @Test
+    fun rowLayout_packsFromTopLeftWithCloseLast() {
+        // The Row folder open layout: the same 4 apps pack from the top-left in
+        // rank order (App1 top-left, like the dock), with the close tile last —
+        // regardless of the folder's own column.
+        captureInDockCard(
+            name = "two_row_row_layout",
+            title = "4 apps in a 5-slot, 2-row dock — Row layout (top-left, close last)",
+            folder = sampleFolder(4),
+            dockRows = 2,
+            anchor = DockPosition(0, 1),
+            folderOpenLayout = FolderOpenLayout.Row,
+        )
+    }
+
     @Composable
     private fun NoopInPlace(
         folder: ResolvedDockFolder,
         anchor: DockPosition,
         dockRows: Int,
+        folderOpenLayout: FolderOpenLayout,
         modifier: Modifier,
     ) {
         DockFolderInPlace(
@@ -98,6 +114,7 @@ class DockFolderInPlaceScreenshotTest {
             dockIconCount = columns,
             dockLayout = DockLayout.TitleBelow,
             appIconTag = DOCK_APP_ICON_TAG,
+            folderOpenLayout = folderOpenLayout,
             anchor = anchor,
             dockRows = dockRows,
             onClose = {},
@@ -121,6 +138,7 @@ class DockFolderInPlaceScreenshotTest {
         folder: ResolvedDockFolder,
         dockRows: Int,
         anchor: DockPosition = DockPosition(0, 0),
+        folderOpenLayout: FolderOpenLayout = FolderOpenLayout.Grid,
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -142,6 +160,7 @@ class DockFolderInPlaceScreenshotTest {
                                 folder = folder,
                                 anchor = anchor,
                                 dockRows = dockRows,
+                                folderOpenLayout = folderOpenLayout,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
