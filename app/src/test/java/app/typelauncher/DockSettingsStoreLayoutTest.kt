@@ -84,4 +84,23 @@ class DockSettingsStoreLayoutTest {
         prefs().edit().putString("dock_layout", "SomeFutureLayout").commit()
         assertEquals(DockLayout.IconOnly, DockSettingsStore(context).dockLayout)
     }
+
+    @Test
+    fun folderOpenLayoutDefaultsToGridWhenNothingPersisted() {
+        assertEquals(FolderOpenLayout.Grid, DockSettingsStore(context).folderOpenLayout)
+    }
+
+    @Test
+    fun folderOpenLayoutRoundTripsEachEnumValue() {
+        for (layout in FolderOpenLayout.values()) {
+            DockSettingsStore(context).folderOpenLayout = layout
+            assertEquals(layout, DockSettingsStore(context).folderOpenLayout)
+        }
+    }
+
+    @Test
+    fun folderOpenLayoutUnknownPersistedNameFallsBackToGrid() {
+        prefs().edit().putString("folder_open_layout", "SomeFutureLayout").commit()
+        assertEquals(FolderOpenLayout.Grid, DockSettingsStore(context).folderOpenLayout)
+    }
 }

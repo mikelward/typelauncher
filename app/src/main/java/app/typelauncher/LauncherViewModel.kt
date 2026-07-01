@@ -190,6 +190,7 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
+            folderOpenLayout = dockSettingsStore.folderOpenLayout,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -1862,6 +1863,12 @@ internal class LauncherViewModel(
         dockSettingsStore.dockLayout = layout
         _uiState.update { it.copy(dockLayout = layout) }
         logState("setDockLayout")
+    }
+
+    fun setFolderOpenLayout(layout: FolderOpenLayout) {
+        dockSettingsStore.folderOpenLayout = layout
+        _uiState.update { it.copy(folderOpenLayout = layout) }
+        logState("setFolderOpenLayout")
     }
 
     fun setAppListSortOrder(sortOrder: AppListSortOrder) {

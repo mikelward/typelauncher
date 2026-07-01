@@ -120,6 +120,21 @@ internal enum class DockLayout {
 }
 
 /**
+ * How an opened dock folder arranges its member apps (see [dockFolderSlots]).
+ *
+ * - [Grid] (the default): the close tile takes the folder's own cell and the
+ *   members unfold as a 2×2 block one column over, clustered around where the
+ *   folder was tapped.
+ * - [Row]: the members pack from the top-left in rank order using the dock's own
+ *   row-major grid — highest-ranked app top-left — with the close tile last,
+ *   regardless of where the folder sits.
+ */
+internal enum class FolderOpenLayout {
+    Grid,
+    Row,
+}
+
+/**
  * Height of one dock slot, in dp, for a given [dockIconSizeDp], [layout], and
  * [fontScale]. Used by every renderer that needs to size a fixed slot
  * ([DockedAppButton], [EmptyDockSlot], [DockAddButton]) and by the
@@ -294,21 +309,29 @@ internal sealed interface FolderSlot {
  * The close tile lands on (or nearest) the anchor cell, so tapping a folder puts
  * the dismiss affordance where the folder was; the members unfold beside it in
  * the same 2×2 order, shifted one column so they never cover the close tile.
+ *
+ * [layout] selects between that [FolderOpenLayout.Grid] arrangement and
+ * [FolderOpenLayout.Row], which always packs the members from the top-left in
+ * rank order with the close tile last (the dock's own row-major fill), ignoring
+ * the anchor.
  */
 internal fun dockFolderSlots(
     memberCount: Int,
     anchor: DockPosition,
     columns: Int,
     rows: Int,
+    layout: FolderOpenLayout = FolderOpenLayout.Grid,
 ): List<FolderSlot> {
     val cols = columns.coerceAtLeast(1)
     val rowCount = rows.coerceAtLeast(1)
     val members: List<FolderSlot> =
         (0 until memberCount.coerceAtLeast(0)).map { index -> FolderSlot.Member(index) }
     val capacity = cols * rowCount
-    // Overflow / single column can't be anchored: pack members then close (so the
-    // apps read first and scroll takes over) rather than growing the dock a row.
-    if (cols == 1 || members.size + 1 > capacity) {
+    // Row style always packs from the top-left (members in rank order, close last),
+    // the same layout the dock uses. Grid falls back to that packing too when the
+    // anchored arrangement can't fit — overflow, or a single column — so the apps
+    // read first and the caller's scroll takes over rather than growing the dock.
+    if (layout == FolderOpenLayout.Row || cols == 1 || members.size + 1 > capacity) {
         return packedFolderSlots(members + FolderSlot.Close, cols)
     }
     val anchorCol = anchor.column.coerceIn(0, cols - 1)
@@ -657,6 +680,7 @@ internal data class LauncherUiState(
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
+    val folderOpenLayout: FolderOpenLayout = FolderOpenLayout.Grid,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by
