@@ -276,10 +276,12 @@ internal sealed interface FolderSlot {
 
 /**
  * Row-major cell assignment for an opened folder of [memberCount] members plus a
- * trailing close tile, laid out in a [columns]×[rows] grid anchored on the
- * folder's own [anchor] cell. The first four members form a 2×2 block around the
- * anchor (a 1×N line on a single-row dock) so the open reads as the folder's 2×2
- * mini-icon unfolding in place; any extras fill outward by distance.
+ * close tile, laid out in a [columns]×[rows] grid anchored on the folder's own
+ * [anchor] cell. The close tile lands on the anchor — directly under the folder
+ * that was tapped — and the first four members form a 2×2 block one column over
+ * from it (a 1×N line beside the anchor on a single-row dock) so the open reads
+ * as the folder's 2×2 mini-icon unfolding just beside the tap; any extras fill
+ * outward by distance.
  *
  * The returned list is exactly `columns * rows` long (padded with
  * [FolderSlot.Empty]) when the anchored arrangement fits the dock footprint.
@@ -289,9 +291,9 @@ internal sealed interface FolderSlot {
  * the dock" rule: anchoring is best-effort and degrades to packing rather than
  * adding rows.
  *
- * The first member lands on (or nearest) the anchor cell, so opening a folder
- * always puts an app where the folder was; the close tile follows the members in
- * the same anchored order (so it sits in or just past the 2×2 block).
+ * The close tile lands on (or nearest) the anchor cell, so tapping a folder puts
+ * the dismiss affordance where the folder was; the members unfold beside it in
+ * the same 2×2 order, shifted one column so they never cover the close tile.
  */
 internal fun dockFolderSlots(
     memberCount: Int,
@@ -301,19 +303,22 @@ internal fun dockFolderSlots(
 ): List<FolderSlot> {
     val cols = columns.coerceAtLeast(1)
     val rowCount = rows.coerceAtLeast(1)
-    val tiles: List<FolderSlot> = buildList {
-        for (index in 0 until memberCount.coerceAtLeast(0)) add(FolderSlot.Member(index))
-        add(FolderSlot.Close)
-    }
+    val members: List<FolderSlot> =
+        (0 until memberCount.coerceAtLeast(0)).map { index -> FolderSlot.Member(index) }
     val capacity = cols * rowCount
-    if (cols == 1 || tiles.size > capacity) {
-        return packedFolderSlots(tiles, cols)
+    // Overflow / single column can't be anchored: pack members then close (so the
+    // apps read first and scroll takes over) rather than growing the dock a row.
+    if (cols == 1 || members.size + 1 > capacity) {
+        return packedFolderSlots(members + FolderSlot.Close, cols)
     }
     val anchorCol = anchor.column.coerceIn(0, cols - 1)
     val anchorRow = anchor.row.coerceIn(0, rowCount - 1)
-    // `zoomCellOrder` always returns a full `cols * rowCount` ordering, and
-    // `tiles.size <= capacity` is guaranteed above, so every tile gets a cell.
+    // `zoomCellOrder` returns the anchor cell first (for the close tile), then the
+    // shifted 2×2 block, then the rest by distance — a full `cols * rowCount`
+    // ordering — and `members.size + 1 <= capacity` above, so every tile gets a
+    // cell.
     val cellOrder = zoomCellOrder(anchorCol, anchorRow, cols, rowCount)
+    val tiles = listOf(FolderSlot.Close) + members
     val grid = arrayOfNulls<FolderSlot>(capacity)
     tiles.forEachIndexed { tileIndex, tile ->
         grid[cellOrder[tileIndex]] = tile
@@ -351,10 +356,15 @@ private fun distanceCellOrder(
 }
 
 /**
- * Zoom: the first four cells form a 2×2 block over the anchor (clamped to the
- * grid) so the opening reads as the folder's 2×2 preview unfolding; remaining
- * cells fill outward by distance. On a single-row dock there's no vertical room
- * for the block, so it degrades to the plain distance order (a 1×N line).
+ * Zoom: the anchor cell comes first (it holds the close tile, so ✕ lands under
+ * the folder that was tapped), then the next four cells form a 2×2 block one
+ * column over from the anchor so the members unfold beside the ✕ rather than on
+ * top of it; remaining cells fill outward by distance. The block opens to the
+ * *right* of the anchor when there is room and to the *left* when the folder sits
+ * near the right edge, so it never covers the anchor cell. On a single-row dock
+ * (or a grid too narrow to fit a 2×2 block beside the anchor) there is no room
+ * for the block, so it degrades to a line: the anchor first, then the remaining
+ * cells by distance.
  */
 private fun zoomCellOrder(
     anchorCol: Int,
@@ -362,8 +372,17 @@ private fun zoomCellOrder(
     columns: Int,
     rows: Int,
 ): List<Int> {
-    if (rows < 2) return distanceCellOrder(anchorCol, anchorRow, columns, rows)
-    val blockColStart = anchorCol.coerceIn(0, columns - 2)
+    val anchorCell = anchorRow * columns + anchorCol
+    val distance = distanceCellOrder(anchorCol, anchorRow, columns, rows)
+    val line = listOf(anchorCell) + distance.filterNot { it == anchorCell }
+    if (rows < 2 || columns < 3) return line
+    // One column over from the anchor: shift the block right when it fits inside
+    // the grid, otherwise left (the folder is near the right edge).
+    val blockColStart = if (anchorCol + 1 <= columns - 2) {
+        anchorCol + 1
+    } else {
+        (anchorCol - 2).coerceAtLeast(0)
+    }
     val blockRowStart = anchorRow.coerceIn(0, rows - 2)
     val block = listOf(
         blockRowStart * columns + blockColStart,
@@ -371,8 +390,12 @@ private fun zoomCellOrder(
         (blockRowStart + 1) * columns + blockColStart,
         (blockRowStart + 1) * columns + blockColStart + 1,
     )
-    val rest = distanceCellOrder(anchorCol, anchorRow, columns, rows).filterNot { it in block }
-    return block + rest
+    // A grid too narrow to separate a 2×2 block from the anchor column (e.g. a
+    // 3-wide dock with a middle anchor) can't keep ✕ clear of the block; fall
+    // back to the line so the close tile still owns the anchor.
+    if (anchorCell in block) return line
+    val rest = distance.filterNot { it == anchorCell || it in block }
+    return listOf(anchorCell) + block + rest
 }
 
 internal fun dockedAppIdsInGridRankOrder(

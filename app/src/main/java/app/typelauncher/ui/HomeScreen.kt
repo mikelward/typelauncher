@@ -1804,10 +1804,12 @@ internal fun DockFolderInPlace(
 /**
  * The open folder's body: the member apps laid out in the *same* grid the dock
  * uses — [dockIconCount] columns of equal-width tiles at [dockIconSizeDp] — so an
- * open folder reads as if its apps were the docked apps, followed by a close tile
- * (an X in the next cell) as an explicit dismiss affordance. The final row is
- * padded with empty cells so every tile keeps its `1 / columns` width instead of
- * a lone trailing tile stretching across the row.
+ * open folder reads as if its apps were the docked apps, with a close tile (an X)
+ * on the folder's own cell — under the tapped folder — as an explicit dismiss
+ * affordance and the members shifted one column over from it (see
+ * [dockFolderSlots]). The final row is padded with empty cells so every tile
+ * keeps its `1 / columns` width instead of a lone trailing tile stretching across
+ * the row.
  *
  * The caller ([DockFolderInPlace]) wraps this in a fixed-height, scrollable box
  * sized to the dock's footprint, so the grid itself just lays the tiles out at
