@@ -554,7 +554,6 @@ internal fun HomeScreen(
                                 dockIconCount = dockIconCount,
                                 dockLayout = state.dockLayout,
                                 modifier = Modifier.weight(1f, fill = false),
-                                folderOpenLayout = state.folderOpenLayout,
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleDock,
@@ -624,7 +623,6 @@ internal fun HomeScreen(
                                 dockIconCount = dockIconCount,
                                 dockLayout = state.dockLayout,
                                 modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
-                                folderOpenLayout = state.folderOpenLayout,
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleWorkDock,
@@ -938,7 +936,6 @@ private fun DockCard(
     dockIconCount: Int,
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
-    folderOpenLayout: FolderOpenLayout = FolderOpenLayout.Grid,
     dockFolders: List<ResolvedDockFolder> = emptyList(),
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1327,10 +1324,7 @@ private fun DockCard(
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
                     dockLayout = dockLayout,
-                    folderOpenLayout = folderOpenLayout,
                     appIconTag = tags.appIconTag,
-                    anchor = resolvedPositions[inPlaceFolder.id] ?: DockPosition(0, 0),
-                    dockRows = rowCount,
                     // Hidden (but kept composed, so the dragged tile's gesture
                     // survives) once a member is dragged out: the dock shows
                     // through and the dragged icon floats above at the host level.
@@ -1715,11 +1709,6 @@ internal fun DockFolderInPlace(
     dockIconCount: Int,
     dockLayout: DockLayout,
     appIconTag: String,
-    folderOpenLayout: FolderOpenLayout = FolderOpenLayout.Grid,
-    // The folder's own cell and the dock's row count, so the apps anchor near
-    // where the folder sits (the first four form a 2×2 block over the cell).
-    anchor: DockPosition = DockPosition(0, 0),
-    dockRows: Int = 1,
     onClose: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -1777,9 +1766,6 @@ internal fun DockFolderInPlace(
                 dockIconSizeDp = dockIconSizeDp,
                 dockIconCount = dockIconCount,
                 dockLayout = dockLayout,
-                folderOpenLayout = folderOpenLayout,
-                anchor = anchor,
-                dockRows = dockRows,
                 appIconTag = appIconTag,
                 onClose = onClose,
                 onLaunchApp = onLaunchApp,
@@ -1810,12 +1796,11 @@ internal fun DockFolderInPlace(
 /**
  * The open folder's body: the member apps laid out in the *same* grid the dock
  * uses — [dockIconCount] columns of equal-width tiles at [dockIconSizeDp] — so an
- * open folder reads as if its apps were the docked apps, with a close tile (an X)
- * on the folder's own cell — under the tapped folder — as an explicit dismiss
- * affordance and the members shifted one column over from it (see
- * [dockFolderSlots]). The final row is padded with empty cells so every tile
- * keeps its `1 / columns` width instead of a lone trailing tile stretching across
- * the row.
+ * open folder reads as if its apps were the docked apps. The members pack from
+ * the top-left in rank order with a close tile (an X) last as an explicit dismiss
+ * affordance (see [dockFolderSlots]). The final row is padded with empty cells so
+ * every tile keeps its `1 / columns` width instead of a lone trailing tile
+ * stretching across the row.
  *
  * The caller ([DockFolderInPlace]) wraps this in a fixed-height, scrollable box
  * sized to the dock's footprint, so the grid itself just lays the tiles out at
@@ -1834,9 +1819,6 @@ internal fun DockFolderGrid(
     dockIconCount: Int,
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
-    folderOpenLayout: FolderOpenLayout = FolderOpenLayout.Grid,
-    anchor: DockPosition = DockPosition(0, 0),
-    dockRows: Int = 1,
     appIconTag: String = DOCK_APP_ICON_TAG,
     onClose: () -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
@@ -1875,13 +1857,10 @@ internal fun DockFolderGrid(
     onUndockMember: (appId: String) -> Unit = {},
 ) {
     val columns = dockIconCount.coerceAtLeast(1)
-    val rows = dockRows.coerceAtLeast(1)
-    // Assign the members + close tile to grid cells. In the Grid layout the close
-    // tile takes the folder's own cell and the members form a 2×2 block one column
-    // over (packed from the top-left for the single-column / overflow cases); the
-    // Row layout always packs from the top-left with the close tile last. `slots`
-    // is row-major, so the FlowRow lays it out directly.
-    val slots = dockFolderSlots(folder.members.size, anchor, columns, rows, folderOpenLayout)
+    // Assign the members + close tile to grid cells: the members pack from the
+    // top-left in rank order with the close tile last. `slots` is row-major, so
+    // the FlowRow lays it out directly.
+    val slots = dockFolderSlots(folder.members.size, columns)
 
     // Drag-to-reorder state, keyed by folder id so it survives the recompositions
     // a live reorder triggers (the member list changes, the folder id does not)
@@ -4609,7 +4588,6 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onDockLayoutChanged: (DockLayout) -> Unit = {},
-    onFolderOpenLayoutChanged: (FolderOpenLayout) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
@@ -4749,22 +4727,6 @@ internal fun SettingsScreen(
                 DockLayoutDropdown(
                     selected = state.dockLayout,
                     onLayoutChanged = onDockLayoutChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_folder_open_layout_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                FolderOpenLayoutDropdown(
-                    selected = state.folderOpenLayout,
-                    onLayoutChanged = onFolderOpenLayoutChanged,
                 )
             }
             Row(
@@ -5155,52 +5117,6 @@ private fun DockLayoutDropdown(
                 onClick = {
                     expanded = false
                     onLayoutChanged(DockLayout.TitleBelow)
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun FolderOpenLayoutDropdown(
-    selected: FolderOpenLayout,
-    onLayoutChanged: (FolderOpenLayout) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabelRes = when (selected) {
-        FolderOpenLayout.Grid -> R.string.settings_folder_open_layout_option_grid
-        FolderOpenLayout.Row -> R.string.settings_folder_open_layout_option_row
-    }
-    Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.testTag(FOLDER_OPEN_LAYOUT_DROPDOWN_TAG),
-        ) {
-            Text(stringResource(selectedLabelRes))
-            Icon(
-                Icons.Filled.ArrowDropDown,
-                contentDescription = null,
-            )
-        }
-        LauncherDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.testTag(FOLDER_OPEN_LAYOUT_DROPDOWN_MENU_TAG),
-        ) {
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.settings_folder_open_layout_option_grid)) },
-                modifier = Modifier.testTag(FOLDER_OPEN_LAYOUT_OPTION_GRID_TAG),
-                onClick = {
-                    expanded = false
-                    onLayoutChanged(FolderOpenLayout.Grid)
-                },
-            )
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.settings_folder_open_layout_option_row)) },
-                modifier = Modifier.testTag(FOLDER_OPEN_LAYOUT_OPTION_ROW_TAG),
-                onClick = {
-                    expanded = false
-                    onLayoutChanged(FolderOpenLayout.Row)
                 },
             )
         }
@@ -5758,7 +5674,6 @@ private fun SettingsPreview(
                     dockIconCount = dockIconCount,
                     dockLayout = state.dockLayout,
                     modifier = Modifier.height(dockPreviewHeight),
-                    folderOpenLayout = state.folderOpenLayout,
                     onLaunchApp = {},
                     onOpenAppInfo = {},
                     onToggleDock = { _, _ -> },

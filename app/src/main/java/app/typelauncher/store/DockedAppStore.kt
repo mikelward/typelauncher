@@ -520,22 +520,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * How an opened dock folder arranges its apps (see [FolderOpenLayout]).
-     * Stored by name so an unknown value (a renamed entry from a newer build)
-     * falls back to the default. Defaults to [FolderOpenLayout.Grid], which
-     * matches the pre-setting behavior.
-     */
-    var folderOpenLayout: FolderOpenLayout
-        get() = sharedPreferences.getString(KEY_FOLDER_OPEN_LAYOUT, null)
-            ?.let { name -> runCatching { FolderOpenLayout.valueOf(name) }.getOrNull() }
-            ?: FolderOpenLayout.Grid
-        set(value) {
-            sharedPreferences.edit()
-                .putString(KEY_FOLDER_OPEN_LAYOUT, value.name)
-                .apply()
-        }
-
-    /**
      * How every app icon's tile is rendered. [IconTheme.Default] keeps each
      * app's own icon art; [IconTheme.Monochrome] re-renders icons from their
      * app's monochrome themed-icon glyph in theme colors. Stored by name so an
@@ -708,7 +692,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_DOCK_LAYOUT = "dock_layout"
-        const val KEY_FOLDER_OPEN_LAYOUT = "folder_open_layout"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
