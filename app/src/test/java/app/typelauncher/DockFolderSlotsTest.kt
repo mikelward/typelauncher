@@ -6,9 +6,9 @@ import org.junit.Test
 
 /**
  * Unit coverage for [dockFolderSlots], the pure cell-assignment behind the open
- * folder grid. The close tile lands on the folder's own (anchor) cell and the
- * members (in display order) form a 2×2 block one column over from it, with a
- * top-left packed fallback when the arrangement can't fit the dock.
+ * folder grid. Members pack from the top-left in rank order (the dock's own
+ * row-major fill), the close tile follows last, and the final row is padded with
+ * empty cells so every tile keeps its `1 / columns` width.
  */
 class DockFolderSlotsTest {
     private fun M(index: Int) = FolderSlot.Member(index)
@@ -16,94 +16,10 @@ class DockFolderSlotsTest {
     private val E = FolderSlot.Empty
 
     @Test
-    fun closeSitsOnAnchorAndMembersFormBlockOneColumnOverOnMultiRowDock() {
-        val slots = dockFolderSlots(
-            memberCount = 4,
-            anchor = DockPosition(0, 1),
-            columns = 4,
-            rows = 2,
-        )
-        // Close takes the anchor cell (col 1) so ✕ sits under the tapped folder;
-        // the members fill the 2×2 block one column over, at cols 2–3.
-        assertEquals(
-            listOf(
-                E, C, M(0), M(1),
-                E, E, M(2), M(3),
-            ),
-            slots,
-        )
-    }
-
-    @Test
-    fun nearRightEdgeOpensBlockToTheLeftOfAnchor() {
-        val slots = dockFolderSlots(
-            memberCount = 4,
-            anchor = DockPosition(0, 3),
-            columns = 4,
-            rows = 2,
-        )
-        // No room to shift the block right of the last column, so it opens to the
-        // left (cols 1–2); close still owns the anchor cell (col 3).
-        assertEquals(
-            listOf(
-                E, M(0), M(1), C,
-                E, M(2), M(3), E,
-            ),
-            slots,
-        )
-    }
-
-    @Test
-    fun singleRowDockLaysOutAsALineAroundAnchor() {
-        val slots = dockFolderSlots(
-            memberCount = 2,
-            anchor = DockPosition(0, 2),
-            columns = 5,
-            rows = 1,
-        )
-        // No vertical room for a 2×2 block, so it degrades to the nearest-cell line:
-        // close on the anchor (col 2), members filling outward (right before left).
-        assertEquals(listOf(E, M(1), C, M(0), E), slots)
-    }
-
-    @Test
-    fun overflowFallsBackToPackedAndNeverExceedsRowsByAnchoring() {
-        val slots = dockFolderSlots(
-            memberCount = 10,
-            anchor = DockPosition(0, 1),
-            columns = 4,
-            rows = 1,
-        )
-        // 11 tiles can't fit a 1×4 footprint, so pack (members then close) and let
-        // the caller scroll — no leading-cell offset that would push extra rows.
-        assertEquals(
-            listOf(M(0), M(1), M(2), M(3), M(4), M(5), M(6), M(7), M(8), M(9), C, E),
-            slots,
-        )
-    }
-
-    @Test
-    fun singleColumnAlwaysPacks() {
-        val slots = dockFolderSlots(
-            memberCount = 2,
-            anchor = DockPosition(2, 0),
-            columns = 1,
-            rows = 4,
-        )
-        assertEquals(listOf(M(0), M(1), C), slots)
-    }
-
-    @Test
-    fun rowLayoutPacksMembersThenCloseFromTopLeftIgnoringAnchor() {
-        val slots = dockFolderSlots(
-            memberCount = 4,
-            anchor = DockPosition(0, 1),
-            columns = 4,
-            rows = 2,
-            layout = FolderOpenLayout.Row,
-        )
-        // Row style ignores the anchor: members pack top-left in rank order (the
-        // dock's own fill), the close tile follows last, padded to a whole row.
+    fun packsMembersThenCloseFromTopLeft() {
+        val slots = dockFolderSlots(memberCount = 4, columns = 4)
+        // Members pack top-left in rank order (the dock's own fill), the close tile
+        // follows last, padded to a whole row.
         assertEquals(
             listOf(
                 M(0), M(1), M(2), M(3),
@@ -114,34 +30,46 @@ class DockFolderSlotsTest {
     }
 
     @Test
-    fun rowLayoutOnSingleRowIsAPlainLineMembersThenClose() {
-        val slots = dockFolderSlots(
-            memberCount = 3,
-            anchor = DockPosition(0, 2),
-            columns = 5,
-            rows = 1,
-            layout = FolderOpenLayout.Row,
-        )
+    fun singleRowIsAPlainLineMembersThenClose() {
+        val slots = dockFolderSlots(memberCount = 3, columns = 5)
         assertEquals(listOf(M(0), M(1), M(2), C, E), slots)
     }
 
     @Test
-    fun alwaysContainsEveryMemberAndExactlyOneCloseRegardlessOfAnchor() {
-        for (anchorCol in 0 until 6) {
-            val slots = dockFolderSlots(
-                memberCount = 5,
-                anchor = DockPosition(0, anchorCol),
-                columns = 6,
-                rows = 2,
-            )
+    fun exactFitNeedsNoPadding() {
+        val slots = dockFolderSlots(memberCount = 3, columns = 4)
+        assertEquals(listOf(M(0), M(1), M(2), C), slots)
+    }
+
+    @Test
+    fun overflowPacksAndScrolls() {
+        val slots = dockFolderSlots(memberCount = 10, columns = 4)
+        // 11 tiles (10 members + close) pad to a whole 12-cell last row; the
+        // caller's scroll absorbs the overflow past the dock footprint.
+        assertEquals(
+            listOf(M(0), M(1), M(2), M(3), M(4), M(5), M(6), M(7), M(8), M(9), C, E),
+            slots,
+        )
+    }
+
+    @Test
+    fun singleColumnStacks() {
+        val slots = dockFolderSlots(memberCount = 2, columns = 1)
+        assertEquals(listOf(M(0), M(1), C), slots)
+    }
+
+    @Test
+    fun alwaysContainsEveryMemberAndExactlyOneClose() {
+        for (columns in 1..6) {
+            val slots = dockFolderSlots(memberCount = 5, columns = columns)
             val members = slots.filterIsInstance<FolderSlot.Member>().map { it.index }.sorted()
-            assertEquals("members present @$anchorCol", listOf(0, 1, 2, 3, 4), members)
+            assertEquals("members present @$columns", listOf(0, 1, 2, 3, 4), members)
             assertEquals(
-                "exactly one close @$anchorCol",
+                "exactly one close @$columns",
                 1,
                 slots.count { it is FolderSlot.Close },
             )
-            assertTrue("row-major width @$anchorCol", slots.size % 6 == 0)
+            assertTrue("row-major width @$columns", slots.size % columns == 0)
         }
     }
 }

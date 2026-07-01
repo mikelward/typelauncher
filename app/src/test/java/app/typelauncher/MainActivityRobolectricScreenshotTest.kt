@@ -2288,32 +2288,6 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun folderOpenLayoutDropdown_inSettings_persistsSelection() {
-        val viewModel = composeRule.activity.viewModel
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText("Folder open layout").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag(FOLDER_OPEN_LAYOUT_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
-        assertEquals(FolderOpenLayout.Grid, viewModel.uiState.value.folderOpenLayout)
-
-        composeRule.onNodeWithTag(FOLDER_OPEN_LAYOUT_DROPDOWN_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(FOLDER_OPEN_LAYOUT_OPTION_ROW_TAG).performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(FolderOpenLayout.Row, viewModel.uiState.value.folderOpenLayout)
-
-        composeRule.onNodeWithTag(FOLDER_OPEN_LAYOUT_DROPDOWN_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(FOLDER_OPEN_LAYOUT_OPTION_GRID_TAG).performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(FolderOpenLayout.Grid, viewModel.uiState.value.folderOpenLayout)
-    }
-
-    @Test
     fun iconShapeDropdown_inSettings_persistsSelection() {
         val viewModel = composeRule.activity.viewModel
         composeRule.waitForIdle()

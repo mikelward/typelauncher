@@ -120,21 +120,6 @@ internal enum class DockLayout {
 }
 
 /**
- * How an opened dock folder arranges its member apps (see [dockFolderSlots]).
- *
- * - [Grid] (the default): the close tile takes the folder's own cell and the
- *   members unfold as a 2×2 block one column over, clustered around where the
- *   folder was tapped.
- * - [Row]: the members pack from the top-left in rank order using the dock's own
- *   row-major grid — highest-ranked app top-left — with the close tile last,
- *   regardless of where the folder sits.
- */
-internal enum class FolderOpenLayout {
-    Grid,
-    Row,
-}
-
-/**
  * Height of one dock slot, in dp, for a given [dockIconSizeDp], [layout], and
  * [fontScale]. Used by every renderer that needs to size a fixed slot
  * ([DockedAppButton], [EmptyDockSlot], [DockAddButton]) and by the
@@ -291,134 +276,26 @@ internal sealed interface FolderSlot {
 
 /**
  * Row-major cell assignment for an opened folder of [memberCount] members plus a
- * close tile, laid out in a [columns]×[rows] grid anchored on the folder's own
- * [anchor] cell. The close tile lands on the anchor — directly under the folder
- * that was tapped — and the first four members form a 2×2 block one column over
- * from it (a 1×N line beside the anchor on a single-row dock) so the open reads
- * as the folder's 2×2 mini-icon unfolding just beside the tap; any extras fill
- * outward by distance.
- *
- * The returned list is exactly `columns * rows` long (padded with
- * [FolderSlot.Empty]) when the anchored arrangement fits the dock footprint.
- * When it would not fit — more tiles than the footprint has cells, or a single
- * column — it falls back to a top-left packed list (members then close, padded to
- * a whole last row), which the caller's scroll absorbs. This is the "never grow
- * the dock" rule: anchoring is best-effort and degrades to packing rather than
- * adding rows.
- *
- * The close tile lands on (or nearest) the anchor cell, so tapping a folder puts
- * the dismiss affordance where the folder was; the members unfold beside it in
- * the same 2×2 order, shifted one column so they never cover the close tile.
- *
- * [layout] selects between that [FolderOpenLayout.Grid] arrangement and
- * [FolderOpenLayout.Row], which always packs the members from the top-left in
- * rank order with the close tile last (the dock's own row-major fill), ignoring
- * the anchor.
+ * close tile, packed from the top-left in rank order across [columns] columns
+ * (the dock's own row-major fill — highest-ranked app top-left) with the close
+ * tile last. The returned list is padded with [FolderSlot.Empty] to a whole last
+ * row so every tile keeps its `1 / columns` width; the caller's scroll absorbs
+ * any overflow past the dock footprint.
  */
 internal fun dockFolderSlots(
     memberCount: Int,
-    anchor: DockPosition,
     columns: Int,
-    rows: Int,
-    layout: FolderOpenLayout = FolderOpenLayout.Grid,
 ): List<FolderSlot> {
     val cols = columns.coerceAtLeast(1)
-    val rowCount = rows.coerceAtLeast(1)
     val members: List<FolderSlot> =
         (0 until memberCount.coerceAtLeast(0)).map { index -> FolderSlot.Member(index) }
-    val capacity = cols * rowCount
-    // Row style always packs from the top-left (members in rank order, close last),
-    // the same layout the dock uses. Grid falls back to that packing too when the
-    // anchored arrangement can't fit — overflow, or a single column — so the apps
-    // read first and the caller's scroll takes over rather than growing the dock.
-    if (layout == FolderOpenLayout.Row || cols == 1 || members.size + 1 > capacity) {
-        return packedFolderSlots(members + FolderSlot.Close, cols)
-    }
-    val anchorCol = anchor.column.coerceIn(0, cols - 1)
-    val anchorRow = anchor.row.coerceIn(0, rowCount - 1)
-    // `zoomCellOrder` returns the anchor cell first (for the close tile), then the
-    // shifted 2×2 block, then the rest by distance — a full `cols * rowCount`
-    // ordering — and `members.size + 1 <= capacity` above, so every tile gets a
-    // cell.
-    val cellOrder = zoomCellOrder(anchorCol, anchorRow, cols, rowCount)
-    val tiles = listOf(FolderSlot.Close) + members
-    val grid = arrayOfNulls<FolderSlot>(capacity)
-    tiles.forEachIndexed { tileIndex, tile ->
-        grid[cellOrder[tileIndex]] = tile
-    }
-    return grid.map { it ?: FolderSlot.Empty }
+    return packedFolderSlots(members + FolderSlot.Close, cols)
 }
 
 /** Top-left packing: tiles in order, then [FolderSlot.Empty] to a whole last row. */
 private fun packedFolderSlots(tiles: List<FolderSlot>, columns: Int): List<FolderSlot> {
     val trailing = (columns - tiles.size % columns) % columns
     return tiles + List(trailing) { FolderSlot.Empty }
-}
-
-/**
- * Every cell ordered by Manhattan distance from the anchor, with a fixed
- * tie-break (horizontal spread before vertical, right before left, down before
- * up) so the arrangement is identical on every open — stable for muscle memory.
- */
-private fun distanceCellOrder(
-    anchorCol: Int,
-    anchorRow: Int,
-    columns: Int,
-    rows: Int,
-): List<Int> {
-    val cells = (0 until rows * columns).toList()
-    return cells.sortedWith(
-        compareBy(
-            { cell -> kotlin.math.abs(cell % columns - anchorCol) + kotlin.math.abs(cell / columns - anchorRow) },
-            { cell -> kotlin.math.abs(cell / columns - anchorRow) },
-            { cell -> if (cell % columns < anchorCol) 1 else 0 },
-            { cell -> kotlin.math.abs(cell % columns - anchorCol) },
-            { cell -> if (cell / columns < anchorRow) 1 else 0 },
-        ),
-    )
-}
-
-/**
- * Zoom: the anchor cell comes first (it holds the close tile, so ✕ lands under
- * the folder that was tapped), then the next four cells form a 2×2 block one
- * column over from the anchor so the members unfold beside the ✕ rather than on
- * top of it; remaining cells fill outward by distance. The block opens to the
- * *right* of the anchor when there is room and to the *left* when the folder sits
- * near the right edge, so it never covers the anchor cell. On a single-row dock
- * (or a grid too narrow to fit a 2×2 block beside the anchor) there is no room
- * for the block, so it degrades to a line: the anchor first, then the remaining
- * cells by distance.
- */
-private fun zoomCellOrder(
-    anchorCol: Int,
-    anchorRow: Int,
-    columns: Int,
-    rows: Int,
-): List<Int> {
-    val anchorCell = anchorRow * columns + anchorCol
-    val distance = distanceCellOrder(anchorCol, anchorRow, columns, rows)
-    val line = listOf(anchorCell) + distance.filterNot { it == anchorCell }
-    if (rows < 2 || columns < 3) return line
-    // One column over from the anchor: shift the block right when it fits inside
-    // the grid, otherwise left (the folder is near the right edge).
-    val blockColStart = if (anchorCol + 1 <= columns - 2) {
-        anchorCol + 1
-    } else {
-        (anchorCol - 2).coerceAtLeast(0)
-    }
-    val blockRowStart = anchorRow.coerceIn(0, rows - 2)
-    val block = listOf(
-        blockRowStart * columns + blockColStart,
-        blockRowStart * columns + blockColStart + 1,
-        (blockRowStart + 1) * columns + blockColStart,
-        (blockRowStart + 1) * columns + blockColStart + 1,
-    )
-    // A grid too narrow to separate a 2×2 block from the anchor column (e.g. a
-    // 3-wide dock with a middle anchor) can't keep ✕ clear of the block; fall
-    // back to the line so the close tile still owns the anchor.
-    if (anchorCell in block) return line
-    val rest = distance.filterNot { it == anchorCell || it in block }
-    return listOf(anchorCell) + block + rest
 }
 
 internal fun dockedAppIdsInGridRankOrder(
@@ -680,7 +557,6 @@ internal data class LauncherUiState(
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
-    val folderOpenLayout: FolderOpenLayout = FolderOpenLayout.Grid,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by
