@@ -6,9 +6,9 @@ import org.junit.Test
 
 /**
  * Unit coverage for [dockFolderSlots], the pure cell-assignment behind the open
- * folder grid. The members (in display order) plus a trailing close tile are
- * placed into a row-major grid, anchored on the folder's own cell as a 2×2 block,
- * with a top-left packed fallback when the arrangement can't fit the dock.
+ * folder grid. The close tile lands on the folder's own (anchor) cell and the
+ * members (in display order) form a 2×2 block one column over from it, with a
+ * top-left packed fallback when the arrangement can't fit the dock.
  */
 class DockFolderSlotsTest {
     private fun M(index: Int) = FolderSlot.Member(index)
@@ -16,18 +16,37 @@ class DockFolderSlotsTest {
     private val E = FolderSlot.Empty
 
     @Test
-    fun formsA2x2BlockAroundAnchorOnMultiRowDock() {
+    fun closeSitsOnAnchorAndMembersFormBlockOneColumnOverOnMultiRowDock() {
         val slots = dockFolderSlots(
             memberCount = 4,
             anchor = DockPosition(0, 1),
             columns = 4,
             rows = 2,
         )
-        // Members fill the 2×2 block at cols 1–2 across both rows; close takes the
-        // nearest remaining cell (top-left).
+        // Close takes the anchor cell (col 1) so ✕ sits under the tapped folder;
+        // the members fill the 2×2 block one column over, at cols 2–3.
         assertEquals(
             listOf(
-                C, M(0), M(1), E,
+                E, C, M(0), M(1),
+                E, E, M(2), M(3),
+            ),
+            slots,
+        )
+    }
+
+    @Test
+    fun nearRightEdgeOpensBlockToTheLeftOfAnchor() {
+        val slots = dockFolderSlots(
+            memberCount = 4,
+            anchor = DockPosition(0, 3),
+            columns = 4,
+            rows = 2,
+        )
+        // No room to shift the block right of the last column, so it opens to the
+        // left (cols 1–2); close still owns the anchor cell (col 3).
+        assertEquals(
+            listOf(
+                E, M(0), M(1), C,
                 E, M(2), M(3), E,
             ),
             slots,
@@ -43,8 +62,8 @@ class DockFolderSlotsTest {
             rows = 1,
         )
         // No vertical room for a 2×2 block, so it degrades to the nearest-cell line:
-        // M0 on the anchor (col 2), M1 to the right, close to the left.
-        assertEquals(listOf(E, C, M(0), M(1), E), slots)
+        // close on the anchor (col 2), members filling outward (right before left).
+        assertEquals(listOf(E, M(1), C, M(0), E), slots)
     }
 
     @Test

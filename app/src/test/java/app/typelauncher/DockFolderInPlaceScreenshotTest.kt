@@ -70,14 +70,36 @@ class DockFolderInPlaceScreenshotTest {
         )
     }
 
+    @Test
+    fun twoRowDock_closeUnderTapWithMembersOneColumnOver() {
+        // 4 members + close on a 5-wide, 2-row dock: the close tile takes the
+        // folder's own cell (the anchor, here column 1) and the members unfold as
+        // a 2×2 block one column over, so ✕ sits under where the folder was tapped
+        // and the apps open beside it.
+        captureInDockCard(
+            name = "two_row_close_under_tap",
+            title = "4 apps in a 5-slot, 2-row dock — close under the tap, apps one column over",
+            folder = sampleFolder(4),
+            dockRows = 2,
+            anchor = DockPosition(0, 1),
+        )
+    }
+
     @Composable
-    private fun NoopInPlace(folder: ResolvedDockFolder, modifier: Modifier) {
+    private fun NoopInPlace(
+        folder: ResolvedDockFolder,
+        anchor: DockPosition,
+        dockRows: Int,
+        modifier: Modifier,
+    ) {
         DockFolderInPlace(
             folder = folder,
             dockIconSizeDp = iconDp,
             dockIconCount = columns,
             dockLayout = DockLayout.TitleBelow,
             appIconTag = DOCK_APP_ICON_TAG,
+            anchor = anchor,
+            dockRows = dockRows,
             onClose = {},
             onLaunchApp = {},
             onOpenAppInfo = {},
@@ -98,6 +120,7 @@ class DockFolderInPlaceScreenshotTest {
         title: String,
         folder: ResolvedDockFolder,
         dockRows: Int,
+        anchor: DockPosition = DockPosition(0, 0),
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -115,7 +138,12 @@ class DockFolderInPlaceScreenshotTest {
                     // so the open folder must live inside it.
                     SectionCard {
                         Box(modifier = Modifier.height(dockContentHeight)) {
-                            NoopInPlace(folder = folder, modifier = Modifier.fillMaxSize())
+                            NoopInPlace(
+                                folder = folder,
+                                anchor = anchor,
+                                dockRows = dockRows,
+                                modifier = Modifier.fillMaxSize(),
+                            )
                         }
                     }
                 }
