@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.text.Collator
 import java.util.Locale
 
 class BadgeGlyphsTest {
@@ -54,13 +55,35 @@ class BadgeGlyphsTest {
         // the sort order and the presence of a couple of staples.
         assertTrue("expected many flag options, got ${options.size}", options.size > 50)
         val names = options.map { it.labelText.orEmpty() }
-        assertEquals(names.sortedBy { it.lowercase(Locale.ENGLISH) }, names)
+        // Alphabetical per the locale's collation, not per raw code points —
+        // code-point order exiles accented names ("Åland Islands") past "Z".
+        val collator = Collator.getInstance(Locale.ENGLISH).apply {
+            strength = Collator.SECONDARY
+        }
+        assertEquals(names.sortedWith(collator), names)
         // Each country whose ISO data exists everywhere we care about should
         // be listed exactly once.
         val keys = options.map { it.key }
         assertEquals(keys.distinct().size, keys.size)
         assertTrue(options.any { it.key == "country:US" })
         assertTrue(options.any { it.key == "country:GB" })
+    }
+
+    @Test
+    fun countryBadgeOptionsSortAccentedNamesIntoTheirAlphabeticalHome() {
+        // Regression test for the code-point sort: 'Å' (U+00C5) compares
+        // greater than 'z', so "Åland Islands" used to land after "Zimbabwe"
+        // at the very bottom of the picker grid instead of under A where a
+        // user scanning alphabetically looks for it.
+        val names = countryBadgeOptions(Locale.ENGLISH).map { it.labelText.orEmpty() }
+        val aland = names.indexOfFirst { it.startsWith("Åland") }
+        assertTrue("expected Åland Islands in the English country list", aland >= 0)
+        val albania = names.indexOf("Albania")
+        assertTrue("expected Albania in the English country list", albania >= 0)
+        assertTrue(
+            "Åland Islands (index $aland) must sort under A, before Albania (index $albania)",
+            aland < albania,
+        )
     }
 
     @Test
