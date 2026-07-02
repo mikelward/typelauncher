@@ -674,13 +674,9 @@ internal fun HomeScreen(
         },
     ) { measurables, constraints ->
         val spacingPx = HOME_CARD_SPACING_DP.dp.roundToPx()
-        // Reserve at least APP_LIST_MIN_VISIBLE_ROWS rows for the apps list.
-        // Each app-list row is ≈ dockIconSizeDp + 2 * DOCK_ITEM_SPACING_DP
-        // (icon-only mode); text rows are 56dp regardless of icon size, and
-        // the floor here is the larger of the two so neither layout mode is
-        // squeezed.
-        val appRowHeightPx = (dockIconSizeDp + DOCK_ITEM_SPACING_DP * 2).dp.roundToPx()
-        val appListMinPx = APP_LIST_MIN_VISIBLE_ROWS * appRowHeightPx
+        // Reserve at least APP_LIST_MIN_VISIBLE_ROWS rows for the apps list;
+        // see [appListMinVisibleRowsHeightDp] for the per-row floor.
+        val appListMinPx = appListMinVisibleRowsHeightDp(dockIconSizeDp).dp.roundToPx()
 
         val search = measurables[0].measure(
             constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
@@ -729,6 +725,24 @@ internal fun HomeScreen(
         }
     }
 }
+
+// Height of one text-mode app row: the 40dp [AppIcon] plus the row's 8dp
+// vertical padding on each side (see [AppRow]). Text rows don't scale with the
+// dock icon-size slider, so the min-visible-rows floor must reserve at least
+// this much per row even when the dock icons are set small.
+private const val APP_LIST_TEXT_ROW_HEIGHT_DP = 56
+
+/**
+ * The height (dp) the home layout reserves for the apps list: the larger of an
+ * icon-only row (`dockIconSizeDp` + spacing) and the fixed 56dp text row, times
+ * [APP_LIST_MIN_VISIBLE_ROWS] — so neither layout mode can be squeezed below
+ * its guaranteed visible rows by the dock and the recents bar. Without the
+ * `maxOf`, a small icon size (32dp → 96dp reserved) under-reserved the 112dp
+ * two text rows need.
+ */
+internal fun appListMinVisibleRowsHeightDp(dockIconSizeDp: Int): Int =
+    APP_LIST_MIN_VISIBLE_ROWS *
+        maxOf(dockIconSizeDp + DOCK_ITEM_SPACING_DP * 2, APP_LIST_TEXT_ROW_HEIGHT_DP)
 
 /**
  * The home screen's bottom bar: the recents bar (revealed by a pull-up). The
