@@ -16,9 +16,15 @@ import org.json.JSONObject
 internal class RenamedAppStore(context: Context) {
     private val sharedPreferences =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+    // Guarded by `lock`: `customNameFor` runs on the IO dispatcher during
+    // every installed-apps reload while `rename` / `clear` run on the main
+    // thread from the Edit-app dialog, so an unguarded HashMap is a data
+    // race (same main-vs-IO pattern IconOverrideStore locks against).
+    private val lock = Any()
     private val customNames: MutableMap<String, String> = loadFromPrefs().toMutableMap()
 
-    fun customNameFor(appId: String): String? = customNames[appId]
+    fun customNameFor(appId: String): String? = synchronized(lock) { customNames[appId] }
 
     fun rename(appId: String, newName: String) {
         val trimmed = newName.trim()
@@ -26,17 +32,22 @@ internal class RenamedAppStore(context: Context) {
             clear(appId)
             return
         }
-        if (customNames[appId] == trimmed) return
-        customNames[appId] = trimmed
-        save()
-    }
-
-    fun clear(appId: String) {
-        if (customNames.remove(appId) != null) {
+        synchronized(lock) {
+            if (customNames[appId] == trimmed) return
+            customNames[appId] = trimmed
             save()
         }
     }
 
+    fun clear(appId: String) {
+        synchronized(lock) {
+            if (customNames.remove(appId) != null) {
+                save()
+            }
+        }
+    }
+
+    // Callers hold `lock`, so the iteration never races a concurrent mutation.
     private fun save() {
         val json = JSONObject()
         for ((id, name) in customNames) {
