@@ -2739,8 +2739,10 @@ private fun RecentsCard(
     }
 }
 
+// Internal so the regression test for per-app menu state can render the row
+// directly, without the AnimatedVisibility wrapper above it.
 @Composable
-private fun RecentsRow(
+internal fun RecentsRow(
     recentApps: List<InstalledApp>,
     dockIconSizeDp: Int,
     onLaunchApp: (InstalledApp) -> Unit,
@@ -2774,14 +2776,20 @@ private fun RecentsRow(
         pinToEndKey = recentApps.map { it.id },
     ) {
         recentApps.forEach { app ->
-            RecentAppButton(
-                app = app,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onDismissRecent = onDismissRecent,
-            )
+            // Keyed so per-app state (the open long-press menu) stays pinned to
+            // its app when a background reload mutates the recents list —
+            // unkeyed, the state is positional and an open menu would silently
+            // retarget to whichever app slides into that slot.
+            key(app.id) {
+                RecentAppButton(
+                    app = app,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onDismissRecent = onDismissRecent,
+                )
+            }
         }
     }
 }
