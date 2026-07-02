@@ -1354,6 +1354,8 @@ private fun DockCard(
                     onMemberDragStateChanged = { armed -> latestOnDragStateChanged(armed) },
                     dockBoundsInRoot = dockBoundsInRoot,
                     dockSlotCenters = slotCenters,
+                    dockRowCount = rowCount,
+                    dockColumnCount = columns,
                     occupantByPosition = occupantByPosition,
                     onMemberDragExitedChanged = { exited -> memberDragExited = exited },
                     onMemberDragFloat = onFolderMemberDragFloat,
@@ -1724,6 +1726,10 @@ internal fun DockFolderInPlace(
     onMemberDragStateChanged: (Boolean) -> Unit = {},
     dockBoundsInRoot: Rect? = null,
     dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
+    // Live extent of the dock's slot lattice; slots outside it are stale
+    // leftovers in the never-pruned center map (see [DockFolderGrid]).
+    dockRowCount: Int = Int.MAX_VALUE,
+    dockColumnCount: Int = Int.MAX_VALUE,
     occupantByPosition: Map<DockPosition, String> = emptyMap(),
     onMemberDragExitedChanged: (Boolean) -> Unit = {},
     onMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
@@ -1782,6 +1788,8 @@ internal fun DockFolderInPlace(
                 onMemberDragStateChanged = onMemberDragStateChanged,
                 dockBoundsInRoot = dockBoundsInRoot,
                 dockSlotCenters = dockSlotCenters,
+                dockRowCount = dockRowCount,
+                dockColumnCount = dockColumnCount,
                 occupantByPosition = occupantByPosition,
                 onMemberDragExitedChanged = onMemberDragExitedChanged,
                 onMemberDragFloat = onMemberDragFloat,
@@ -1843,6 +1851,13 @@ internal fun DockFolderGrid(
     // folder itself appears in [occupantByPosition] under its own id.
     dockBoundsInRoot: Rect? = null,
     dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
+    // Live extent of the dock's slot lattice. [dockSlotCenters] comes from the
+    // dock's remembered, never-pruned center map, so after the dock shrinks
+    // (e.g. two rows to one) it still holds stale row-1 centers; slots outside
+    // this extent are filtered out of the drop search so a release in the
+    // card's lower padding can't resolve to a phantom row.
+    dockRowCount: Int = Int.MAX_VALUE,
+    dockColumnCount: Int = Int.MAX_VALUE,
     occupantByPosition: Map<DockPosition, String> = emptyMap(),
     // Fires true the first time the dragged member leaves the dock card (so the
     // host collapses the folder to reveal the dock), false when the drag ends.
@@ -1879,6 +1894,8 @@ internal fun DockFolderGrid(
     val latestOnReorderFolderMember by rememberUpdatedState(onReorderFolderMember)
     val latestDockBounds by rememberUpdatedState(dockBoundsInRoot)
     val latestDockSlotCenters by rememberUpdatedState(dockSlotCenters)
+    val latestDockRowCount by rememberUpdatedState(dockRowCount)
+    val latestDockColumnCount by rememberUpdatedState(dockColumnCount)
     val latestOccupantByPosition by rememberUpdatedState(occupantByPosition)
     val latestOnMemberDragExitedChanged by rememberUpdatedState(onMemberDragExitedChanged)
     val latestOnMemberDragFloat by rememberUpdatedState(onMemberDragFloat)
@@ -1930,7 +1947,15 @@ internal fun DockFolderGrid(
             // (system stole the gesture) just drops the drag with no change.
             if (!canceled && origin != null) {
                 val center = origin + dragOffset
-                val pitch = dockSlotPitch(latestDockSlotCenters)
+                // Only currently-visible dock cells: the passed-in center map is
+                // remembered and never pruned (see the dockRowCount param doc),
+                // so a stale row's center could otherwise win the nearest-slot
+                // search and move the member onto a phantom row.
+                val liveDockCenters = latestDockSlotCenters.filterKeys { slot ->
+                    slot.row in 0 until latestDockRowCount &&
+                        slot.column in 0 until latestDockColumnCount
+                }
+                val pitch = dockSlotPitch(liveDockCenters)
                 val mergeRadiusPx = if (pitch.isFinite()) {
                     pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
                 } else {
@@ -1940,7 +1965,7 @@ internal fun DockFolderGrid(
                     dropCenter = center,
                     sourceFolderId = folder.id,
                     dockBounds = latestDockBounds,
-                    dockSlotCenters = latestDockSlotCenters,
+                    dockSlotCenters = liveDockCenters,
                     occupantByPosition = latestOccupantByPosition,
                     mergeRadiusPx = mergeRadiusPx,
                 )
