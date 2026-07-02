@@ -7,6 +7,7 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -81,6 +82,32 @@ class LauncherViewModelQueryTest {
             "hiddenApps does not depend on the query and must not be rebuilt",
             before.hiddenApps,
             after.hiddenApps,
+        )
+    }
+
+    @Test
+    fun freshLoadPublishFiltersWithTheTrimmedQuery() {
+        // The keyboard auto-shows at cold start, so the user can be mid-typing
+        // when the fresh LauncherApps load publishes. That publish must filter
+        // with the same trimmed query every steady-state refresh uses — before
+        // the fix it filtered with the raw string, so a trailing space at
+        // publish time ("Maps ") silently emptied the visible results the
+        // identical query had just matched.
+        seedApp("Mail", "com.example.mail")
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        // Type before the load lands (the load publishes on the main looper,
+        // which hasn't idled yet).
+        viewModel.setQuery("Maps ")
+        idle()
+
+        assertTrue(
+            "Cold-start load must have completed",
+            viewModel.uiState.value.isFreshAppLoadComplete,
+        )
+        assertEquals(
+            listOf("Maps"),
+            viewModel.uiState.value.filteredApps.map { it.displayName },
         )
     }
 

@@ -709,10 +709,12 @@ internal fun searchInlineSuggestion(
     if (query.isBlank() || topMatch == null) return null
     val name = topMatch.displayName
     return InlineSearchSuggestion(
-        // Highlight against the raw query so the bolded run matches exactly how
-        // `filterByName` (which is passed the untrimmed query) picked this match.
+        // Highlight against the trimmed query — the same string every
+        // `filterByName` path matches with — so a whitespace-padded query
+        // ("maps ") still bolds the run that actually picked this match
+        // instead of highlighting nothing.
         name = name,
-        boldIndices = launcherMatchHighlightIndices(name, query),
+        boldIndices = launcherMatchHighlightIndices(name, query.trim()),
     )
 }
 
