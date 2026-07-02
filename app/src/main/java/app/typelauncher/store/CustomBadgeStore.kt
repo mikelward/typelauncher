@@ -20,9 +20,15 @@ import org.json.JSONObject
 internal class CustomBadgeStore(context: Context) {
     private val sharedPreferences =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+    // Guarded by `lock`: `customBadgeFor` runs on the IO dispatcher during
+    // every installed-apps reload while `setBadge` / `clear` run on the main
+    // thread from the badge picker, so an unguarded HashMap is a data race
+    // (same main-vs-IO pattern IconOverrideStore locks against).
+    private val lock = Any()
     private val customBadges: MutableMap<String, String> = loadFromPrefs().toMutableMap()
 
-    fun customBadgeFor(appId: String): String? = customBadges[appId]
+    fun customBadgeFor(appId: String): String? = synchronized(lock) { customBadges[appId] }
 
     fun setBadge(appId: String, glyph: String) {
         val trimmed = glyph.trim()
@@ -30,17 +36,22 @@ internal class CustomBadgeStore(context: Context) {
             clear(appId)
             return
         }
-        if (customBadges[appId] == trimmed) return
-        customBadges[appId] = trimmed
-        save()
-    }
-
-    fun clear(appId: String) {
-        if (customBadges.remove(appId) != null) {
+        synchronized(lock) {
+            if (customBadges[appId] == trimmed) return
+            customBadges[appId] = trimmed
             save()
         }
     }
 
+    fun clear(appId: String) {
+        synchronized(lock) {
+            if (customBadges.remove(appId) != null) {
+                save()
+            }
+        }
+    }
+
+    // Callers hold `lock`, so the iteration never races a concurrent mutation.
     private fun save() {
         val json = JSONObject()
         for ((id, glyph) in customBadges) {
