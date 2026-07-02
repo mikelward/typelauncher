@@ -2426,7 +2426,7 @@ internal class LauncherViewModel(
             // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
             // and the disambiguator pass below tags them with regional badges.
             .distinctBy { launcherApp -> launcherApp.id }
-            .sortedWith(compareBy(DISPLAY_NAME_ORDER) { launcherApp -> launcherApp.name })
+            .sortedWith(compareBy(displayNameOrder()) { launcherApp -> launcherApp.name })
         return collected
             .applyDisambiguators()
             .applyRenameOverrides()
@@ -2544,8 +2544,10 @@ internal class LauncherViewModel(
             }
             .distinctBy { provider -> provider.id }
             .sortedWith(
-                compareBy<WidgetProvider, String>(DISPLAY_NAME_ORDER) { provider -> provider.appName }
-                    .thenBy(DISPLAY_NAME_ORDER) { provider -> provider.label },
+                displayNameOrder().let { displayNameOrder ->
+                    compareBy<WidgetProvider, String>(displayNameOrder) { provider -> provider.appName }
+                        .thenBy(displayNameOrder) { provider -> provider.label }
+                },
             )
             .also { providers -> LauncherDebugLog.event("loadAvailableWidgets providers=${providers.size}") }
     }

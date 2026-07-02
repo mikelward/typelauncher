@@ -16,9 +16,21 @@ import java.util.Locale
  * are cached per thread and re-created when the default locale changes (the
  * launcher has no locale-change hook, but any list reload after the change —
  * package event, process restart — picks up the new ordering).
+ *
+ * Exposed as a function returning a comparator bound to one collator
+ * snapshot, not as a singleton comparator that re-resolves the default
+ * locale on every `compare`: a system-language change concurrent with an
+ * in-progress sort used to swap the collator mid-stream, making early and
+ * late comparisons within one sort disagree — a comparator-contract
+ * violation TimSort can escalate to "Comparison method violates its general
+ * contract!" on the app-list load path. Call once per sort. The returned
+ * comparator must stay on the calling thread (the underlying collator is
+ * the thread-cached instance), which synchronous `sortedWith` callsites
+ * naturally satisfy.
  */
-internal val DISPLAY_NAME_ORDER: Comparator<String> = Comparator { left, right ->
-    displayNameCollator().compare(left, right)
+internal fun displayNameOrder(): Comparator<String> {
+    val collator = displayNameCollator()
+    return Comparator { left, right -> collator.compare(left, right) }
 }
 
 private val collatorCache = ThreadLocal<Pair<Locale, Collator>>()

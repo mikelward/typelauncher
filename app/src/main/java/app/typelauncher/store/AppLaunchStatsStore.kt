@@ -149,16 +149,19 @@ internal fun List<InstalledApp>.filterByName(
     val dockIndexById: Map<String, Int> = dockedAppIds.withIndex().associate { (index, id) -> id to index }
     val notDockedRank = Int.MAX_VALUE
     val dockedFirst = compareBy<InstalledApp> { app -> dockIndexById[app.id] ?: notDockedRank }
+    // One collator snapshot for the whole refresh so the ordering stays
+    // self-consistent even if the default locale changes mid-sort.
+    val displayNameOrder = displayNameOrder()
     return if (query.isEmpty()) {
         when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> candidates.sortedWith(
                 dockedFirst
                     .thenByDescending { app -> launchCounts[app.id] ?: 0 }
-                    .thenBy(DISPLAY_NAME_ORDER) { app -> app.displayName },
+                    .thenBy(displayNameOrder) { app -> app.displayName },
             )
             AppListSortOrder.Alphabetical -> candidates.sortedWith(
                 dockedFirst
-                    .thenBy(DISPLAY_NAME_ORDER) { app -> app.displayName },
+                    .thenBy(displayNameOrder) { app -> app.displayName },
             )
             else -> candidates
         }
@@ -167,9 +170,9 @@ internal fun List<InstalledApp>.filterByName(
         val withinTier = when (sortOrder.dataOrdering) {
             AppListSortOrder.Usage -> dockedFirstByPair
                 .thenByDescending { (app, _) -> launchCounts[app.id] ?: 0 }
-                .thenBy(DISPLAY_NAME_ORDER) { (app, _) -> app.displayName }
+                .thenBy(displayNameOrder) { (app, _) -> app.displayName }
             AppListSortOrder.Alphabetical -> dockedFirstByPair
-                .thenBy(DISPLAY_NAME_ORDER) { (app, _) -> app.displayName }
+                .thenBy(displayNameOrder) { (app, _) -> app.displayName }
             else -> dockedFirstByPair
         }
         // Spell the digits out once for the whole refresh, not per row — a numeric

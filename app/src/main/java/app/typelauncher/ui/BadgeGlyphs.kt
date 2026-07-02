@@ -114,7 +114,7 @@ internal fun countryBadgeOptions(locale: Locale = Locale.getDefault()): List<Bad
     // Collate rather than compare code points: raw string order puts accented
     // names after "Z" ("Åland Islands", "Égypte"), so users scanning the grid
     // alphabetically can't find them. SECONDARY strength folds case, same as
-    // DISPLAY_NAME_ORDER; one instance per call because Collators are neither
+    // displayNameOrder(); one instance per call because Collators are neither
     // cheap to create nor thread-safe.
     val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
     return Locale.getISOCountries()
