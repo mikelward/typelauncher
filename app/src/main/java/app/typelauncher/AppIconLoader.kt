@@ -118,11 +118,14 @@ internal object AppIconLoader {
         }
     }
 
-    // Bumped by `evictAll` so compositions holding an already-loaded bitmap
-    // (`rememberAppIconBitmap`'s `remember` keys don't otherwise change) drop
-    // their stale state and re-read the now-empty cache — without it, an icon
-    // theme change would only repaint icons whose composables leave and re-enter
-    // the tree.
+    // Bumped by `evictAll` and `evict` so compositions holding an already-loaded
+    // bitmap (`rememberAppIconBitmap`'s `remember` keys don't otherwise change)
+    // drop their stale state and re-read the cache — without it, an icon theme
+    // change or a per-package eviction would only repaint icons whose composables
+    // leave and re-enter the tree. Permanently composed surfaces (the dock) never
+    // do, so a work-profile icon evicted after profile boot would stay stale or
+    // blank forever: for work apps the `iconCacheId` provably cannot change (see
+    // `evict`'s KDoc), leaving this counter as the only re-key signal.
     private val cacheGeneration = mutableIntStateOf(0)
 
     // Coalesces concurrent loads of the same `CacheKey`. The first miss creates the
@@ -421,8 +424,9 @@ internal object AppIconLoader {
     fun cacheSnapshot(): Map<CacheKey, ImageBitmap> = cache.snapshot()
 
     /**
-     * Compose-observable counter [evictAll] bumps; [rememberAppIconBitmap] keys
-     * on it so live compositions reload after a full eviction.
+     * Compose-observable counter [evictAll] and [evict] bump;
+     * [rememberAppIconBitmap] and [rememberWorkBadgeOverlay] key on it so live
+     * compositions reload after an eviction.
      */
     internal val cacheGenerationValue: Int
         get() = cacheGeneration.intValue
@@ -465,6 +469,14 @@ internal object AppIconLoader {
             inFlight.keys.filter { matches(it.id) }.toList().forEach { inFlight.remove(it) }
             cache.snapshot().keys.filter { matches(it.id) }.forEach { cache.remove(it) }
         }
+        // Re-key live compositions, same as `evictAll`: without this, an icon
+        // whose composable never leaves the tree (the dock) keeps painting the
+        // bitmap it already holds, and for work-profile apps no other key can
+        // ever change (see KDoc above) — the post-boot refresh this eviction
+        // exists for would never reach the screen. Unaffected icons re-read the
+        // cache and hit, so the cost is one lookup per visible icon on a rare
+        // per-package event, not a reload storm.
+        cacheGeneration.intValue++
     }
 
     /**
@@ -720,9 +732,10 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
     val context = LocalContext.current.applicationContext
     val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
     val cacheId = app.iconCacheId
-    // Keyed on the cache generation as well, so a full eviction (icon theme
-    // change) drops the remembered bitmap and reloads instead of painting the
-    // stale pre-change tile until the composable happens to leave the tree.
+    // Keyed on the cache generation as well, so an eviction — full (icon theme
+    // change) or per-package (package event, work-profile boot) — drops the
+    // remembered bitmap and reloads instead of painting the stale pre-change
+    // tile until the composable happens to leave the tree.
     val generation = AppIconLoader.cacheGenerationValue
     var bitmap by remember(cacheId, sizePx, generation) { mutableStateOf(AppIconLoader.cached(app, sizePx)) }
     LaunchedEffect(cacheId, sizePx, generation) {
@@ -740,9 +753,14 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
  * draws it on top of the icon outside the circular clip so it stays uncropped.
  *
  * Hooks run unconditionally so the slot table is stable whether or not [app] is
- * a work app. Keyed on `iconCacheId` (not just user+size) so a post-boot icon
- * refresh re-attempts the badge load too — a cache hit once the overlay exists,
- * a fresh attempt if the badge resource only became ready after first paint.
+ * a work app. Keyed on the cache generation (not just `iconCacheId`) so a
+ * post-boot icon refresh re-attempts the badge load too: for a work app the
+ * `iconCacheId` cannot change (its token comes from the personal-profile
+ * `PackageManager` — see [AppIconLoader.evict]), so a badge that loaded null
+ * during profile boot would otherwise never retry in a composable that stays
+ * in the tree. The eviction the boot-time package event triggers bumps the
+ * generation; a cache hit once the overlay exists, a fresh attempt if the
+ * badge resource only became ready after first paint.
  */
 @Composable
 internal fun rememberWorkBadgeOverlay(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
@@ -751,10 +769,11 @@ internal fun rememberWorkBadgeOverlay(app: InstalledApp, sizeDp: Dp): ImageBitma
     val cacheId = app.iconCacheId
     val isWorkApp = app.isWorkApp
     val user = app.user
-    var bitmap by remember(cacheId, sizePx) {
+    val generation = AppIconLoader.cacheGenerationValue
+    var bitmap by remember(cacheId, sizePx, generation) {
         mutableStateOf(if (isWorkApp) AppIconLoader.cachedWorkBadge(user, sizePx) else null)
     }
-    LaunchedEffect(cacheId, sizePx) {
+    LaunchedEffect(cacheId, sizePx, generation) {
         if (isWorkApp && bitmap == null) {
             bitmap = AppIconLoader.loadWorkBadge(context, user, sizePx)
         }
