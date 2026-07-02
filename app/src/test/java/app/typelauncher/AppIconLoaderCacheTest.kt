@@ -90,6 +90,23 @@ class AppIconLoaderCacheTest {
     }
 
     @Test
+    fun evictBumpsCacheGenerationSoLiveCompositionsReload() {
+        // Regression test: `rememberAppIconBitmap` / `rememberWorkBadgeOverlay`
+        // re-key only on (iconCacheId, sizePx, cacheGeneration). For a
+        // work-profile app the iconCacheId provably cannot change (its token
+        // comes from the personal-profile PackageManager), so if `evict` clears
+        // the LRU without bumping the generation, a permanently composed icon
+        // (the dock) keeps painting its stale/blank bitmap until process
+        // restart — the post-profile-boot refresh the eviction exists for
+        // never reaches the screen.
+        val before = AppIconLoader.cacheGenerationValue
+
+        AppIconLoader.evict("app.typelauncher.generationtest", Process.myUserHandle())
+
+        assertEquals(before + 1, AppIconLoader.cacheGenerationValue)
+    }
+
+    @Test
     fun cachedUsesPackageUpdateToken() {
         val sizePx = 24
         val component = ComponentName("com.example.cache", "com.example.cache.LaunchActivity")
