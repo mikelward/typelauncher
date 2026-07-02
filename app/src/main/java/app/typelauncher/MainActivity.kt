@@ -654,6 +654,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun bindWidget(provider: WidgetProvider) {
+        // One add at a time: WidgetAddFlow tracks a single pendingWidgetId, so
+        // a second Add tap while a bind/configure launch is still in flight
+        // (the window before its dialog covers the picker) must be ignored —
+        // checked before allocating, so the refused tap doesn't leak an ID.
+        if (widgetAddFlow.isAddInFlight) {
+            LauncherDebugLog.event(
+                "bindWidget ignored: add in flight pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+            )
+            return
+        }
         val appWidgetId = appWidgetHost.allocateAppWidgetId()
         widgetAddFlow.onBindStarted(appWidgetId)
         LauncherDebugLog.event(
