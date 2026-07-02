@@ -267,12 +267,23 @@ internal open class LauncherAppWidgetHostView(
      * `ACTION_DOWN` is included so a gesture that starts inside another
      * widget — or anywhere the framework happens to clear the disallow
      * flag and route DOWN here — clears any residual state too.
+     *
+     * The long-press timer armed in [onInterceptTouchEvent] must be
+     * canceled at gesture boundaries here too, for the same reason: with
+     * intercept skipped for the rest of the gesture, the UP/CANCEL branch
+     * there never runs. The primary disarm lives in
+     * [requestDisallowInterceptTouchEvent] (the moment a child takes the
+     * gesture); this one is the backstop so no timer ever survives past
+     * gesture end.
      */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN,
+            MotionEvent.ACTION_DOWN -> host.onChildScrollChange?.invoke(false)
             MotionEvent.ACTION_UP,
-            MotionEvent.ACTION_CANCEL -> host.onChildScrollChange?.invoke(false)
+            MotionEvent.ACTION_CANCEL -> {
+                host.onChildScrollChange?.invoke(false)
+                removeCallbacks(checkLongPress)
+            }
         }
         return super.dispatchTouchEvent(ev)
     }
@@ -292,6 +303,15 @@ internal open class LauncherAppWidgetHostView(
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         if (disallowIntercept) {
             host.onChildScrollChange?.invoke(true)
+            // The descendant owns the gesture from here on and the framework
+            // skips onInterceptTouchEvent — including its MOVE-past-slop and
+            // UP/CANCEL cancellation branches — for the rest of it. A timer
+            // armed at DOWN would fire while the finger is still down on the
+            // child (catch a fling, then hold or drag: AbsListView claims the
+            // gesture at DOWN) or after a quick lift, popping the widget
+            // actions menu with no long press on the widget itself. Disarm it
+            // the moment the child takes over.
+            removeCallbacks(checkLongPress)
         }
         super.requestDisallowInterceptTouchEvent(disallowIntercept)
     }
