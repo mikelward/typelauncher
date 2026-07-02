@@ -186,4 +186,74 @@ class WidgetAddFlowTest {
         assertEquals(emptyList<Int>(), deleted)
         assertEquals(AppWidgetManager.INVALID_APPWIDGET_ID, flow.pendingWidgetId)
     }
+
+    @Test
+    fun addStaysInFlightForTheWholeLaunchedConfigureFlow() {
+        // MainActivity.bindWidget refuses a second Add while isAddInFlight is
+        // true, so the flag must cover every non-terminal state: from bind
+        // start, across the system bind dialog, through the configure launch,
+        // until the result lands. A gap would re-open the double-tap clobber
+        // (see secondAddStartedMidFlightClobbersTheFirstFlow).
+        val flow = flow(hasConfigureActivity = true)
+        assertEquals(false, flow.isAddInFlight)
+
+        flow.onBindStarted(42)
+        assertEquals("in flight while the bind dialog is up", true, flow.isAddInFlight)
+
+        flow.onBindResult(success = true, resultWidgetId = 42)
+        assertEquals("in flight while configure is foreground", true, flow.isAddInFlight)
+
+        flow.onConfigureResult(success = true, resultWidgetId = 42)
+        assertEquals("terminal result ends the flight", false, flow.isAddInFlight)
+    }
+
+    @Test
+    fun addStopsBeingInFlightOnEveryTerminalPath() {
+        // No-configure add commits immediately.
+        val direct = flow(hasConfigureActivity = false)
+        direct.onBindStarted(1)
+        direct.onBindAllowed(1)
+        assertEquals(false, direct.isAddInFlight)
+
+        // Failed configure launch frees the ID and ends the flight.
+        val failed = flow(WidgetAddFlow.ConfigureLaunch.Failed)
+        failed.onBindStarted(2)
+        failed.onBindAllowed(2)
+        assertEquals(false, failed.isAddInFlight)
+
+        // Canceled bind dialog frees the ID and ends the flight.
+        val canceled = flow(hasConfigureActivity = true)
+        canceled.onBindStarted(3)
+        canceled.onBindResult(success = false, resultWidgetId = null)
+        assertEquals(false, canceled.isAddInFlight)
+
+        // A bind dialog that never launched frees the ID and ends the flight.
+        val launchFailed = flow(hasConfigureActivity = true)
+        launchFailed.onBindStarted(4)
+        launchFailed.onBindLaunchFailed()
+        assertEquals(false, launchFailed.isAddInFlight)
+    }
+
+    @Test
+    fun secondAddStartedMidFlightClobbersTheFirstFlow() {
+        // Documents WHY the host must gate on isAddInFlight (the double-tap
+        // bug the MainActivity guard fixes): if a second add starts while flow
+        // A's configure activity is in flight, A's data-less cancel resolves
+        // to B's ID — deleting B's bound widget out from under its own
+        // configure activity while A's ID leaks. The flow itself cannot
+        // distinguish the two launches (both share one pendingWidgetId and one
+        // request code), so prevention lives at the entry point.
+        val flow = flow(hasConfigureActivity = true)
+        flow.onBindStarted(42)
+        flow.onBindAllowed(42) // A's configure is now in flight.
+
+        // The second Add tap — exactly what MainActivity now refuses.
+        assertEquals(true, flow.isAddInFlight)
+        flow.onBindStarted(43)
+
+        // A's back-press cancel (null data) now resolves to B's ID: the wrong
+        // widget is deleted and A's ID is never freed.
+        flow.onConfigureResult(success = false, resultWidgetId = null)
+        assertEquals(listOf(43), deleted)
+    }
 }

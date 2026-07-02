@@ -40,6 +40,20 @@ internal class WidgetAddFlow(
     var pendingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
         private set
 
+    /**
+     * True while an allocated ID's bind or configure step is in flight. The
+     * flow tracks exactly one add at a time (see [pendingWidgetId]), so the
+     * host must refuse to start a second add — before allocating its ID —
+     * while this is true. Without the guard, a second "Add" tap during the
+     * few hundred ms before a configure/bind launch covers the picker
+     * overwrote [pendingWidgetId]: the first flow's data-less cancel then
+     * resolved to the *second* flow's ID and deleted it out from under its
+     * still-open configure activity, while the first bound ID leaked until
+     * the next cold-start orphan sweep.
+     */
+    val isAddInFlight: Boolean
+        get() = pendingWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID
+
     /** A widget ID was allocated and its bind (direct or via dialog) begins. */
     fun onBindStarted(appWidgetId: Int) {
         pendingWidgetId = appWidgetId
