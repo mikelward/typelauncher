@@ -54,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -433,10 +434,25 @@ private fun WidgetPreview(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val preview = remember(provider, appWidgetManager) {
-        provider.preview(appWidgetManager, context)
+    // `getWidgetPreview` is a synchronous Binder round-trip into
+    // AppWidgetService (it returns a RemoteViews), and this composable first
+    // composes for every visible provider row on the picker's opening frame —
+    // running it inside `remember` stalled the main thread once per row
+    // during composition. Load it off the main thread and swap in; until it
+    // lands, the fallback glyph below renders (the same thing a provider with
+    // no preview shows), so the swap only ever adds detail.
+    val loadedPreview by produceState<WidgetPreviewValue?>(null, provider, appWidgetManager) {
+        // Reset before the IO hop: produceState keeps its previous value
+        // across key changes (only the producer restarts), and these rows are
+        // emitted positionally, so filtering the picker can hand this
+        // composition a different provider — without the reset the old
+        // provider's preview would linger next to the new provider's label
+        // until the new load lands.
+        value = null
+        value = withContext(Dispatchers.IO) { provider.preview(appWidgetManager, context) }
     }
-    var generatedInflationFailed by remember(preview.generated) { mutableStateOf(false) }
+    val preview = loadedPreview
+    var generatedInflationFailed by remember(preview?.generated) { mutableStateOf(false) }
 
     Surface(
         modifier = modifier,
@@ -444,7 +460,7 @@ private fun WidgetPreview(
         color = MaterialTheme.colorScheme.surface,
     ) {
         when {
-            preview.generated != null && !generatedInflationFailed -> AndroidView(
+            preview?.generated != null && !generatedInflationFailed -> AndroidView(
                 factory = { viewContext ->
                     try {
                         preview.generated.apply(viewContext, FrameLayout(viewContext)).also { view ->
@@ -457,7 +473,7 @@ private fun WidgetPreview(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            preview.image != null -> {
+            preview?.image != null -> {
                 val previewImage = preview.image
                 val previewBitmap = remember(previewImage) {
                     previewImage.toBitmap().asImageBitmap()
