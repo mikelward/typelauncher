@@ -91,8 +91,13 @@ internal object BugReport {
         return withContext(Dispatchers.IO) {
             try {
                 val dir = File(activity.cacheDir, SCREENSHOT_DIR_NAME).apply { mkdirs() }
-                // Keep only the freshest screenshot so the cache doesn't grow unbounded.
-                dir.listFiles()?.forEach { it.delete() }
+                // Prune old captures but keep the most recent couple: a
+                // FileProvider URI from an earlier share may still be held by
+                // its target (an unsent email draft, a messaging app that
+                // reads attachments lazily), and deleting every file here
+                // retroactively broke that grant — the attachment failed with
+                // FileNotFoundException when the target finally read it.
+                prunePersistedScreenshots(dir, keepNewest = SCREENSHOT_KEEP_PREVIOUS)
                 val file = File(dir, "screenshot-${System.currentTimeMillis()}.png")
                 FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
                 FileProvider.getUriForFile(
@@ -173,7 +178,33 @@ internal object BugReport {
             cm.setPrimaryClip(ClipData.newPlainText("Type Launcher bug report", text))
         }.onFailure { LauncherDebugLog.warning("BugReport.clipboard copy failed", it) }
     }
+
+    /**
+     * Deletes all but the [keepNewest] most recent `screenshot-*.png` captures
+     * in [dir], newest judged by the millis embedded in the filename (falling
+     * back to `lastModified` for a name that doesn't parse). Called before each
+     * new capture is written, so the directory holds at most [keepNewest] + 1
+     * files — bounded growth without invalidating the URI a previous share
+     * target may still hold.
+     */
+    internal fun prunePersistedScreenshots(dir: File, keepNewest: Int) {
+        val captures = dir.listFiles { file ->
+            file.isFile && file.name.startsWith("screenshot-") && file.name.endsWith(".png")
+        } ?: return
+        captures
+            .sortedByDescending { file ->
+                file.name.removePrefix("screenshot-").removeSuffix(".png").toLongOrNull()
+                    ?: file.lastModified()
+            }
+            .drop(keepNewest)
+            .forEach { it.delete() }
+    }
 }
+
+// How many previous captures survive a new one. Two covers the realistic
+// window (the share the user just sent plus one before it) at ~a few MB of
+// cache; anything older has no live URI grant worth preserving.
+private const val SCREENSHOT_KEEP_PREVIOUS = 2
 
 /** Walks the [ContextWrapper] chain to find the host [Activity], or returns null. */
 internal fun Context.findActivity(): Activity? {
