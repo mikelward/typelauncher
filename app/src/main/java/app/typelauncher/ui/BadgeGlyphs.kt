@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import androidx.annotation.StringRes
+import java.text.Collator
 import java.util.Locale
 
 // Globe glyph rendered when an ambiguous app group falls back to the
@@ -109,8 +110,14 @@ internal val WORLD_BADGE_OPTION: BadgeOption = BadgeOption(
  * current locale's data) are dropped so the picker doesn't show
  * unlabelled rows.
  */
-internal fun countryBadgeOptions(locale: Locale = Locale.getDefault()): List<BadgeOption> =
-    Locale.getISOCountries()
+internal fun countryBadgeOptions(locale: Locale = Locale.getDefault()): List<BadgeOption> {
+    // Collate rather than compare code points: raw string order puts accented
+    // names after "Z" ("Åland Islands", "Égypte"), so users scanning the grid
+    // alphabetically can't find them. SECONDARY strength folds case, same as
+    // DISPLAY_NAME_ORDER; one instance per call because Collators are neither
+    // cheap to create nor thread-safe.
+    val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
+    return Locale.getISOCountries()
         .mapNotNull { code ->
             val displayName = Locale.Builder().setRegion(code).build().getDisplayCountry(locale)
             if (displayName.isEmpty() || displayName == code) return@mapNotNull null
@@ -120,5 +127,6 @@ internal fun countryBadgeOptions(locale: Locale = Locale.getDefault()): List<Bad
                 labelText = displayName,
             )
         }
-        .sortedBy { it.labelText.orEmpty().lowercase(locale) }
+        .sortedWith(compareBy(collator) { it.labelText.orEmpty() })
+}
 
