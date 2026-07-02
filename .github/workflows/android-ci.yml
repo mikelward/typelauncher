@@ -161,12 +161,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
+      # Write so "Commit refreshed screenshots" below can push regenerated
+      # snapshot PNGs back to a same-repo PR branch. Every other step only
+      # reads the checkout.
+      contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
+          # Same-repo PRs check out the head *branch* (not the read-only
+          # refs/pull/N/merge ref) so "Commit refreshed screenshots" below can
+          # push to it. Fork PRs and main pushes keep the default checkout —
+          # the empty string means "whatever the event would check out anyway".
+          # Merge-interaction breakage is still caught on the merge ref: the
+          # build job's `gradlew test` runs these same *ScreenshotTest classes'
+          # assertions there (capture is gated on -Proborazzi.test.record, the
+          # tests themselves are ordinary unit tests). Only the *recording*
+          # moves to the head — deliberately, since a merge-ref recording
+          # would bake main's unmerged UI into PNGs committed to this branch.
+          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
+          # Don't leave the (write-scoped, see the job's `permissions`) token
+          # in .git/config while the Gradle suites run PR-controlled build and
+          # test code — a compromised plugin or dependency could read it from
+          # disk and push as the workflow. The one step that needs to push
+          # ("Commit refreshed screenshots") receives the token via its own
+          # env instead, after every suite has already passed.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
@@ -178,6 +199,21 @@ jobs:
         uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Clear committed snapshots before recording
+        # Recording only overwrites files the suites still produce: a PNG
+        # whose test was removed or renamed would survive checkout untouched,
+        # read as "in sync" to the drift check in "Commit refreshed
+        # screenshots", and stay committed (and re-published in the artifact)
+        # forever. Start from an empty directory so the refresh commit also
+        # stages deletions for anything no longer recorded. Side effect, by
+        # design: a screenshot class missing from the --tests allow-list
+        # below records nothing, so its committed PNGs show up as deletions
+        # in the refresh commit — a loud PR diff instead of the silent
+        # staleness CLAUDE.md's testing expectations warn about.
+        run: |
+          rm -rf app/src/test/snapshots/images
+          mkdir -p app/src/test/snapshots/images
 
       - name: Run Robolectric keyboard screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
@@ -267,6 +303,76 @@ jobs:
               echo "::endgroup::"
             fi
           done
+
+      - name: Commit refreshed screenshots
+        # The record steps above overwrite app/src/test/snapshots/images/ with
+        # what this runner actually renders. Historically those regenerations
+        # only ever left the runner inside the artifact, so the *committed*
+        # snapshots silently drifted from CI's rendering (22 files deep at one
+        # point) and every review diff against them was misleading. This step
+        # commits any drift back to the PR branch (subject prefixed `ci:`, so
+        # release notes skip it) — the committed set now always matches the
+        # last green recording.
+        #
+        # Scope and safety:
+        #   - Same-repo PRs only: fork branches aren't pushable with the
+        #     workflow token, and pushing to main directly from CI is not this
+        #     step's job — PRs that keep their snapshots current mean main
+        #     never drifts.
+        #   - Runs only when every screenshot suite above passed (a failing
+        #     suite fails the job before this step), so a broken run can't
+        #     commit bogus images.
+        #   - No recursion: pushes made with the workflow's GITHUB_TOKEN do
+        #     not trigger new workflow runs at all (GitHub's documented
+        #     recursion prevention — not the fork-contributor approval flow),
+        #     and the marker-subject check below is belt-and-braces for
+        #     setups that swap in a PAT. Corollary: the refreshed head
+        #     carries no fresh check runs. That is an accepted trade — the
+        #     commit only contains PNGs produced by the suites that just
+        #     passed on the same tree, and this repo does not gate merges on
+        #     required status checks. A PAT would re-trigger CI but also
+        #     re-open the flaky-snapshot commit loop the no-retrigger
+        #     property closes for free.
+        #   - A concurrent human push between checkout and here makes the
+        #     push fail; that's surfaced as a warning, not a red job — the
+        #     next run of this workflow re-records and retries.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          # Scoped to this step only (checkout runs with
+          # persist-credentials: false), so the write token never sits on
+          # disk while Gradle executes PR-controlled build/test code.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(git log -1 --pretty=%s)" = "ci: refresh recorded screenshots" ]; then
+            echo "Head commit is already a screenshot refresh; skipping."
+            exit 0
+          fi
+          if [ -z "$(git status --porcelain -- app/src/test/snapshots/images)" ]; then
+            echo "Recorded screenshots match the committed ones; nothing to do."
+            exit 0
+          fi
+          git status --porcelain -- app/src/test/snapshots/images
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/test/snapshots/images
+          git commit -m "ci: refresh recorded screenshots"
+          push_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git push "$push_url" "HEAD:${GITHUB_HEAD_REF}"; then
+            # Only a genuine lost race — someone pushed to the branch while
+            # this job ran, so the remote head no longer matches the commit we
+            # built on (HEAD^) — is downgraded to a warning; the next run
+            # re-records and retries. Any other failure (auth, branch
+            # protection, network) means the sync automation itself is broken
+            # and must fail the job rather than leave drift uncommitted under
+            # a green check.
+            git fetch "$push_url" "refs/heads/${GITHUB_HEAD_REF}"
+            if [ "$(git rev-parse FETCH_HEAD)" != "$(git rev-parse HEAD^)" ]; then
+              echo "::warning::Screenshot refresh push lost a race with another push to ${GITHUB_HEAD_REF}; the next run will retry."
+              exit 0
+            fi
+            echo "::error::Screenshot refresh push to ${GITHUB_HEAD_REF} failed for a non-race reason; the snapshot sync automation is broken."
+            exit 1
+          fi
 
       - name: Upload Roborazzi screenshots
         if: always()
