@@ -350,7 +350,13 @@ internal class LauncherViewModel(
                 val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
                 state.copy(
                     filteredApps = visibleApps.filterByName(
-                        query = state.query,
+                        // Trimmed to match every steady-state refresh
+                        // (refreshLists / refreshFilteredApps): this publish
+                        // can land mid-typing, and filtering the raw string
+                        // would silently change the visible results for a
+                        // whitespace-padded query — a lone " " stops meaning
+                        // "show all", and "maps " stops matching Maps.
+                        query = state.query.trim(),
                         appLaunchStatsStore = appLaunchStatsStore,
                         excludedAppIds = excludedFromAppList(state, dockedIds),
                         dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),

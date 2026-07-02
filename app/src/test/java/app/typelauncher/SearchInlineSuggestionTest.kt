@@ -45,6 +45,18 @@ class SearchInlineSuggestionTest {
     }
 
     @Test
+    fun whitespacePaddedQueryStillBoldsTheMatchedRun() {
+        // filterByName matches with the trimmed query, so the highlight must
+        // trim too: before the fix, "ca " highlighted against the raw string,
+        // found no run (the trailing space can't match a label character), and
+        // the suggestion rendered with nothing bold.
+        assertEquals(
+            InlineSearchSuggestion(name = "Calculator", boldIndices = listOf(0, 1)),
+            searchInlineSuggestion(query = "ca ", topMatch = calculator),
+        )
+    }
+
+    @Test
     fun hiddenWhenNoMatch() {
         assertNull(searchInlineSuggestion(query = "ca", topMatch = null))
     }
