@@ -2,11 +2,14 @@ package app.typelauncher
 
 import android.content.Intent
 import android.os.Process
+import android.view.ViewConfiguration
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -398,5 +401,81 @@ class AppsListChevronTest {
             "forward sort should keep the first result at the top of the card (card.top=${appsCardBounds.top}, row.top=${firstAppBounds.top})",
             (firstAppBounds.top - appsCardBounds.top).value <= 24f,
         )
+    }
+
+    /** Presses [position] (node-local px), holds past the long-press timeout, and lifts. */
+    private fun longPress(nodeTag: String, position: Offset) {
+        val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+        composeRule.onNodeWithTag(nodeTag).performTouchInput {
+            down(position)
+            move(longPressMs + 200)
+            up()
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * The bottom-most (partially) visible row and its clipped bounds, found by
+     * scanning the composed `App%02d` rows against the list viewport.
+     */
+    private fun bottomMostVisibleRow(): Pair<String, androidx.compose.ui.geometry.Rect> {
+        val listBounds =
+            composeRule.onNodeWithTag(APPS_LIST_TAG).fetchSemanticsNode().boundsInRoot
+        return (1..60).mapNotNull { i ->
+            val name = "App%02d".format(i)
+            composeRule.onAllNodesWithTag("$APP_ROW_TAG:$name").fetchSemanticsNodes()
+                .firstOrNull()?.let { name to it.boundsInRoot }
+        }.last { (_, bounds) -> bounds.top < listBounds.bottom }
+    }
+
+    @Test
+    fun appsListOverflow_longPressOnBottomRowUnderChevron_opensActionsMenu() {
+        // Regression: the bottom chevron's full 32dp tap target used to overlap
+        // the last 14dp of the list, swallowing presses on the bottom row's
+        // center — a long-press opened no menu and the tap handler paged the
+        // list on release instead. A search leaves the list pinned to the top
+        // with the bottom chevron showing, which is exactly where users
+        // long-press a result sitting at the bottom row.
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps, query = "app"))
+
+        val listBounds =
+            composeRule.onNodeWithTag(APPS_LIST_TAG).fetchSemanticsNode().boundsInRoot
+        val (name, rowBounds) = bottomMostVisibleRow()
+        // 4px above the list's bottom edge, horizontally centered: inside the
+        // band the chevron's old tap target used to cover.
+        val press = Offset(rowBounds.width / 2f, listBounds.bottom - 4f - rowBounds.top)
+        longPress("$APP_ROW_TAG:$name", press)
+
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:$name").assertExists()
+        // The press must not have paged the list either.
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App01").assertIsDisplayed()
+    }
+
+    @Test
+    fun appsListOverflow_longPressOnTopRowUnderChevron_opensActionsMenu() {
+        // Same regression as above, for the top chevron once the user has
+        // scrolled down: the first visible row's top band must stay
+        // long-pressable.
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+
+        val listBounds =
+            composeRule.onNodeWithTag(APPS_LIST_TAG).fetchSemanticsNode().boundsInRoot
+        val (name, rowBounds) = (1..60).mapNotNull { i ->
+            val rowName = "App%02d".format(i)
+            composeRule.onAllNodesWithTag("$APP_ROW_TAG:$rowName").fetchSemanticsNodes()
+                .firstOrNull()?.let { rowName to it.boundsInRoot }
+        }.first { (_, bounds) -> bounds.bottom > listBounds.top }
+        // 4px below the list's top edge, horizontally centered: inside the band
+        // the chevron's old tap target used to cover.
+        val press = Offset(rowBounds.width / 2f, listBounds.top + 4f - rowBounds.top)
+        longPress("$APP_ROW_TAG:$name", press)
+
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:$name").assertExists()
     }
 }

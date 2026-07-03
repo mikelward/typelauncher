@@ -3050,46 +3050,69 @@ private fun AppListOverflowChevronBox(
     Box(modifier = modifier.fillMaxWidth()) {
         content()
         if (chevronsReady && canScrollUp) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = -VerticalScrollChevronEdgeOffset),
-            ) {
-                AppListOverflowChevron(
-                    icon = Icons.Filled.KeyboardArrowUp,
-                    contentDescription = chevronContentDescription,
-                    testTag = topChevronTestTag,
-                    onClick = onScrollPageUp,
-                )
-            }
+            AppListOverflowChevron(
+                icon = Icons.Filled.KeyboardArrowUp,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.TopCenter,
+                edgeOffset = -VerticalScrollChevronEdgeOffset,
+                testTag = topChevronTestTag,
+                onClick = onScrollPageUp,
+            )
         }
         if (chevronsReady && canScrollDown) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = VerticalScrollChevronEdgeOffset),
-            ) {
-                AppListOverflowChevron(
-                    icon = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = chevronContentDescription,
-                    testTag = bottomChevronTestTag,
-                    onClick = onScrollPageDown,
-                )
-            }
+            AppListOverflowChevron(
+                icon = Icons.Filled.KeyboardArrowDown,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.BottomCenter,
+                edgeOffset = VerticalScrollChevronEdgeOffset,
+                testTag = bottomChevronTestTag,
+                onClick = onScrollPageDown,
+            )
         }
     }
 }
 
 @Composable
-private fun AppListOverflowChevron(
+private fun BoxScope.AppListOverflowChevron(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
+    alignment: Alignment,
+    edgeOffset: Dp,
     testTag: String,
     onClick: () -> Unit,
 ) {
+    // The visible icon straddles the list edge but must not intercept touches:
+    // this Box carries no pointer-input modifier, so presses on the in-list half
+    // of the icon fall through to the app row / tile underneath (launch,
+    // long-press menu, drag) instead of being swallowed. Same overlap rule the
+    // horizontal chevrons follow in [OverflowScrollChevron] — Compose dispatches
+    // a position's pointer events to the topmost overlapping sibling only, so a
+    // full-size tappable chevron here would create a dead band on the first /
+    // last visible row (long-press did nothing and a tap paged the list).
     Box(
         modifier = Modifier
-            .size(VerticalScrollChevronTapTargetSize)
+            .align(alignment)
+            .offset(y = edgeOffset)
+            .size(VerticalScrollChevronTapTargetSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        ChevronIcon(
+            icon = icon,
+            contentDescription = contentDescription,
+        )
+    }
+    // The tap target covers only the icon's overhang band outside the list edge
+    // (VerticalScrollChevronTapTargetSize wide × VerticalScrollChevronEdgeOffset
+    // tall), so paging taps still work while every pixel inside the list belongs
+    // to the row under it.
+    Box(
+        modifier = Modifier
+            .align(alignment)
+            .offset(y = edgeOffset)
+            .size(
+                width = VerticalScrollChevronTapTargetSize,
+                height = VerticalScrollChevronEdgeOffset,
+            )
             .pointerInput(onClick) {
                 detectTapGestures(onTap = { onClick() })
             }
@@ -3102,13 +3125,7 @@ private fun AppListOverflowChevron(
                 }
             }
             .testTag(testTag),
-        contentAlignment = Alignment.Center,
-    ) {
-        ChevronIcon(
-            icon = icon,
-            contentDescription = contentDescription,
-        )
-    }
+    )
 }
 
 @Composable
