@@ -453,6 +453,37 @@ class AppsListChevronTest {
     }
 
     @Test
+    fun appsListOverflow_touchInChevronBandBelowListEdge_pagesList() {
+        // The chevron's tap target sits below the list's bottom edge, outside
+        // its wrapper Box's measured bounds. Compose still hit-tests it there
+        // because no ancestor between it and the card clips — this test pins
+        // that by injecting a coordinate-based touch through the apps *card*
+        // node (not the chevron's own semantics node), the same pointer path a
+        // real finger takes.
+        val apps = (1..60).map { i -> fakeApp(name = "App%02d".format(i)) }
+        renderHome(LauncherUiState(filteredApps = apps))
+
+        val cardBounds =
+            composeRule.onNodeWithTag(APPS_CARD_TAG).fetchSemanticsNode().boundsInRoot
+        val listBounds =
+            composeRule.onNodeWithTag(APPS_LIST_TAG).fetchSemanticsNode().boundsInRoot
+        // Horizontally centered, vertically midway between the list's bottom
+        // edge and the card's bottom edge: inside the chevron's outside band.
+        val tapRoot = Offset(
+            (listBounds.left + listBounds.right) / 2f,
+            (listBounds.bottom + cardBounds.bottom) / 2f,
+        )
+        composeRule.onNodeWithTag(APPS_CARD_TAG).performTouchInput {
+            down(tapRoot - cardBounds.topLeft)
+            up()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:App01").assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_LIST_SCROLL_TOP_CHEVRON_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun appsListOverflow_longPressOnTopRowUnderChevron_opensActionsMenu() {
         // Same regression as above, for the top chevron once the user has
         // scrolled down: the first visible row's top band must stay
