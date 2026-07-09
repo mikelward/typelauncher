@@ -127,31 +127,75 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w914dp-h411dp-420dpi")
-    fun screenshot_landscape_compact_dropsDockAndBox() {
+    fun screenshot_landscape_dockNoKeyboard_showsDockWithKeyboardDown() {
         composeRule.waitForIdle()
         // A typical phone landscape can't fit the keyboard alongside the search
-        // box, dock, and an app row, so it collapses to the Compact state: the
-        // search box and keyboard are hidden by default and both docks are
-        // dropped, leaving the app list to fill the viewport.
+        // box, dock, and an app row — but the search box, the app-list floor,
+        // and a single-row dock do fit without the keyboard. So rather than the
+        // cramped Compact state, Home shows the dock with the keyboard down
+        // (DockNoKeyboard); the user taps the search box to bring the keyboard,
+        // which then yields the dock its space.
         val state = composeRule.activity.viewModel.uiState.value
-        assertEquals(HomeLandscapeTier.Compact, state.homeLandscapeTier)
+        assertEquals(HomeLandscapeTier.DockNoKeyboard, state.homeLandscapeTier)
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
-        // The Compact tier always renders the app list as an icon grid, even
-        // though the persisted "App list" layout is still the default Text
-        // (proving the override is tier-driven, not a mutated setting): the
-        // icon-only button exists and the text row does not.
+        // The app list keeps the user's persisted layout (the default text
+        // rows) in landscape — the old Compact icon-grid override is gone.
         assertFalse(
-            "Compact overrides to icons without flipping the persisted layout setting",
+            "the persisted layout is still the default, not icon-only",
             state.appListLayout == AppListLayout.IconOnly,
         )
-        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertExists()
-        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertExists()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertDoesNotExist()
 
-        saveScreenshot("compose_home_landscape_compact_robolectric.png", widthPx = 2400, heightPx = 1080)
+        saveScreenshot("compose_home_landscape_dock_no_keyboard_robolectric.png", widthPx = 2400, heightPx = 1080)
+    }
+
+    // A 6x2 portrait dock flattens into a single reading-order landscape row —
+    // the top portrait row first, then the bottom row appended on the right —
+    // returning the saved vertical space to the app list. The portrait
+    // positions are never rewritten (this is a render-time reflow), so the
+    // grid is restored when rotated back. Asserts every docked icon shares one
+    // row and records the visual.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_flattensDockToOneRow() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        // Eight docked apps at the default six icons per row would be a 6+2
+        // two-row grid in portrait.
+        viewModel.uiState.value.filteredApps.take(8).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        composeRule.waitForIdle()
+
+        val docked = viewModel.uiState.value.dockedApps
+        assertTrue("expected 8 docked apps (was=${docked.size})", docked.size == 8)
+        assertEquals(
+            HomeLandscapeTier.DockNoKeyboard,
+            viewModel.uiState.value.homeLandscapeTier,
+        )
+
+        // Every docked icon shares the first row's top: the grid is one row now.
+        val tops = docked.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot().top.value
+        }
+        val firstTop = tops.first()
+        tops.forEachIndexed { index, top ->
+            assertTrue(
+                "dock icon $index should share the single landscape row " +
+                    "(firstTop=$firstTop, top=$top, allTops=$tops)",
+                kotlin.math.abs(top - firstTop) <= 1f,
+            )
+        }
+
+        saveScreenshot(
+            "compose_dock_landscape_flattened_one_row_robolectric.png",
+            widthPx = 2400,
+            heightPx = 1080,
+        )
     }
 
     @Test
@@ -173,21 +217,22 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w914dp-h411dp-420dpi")
-    fun screenshot_landscape_cachedKeyboard_doesNotReserveInCompact() {
+    fun screenshot_landscape_cachedKeyboard_doesNotReserveWithKeyboardDown() {
         composeRule.waitForIdle()
         // Even with a keyboard height cached for this size (seeded by the rule),
-        // the Compact state suppresses the keyboard and must not reserve its
-        // height — so the app list fills the viewport. The box and dock are
-        // dropped, just as in any other Compact viewport.
+        // a keyboard-down landscape state must not reserve its height — the app
+        // list and the single-row dock fill the viewport instead. At this
+        // phone-landscape size that keyboard-down state is DockNoKeyboard, so
+        // the box and dock show.
         assertEquals(
-            HomeLandscapeTier.Compact,
+            HomeLandscapeTier.DockNoKeyboard,
             composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
         )
-        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
         saveScreenshot(
-            "compose_home_landscape_compact_cached_keyboard_robolectric.png",
+            "compose_home_landscape_dock_no_keyboard_cached_keyboard_robolectric.png",
             widthPx = 2400,
             heightPx = 1080,
         )
@@ -3390,10 +3435,10 @@ class MainActivityRobolectricScreenshotTest {
                             .putBoolean("dock_prefilled", true)
                             .commit()
                     }
-                    if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveInCompact") {
+                    if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveWithKeyboardDown") {
                         // A keyboard height already cached for this landscape size
                         // (wildcard fingerprint, so it applies under any config).
-                        // The Compact state must not reserve it — exercises the
+                        // A keyboard-down state must not reserve it — exercises the
                         // suppressed-state reservation gate.
                         DockSettingsStore(application).keyboardReservation = KeyboardReservation(
                             bottomPx = 600,

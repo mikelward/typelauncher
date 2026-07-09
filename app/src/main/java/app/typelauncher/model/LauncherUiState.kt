@@ -262,6 +262,67 @@ internal fun nextAvailableDockPosition(
 }
 
 /**
+ * The dock positions to render in a wider-than-portrait (landscape) window,
+ * given the portrait grid the user actually arranged.
+ *
+ * In landscape there is room for a wider, shorter dock, so a multi-row
+ * portrait dock flattens into a single reading-order row — top row first,
+ * then the next row appended on the right — freeing the saved vertical space
+ * for the app list. The portrait grid in [persistedPositions] is the single
+ * source of truth and is never mutated here; this is a pure render-time
+ * transform, so rotating back to portrait always reproduces the original
+ * arrangement (including any deliberate gaps). The flattened order flows into
+ * [landscapeColumnCount] columns; when more occupants are docked than fit one
+ * row (a narrow viewport capping the columns) the overflow wraps to a second
+ * row, exactly as the portrait grid would.
+ *
+ * Empty portrait cells are compacted away — the whole point of the flattened
+ * row is to reclaim horizontal space — so a sparse portrait row reads as a
+ * contiguous run in landscape.
+ */
+internal fun landscapeDockPositions(
+    occupantIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    portraitColumnCount: Int,
+    landscapeColumnCount: Int,
+): Map<String, DockPosition> {
+    val resolved = resolvedDockPositions(occupantIds, persistedPositions, portraitColumnCount)
+    val order = occupantIds.distinct()
+        .filter { occupantId -> occupantId in resolved }
+        .sortedWith(
+            compareBy(
+                { occupantId -> resolved.getValue(occupantId).row },
+                { occupantId -> resolved.getValue(occupantId).column },
+            ),
+        )
+    val columns = landscapeColumnCount.coerceAtLeast(1)
+    return order.withIndex().associate { (index, occupantId) ->
+        occupantId to DockPosition(index / columns, index % columns)
+    }
+}
+
+/**
+ * Number of columns a dock renders in landscape: the busiest *visible* dock's
+ * occupant count, never fewer than [dockIconCount] (the portrait per-row
+ * count, so a small dock keeps its portrait slot size) and never more than
+ * fits the landscape width ([landscapeFitColumns]). A dock whose card isn't
+ * rendered contributes 0 — so a hidden personal dock's saved pins don't widen
+ * a work-only dock into a row of empty slots, and vice versa.
+ */
+internal fun landscapeDockColumnCount(
+    isPersonalDockEnabled: Boolean,
+    personalDockOccupantCount: Int,
+    isWorkDockVisible: Boolean,
+    workDockOccupantCount: Int,
+    dockIconCount: Int,
+    landscapeFitColumns: Int,
+): Int {
+    val personal = if (isPersonalDockEnabled) personalDockOccupantCount else 0
+    val work = if (isWorkDockVisible) workDockOccupantCount else 0
+    return maxOf(personal, work).coerceIn(dockIconCount, maxOf(landscapeFitColumns, dockIconCount))
+}
+
+/**
  * One cell of an opened dock folder's grid: a member tile (by display order), the
  * close (✕) tile, or an empty filler. [dockFolderSlots] returns these row-major so
  * the renderer can lay them out in the same `FlowRow` the dock uses.
@@ -620,6 +681,14 @@ internal data class LauncherUiState(
     // mode, resume re-show) and the cold-start home-ready IME wait read one
     // value. Always [HomeLandscapeTier.Full] in portrait.
     val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
+    // True while the keyboard is up in the landscape
+    // [HomeLandscapeTier.DockNoKeyboard] state: that tier shows the dock with
+    // the keyboard down, so when the user raises the keyboard the dock yields
+    // its space. Pushed from the Compose layer (IME visibility) so the
+    // app-list dedupe follows the dock — docked apps reappear in the list
+    // while the dock is suppressed, mirroring how typing or the Compact state
+    // surface them. False everywhere else.
+    val dockSuppressedByKeyboard: Boolean = false,
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,

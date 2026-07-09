@@ -13,19 +13,22 @@ class HomeLandscapeLayoutTest {
         availableHeightDp: Int,
         predictedKeyboardHeightDp: Int,
         dockHeightDp: Int = 108,
+        appRowHeightDp: Int = 84,
+        dockFitsAsSingleRow: Boolean = true,
     ) = HomeLandscapeMetrics(
         isWiderThanPortrait = isWiderThanPortrait,
         availableHeightDp = availableHeightDp,
         predictedKeyboardHeightDp = predictedKeyboardHeightDp,
         searchBoxHeightDp = 88,
         dockHeightDp = dockHeightDp,
-        appRowHeightDp = 84,
+        appRowHeightDp = appRowHeightDp,
+        dockFitsAsSingleRow = dockFitsAsSingleRow,
     )
 
     @Test
     fun portraitAlwaysFull() {
         // Even a height that could never fit anything in landscape stays Full in
-        // portrait — the two-state degradation is landscape-only.
+        // portrait — the tiered degradation is landscape-only.
         val tier = resolveHomeLandscapeTier(
             metrics(isWiderThanPortrait = false, availableHeightDp = 10, predictedKeyboardHeightDp = 999),
         )
@@ -52,38 +55,94 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
-    fun compactOneDpBelowFullBoundary() {
-        // One dp short of fitting the keyboard → drop to Compact (app list only).
+    fun dockNoKeyboardOneDpBelowFullBoundary() {
+        // One dp short of fitting the keyboard, but the box + the two-row app-list
+        // floor + a single-row dock fit without it (need-with-floor = 88 + 8 +
+        // 2*84 + 8 + 108 = 380 <= 503) → show the dock with the keyboard down
+        // rather than dropping it.
         assertEquals(
-            HomeLandscapeTier.Compact,
+            HomeLandscapeTier.DockNoKeyboard,
             resolveHomeLandscapeTier(metrics(availableHeightDp = 503, predictedKeyboardHeightDp = 200)),
         )
     }
 
     @Test
-    fun compactIgnoresDockHeightForTierChoice() {
-        // Below the Full (keyboard) threshold there is no middle tier gated on the
-        // dock — dropping the dock is a render decision, not a tier decision — so
-        // two viewports differing only in dock height both resolve Compact.
+    fun dockNoKeyboardAtExactAppListFloorBoundary() {
+        // Exactly enough for the box + the two-row app-list floor + a single-row
+        // dock without the keyboard (need-with-floor = 380).
+        assertEquals(
+            HomeLandscapeTier.DockNoKeyboard,
+            resolveHomeLandscapeTier(metrics(availableHeightDp = 380, predictedKeyboardHeightDp = 200)),
+        )
+    }
+
+    @Test
+    fun compactWhenTheTwoRowFloorPlusDockDoesNotFit() {
+        // One dp short of the box + two-row app-list floor + dock (380) → Compact,
+        // rather than entering DockNoKeyboard and squeezing the dock below the
+        // app-list floor.
         assertEquals(
             HomeLandscapeTier.Compact,
-            resolveHomeLandscapeTier(metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200)),
+            resolveHomeLandscapeTier(metrics(availableHeightDp = 379, predictedKeyboardHeightDp = 200)),
         )
+    }
+
+    @Test
+    fun compactWhenDockWouldBeMultipleRows() {
+        // The box + two-row floor + dock fit without the keyboard (380 <= 400),
+        // but a multi-row dock isn't worth the height-constrained app list, so it
+        // falls through to Compact instead of DockNoKeyboard.
         assertEquals(
             HomeLandscapeTier.Compact,
             resolveHomeLandscapeTier(
-                metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200, dockHeightDp = 0),
+                metrics(availableHeightDp = 400, predictedKeyboardHeightDp = 200, dockFitsAsSingleRow = false),
+            ),
+        )
+    }
+
+    @Test
+    fun compactWhenThereIsNoDockAndTheKeyboardDoesNotFit() {
+        // With no dock there is no DockNoKeyboard tier to fall into (the middle
+        // tier exists to show the dock), so below the no-dock Full threshold
+        // (88 + 8 + 84 + 8 + 200 = 388) the result is Compact.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 387, predictedKeyboardHeightDp = 200, dockHeightDp = 0),
+            ),
+        )
+    }
+
+    @Test
+    fun dockNoKeyboardFloorReservesTextRowHeightForADenseDock() {
+        // A dense dock makes the icon-grid app row (40dp here) shorter than a
+        // 56dp text row. DockNoKeyboard keeps the user's app-list layout (maybe
+        // text rows), so the floor must reserve two *text* rows, not two icon
+        // rows: text floor = 88 + 8 + 2*56 + 8 + 108 = 324; the icon-row floor
+        // (the bug) would be 88 + 8 + 2*40 + 8 + 108 = 292.
+        // At 300dp the icon-row floor would wrongly admit DockNoKeyboard; the
+        // text-row floor correctly falls back to Compact.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200, appRowHeightDp = 40),
+            ),
+        )
+        assertEquals(
+            HomeLandscapeTier.DockNoKeyboard,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 324, predictedKeyboardHeightDp = 200, appRowHeightDp = 40),
             ),
         )
     }
 
     @Test
     fun disablingDockLowersTheFullThreshold() {
-        // The dock height is still reserved in the Full fit test, so a height that
-        // is Compact with a dock (504 needed) becomes Full without one: removing
-        // the dock drops the need to 88 + 8 + 84 + 8 + 200 = 388.
+        // The dock height is reserved in the Full fit test, so a height that is
+        // only DockNoKeyboard with a dock (504 needed for Full) becomes Full
+        // without one: removing the dock drops the need to 88 + 8 + 84 + 8 + 200 = 388.
         assertEquals(
-            HomeLandscapeTier.Compact,
+            HomeLandscapeTier.DockNoKeyboard,
             resolveHomeLandscapeTier(metrics(availableHeightDp = 400, predictedKeyboardHeightDp = 200)),
         )
         assertEquals(
@@ -103,6 +162,7 @@ class HomeLandscapeLayoutTest {
             densityDpi = 420,
             targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
             isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
             isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
             workDockPositions = emptyMap(),
@@ -129,6 +189,7 @@ class HomeLandscapeLayoutTest {
             densityDpi = 320,
             targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
             isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
             isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
             workDockPositions = emptyMap(),
@@ -154,6 +215,7 @@ class HomeLandscapeLayoutTest {
             densityDpi = 420,
             targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
             isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
             isWorkDockVisible = false,
             workDockedAppIds = emptyList(),
             workDockPositions = emptyMap(),
@@ -173,6 +235,7 @@ class HomeLandscapeLayoutTest {
                 densityDpi = 420,
                 targetDockIconSizeDp = dockIconSizeForSlotCount(800, 4),
                 isPersonalDockEnabled = personal,
+                personalDockOccupantIds = emptyList(),
                 isWorkDockVisible = workVisible,
                 workDockedAppIds = workApps,
                 workDockPositions = emptyMap(),
@@ -202,6 +265,90 @@ class HomeLandscapeLayoutTest {
                 dockHeightFor(personal = true, workVisible = true, workApps = oneWorkApp),
         )
         assertEquals(0, dockHeightFor(personal = false, workVisible = false))
+    }
+
+    @Test
+    fun metricsCountFlattenedWorkDockAsASingleRow() {
+        fun metricsFor(workApps: List<String>) =
+            homeLandscapeMetrics(
+                screenWidthDp = 1280,
+                screenHeightDp = 800,
+                densityDpi = 420,
+                targetDockIconSizeDp = MAX_DOCK_APP_ICON_SIZE_DP,
+                isPersonalDockEnabled = true,
+                personalDockOccupantIds = emptyList(),
+                isWorkDockVisible = true,
+                workDockedAppIds = workApps,
+                workDockPositions = emptyMap(),
+                keyboardReservation = KeyboardReservation(),
+                reservationFingerprint = fingerprint(1280, 800, 420, navBottomPx = 0),
+            )
+
+        // At the max icon size the 800dp short edge renders well under nine per
+        // row, so nine apps form a two-row portrait work dock — yet all nine
+        // still fit in one flattened row across the 1280dp landscape width, so
+        // the work card is estimated at its single-row height.
+        val twoPortraitRows = (1..9).map { "w$it" }
+        assertEquals(
+            metricsFor(listOf("w1")).dockHeightDp,
+            metricsFor(twoPortraitRows).dockHeightDp,
+        )
+        assertTrue(metricsFor(twoPortraitRows).dockFitsAsSingleRow)
+
+        // Twenty apps exceed the landscape fit, so the flatten wraps: the card
+        // grows and the single-row gate closes.
+        val overflowing = (1..20).map { "w$it" }
+        assertTrue(
+            metricsFor(overflowing).dockHeightDp > metricsFor(twoPortraitRows).dockHeightDp,
+        )
+        assertEquals(false, metricsFor(overflowing).dockFitsAsSingleRow)
+    }
+
+    private fun singleRow(
+        personalApps: Int,
+        landscapeColumnCount: Int = 12,
+        isWiderThanPortrait: Boolean = true,
+        isPersonalDockEnabled: Boolean = true,
+    ) = landscapeDockFitsAsSingleRow(
+        isWiderThanPortrait = isWiderThanPortrait,
+        landscapeColumnCount = landscapeColumnCount,
+        isPersonalDockEnabled = isPersonalDockEnabled,
+        personalDockOccupantIds = (1..personalApps).map { "p$it" },
+        isWorkDockVisible = false,
+        workDockOccupantIds = emptyList(),
+    )
+
+    @Test
+    fun singleRowTrueWhenOccupantsFitOneLandscapeRow() {
+        // Twelve occupants (a full 6x2 portrait dock) flatten into a single
+        // 12-wide row.
+        assertTrue(singleRow(personalApps = 12))
+    }
+
+    @Test
+    fun singleRowFalseWhenOccupantsOverflowLandscapeWidth() {
+        // Twenty occupants exceed the 12-column landscape fit, so the flatten
+        // wraps to a second row and the keyboard-down tier is not entered.
+        assertEquals(false, singleRow(personalApps = 20))
+    }
+
+    @Test
+    fun singleRowTrueForAVisibleButEmptyDock() {
+        // An enabled empty dock still renders a one-row card (the add hint).
+        assertTrue(singleRow(personalApps = 0))
+    }
+
+    @Test
+    fun singleRowIgnoresAHiddenDock() {
+        // A disabled personal dock contributes no rows no matter how many pins
+        // it has saved.
+        assertTrue(singleRow(personalApps = 20, isPersonalDockEnabled = false))
+    }
+
+    @Test
+    fun singleRowTrueInPortrait() {
+        // Portrait is forced to Full regardless, so the gate is a no-op there.
+        assertTrue(singleRow(personalApps = 20, isWiderThanPortrait = false))
     }
 
     private fun fingerprint(widthDp: Int, heightDp: Int, densityDpi: Int, navBottomPx: Int) =

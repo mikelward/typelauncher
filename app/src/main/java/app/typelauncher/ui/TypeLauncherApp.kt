@@ -284,6 +284,7 @@ internal fun TypeLauncherApp(
         onRequestShowKeyboard = viewModel::requestShowKeyboard,
         onKeyboardReservationChanged = viewModel::setKeyboardReservation,
         onHomeLandscapeTierChanged = viewModel::setHomeLandscapeTier,
+        onDockSuppressedByKeyboardChanged = viewModel::setDockSuppressedByKeyboard,
         keyboardShowRequests = viewModel.keyboardShowRequests,
         appWidgetHost = appWidgetHost,
         appWidgetManager = appWidgetManager,
@@ -361,6 +362,7 @@ internal fun TypeLauncherApp(
     onRequestShowKeyboard: () -> Unit = {},
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
     onHomeLandscapeTierChanged: (HomeLandscapeTier) -> Unit = {},
+    onDockSuppressedByKeyboardChanged: (Boolean) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
@@ -570,11 +572,13 @@ internal fun TypeLauncherApp(
         }
         // In the cramped-landscape [HomeLandscapeTier.Compact] state the search box
         // is hidden by default; a pull-up (routed to `keyboardShowRequests`)
-        // reveals it on demand. Reset on leaving Home and on resume (below) so a
-        // returning user starts from the hidden state again rather than a
-        // lingering revealed box.
+        // reveals it on demand. In [HomeLandscapeTier.DockNoKeyboard] the box is
+        // already visible but the keyboard is down, so the same pull-up raises
+        // the keyboard instead (see `autoShowKeyboard` in `HomeScreen`). Reset
+        // on leaving Home and on resume (below) so a returning user starts from
+        // the keyboard-down state again rather than a lingering reveal.
         var searchRevealedInTightLandscape by remember { mutableStateOf(false) }
-        if (homeLandscapeTier == HomeLandscapeTier.Compact) {
+        if (homeLandscapeTier != HomeLandscapeTier.Full) {
             LaunchedEffect(keyboardShowRequests) {
                 keyboardShowRequests.collect { searchRevealedInTightLandscape = true }
             }
@@ -656,6 +660,20 @@ internal fun TypeLauncherApp(
             imeTargetBottomPx = imeTargetBottomPx,
             navBottomPx = navBottomPx,
         )
+        // The DockNoKeyboard tier shows the dock with the keyboard down; once
+        // the keyboard rises there is no room for both, so the dock yields.
+        // Keyed on the showing-or-animating signal (not raw `imeVisible`, which
+        // lags the animation target) so the dock yields on the same frame the
+        // keyboard reservation starts applying, not a frame or two later. Only
+        // ever true in that tier (Full/portrait keep the dock with the IME up).
+        // Pushed to the ViewModel so the app-list dedupe surfaces the docked
+        // apps while the dock is gone, and passed straight to HomeScreen so it
+        // yields promptly.
+        val dockSuppressedByKeyboard = keyboardShowingOrAnimatingIn &&
+            homeLandscapeTier == HomeLandscapeTier.DockNoKeyboard
+        LaunchedEffect(dockSuppressedByKeyboard) {
+            onDockSuppressedByKeyboardChanged(dockSuppressedByKeyboard)
+        }
         // Collapse the reserved keyboard space once the keyboard has been seen
         // and dismissed this Home presence (see `keyboardSeenThisHomePresence`).
         // Until then it stays reserved so the auto-shown keyboard does not cause
@@ -772,6 +790,7 @@ internal fun TypeLauncherApp(
                                 landscapeTier = homeLandscapeTier,
                                 searchRevealed = searchRevealedInTightLandscape,
                                 primaryBottomPadding = effectiveKeyboardReservationDp,
+                                dockSuppressedByKeyboard = dockSuppressedByKeyboard,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
                                 onQueryChanged = onQueryChanged,
@@ -946,6 +965,13 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
     } else {
         emptyList()
     }
+    // The personal dock's occupants gate the single-row DockNoKeyboard fit the
+    // same way the work dock's do.
+    val personalDockOccupantIds = if (state.isDockEnabled) {
+        state.dockedApps.map { it.id } + state.dockFolders.map { it.id }
+    } else {
+        emptyList()
+    }
     return remember(
         configuration.orientation,
         configuration.screenWidthDp,
@@ -954,6 +980,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
         navBottomPx,
         state.dockIconSizeDp,
         state.isDockEnabled,
+        personalDockOccupantIds,
         isWorkDockVisible,
         workDockedAppIds,
         state.workDockPositions,
@@ -975,6 +1002,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
                 densityDpi = configuration.densityDpi,
                 targetDockIconSizeDp = state.dockIconSizeDp,
                 isPersonalDockEnabled = state.isDockEnabled,
+                personalDockOccupantIds = personalDockOccupantIds,
                 isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = workDockedAppIds,
                 workDockPositions = state.workDockPositions,

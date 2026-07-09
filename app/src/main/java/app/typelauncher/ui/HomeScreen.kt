@@ -168,6 +168,10 @@ internal fun HomeScreen(
     landscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
     searchRevealed: Boolean = false,
     primaryBottomPadding: Dp = 0.dp,
+    // True while the keyboard is up in the DockNoKeyboard landscape tier; the
+    // dock yields its space then (see `isDockSlotPresent`). Passed directly
+    // (not via state) so the dock hides on the same frame the keyboard rises.
+    dockSuppressedByKeyboard: Boolean = false,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     onQueryChanged: (String) -> Unit,
@@ -234,6 +238,61 @@ internal fun HomeScreen(
     val dockSizing = dockIconSizing(dockReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
+    // In a wider-than-portrait window (landscape) the dock flattens into a
+    // single reading-order row — the top portrait row first, then the next row
+    // appended on the right — so a two-row portrait dock collapses to one row
+    // and the saved vertical space goes to the app list. The flattened row
+    // needs as many columns as the busiest dock has occupants, capped to what
+    // actually fits the landscape width at the (rotation-stable) icon size;
+    // any overflow wraps to a second row, exactly as the portrait grid would.
+    // The portrait positions in state are never rewritten; this is a pure
+    // render-time reflow (rotating back restores the grid).
+    val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    val personalDockOccupantIds = state.dockedApps.map { app -> app.id } +
+        state.dockFolders.map { folder -> folder.id }
+    val workDockOccupantIds = state.workDockedApps.map { app -> app.id } +
+        state.workDockFolders.map { folder -> folder.id }
+    val dockColumnCount = if (isWiderThanPortrait) {
+        landscapeDockColumnCount(
+            isPersonalDockEnabled = state.isDockEnabled,
+            personalDockOccupantCount = personalDockOccupantIds.size,
+            isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive,
+            workDockOccupantCount = workDockOccupantIds.size,
+            dockIconCount = dockIconCount,
+            landscapeFitColumns = dockSlotCountForIconSize(configuration.screenWidthDp, dockIconSizeDp),
+        )
+    } else {
+        dockIconCount
+    }
+    val personalDockRenderPositions = if (isWiderThanPortrait) {
+        landscapeDockPositions(personalDockOccupantIds, state.dockPositions, dockIconCount, dockColumnCount)
+    } else {
+        state.dockPositions
+    }
+    val workDockRenderPositions = if (isWiderThanPortrait) {
+        landscapeDockPositions(workDockOccupantIds, state.workDockPositions, dockIconCount, dockColumnCount)
+    } else {
+        state.workDockPositions
+    }
+    // In the landscape reflow a rendered `(row, column)` is a flattened view of
+    // the portrait grid, so a coordinate-carrying drop (app-list → dock, folder
+    // member → dock) must not write the rendered cell back into portrait
+    // storage. These hold the first open *portrait* cell of each dock instead;
+    // non-null only in landscape, where every such drop is redirected to it.
+    val landscapeSafePersonalDockCell by rememberUpdatedState(
+        if (isWiderThanPortrait) {
+            nextAvailableDockPosition(personalDockOccupantIds, state.dockPositions, dockIconCount)
+        } else {
+            null
+        },
+    )
+    val landscapeSafeWorkDockCell by rememberUpdatedState(
+        if (isWiderThanPortrait) {
+            nextAvailableDockPosition(workDockOccupantIds, state.workDockPositions, dockIconCount)
+        } else {
+            null
+        },
+    )
 
     // --- App-list → dock drag (long-press a list app, drop it on the dock). ---
     // The personal dock publishes its drop geometry here (it's a sibling of the
@@ -321,7 +380,21 @@ internal fun HomeScreen(
                 }
 
                 val landedOnPersonal = latestPersonalDockDropTarget?.let { target ->
-                    dropOnto(target, latestOnDockAppAtPosition, latestOnDockAppIntoOccupant)
+                    dropOnto(
+                        target,
+                        { appId, row, column ->
+                            // Landscape renders a flattened view of the portrait
+                            // grid, so the rendered cell is redirected to the
+                            // first open portrait cell (see the holder above).
+                            val safeCell = landscapeSafePersonalDockCell
+                            if (safeCell != null) {
+                                latestOnDockAppAtPosition(appId, safeCell.row, safeCell.column)
+                            } else {
+                                latestOnDockAppAtPosition(appId, row, column)
+                            }
+                        },
+                        latestOnDockAppIntoOccupant,
+                    )
                 } ?: false
                 // The work dock is work-apps-only: a personal app released over it
                 // falls through (no-op), staying in the list.
@@ -329,7 +402,14 @@ internal fun HomeScreen(
                     latestWorkDockDropTarget?.let { target ->
                         dropOnto(
                             target,
-                            latestOnDockAppAtWorkDockPosition,
+                            { appId, row, column ->
+                                val safeCell = landscapeSafeWorkDockCell
+                                if (safeCell != null) {
+                                    latestOnDockAppAtWorkDockPosition(appId, safeCell.row, safeCell.column)
+                                } else {
+                                    latestOnDockAppAtWorkDockPosition(appId, row, column)
+                                }
+                            },
                             latestOnDockAppIntoWorkDockOccupant,
                         )
                     }
@@ -345,7 +425,7 @@ internal fun HomeScreen(
     // occupy and center it (see the dock slot below) so the gray card sits as
     // an island with the screen background showing in the margins, instead of
     // a bar stretched edge-to-edge. Portrait keeps the full-width card.
-    val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    //
     // Card width = the icon row's footprint + the card's own padding + a small
     // slack. The slack matters: `Modifier.weight(1f)` only avoids the
     // pixel-rounding wrap (the v403 regression) when the row has a little room
@@ -353,9 +433,11 @@ internal fun HomeScreen(
     // gets this for free — the slot-count math reserves DOCK_HORIZONTAL_PADDING_DP
     // (64) of chrome while the real chrome is only ~48 — so mirror that ~16dp
     // here, otherwise the last icon wraps to a second row at exact-fit widths.
+    // The flattened landscape row is wider (`dockColumnCount`), so the centered
+    // island grows to match.
     val dockRowSlackDp = DOCK_ITEM_SPACING_DP * 2
     val dockCardWidthDp = (
-        dockRowContentWidthDp(dockIconCount, dockIconSizeDp) +
+        dockRowContentWidthDp(dockColumnCount, dockIconSizeDp) +
             dockRowSlackDp + SECTION_CARD_PADDING_DP * 2
         ).dp
     // Custom Layout (not Column) so the dock's max-height constraint is
@@ -380,11 +462,21 @@ internal fun HomeScreen(
     // In the cramped-landscape Compact state the dock(s) are dropped entirely:
     // the viewport can't fit the full experience, so rather than clip the dock
     // off the bottom of the screen we give the whole area to the app list. The
-    // dock only renders in Full (which includes all of portrait). Revealing the
+    // dock renders in Full (which includes all of portrait) and in
+    // DockNoKeyboard — the landscape state that fits the flattened single-row
+    // dock with the keyboard down, the common case on phones. Revealing the
     // search box in Compact does not bring the dock back.
+    //
+    // In DockNoKeyboard the dock shows with the keyboard down; once the user
+    // raises the keyboard there is no room for both, so the dock yields its
+    // space (the app list keeps its floor and the docked apps resurface in the
+    // list — see `excludedFromAppList`). `dockSuppressedByKeyboard` is only
+    // ever true in DockNoKeyboard, so Full and portrait keep the dock with the
+    // IME up.
     val isDockSlotPresent =
         bodyReady && state.query.isBlank() &&
-            landscapeTier == HomeLandscapeTier.Full &&
+            landscapeTier != HomeLandscapeTier.Compact &&
+            !dockSuppressedByKeyboard &&
             (state.isDockEnabled || showWorkDock)
     // The personal dock is the only app-list → dock drop target. Drop its stale
     // geometry whenever the dock leaves composition (typing, Compact landscape,
@@ -414,11 +506,12 @@ internal fun HomeScreen(
         searchRevealed ||
         state.query.isNotBlank()
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
-    // revealed the box in the Compact state — a pull-up is an explicit request, so
-    // it shows the keyboard even with auto-show off.
+    // revealed the box in a landscape state that keeps the keyboard down
+    // (Compact or DockNoKeyboard) — a pull-up is an explicit request, so it
+    // shows the keyboard even with auto-show off.
     val autoShowKeyboard = isHome && (
         (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.Full) ||
-            (searchRevealed && landscapeTier == HomeLandscapeTier.Compact)
+            (searchRevealed && landscapeTier != HomeLandscapeTier.Full)
         )
     Layout(
         modifier = Modifier
@@ -550,12 +643,13 @@ internal fun HomeScreen(
                         if (state.isDockEnabled) {
                             DockCard(
                                 dockedApps = state.dockedApps,
-                                dockPositions = state.dockPositions,
+                                dockPositions = personalDockRenderPositions,
                                 dockFolders = state.dockFolders,
                                 dockIconSizeDp = dockIconSizeDp,
-                                dockIconCount = dockIconCount,
+                                dockIconCount = dockColumnCount,
                                 dockLayout = state.dockLayout,
                                 modifier = Modifier.weight(1f, fill = false),
+                                reorderEnabled = !isWiderThanPortrait,
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleDock,
@@ -564,7 +658,18 @@ internal fun HomeScreen(
                                 onRemoveFromFolder = onRemoveFromDockFolder,
                                 onUndockFromFolder = onUndockFromDockFolder,
                                 onReorderFolderMember = onReorderDockFolderMember,
-                                onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
+                                onMoveFolderMemberToDock = { folderId, appId, row, column ->
+                                    // Landscape renders a flattened view of the
+                                    // portrait grid, so a member dragged out of a
+                                    // folder lands in the first open portrait cell
+                                    // rather than writing the rendered cell back.
+                                    val safeCell = landscapeSafePersonalDockCell
+                                    if (safeCell != null) {
+                                        onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                                    } else {
+                                        onMoveDockFolderMemberToDock(folderId, appId, row, column)
+                                    }
+                                },
                                 onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                                 onFolderMemberDragFloat = onFolderMemberDragFloat,
                                 onDockGeometryChanged = { geometry ->
@@ -604,10 +709,9 @@ internal fun HomeScreen(
                                 1
                             }
                             val workRows = dockRowCount(
-                                state.workDockedApps.map { app -> app.id } +
-                                    state.workDockFolders.map { folder -> folder.id },
-                                state.workDockPositions,
-                                dockIconCount,
+                                workDockOccupantIds,
+                                workDockRenderPositions,
+                                dockColumnCount,
                             ).coerceAtMost(maxWorkRows)
                             val workRowHeightDp = dockSlotHeightDp(
                                 dockIconSizeDp,
@@ -619,12 +723,13 @@ internal fun HomeScreen(
                                 SECTION_CARD_PADDING_DP * 2
                             DockCard(
                                 dockedApps = state.workDockedApps,
-                                dockPositions = state.workDockPositions,
+                                dockPositions = workDockRenderPositions,
                                 dockFolders = state.workDockFolders,
                                 dockIconSizeDp = dockIconSizeDp,
-                                dockIconCount = dockIconCount,
+                                dockIconCount = dockColumnCount,
                                 dockLayout = state.dockLayout,
                                 modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
+                                reorderEnabled = !isWiderThanPortrait,
                                 onLaunchApp = onLaunchApp,
                                 onOpenAppInfo = onOpenAppInfo,
                                 onToggleDock = onToggleWorkDock,
@@ -633,7 +738,14 @@ internal fun HomeScreen(
                                 onRemoveFromFolder = onRemoveFromWorkDockFolder,
                                 onUndockFromFolder = onUndockFromWorkDockFolder,
                                 onReorderFolderMember = onReorderDockFolderMember,
-                                onMoveFolderMemberToDock = onMoveDockFolderMemberToDock,
+                                onMoveFolderMemberToDock = { folderId, appId, row, column ->
+                                    val safeCell = landscapeSafeWorkDockCell
+                                    if (safeCell != null) {
+                                        onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                                    } else {
+                                        onMoveDockFolderMemberToDock(folderId, appId, row, column)
+                                    }
+                                },
                                 onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                                 onFolderMemberDragFloat = onFolderMemberDragFloat,
                                 onDockGeometryChanged = { geometry ->
@@ -727,12 +839,6 @@ internal fun HomeScreen(
         }
     }
 }
-
-// Height of one text-mode app row: the 40dp [AppIcon] plus the row's 8dp
-// vertical padding on each side (see [AppRow]). Text rows don't scale with the
-// dock icon-size slider, so the min-visible-rows floor must reserve at least
-// this much per row even when the dock icons are set small.
-private const val APP_LIST_TEXT_ROW_HEIGHT_DP = 56
 
 /**
  * The height (dp) the home layout reserves for the apps list: the larger of an
@@ -997,6 +1103,10 @@ private fun DockCard(
     // The Home callsites pass `state.shouldShowDockAddHint` /
     // `state.shouldShowWorkDockAddHint` explicitly.
     showAddButtonHint: Boolean = false,
+    // Drag-to-reorder is disabled in the landscape reflow because the rendered
+    // positions are a flattened single-row view of the portrait grid, not the
+    // persisted grid (see `DockedAppButton.reorderEnabled`). Portrait keeps it.
+    reorderEnabled: Boolean = true,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
     // the dragged icon's center against every rendered slot, including empty
@@ -1285,6 +1395,7 @@ private fun DockCard(
                             onDrag = { delta -> onOccupantDrag(app.id, delta) },
                             onDragEnd = { canceled -> onOccupantDragEnd(app.id, canceled) },
                             onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                            reorderEnabled = reorderEnabled,
                         )
                         folder != null -> DockFolderButton(
                             folder = folder,
@@ -1306,6 +1417,7 @@ private fun DockCard(
                             onDrag = { delta -> onOccupantDrag(folder.id, delta) },
                             onDragEnd = { canceled -> onOccupantDragEnd(folder.id, canceled) },
                             onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                            reorderEnabled = reorderEnabled,
                         )
                         showAddButton && position == firstEmptyPosition -> DockAddButton(
                             dockIconSizeDp = dockIconSizeDp,
@@ -1445,6 +1557,10 @@ private fun DockFolderButton(
     // than on a clean lift.
     onDragEnd: (Boolean) -> Unit,
     onLongPressArmed: (Boolean) -> Unit = {},
+    // Same gate as `DockedAppButton.reorderEnabled`: false in the landscape
+    // reflow so a folder drag can't write flattened-grid columns back into
+    // portrait storage. The folder menu still opens on release.
+    reorderEnabled: Boolean = true,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
@@ -1460,6 +1576,10 @@ private fun DockFolderButton(
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
     val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    // See `DockedAppButton`'s equivalent: the `pointerInput` key is
+    // `folder.id`, so a live flip to the landscape reflow must reach the
+    // already-running gesture coroutine.
+    val latestReorderEnabled by rememberUpdatedState(reorderEnabled)
     Box(
         modifier = modifier
             .onGloballyPositioned { coords ->
@@ -1545,9 +1665,16 @@ private fun DockFolderButton(
                                     change.consume()
                                     break
                                 }
+                                if (dragging && !latestReorderEnabled) {
+                                    // Reordering flipped off mid-drag (live
+                                    // window-size change into the landscape
+                                    // reflow); end the drag before another
+                                    // reflowed-slot dispatch can persist.
+                                    break
+                                }
                                 val delta = change.positionChange()
                                 totalDelta += delta
-                                if (!dragging && totalDelta.getDistance() > slopPx) {
+                                if (latestReorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
                                     dragging = true
                                     latestOnDragStart()
                                     latestOnDrag(totalDelta)
@@ -4300,6 +4427,13 @@ private fun DockedAppButton(
     // than on a clean lift.
     onDragEnd: (Boolean) -> Unit,
     onLongPressArmed: (Boolean) -> Unit = {},
+    // Whether crossing the touch slop promotes the long-press into a reorder
+    // drag. False in the landscape reflow, where the rendered grid is a
+    // flattened single-row view of the persisted portrait grid: a drag there
+    // would emit columns the portrait store can't represent and corrupt the
+    // saved arrangement. The long-press menu still opens on release;
+    // reordering stays a portrait-only action.
+    reorderEnabled: Boolean = true,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
@@ -4313,6 +4447,12 @@ private fun DockedAppButton(
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
     val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    // Read through updated-state too: the `pointerInput` key is `app.id`, so a
+    // live window-size change that flips reordering off (entering the
+    // landscape reflow) without remounting this node must reach the
+    // already-running gesture coroutine, or a long-press could still promote
+    // into a drag and write a flattened-grid column back into portrait storage.
+    val latestReorderEnabled by rememberUpdatedState(reorderEnabled)
     DockTileScaffold(
         dockIconSizeDp = dockIconSizeDp,
         dockLayout = dockLayout,
@@ -4447,9 +4587,21 @@ private fun DockedAppButton(
                                 change.consume()
                                 break
                             }
+                            if (dragging && !latestReorderEnabled) {
+                                // Reordering was disabled mid-drag — a live
+                                // window-size change (foldable/freeform)
+                                // entered the landscape reflow before the
+                                // finger lifted. End the drag here so the
+                                // active gesture can't keep dispatching
+                                // against the reflowed slot table and persist
+                                // a flattened-grid column into the portrait
+                                // store. The `finally` runs `onDragEnd`, so
+                                // the icon snaps back to its slot.
+                                break
+                            }
                             val delta = change.positionChange()
                             totalDelta += delta
-                            if (!dragging && totalDelta.getDistance() > slopPx) {
+                            if (latestReorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
                                 dragging = true
                                 latestOnDragStart()
                                 // Carry the full pre-slop displacement into
