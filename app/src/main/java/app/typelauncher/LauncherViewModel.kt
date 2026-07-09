@@ -189,6 +189,7 @@ internal class LauncherViewModel(
             widgetHeights = widgetStore.customHeights,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
+            landscapeAppListStyle = dockSettingsStore.landscapeAppListStyle,
             dockLayout = dockSettingsStore.dockLayout,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
@@ -1862,6 +1863,12 @@ internal class LauncherViewModel(
         dockSettingsStore.appListLayout = layout
         _uiState.update { it.copy(appListLayout = layout) }
         logState("setAppListLayout")
+    }
+
+    fun setLandscapeAppListStyle(style: LandscapeAppListStyle) {
+        dockSettingsStore.landscapeAppListStyle = style
+        _uiState.update { it.copy(landscapeAppListStyle = style) }
+        logState("setLandscapeAppListStyle")
     }
 
     fun setDockLayout(layout: DockLayout) {

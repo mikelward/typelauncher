@@ -155,6 +155,30 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_compact_nameBelow_showsLabels() {
+        composeRule.waitForIdle()
+        // Same cramped-landscape Compact viewport as
+        // `screenshot_landscape_compact_dropsDockAndBox`, but with the "Landscape
+        // style" setting on "Name below" (seeded by `SeedLauncherStateRule`): the
+        // dense grid keeps a label under each icon instead of dropping it.
+        val state = composeRule.activity.viewModel.uiState.value
+        assertEquals(HomeLandscapeTier.Compact, state.homeLandscapeTier)
+        assertEquals(LandscapeAppListStyle.NameBelow, state.landscapeAppListStyle)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        // Still the dense icon grid (icon-only button tag), but now labeled: the
+        // "Name below" style draws each app's name below its icon, so the label
+        // Text node exists where the default IconOnly style would draw none. The
+        // screenshot captures the labels visually.
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertExists()
+        composeRule.onNodeWithText("Calculator").assertExists()
+
+        saveScreenshot("compose_home_landscape_compact_name_below_robolectric.png", widthPx = 2400, heightPx = 1080)
+    }
+
+    @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
     fun screenshot_landscape_compactShort_dropsDockAndBox() {
         composeRule.waitForIdle()
@@ -902,6 +926,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_TITLE_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("App list/grid style").assertIsDisplayed()
         composeRule.onNodeWithTag(APP_LIST_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Landscape style").assertIsDisplayed()
+        composeRule.onNodeWithTag(LANDSCAPE_APP_LIST_STYLE_DROPDOWN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Dock style").assertIsDisplayed()
         composeRule.onNodeWithTag(DOCK_LAYOUT_DROPDOWN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText("Pull down").assertDoesNotExist()
@@ -918,6 +944,33 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun landscapeStyleDropdownSelectionUpdatesStateAndPersists() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // Defaults to "Icon only".
+        assertEquals(
+            LandscapeAppListStyle.IconOnly,
+            composeRule.activity.viewModel.uiState.value.landscapeAppListStyle,
+        )
+
+        composeRule.onNodeWithTag(LANDSCAPE_APP_LIST_STYLE_DROPDOWN_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(LANDSCAPE_APP_LIST_STYLE_OPTION_NAME_BELOW_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // The selection flows into state and persists to the store.
+        assertEquals(
+            LandscapeAppListStyle.NameBelow,
+            composeRule.activity.viewModel.uiState.value.landscapeAppListStyle,
+        )
+        assertEquals(
+            LandscapeAppListStyle.NameBelow,
+            DockSettingsStore(composeRule.activity).landscapeAppListStyle,
+        )
     }
 
     @Test
@@ -3370,6 +3423,13 @@ class MainActivityRobolectricScreenshotTest {
                             .putString("docked_app_positions", "upgrade-fixture-id\t0\t0")
                             .putBoolean("dock_prefilled", true)
                             .commit()
+                    }
+                    if (description.methodName == "screenshot_landscape_compact_nameBelow_showsLabels") {
+                        // Pick the "Name below" landscape style so the Compact
+                        // tier renders a labeled icon grid instead of the
+                        // label-free default.
+                        DockSettingsStore(application).landscapeAppListStyle =
+                            LandscapeAppListStyle.NameBelow
                     }
                     if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveInCompact") {
                         // A keyboard height already cached for this landscape size

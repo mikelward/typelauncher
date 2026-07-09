@@ -504,6 +504,22 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * How the app list renders in the cramped-landscape `Compact` tier (see
+     * [LandscapeAppListStyle]). Stored by name so an unknown value (a renamed
+     * entry from a newer build) falls back to the default. Defaults to
+     * [LandscapeAppListStyle.IconOnly], which matches the pre-setting behavior.
+     */
+    var landscapeAppListStyle: LandscapeAppListStyle
+        get() = sharedPreferences.getString(KEY_LANDSCAPE_APP_LIST_STYLE, null)
+            ?.let { name -> runCatching { LandscapeAppListStyle.valueOf(name) }.getOrNull() }
+            ?: LandscapeAppListStyle.IconOnly
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_LANDSCAPE_APP_LIST_STYLE, value.name)
+                .apply()
+        }
+
+    /**
      * How every dock slot renders (see [DockLayout]). Stored by name so an
      * unknown value (a renamed entry from a newer build) falls back to the
      * default. Defaults to [DockLayout.IconOnly], which matches the
@@ -691,6 +707,7 @@ internal class DockSettingsStore(context: Context) {
         // Legacy boolean, kept for migration into KEY_APP_LIST_LAYOUT only.
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
+        const val KEY_LANDSCAPE_APP_LIST_STYLE = "landscape_app_list_style"
         const val KEY_DOCK_LAYOUT = "dock_layout"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"

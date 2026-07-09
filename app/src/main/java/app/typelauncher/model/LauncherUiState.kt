@@ -105,6 +105,23 @@ internal enum class AppListLayout {
 }
 
 /**
+ * How the app list renders in the cramped-landscape [HomeLandscapeTier.Compact]
+ * state, chosen by the "Landscape style" setting.
+ *
+ * Landscape always uses a dense icon grid (never full-width [AppListLayout.NameBeside]
+ * text rows, which fit far fewer apps in the short viewport), so the only choice
+ * is whether each icon carries a label:
+ *
+ * - [NameBelow]: the app name centered beneath each icon ([AppListLayout.NameBelow]).
+ * - [IconOnly] (the default and previous behavior): a label-free icon grid
+ *   ([AppListLayout.IconOnly]), which fits the most apps.
+ */
+internal enum class LandscapeAppListStyle {
+    NameBelow,
+    IconOnly,
+}
+
+/**
  * How each dock slot renders.
  *
  * - [IconOnly] (the default and previous behavior): icon-only tiles.
@@ -554,6 +571,10 @@ internal data class LauncherUiState(
     val isSettingsOpen: Boolean = false,
     val isDockEnabled: Boolean = true,
     val appListLayout: AppListLayout = AppListLayout.NameBeside,
+    // How the app list renders in the cramped-landscape `Compact` tier (see
+    // `effectiveAppListLayout`). `IconOnly` (default) preserves the previous
+    // always-label-free behavior; `NameBelow` keeps a label under each icon.
+    val landscapeAppListStyle: LandscapeAppListStyle = LandscapeAppListStyle.IconOnly,
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
@@ -665,20 +686,30 @@ internal fun effectiveAppListSortOrder(
 
 /**
  * The layout the app list actually renders under, given the persisted "App list"
- * [persisted] choice and the current landscape [tier].
+ * [persisted] choice, the current landscape [tier], and the persisted "Landscape
+ * style" [landscapeStyle] choice.
  *
- * The cramped-landscape [HomeLandscapeTier.Compact] state always uses the
- * label-free icon grid ([AppListLayout.IconOnly]): the short viewport fits far
- * more apps as a dense grid than as full-width rows, and labels under each icon
- * would waste the scarce vertical space the override exists to reclaim. Every
- * other state — all of portrait, and the Full landscape tier — honors
- * [persisted].
+ * The cramped-landscape [HomeLandscapeTier.Compact] state always uses a dense
+ * icon grid rather than full-width [AppListLayout.NameBeside] text rows: the
+ * short viewport fits far more apps as a grid. The "Landscape style" setting
+ * picks whether that grid carries a label — [LandscapeAppListStyle.NameBelow]
+ * maps to [AppListLayout.NameBelow], [LandscapeAppListStyle.IconOnly] (the
+ * default) to the label-free [AppListLayout.IconOnly]. Every other state — all
+ * of portrait, and the Full landscape tier — honors [persisted].
  */
 internal fun effectiveAppListLayout(
     persisted: AppListLayout,
     tier: HomeLandscapeTier,
+    landscapeStyle: LandscapeAppListStyle,
 ): AppListLayout =
-    if (tier == HomeLandscapeTier.Compact) AppListLayout.IconOnly else persisted
+    if (tier == HomeLandscapeTier.Compact) {
+        when (landscapeStyle) {
+            LandscapeAppListStyle.NameBelow -> AppListLayout.NameBelow
+            LandscapeAppListStyle.IconOnly -> AppListLayout.IconOnly
+        }
+    } else {
+        persisted
+    }
 
 /**
  * The top match's title and the title indices to bold, for the inline

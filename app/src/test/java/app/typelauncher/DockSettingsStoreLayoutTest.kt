@@ -67,6 +67,25 @@ class DockSettingsStoreLayoutTest {
     }
 
     @Test
+    fun landscapeAppListStyleDefaultsToIconOnlyWhenNothingPersisted() {
+        assertEquals(LandscapeAppListStyle.IconOnly, DockSettingsStore(context).landscapeAppListStyle)
+    }
+
+    @Test
+    fun landscapeAppListStyleRoundTripsEachEnumValue() {
+        for (style in LandscapeAppListStyle.values()) {
+            DockSettingsStore(context).landscapeAppListStyle = style
+            assertEquals(style, DockSettingsStore(context).landscapeAppListStyle)
+        }
+    }
+
+    @Test
+    fun landscapeAppListStyleUnknownPersistedNameFallsBackToIconOnly() {
+        prefs().edit().putString("landscape_app_list_style", "SomeFutureStyle").commit()
+        assertEquals(LandscapeAppListStyle.IconOnly, DockSettingsStore(context).landscapeAppListStyle)
+    }
+
+    @Test
     fun dockLayoutDefaultsToIconOnlyWhenNothingPersisted() {
         assertEquals(DockLayout.IconOnly, DockSettingsStore(context).dockLayout)
     }

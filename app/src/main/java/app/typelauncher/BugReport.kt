@@ -68,6 +68,7 @@ internal object BugReport {
             locale = Locale.getDefault(),
             isDockEnabled = dockSettings.isDockEnabled,
             appListLayout = dockSettings.appListLayout,
+            landscapeAppListStyle = dockSettings.landscapeAppListStyle,
             dockIconSizeDp = dockSettings.dockIconSizeDp,
             appListSortOrder = dockSettings.appListSortOrder,
             isAgendaEnabled = dockSettings.isAgendaEnabled,
@@ -230,6 +231,7 @@ internal fun buildBugReportPayload(
     locale: Locale,
     isDockEnabled: Boolean,
     appListLayout: AppListLayout,
+    landscapeAppListStyle: LandscapeAppListStyle,
     dockIconSizeDp: Int,
     appListSortOrder: AppListSortOrder,
     isAgendaEnabled: Boolean,
@@ -257,6 +259,7 @@ internal fun buildBugReportPayload(
         appendLine("--- Settings ---")
         appendLine("Dock enabled: $isDockEnabled")
         appendLine("App list layout: $appListLayout")
+        appendLine("Landscape style: $landscapeAppListStyle")
         appendLine("Dock icon size: ${dockIconSizeDp}dp")
         appendLine("App list sort order: $appListSortOrder")
         appendLine("Agenda enabled: $isAgendaEnabled")

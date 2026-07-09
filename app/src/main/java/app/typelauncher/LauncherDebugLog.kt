@@ -122,7 +122,7 @@ internal fun LauncherUiState.debugSummary(): String =
         "addingWidget=$isAddingWidget loadingAvailableWidgets=$isLoadingAvailableWidgets " +
         "availableWidgets=${availableWidgets.size} " +
         "agenda=${agenda::class.simpleName} agendaEnabled=$isAgendaEnabled dockEnabled=$isDockEnabled " +
-        "appListLayout=$appListLayout dockIconSizeDp=$dockIconSizeDp " +
+        "appListLayout=$appListLayout landscapeAppListStyle=$landscapeAppListStyle dockIconSizeDp=$dockIconSizeDp " +
         "sortOrder=$appListSortOrder keyboardReservation=${keyboardReservation.bottomPx}/${keyboardReservation.source} " +
         "loadingApps=$isLoadingApps " +
         "freshAppLoadComplete=$isFreshAppLoadComplete homeReady=$isHomeReady " +

@@ -469,13 +469,19 @@ internal fun HomeScreen(
                     overflowChevronsReady = state.isFreshAppLoadComplete,
                     dockLimit = Int.MAX_VALUE,
                     // The cramped-landscape Compact tier always renders the app
-                    // list as an icon grid sorted by usage with the most-used app
-                    // at the visual bottom, overriding the persisted "App list"
+                    // list as a dense icon grid sorted by usage with the most-used
+                    // app at the visual bottom, overriding the persisted "App list"
                     // and "Sort apps by" choices — the list is the only launch
-                    // surface there, so it favors density and thumb-reach. Both
-                    // read the live `landscapeTier` param (which can lead the
+                    // surface there, so it favors density and thumb-reach. The
+                    // "Landscape style" setting picks whether that grid is labeled
+                    // ("Name below") or label-free ("Icon only"). All read the live
+                    // `landscapeTier` param (which can lead the
                     // `state.homeLandscapeTier` snapshot by a frame on rotation).
-                    layout = effectiveAppListLayout(state.appListLayout, landscapeTier),
+                    layout = effectiveAppListLayout(
+                        state.appListLayout,
+                        landscapeTier,
+                        state.landscapeAppListStyle,
+                    ),
                     iconSizeDp = dockIconSizeDp,
                     highlightFirst = state.query.isNotBlank(),
                     reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
@@ -4651,6 +4657,7 @@ internal fun SettingsScreen(
     onRequestDefaultLauncher: () -> Unit,
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
+    onLandscapeAppListStyleChanged: (LandscapeAppListStyle) -> Unit = {},
     onDockLayoutChanged: (DockLayout) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
@@ -4743,6 +4750,22 @@ internal fun SettingsScreen(
                 AppListLayoutDropdown(
                     selected = state.appListLayout,
                     onLayoutChanged = onAppListLayoutChanged,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_landscape_app_list_style_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                LandscapeAppListStyleDropdown(
+                    selected = state.landscapeAppListStyle,
+                    onStyleChanged = onLandscapeAppListStyleChanged,
                 )
             }
             Row(
@@ -5135,6 +5158,52 @@ private fun AppListLayoutDropdown(
                 onClick = {
                     expanded = false
                     onLayoutChanged(AppListLayout.IconOnly)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LandscapeAppListStyleDropdown(
+    selected: LandscapeAppListStyle,
+    onStyleChanged: (LandscapeAppListStyle) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = when (selected) {
+        LandscapeAppListStyle.NameBelow -> R.string.settings_app_list_layout_option_name_below
+        LandscapeAppListStyle.IconOnly -> R.string.settings_app_list_layout_option_icon_only
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(LANDSCAPE_APP_LIST_STYLE_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(LANDSCAPE_APP_LIST_STYLE_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_below)) },
+                modifier = Modifier.testTag(LANDSCAPE_APP_LIST_STYLE_OPTION_NAME_BELOW_TAG),
+                onClick = {
+                    expanded = false
+                    onStyleChanged(LandscapeAppListStyle.NameBelow)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icon_only)) },
+                modifier = Modifier.testTag(LANDSCAPE_APP_LIST_STYLE_OPTION_ICON_ONLY_TAG),
+                onClick = {
+                    expanded = false
+                    onStyleChanged(LandscapeAppListStyle.IconOnly)
                 },
             )
         }
