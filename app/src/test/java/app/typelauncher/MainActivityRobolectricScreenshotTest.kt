@@ -200,19 +200,21 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
-    fun screenshot_landscape_compactShort_dropsDockAndBox() {
+    fun screenshot_landscape_short_showsDockWithoutSearchBox() {
         composeRule.waitForIdle()
-        // An even shorter landscape viewport is also Compact — the box is hidden
-        // and the dock is dropped just the same.
+        // A short landscape viewport without typing headroom hides the box but
+        // keeps the dock: the keyboard-down fit no longer budgets the 88dp
+        // search card it will never render, so two list rows + the dock fit
+        // where the with-box budget would have dropped everything to Compact.
         assertEquals(
-            HomeLandscapeTier.Compact,
+            HomeLandscapeTier.DockNoKeyboard,
             composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
         )
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
 
-        saveScreenshot("compose_home_landscape_compact_short_robolectric.png", widthPx = 1575, heightPx = 630)
+        saveScreenshot("compose_home_landscape_short_dock_no_search_box_robolectric.png", widthPx = 1575, heightPx = 630)
     }
 
     @Test
@@ -240,12 +242,13 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
-    fun landscape_compact_keepsSearchVisibleWhileQueryActive() {
+    fun landscape_keepsSearchVisibleWhileQueryActive() {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        // A retained query must keep the search field on screen even in the
-        // Compact state (e.g. after a rotation/resume reset the reveal), so the
-        // user can always see and clear what's filtering the list.
+        // A retained query must keep the search field on screen even where the
+        // typing-headroom gate hides it (e.g. after a rotation carried a
+        // filtered portrait search into this window), so the user can always
+        // see and clear what's filtering the list.
         composeRule.runOnUiThread { composeRule.activity.viewModel.setQuery("ca") }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
@@ -303,7 +306,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    @Config(qualifiers = "w600dp-h180dp-420dpi")
     fun landscape_compact_honorsAppListLayout() {
         composeRule.waitForIdle()
         // Even the cramped Compact state honors the persisted "App list" layout
@@ -3479,12 +3482,11 @@ class MainActivityRobolectricScreenshotTest {
                             "landscape_pullUpDoesNotRevealSearchWithoutTypingHeadroom",
                         )
                     ) {
-                        // The typing-headroom gate only engages on a *measured*
-                        // keyboard height (the pre-measurement fallback shows
-                        // the box optimistically), so seed one tall enough that
-                        // the box + keyboard + one result row exceed these
-                        // windows' heights: 600px at 420dpi = 228dp, over the
-                        // ~181dp budget at h360 and the ~59dp budget at h240.
+                        // Pin the typing-headroom gate to the measured-keyboard
+                        // path (rather than the fallback estimate) with a
+                        // height that exceeds these windows' budgets: 600px at
+                        // 420dpi = 228dp, over the ~181dp budget at h360 and
+                        // the ~59dp budget at h240.
                         DockSettingsStore(application).keyboardReservation = KeyboardReservation(
                             bottomPx = 600,
                             configFingerprint = null,
