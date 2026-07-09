@@ -340,6 +340,173 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
+    fun fullReservesTheFloorRowSoItAlwaysHasTypingHeadroom() {
+        // With the dock disabled and a NameBelow-tall floor row (104 > the bare
+        // 84 icon row), the Full test must reserve the floor: old arithmetic
+        // (88 + 8 + 84 + 8 + 200 = 388) would have resolved Full at 400dp while
+        // the search-box gate failed (88 + 8 + 104 + 8 + 200 = 408 > 400) —
+        // auto-showing a keyboard over a hidden search card. Reserving the
+        // floor keeps Full out of reach until the gate also passes.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(
+                metrics(
+                    availableHeightDp = 400,
+                    predictedKeyboardHeightDp = 200,
+                    dockHeightDp = 0,
+                    appListFloorRowDp = 104,
+                ),
+            ),
+        )
+        assertEquals(
+            HomeLandscapeTier.Full,
+            resolveHomeLandscapeTier(
+                metrics(
+                    availableHeightDp = 408,
+                    predictedKeyboardHeightDp = 200,
+                    dockHeightDp = 0,
+                    appListFloorRowDp = 104,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun searchBoxFitsOnlyWhenTheKeyboardLeavesAResultRow() {
+        // 851x393 landscape at 320dpi, slot-4 sizing → 68dp icons, so the
+        // floor row is 68 + 16 = 84. The box fits while box(88) + gap(8) +
+        // row(84) + gap(8) + keyboard <= available(377), i.e. keyboard <= 189.
+        fun fitsWithKeyboard(keyboardDp: Int): Boolean {
+            val fp = fingerprint(851, 393, 320, navBottomPx = 0)
+            return homeLandscapeMetrics(
+                screenWidthDp = 851,
+                screenHeightDp = 393,
+                densityDpi = 320,
+                targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+                isPersonalDockEnabled = true,
+                personalDockOccupantIds = emptyList(),
+                isWorkDockVisible = false,
+                workDockedAppIds = emptyList(),
+                workDockPositions = emptyMap(),
+                keyboardReservation = KeyboardReservation(
+                    // 320dpi = 2x: dp * 2 px, nav inset 0.
+                    bottomPx = keyboardDp * 2,
+                    configFingerprint = fp,
+                    source = KeyboardReservationSource.VisibleIme,
+                ),
+                reservationFingerprint = fp,
+            ).searchBoxFitsWithKeyboard
+        }
+
+        assertTrue(fitsWithKeyboard(189))
+        assertEquals(false, fitsWithKeyboard(190))
+    }
+
+    @Test
+    fun searchBoxShowsOptimisticallyUntilAKeyboardIsMeasured() {
+        // With no applicable reservation the keyboard height is the 55%
+        // fallback guess (216dp here — over the 189dp budget), but the gate
+        // must not hide the box on a guess: hidden, the box could never raise
+        // the IME in landscape to measure the real height and correct itself.
+        fun fitsWith(reservation: KeyboardReservation): Boolean =
+            homeLandscapeMetrics(
+                screenWidthDp = 851,
+                screenHeightDp = 393,
+                densityDpi = 320,
+                targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+                isPersonalDockEnabled = true,
+                personalDockOccupantIds = emptyList(),
+                isWorkDockVisible = false,
+                workDockedAppIds = emptyList(),
+                workDockPositions = emptyMap(),
+                keyboardReservation = reservation,
+                reservationFingerprint = fingerprint(851, 393, 320, navBottomPx = 0),
+            ).searchBoxFitsWithKeyboard
+
+        // No reservation at all.
+        assertTrue(fitsWith(KeyboardReservation()))
+        // A reservation measured under a *different* configuration (portrait)
+        // does not apply, so this window is still unmeasured.
+        assertTrue(
+            fitsWith(
+                KeyboardReservation(
+                    bottomPx = 2000,
+                    configFingerprint = fingerprint(393, 851, 320, navBottomPx = 0),
+                    source = KeyboardReservationSource.VisibleIme,
+                ),
+            ),
+        )
+        // An animation-target-only reading — including legacy pre-source rows,
+        // which load as AnimationTarget with a wildcard fingerprint carrying a
+        // possibly portrait-sized height — is not authoritative enough to hide
+        // the box either: it may over-read, and hiding on it would be just as
+        // self-sealing as hiding on the fallback.
+        assertTrue(
+            fitsWith(
+                KeyboardReservation(
+                    bottomPx = 2000,
+                    configFingerprint = null,
+                    source = KeyboardReservationSource.AnimationTarget,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun searchBoxAlwaysFitsInPortrait() {
+        val fp = fingerprint(393, 851, 320, navBottomPx = 0)
+        val m = homeLandscapeMetrics(
+            screenWidthDp = 393,
+            screenHeightDp = 851,
+            densityDpi = 320,
+            targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+            isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
+            isWorkDockVisible = false,
+            workDockedAppIds = emptyList(),
+            workDockPositions = emptyMap(),
+            keyboardReservation = KeyboardReservation(
+                bottomPx = 9999,
+                configFingerprint = fp,
+                source = KeyboardReservationSource.VisibleIme,
+            ),
+            reservationFingerprint = fp,
+        )
+        assertTrue(m.searchBoxFitsWithKeyboard)
+    }
+
+    @Test
+    fun searchBoxFitCountsTheNameBelowLabelStrip() {
+        // Same window as the boundary test: a keyboard of 189dp fits with the
+        // default row (84dp) but not once NameBelow's 20dp label strip makes
+        // the floor row 104dp.
+        fun fitsFor(layout: AppListLayout): Boolean {
+            val fp = fingerprint(851, 393, 320, navBottomPx = 0)
+            return homeLandscapeMetrics(
+                screenWidthDp = 851,
+                screenHeightDp = 393,
+                densityDpi = 320,
+                targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+                isPersonalDockEnabled = true,
+                personalDockOccupantIds = emptyList(),
+                isWorkDockVisible = false,
+                workDockedAppIds = emptyList(),
+                workDockPositions = emptyMap(),
+                keyboardReservation = KeyboardReservation(
+                    bottomPx = 189 * 2,
+                    configFingerprint = fp,
+                    source = KeyboardReservationSource.VisibleIme,
+                ),
+                reservationFingerprint = fp,
+                appListLayout = layout,
+            ).searchBoxFitsWithKeyboard
+        }
+
+        assertTrue(fitsFor(AppListLayout.NameBeside))
+        assertEquals(false, fitsFor(AppListLayout.NameBelow))
+    }
+
+    @Test
     fun metricsCountFlattenedWorkDockAsASingleRow() {
         fun metricsFor(workApps: List<String>) =
             homeLandscapeMetrics(

@@ -166,6 +166,12 @@ internal fun HomeScreen(
     innerPadding: PaddingValues,
     bodyReady: Boolean,
     landscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
+    // Whether the search box, the raised keyboard, and one result row fit
+    // together (see HomeLandscapeMetrics.searchBoxFitsWithKeyboard). When
+    // false the box is never shown — tapping it would raise a keyboard that
+    // clips the result list to a sliver — except while a retained query keeps
+    // the filtered list on screen, which must stay clearable.
+    searchBoxFitsWithKeyboard: Boolean = true,
     searchRevealed: Boolean = false,
     primaryBottomPadding: Dp = 0.dp,
     // True while the keyboard is up in the DockNoKeyboard landscape tier; the
@@ -496,13 +502,17 @@ internal fun HomeScreen(
         if (!isWorkDockPresent) workDockDropTarget = null
     }
     val isHome = state.destination is LauncherDestination.Home
-    // In the cramped-landscape Compact state the search box doesn't fit alongside
-    // the keyboard and an app row, so it's hidden until the user reveals it with a
-    // pull-up; Full (and all of portrait) keeps it visible. It also stays visible
-    // whenever a query is active — hiding the box would otherwise leave the list
-    // filtered with no way to see or clear the query (e.g. after a rotation /
-    // resume resets the reveal while the query is still retained).
-    val showSearchCard = landscapeTier != HomeLandscapeTier.Compact ||
+    // The search box is hidden in the cramped-landscape Compact state (it
+    // doesn't fit alongside the keyboard and an app row; a pull-up reveals it
+    // where typing has headroom), and in any landscape window without typing
+    // headroom — where the box + the raised keyboard + one result row can't
+    // fit, a visible box would be a promise the layout can't keep, so it never
+    // shows and search stays a portrait affordance. Full (and all of portrait)
+    // keeps it visible. It also stays visible whenever a query is active —
+    // hiding the box would otherwise leave the list filtered with no way to
+    // see or clear the query (e.g. after a rotation / resume resets the reveal
+    // while the query is still retained).
+    val showSearchCard = (landscapeTier != HomeLandscapeTier.Compact && searchBoxFitsWithKeyboard) ||
         searchRevealed ||
         state.query.isNotBlank()
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
