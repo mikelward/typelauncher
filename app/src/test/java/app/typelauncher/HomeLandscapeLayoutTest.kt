@@ -403,6 +403,47 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
+    fun metricsSubtractSystemBarsIncludedInTheScreenHeight() {
+        // Android 15+ reports Configuration.screenHeightDp including the system
+        // bars, which the window chrome consumes before Home's cards get any
+        // height. This window is 441dp tall on paper but carries a 24dp status
+        // bar and a 24dp gesture-nav bar (96px at 320dpi = 2x), so real content
+        // is 393dp. The reference width min(851, 441) grows the 4-slot icons to
+        // the 72dp cap → floor row 88, and the box + one result row + a
+        // measured 211dp keyboard need 88 + 8 + 88 + 8 + 211 = 403dp against
+        // the real 377dp budget (441 − 48 − 16) — the box must hide. Trusting
+        // the raw screen height (the pre-fix bug) saw 425dp available and kept
+        // the box, clipping the one promised result row to a sliver under the
+        // keyboard.
+        val navBottomPx = 48
+        val fp = fingerprint(851, 441, 320, navBottomPx = navBottomPx)
+        fun metricsFor(verticalSystemBarsPx: Int) = homeLandscapeMetrics(
+            screenWidthDp = 851,
+            screenHeightDp = 441,
+            densityDpi = 320,
+            targetDockIconSizeDp = dockIconSizeForSlotCount(441, 4),
+            isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
+            isWorkDockVisible = false,
+            workDockedAppIds = emptyList(),
+            workDockPositions = emptyMap(),
+            keyboardReservation = KeyboardReservation(
+                bottomPx = 211 * 2 + navBottomPx,
+                configFingerprint = fp,
+                source = KeyboardReservationSource.VisibleIme,
+            ),
+            reservationFingerprint = fp,
+            verticalSystemBarsPx = verticalSystemBarsPx,
+        )
+
+        val m = metricsFor(verticalSystemBarsPx = 96)
+        assertEquals(441 - 48 - HOME_OUTER_PADDING_DP * 2, m.availableHeightDp)
+        assertEquals(false, m.searchBoxFitsWithKeyboard)
+        // Without the subtraction the same window wrongly keeps the box.
+        assertTrue(metricsFor(verticalSystemBarsPx = 0).searchBoxFitsWithKeyboard)
+    }
+
+    @Test
     fun searchBoxShowsOptimisticallyUntilAKeyboardIsMeasured() {
         // With no applicable reservation the keyboard height is the 55%
         // fallback guess (216dp here — over the 189dp budget), but the gate

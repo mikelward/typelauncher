@@ -3,6 +3,7 @@ package app.typelauncher
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -985,6 +986,16 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val navBottomPx = WindowInsets.navigationBars.getBottom(density)
+    // On Android 15+ (with this app's targetSdk) Configuration.screenHeightDp
+    // includes the system bars, but the Scaffold consumes the status- and
+    // navigation-bar insets before Home gets any height — so the landscape
+    // fit estimates must subtract them. Older platforms report the
+    // Configuration already net of the bars, so there is nothing to subtract.
+    val verticalSystemBarsPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+        WindowInsets.statusBars.getTop(density) + navBottomPx
+    } else {
+        0
+    }
     val isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive
     // Folders are occupants too, so count them when sizing the work dock for the
     // landscape-tier fit (a work folder can occupy a second row).
@@ -1006,6 +1017,7 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
         configuration.screenHeightDp,
         configuration.densityDpi,
         navBottomPx,
+        verticalSystemBarsPx,
         state.dockIconSizeDp,
         state.isDockEnabled,
         personalDockOccupantIds,
@@ -1039,6 +1051,7 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
             dockLayout = state.dockLayout,
             appListLayout = state.appListLayout,
             fontScale = density.fontScale,
+            verticalSystemBarsPx = verticalSystemBarsPx,
         )
         HomeLandscapeUi(
             tier = resolveHomeLandscapeTier(metrics),
