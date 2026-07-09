@@ -7,9 +7,11 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -409,6 +411,18 @@ class MainActivity : ComponentActivity() {
             navBottomPx = navBottomPx,
         )
         val isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive
+        // Configuration.screenHeightDp includes the system bars on Android 15+
+        // (see rememberHomeLandscapeUi); subtract them from the window's
+        // current insets so the tier seeded here matches the one Compose
+        // resolves a few frames later.
+        val verticalSystemBarsPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            val bars = windowManager.currentWindowMetrics.windowInsets.getInsets(
+                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars(),
+            )
+            bars.top + bars.bottom
+        } else {
+            0
+        }
         return resolveHomeLandscapeTier(
             homeLandscapeMetrics(
                 screenWidthDp = config.screenWidthDp,
@@ -433,6 +447,7 @@ class MainActivity : ComponentActivity() {
                 dockLayout = state.dockLayout,
                 appListLayout = state.appListLayout,
                 fontScale = config.fontScale,
+                verticalSystemBarsPx = verticalSystemBarsPx,
             ),
         )
     }

@@ -168,6 +168,17 @@ internal fun homeLandscapeMetrics(
     // label strip), and the DockNoKeyboard floor must reserve that too.
     appListLayout: AppListLayout = AppListLayout.NameBeside,
     fontScale: Float = 1f,
+    // The vertical system-bar space (status-bar top + navigation-bar bottom
+    // insets, in px) that [screenHeightDp] includes but the window chrome
+    // consumes before Home's cards get any height. On Android 15+ (with this
+    // app's targetSdk), `Configuration.screenHeightDp` spans the full window
+    // *including* the system bars, while the Scaffold hands Home only the
+    // space between them — so every fit estimate here must subtract the bars
+    // or it overestimates the viewport by ~48dp on a phone and keeps the
+    // search box on a window that then clips the one result row it promised.
+    // Callers on older platforms (where the Configuration already excludes
+    // the bars) pass 0.
+    verticalSystemBarsPx: Int = 0,
 ): HomeLandscapeMetrics {
     // Dock geometry is derived from the short screen edge and the target icon
     // size, matching `HomeScreen`'s `dockIconSizing` so the estimate is stable
@@ -268,7 +279,9 @@ internal fun homeLandscapeMetrics(
         workDockOccupantIds = workDockedAppIds,
     )
 
-    val availableHeightDp = (screenHeightDp - HOME_OUTER_PADDING_DP * 2).coerceAtLeast(0)
+    val availableHeightDp = (
+        screenHeightDp - pxToDp(verticalSystemBarsPx, densityDpi) - HOME_OUTER_PADDING_DP * 2
+        ).coerceAtLeast(0)
     val floorRowDp = appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale)
     // The box is only worth showing where tapping it still leaves at least one
     // result row under the raised keyboard. The dock is not counted — it
