@@ -468,14 +468,16 @@ internal fun HomeScreen(
                     isLoading = state.isLoadingApps,
                     overflowChevronsReady = state.isFreshAppLoadComplete,
                     dockLimit = Int.MAX_VALUE,
-                    // The cramped-landscape Compact tier always renders the app
-                    // list as an icon grid sorted by usage with the most-used app
-                    // at the visual bottom, overriding the persisted "App list"
-                    // and "Sort apps by" choices — the list is the only launch
-                    // surface there, so it favors density and thumb-reach. Both
-                    // read the live `landscapeTier` param (which can lead the
+                    // Every state honors the persisted "App list" layout — the
+                    // landscape tiers no longer force an icon grid, so names-below
+                    // or text rows carry over when the phone rotates. The
+                    // cramped-landscape Compact tier still sorts by usage with the
+                    // most-used app at the visual bottom, overriding the persisted
+                    // "Sort apps by" choice — the list is the only launch surface
+                    // there, so it favors thumb-reach. The sort reads the live
+                    // `landscapeTier` param (which can lead the
                     // `state.homeLandscapeTier` snapshot by a frame on rotation).
-                    layout = effectiveAppListLayout(state.appListLayout, landscapeTier),
+                    layout = state.appListLayout,
                     iconSizeDp = dockIconSizeDp,
                     highlightFirst = state.query.isNotBlank(),
                     reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,

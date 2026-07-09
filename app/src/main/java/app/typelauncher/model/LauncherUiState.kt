@@ -664,23 +664,6 @@ internal fun effectiveAppListSortOrder(
     if (tier == HomeLandscapeTier.Compact) AppListSortOrder.UsageReversed else persisted
 
 /**
- * The layout the app list actually renders under, given the persisted "App list"
- * [persisted] choice and the current landscape [tier].
- *
- * The cramped-landscape [HomeLandscapeTier.Compact] state always uses the
- * label-free icon grid ([AppListLayout.IconOnly]): the short viewport fits far
- * more apps as a dense grid than as full-width rows, and labels under each icon
- * would waste the scarce vertical space the override exists to reclaim. Every
- * other state — all of portrait, and the Full landscape tier — honors
- * [persisted].
- */
-internal fun effectiveAppListLayout(
-    persisted: AppListLayout,
-    tier: HomeLandscapeTier,
-): AppListLayout =
-    if (tier == HomeLandscapeTier.Compact) AppListLayout.IconOnly else persisted
-
-/**
  * The top match's title and the title indices to bold, for the inline
  * autocomplete suggestion rendered right-aligned inside the search field.
  * [boldIndices] is empty when the query matched the package brand rather than
