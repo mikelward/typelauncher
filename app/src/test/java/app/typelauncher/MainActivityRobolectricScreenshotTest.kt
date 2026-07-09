@@ -253,14 +253,53 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
-    fun landscape_pullUpRevealsCompactSearchBox() {
+    fun landscape_pullUpDoesNotRevealSearchWithoutTypingHeadroom() {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        // The pull-up routes through `requestShowKeyboard`; in the Compact state
-        // that reveals the search box (and brings the keyboard) on demand.
+        // With a measured keyboard seeded (by the rule), this viewport can't
+        // fit the box, the raised keyboard, and one result row together, so
+        // the launcher never shows the box — a pull-up must not reveal it
+        // either (it would raise a keyboard that clips the results to a
+        // sliver). Search is a portrait affordance here.
         composeRule.runOnUiThread { composeRule.activity.viewModel.requestShowKeyboard() }
         composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+    }
+
+    // A window that fits the keyboard-down dock but not the search box: at
+    // w914dp-h360dp the box + the raised keyboard + one result row would
+    // exceed the height, so the box is hidden entirely (never shown, not
+    // revealed) and the window is just the flattened dock and the app list.
+    // The launcher never shows a search box it can't honor.
+    @Test
+    @Config(qualifiers = "w914dp-h360dp-420dpi")
+    fun screenshot_landscape_dockNoSearchBox_hidesBoxWithoutTypingHeadroom() {
+        composeRule.waitForIdle()
+        val state = composeRule.activity.viewModel.uiState.value
+        assertEquals(HomeLandscapeTier.DockNoKeyboard, state.homeLandscapeTier)
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+
+        // The pull-up is suppressed too — no box, no keyboard.
+        composeRule.runOnUiThread { composeRule.activity.viewModel.requestShowKeyboard() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+
+        // A query retained from portrait still forces the box on screen so the
+        // filtered list stays clearable; clearing it hides the box again.
+        composeRule.runOnUiThread { composeRule.activity.viewModel.setQuery("ca") }
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        composeRule.runOnUiThread { composeRule.activity.viewModel.setQuery("") }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+
+        saveScreenshot(
+            "compose_home_landscape_dock_no_search_box_robolectric.png",
+            widthPx = 2400,
+            heightPx = 945,
+        )
     }
 
     @Test
@@ -3434,6 +3473,23 @@ class MainActivityRobolectricScreenshotTest {
                             .putString("docked_app_positions", "upgrade-fixture-id\t0\t0")
                             .putBoolean("dock_prefilled", true)
                             .commit()
+                    }
+                    if (description.methodName in listOf(
+                            "screenshot_landscape_dockNoSearchBox_hidesBoxWithoutTypingHeadroom",
+                            "landscape_pullUpDoesNotRevealSearchWithoutTypingHeadroom",
+                        )
+                    ) {
+                        // The typing-headroom gate only engages on a *measured*
+                        // keyboard height (the pre-measurement fallback shows
+                        // the box optimistically), so seed one tall enough that
+                        // the box + keyboard + one result row exceed these
+                        // windows' heights: 600px at 420dpi = 228dp, over the
+                        // ~181dp budget at h360 and the ~59dp budget at h240.
+                        DockSettingsStore(application).keyboardReservation = KeyboardReservation(
+                            bottomPx = 600,
+                            configFingerprint = null,
+                            source = KeyboardReservationSource.VisibleIme,
+                        )
                     }
                     if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveWithKeyboardDown") {
                         // A keyboard height already cached for this landscape size

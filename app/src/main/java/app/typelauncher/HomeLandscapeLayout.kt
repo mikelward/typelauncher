@@ -21,6 +21,10 @@ import kotlin.math.min
  *    its height. In landscape the dock always flattens to reading order (see
  *    `landscapeDockPositions`), so this is the common phone-landscape state
  *    whenever the dock is enabled and its occupants fit one flattened row.
+ *    The box itself is additionally gated on typing headroom
+ *    ([HomeLandscapeMetrics.searchBoxFitsWithKeyboard]): where the box, the
+ *    raised keyboard, and one result row can't coexist, the box is hidden and
+ *    the window shows just the dock and the app list.
  *  - [Compact]: everything else (not even the search box, the app-list floor,
  *    and a one-row dock fit). The app list fills the viewport on its own — the
  *    static search box is hidden by default, the auto-shown keyboard is
@@ -32,6 +36,20 @@ internal enum class HomeLandscapeTier {
     DockNoKeyboard,
     Compact,
 }
+
+/**
+ * The landscape decisions the Compose layer feeds `HomeScreen`: the [tier]
+ * plus whether the search box has typing headroom
+ * ([HomeLandscapeMetrics.searchBoxFitsWithKeyboard]). The two are separate
+ * axes — a window can fit the keyboard-down dock (DockNoKeyboard) while still
+ * being too short to fit the box, the raised keyboard, and one result row, in
+ * which case the box is hidden entirely and the window shows just the dock
+ * and the app list.
+ */
+internal data class HomeLandscapeUi(
+    val tier: HomeLandscapeTier,
+    val searchBoxFitsWithKeyboard: Boolean,
+)
 
 // Estimated height of the search card (the `SectionCard` wrapping the filter
 // field) used only by the fit decision below — never to lay the card out. The
@@ -114,6 +132,13 @@ internal data class HomeLandscapeMetrics(
     // Whether every visible dock renders as a single row in this window — the
     // gate for the keyboard-down DockNoKeyboard tier (see resolveHomeLandscapeTier).
     val dockFitsAsSingleRow: Boolean = true,
+    // Whether the search box, the raised keyboard, and at least one app-list
+    // result row fit together (the dock yields while the keyboard is up, so it
+    // is not counted). When false, the launcher never shows the search box in
+    // this window — tapping it would raise a keyboard that squeezes the result
+    // list to a clipped sliver, so a box it can't honor is hidden instead and
+    // search stays a portrait affordance. Always true in portrait.
+    val searchBoxFitsWithKeyboard: Boolean = true,
 )
 
 /**
@@ -214,9 +239,18 @@ internal fun homeLandscapeMetrics(
     val dockHeightDp = personalCardHeightDp + workCardHeightDp +
         (if (bothCardsPresent) HOME_CARD_SPACING_DP else 0)
 
-    val predictedKeyboardHeightDp = if (
+    val keyboardHeightIsMeasured =
         keyboardReservation.appliesUnder(reservationFingerprint) && keyboardReservation.bottomPx > 0
-    ) {
+    // The search-box gate holds itself to a stricter standard than the tier
+    // fit estimates: only a measurement confirmed by an actually-visible IME
+    // counts. Legacy reservations (pre-`keyboard_reservation_source` rows load
+    // as AnimationTarget, often with a wildcard fingerprint carrying a
+    // portrait-sized height) and animation-target overshoots may over-read —
+    // fine for a soft fit estimate, but not authoritative enough to hide the
+    // only surface that could re-measure and correct them.
+    val keyboardHeightIsTrustedForGate = keyboardHeightIsMeasured &&
+        keyboardReservation.source == KeyboardReservationSource.VisibleIme
+    val predictedKeyboardHeightDp = if (keyboardHeightIsMeasured) {
         val navBottomPx = keyboardReservation.configFingerprint?.navBottomPx
             ?: reservationFingerprint.navBottomPx
         val heightPx = (keyboardReservation.bottomPx - navBottomPx).coerceAtLeast(0)
@@ -234,15 +268,38 @@ internal fun homeLandscapeMetrics(
         workDockOccupantIds = workDockedAppIds,
     )
 
+    val availableHeightDp = (screenHeightDp - HOME_OUTER_PADDING_DP * 2).coerceAtLeast(0)
+    val floorRowDp = appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale)
+    // The box is only worth showing where tapping it still leaves at least one
+    // result row under the raised keyboard. The dock is not counted — it
+    // yields while the keyboard is up. Mirrors the Full test's arithmetic with
+    // the dock term dropped and the floor row (which knows about text rows and
+    // NameBelow labels) in place of the bare icon row.
+    //
+    // The gate only engages once a keyboard height has actually been *measured*
+    // for this configuration; on the pre-measurement fallback estimate the box
+    // shows optimistically. Hiding on the (deliberately tall) fallback would be
+    // self-sealing: reservations are per-configuration, the box is the only
+    // surface that raises the IME in landscape, and with it hidden — pull-up
+    // suppressed too — the real keyboard could never be measured to correct a
+    // wrong guess. Showing optimistically self-corrects instead: the first
+    // landscape typing session persists the real height, and the gate hides
+    // the box from then on if that height leaves no result row.
+    val searchBoxFitsWithKeyboard = !isWiderThanPortrait ||
+        !keyboardHeightIsTrustedForGate ||
+        SEARCH_CARD_ESTIMATED_HEIGHT_DP + HOME_CARD_SPACING_DP + floorRowDp +
+        HOME_CARD_SPACING_DP + predictedKeyboardHeightDp <= availableHeightDp
+
     return HomeLandscapeMetrics(
         isWiderThanPortrait = isWiderThanPortrait,
-        availableHeightDp = (screenHeightDp - HOME_OUTER_PADDING_DP * 2).coerceAtLeast(0),
+        availableHeightDp = availableHeightDp,
         predictedKeyboardHeightDp = predictedKeyboardHeightDp,
         searchBoxHeightDp = SEARCH_CARD_ESTIMATED_HEIGHT_DP,
         dockHeightDp = dockHeightDp,
         appRowHeightDp = appRowHeightDp,
-        appListFloorRowHeightDp = appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale),
+        appListFloorRowHeightDp = floorRowDp,
         dockFitsAsSingleRow = dockFitsAsSingleRow,
+        searchBoxFitsWithKeyboard = searchBoxFitsWithKeyboard,
     )
 }
 
@@ -277,7 +334,8 @@ internal fun landscapeDockFitsAsSingleRow(
 /**
  * Resolves the [HomeLandscapeTier] from pre-computed [HomeLandscapeMetrics].
  * Portrait is always [HomeLandscapeTier.Full]. In landscape:
- *  - [Full] when the search box, the keyboard, one app row, and the dock(s) fit.
+ *  - [Full] when the search box, the keyboard, one floor-height app row
+ *    ([HomeLandscapeMetrics.appListFloorRowHeightDp]), and the dock(s) fit.
  *  - [HomeLandscapeTier.DockNoKeyboard] when the keyboard does not fit but the
  *    search box, the dock, and the app list's `APP_LIST_MIN_VISIBLE_ROWS` floor
  *    do — and [HomeLandscapeMetrics.dockFitsAsSingleRow] is true (a multi-row
@@ -295,7 +353,13 @@ internal fun resolveHomeLandscapeTier(
 ): HomeLandscapeTier {
     if (!metrics.isWiderThanPortrait) return HomeLandscapeTier.Full
     val dockBlockDp = if (metrics.dockHeightDp > 0) cardSpacingDp + metrics.dockHeightDp else 0
-    val needWithBoxDp = metrics.searchBoxHeightDp + cardSpacingDp + metrics.appRowHeightDp + dockBlockDp
+    // The Full test reserves the same per-row floor as everything else
+    // (appListFloorRowHeightDp — text rows and NameBelow labels included), not
+    // the bare icon row. That keeps an invariant the search-box gate relies
+    // on: Full's requirement is `searchBoxFitsWithKeyboard`'s plus a
+    // non-negative dock term, so a window resolved Full always has typing
+    // headroom and never auto-shows a keyboard over a hidden search card.
+    val needWithBoxDp = metrics.searchBoxHeightDp + cardSpacingDp + metrics.appListFloorRowHeightDp + dockBlockDp
     // DockNoKeyboard renders without the keyboard, but `HomeScreen` still floors
     // the app list at APP_LIST_MIN_VISIBLE_ROWS rows above the dock, so the tier
     // has to reserve that whole floor — not just one app row. The per-row height

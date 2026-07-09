@@ -404,7 +404,8 @@ internal fun TypeLauncherApp(
     // and pushed back into state so MainActivity (window soft-input mode, resume
     // re-show) reads the same decision. Passed directly to HomeScreen below to
     // avoid the one-frame round-trip through state.
-    val homeLandscapeTier = rememberHomeLandscapeTier(state)
+    val homeLandscape = rememberHomeLandscapeUi(state)
+    val homeLandscapeTier = homeLandscape.tier
     LaunchedEffect(homeLandscapeTier) {
         onHomeLandscapeTierChanged(homeLandscapeTier)
     }
@@ -577,8 +578,13 @@ internal fun TypeLauncherApp(
         // the keyboard instead (see `autoShowKeyboard` in `HomeScreen`). Reset
         // on leaving Home and on resume (below) so a returning user starts from
         // the keyboard-down state again rather than a lingering reveal.
+        //
+        // Gated on the typing-headroom check: where the box + the raised
+        // keyboard + one result row can't fit, the box is never shown, so a
+        // pull-up must not reveal it (or raise a keyboard over a box that
+        // isn't there) — search is a portrait affordance on such a window.
         var searchRevealedInTightLandscape by remember { mutableStateOf(false) }
-        if (homeLandscapeTier != HomeLandscapeTier.Full) {
+        if (homeLandscapeTier != HomeLandscapeTier.Full && homeLandscape.searchBoxFitsWithKeyboard) {
             LaunchedEffect(keyboardShowRequests) {
                 keyboardShowRequests.collect { searchRevealedInTightLandscape = true }
             }
@@ -674,6 +680,26 @@ internal fun TypeLauncherApp(
         LaunchedEffect(dockSuppressedByKeyboard) {
             onDockSuppressedByKeyboardChanged(dockSuppressedByKeyboard)
         }
+        // The first landscape typing session measures the real IME height, which
+        // can flip the typing-headroom gate false mid-presence (the reveal that
+        // raised this keyboard was granted against the pre-measurement
+        // estimate). Clear the lingering reveal once that keyboard is dismissed
+        // — not mid-typing, which would yank the field from under the user — so
+        // the box hides and stays hidden instead of the stale reveal outliving
+        // the gate until the next Home presence reset.
+        LaunchedEffect(homeLandscape.searchBoxFitsWithKeyboard, keyboardShowingOrAnimatingIn) {
+            if (!homeLandscape.searchBoxFitsWithKeyboard && !keyboardShowingOrAnimatingIn) {
+                searchRevealedInTightLandscape = false
+            }
+        }
+        // The same mid-session flip needs the *tap* path latched too: a tap on
+        // the optimistically-shown box carries no reveal flag, so the gate
+        // flipping false while that keyboard is up would unmount the focused
+        // field under the user. Hold the card through any in-flight keyboard
+        // session; it hides when the keyboard dismisses (together with the
+        // reveal reset above).
+        val searchBoxFitsOrMidKeyboardSession =
+            homeLandscape.searchBoxFitsWithKeyboard || keyboardShowingOrAnimatingIn
         // Collapse the reserved keyboard space once the keyboard has been seen
         // and dismissed this Home presence (see `keyboardSeenThisHomePresence`).
         // Until then it stays reserved so the auto-shown keyboard does not cause
@@ -788,6 +814,7 @@ internal fun TypeLauncherApp(
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
                                 landscapeTier = homeLandscapeTier,
+                                searchBoxFitsWithKeyboard = searchBoxFitsOrMidKeyboardSession,
                                 searchRevealed = searchRevealedInTightLandscape,
                                 primaryBottomPadding = effectiveKeyboardReservationDp,
                                 dockSuppressedByKeyboard = dockSuppressedByKeyboard,
@@ -946,14 +973,15 @@ private fun FolderMemberDragOverlay(
 }
 
 /**
- * Resolves the [HomeLandscapeTier] for the current configuration. Reads only
+ * Resolves the [HomeLandscapeUi] — the [HomeLandscapeTier] plus whether the
+ * search box has typing headroom — for the current configuration. Reads only
  * the live configuration, navigation-bar inset, dock settings, and the
  * persisted keyboard reservation — never the live IME insets — so the value is
  * stable through a keyboard animation and recomputes only on a real
  * configuration / setting / reservation change.
  */
 @Composable
-private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier {
+private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val navBottomPx = WindowInsets.navigationBars.getBottom(density)
@@ -996,23 +1024,25 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
             densityDpi = configuration.densityDpi,
             navBottomPx = navBottomPx,
         )
-        resolveHomeLandscapeTier(
-            homeLandscapeMetrics(
-                screenWidthDp = configuration.screenWidthDp,
-                screenHeightDp = configuration.screenHeightDp,
-                densityDpi = configuration.densityDpi,
-                targetDockIconSizeDp = state.dockIconSizeDp,
-                isPersonalDockEnabled = state.isDockEnabled,
-                personalDockOccupantIds = personalDockOccupantIds,
-                isWorkDockVisible = isWorkDockVisible,
-                workDockedAppIds = workDockedAppIds,
-                workDockPositions = state.workDockPositions,
-                keyboardReservation = state.keyboardReservation,
-                reservationFingerprint = fingerprint,
-                dockLayout = state.dockLayout,
-                appListLayout = state.appListLayout,
-                fontScale = density.fontScale,
-            ),
+        val metrics = homeLandscapeMetrics(
+            screenWidthDp = configuration.screenWidthDp,
+            screenHeightDp = configuration.screenHeightDp,
+            densityDpi = configuration.densityDpi,
+            targetDockIconSizeDp = state.dockIconSizeDp,
+            isPersonalDockEnabled = state.isDockEnabled,
+            personalDockOccupantIds = personalDockOccupantIds,
+            isWorkDockVisible = isWorkDockVisible,
+            workDockedAppIds = workDockedAppIds,
+            workDockPositions = state.workDockPositions,
+            keyboardReservation = state.keyboardReservation,
+            reservationFingerprint = fingerprint,
+            dockLayout = state.dockLayout,
+            appListLayout = state.appListLayout,
+            fontScale = density.fontScale,
+        )
+        HomeLandscapeUi(
+            tier = resolveHomeLandscapeTier(metrics),
+            searchBoxFitsWithKeyboard = metrics.searchBoxFitsWithKeyboard,
         )
     }
 }
