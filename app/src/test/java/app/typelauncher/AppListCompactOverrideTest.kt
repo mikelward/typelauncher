@@ -8,9 +8,10 @@ import org.junit.Test
  * The cramped-landscape [HomeLandscapeTier.Compact] state overrides one app-list
  * presentation choice: it always sorts by usage with the most-used app at the
  * visual bottom, regardless of the user's persisted "Sort apps by" setting.
- * Every other tier honors the persisted choice. The "App list" layout setting
- * is honored in *every* tier (the old Compact icon-grid override is gone), so
- * there is no layout counterpart to these tests.
+ * Every other tier — all of portrait, the Full landscape tier, and the
+ * keyboard-down DockNoKeyboard tier — honors the persisted choice. The "App
+ * list" layout setting is honored in *every* tier (the old Compact icon-grid
+ * override is gone), so there is no layout counterpart to these tests.
  */
 class AppListCompactOverrideTest {
     @Test
@@ -31,6 +32,20 @@ class AppListCompactOverrideTest {
                 "Full must keep the persisted sort $persisted",
                 persisted,
                 effectiveAppListSortOrder(persisted, HomeLandscapeTier.Full),
+            )
+        }
+    }
+
+    @Test
+    fun dockNoKeyboardHonorsThePersistedSort() {
+        // The keyboard-down landscape tier renders the dock and the search box,
+        // so the app list is not the only launch surface there — the persisted
+        // sort stays in charge, like Full.
+        for (persisted in AppListSortOrder.values()) {
+            assertEquals(
+                "DockNoKeyboard must keep the persisted sort $persisted",
+                persisted,
+                effectiveAppListSortOrder(persisted, HomeLandscapeTier.DockNoKeyboard),
             )
         }
     }

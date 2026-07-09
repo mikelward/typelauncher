@@ -416,6 +416,11 @@ class MainActivity : ComponentActivity() {
                 densityDpi = config.densityDpi,
                 targetDockIconSizeDp = state.dockIconSizeDp,
                 isPersonalDockEnabled = state.isDockEnabled,
+                personalDockOccupantIds = if (state.isDockEnabled) {
+                    state.dockedApps.map { it.id } + state.dockFolders.map { it.id }
+                } else {
+                    emptyList()
+                },
                 isWorkDockVisible = isWorkDockVisible,
                 workDockedAppIds = if (isWorkDockVisible) {
                     state.workDockedApps.map { it.id } + state.workDockFolders.map { it.id }
