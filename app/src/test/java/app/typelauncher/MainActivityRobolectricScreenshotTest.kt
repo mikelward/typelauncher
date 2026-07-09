@@ -219,6 +219,25 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    fun landscape_compact_honorsAppListLayout() {
+        composeRule.waitForIdle()
+        // Even the cramped Compact state honors the persisted "App list" layout
+        // (the default full-width text rows here) instead of forcing the old
+        // icon-only grid. Filtering pins Calculator into the composed window so
+        // the assertion doesn't depend on scroll position.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            composeRule.activity.viewModel.uiState.value.homeLandscapeTier,
+        )
+        composeRule.runOnUiThread { composeRule.activity.viewModel.setQuery("calcu") }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertExists()
+        composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").assertDoesNotExist()
+    }
+
+    @Test
     fun screenshot_agenda_withoutPermission_showsPermissionCard() {
         composeRule.activity.viewModel.showAgenda()
         composeRule.waitForIdle()
