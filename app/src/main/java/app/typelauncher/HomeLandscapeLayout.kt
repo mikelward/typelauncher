@@ -48,6 +48,39 @@ internal const val SEARCH_CARD_ESTIMATED_HEIGHT_DP = 88
 // text-row layout.
 internal const val APP_LIST_TEXT_ROW_HEIGHT_DP = 56
 
+// Height of the label strip a NameBelow grid tile adds under its icon: the 4dp
+// top padding plus the single `labelSmall` line (see `IconOnlyAppButton`).
+// Same 20dp strip — and the same font-scale treatment — as the dock's
+// TitleBelow strip in `dockSlotHeightDp`, since both draw one `labelSmall`
+// line under an icon.
+internal const val APP_LIST_NAME_BELOW_LABEL_HEIGHT_DP = 20
+
+/**
+ * Height of one app-list row at the layout's reserve floor, for the persisted
+ * [appListLayout]: the icon-grid row (`dockIconSizeDp` + spacing, plus the
+ * label strip when the grid draws names below its icons), never smaller than
+ * the fixed-height text row. Shared by `appListMinVisibleRowsHeightDp` (the
+ * hard minimum HomeScreen's layout enforces against the dock and the recents
+ * bar) and the DockNoKeyboard tier fit in [resolveHomeLandscapeTier], so the
+ * tier decision always reserves exactly what the layout will.
+ *
+ * Callers with a live density pass `fontScale`; configuration-only callers may
+ * leave it at 1.0 and accept a slight under-reserve at large font scales.
+ */
+internal fun appListFloorRowHeightDp(
+    dockIconSizeDp: Int,
+    appListLayout: AppListLayout,
+    fontScale: Float = 1f,
+): Int {
+    val labelStripDp = if (appListLayout == AppListLayout.NameBelow) {
+        (APP_LIST_NAME_BELOW_LABEL_HEIGHT_DP * fontScale.coerceAtLeast(1f)).toInt()
+    } else {
+        0
+    }
+    val gridRowDp = dockIconSizeDp + DOCK_ITEM_SPACING_DP * 2 + labelStripDp
+    return maxOf(gridRowDp, APP_LIST_TEXT_ROW_HEIGHT_DP)
+}
+
 // Outer padding applied around the whole Home layout (see `HomeScreen`'s root
 // `Modifier.padding(... 8.dp ...)`). Subtracted from the screen height when
 // estimating how much vertical space the Home cards actually get.
@@ -74,6 +107,10 @@ internal data class HomeLandscapeMetrics(
     val searchBoxHeightDp: Int,
     val dockHeightDp: Int,
     val appRowHeightDp: Int,
+    // One app-list row at the layout's reserve floor (see
+    // appListFloorRowHeightDp): what the DockNoKeyboard fit multiplies by
+    // APP_LIST_MIN_VISIBLE_ROWS, matching HomeScreen's own hard minimum.
+    val appListFloorRowHeightDp: Int = APP_LIST_TEXT_ROW_HEIGHT_DP,
     // Whether every visible dock renders as a single row in this window — the
     // gate for the keyboard-down DockNoKeyboard tier (see resolveHomeLandscapeTier).
     val dockFitsAsSingleRow: Boolean = true,
@@ -102,6 +139,9 @@ internal fun homeLandscapeMetrics(
     keyboardReservation: KeyboardReservation,
     reservationFingerprint: KeyboardReservationConfig,
     dockLayout: DockLayout = DockLayout.IconOnly,
+    // The persisted "App list" layout: a NameBelow grid's rows are taller (the
+    // label strip), and the DockNoKeyboard floor must reserve that too.
+    appListLayout: AppListLayout = AppListLayout.NameBeside,
     fontScale: Float = 1f,
 ): HomeLandscapeMetrics {
     // Dock geometry is derived from the short screen edge and the target icon
@@ -201,6 +241,7 @@ internal fun homeLandscapeMetrics(
         searchBoxHeightDp = SEARCH_CARD_ESTIMATED_HEIGHT_DP,
         dockHeightDp = dockHeightDp,
         appRowHeightDp = appRowHeightDp,
+        appListFloorRowHeightDp = appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale),
         dockFitsAsSingleRow = dockFitsAsSingleRow,
     )
 }
@@ -257,16 +298,15 @@ internal fun resolveHomeLandscapeTier(
     val needWithBoxDp = metrics.searchBoxHeightDp + cardSpacingDp + metrics.appRowHeightDp + dockBlockDp
     // DockNoKeyboard renders without the keyboard, but `HomeScreen` still floors
     // the app list at APP_LIST_MIN_VISIBLE_ROWS rows above the dock, so the tier
-    // has to reserve that whole floor — not just one app row. The row height is
-    // the *larger* of the icon-grid row (`appRowHeightDp`, from the dock icon
-    // size) and the fixed-height text row: DockNoKeyboard keeps the user's
-    // app-list layout, which may be text rows, and a dense dock makes the
-    // icon-grid row shorter than a text row, so flooring on the icon row alone
-    // would under-reserve and squeeze the layout instead of falling back to
+    // has to reserve that whole floor — not just one app row. The per-row height
+    // comes from `appListFloorRowHeightDp`, the same helper HomeScreen's own
+    // minimum uses: the icon-grid row (plus the NameBelow label strip when the
+    // persisted layout draws names under the icons), never less than the
+    // fixed-height text row — so a dense dock or a labeled grid can't let the
+    // tier under-reserve and squeeze the layout instead of falling back to
     // Compact.
-    val appListFloorRowDp = maxOf(metrics.appRowHeightDp, APP_LIST_TEXT_ROW_HEIGHT_DP)
     val needWithDockFloorDp = metrics.searchBoxHeightDp + cardSpacingDp +
-        APP_LIST_MIN_VISIBLE_ROWS * appListFloorRowDp + dockBlockDp
+        APP_LIST_MIN_VISIBLE_ROWS * metrics.appListFloorRowHeightDp + dockBlockDp
     return when {
         needWithBoxDp + cardSpacingDp + metrics.predictedKeyboardHeightDp <= metrics.availableHeightDp ->
             HomeLandscapeTier.Full
