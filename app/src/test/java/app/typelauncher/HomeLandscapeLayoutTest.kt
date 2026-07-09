@@ -18,6 +18,7 @@ class HomeLandscapeLayoutTest {
         // max(iconRow, 56dp text row) = 84.
         appListFloorRowDp: Int = 84,
         dockFitsAsSingleRow: Boolean = true,
+        searchBoxFits: Boolean = true,
     ) = HomeLandscapeMetrics(
         isWiderThanPortrait = isWiderThanPortrait,
         availableHeightDp = availableHeightDp,
@@ -27,6 +28,7 @@ class HomeLandscapeLayoutTest {
         appRowHeightDp = appRowHeightDp,
         appListFloorRowHeightDp = appListFloorRowDp,
         dockFitsAsSingleRow = dockFitsAsSingleRow,
+        searchBoxFitsWithKeyboard = searchBoxFits,
     )
 
     @Test
@@ -340,6 +342,55 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
+    fun hiddenSearchWindowsKeepTheDockWithoutBudgetingTheBox() {
+        // With the gate false the search card never renders, so the
+        // keyboard-down fit must not reserve its 88dp: two floor rows + the
+        // dock need 2*84 + 8 + 108 = 284 <= 300, and the window keeps the dock
+        // (box hidden) where the with-box budget (380) would have dropped to
+        // Compact and lost the dock too.
+        assertEquals(
+            HomeLandscapeTier.DockNoKeyboard,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200, searchBoxFits = false),
+            ),
+        )
+        // The same window with typing headroom still budgets the box: Compact.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200),
+            ),
+        )
+    }
+
+    @Test
+    fun fullRequiresTheSearchBoxGate() {
+        // The gate's keyboard estimate can exceed the tier's (a portrait
+        // measurement vs the landscape fallback), so Full explicitly requires
+        // the gate: a window whose fallback fits Full (need 504 <= 800) but
+        // whose gate fails must fall to DockNoKeyboard — never a Full that
+        // auto-shows the IME over a hidden search card.
+        assertEquals(
+            HomeLandscapeTier.DockNoKeyboard,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 800, predictedKeyboardHeightDp = 200, searchBoxFits = false),
+            ),
+        )
+        // With no dock to fall back to, the same window resolves Compact.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(
+                metrics(
+                    availableHeightDp = 800,
+                    predictedKeyboardHeightDp = 200,
+                    dockHeightDp = 0,
+                    searchBoxFits = false,
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun fullReservesTheFloorRowSoItAlwaysHasTypingHeadroom() {
         // With the dock disabled and a NameBelow-tall floor row (104 > the bare
         // 84 icon row), the Full test must reserve the floor: old arithmetic
@@ -468,11 +519,12 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
-    fun searchBoxShowsOptimisticallyUntilAKeyboardIsMeasured() {
-        // With no applicable reservation the keyboard height is the 55%
-        // fallback guess (216dp here — over the 189dp budget), but the gate
-        // must not hide the box on a guess: hidden, the box could never raise
-        // the IME in landscape to measure the real height and correct itself.
+    fun searchBoxDefaultsToHiddenWithoutAConfidentFit() {
+        // The gate always engages: the default is no search box in landscape
+        // unless typing is known to fit. With no reservation the 55% fallback
+        // (216dp here) exceeds the 189dp budget, so the box is hidden from the
+        // very first landscape frame — the user should never have to suffer
+        // one squeezed typing session to teach the launcher.
         fun fitsWith(reservation: KeyboardReservation): Boolean =
             homeLandscapeMetrics(
                 screenWidthDp = 851,
@@ -488,11 +540,13 @@ class HomeLandscapeLayoutTest {
                 reservationFingerprint = fingerprint(851, 393, 320, navBottomPx = 0),
             ).searchBoxFitsWithKeyboard
 
-        // No reservation at all.
-        assertTrue(fitsWith(KeyboardReservation()))
-        // A reservation measured under a *different* configuration (portrait)
-        // does not apply, so this window is still unmeasured.
-        assertTrue(
+        // No reservation at all -> fallback (216dp) -> hidden.
+        assertEquals(false, fitsWith(KeyboardReservation()))
+        // A tall *portrait* VisibleIme measurement is used as the landscape
+        // estimate (the single persisted slot is rewritten by every settle, so
+        // portrait usually owns it): 1000dp -> hidden.
+        assertEquals(
+            false,
             fitsWith(
                 KeyboardReservation(
                     bottomPx = 2000,
@@ -501,15 +555,29 @@ class HomeLandscapeLayoutTest {
                 ),
             ),
         )
-        // An animation-target-only reading — including legacy pre-source rows,
-        // which load as AnimationTarget with a wildcard fingerprint carrying a
-        // possibly portrait-sized height — is not authoritative enough to hide
-        // the box either: it may over-read, and hiding on it would be just as
-        // self-sealing as hiding on the fallback.
-        assertTrue(
+        // A *short* other-configuration VisibleIme measurement can only raise
+        // the estimate above the fallback, never lower it — a non-applicable
+        // row can be stale in ways the gate can't validate (density, nav-mode,
+        // display-size changes), so it must never overrule the fallback into
+        // showing the box: max(189, fallback 216) still hides here.
+        assertEquals(
+            false,
             fitsWith(
                 KeyboardReservation(
-                    bottomPx = 2000,
+                    bottomPx = 189 * 2,
+                    configFingerprint = fingerprint(393, 851, 320, navBottomPx = 0),
+                    source = KeyboardReservationSource.VisibleIme,
+                ),
+            ),
+        )
+        // AnimationTarget rows (including legacy pre-source rows) may
+        // over-read, so they are not used as an estimate — the fallback
+        // decides instead (hidden at this size, even though 100dp would fit).
+        assertEquals(
+            false,
+            fitsWith(
+                KeyboardReservation(
+                    bottomPx = 100 * 2,
                     configFingerprint = null,
                     source = KeyboardReservationSource.AnimationTarget,
                 ),
