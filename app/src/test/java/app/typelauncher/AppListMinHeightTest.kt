@@ -33,4 +33,23 @@ class AppListMinHeightTest {
         assertEquals(112, appListMinVisibleRowsHeightDp(dockIconSizeDp = 40))
         assertEquals(114, appListMinVisibleRowsHeightDp(dockIconSizeDp = 41))
     }
+
+    @Test
+    fun nameBelowRowsReserveTheLabelStrip() {
+        // A NameBelow grid tile is the icon row plus the 20dp label strip, so
+        // two rows reserve 2 × (64 + 16 + 20) = 200dp — and the strip grows
+        // with the font scale (2× → 2 × (80 + 40) = 240dp).
+        assertEquals(
+            200,
+            appListMinVisibleRowsHeightDp(dockIconSizeDp = 64, appListLayout = AppListLayout.NameBelow),
+        )
+        assertEquals(
+            240,
+            appListMinVisibleRowsHeightDp(
+                dockIconSizeDp = 64,
+                appListLayout = AppListLayout.NameBelow,
+                fontScale = 2f,
+            ),
+        )
+    }
 }

@@ -14,6 +14,9 @@ class HomeLandscapeLayoutTest {
         predictedKeyboardHeightDp: Int,
         dockHeightDp: Int = 108,
         appRowHeightDp: Int = 84,
+        // Default mirrors homeLandscapeMetrics for an unlabeled 84dp icon row:
+        // max(iconRow, 56dp text row) = 84.
+        appListFloorRowDp: Int = 84,
         dockFitsAsSingleRow: Boolean = true,
     ) = HomeLandscapeMetrics(
         isWiderThanPortrait = isWiderThanPortrait,
@@ -22,6 +25,7 @@ class HomeLandscapeLayoutTest {
         searchBoxHeightDp = 88,
         dockHeightDp = dockHeightDp,
         appRowHeightDp = appRowHeightDp,
+        appListFloorRowHeightDp = appListFloorRowDp,
         dockFitsAsSingleRow = dockFitsAsSingleRow,
     )
 
@@ -116,23 +120,91 @@ class HomeLandscapeLayoutTest {
     @Test
     fun dockNoKeyboardFloorReservesTextRowHeightForADenseDock() {
         // A dense dock makes the icon-grid app row (40dp here) shorter than a
-        // 56dp text row. DockNoKeyboard keeps the user's app-list layout (maybe
-        // text rows), so the floor must reserve two *text* rows, not two icon
-        // rows: text floor = 88 + 8 + 2*56 + 8 + 108 = 324; the icon-row floor
-        // (the bug) would be 88 + 8 + 2*40 + 8 + 108 = 292.
-        // At 300dp the icon-row floor would wrongly admit DockNoKeyboard; the
-        // text-row floor correctly falls back to Compact.
+        // 56dp text row; appListFloorRowHeightDp floors the reserve at the text
+        // row, so the fit needs 88 + 8 + 2*56 + 8 + 108 = 324. Flooring on the
+        // icon row alone (the bug) would need only 88 + 8 + 2*40 + 8 + 108 = 292,
+        // wrongly admitting DockNoKeyboard at 300dp.
         assertEquals(
             HomeLandscapeTier.Compact,
             resolveHomeLandscapeTier(
-                metrics(availableHeightDp = 300, predictedKeyboardHeightDp = 200, appRowHeightDp = 40),
+                metrics(
+                    availableHeightDp = 300,
+                    predictedKeyboardHeightDp = 200,
+                    appRowHeightDp = 40,
+                    appListFloorRowDp = 56,
+                ),
             ),
         )
         assertEquals(
             HomeLandscapeTier.DockNoKeyboard,
             resolveHomeLandscapeTier(
-                metrics(availableHeightDp = 324, predictedKeyboardHeightDp = 200, appRowHeightDp = 40),
+                metrics(
+                    availableHeightDp = 324,
+                    predictedKeyboardHeightDp = 200,
+                    appRowHeightDp = 40,
+                    appListFloorRowDp = 56,
+                ),
             ),
+        )
+    }
+
+    @Test
+    fun dockNoKeyboardFloorReservesTheNameBelowLabelStrip() {
+        // A NameBelow grid's rows are taller than the bare icon row (84 + 20 =
+        // 104), so the fit needs 88 + 8 + 2*104 + 8 + 108 = 420: at 419dp the
+        // labeled floor falls back to Compact where the unlabeled floor (380)
+        // would have squeezed the labeled rows, and at 420dp it enters
+        // DockNoKeyboard.
+        assertEquals(
+            HomeLandscapeTier.Compact,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 419, predictedKeyboardHeightDp = 400, appListFloorRowDp = 104),
+            ),
+        )
+        assertEquals(
+            HomeLandscapeTier.DockNoKeyboard,
+            resolveHomeLandscapeTier(
+                metrics(availableHeightDp = 420, predictedKeyboardHeightDp = 400, appListFloorRowDp = 104),
+            ),
+        )
+    }
+
+    @Test
+    fun appListFloorRowScalesWithLayoutAndFontScale() {
+        // NameBeside and IconOnly reserve the plain grid row (or the 56dp text
+        // row when taller); NameBelow adds the 20dp label strip, which grows
+        // with the font scale but never shrinks below it.
+        assertEquals(84, appListFloorRowHeightDp(68, AppListLayout.NameBeside))
+        assertEquals(84, appListFloorRowHeightDp(68, AppListLayout.IconOnly))
+        assertEquals(104, appListFloorRowHeightDp(68, AppListLayout.NameBelow))
+        assertEquals(124, appListFloorRowHeightDp(68, AppListLayout.NameBelow, fontScale = 2f))
+        assertEquals(104, appListFloorRowHeightDp(68, AppListLayout.NameBelow, fontScale = 0.5f))
+        // The text-row floor still wins for a dense dock, even labeled: 32 + 16
+        // + 20 = 68 exceeds 56, but 32 + 16 = 48 alone does not.
+        assertEquals(56, appListFloorRowHeightDp(32, AppListLayout.NameBeside))
+        assertEquals(68, appListFloorRowHeightDp(32, AppListLayout.NameBelow))
+    }
+
+    @Test
+    fun metricsFloorRowFollowsThePersistedAppListLayout() {
+        fun floorFor(layout: AppListLayout) = homeLandscapeMetrics(
+            screenWidthDp = 851,
+            screenHeightDp = 393,
+            densityDpi = 420,
+            targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+            isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
+            isWorkDockVisible = false,
+            workDockedAppIds = emptyList(),
+            workDockPositions = emptyMap(),
+            keyboardReservation = KeyboardReservation(),
+            reservationFingerprint = fingerprint(851, 393, 420, navBottomPx = 0),
+            appListLayout = layout,
+        ).appListFloorRowHeightDp
+
+        assertEquals(
+            floorFor(AppListLayout.NameBeside) + APP_LIST_NAME_BELOW_LABEL_HEIGHT_DP,
+            floorFor(AppListLayout.NameBelow),
         )
     }
 

@@ -986,6 +986,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
         state.workDockPositions,
         state.keyboardReservation,
         state.dockLayout,
+        state.appListLayout,
         density.fontScale,
     ) {
         val fingerprint = KeyboardReservationConfig(
@@ -1009,6 +1010,7 @@ private fun rememberHomeLandscapeTier(state: LauncherUiState): HomeLandscapeTier
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,
                 dockLayout = state.dockLayout,
+                appListLayout = state.appListLayout,
                 fontScale = density.fontScale,
             ),
         )

@@ -431,6 +431,7 @@ class MainActivity : ComponentActivity() {
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,
                 dockLayout = state.dockLayout,
+                appListLayout = state.appListLayout,
                 fontScale = config.fontScale,
             ),
         )

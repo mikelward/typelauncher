@@ -790,7 +790,11 @@ internal fun HomeScreen(
         val spacingPx = HOME_CARD_SPACING_DP.dp.roundToPx()
         // Reserve at least APP_LIST_MIN_VISIBLE_ROWS rows for the apps list;
         // see [appListMinVisibleRowsHeightDp] for the per-row floor.
-        val appListMinPx = appListMinVisibleRowsHeightDp(dockIconSizeDp).dp.roundToPx()
+        val appListMinPx = appListMinVisibleRowsHeightDp(
+            dockIconSizeDp,
+            state.appListLayout,
+            fontScale,
+        ).dp.roundToPx()
 
         val search = measurables[0].measure(
             constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
@@ -841,16 +845,21 @@ internal fun HomeScreen(
 }
 
 /**
- * The height (dp) the home layout reserves for the apps list: the larger of an
- * icon-only row (`dockIconSizeDp` + spacing) and the fixed 56dp text row, times
- * [APP_LIST_MIN_VISIBLE_ROWS] — so neither layout mode can be squeezed below
+ * The height (dp) the home layout reserves for the apps list: one
+ * [appListFloorRowHeightDp] row — the larger of the [appListLayout]'s grid row
+ * (icon + spacing, plus the NameBelow label strip) and the fixed 56dp text row
+ * — times [APP_LIST_MIN_VISIBLE_ROWS], so no layout mode can be squeezed below
  * its guaranteed visible rows by the dock and the recents bar. Without the
- * `maxOf`, a small icon size (32dp → 96dp reserved) under-reserved the 112dp
- * two text rows need.
+ * text-row floor, a small icon size (32dp → 96dp reserved) under-reserved the
+ * 112dp two text rows need; without the label strip, a NameBelow grid's two
+ * labeled rows were taller than the reserve.
  */
-internal fun appListMinVisibleRowsHeightDp(dockIconSizeDp: Int): Int =
-    APP_LIST_MIN_VISIBLE_ROWS *
-        maxOf(dockIconSizeDp + DOCK_ITEM_SPACING_DP * 2, APP_LIST_TEXT_ROW_HEIGHT_DP)
+internal fun appListMinVisibleRowsHeightDp(
+    dockIconSizeDp: Int,
+    appListLayout: AppListLayout = AppListLayout.NameBeside,
+    fontScale: Float = 1f,
+): Int =
+    APP_LIST_MIN_VISIBLE_ROWS * appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale)
 
 /**
  * The home screen's bottom bar: the recents bar (revealed by a pull-up). The
