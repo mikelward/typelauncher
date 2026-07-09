@@ -444,6 +444,30 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
+    fun fallbackKeyboardEstimateUsesTheBarAdjustedHeight() {
+        // The same Android-15-style window with no measured keyboard: the 55%
+        // fallback is taken of the 393dp of real content, not the 441dp
+        // bar-inclusive screen height, so the fallback and the available-height
+        // budget stay on the same basis and the bars alone cannot push a
+        // near-threshold window out of Full before a keyboard is measured.
+        val m = homeLandscapeMetrics(
+            screenWidthDp = 851,
+            screenHeightDp = 441,
+            densityDpi = 320,
+            targetDockIconSizeDp = dockIconSizeForSlotCount(441, 4),
+            isPersonalDockEnabled = true,
+            personalDockOccupantIds = emptyList(),
+            isWorkDockVisible = false,
+            workDockedAppIds = emptyList(),
+            workDockPositions = emptyMap(),
+            keyboardReservation = KeyboardReservation(),
+            reservationFingerprint = fingerprint(851, 441, 320, navBottomPx = 48),
+            verticalSystemBarsPx = 96,
+        )
+        assertEquals((441 - 48) * LANDSCAPE_KEYBOARD_FALLBACK_PERCENT / 100, m.predictedKeyboardHeightDp)
+    }
+
+    @Test
     fun searchBoxShowsOptimisticallyUntilAKeyboardIsMeasured() {
         // With no applicable reservation the keyboard height is the 55%
         // fallback guess (216dp here — over the 189dp budget), but the gate

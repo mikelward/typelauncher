@@ -105,10 +105,11 @@ internal fun appListFloorRowHeightDp(
 internal const val HOME_OUTER_PADDING_DP = 8
 
 // Fallback keyboard height, as a percentage of the (short) landscape screen
-// height, used only before a real keyboard height has been measured and
-// persisted for the current configuration. Landscape IMEs on a phone occupy
-// roughly half the short edge; 55% biases slightly toward suppressing the
-// keyboard, which is the safer default when we cannot yet measure.
+// height net of the system bars, used only before a real keyboard height has
+// been measured and persisted for the current configuration. Landscape IMEs
+// on a phone occupy roughly half the short edge; 55% biases slightly toward
+// suppressing the keyboard, which is the safer default when we cannot yet
+// measure.
 internal const val LANDSCAPE_KEYBOARD_FALLBACK_PERCENT = 55
 
 /**
@@ -250,6 +251,15 @@ internal fun homeLandscapeMetrics(
     val dockHeightDp = personalCardHeightDp + workCardHeightDp +
         (if (bothCardsPresent) HOME_CARD_SPACING_DP else 0)
 
+    // The bar-adjusted viewport every height estimate below is taken against:
+    // the screen height net of the system bars the window chrome consumes (see
+    // the verticalSystemBarsPx parameter doc). Both the available-height
+    // budget and the pre-measurement keyboard fallback derive from this same
+    // value, so a bar-inclusive Configuration cannot inflate the fallback
+    // estimate against a budget that excludes the bars.
+    val barAdjustedScreenHeightDp =
+        (screenHeightDp - pxToDp(verticalSystemBarsPx, densityDpi)).coerceAtLeast(0)
+
     val keyboardHeightIsMeasured =
         keyboardReservation.appliesUnder(reservationFingerprint) && keyboardReservation.bottomPx > 0
     // The search-box gate holds itself to a stricter standard than the tier
@@ -267,7 +277,7 @@ internal fun homeLandscapeMetrics(
         val heightPx = (keyboardReservation.bottomPx - navBottomPx).coerceAtLeast(0)
         pxToDp(heightPx, densityDpi)
     } else {
-        screenHeightDp * LANDSCAPE_KEYBOARD_FALLBACK_PERCENT / 100
+        barAdjustedScreenHeightDp * LANDSCAPE_KEYBOARD_FALLBACK_PERCENT / 100
     }
 
     val dockFitsAsSingleRow = landscapeDockFitsAsSingleRow(
@@ -279,9 +289,7 @@ internal fun homeLandscapeMetrics(
         workDockOccupantIds = workDockedAppIds,
     )
 
-    val availableHeightDp = (
-        screenHeightDp - pxToDp(verticalSystemBarsPx, densityDpi) - HOME_OUTER_PADDING_DP * 2
-        ).coerceAtLeast(0)
+    val availableHeightDp = (barAdjustedScreenHeightDp - HOME_OUTER_PADDING_DP * 2).coerceAtLeast(0)
     val floorRowDp = appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale)
     // The box is only worth showing where tapping it still leaves at least one
     // result row under the raised keyboard. The dock is not counted — it
