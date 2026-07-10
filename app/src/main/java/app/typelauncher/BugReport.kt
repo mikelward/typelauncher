@@ -88,29 +88,37 @@ internal object BugReport {
         } ?: return null
         // Compressing a full-window PNG and pruning previous files would block the main
         // thread long enough to jank the share-sheet open, so persist on Dispatchers.IO.
-        return withContext(Dispatchers.IO) {
-            try {
-                val dir = File(activity.cacheDir, SCREENSHOT_DIR_NAME).apply { mkdirs() }
-                // Prune old captures but keep the most recent couple: a
-                // FileProvider URI from an earlier share may still be held by
-                // its target (an unsent email draft, a messaging app that
-                // reads attachments lazily), and deleting every file here
-                // retroactively broke that grant — the attachment failed with
-                // FileNotFoundException when the target finally read it.
-                prunePersistedScreenshots(dir, keepNewest = SCREENSHOT_KEEP_PREVIOUS)
-                val file = File(dir, "screenshot-${System.currentTimeMillis()}.png")
-                FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
-                FileProvider.getUriForFile(
-                    activity,
-                    activity.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
-                    file,
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (t: Throwable) {
-                LauncherDebugLog.warning("BugReport.persistScreenshot failed", t)
-                null
+        return try {
+            withContext(Dispatchers.IO) {
+                try {
+                    val dir = File(activity.cacheDir, SCREENSHOT_DIR_NAME).apply { mkdirs() }
+                    // Prune old captures but keep the most recent couple: a
+                    // FileProvider URI from an earlier share may still be held by
+                    // its target (an unsent email draft, a messaging app that
+                    // reads attachments lazily), and deleting every file here
+                    // retroactively broke that grant — the attachment failed with
+                    // FileNotFoundException when the target finally read it.
+                    prunePersistedScreenshots(dir, keepNewest = SCREENSHOT_KEEP_PREVIOUS)
+                    val file = File(dir, "screenshot-${System.currentTimeMillis()}.png")
+                    FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
+                    FileProvider.getUriForFile(
+                        activity,
+                        activity.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
+                        file,
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (t: Throwable) {
+                    LauncherDebugLog.warning("BugReport.persistScreenshot failed", t)
+                    null
+                }
             }
+        } finally {
+            // Only the PNG on disk outlives this call; free the full-window
+            // ARGB_8888 buffer (10-30 MB) now instead of waiting for GC. Safe
+            // even on cancellation: withContext waits for its block, so the
+            // compress has finished with the bitmap by the time we get here.
+            bitmap.recycle()
         }
     }
 
@@ -118,24 +126,45 @@ internal object BugReport {
         val window = activity.window ?: return null
         val view: View = window.decorView
         if (view.width <= 0 || view.height <= 0) return null
+        val location = IntArray(2)
+        view.getLocationInWindow(location)
+        val rect = Rect(
+            location[0],
+            location[1],
+            location[0] + view.width,
+            location[1] + view.height,
+        )
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-        return suspendCancellableCoroutine { cont ->
-            val location = IntArray(2)
-            view.getLocationInWindow(location)
-            val rect = Rect(
-                location[0],
-                location[1],
-                location[0] + view.width,
-                location[1] + view.height,
-            )
-            try {
-                requestPixelCopy(window, rect, bitmap) { ok ->
-                    cont.resume(if (ok) bitmap else null)
+        return awaitPixelCopyInto(bitmap) { onResult -> requestPixelCopy(window, rect, bitmap, onResult) }
+    }
+
+    /**
+     * Suspends until [request] reports whether the copy into [bitmap] landed,
+     * returning the bitmap on success and null on failure. The bitmap is a
+     * full-window ARGB_8888 buffer (10-30 MB on current phones), so every path
+     * that does not hand it to the caller recycles it: a failed copy, a
+     * synchronous throw from [request], and a caller cancelled before the
+     * result arrived. In the cancelled case the recycle happens in the (now
+     * ignored) result callback rather than eagerly at cancellation time,
+     * because PixelCopy may still be writing into the buffer until then.
+     */
+    internal suspend fun awaitPixelCopyInto(
+        bitmap: Bitmap,
+        request: (onResult: (Boolean) -> Unit) -> Unit,
+    ): Bitmap? = suspendCancellableCoroutine { cont ->
+        try {
+            request { ok ->
+                if (ok) {
+                    cont.resume(bitmap) { bitmap.recycle() }
+                } else {
+                    bitmap.recycle()
+                    cont.resume(null)
                 }
-            } catch (t: Throwable) {
-                LauncherDebugLog.warning("BugReport.PixelCopy.request threw", t)
-                cont.resume(null)
             }
+        } catch (t: Throwable) {
+            LauncherDebugLog.warning("BugReport.PixelCopy.request threw", t)
+            bitmap.recycle()
+            cont.resume(null)
         }
     }
 
