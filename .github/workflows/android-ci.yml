@@ -31,6 +31,17 @@ on:
       - '.*'
       - '.*/**'
       - '!.github/workflows/**'
+  # Manual override for the `deploy` job: lets a maintainer force an
+  # internal-track release from the GitHub web UI (works from a phone
+  # browser — no local build tooling needed) when `main`'s tip is stuck
+  # behind the "no release-worthy commits" skip (see "Build release
+  # notes" in the `deploy` job) but a tester needs the current tip on
+  # their device anyway — e.g. to read diagnostic logging that hasn't
+  # shipped because every commit since the last release was `internal:`
+  # (or `ci:` / `docs:` / `refactor:` / `test:` / `tests:`) prefixed.
+  # No inputs: dispatching always targets the selected ref (main by
+  # default in the UI) and the `deploy` job's `if:` below re-checks that.
+  workflow_dispatch:
 
 # No workflow-level permissions — each job declares the least-privilege
 # scope it needs. Workflow-level `pull-requests: write` would also leak
@@ -398,7 +409,11 @@ jobs:
   deploy:
     name: Distribute and release
     # Production deployment job. Gated three ways:
-    #   1. `if:` — only runs on push to main, not on PRs or other branches.
+    #   1. `if:` — only runs on a push to main or a manual workflow_dispatch
+    #      explicitly targeting main (the dispatch UI defaults the ref
+    #      selector to main, but a maintainer could pick another branch,
+    #      so this re-checks `github.ref` rather than trusting that
+    #      default) — never on PRs.
     #   2. `environment: production` — secrets used here
     #      (FIREBASE_SERVICE_ACCOUNT_JSON, RELEASE_KEYSTORE_*,
     #      PLAY_SERVICE_ACCOUNT_JSON) live in the `production`
@@ -412,7 +427,9 @@ jobs:
     #   3. `needs:` — only runs after build and connected-tests
     #      both pass. A failing screenshot test on main now blocks the
     #      release; the previous setup would have shipped anyway.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: [build, connected-tests]
     runs-on: ubuntu-latest
     environment: production
@@ -488,6 +505,19 @@ jobs:
         # push of only prefixed (ci: / docs: / internal: / refactor: /
         # test: / tests:) or docs / dotfile commits doesn't buzz
         # testers' phones or ship a redundant Play release.
+        #
+        # A manual workflow_dispatch is the one exception: it's an
+        # explicit "publish the current tip anyway" request (see the
+        # workflow_dispatch trigger's doc), so it never sets
+        # RELEASE_NOTES_SKIP — falling back to a generic note instead of
+        # skipping when nothing qualifies. It also has no
+        # `github.event.before` to diff from, so the commit walk below
+        # only ever considers the single HEAD commit for a dispatch run,
+        # not the full range since the last release; that's fine for
+        # "get the current tip out to testers" but means a dispatch run
+        # won't surface older unreleased subjects buried deeper in
+        # history.
+        #
         # Engineering detail lives in the commit body, which neither
         # surface shows — see the "Commit messages" section in CLAUDE.md
         # for the wording convention. Play's documented per-language
@@ -504,6 +534,7 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -552,9 +583,14 @@ jobs:
           done <<< "$shas"
 
           if [ "${#subjects[@]}" -eq 0 ]; then
-            echo "No release-worthy commits in this push (all ci: / docs: / internal: / refactor: / test: / tests: prefixed or docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
-            echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
-            exit 0
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "No release-worthy commits, but this is a manual workflow_dispatch — publishing the current tip anyway with a generic note."
+              subjects+=("Internal test build")
+            else
+              echo "No release-worthy commits in this push (all ci: / docs: / internal: / refactor: / test: / tests: prefixed or docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
+              echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
+              exit 0
+            fi
           fi
 
           MAX=500
@@ -660,7 +696,10 @@ jobs:
         # would read e.g. "ci: bump actions/checkout". Runs
         # before the Play Store upload so a Play failure (e.g. quota,
         # propagation) doesn't gate the faster Firebase channel testers
-        # actually rely on.
+        # actually rely on. A manual workflow_dispatch never sets
+        # RELEASE_NOTES_SKIP (see "Build release notes"), so this step
+        # runs normally for a dispatch too — the point of dispatching is
+        # to reach testers' phones on demand.
         if: |
           success() &&
           env.FIREBASE_APP_ID != '' &&
