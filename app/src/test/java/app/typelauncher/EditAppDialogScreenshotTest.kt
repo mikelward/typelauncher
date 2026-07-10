@@ -11,6 +11,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -169,6 +170,36 @@ class EditAppDialogScreenshotTest {
         restorationTester.emulateSavedInstanceStateRestore()
 
         composeRule.onNodeWithTag(EDIT_APP_DIALOG_FIELD_TAG).assertTextContains("My Custom Name")
+    }
+
+    @Test
+    fun badgePickerStaysOpenAcrossConfigurationChange() {
+        // The badge picker's own visibility flag (`badgePickerVisible`) must
+        // be `rememberSaveable`, like the rename field above — otherwise a
+        // configuration change while the picker is open silently closes it
+        // out from under the user, dropping them back on the edit dialog with
+        // no explanation.
+        val restorationTester = StateRestorationTester(composeRule)
+        restorationTester.setContent {
+            TypeLauncherTheme {
+                EditAppDialogContent(
+                    app = installedApp(name = "ChatGPT", packageName = "com.openai.chatgpt"),
+                    onSave = {},
+                    onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
+                    onSetBadge = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_CHOOSE_BADGE_TAG, useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(BADGE_PICKER_DIALOG_TAG).assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithTag(BADGE_PICKER_DIALOG_TAG).assertIsDisplayed()
     }
 
     private fun installedApp(name: String, packageName: String): InstalledApp {

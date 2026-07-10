@@ -1115,6 +1115,25 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun reportBugConsentDialog_staysOpenWithCheckboxStateAcrossConfigurationChange() {
+        // `consentVisible` and the checkbox's `dontShowAgain` state were both
+        // plain `remember`, so a rotation while this dialog was open silently
+        // closed it — activity.recreate() exercises the same save/restore
+        // path a real configuration change goes through.
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_REPORT_BUG_ACTION_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_CHECKBOX_TAG).performClick()
+
+        composeRule.activity.recreate()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DIALOG_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_CHECKBOX_TAG).assertIsOn()
+    }
+
+    @Test
     fun reportBugAction_skipsConsentDialogWhenAlreadySuppressed() {
         DockSettingsStore(composeRule.activity).isBugReportConsentSuppressed = true
 
@@ -1854,6 +1873,29 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_EMPTY_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_LIST_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun manageHiddenAppsDialog_staysOpenAcrossConfigurationChange() {
+        // `hiddenAppsDialogVisible` was plain `remember`, so a rotation while
+        // this dialog was open silently closed it. activity.recreate()
+        // exercises the same save/restore path a real rotation goes through.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calculator")
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$HIDE_APP_ACTION_TAG:Calculator").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription("Clear search text").performClick()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
+
+        composeRule.activity.recreate()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:Calculator").assertIsDisplayed()
     }
 
     @Test

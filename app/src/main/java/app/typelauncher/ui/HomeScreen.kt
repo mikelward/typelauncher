@@ -2519,7 +2519,7 @@ private fun DockFolderMemberActionsMenu(
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
-    var editDialogVisible by remember { mutableStateOf(false) }
+    var editDialogVisible by rememberSaveable { mutableStateOf(false) }
     LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -3978,7 +3978,7 @@ private fun AppActionsMenu(
     // Boolean rather than the InstalledApp itself so dialog visibility doesn't
     // re-evaluate identity-based equality on every parent recomposition; the
     // dialog reads `app` directly from this composable's parameter.
-    var editDialogVisible by remember { mutableStateOf(false) }
+    var editDialogVisible by rememberSaveable { mutableStateOf(false) }
     LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -4154,7 +4154,7 @@ internal fun EditAppDialogContent(
     // instead of resetting it to the app's current name. Keyed on app.id so
     // reusing the slot for a different app still resets to that app's name.
     var text by rememberSaveable(app.id) { mutableStateOf(app.customName ?: app.name) }
-    var badgePickerVisible by remember { mutableStateOf(false) }
+    var badgePickerVisible by rememberSaveable { mutableStateOf(false) }
     val hasOverride = !app.customName.isNullOrBlank()
     val hasIconOverride = app.customIconPath != null
     Column(
@@ -4851,7 +4851,7 @@ internal fun SettingsScreen(
     val dockSizing = dockIconSizing(liveReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
-    var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
+    var hiddenAppsDialogVisible by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -5577,7 +5577,7 @@ private fun IconTheme.optionTag(): String =
 private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
-    var consentVisible by remember { mutableStateOf(false) }
+    var consentVisible by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dockSettings = remember(context) { DockSettingsStore(context) }
@@ -5652,7 +5652,7 @@ internal fun BugReportConsentDialog(
     onDismiss: () -> Unit,
     onConfirm: (suppressFuture: Boolean) -> Unit,
 ) {
-    var dontShowAgain by remember { mutableStateOf(false) }
+    var dontShowAgain by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag(BUG_REPORT_CONSENT_DIALOG_TAG),
