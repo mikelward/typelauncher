@@ -5,6 +5,7 @@ Android home screen launcher app (Kotlin, single `:app` module).
 ## Project documentation
 
 - Keep `SPEC.md` up to date when changing product behavior, architecture, persistence, permissions, navigation, or testing strategy.
+- **`SPEC.md` records product, functionality, and architecture decisions — not low-level implementation detail.** It captures *what* the launcher does and *why* a design was chosen (the shapes an icon can take and how `System` resolves, the carousel commit rules, the keyboard-reservation state machine), so a reader can understand and QA the product from the spec. It is not the place for facts that live in the code and change with it: exact dp values, private helper names, per-locale string wording, which composable holds a flag, or whether a given string is translated. Ask "would this still be true and worth stating if the implementation were rewritten?" — if not, leave it in the code and its comments. When a change only touches that kind of detail, don't add a `SPEC.md` line for it; when a change does move the product or architecture, state the decision at that altitude and stop.
 
 ## Engineering quality bar
 
