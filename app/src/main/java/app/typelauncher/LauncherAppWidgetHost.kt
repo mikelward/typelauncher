@@ -370,6 +370,20 @@ internal open class LauncherAppWidgetHostView(
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> host.onChildScrollChange?.invoke(false)
+            MotionEvent.ACTION_MOVE -> {
+                // Slop cancellation must live here as well as in
+                // onInterceptTouchEvent: when this view consumed the DOWN
+                // itself (no descendant touch target — see onTouchEvent),
+                // ViewGroup routes every later event straight to
+                // onTouchEvent without consulting intercept, so intercept's
+                // MOVE-past-slop branch never runs for that gesture and a
+                // slow drag on a non-interactive region would outlive the
+                // timeout and pop the menu mid-drag. Idempotent for
+                // gestures a child owns (intercept already cancelled).
+                if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
+                    removeCallbacks(checkLongPress)
+                }
+            }
             MotionEvent.ACTION_UP,
             MotionEvent.ACTION_CANCEL -> {
                 host.onChildScrollChange?.invoke(false)
@@ -402,7 +416,43 @@ internal open class LauncherAppWidgetHostView(
                 "LauncherAppWidgetHostView longPressTimer cancelled($source) widgetId=$appWidgetId",
             )
         }
+        // Same post-super gating as the UP/CANCEL backstop above, MOVE
+        // flavor: only log when intercept genuinely never saw the slop
+        // crossing (self-consumed gesture), so a child-owned drag keeps its
+        // intercept-level `cancelled(slop)` label.
+        if (ev.actionMasked == MotionEvent.ACTION_MOVE &&
+            longPressTimerArmedForLogging &&
+            (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop)
+        ) {
+            longPressTimerArmedForLogging = false
+            LauncherDebugLog.event(
+                "LauncherAppWidgetHostView longPressTimer cancelled(dispatchSlop) widgetId=$appWidgetId",
+            )
+        }
         return handled
+    }
+
+    /**
+     * Claims any gesture whose DOWN no descendant consumed — a gap or
+     * non-interactive region of the widget's RemoteViews content.
+     *
+     * Without this, an unclaimed DOWN returns false out of
+     * [dispatchTouchEvent] and Compose's pointer interop moves to its
+     * NotDispatching state, which stops delivering the gesture's remaining
+     * events to this view entirely: no MOVE, no UP, and no synthesized
+     * ACTION_CANCEL when the carousel later claims the swipe. The
+     * long-press timer armed at DOWN then fired blind ~400 ms later,
+     * popping the widget actions menu with a haptic after a plain tap on a
+     * dead area or mid-swipe (#513's spurious-menu symptom). Consuming the
+     * DOWN keeps this view on the same event stream a clickable
+     * RemoteViews child already gets: an UP cancels the timer via the
+     * dispatchTouchEvent backstop, a carousel claim consumes the moves so
+     * the interop synthesizes ACTION_CANCEL, and a genuinely held finger
+     * still fires the long-press menu.
+     */
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        super.onTouchEvent(event)
+        return true
     }
 
     /**
