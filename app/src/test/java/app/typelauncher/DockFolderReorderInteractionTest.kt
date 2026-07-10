@@ -56,16 +56,16 @@ class DockFolderReorderInteractionTest {
         )
     }
 
-    // Mirrors DockedAppStore.reorderFolderMember: remove then insert at the
-    // clamped target index, so the test's state evolves exactly like production.
-    private fun reorder(ids: List<String>, appId: String, targetIndex: Int): List<String> {
+    // Mirrors DockedAppStore.reorderFolderMember: resolve the target member's
+    // index, remove, then insert there, so the test's state evolves exactly
+    // like production.
+    private fun reorder(ids: List<String>, appId: String, targetMemberId: String): List<String> {
         val current = ids.indexOf(appId)
-        if (current < 0) return ids
-        val clamped = targetIndex.coerceIn(0, ids.size - 1)
-        if (clamped == current) return ids
+        val target = ids.indexOf(targetMemberId)
+        if (current < 0 || target < 0 || current == target) return ids
         val out = ids.toMutableList()
         out.removeAt(current)
-        out.add(clamped, appId)
+        out.add(target, appId)
         return out
     }
 
@@ -137,7 +137,7 @@ class DockFolderReorderInteractionTest {
                     onClearAppIconOverride = {},
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
-                    onReorderFolderMember = { appId, index -> order = reorder(order, appId, index) },
+                    onReorderFolderMember = { appId, target -> order = reorder(order, appId, target) },
                 )
             }
         }

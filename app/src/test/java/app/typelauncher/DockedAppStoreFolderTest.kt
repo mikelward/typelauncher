@@ -59,33 +59,61 @@ class DockedAppStoreFolderTest {
     }
 
     @Test
-    fun reorderFolderMemberMovesAppToTargetIndex() {
+    fun reorderFolderMemberMovesAppOntoTargetMember() {
         val store = DockedAppStore(context)
         listOf("a", "b", "c").forEach { store.dock(it, columnCount = 4) }
         val folderId = store.mergeIntoFolder("a", "b", columnCount = 4)!!
         store.addToFolder(folderId, "c", columnCount = 4)
         // Members start as [b, a, c].
 
-        store.reorderFolderMember(folderId, appId = "c", targetIndex = 0)
+        store.reorderFolderMember(folderId, appId = "c", targetMemberId = "b")
 
         assertEquals(listOf("c", "b", "a"), store.dockFolders.single().memberAppIds)
     }
 
     @Test
-    fun reorderFolderMemberClampsAndIgnoresNoOps() {
+    fun reorderFolderMemberIgnoresNoOpsAndUnknownIds() {
         val store = DockedAppStore(context)
         listOf("a", "b", "c").forEach { store.dock(it, columnCount = 4) }
         val folderId = store.mergeIntoFolder("a", "b", columnCount = 4)!!
         store.addToFolder(folderId, "c", columnCount = 4) // [b, a, c]
 
-        // Past-the-end index clamps to the last slot.
-        store.reorderFolderMember(folderId, appId = "b", targetIndex = 99)
+        // Dragging right onto the last member lands after it.
+        store.reorderFolderMember(folderId, appId = "b", targetMemberId = "c")
         assertEquals(listOf("a", "c", "b"), store.dockFolders.single().memberAppIds)
 
-        // Same index is a no-op; an unknown app is ignored.
-        store.reorderFolderMember(folderId, appId = "a", targetIndex = 0)
-        store.reorderFolderMember(folderId, appId = "zzz", targetIndex = 1)
+        // Moving onto itself is a no-op; unknown apps on either side are ignored.
+        store.reorderFolderMember(folderId, appId = "a", targetMemberId = "a")
+        store.reorderFolderMember(folderId, appId = "zzz", targetMemberId = "a")
+        store.reorderFolderMember(folderId, appId = "a", targetMemberId = "zzz")
         assertEquals(listOf("a", "c", "b"), store.dockFolders.single().memberAppIds)
+    }
+
+    @Test
+    fun reorderFolderMemberWithHiddenMemberBetweenLandsOnTheTargetCell() {
+        // Regression: the open folder renders a *filtered* member list (hidden
+        // apps, quiet-profile work apps), but the reorder used to apply the
+        // *display* index to the unfiltered persisted order. With [a, b, c]
+        // stored and b hidden, the folder shows [a, c]; dragging a onto c
+        // emitted display index 1, which the store resolved to b's slot — a
+        // silent visual no-op ([b, a, c] still displays as [a, c]) that also
+        // knocked the lifted tile one slot pitch off the finger, so a could
+        // never be moved past c while b stayed hidden. Naming the target by
+        // id resolves the same cell in both lists.
+        val store = DockedAppStore(context)
+        listOf("a", "b", "c").forEach { store.dock(it, columnCount = 4) }
+        val folderId = store.mergeIntoFolder("b", "a", columnCount = 4)!!
+        store.addToFolder(folderId, "c", columnCount = 4)
+        // Members are stored as [a, b, c]; the UI displays [a, c] with b hidden.
+
+        // Dragging the displayed "a" onto the displayed "c":
+        store.reorderFolderMember(folderId, appId = "a", targetMemberId = "c")
+
+        assertEquals(
+            "a must land on c's cell, displaying as [c, a]",
+            listOf("b", "c", "a"),
+            store.dockFolders.single().memberAppIds,
+        )
     }
 
     @Test

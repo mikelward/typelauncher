@@ -195,7 +195,7 @@ internal fun HomeScreen(
     onRemoveFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
-    onReorderDockFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
+    onReorderDockFolderMember: (String, String, String) -> Unit = { _, _, _ -> },
     // Drag-a-member-out-of-the-folder drops (folder ids are unique across the two
     // docks, so the ViewModel routes each by id — one callback serves both docks).
     onMoveDockFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
@@ -1096,7 +1096,7 @@ private fun DockCard(
     onMergeDock: (String, String) -> Unit = { _, _ -> },
     onRemoveFromFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromFolder: (String, String) -> Unit = { _, _ -> },
-    onReorderFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
+    onReorderFolderMember: (String, String, String) -> Unit = { _, _, _ -> },
     // Drag-a-member-out-of-the-folder drops: move it loose to a dock slot, merge
     // it into another dock occupant, or (via [onUndockFromFolder]) undock it.
     onMoveFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
@@ -1506,8 +1506,8 @@ private fun DockCard(
                     onClearAppIconOverride = onClearAppIconOverride,
                     onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
-                    onReorderFolderMember = { appId, index ->
-                        onReorderFolderMember(inPlaceFolder.id, appId, index)
+                    onReorderFolderMember = { appId, targetMemberId ->
+                        onReorderFolderMember(inPlaceFolder.id, appId, targetMemberId)
                     },
                     onMemberDragStateChanged = { armed -> latestOnDragStateChanged(armed) },
                     dockBoundsInRoot = dockBoundsInRoot,
@@ -1895,7 +1895,7 @@ internal fun DockFolderInPlace(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
-    onReorderFolderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
+    onReorderFolderMember: (appId: String, targetMemberId: String) -> Unit = { _, _ -> },
     onMemberDragStateChanged: (Boolean) -> Unit = {},
     dockBoundsInRoot: Rect? = null,
     dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
@@ -2012,9 +2012,11 @@ internal fun DockFolderGrid(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
-    // Moves the member [appId] to the given display index within this folder.
+    // Moves the member [appId] onto the cell of another member, named by id
+    // rather than display index so hidden members in the persisted order can't
+    // skew the position (the store resolves the id in its unfiltered list).
     // Default no-op keeps inert callsites (screenshot renders) reorder-free.
-    onReorderFolderMember: (appId: String, targetIndex: Int) -> Unit = { _, _ -> },
+    onReorderFolderMember: (appId: String, targetMemberId: String) -> Unit = { _, _ -> },
     // Latched true while a member long-press is armed so the Home carousel stops
     // claiming the same horizontal motion (see [DockFolderMemberTile]).
     onMemberDragStateChanged: (Boolean) -> Unit = {},
@@ -2091,7 +2093,7 @@ internal fun DockFolderGrid(
                 draggedAppId = id,
                 memberIds = latestMemberIds,
                 memberCenters = memberCenters,
-                onReorder = { appId, index -> latestOnReorderFolderMember(appId, index) },
+                onReorder = { appId, targetMemberId -> latestOnReorderFolderMember(appId, targetMemberId) },
                 currentOffset = dragOffset,
                 setOffset = { dragOffset = it },
             )
@@ -2742,9 +2744,12 @@ internal fun handleDockDrag(
  * the nearest cell, commit only while it is strictly closer than the current one"
  * physics as [handleDockDrag], but the drop targets are the member tiles alone —
  * the close (✕) tile and empty filler cells never report a center, so a drag past
- * them simply holds. The dragged member moves to the display index of whichever
- * member cell its center is now nearest, and the lifted-tile offset is rebased
- * onto that cell so the icon keeps tracking the finger without a jump.
+ * them simply holds. The dragged member moves onto the cell of whichever member
+ * its center is now nearest — reported by that member's *id*, because the display
+ * grid is a filtered view (hidden apps, quiet-profile work apps) of the folder's
+ * persisted order and a display index would land in the wrong persisted slot
+ * whenever an invisible member sits before the target. The lifted-tile offset is
+ * rebased onto that cell so the icon keeps tracking the finger without a jump.
  *
  * [memberIds] is the members' display order and [memberCenters] maps each member's
  * id to its cell center in root coordinates; both are captured at the start of the
@@ -2755,7 +2760,7 @@ internal fun handleFolderDrag(
     draggedAppId: String?,
     memberIds: List<String>,
     memberCenters: Map<String, Offset>,
-    onReorder: (appId: String, targetIndex: Int) -> Unit,
+    onReorder: (appId: String, targetMemberId: String) -> Unit,
     currentOffset: Offset,
     setOffset: (Offset) -> Unit,
 ) {
@@ -2785,9 +2790,7 @@ internal fun handleFolderDrag(
         if ((targetCenter - draggedCenter).getDistance() >= (currentCenter - draggedCenter).getDistance()) {
             break
         }
-        val targetIndex = memberIds.indexOf(nearest.key)
-        if (targetIndex < 0) break
-        onReorder(draggedAppId, targetIndex)
+        onReorder(draggedAppId, nearest.key)
         newOffset += currentCenter - targetCenter
         currentCenter = targetCenter
     }

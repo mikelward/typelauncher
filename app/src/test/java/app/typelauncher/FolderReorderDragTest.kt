@@ -25,9 +25,9 @@ class FolderReorderDragTest {
     )
 
     @Test
-    fun draggingMemberPastNeighborCenterMovesItToThatIndex() {
+    fun draggingMemberPastNeighborCenterMovesItOntoThatMember() {
         var movedAppId: String? = null
-        var targetIndex = -1
+        var targetMemberId: String? = null
 
         handleFolderDrag(
             // Drag "a" to x=160, just past "b"'s center at 150.
@@ -35,16 +35,16 @@ class FolderReorderDragTest {
             draggedAppId = "a",
             memberIds = memberIds,
             memberCenters = memberCenters,
-            onReorder = { appId, index ->
+            onReorder = { appId, target ->
                 movedAppId = appId
-                targetIndex = index
+                targetMemberId = target
             },
             currentOffset = Offset.Zero,
             setOffset = {},
         )
 
         assertEquals("a", movedAppId)
-        assertEquals(1, targetIndex)
+        assertEquals("b", targetMemberId)
     }
 
     @Test
@@ -119,7 +119,7 @@ class FolderReorderDragTest {
             "c" to Offset(250f, 50f),
         )
         var movedAppId: String? = null
-        var targetIndex = -1
+        var targetMemberId: String? = null
 
         handleFolderDrag(
             // Drag "a" to x=160 — closest to "b"'s stale center (150), then "c".
@@ -127,16 +127,16 @@ class FolderReorderDragTest {
             draggedAppId = "a",
             memberIds = liveIds,
             memberCenters = centersWithStale,
-            onReorder = { appId, index ->
+            onReorder = { appId, target ->
                 movedAppId = appId
-                targetIndex = index
+                targetMemberId = target
             },
             currentOffset = Offset.Zero,
             setOffset = {},
         )
 
         assertEquals("a", movedAppId)
-        assertEquals(1, targetIndex)
+        assertEquals("c", targetMemberId)
     }
 
     @Test

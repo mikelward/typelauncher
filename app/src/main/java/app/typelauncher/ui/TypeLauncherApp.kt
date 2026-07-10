@@ -321,7 +321,7 @@ internal fun TypeLauncherApp(
     onRemoveFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
     onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
-    onReorderDockFolderMember: (String, String, Int) -> Unit = { _, _, _ -> },
+    onReorderDockFolderMember: (String, String, String) -> Unit = { _, _, _ -> },
     onMoveDockFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
     onMergeDockFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
     onDockAppAtPosition: (String, Int, Int) -> Unit = { _, _, _ -> },

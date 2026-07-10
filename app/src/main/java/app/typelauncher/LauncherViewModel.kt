@@ -1322,9 +1322,9 @@ internal class LauncherViewModel(
 
     // Reorder a member within its folder (Overlay-style drag). Folder ids are
     // unique across both stores, so route to whichever dock owns it.
-    fun reorderDockFolderMember(folderId: String, appId: String, targetIndex: Int) {
-        LauncherDebugLog.event("reorderDockFolderMember folder=$folderId app=$appId target=$targetIndex")
-        folderStoreFor(folderId).reorderFolderMember(folderId, appId, targetIndex)
+    fun reorderDockFolderMember(folderId: String, appId: String, targetMemberId: String) {
+        LauncherDebugLog.event("reorderDockFolderMember folder=$folderId app=$appId target=$targetMemberId")
+        folderStoreFor(folderId).reorderFolderMember(folderId, appId, targetMemberId)
         refreshLists()
         logState("reorderDockFolderMember")
     }
