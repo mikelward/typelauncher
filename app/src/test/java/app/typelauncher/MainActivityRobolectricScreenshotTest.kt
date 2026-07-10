@@ -19,6 +19,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -564,6 +565,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.activity.viewModel.addWidget(widgetId)
         composeRule.waitForIdle()
+        awaitUnavailableWidgetCards(count = 1)
 
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$widgetId").assertIsDisplayed()
@@ -678,6 +680,7 @@ class MainActivityRobolectricScreenshotTest {
     fun widgetLongPress_showsRemoveActionAndRemovesWidget() {
         composeRule.activity.viewModel.addWidget(42)
         composeRule.waitForIdle()
+        awaitUnavailableWidgetCards(count = 1)
 
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").assertIsDisplayed()
@@ -695,6 +698,7 @@ class MainActivityRobolectricScreenshotTest {
         listOf(10, 20, 30).forEach(viewModel::addWidget)
         viewModel.showWidgets()
         composeRule.waitForIdle()
+        awaitUnavailableWidgetCards(count = 3)
 
         // A middle widget can move in both directions, so its menu offers both.
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:20").performTouchInput { longClick() }
@@ -714,6 +718,7 @@ class MainActivityRobolectricScreenshotTest {
         listOf(10, 20).forEach(viewModel::addWidget)
         viewModel.showWidgets()
         composeRule.waitForIdle()
+        awaitUnavailableWidgetCards(count = 2)
 
         // The top widget cannot move up; the bottom widget cannot move down.
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performTouchInput { longClick() }
@@ -3343,6 +3348,17 @@ class MainActivityRobolectricScreenshotTest {
 
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
         fetchSemanticsNode().config[CarouselVirtualPageKey]
+
+    // The hosted widget card resolves its AppWidgetProviderInfo off the main
+    // thread, so a bare waitForIdle can race the lookup: these unbound test
+    // widgets only render their "Widget unavailable" surface (and its
+    // long-press menu) once the null resolution lands. Await it before
+    // long-pressing or screenshotting widget cards.
+    private fun awaitUnavailableWidgetCards(count: Int) {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Widget unavailable").fetchSemanticsNodes().size == count
+        }
+    }
 
     private fun saveScreenshot(name: String, widthPx: Int = 1080, heightPx: Int = 2400) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"

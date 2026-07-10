@@ -124,6 +124,9 @@ class CarouselPageKeyingTest {
             moveBy(Offset(-width * 0.7f, 0f))
         }
         composeRule.waitForIdle()
+        // The card resolves its provider info off the main thread, so the
+        // host view inflates a beat after the widgets page composes mid-drag.
+        composeRule.waitUntil(timeoutMillis = 5_000) { findHostViews().size == 1 }
         val inflatedMidDrag = findHostViews().single()
 
         // Release: the carousel commits and settles onto the widgets page.
@@ -217,6 +220,9 @@ class CarouselPageKeyingTest {
             1,
             composeRule.onAllNodesWithTag(SEARCH_FIELD_TAG).fetchSemanticsNodes().size,
         )
+        // The card resolves its provider info off the main thread, so the
+        // host view inflates a beat after the widgets page composes.
+        composeRule.waitUntil(timeoutMillis = 5_000) { findHostViews().isNotEmpty() }
         assertEquals(
             "the widget must own exactly one host view",
             1,
