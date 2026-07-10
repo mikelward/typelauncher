@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">ఫిల్టర్‌ను క్లియర్ చేయి</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">చాలా చిన్నది, ప్యాడింగ్ జోడించబడుతుంది</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d విడ్జెట్</item>
+        <item quantity="other">%d విడ్జెట్</item>
+    </plurals>
     <string name="widgets_preview_unavailable">ప్రివ్యూ అందుబాటులో లేదు</string>
     <string name="widgets_picker_unavailable">విడ్జెట్ పికర్ అందుబాటులో లేదు</string>
     <string name="widgets_unavailable">విడ్జెట్ అందుబాటులో లేదు</string>

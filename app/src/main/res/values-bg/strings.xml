@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Изчисти филтъра</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Много малък, ще бъде допълнен</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">1 джаджа</item>
+        <item quantity="other">%d джаджи</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Прегледът не е наличен</string>
     <string name="widgets_picker_unavailable">Изборът на джаджи не е наличен</string>
     <string name="widgets_unavailable">Джаджата не е налична</string>

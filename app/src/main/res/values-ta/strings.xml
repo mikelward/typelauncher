@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">வடிகட்டியை அழி</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">மிகச் சிறியது, பேடிங் சேர்க்கப்படும்</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d விட்ஜெட்</item>
+        <item quantity="other">%d விட்ஜெட்</item>
+    </plurals>
     <string name="widgets_preview_unavailable">முன்னோட்டம் கிடைக்கவில்லை</string>
     <string name="widgets_picker_unavailable">விட்ஜெட் தேர்வாளர் கிடைக்கவில்லை</string>
     <string name="widgets_unavailable">விட்ஜெட் கிடைக்கவில்லை</string>

@@ -75,6 +75,12 @@
     <string name="widgets_picker_filter_clear_description">Počisti filter</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Zelo majhen, bo dopolnjen</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d pripomoček</item>
+        <item quantity="two">%d pripomočka</item>
+        <item quantity="few">%d pripomočki</item>
+        <item quantity="other">%d pripomočkov</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Predogled ni na voljo</string>
     <string name="widgets_picker_unavailable">Izbirnik pripomočkov ni na voljo</string>
     <string name="widgets_unavailable">Pripomoček ni na voljo</string>

@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Futa kichujio</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Ndogo sana, itaongezewa nafasi</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">1 wijeti</item>
+        <item quantity="other">%d wijeti</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Hakiki haipatikani</string>
     <string name="widgets_picker_unavailable">Kichaguzi cha wijeti hakipatikani</string>
     <string name="widgets_unavailable">Wijeti haipatikani</string>

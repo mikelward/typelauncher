@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">សម្អាតតម្រង</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">តូចណាស់ នឹងបន្ថែមចន្លោះ</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d វិដជិត</item>
+    </plurals>
     <string name="widgets_preview_unavailable">មិនមានការមើលជាមុន</string>
     <string name="widgets_picker_unavailable">មិនអាចប្រើឧបករណ៍ជ្រើសវិដជិត</string>
     <string name="widgets_unavailable">មិនអាចប្រើវិដជិត</string>

@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Ryd filter</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Meget lille, vil blive polstret</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">1 widget</item>
+        <item quantity="other">%d widgets</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Forhåndsvisning ikke tilgængelig</string>
     <string name="widgets_picker_unavailable">Widget-vælger ikke tilgængelig</string>
     <string name="widgets_unavailable">Widget ikke tilgængelig</string>

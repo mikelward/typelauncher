@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">필터 지우기</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">너무 작아 여백이 추가됩니다</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">위젯 %d개</item>
+    </plurals>
     <string name="widgets_preview_unavailable">미리보기를 사용할 수 없습니다</string>
     <string name="widgets_picker_unavailable">위젯 선택기를 사용할 수 없습니다</string>
     <string name="widgets_unavailable">위젯을 사용할 수 없습니다</string>

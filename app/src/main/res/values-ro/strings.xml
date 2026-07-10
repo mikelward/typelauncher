@@ -75,6 +75,11 @@
     <string name="widgets_picker_filter_clear_description">Șterge filtrul</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Foarte mic, va fi completat</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d widget</item>
+        <item quantity="few">%d widget-uri</item>
+        <item quantity="other">%d de widget-uri</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Previzualizare indisponibilă</string>
     <string name="widgets_picker_unavailable">Selector de widget-uri indisponibil</string>
     <string name="widgets_unavailable">Widget indisponibil</string>

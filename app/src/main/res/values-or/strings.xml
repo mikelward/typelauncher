@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">ଫିଲ୍ଟର୍ ଖାଲି କରନ୍ତୁ</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">ବହୁତ ଛୋଟ, ପ୍ୟାଡିଂ ଯୋଡ଼ାଯିବ</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d ୱିଜେଟ୍</item>
+        <item quantity="other">%d ୱିଜେଟ୍</item>
+    </plurals>
     <string name="widgets_preview_unavailable">ପ୍ରିଭ୍ୟୁ ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="widgets_picker_unavailable">ୱିଜେଟ୍ ପିକର୍ ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="widgets_unavailable">ୱିଜେଟ୍ ଉପଲବ୍ଧ ନାହିଁ</string>

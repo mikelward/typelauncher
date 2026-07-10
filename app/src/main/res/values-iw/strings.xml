@@ -75,6 +75,12 @@
     <string name="widgets_picker_filter_clear_description">ניקוי סינון</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">קטן מאוד, יתווסף ריווח</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">ווידג\'ט אחד</item>
+        <item quantity="two">2 ווידג\'טים</item>
+        <item quantity="many">%d ווידג\'טים</item>
+        <item quantity="other">%d ווידג\'טים</item>
+    </plurals>
     <string name="widgets_preview_unavailable">תצוגה מקדימה לא זמינה</string>
     <string name="widgets_picker_unavailable">בורר הווידג\'טים לא זמין</string>
     <string name="widgets_unavailable">הווידג\'ט לא זמין</string>

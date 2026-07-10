@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Filtreyi temizle</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Çok küçük, boşluk eklenecek</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d pencere öğesi</item>
+        <item quantity="other">%d pencere öğesi</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Önizleme kullanılamıyor</string>
     <string name="widgets_picker_unavailable">Pencere öğesi seçici kullanılamıyor</string>
     <string name="widgets_unavailable">Pencere öğesi kullanılamıyor</string>

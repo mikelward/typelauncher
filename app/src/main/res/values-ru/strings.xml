@@ -75,6 +75,12 @@
     <string name="widgets_picker_filter_clear_description">Очистить фильтр</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Очень маленький, будет дополнен</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d виджет</item>
+        <item quantity="few">%d виджета</item>
+        <item quantity="many">%d виджетов</item>
+        <item quantity="other">%d виджетов</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Предпросмотр недоступен</string>
     <string name="widgets_picker_unavailable">Выбор виджетов недоступен</string>
     <string name="widgets_unavailable">Виджет недоступен</string>
