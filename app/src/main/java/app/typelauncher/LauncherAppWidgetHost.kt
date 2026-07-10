@@ -374,36 +374,35 @@ internal open class LauncherAppWidgetHostView(
             MotionEvent.ACTION_CANCEL -> {
                 host.onChildScrollChange?.invoke(false)
                 removeCallbacks(checkLongPress)
-                // This backstop is also the *only* place that ever sees
-                // UP/CANCEL for a gesture whose ACTION_DOWN never landed on a
-                // child (a gap or non-interactive area of the widget's
-                // RemoteViews content): per ViewGroup.dispatchTouchEvent,
-                // onInterceptTouchEvent is only called again for a later
-                // event when mFirstTouchTarget is non-null, so with no touch
-                // target ever established, its MOVE-slop and UP/CANCEL
-                // branches above never run for that gesture. Logging both
-                // actions here (not just CANCEL) — labelled separately so a
-                // synthetic ACTION_CANCEL (the carousel claiming the gesture
-                // elsewhere, per checkLongPress's doc) stays distinguishable
-                // from a real finger lift — keeps that gesture shape from
-                // showing an armed timer with no matching cancel in the log.
-                // Gated on longPressTimerArmedForLogging (see the
-                // onInterceptTouchEvent MOVE branch's doc) so this only logs
-                // when it actually cancelled a still-armed timer.
-                if (longPressTimerArmedForLogging) {
-                    longPressTimerArmedForLogging = false
-                    val source = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                        "dispatchCancel"
-                    } else {
-                        "dispatchUp"
-                    }
-                    LauncherDebugLog.event(
-                        "LauncherAppWidgetHostView longPressTimer cancelled($source) widgetId=$appWidgetId",
-                    )
-                }
             }
         }
-        return super.dispatchTouchEvent(ev)
+        val handled = super.dispatchTouchEvent(ev)
+        // This backstop is the *only* place that ever sees UP/CANCEL for a
+        // gesture whose ACTION_DOWN never landed on a child (a gap or
+        // non-interactive area of the widget's RemoteViews content): per
+        // ViewGroup.dispatchTouchEvent, onInterceptTouchEvent is only called
+        // again for a later event once mFirstTouchTarget is non-null, so
+        // with no touch target ever established, its MOVE-slop and
+        // UP/CANCEL branches never run for that gesture. Deliberately
+        // checked *after* `super.dispatchTouchEvent(ev)` (which is what
+        // invokes onInterceptTouchEvent for a gesture that did establish a
+        // touch target): logging here unconditionally, before super ran,
+        // would beat the intercept-level log to the punch on every ordinary
+        // tap release and mislabel it as this no-touch-target backstop
+        // instead. Checking `longPressTimerArmedForLogging` after super has
+        // had its chance means this only fires when intercept genuinely
+        // never saw the boundary. `removeCallbacks` above is unaffected —
+        // it always ran before super, same as prior to this diagnostic.
+        if ((ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) &&
+            longPressTimerArmedForLogging
+        ) {
+            longPressTimerArmedForLogging = false
+            val source = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) "dispatchCancel" else "dispatchUp"
+            LauncherDebugLog.event(
+                "LauncherAppWidgetHostView longPressTimer cancelled($source) widgetId=$appWidgetId",
+            )
+        }
+        return handled
     }
 
     /**
