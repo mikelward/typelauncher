@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import java.util.concurrent.Executor
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -22,6 +23,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36])
 class LauncherAppWidgetHostSizeCacheTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    // The persisted-cache read runs on an injected executor (a background
+    // thread in production, so MainActivity.onCreate never blocks on the
+    // prefs file parse). A direct executor makes construction-time cache
+    // state deterministic for these tests.
+    private fun newHost(hostId: Int) =
+        LauncherAppWidgetHost(context, hostId, cacheLoadExecutor = Executor { task -> task.run() })
 
     @After
     fun clearPersistedCache() {
@@ -63,7 +71,7 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     @Test
     fun firstApply_callsUpdateAppWidgetSize() {
-        val host = LauncherAppWidgetHost(context, hostId = 1)
+        val host = newHost(hostId = 1)
         val view = CountingHostView(context, host)
 
         host.applyAppWidgetSizeIfChanged(view, widgetId = 100, widthDp = 320, heightDp = 240)
@@ -76,7 +84,7 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     @Test
     fun secondApplyWithSameSize_skipsIpc() {
-        val host = LauncherAppWidgetHost(context, hostId = 2)
+        val host = newHost(hostId = 2)
         val view = CountingHostView(context, host)
 
         host.applyAppWidgetSizeIfChanged(view, widgetId = 100, widthDp = 320, heightDp = 240)
@@ -87,7 +95,7 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     @Test
     fun applyDifferentSize_replacesCachedValue() {
-        val host = LauncherAppWidgetHost(context, hostId = 3)
+        val host = newHost(hostId = 3)
         val view = CountingHostView(context, host)
 
         host.applyAppWidgetSizeIfChanged(view, widgetId = 100, widthDp = 320, heightDp = 240)
@@ -101,7 +109,7 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     @Test
     fun perWidgetCaching_doesNotCollide() {
-        val host = LauncherAppWidgetHost(context, hostId = 4)
+        val host = newHost(hostId = 4)
         val viewA = CountingHostView(context, host)
         val viewB = CountingHostView(context, host)
 
@@ -118,13 +126,13 @@ class LauncherAppWidgetHostSizeCacheTest {
     @Test
     fun cachedSizePersistsAcrossHostInstances() {
         // First "session"
-        val firstHost = LauncherAppWidgetHost(context, hostId = 5)
+        val firstHost = newHost(hostId = 5)
         val firstView = CountingHostView(context, firstHost)
         firstHost.applyAppWidgetSizeIfChanged(firstView, widgetId = 100, widthDp = 320, heightDp = 240)
         assertEquals(1, firstView.updateAppWidgetSizeCalls)
 
         // Second "session" — fresh host, fresh view, same widget ID.
-        val secondHost = LauncherAppWidgetHost(context, hostId = 5)
+        val secondHost = newHost(hostId = 5)
         val secondView = CountingHostView(context, secondHost)
         secondHost.applyAppWidgetSizeIfChanged(secondView, widgetId = 100, widthDp = 320, heightDp = 240)
 
@@ -137,7 +145,7 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     @Test
     fun forgetWidgetSize_clearsBothMemoryAndPrefs() {
-        val firstHost = LauncherAppWidgetHost(context, hostId = 6)
+        val firstHost = newHost(hostId = 6)
         val firstView = CountingHostView(context, firstHost)
         firstHost.applyAppWidgetSizeIfChanged(firstView, widgetId = 100, widthDp = 320, heightDp = 240)
         assertNotNull(firstHost.cachedSizeForTest(100))
@@ -146,15 +154,74 @@ class LauncherAppWidgetHostSizeCacheTest {
         assertNull("in-memory cache cleared", firstHost.cachedSizeForTest(100))
 
         // Fresh host should not see the forgotten entry.
-        val secondHost = LauncherAppWidgetHost(context, hostId = 6)
+        val secondHost = newHost(hostId = 6)
         assertNull("persisted entry cleared", secondHost.cachedSizeForTest(100))
     }
 
     @Test
     fun forgetUncachedWidget_isNoop() {
-        val host = LauncherAppWidgetHost(context, hostId = 7)
+        val host = newHost(hostId = 7)
         host.forgetWidgetSize(999)  // never cached
         // No exception, no crash. (And nothing to assert beyond that.)
+    }
+
+    @Test
+    fun persistedCacheLoadIsDeferredToTheExecutor() {
+        seedPersistedSize(widgetId = 100, value = "320x240")
+
+        // Hold the load: nothing may read the prefs file inline on the
+        // constructing (main) thread — that blocking parse in
+        // MainActivity.onCreate is the cold-start regression this guards.
+        val deferred = mutableListOf<Runnable>()
+        val host = LauncherAppWidgetHost(context, hostId = 9, cacheLoadExecutor = Executor { deferred += it })
+
+        assertNull("no inline disk read during construction", host.cachedSizeForTest(100))
+
+        deferred.forEach(Runnable::run)
+        assertEquals(IntPairDp(320, 240), host.cachedSizeForTest(100))
+    }
+
+    @Test
+    fun applyBeforeDiskLoadLands_keepsTheNewerValue() {
+        seedPersistedSize(widgetId = 100, value = "320x240")
+        val deferred = mutableListOf<Runnable>()
+        val host = LauncherAppWidgetHost(context, hostId = 10, cacheLoadExecutor = Executor { deferred += it })
+        val view = CountingHostView(context, host)
+
+        // The cache is cold in this window, so the apply degrades to the
+        // pre-cache behavior: one (possibly redundant) size IPC.
+        host.applyAppWidgetSizeIfChanged(view, widgetId = 100, widthDp = 360, heightDp = 240)
+        assertEquals(1, view.updateAppWidgetSizeCalls)
+
+        // The stale persisted entry must not clobber the newer in-memory one.
+        deferred.forEach(Runnable::run)
+        assertEquals(IntPairDp(360, 240), host.cachedSizeForTest(100))
+        assertEquals(
+            "the racing apply persisted its newer value",
+            IntPairDp(360, 240),
+            newHost(hostId = 10).cachedSizeForTest(100),
+        )
+    }
+
+    @Test
+    fun forgetBeforeDiskLoadLands_isNotResurrectedByTheMerge() {
+        seedPersistedSize(widgetId = 100, value = "320x240")
+        val deferred = mutableListOf<Runnable>()
+        val host = LauncherAppWidgetHost(context, hostId = 11, cacheLoadExecutor = Executor { deferred += it })
+
+        host.forgetWidgetSize(100)
+
+        deferred.forEach(Runnable::run)
+        assertNull("merge must not resurrect a forgotten widget", host.cachedSizeForTest(100))
+        assertNull("persisted entry cleared too", newHost(hostId = 11).cachedSizeForTest(100))
+    }
+
+    private fun seedPersistedSize(widgetId: Int, value: String) {
+        context.applicationContext
+            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .edit()
+            .putString("size:$widgetId", value)
+            .apply()
     }
 
     @Test
@@ -169,7 +236,7 @@ class LauncherAppWidgetHostSizeCacheTest {
             .putString("size:102", "320xnope")
             .apply()
 
-        val host = LauncherAppWidgetHost(context, hostId = 8)
+        val host = newHost(hostId = 8)
 
         assertNull("malformed pair string skipped", host.cachedSizeForTest(100))
         assertEquals(IntPairDp(320, 240), host.cachedSizeForTest(101))

@@ -5,12 +5,15 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.widget.RemoteViews
 import androidx.annotation.VisibleForTesting
 import java.util.WeakHashMap
+import java.util.concurrent.Executor
 import kotlin.math.abs
 
 private const val WIDGET_SIZE_CACHE_PREFS = "widget_size_cache"
@@ -19,16 +22,66 @@ private const val WIDGET_SIZE_KEY_FORMAT = "size:%d"
 // dumps and trivial to parse without pulling in JSON.
 private const val WIDGET_SIZE_VALUE_FORMAT = "%dx%d"
 
-internal class LauncherAppWidgetHost(context: Context, hostId: Int) : AppWidgetHost(context, hostId) {
+internal class LauncherAppWidgetHost(
+    context: Context,
+    hostId: Int,
+    // Runs the one-time persisted size-cache read. Injectable so tests can
+    // load synchronously or hold the load; production defaults to a
+    // background thread because the read blocks on the prefs file parse and
+    // this host is constructed in MainActivity.onCreate — the cold-start /
+    // first-frame path must not wait on disk.
+    cacheLoadExecutor: Executor = Executor { task -> Thread(task, "widget-size-cache-load").start() },
+) : AppWidgetHost(context, hostId) {
     // Last size hint sent to each widget via updateAppWidgetSize, in dp.
     // Persisted across process restarts so the very first layout pass on a
     // cold start can short-circuit a redundant binder IPC + provider
     // `onAppWidgetOptionsChanged` wake when the size hasn't changed since
     // last session — typical case, since widget heights are persisted in
     // the WidgetStore and the page width is determined by the device.
+    //
+    // `getSharedPreferences` only enqueues the file load on a platform
+    // background thread; the blocking read (`sizePrefs.all`) happens on
+    // [cacheLoadExecutor] in `init`, and the result merges into
+    // [cachedSizes] on the main thread. Until the merge lands, a missing
+    // entry just degrades to the pre-cache behavior (one redundant size
+    // IPC) — widget pages compose well after onCreate, so in practice the
+    // merge wins the race.
     private val sizePrefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(WIDGET_SIZE_CACHE_PREFS, Context.MODE_PRIVATE)
-    private val cachedSizes: MutableMap<Int, IntPairDp> = loadCachedSizes()
+
+    // Main-thread confined (apply / forget / the posted merge below).
+    private val cachedSizes: MutableMap<Int, IntPairDp> = mutableMapOf()
+
+    // Widget ids forgotten before the async disk load landed: their persisted
+    // entry was already removed, so the merge must not resurrect them.
+    private val forgottenBeforeLoad = mutableSetOf<Int>()
+    private var diskSizesLoaded = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    init {
+        cacheLoadExecutor.execute {
+            val loaded = loadCachedSizes()
+            // A synchronous (test) executor is already on the main thread —
+            // merge inline so construction-time state is deterministic.
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                mergeLoadedSizes(loaded)
+            } else {
+                mainHandler.post { mergeLoadedSizes(loaded) }
+            }
+        }
+    }
+
+    private fun mergeLoadedSizes(loaded: Map<Int, IntPairDp>) {
+        for ((widgetId, pair) in loaded) {
+            // In-memory entries are fresher: an apply that raced the load has
+            // already persisted its newer value too.
+            if (widgetId !in cachedSizes && widgetId !in forgottenBeforeLoad) {
+                cachedSizes[widgetId] = pair
+            }
+        }
+        forgottenBeforeLoad.clear()
+        diskSizesLoaded = true
+    }
 
     /**
      * Calls [AppWidgetHostView.updateAppWidgetSize] only when [widthDp]
@@ -61,10 +114,14 @@ internal class LauncherAppWidgetHost(context: Context, hostId: Int) : AppWidgetH
     /**
      * Drop the cache entry for a widget that's been removed. Avoids
      * unbounded growth of the prefs file as users add/remove widgets
-     * over the device's lifetime.
+     * over the device's lifetime. Before the async disk load lands the
+     * in-memory map may not know about a persisted entry yet, so the
+     * prefs removal is unconditional in that window (idempotent) and the
+     * id is remembered so the merge can't resurrect it.
      */
     fun forgetWidgetSize(widgetId: Int) {
-        if (cachedSizes.remove(widgetId) != null) {
+        if (!diskSizesLoaded) forgottenBeforeLoad += widgetId
+        if (cachedSizes.remove(widgetId) != null || !diskSizesLoaded) {
             sizePrefs.edit().remove(sizeKey(widgetId)).apply()
         }
     }
