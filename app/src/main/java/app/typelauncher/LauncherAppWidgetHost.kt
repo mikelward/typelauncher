@@ -434,6 +434,18 @@ internal open class LauncherAppWidgetHostView(
         super.cancelLongPress()
         hasPerformedLongPress = false
         removeCallbacks(checkLongPress)
+        // The framework calls this directly on a descendant it's cancelling
+        // (e.g. a ViewGroup clearing touch targets) — a cancellation source
+        // distinct from the four above, and unlogged would otherwise leave
+        // an `armed` line with no matching cancel/fire in the bug report, or
+        // let a later, unrelated UP/CANCEL get mislabeled as the cause. Gated
+        // the same way (see the onInterceptTouchEvent MOVE branch's doc).
+        if (longPressTimerArmedForLogging) {
+            longPressTimerArmedForLogging = false
+            LauncherDebugLog.event(
+                "LauncherAppWidgetHostView longPressTimer cancelled(cancelLongPress) widgetId=$appWidgetId",
+            )
+        }
     }
 }
 
