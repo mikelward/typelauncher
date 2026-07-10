@@ -1348,16 +1348,19 @@ private fun SwipeNavigationBox(
                     val downChange = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                     // Diagnostic for #513's follow-up (a widget's long-press
                     // menu popping up from what should be a clean swipe):
-                    // pairs with the claim log below and LauncherAppWidgetHostView's
-                    // longPressTimer log lines to reconstruct, from a bug
-                    // report's log buffer alone, whether a new gesture starts
-                    // while the carousel is still mid-transition (which defers
-                    // the claim — and the widget's cancel signal — until that
-                    // earlier transition settles).
-                    LauncherDebugLog.event(
-                        "SwipeNavigationBox gesture start transition=$carouselTransition " +
-                            "currentPage=$currentPage carouselOffsetPx=$carouselOffsetPx",
-                    )
+                    // captured here (a plain read, not a log call) so the
+                    // claim/deferred log sites below can report the carousel's
+                    // state at gesture *start* alongside its state at the
+                    // decision point, without logging on every gesture. This
+                    // `pointerInput` observes every tap and scroll that starts
+                    // anywhere on the launcher, not just page swipes, so an
+                    // unconditional log call here would flood the 300-line
+                    // bug-report buffer with unrelated app-list/dock taps and
+                    // evict the widget-timer lines this diagnostic exists to
+                    // capture.
+                    val gestureStartTransition = carouselTransition
+                    val gestureStartPage = currentPage
+                    val gestureStartOffsetPx = carouselOffsetPx
                     val startConsumed = scrollConsumptionTracker.totalConsumed
                     val pageWidthPx = size.width.toFloat().coerceAtLeast(1f)
                     var rawDragX = 0f
@@ -1496,7 +1499,9 @@ private fun SwipeNavigationBox(
                                     // by a Compose-side cancel.
                                     loggedDeferredClaim = true
                                     LauncherDebugLog.event(
-                                        "SwipeNavigationBox claim deferred transition=$carouselTransition " +
+                                        "SwipeNavigationBox claim deferred startTransition=$gestureStartTransition " +
+                                            "startPage=$gestureStartPage startOffsetPx=$gestureStartOffsetPx " +
+                                            "transition=$carouselTransition " +
                                             "animationActive=${carouselAnimationJob?.isActive} " +
                                             "carouselOffsetPx=$carouselOffsetPx",
                                     )
@@ -1504,8 +1509,9 @@ private fun SwipeNavigationBox(
                                 if (canStartCarouselGesture) {
                                     carouselClaimed = true
                                     LauncherDebugLog.event(
-                                        "SwipeNavigationBox claimed candidatePage=$candidatePage " +
-                                            "rawDragX=$rawDragX rawDragY=$rawDragY",
+                                        "SwipeNavigationBox claimed startTransition=$gestureStartTransition " +
+                                            "startPage=$gestureStartPage startOffsetPx=$gestureStartOffsetPx " +
+                                            "candidatePage=$candidatePage rawDragX=$rawDragX rawDragY=$rawDragY",
                                     )
                                     // Warm widgets and start the
                                     // UI-thread defer-apply window now,
