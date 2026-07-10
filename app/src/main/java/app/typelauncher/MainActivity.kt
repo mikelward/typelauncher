@@ -717,10 +717,21 @@ class MainActivity : ComponentActivity() {
     private fun removeWidget(appWidgetId: Int) {
         LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
         viewModel.removeWidget(appWidgetId)
-        appWidgetHost.deleteAppWidgetId(appWidgetId)
+        // The host-binding delete is a Binder IPC — keep it off the main
+        // thread (same policy as reconcileOrphanedWidgets) so a busy
+        // AppWidgetService can't stall the menu-dismiss frame. If the process
+        // dies before the delete lands, the next start's orphan sweep
+        // releases the id.
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
+                .onFailure { exception ->
+                    LauncherDebugLog.warning("removeWidget: failed to delete id=$appWidgetId", exception)
+                }
+        }
         // Drop the persisted size cache entry so the widget_size_cache
         // SharedPreferences file doesn't accumulate dead widget IDs over
-        // the device's lifetime as users add and remove widgets.
+        // the device's lifetime as users add and remove widgets. Stays on
+        // the main thread: the host's size cache map is main-thread confined.
         appWidgetHost.forgetWidgetSize(appWidgetId)
     }
 
