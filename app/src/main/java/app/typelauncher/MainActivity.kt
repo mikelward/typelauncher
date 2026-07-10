@@ -135,7 +135,23 @@ class MainActivity : ComponentActivity() {
         addWidget = { appWidgetId -> viewModel.addWidget(appWidgetId) },
         deleteWidget = { appWidgetId ->
             LauncherDebugLog.event("deletePendingWidget appWidgetId=$appWidgetId")
-            appWidgetHost.deleteAppWidgetId(appWidgetId)
+            // The host-binding delete is a Binder IPC — keep it off the main
+            // thread (same policy as removeWidget and
+            // reconcileOrphanedWidgets). This lambda runs from main-thread
+            // activity-result callbacks (bind/configure canceled or failed),
+            // so a busy AppWidgetService would otherwise stall the exact
+            // frame on which the launcher redraws after the system dialog
+            // dismisses. If the process dies before the delete lands, the
+            // next start's orphan sweep releases the id.
+            lifecycleScope.launch(ioDispatcher) {
+                runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
+                    .onFailure { exception ->
+                        LauncherDebugLog.warning(
+                            "deletePendingWidget: failed to delete id=$appWidgetId",
+                            exception,
+                        )
+                    }
+            }
         },
     )
 
