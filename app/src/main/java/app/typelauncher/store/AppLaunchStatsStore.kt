@@ -130,9 +130,8 @@ internal fun List<InstalledApp>.filterByName(
     // contracts intact and means typed search still anchors the best match at
     // index 0 (which renders at the visual bottom under reverseLayout).
     launchCounts: Map<String, Int> = when (sortOrder.dataOrdering) {
-        AppListSortOrder.Usage -> appLaunchStatsStore.launchCountsSnapshot()
-        AppListSortOrder.Alphabetical -> emptyMap()
-        else -> emptyMap()
+        AppListDataOrdering.Usage -> appLaunchStatsStore.launchCountsSnapshot()
+        AppListDataOrdering.Alphabetical -> emptyMap()
     },
 ): List<InstalledApp> {
     // Callers pass the docked app ids in `excludedAppIds` while the dock is
@@ -154,26 +153,24 @@ internal fun List<InstalledApp>.filterByName(
     val displayNameOrder = displayNameOrder()
     return if (query.isEmpty()) {
         when (sortOrder.dataOrdering) {
-            AppListSortOrder.Usage -> candidates.sortedWith(
+            AppListDataOrdering.Usage -> candidates.sortedWith(
                 dockedFirst
                     .thenByDescending { app -> launchCounts[app.id] ?: 0 }
                     .thenBy(displayNameOrder) { app -> app.displayName },
             )
-            AppListSortOrder.Alphabetical -> candidates.sortedWith(
+            AppListDataOrdering.Alphabetical -> candidates.sortedWith(
                 dockedFirst
                     .thenBy(displayNameOrder) { app -> app.displayName },
             )
-            else -> candidates
         }
     } else {
         val dockedFirstByPair = compareBy<Pair<InstalledApp, LauncherMatchTier>> { (app, _) -> dockIndexById[app.id] ?: notDockedRank }
         val withinTier = when (sortOrder.dataOrdering) {
-            AppListSortOrder.Usage -> dockedFirstByPair
+            AppListDataOrdering.Usage -> dockedFirstByPair
                 .thenByDescending { (app, _) -> launchCounts[app.id] ?: 0 }
                 .thenBy(displayNameOrder) { (app, _) -> app.displayName }
-            AppListSortOrder.Alphabetical -> dockedFirstByPair
+            AppListDataOrdering.Alphabetical -> dockedFirstByPair
                 .thenBy(displayNameOrder) { (app, _) -> app.displayName }
-            else -> dockedFirstByPair
         }
         // Spell the digits out once for the whole refresh, not per row — a numeric
         // query otherwise re-allocates this set and re-enters the synchronized
