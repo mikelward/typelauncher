@@ -727,8 +727,22 @@ internal fun dynamicCalendarIconsMetadataKey(packageName: String): String =
 // with fewer than 31 days simply never request the unused trailing entries.
 internal fun dynamicCalendarDayIndex(date: LocalDate): Int = date.dayOfMonth - 1
 
+/**
+ * The state of one app icon's async load: [bitmap] is the rasterized tile (or
+ * null), and [isResolved] distinguishes "the load hasn't finished yet" from
+ * "the load finished and this app genuinely has no renderable icon". The two
+ * cases paint the same placeholder, but only the former is transient —
+ * [AppIcon] tags it in the semantics tree so screenshot tests can wait for
+ * every visible icon to settle instead of capturing an arbitrary mid-load
+ * subset (the source of chronic snapshot churn on CI).
+ */
+internal data class AppIconResolution(
+    val bitmap: ImageBitmap?,
+    val isResolved: Boolean,
+)
+
 @Composable
-internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
+internal fun rememberAppIconResolution(app: InstalledApp, sizeDp: Dp): AppIconResolution {
     val context = LocalContext.current.applicationContext
     val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
     val cacheId = app.iconCacheId
@@ -737,14 +751,24 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
     // remembered bitmap and reloads instead of painting the stale pre-change
     // tile until the composable happens to leave the tree.
     val generation = AppIconLoader.cacheGenerationValue
-    var bitmap by remember(cacheId, sizePx, generation) { mutableStateOf(AppIconLoader.cached(app, sizePx)) }
+    var resolution by remember(cacheId, sizePx, generation) {
+        val cached = AppIconLoader.cached(app, sizePx)
+        mutableStateOf(AppIconResolution(bitmap = cached, isResolved = cached != null))
+    }
     LaunchedEffect(cacheId, sizePx, generation) {
-        if (bitmap == null) {
-            bitmap = AppIconLoader.load(context, app, sizePx)
+        if (!resolution.isResolved) {
+            resolution = AppIconResolution(
+                bitmap = AppIconLoader.load(context, app, sizePx),
+                isResolved = true,
+            )
         }
     }
-    return bitmap
+    return resolution
 }
+
+@Composable
+internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? =
+    rememberAppIconResolution(app, sizeDp).bitmap
 
 /**
  * Resolves the work-profile badge overlay for [app] at [sizeDp], or null for a

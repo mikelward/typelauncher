@@ -17,6 +17,12 @@ internal const val APP_ROW_TAG = "app_row"
 internal const val APP_ICON_ONLY_BUTTON_TAG = "app_icon_only_button"
 internal const val APP_ICON_ONLY_ICON_TAG = "app_icon_only_icon"
 internal const val APP_ICON_TAG = "app_icon"
+
+// Present on an app icon's placeholder surface only while its async bitmap
+// load is in flight; dropped once the load resolves (with or without a
+// bitmap). Screenshot tests wait for zero of these before capturing so a
+// recording never freezes an arbitrary mid-load subset of icons.
+internal const val APP_ICON_LOADING_TAG = "app_icon_loading"
 internal const val APP_ICON_DISAMBIGUATOR_TAG = "app_icon_disambiguator"
 internal const val APP_ICON_WORK_BADGE_TAG = "app_icon_work_badge"
 internal const val APP_INFO_ACTION_TAG = "app_info_action"

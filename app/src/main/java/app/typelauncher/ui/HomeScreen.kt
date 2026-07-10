@@ -5969,7 +5969,8 @@ internal fun AppIcon(
     testTag: String = APP_ICON_TAG,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
-    val bitmap = rememberAppIconBitmap(app, size)
+    val resolution = rememberAppIconResolution(app, size)
+    val bitmap = resolution.bitmap
     val shape = LocalAppIconShape.current.toComposeShape()
     Box(
         modifier = Modifier
@@ -5979,8 +5980,16 @@ internal fun AppIcon(
         // Only the Surface clips to the icon shape, not the parent Box —
         // otherwise the corner badge (aligned BottomStart, below) would be
         // clipped by the shape and the flag/globe glyph cut off at the corner.
+        // While the icon load is still in flight the placeholder carries a
+        // test tag so screenshot tests can wait for every visible icon to
+        // settle before capturing; a load that resolved to "no icon" drops
+        // the tag (same placeholder pixels, but nothing left to wait for).
         Surface(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (resolution.isResolved) Modifier else Modifier.testTag(APP_ICON_LOADING_TAG),
+                ),
             shape = shape,
             color = backgroundColor,
         ) {
