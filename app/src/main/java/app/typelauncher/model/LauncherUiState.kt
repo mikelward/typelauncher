@@ -159,10 +159,21 @@ internal val AppListSortOrder.isReversed: Boolean
     get() = this == AppListSortOrder.UsageReversed ||
         this == AppListSortOrder.AlphabeticalReversed
 
-internal val AppListSortOrder.dataOrdering: AppListSortOrder
+/**
+ * The underlying data ordering shared by a sort order and its reversed
+ * variant. A two-value type (rather than mapping back onto [AppListSortOrder])
+ * so consumers switching on it are exhaustive by construction — no unreachable
+ * `else` arm for the reversed variants.
+ */
+internal enum class AppListDataOrdering {
+    Usage,
+    Alphabetical,
+}
+
+internal val AppListSortOrder.dataOrdering: AppListDataOrdering
     get() = when (this) {
-        AppListSortOrder.Usage, AppListSortOrder.UsageReversed -> AppListSortOrder.Usage
-        AppListSortOrder.Alphabetical, AppListSortOrder.AlphabeticalReversed -> AppListSortOrder.Alphabetical
+        AppListSortOrder.Usage, AppListSortOrder.UsageReversed -> AppListDataOrdering.Usage
+        AppListSortOrder.Alphabetical, AppListSortOrder.AlphabeticalReversed -> AppListDataOrdering.Alphabetical
     }
 
 @Immutable
