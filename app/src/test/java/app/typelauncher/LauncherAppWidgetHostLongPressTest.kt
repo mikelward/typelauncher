@@ -8,6 +8,7 @@ import android.view.ViewConfiguration
 import androidx.test.core.app.ApplicationProvider
 import java.time.Duration
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -48,9 +49,9 @@ class LauncherAppWidgetHostLongPressTest {
         return view
     }
 
-    private fun motionEvent(action: Int): MotionEvent {
+    private fun motionEvent(action: Int, x: Float = 0f, y: Float = 0f): MotionEvent {
         val now = android.os.SystemClock.uptimeMillis()
-        return MotionEvent.obtain(now, now, action, 0f, 0f, 0)
+        return MotionEvent.obtain(now, now, action, x, y, 0)
     }
 
     @Test
@@ -100,6 +101,73 @@ class LauncherAppWidgetHostLongPressTest {
 
         view.onInterceptTouchEvent(motionEvent(MotionEvent.ACTION_DOWN))
         view.requestDisallowInterceptTouchEvent(true)
+        view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_UP))
+        shadowOf(Looper.getMainLooper()).idleFor(longPressTimeout)
+
+        assertEquals("long press must not fire after the finger lifted", 0, longPresses)
+    }
+
+    @Test
+    fun unconsumedDownIsClaimedSoTheGestureStreamKeepsFlowing() {
+        // Regression for the dead-area flavor of the spurious menu: when the
+        // DOWN lands on a non-interactive region of the widget (no descendant
+        // consumes it), the host view must claim the gesture itself.
+        // Returning false here put Compose's pointer interop into its
+        // NotDispatching state, after which the view received no MOVE, no UP,
+        // and no synthesized CANCEL — so the timer armed at DOWN fired blind
+        // ~400ms after a plain tap or mid-swipe.
+        val view = attachedView()
+
+        assertTrue(
+            "a DOWN no child consumed must be claimed by the host view",
+            view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_DOWN)),
+        )
+    }
+
+    @Test
+    fun dragPastSlopOnDeadAreaCancelsLongPressTimer() {
+        // Regression: a gesture the view consumed itself (dead area — no
+        // descendant touch target) routes MOVEs straight to onTouchEvent
+        // without consulting onInterceptTouchEvent, so intercept's
+        // MOVE-past-slop cancellation never ran and a slow drag popped the
+        // menu mid-drag once it outlived the long-press timeout.
+        val view = attachedView()
+        var longPresses = 0
+        view.setOnWidgetLongPressListener { longPresses++ }
+        val pastSlop = ViewConfiguration.get(context).scaledTouchSlop + 10f
+
+        view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_DOWN))
+        view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_MOVE, x = pastSlop))
+        shadowOf(Looper.getMainLooper()).idleFor(longPressTimeout)
+
+        assertEquals("long press must not fire after the drag crossed slop", 0, longPresses)
+    }
+
+    @Test
+    fun stationaryPressOnDeadAreaStillFiresLongPress() {
+        // Positive control for the dead-area claim: long-pressing anywhere on
+        // the widget — including non-interactive regions — must still open
+        // the menu.
+        val view = attachedView()
+        var longPresses = 0
+        view.setOnWidgetLongPressListener { longPresses++ }
+
+        view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_DOWN))
+        shadowOf(Looper.getMainLooper()).idleFor(longPressTimeout)
+
+        assertEquals(1, longPresses)
+    }
+
+    @Test
+    fun tapOnDeadAreaDoesNotFireLongPress() {
+        // The release of a short dead-area tap must disarm the timer via the
+        // dispatchTouchEvent backstop — reachable only because the DOWN claim
+        // above keeps the event stream flowing to this view.
+        val view = attachedView()
+        var longPresses = 0
+        view.setOnWidgetLongPressListener { longPresses++ }
+
+        view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_DOWN))
         view.dispatchTouchEvent(motionEvent(MotionEvent.ACTION_UP))
         shadowOf(Looper.getMainLooper()).idleFor(longPressTimeout)
 
