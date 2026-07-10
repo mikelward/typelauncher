@@ -53,11 +53,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -125,6 +127,11 @@ internal fun WidgetsScreen(
     }
     val widgetScreenTag = if (isCurrentPage) WIDGETS_SCREEN_TAG else "$WIDGETS_SCREEN_TAG:offscreen"
     val addWidgetCardTag = if (isCurrentPage) ADD_WIDGET_CARD_TAG else "$ADD_WIDGET_CARD_TAG:offscreen"
+    // Screen-scoped so a card whose LazyColumn slot was recycled re-enters
+    // composition with its provider info already resolved (no placeholder
+    // flash). See the parameter's doc on HostedWidgetCard for why this is
+    // plain state rather than rememberSaveable.
+    val resolvedProviderInfos = remember { mutableStateMapOf<Int, AppWidgetProviderInfo?>() }
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -147,6 +154,7 @@ internal fun WidgetsScreen(
                 onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
                 onMoveWidget = onMoveWidget,
                 workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
+                resolvedProviderInfos = resolvedProviderInfos,
             )
         }
         if (isAddingWidget) {
@@ -607,10 +615,45 @@ internal fun HostedWidgetCard(
     // is the long-press menu's Resize item, which Robolectric can't drive
     // through the host view's View-level long-press detection.
     initiallyResizing: Boolean = false,
+    // Test seam: replaces the initial provider-info lookup so a test can hold
+    // the card in its resolving state deterministically. Default null = the
+    // real AppWidgetManager lookup on Dispatchers.IO.
+    resolveProviderInfo: (suspend (Int) -> AppWidgetProviderInfo?)? = null,
+    // Cache of resolved provider infos keyed by widget id: key absent = not
+    // yet resolved, present-with-null = resolved unavailable. WidgetsScreen
+    // hoists one map per page so a recycled LazyColumn slot re-enters
+    // composition already resolved instead of flashing the placeholder.
+    // Deliberately plain composition state, never rememberSaveable: the infos
+    // are heavyweight parcelables (they carry ActivityInfo/ApplicationInfo),
+    // and writing one per widget into the saved-state Bundle could overflow
+    // the state-save binder transaction on a widget-heavy setup. After an
+    // activity recreation the cards just re-resolve asynchronously. The
+    // default gives standalone (test/preview) callers a private cache.
+    resolvedProviderInfos: SnapshotStateMap<Int, AppWidgetProviderInfo?> = remember { mutableStateMapOf() },
 ) {
-    var resolvedProviderInfo by remember(widgetId, appWidgetManager) {
-        mutableStateOf(appWidgetManager?.getAppWidgetInfo(widgetId))
+    // Resolved asynchronously: `AppWidgetManager.getAppWidgetInfo` is a Binder
+    // IPC, and this card first composes mid carousel drag (widget pages are
+    // warmed the moment the gesture is claimed, precisely to spread the heavy
+    // work out), so resolving it inline in composition would block the main
+    // thread on exactly the frames the swipe is animating — and again every
+    // time a LazyColumn slot re-enters composition on a long widget list.
+    // While the lookup is in flight the card renders a same-size placeholder
+    // (below) rather than the "unavailable" text, so a normal load never
+    // flashes an error state.
+    val initialResolvePending = providerInfoOverride == null &&
+        appWidgetManager != null &&
+        widgetId !in resolvedProviderInfos
+    if (initialResolvePending) {
+        LaunchedEffect(widgetId, appWidgetManager) {
+            val resolver = resolveProviderInfo
+            resolvedProviderInfos[widgetId] = if (resolver != null) {
+                resolver(widgetId)
+            } else {
+                withContext(Dispatchers.IO) { appWidgetManager?.getAppWidgetInfo(widgetId) }
+            }
+        }
     }
+    val resolvedProviderInfo = resolvedProviderInfos[widgetId]
     val providerInfo = providerInfoOverride ?: resolvedProviderInfo
     // A provider can be unresolvable when the card first composes (its app was
     // uninstalled, or its work profile is locked) and become resolvable later
@@ -622,7 +665,7 @@ internal fun HostedWidgetCard(
     // re-query is `AppWidgetManager.getAppWidgetInfo`, a Binder IPC, so it runs
     // on a background dispatcher and publishes back to Compose rather than
     // blocking the resume / first-frame path on the main thread.
-    if (providerInfoOverride == null && resolvedProviderInfo == null && appWidgetManager != null) {
+    if (providerInfoOverride == null && resolvedProviderInfo == null && !initialResolvePending && appWidgetManager != null) {
         val lifecycleOwner = LocalLifecycleOwner.current
         val scope = rememberCoroutineScope()
         DisposableEffect(lifecycleOwner, widgetId, appWidgetManager) {
@@ -632,13 +675,26 @@ internal fun HostedWidgetCard(
                         val info = withContext(Dispatchers.IO) { appWidgetManager.getAppWidgetInfo(widgetId) }
                         // Only publish a real resolution; staying null is a
                         // no-op (no recomposition, observer stays armed).
-                        if (info != null) resolvedProviderInfo = info
+                        if (info != null) resolvedProviderInfos[widgetId] = info
                     }
                 }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
+    }
+    if (initialResolvePending && providerInfo == null) {
+        // The provider lookup is still in flight (a frame or two). Reserve the
+        // widget's persisted height — or a modest default when it was never
+        // resized — so the resolved card swaps in without the list jumping,
+        // and keep the card's test tag so the slot is addressable throughout.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height((customHeightDp ?: WIDGET_RESOLVING_PLACEHOLDER_HEIGHT_DP).dp)
+                .testTag("$WIDGET_CARD_TAG:$widgetId"),
+        )
+        return
     }
     var menuExpanded by remember { mutableStateOf(false) }
     if (appWidgetHost == null || providerInfo == null) {
@@ -987,6 +1043,11 @@ private fun widgetProviderCountLabel(providerCount: Int): String =
     }
 
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
+
+// Height reserved while a hosted widget's provider info is resolving and no
+// persisted height is available. Matches the add-widget card so the brief
+// placeholder reads as a card-sized surface rather than a sliver.
+private const val WIDGET_RESOLVING_PLACEHOLDER_HEIGHT_DP = 112
 private const val WIDGET_MIN_HEIGHT_DP = 64
 private const val WIDGET_CELL_HEIGHT_DP = 64
 private const val WIDGET_RESIZE_HANDLE_HEIGHT_DP = 32
