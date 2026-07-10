@@ -17,10 +17,13 @@ import java.util.concurrent.Executor
 import kotlin.math.abs
 
 private const val WIDGET_SIZE_CACHE_PREFS = "widget_size_cache"
-private const val WIDGET_SIZE_KEY_FORMAT = "size:%d"
-// Persisted as "WIDTHxHEIGHT" so the format is human-readable in prefs
-// dumps and trivial to parse without pulling in JSON.
-private const val WIDGET_SIZE_VALUE_FORMAT = "%dx%d"
+// Keys and values are built with string templates, never `String.format`:
+// the latter renders `%d` with the default locale's digit glyphs (e.g.
+// Eastern Arabic digits under an `fa` device language), and while
+// `toIntOrNull` happens to parse those back, `forgetWidgetSize` after a
+// device-language change would then remove the ASCII key and orphan the
+// old-locale entry forever. Kotlin's `Int` interpolation is always ASCII.
+private const val WIDGET_SIZE_KEY_PREFIX = "size:"
 
 internal class LauncherAppWidgetHost(
     context: Context,
@@ -129,7 +132,7 @@ internal class LauncherAppWidgetHost(
     private fun loadCachedSizes(): MutableMap<Int, IntPairDp> {
         val out = mutableMapOf<Int, IntPairDp>()
         for ((rawKey, rawValue) in sizePrefs.all) {
-            val widgetId = rawKey.removePrefix("size:").toIntOrNull() ?: continue
+            val widgetId = rawKey.removePrefix(WIDGET_SIZE_KEY_PREFIX).toIntOrNull() ?: continue
             val pair = (rawValue as? String)?.let(IntPairDp::parse) ?: continue
             out[widgetId] = pair
         }
@@ -139,7 +142,7 @@ internal class LauncherAppWidgetHost(
     @VisibleForTesting
     internal fun cachedSizeForTest(widgetId: Int): IntPairDp? = cachedSizes[widgetId]
 
-    private fun sizeKey(widgetId: Int): String = WIDGET_SIZE_KEY_FORMAT.format(widgetId)
+    private fun sizeKey(widgetId: Int): String = WIDGET_SIZE_KEY_PREFIX + widgetId
 
     // Tracks every host view bound to us so flipping `deferRemoteViewsApply`
     // can fan out the queued RemoteViews flush. WeakHashMap because a view
@@ -521,7 +524,10 @@ internal open class LauncherAppWidgetHostView(
  * surface.
  */
 internal data class IntPairDp(val widthDp: Int, val heightDp: Int) {
-    fun serialize(): String = WIDGET_SIZE_VALUE_FORMAT.format(widthDp, heightDp)
+    // Persisted as "WIDTHxHEIGHT" so the format is human-readable in prefs
+    // dumps and trivial to parse without pulling in JSON. String template,
+    // not String.format — see WIDGET_SIZE_KEY_PREFIX.
+    fun serialize(): String = "${widthDp}x$heightDp"
 
     companion object {
         fun parse(serialized: String): IntPairDp? {
