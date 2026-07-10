@@ -512,6 +512,14 @@ internal class LauncherViewModel(
                 }
             }
             installedApps = loadedApps
+            // The work-dock prefill skips (without latching) while the work
+            // profile is paused, promising a retry "on the next fresh load
+            // after the profile is resumed" — and resuming lands here via
+            // ACTION_MANAGED_PROFILE_AVAILABLE → scheduleReload, not via
+            // another cold start. Latched and guarded internally, so this is
+            // a no-op on every reload after the seed (or when the work dock
+            // is disabled).
+            maybePrefillWorkDock(loadedApps)
             refreshLists()
             // Replay any icon-pick that was queued because cold-start
             // hadn't finished — `scheduleReload` runs both for ordinary
