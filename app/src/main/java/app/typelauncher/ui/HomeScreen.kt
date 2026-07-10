@@ -331,101 +331,112 @@ internal fun HomeScreen(
     val latestOnDockAppAtWorkDockPosition by rememberUpdatedState(onDockAppAtWorkDockPosition)
     val latestOnDockAppIntoWorkDockOccupant by rememberUpdatedState(onDockAppIntoWorkDockOccupant)
     val latestOnDockDragChanged by rememberUpdatedState(onDockDragChanged)
-    val appListDragHandlers = AppDragHandlers(
-        onDragStart = { app ->
-            listDragOffset = Offset.Zero
-            draggingListAppId = app.id
-        },
-        onDrag = { app, delta ->
-            listDragOffset += delta
-            listAppCenters[app.id]?.let { origin ->
-                latestOnFolderMemberDragFloat(app, origin + listDragOffset)
-            }
-        },
-        onDragEnd = { app, canceled ->
-            latestOnFolderMemberDragFloat(null, Offset.Zero)
-            draggingListAppId = null
-            val origin = listAppCenters[app.id]
-            if (!canceled && origin != null) {
-                val center = origin + listDragOffset
-                // Resolve the drop against whichever dock the release point is
-                // over. The two dock cards never overlap (personal above work), so
-                // at most one bounds-contains check passes. An empty source-folder
-                // id never matches a dock occupant, so the result is DockSlot /
-                // MergeWith / (off-dock) Undock — the latter and KeepInFolder are
-                // no-ops here (the app stays in the list).
-                fun dropOnto(
-                    target: DockDropTarget,
-                    onAtPosition: (String, Int, Int) -> Unit,
-                    onIntoOccupant: (String, String) -> Unit,
-                ): Boolean {
-                    if (target.bounds?.contains(center) != true) return false
-                    val pitch = dockSlotPitch(target.slotCenters)
-                    val mergeRadiusPx = if (pitch.isFinite()) {
-                        pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
-                    } else {
-                        Float.POSITIVE_INFINITY
-                    }
-                    when (
-                        val drop = resolveFolderMemberDrop(
-                            dropCenter = center,
-                            sourceFolderId = "",
-                            dockBounds = target.bounds,
-                            dockSlotCenters = target.slotCenters,
-                            occupantByPosition = target.occupants,
-                            mergeRadiusPx = mergeRadiusPx,
-                        )
-                    ) {
-                        is FolderMemberDropTarget.DockSlot ->
-                            onAtPosition(app.id, drop.row, drop.column)
-                        is FolderMemberDropTarget.MergeWith ->
-                            onIntoOccupant(app.id, drop.occupantId)
-                        FolderMemberDropTarget.Undock, FolderMemberDropTarget.KeepInFolder -> {}
-                    }
-                    return true
+    // Remembered so the instance survives recomposition: HomeScreen re-executes
+    // on every frame of any vertical layout shift (the dock/list geometry
+    // rects above are written from onGloballyPositioned and read in
+    // composition) and on every search keystroke, and this object is threaded
+    // into every visible AppRow / IconOnlyAppButton — a fresh instance per
+    // pass would fail their skipping comparison and recompose the whole list
+    // each frame. Safe to remember with no keys: every capture below is a
+    // remembered snapshot-state holder or a rememberUpdatedState wrapper, so
+    // the lambdas always read current values.
+    val appListDragHandlers = remember {
+        AppDragHandlers(
+            onDragStart = { app ->
+                listDragOffset = Offset.Zero
+                draggingListAppId = app.id
+            },
+            onDrag = { app, delta ->
+                listDragOffset += delta
+                listAppCenters[app.id]?.let { origin ->
+                    latestOnFolderMemberDragFloat(app, origin + listDragOffset)
                 }
-
-                val landedOnPersonal = latestPersonalDockDropTarget?.let { target ->
-                    dropOnto(
-                        target,
-                        { appId, row, column ->
-                            // Landscape renders a flattened view of the portrait
-                            // grid, so the rendered cell is redirected to the
-                            // first open portrait cell (see the holder above).
-                            val safeCell = landscapeSafePersonalDockCell
-                            if (safeCell != null) {
-                                latestOnDockAppAtPosition(appId, safeCell.row, safeCell.column)
-                            } else {
-                                latestOnDockAppAtPosition(appId, row, column)
-                            }
-                        },
-                        latestOnDockAppIntoOccupant,
-                    )
-                } ?: false
-                // The work dock is work-apps-only: a personal app released over it
-                // falls through (no-op), staying in the list.
-                if (!landedOnPersonal && app.isWorkApp) {
-                    latestWorkDockDropTarget?.let { target ->
+            },
+            onDragEnd = { app, canceled ->
+                latestOnFolderMemberDragFloat(null, Offset.Zero)
+                draggingListAppId = null
+                val origin = listAppCenters[app.id]
+                if (!canceled && origin != null) {
+                    val center = origin + listDragOffset
+                    // Resolve the drop against whichever dock the release point is
+                    // over. The two dock cards never overlap (personal above work), so
+                    // at most one bounds-contains check passes. An empty source-folder
+                    // id never matches a dock occupant, so the result is DockSlot /
+                    // MergeWith / (off-dock) Undock — the latter and KeepInFolder are
+                    // no-ops here (the app stays in the list).
+                    fun dropOnto(
+                        target: DockDropTarget,
+                        onAtPosition: (String, Int, Int) -> Unit,
+                        onIntoOccupant: (String, String) -> Unit,
+                    ): Boolean {
+                        if (target.bounds?.contains(center) != true) return false
+                        val pitch = dockSlotPitch(target.slotCenters)
+                        val mergeRadiusPx = if (pitch.isFinite()) {
+                            pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                        } else {
+                            Float.POSITIVE_INFINITY
+                        }
+                        when (
+                            val drop = resolveFolderMemberDrop(
+                                dropCenter = center,
+                                sourceFolderId = "",
+                                dockBounds = target.bounds,
+                                dockSlotCenters = target.slotCenters,
+                                occupantByPosition = target.occupants,
+                                mergeRadiusPx = mergeRadiusPx,
+                            )
+                        ) {
+                            is FolderMemberDropTarget.DockSlot ->
+                                onAtPosition(app.id, drop.row, drop.column)
+                            is FolderMemberDropTarget.MergeWith ->
+                                onIntoOccupant(app.id, drop.occupantId)
+                            FolderMemberDropTarget.Undock, FolderMemberDropTarget.KeepInFolder -> {}
+                        }
+                        return true
+                    }
+    
+                    val landedOnPersonal = latestPersonalDockDropTarget?.let { target ->
                         dropOnto(
                             target,
                             { appId, row, column ->
-                                val safeCell = landscapeSafeWorkDockCell
+                                // Landscape renders a flattened view of the portrait
+                                // grid, so the rendered cell is redirected to the
+                                // first open portrait cell (see the holder above).
+                                val safeCell = landscapeSafePersonalDockCell
                                 if (safeCell != null) {
-                                    latestOnDockAppAtWorkDockPosition(appId, safeCell.row, safeCell.column)
+                                    latestOnDockAppAtPosition(appId, safeCell.row, safeCell.column)
                                 } else {
-                                    latestOnDockAppAtWorkDockPosition(appId, row, column)
+                                    latestOnDockAppAtPosition(appId, row, column)
                                 }
                             },
-                            latestOnDockAppIntoWorkDockOccupant,
+                            latestOnDockAppIntoOccupant,
                         )
+                    } ?: false
+                    // The work dock is work-apps-only: a personal app released over it
+                    // falls through (no-op), staying in the list.
+                    if (!landedOnPersonal && app.isWorkApp) {
+                        latestWorkDockDropTarget?.let { target ->
+                            dropOnto(
+                                target,
+                                { appId, row, column ->
+                                    val safeCell = landscapeSafeWorkDockCell
+                                    if (safeCell != null) {
+                                        latestOnDockAppAtWorkDockPosition(appId, safeCell.row, safeCell.column)
+                                    } else {
+                                        latestOnDockAppAtWorkDockPosition(appId, row, column)
+                                    }
+                                },
+                                latestOnDockAppIntoWorkDockOccupant,
+                            )
+                        }
                     }
                 }
-            }
-            listDragOffset = Offset.Zero
-        },
-        onReportCenter = { app, center -> listAppCenters[app.id] = center },
-        onLongPressArmed = { armed -> latestOnDockDragChanged(armed) },
-    )
+                listDragOffset = Offset.Zero
+            },
+            onReportCenter = { app, center -> listAppCenters[app.id] = center },
+            onLongPressArmed = { armed -> latestOnDockDragChanged(armed) },
+        )
+    }
     // Once the window is wider than portrait (landscape), the fixed-size dock
     // no longer fills the row. Narrow the dock card to the width its icons
     // occupy and center it (see the dock slot below) so the gray card sits as
