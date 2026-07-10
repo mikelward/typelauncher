@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Filter wissen</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Erg klein, wordt opgevuld</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">1 widget</item>
+        <item quantity="other">%d widgets</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Voorbeeld niet beschikbaar</string>
     <string name="widgets_picker_unavailable">Widget-kiezer niet beschikbaar</string>
     <string name="widgets_unavailable">Widget niet beschikbaar</string>

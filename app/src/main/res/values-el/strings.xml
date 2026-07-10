@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Εκκαθάριση φίλτρου</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Πολύ μικρό, θα συμπληρωθεί</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">1 γραφικό στοιχείο</item>
+        <item quantity="other">%d γραφικά στοιχεία</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Η προεπισκόπηση δεν είναι διαθέσιμη</string>
     <string name="widgets_picker_unavailable">Ο επιλογέας γραφικών στοιχείων δεν είναι διαθέσιμος</string>
     <string name="widgets_unavailable">Το γραφικό στοιχείο δεν είναι διαθέσιμο</string>

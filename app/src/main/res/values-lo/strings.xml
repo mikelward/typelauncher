@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">ລຶບຕົວກອງ</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">ນ້ອຍຫຼາຍ, ຈະຖືກເພີ່ມຊ່ອງຫວ່າງ</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d ວິດເຈັດ</item>
+    </plurals>
     <string name="widgets_preview_unavailable">ບໍ່ມີຕົວຢ່າງ</string>
     <string name="widgets_picker_unavailable">ຕົວເລືອກວິດເຈັດບໍ່ສາມາດໃຊ້ໄດ້</string>
     <string name="widgets_unavailable">ວິດເຈັດບໍ່ສາມາດໃຊ້ໄດ້</string>

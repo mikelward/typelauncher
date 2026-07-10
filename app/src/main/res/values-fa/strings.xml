@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">پاک کردن فیلتر</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">بسیار کوچک، حاشیه اضافه می‌شود</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d ابزارک</item>
+        <item quantity="other">%d ابزارک</item>
+    </plurals>
     <string name="widgets_preview_unavailable">پیش‌نمایش در دسترس نیست</string>
     <string name="widgets_picker_unavailable">انتخابگر ابزارک در دسترس نیست</string>
     <string name="widgets_unavailable">ابزارک در دسترس نیست</string>

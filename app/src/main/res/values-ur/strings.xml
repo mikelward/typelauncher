@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">فلٹر صاف کریں</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">بہت چھوٹا، حاشیہ شامل کیا جائے گا</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d ویجٹ</item>
+        <item quantity="other">%d ویجٹ</item>
+    </plurals>
     <string name="widgets_preview_unavailable">پیش منظر دستیاب نہیں</string>
     <string name="widgets_picker_unavailable">ویجٹ منتخب کنندہ دستیاب نہیں</string>
     <string name="widgets_unavailable">ویجٹ دستیاب نہیں</string>

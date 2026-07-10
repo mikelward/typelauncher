@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">ফিল্টাৰ মচক</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">অতি সৰু, পেডিং যোগ কৰা হ\'ব</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d উইজেট</item>
+        <item quantity="other">%d উইজেট</item>
+    </plurals>
     <string name="widgets_preview_unavailable">প্ৰিভিউ উপলব্ধ নহয়</string>
     <string name="widgets_picker_unavailable">উইজেট পিকাৰ উপলব্ধ নহয়</string>
     <string name="widgets_unavailable">উইজেট উপলব্ধ নহয়</string>

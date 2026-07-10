@@ -75,6 +75,11 @@
     <string name="widgets_picker_filter_clear_description">Obriši filtar</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Vrlo malo, bit će dopunjeno</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d widget</item>
+        <item quantity="few">%d widgeta</item>
+        <item quantity="other">%d widgeta</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Pregled nije dostupan</string>
     <string name="widgets_picker_unavailable">Birač widgeta nije dostupan</string>
     <string name="widgets_unavailable">Widget nije dostupan</string>

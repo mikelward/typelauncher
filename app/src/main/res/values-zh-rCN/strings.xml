@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">清除筛选</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">尺寸太小，将添加边距</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d 个小部件</item>
+    </plurals>
     <string name="widgets_preview_unavailable">预览不可用</string>
     <string name="widgets_picker_unavailable">小部件选择器不可用</string>
     <string name="widgets_unavailable">小部件不可用</string>

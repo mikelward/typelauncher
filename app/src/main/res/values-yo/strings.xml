@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">Pa àyẹ̀wò rẹ́</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Kéré gan-an, a ó fi àyè kún</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d wíjẹ́ẹ̀tì</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Àyẹ̀wò kò sí</string>
     <string name="widgets_picker_unavailable">Olùyàn wíjẹ́ẹ̀tì kò sí</string>
     <string name="widgets_unavailable">Wíjẹ́ẹ̀tì kò sí</string>

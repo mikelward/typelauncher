@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">Esborra el filtre</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Molt petit, s\'omplirà</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">1 widget</item>
+        <item quantity="other">%d widgets</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Previsualització no disponible</string>
     <string name="widgets_picker_unavailable">Selector de widgets no disponible</string>
     <string name="widgets_unavailable">Widget no disponible</string>

@@ -75,6 +75,11 @@
     <string name="widgets_picker_filter_clear_description">Vymazať filter</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Veľmi malý, bude doplnený</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d widget</item>
+        <item quantity="few">%d widgety</item>
+        <item quantity="other">%d widgetov</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Náhľad nie je k dispozícii</string>
     <string name="widgets_picker_unavailable">Výber widgetov nie je k dispozícii</string>
     <string name="widgets_unavailable">Widget nie je k dispozícii</string>

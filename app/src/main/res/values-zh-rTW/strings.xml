@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">清除篩選</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">尺寸過小，將加上邊框</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d 個小工具</item>
+    </plurals>
     <string name="widgets_preview_unavailable">無法預覽</string>
     <string name="widgets_picker_unavailable">小工具選擇器無法使用</string>
     <string name="widgets_unavailable">小工具無法使用</string>

@@ -75,6 +75,10 @@
     <string name="widgets_picker_filter_clear_description">ഫിൽട്ടർ മായ്ക്കുക</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">വളരെ ചെറുത്, പാഡിംഗ് ചേർക്കും</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d വിജറ്റ്</item>
+        <item quantity="other">%d വിജറ്റ്</item>
+    </plurals>
     <string name="widgets_preview_unavailable">പ്രിവ്യൂ ലഭ്യമല്ല</string>
     <string name="widgets_picker_unavailable">വിജറ്റ് പിക്കർ ലഭ്യമല്ല</string>
     <string name="widgets_unavailable">വിജറ്റ് ലഭ്യമല്ല</string>

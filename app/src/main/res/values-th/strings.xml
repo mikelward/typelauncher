@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">ล้างตัวกรอง</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">เล็กมาก จะถูกเว้นระยะ</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d วิดเจ็ต</item>
+    </plurals>
     <string name="widgets_preview_unavailable">ไม่มีตัวอย่าง</string>
     <string name="widgets_picker_unavailable">ตัวเลือกวิดเจ็ตไม่พร้อมใช้งาน</string>
     <string name="widgets_unavailable">วิดเจ็ตไม่พร้อมใช้งาน</string>

@@ -75,6 +75,9 @@
     <string name="widgets_picker_filter_clear_description">Hapus filter</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Sangat kecil, akan diberi padding</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="other">%d widget</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Pratinjau tidak tersedia</string>
     <string name="widgets_picker_unavailable">Pemilih widget tidak tersedia</string>
     <string name="widgets_unavailable">Widget tidak tersedia</string>

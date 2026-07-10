@@ -75,6 +75,11 @@
     <string name="widgets_picker_filter_clear_description">Išvalyti filtrą</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Labai mažas, bus papildytas</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d valdiklis</item>
+        <item quantity="few">%d valdikliai</item>
+        <item quantity="other">%d valdiklių</item>
+    </plurals>
     <string name="widgets_preview_unavailable">Peržiūra nepasiekiama</string>
     <string name="widgets_picker_unavailable">Valdiklių parinkiklis nepasiekiamas</string>
     <string name="widgets_unavailable">Valdiklis nepasiekiamas</string>
