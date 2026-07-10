@@ -2570,7 +2570,7 @@ internal class LauncherViewModel(
                     .filter { info ->
                         info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_HIDE_FROM_PICKER == 0
                     }
-                    .map { info -> info.toWidgetProvider(app, personalUser) }
+                    .map { info -> info.toWidgetProvider(app, personalUser, ::resolveProfileApplicationInfo) }
             }
             .distinctBy { provider -> provider.id }
             .sortedWith(
@@ -2581,6 +2581,19 @@ internal class LauncherViewModel(
             )
             .also { providers -> LauncherDebugLog.event("loadAvailableWidgets providers=${providers.size}") }
     }
+
+    // Cross-profile ApplicationInfo lookup for widget-picker sections whose
+    // package the personal-user PackageManager can't see (work-only apps).
+    // SecurityException covers the profile leaving the caller's profile group
+    // mid-load (same race AppIconLoader tolerates for icons).
+    private fun resolveProfileApplicationInfo(packageName: String, profile: UserHandle): ApplicationInfo? =
+        try {
+            launcherAppsService?.getApplicationInfo(packageName, 0, profile)
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        } catch (_: SecurityException) {
+            null
+        }
 
     private fun showWidgetPicker(availableWidgets: List<WidgetProvider>) {
         val pageIndex = _uiState.value.lastWidgetPage
@@ -2670,12 +2683,24 @@ private fun AgendaEvent.formatTime(context: Context): String {
     return DateUtils.formatDateRange(context, beginMillis, endMillis, DateUtils.FORMAT_SHOW_TIME).toString()
 }
 
-private fun AppWidgetProviderInfo.toWidgetProvider(context: Context, personalUser: UserHandle): WidgetProvider {
+// Internal (not private) so unit tests can drive the work-only resolver
+// fallback with a fake resolver — Robolectric can't register a package in a
+// managed profile's PackageManager.
+internal fun AppWidgetProviderInfo.toWidgetProvider(
+    context: Context,
+    personalUser: UserHandle,
+    // Resolves a package against the provider's own profile (backed by
+    // LauncherApps in production). The personal-user PackageManager lookup
+    // below can't see packages installed only in a work profile, and without
+    // this fallback their picker sections render the raw package name with no
+    // app icon.
+    resolveProfileApp: (packageName: String, profile: UserHandle) -> ApplicationInfo?,
+): WidgetProvider {
     val packageManager = context.packageManager
     val appInfo = try {
         packageManager.getApplicationInfo(provider.packageName, 0)
     } catch (_: PackageManager.NameNotFoundException) {
-        null
+        resolveProfileApp(provider.packageName, profile)
     }
     val appName = appInfo?.loadLabel(packageManager)?.toString()
         ?.takeIf { label -> label.isNotBlank() }
@@ -2700,13 +2725,27 @@ private fun AppWidgetProviderInfo.toWidgetProvider(context: Context, personalUse
 private fun estimateCellSpan(sizeDp: Int): Int =
     ((sizeDp + WIDGET_CELL_ESTIMATE_DP - 1) / WIDGET_CELL_ESTIMATE_DP).coerceAtLeast(1)
 
-private fun ApplicationInfo.iconCacheToken(packageManager: PackageManager): String? {
+// Internal (not private) so unit tests can exercise the work-only fallback
+// directly — building a cross-profile LauncherActivityInfo under Robolectric
+// is not practical.
+internal fun ApplicationInfo.iconCacheToken(packageManager: PackageManager): String? {
     val packageInfo = try {
         packageManager.getPackageInfo(packageName, 0)
     } catch (_: PackageManager.NameNotFoundException) {
         null
     }
     return packageInfo?.lastUpdateTime?.takeIf { time -> time > 0L }?.toString()
+        // A package installed only in a work profile is invisible to the
+        // launcher's own (personal-user) PackageManager, so the lookup above
+        // throws and a work-only app would get no version token at all — its
+        // icon cache entry would never be invalidated, painting stale art
+        // indefinitely after the app updates while the launcher process is
+        // dead (no LauncherApps callback fires for an update that completed
+        // before registration). Fall back to the install path recorded in
+        // this profile's own ApplicationInfo: the platform moves the APK to a
+        // fresh directory on every update, so the path changes exactly when
+        // the icon art can.
+        ?: sourceDir?.takeIf { path -> path.isNotEmpty() }
 }
 
 // Packages whose launcher icon redraws to show the current date without bumping
