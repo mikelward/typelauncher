@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Process
-import android.os.UserHandle
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -53,7 +52,7 @@ internal class AppMetadataStore(context: Context) {
         val personal = Process.myUserHandle()
         val array = JSONArray()
         for (app in apps) {
-            if (!isPersonal(app.user, personal)) continue
+            if (app.user != personal) continue
             val component = app.launchIntent.component ?: continue
             val obj = JSONObject().apply {
                 put(KEY_NAME, app.name)
@@ -70,8 +69,6 @@ internal class AppMetadataStore(context: Context) {
             .putString(KEY_APPS, array.toString())
             .apply()
     }
-
-    private fun isPersonal(user: UserHandle, personal: UserHandle): Boolean = user == personal
 
     private companion object {
         const val PREFERENCES_NAME = "app_metadata"
