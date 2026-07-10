@@ -148,6 +148,9 @@ class AppIconWorkBadgeScreenshotTest {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return
+        // Icon bitmaps load on background dispatchers; capture only once
+        // every composed icon has settled (see awaitAppIconsResolved).
+        composeRule.awaitAppIconsResolved()
         captureRootBitmap().captureRoboImage(filePath = "src/test/snapshots/images/$name")
     }
 

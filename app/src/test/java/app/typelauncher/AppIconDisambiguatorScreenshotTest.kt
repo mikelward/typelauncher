@@ -134,6 +134,9 @@ class AppIconDisambiguatorScreenshotTest {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return
+        // Icon bitmaps load on background dispatchers; capture only once
+        // every composed icon has settled (see awaitAppIconsResolved).
+        composeRule.awaitAppIconsResolved()
         val root = composeRule.activity.window.decorView.rootView
         root.measure(
             android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),

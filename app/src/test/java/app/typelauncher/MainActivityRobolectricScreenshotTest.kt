@@ -821,7 +821,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
         composeRule.waitForIdle()
-        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+        composeRule.awaitAppIconsResolved()
 
         val appsCardBounds = composeRule.onNodeWithTag(APPS_CARD_TAG).getBoundsInRoot()
         val topMatchBounds = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Calculator").getBoundsInRoot()
@@ -1230,7 +1230,7 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(34, viewModel.uiState.value.dockIconSizeDp)
         assertEquals(7, dockSlotCountForIconSize(411, viewModel.uiState.value.dockIconSizeDp))
 
-        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+        composeRule.awaitAppIconsResolved()
 
         // The seed has nine apps in the list, so seven fill the top row and two
         // wrap to a second row: item 6 shares the first item's top edge, item 7
@@ -2824,7 +2824,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertDoesNotExist()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
-        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+        composeRule.awaitAppIconsResolved()
 
         saveScreenshot("compose_home_icon_only_overflowing_grid_robolectric.png")
     }
@@ -2842,7 +2842,7 @@ class MainActivityRobolectricScreenshotTest {
         assertTrue(viewModel.uiState.value.filteredApps.any { app -> app.name == "Overflow App 60" })
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Browser").assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG).assertIsDisplayed()
-        composeRule.waitUntil(timeoutMillis = 5_000) { AppIconLoader.cacheSnapshot().isNotEmpty() }
+        composeRule.awaitAppIconsResolved()
 
         saveScreenshot(
             "compose_home_icon_only_overflowing_grid_pixel9pro_robolectric.png",
@@ -3364,6 +3364,9 @@ class MainActivityRobolectricScreenshotTest {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return
+        // Icon bitmaps load on background dispatchers; capture only once
+        // every composed icon has settled (see awaitAppIconsResolved).
+        composeRule.awaitAppIconsResolved()
         val root = composeRule.activity.window.decorView.rootView
         root.measure(
             android.view.View.MeasureSpec.makeMeasureSpec(widthPx, android.view.View.MeasureSpec.EXACTLY),
@@ -3386,6 +3389,9 @@ class MainActivityRobolectricScreenshotTest {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return
+        // Icon bitmaps load on background dispatchers; capture only once
+        // every composed icon has settled (see awaitAppIconsResolved).
+        composeRule.awaitAppIconsResolved()
         captureScreenRoboImage(filePath = "src/test/snapshots/images/$name")
     }
 
