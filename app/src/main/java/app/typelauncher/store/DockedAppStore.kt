@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.content.Context
+import android.content.SharedPreferences
 import java.util.LinkedHashSet
 
 internal class DockedAppStore(
@@ -510,9 +511,7 @@ internal class DockSettingsStore(context: Context) {
      * pre-setting behavior.
      */
     var dockLayout: DockLayout
-        get() = sharedPreferences.getString(KEY_DOCK_LAYOUT, null)
-            ?.let { name -> runCatching { DockLayout.valueOf(name) }.getOrNull() }
-            ?: DockLayout.IconOnly
+        get() = sharedPreferences.enumOrDefault(KEY_DOCK_LAYOUT, DockLayout.IconOnly)
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_DOCK_LAYOUT, value.name)
@@ -527,9 +526,7 @@ internal class DockSettingsStore(context: Context) {
      * [IconTheme.Default].
      */
     var iconTheme: IconTheme
-        get() = sharedPreferences.getString(KEY_ICON_THEME, null)
-            ?.let { name -> runCatching { IconTheme.valueOf(name) }.getOrNull() }
-            ?: IconTheme.Default
+        get() = sharedPreferences.enumOrDefault(KEY_ICON_THEME, IconTheme.Default)
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_ICON_THEME, value.name)
@@ -537,9 +534,7 @@ internal class DockSettingsStore(context: Context) {
         }
 
     var appListSortOrder: AppListSortOrder
-        get() = sharedPreferences.getString(KEY_APP_LIST_SORT_ORDER, null)
-            ?.let { name -> runCatching { AppListSortOrder.valueOf(name) }.getOrNull() }
-            ?: AppListSortOrder.Usage
+        get() = sharedPreferences.enumOrDefault(KEY_APP_LIST_SORT_ORDER, AppListSortOrder.Usage)
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_APP_LIST_SORT_ORDER, value.name)
@@ -595,9 +590,10 @@ internal class DockSettingsStore(context: Context) {
             } else {
                 null
             }
-            val source = sharedPreferences.getString(KEY_KEYBOARD_RESERVATION_SOURCE, null)
-                ?.let { name -> runCatching { KeyboardReservationSource.valueOf(name) }.getOrNull() }
-                ?: KeyboardReservationSource.AnimationTarget
+            val source = sharedPreferences.enumOrDefault(
+                KEY_KEYBOARD_RESERVATION_SOURCE,
+                KeyboardReservationSource.AnimationTarget,
+            )
             return KeyboardReservation(
                 bottomPx = bottomPx,
                 configFingerprint = configFingerprint,
@@ -645,9 +641,7 @@ internal class DockSettingsStore(context: Context) {
      * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
      */
     var themeMode: ThemeMode
-        get() = sharedPreferences.getString(KEY_THEME_MODE, null)
-            ?.let { name -> runCatching { ThemeMode.valueOf(name) }.getOrNull() }
-            ?: ThemeMode.System
+        get() = sharedPreferences.enumOrDefault(KEY_THEME_MODE, ThemeMode.System)
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_THEME_MODE, value.name)
@@ -660,9 +654,7 @@ internal class DockSettingsStore(context: Context) {
      * or [IconShape.Squircle] to override it.
      */
     var iconShape: IconShape
-        get() = sharedPreferences.getString(KEY_ICON_SHAPE, null)
-            ?.let { name -> runCatching { IconShape.valueOf(name) }.getOrNull() }
-            ?: IconShape.System
+        get() = sharedPreferences.enumOrDefault(KEY_ICON_SHAPE, IconShape.System)
         set(value) {
             sharedPreferences.edit()
                 .putString(KEY_ICON_SHAPE, value.name)
@@ -710,3 +702,13 @@ internal class DockSettingsStore(context: Context) {
 }
 
 private const val LEGACY_KEY_DOCK_ICON_SIZE_DP = "dock_icon_size_dp"
+
+/**
+ * Reads an enum persisted by name, falling back to [default] when the key is
+ * absent or holds a name no longer in the enum (a renamed entry written by a
+ * newer or older build).
+ */
+private inline fun <reified T : Enum<T>> SharedPreferences.enumOrDefault(key: String, default: T): T =
+    getString(key, null)
+        ?.let { name -> runCatching { enumValueOf<T>(name) }.getOrNull() }
+        ?: default
