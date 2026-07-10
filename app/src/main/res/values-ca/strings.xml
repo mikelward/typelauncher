@@ -76,7 +76,7 @@
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Molt petit, s\'omplirà</string>
     <plurals name="widgets_picker_widget_count">
-        <item quantity="one">1 widget</item>
+        <item quantity="one">%d widget</item>
         <item quantity="many">%d widgets</item>
         <item quantity="other">%d widgets</item>
     </plurals>

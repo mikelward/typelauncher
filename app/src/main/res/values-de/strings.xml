@@ -76,7 +76,7 @@
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Sehr klein, wird aufgefüllt</string>
     <plurals name="widgets_picker_widget_count">
-        <item quantity="one">1 Widget</item>
+        <item quantity="one">%d Widget</item>
         <item quantity="other">%d Widgets</item>
     </plurals>
     <string name="widgets_preview_unavailable">Vorschau nicht verfügbar</string>

@@ -76,7 +76,7 @@
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Baie klein, sal opgevul word</string>
     <plurals name="widgets_picker_widget_count">
-        <item quantity="one">1 legstuk</item>
+        <item quantity="one">%d legstuk</item>
         <item quantity="other">%d legstukke</item>
     </plurals>
     <string name="widgets_preview_unavailable">Voorskou nie beskikbaar nie</string>

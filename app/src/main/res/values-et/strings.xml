@@ -76,7 +76,7 @@
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Väga väike, täiendatakse</string>
     <plurals name="widgets_picker_widget_count">
-        <item quantity="one">1 vidin</item>
+        <item quantity="one">%d vidin</item>
         <item quantity="other">%d vidinat</item>
     </plurals>
     <string name="widgets_preview_unavailable">Eelvaade pole saadaval</string>

@@ -76,7 +76,7 @@
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Yincane kakhulu, izokwengezwa indawo</string>
     <plurals name="widgets_picker_widget_count">
-        <item quantity="one">1 iwijethi</item>
+        <item quantity="one">%d iwijethi</item>
         <item quantity="other">%d iziwijethi</item>
     </plurals>
     <string name="widgets_preview_unavailable">Ukubukwa kuqala akutholakali</string>
