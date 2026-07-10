@@ -846,7 +846,11 @@ class CarouselScreenSyncRaceTest {
 
         composeRule.mainClock.autoAdvance = false
         state = state.copy(destination = LauncherDestination.Widgets())
-        composeRule.mainClock.advanceTimeByFrame()
+        // Give the sync effect time to run and the Home -> Widgets settle
+        // time to actually start animating (a single frame proved racy on
+        // CI — the Agenda write below landed before the effect had run,
+        // exercising a plain idle sync instead of the mid-flight window).
+        composeRule.mainClock.advanceTimeBy(100)
         // A second navigation lands while the Home -> Widgets settle is
         // still animating.
         state = state.copy(destination = LauncherDestination.Agenda)
@@ -854,10 +858,21 @@ class CarouselScreenSyncRaceTest {
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
 
+        // Assert by the screen the settled virtual page maps to rather than
+        // an exact page index: the carousel wraps, so a legitimate sync can
+        // reach Agenda by the short route (homePage - 1) as well as by
+        // continuing forward past Widgets (homePage + 2), depending on where
+        // the resync catches the carousel. The pre-fix desync leaves the
+        // carousel mapped to Widgets (or Home) with destination = Agenda.
+        val settledScreen = LauncherScreen.fromCarouselPage(
+            carousel.carouselVirtualPage(),
+            widgetPageCount = state.widgetPages.size,
+            isAgendaEnabled = state.isAgendaEnabled,
+        ).screen
         assertEquals(
             "An Agenda navigation landing during the Widgets settle must sync once the settle ends",
-            homePage + 2,
-            carousel.carouselVirtualPage(),
+            LauncherScreen.Agenda,
+            settledScreen,
         )
         assertEquals(LauncherDestination.Agenda, state.destination)
     }
