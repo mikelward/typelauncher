@@ -223,6 +223,12 @@ internal open class LauncherAppWidgetHostView(
     private var downX = 0f
     private var downY = 0f
     private var hasPerformedLongPress = false
+    // Diagnostic-only, no behavioral role: tracks whether the long-press
+    // timer is currently armed so its cancellation is logged exactly once
+    // per gesture instead of on every ACTION_MOVE past slop (a long drag
+    // fires many of those, which would spam the ring buffer and evict the
+    // armed/gesture-start lines this logging exists to preserve).
+    private var longPressTimerArmedForLogging = false
     // Holds the latest RemoteViews delivered while the host's defer flag was
     // set. Overwriting on every push is intentional — only the latest needs
     // to paint when the deferral lifts; intermediate updates are typically
@@ -239,6 +245,7 @@ internal open class LauncherAppWidgetHostView(
     private val checkLongPress = Runnable {
         if (parent != null && !hasPerformedLongPress) {
             hasPerformedLongPress = true
+            longPressTimerArmedForLogging = false
             // Diagnostic for #513's follow-up: pins down whether the menu is
             // opened by a genuinely held finger or by this timer surviving a
             // swipe it should have been cancelled by. Cheap (once per fired
@@ -301,23 +308,34 @@ internal open class LauncherAppWidgetHostView(
                 hasPerformedLongPress = false
                 removeCallbacks(checkLongPress)
                 postDelayed(checkLongPress, longPressTimeoutMs)
+                longPressTimerArmedForLogging = true
                 // See checkLongPress's doc: diagnostic for #513's follow-up.
                 LauncherDebugLog.event("LauncherAppWidgetHostView longPressTimer armed widgetId=$appWidgetId")
             }
             MotionEvent.ACTION_MOVE -> {
                 if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
                     removeCallbacks(checkLongPress)
-                    LauncherDebugLog.event(
-                        "LauncherAppWidgetHostView longPressTimer cancelled(slop) widgetId=$appWidgetId",
-                    )
+                    // Gated on longPressTimerArmedForLogging: this branch stays
+                    // true for every remaining ACTION_MOVE in the gesture once
+                    // slop is first crossed, so an ungated log call would fire
+                    // once per move sample for the rest of a drag.
+                    if (longPressTimerArmedForLogging) {
+                        longPressTimerArmedForLogging = false
+                        LauncherDebugLog.event(
+                            "LauncherAppWidgetHostView longPressTimer cancelled(slop) widgetId=$appWidgetId",
+                        )
+                    }
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(checkLongPress)
-                LauncherDebugLog.event(
-                    "LauncherAppWidgetHostView longPressTimer cancelled(intercept " +
-                        "action=${ev.actionMasked}) widgetId=$appWidgetId",
-                )
+                if (longPressTimerArmedForLogging) {
+                    longPressTimerArmedForLogging = false
+                    LauncherDebugLog.event(
+                        "LauncherAppWidgetHostView longPressTimer cancelled(intercept " +
+                            "action=${ev.actionMasked}) widgetId=$appWidgetId",
+                    )
+                }
             }
         }
         if (hasPerformedLongPress) {
@@ -359,8 +377,12 @@ internal open class LauncherAppWidgetHostView(
                 // This is the path a Compose ancestor (the carousel) that has
                 // consumed the gesture elsewhere is expected to reach via a
                 // synthetic ACTION_CANCEL, distinct from a real finger lift —
-                // see checkLongPress's doc for why this line exists.
-                if (ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                // see checkLongPress's doc for why this line exists. Gated on
+                // longPressTimerArmedForLogging (see the onInterceptTouchEvent
+                // MOVE branch's doc) so this only logs when it actually
+                // cancelled a still-armed timer.
+                if (ev.actionMasked == MotionEvent.ACTION_CANCEL && longPressTimerArmedForLogging) {
+                    longPressTimerArmedForLogging = false
                     LauncherDebugLog.event(
                         "LauncherAppWidgetHostView longPressTimer cancelled(dispatchCancel) widgetId=$appWidgetId",
                     )
@@ -392,11 +414,18 @@ internal open class LauncherAppWidgetHostView(
             // child (catch a fling, then hold or drag: AbsListView claims the
             // gesture at DOWN) or after a quick lift, popping the widget
             // actions menu with no long press on the widget itself. Disarm it
-            // the moment the child takes over.
+            // the moment the child takes over. Gated on
+            // longPressTimerArmedForLogging (see the onInterceptTouchEvent
+            // MOVE branch's doc): a scrollable descendant is free to call
+            // this repeatedly during one gesture, and only the first call
+            // that actually cancels a still-armed timer is worth a log line.
             removeCallbacks(checkLongPress)
-            LauncherDebugLog.event(
-                "LauncherAppWidgetHostView longPressTimer cancelled(disallowIntercept) widgetId=$appWidgetId",
-            )
+            if (longPressTimerArmedForLogging) {
+                longPressTimerArmedForLogging = false
+                LauncherDebugLog.event(
+                    "LauncherAppWidgetHostView longPressTimer cancelled(disallowIntercept) widgetId=$appWidgetId",
+                )
+            }
         }
         super.requestDisallowInterceptTouchEvent(disallowIntercept)
     }
