@@ -76,7 +76,7 @@
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Πολύ μικρό, θα συμπληρωθεί</string>
     <plurals name="widgets_picker_widget_count">
-        <item quantity="one">1 γραφικό στοιχείο</item>
+        <item quantity="one">%d γραφικό στοιχείο</item>
         <item quantity="other">%d γραφικά στοιχεία</item>
     </plurals>
     <string name="widgets_preview_unavailable">Η προεπισκόπηση δεν είναι διαθέσιμη</string>
