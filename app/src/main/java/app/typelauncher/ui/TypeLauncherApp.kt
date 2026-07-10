@@ -85,9 +85,10 @@ import kotlin.math.sign
 // scrollable or a launcher-level gesture owns the pointer sequence.
 private const val CAROUSEL_TOUCH_SLOP_DP = 8
 
-// Launcher-level swipes must travel this far before committing. Horizontal
-// carousel swipes and vertical pull-up/down gestures share the same threshold so
-// they feel equally deliberate and cannot chain more than one action.
+// Vertical pull-up/down gestures must travel this far before committing, so they
+// feel deliberate and cannot chain more than one action. Horizontal carousel
+// swipes use a different bar — half the page width (pageWidthPx / 2) — because a
+// page turn should track the page, not a fixed dp distance.
 private const val LAUNCHER_SWIPE_COMMIT_DISTANCE_DP = 96
 
 // Release velocity (in dp/s) above which a fling commits even if the raw drag
