@@ -239,6 +239,13 @@ internal open class LauncherAppWidgetHostView(
     private val checkLongPress = Runnable {
         if (parent != null && !hasPerformedLongPress) {
             hasPerformedLongPress = true
+            // Diagnostic for #513's follow-up: pins down whether the menu is
+            // opened by a genuinely held finger or by this timer surviving a
+            // swipe it should have been cancelled by. Cheap (once per fired
+            // long-press, not per frame) and captured by the in-app bug
+            // report's log ring buffer, so a report from a device without
+            // logcat access still carries the timing.
+            LauncherDebugLog.event("LauncherAppWidgetHostView checkLongPress fired widgetId=$appWidgetId")
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             onWidgetLongPress?.invoke()
         }
@@ -294,14 +301,23 @@ internal open class LauncherAppWidgetHostView(
                 hasPerformedLongPress = false
                 removeCallbacks(checkLongPress)
                 postDelayed(checkLongPress, longPressTimeoutMs)
+                // See checkLongPress's doc: diagnostic for #513's follow-up.
+                LauncherDebugLog.event("LauncherAppWidgetHostView longPressTimer armed widgetId=$appWidgetId")
             }
             MotionEvent.ACTION_MOVE -> {
                 if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
                     removeCallbacks(checkLongPress)
+                    LauncherDebugLog.event(
+                        "LauncherAppWidgetHostView longPressTimer cancelled(slop) widgetId=$appWidgetId",
+                    )
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(checkLongPress)
+                LauncherDebugLog.event(
+                    "LauncherAppWidgetHostView longPressTimer cancelled(intercept " +
+                        "action=${ev.actionMasked}) widgetId=$appWidgetId",
+                )
             }
         }
         if (hasPerformedLongPress) {
@@ -340,6 +356,15 @@ internal open class LauncherAppWidgetHostView(
             MotionEvent.ACTION_CANCEL -> {
                 host.onChildScrollChange?.invoke(false)
                 removeCallbacks(checkLongPress)
+                // This is the path a Compose ancestor (the carousel) that has
+                // consumed the gesture elsewhere is expected to reach via a
+                // synthetic ACTION_CANCEL, distinct from a real finger lift —
+                // see checkLongPress's doc for why this line exists.
+                if (ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                    LauncherDebugLog.event(
+                        "LauncherAppWidgetHostView longPressTimer cancelled(dispatchCancel) widgetId=$appWidgetId",
+                    )
+                }
             }
         }
         return super.dispatchTouchEvent(ev)
@@ -369,6 +394,9 @@ internal open class LauncherAppWidgetHostView(
             // actions menu with no long press on the widget itself. Disarm it
             // the moment the child takes over.
             removeCallbacks(checkLongPress)
+            LauncherDebugLog.event(
+                "LauncherAppWidgetHostView longPressTimer cancelled(disallowIntercept) widgetId=$appWidgetId",
+            )
         }
         super.requestDisallowInterceptTouchEvent(disallowIntercept)
     }
