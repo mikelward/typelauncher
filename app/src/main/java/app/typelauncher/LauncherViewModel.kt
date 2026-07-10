@@ -2395,15 +2395,38 @@ internal class LauncherViewModel(
         // Resolve quiet mode once per profile rather than per activity. The
         // personal profile is never in quiet mode, so skip the binder call for
         // it. `isQuietModeEnabled` is documented since API 24 and requires no
-        // permission for any profile in the calling user's profile group.
+        // permission for any profile in the calling user's profile group —
+        // but a profile being removed can leave the group between the
+        // `profiles` snapshot and this call, so tolerate the rejection.
         val quietByUser: Map<UserHandle, Boolean> = profiles.associateWith { user ->
-            user != personalUser && (userManager?.isQuietModeEnabled(user) == true)
+            user != personalUser && try {
+                userManager?.isQuietModeEnabled(user) == true
+            } catch (_: SecurityException) {
+                false
+            }
         }
         val profileApps = profiles
             .flatMap { user ->
-                val activities = launcherApps
-                    ?.getActivityList(null, user)
-                    .orEmpty()
+                val activities = try {
+                    launcherApps
+                        ?.getActivityList(null, user)
+                        .orEmpty()
+                } catch (exception: SecurityException) {
+                    // The profile left the caller's profile group after the
+                    // `profiles` snapshot — the window during work-profile
+                    // removal where teardown's package events schedule
+                    // reloads while access is already revoked. Same race
+                    // `resolveProfileApplicationInfo` and AppIconLoader
+                    // tolerate; skip the dying profile instead of letting
+                    // the exception crash the launcher out of the load
+                    // coroutine. The removal's own callback triggers a
+                    // fresh reload that no longer lists this profile.
+                    LauncherDebugLog.warning(
+                        "loadInstalledApps profile rejected user=${user.hashCode()}",
+                        exception,
+                    )
+                    emptyList()
+                }
                 LauncherDebugLog.event(
                     "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} " +
                         "quiet=${quietByUser[user] == true}",
