@@ -40,7 +40,16 @@ private fun displayNameCollator(): Collator {
     collatorCache.get()?.let { (cachedLocale, collator) ->
         if (cachedLocale == locale) return collator
     }
-    val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
+    val collator = secondaryStrengthCollator(locale)
     collatorCache.set(locale to collator)
     return collator
 }
+
+/**
+ * The launcher's one collation rule for user-visible names: locale-tailored,
+ * SECONDARY strength so case folds while accents keep their base-letter
+ * position. Callers own caching — Collators are neither cheap to create nor
+ * thread-safe, so the returned instance must stay on the calling thread.
+ */
+internal fun secondaryStrengthCollator(locale: Locale): Collator =
+    Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
