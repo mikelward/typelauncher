@@ -1,7 +1,6 @@
 package app.typelauncher
 
 import android.content.Context
-import android.util.Base64
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -48,7 +47,7 @@ internal class IconOverrideStore(context: Context) {
         directory.listFiles().orEmpty().forEach { file ->
             if (!file.isFile || file.name.endsWith(TMP_SUFFIX)) return@forEach
             val stem = file.name.substringBeforeLast('.', missingDelimiterValue = "")
-            val id = if (stem.isEmpty()) null else decodeId(stem)
+            val id = if (stem.isEmpty()) null else decodeAppIdFromFileName(stem)
             if (id != null) built[id] = file
         }
         index = built
@@ -71,7 +70,7 @@ internal class IconOverrideStore(context: Context) {
         if (!directory.isDirectory && !directory.mkdirs()) {
             throw IOException("Failed to create $directory")
         }
-        val target = File(directory, encodeId(appId) + "." + normalizedExt)
+        val target = File(directory, encodeAppIdForFileName(appId) + "." + normalizedExt)
         val tmp = File(directory, target.name + TMP_SUFFIX)
         try {
             tmp.outputStream().use { output -> source.copyTo(output) }
@@ -79,7 +78,7 @@ internal class IconOverrideStore(context: Context) {
             // freshly-picked one survives; otherwise switching between e.g. an
             // SVG override and a PNG override would leave the older file
             // behind, and `iconFileFor` would non-deterministically pick one.
-            val prefix = encodeId(appId) + "."
+            val prefix = encodeAppIdForFileName(appId) + "."
             directory.listFiles { file ->
                 file.isFile && file.name != tmp.name && file.name.startsWith(prefix)
             }?.forEach { it.delete() }
@@ -101,7 +100,7 @@ internal class IconOverrideStore(context: Context) {
     fun clear(appId: String) {
         synchronized(lock) { index().remove(appId) }
         if (!directory.isDirectory) return
-        val prefix = encodeId(appId) + "."
+        val prefix = encodeAppIdForFileName(appId) + "."
         directory.listFiles { file -> file.name.startsWith(prefix) }
             ?.forEach { it.delete() }
     }
@@ -113,16 +112,8 @@ internal class IconOverrideStore(context: Context) {
      */
     fun overriddenAppIds(): Set<String> = synchronized(lock) { index().keys.toSet() }
 
-    private fun encodeId(id: String): String =
-        Base64.encodeToString(id.toByteArray(Charsets.UTF_8), BASE64_FLAGS)
-
-    private fun decodeId(encoded: String): String? = runCatching {
-        String(Base64.decode(encoded, BASE64_FLAGS), Charsets.UTF_8)
-    }.getOrNull()
-
     private companion object {
         const val DIRECTORY_NAME = "icon_overrides"
         const val TMP_SUFFIX = ".tmp"
-        const val BASE64_FLAGS = Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
     }
 }
