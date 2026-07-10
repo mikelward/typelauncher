@@ -78,6 +78,7 @@
     <plurals name="widgets_picker_widget_count">
         <item quantity="one">%d valdiklis</item>
         <item quantity="few">%d valdikliai</item>
+        <item quantity="many">%d valdiklio</item>
         <item quantity="other">%d valdiklių</item>
     </plurals>
     <string name="widgets_preview_unavailable">Peržiūra nepasiekiama</string>

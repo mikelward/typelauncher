@@ -77,6 +77,7 @@
     <string name="widgets_picker_padded_note">Molto piccolo, verrà aggiunto padding</string>
     <plurals name="widgets_picker_widget_count">
         <item quantity="one">1 widget</item>
+        <item quantity="many">%d widget</item>
         <item quantity="other">%d widget</item>
     </plurals>
     <string name="widgets_preview_unavailable">Anteprima non disponibile</string>
