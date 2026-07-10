@@ -78,6 +78,7 @@
     <plurals name="widgets_picker_widget_count">
         <item quantity="one">%d widget</item>
         <item quantity="few">%d widgety</item>
+        <item quantity="many">%d widgetu</item>
         <item quantity="other">%d widgetů</item>
     </plurals>
     <string name="widgets_preview_unavailable">Náhled není k dispozici</string>
