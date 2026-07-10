@@ -2,7 +2,6 @@ package app.typelauncher
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Base64
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -172,7 +171,7 @@ internal class IconSnapshotStore(context: Context) {
         }.getOrNull()
     }
 
-    private fun Snapshot.fileName(): String = "${encodeId(id)}_$sizePx$EXTENSION"
+    private fun Snapshot.fileName(): String = "${encodeAppIdForFileName(id)}_$sizePx$EXTENSION"
 
     private fun parseFileName(name: String): Pair<String, Int>? {
         if (!name.endsWith(EXTENSION)) return null
@@ -181,16 +180,9 @@ internal class IconSnapshotStore(context: Context) {
         if (sep <= 0 || sep == stem.length - 1) return null
         val sizePx = stem.substring(sep + 1).toIntOrNull() ?: return null
         if (sizePx <= 0) return null
-        val id = decodeId(stem.substring(0, sep)) ?: return null
+        val id = decodeAppIdFromFileName(stem.substring(0, sep)) ?: return null
         return id to sizePx
     }
-
-    private fun encodeId(id: String): String =
-        Base64.encodeToString(id.toByteArray(Charsets.UTF_8), BASE64_FLAGS)
-
-    private fun decodeId(encoded: String): String? = runCatching {
-        String(Base64.decode(encoded, BASE64_FLAGS), Charsets.UTF_8)
-    }.getOrNull()
 
     internal data class Snapshot(val id: String, val sizePx: Int, val bitmap: ImageBitmap)
 
@@ -252,6 +244,5 @@ internal class IconSnapshotStore(context: Context) {
         private const val HEADER_SIZE = 8
         private const val BYTES_PER_PIXEL = 4
         private const val MAX_DIMENSION = 1024
-        private const val BASE64_FLAGS = Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
     }
 }
