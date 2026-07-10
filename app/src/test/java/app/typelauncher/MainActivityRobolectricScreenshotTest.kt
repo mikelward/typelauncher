@@ -67,6 +67,8 @@ import org.robolectric.shadows.ShadowRoleManager
 import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -690,6 +692,32 @@ class MainActivityRobolectricScreenshotTest {
 
         assertEquals(emptyList<Int>(), composeRule.activity.viewModel.uiState.value.widgetIds)
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").assertDoesNotExist()
+    }
+
+    @Test
+    fun removingWidget_routesHostDeleteThroughInjectableIoDispatcher() {
+        // The host-binding delete is a Binder IPC that must stay off the main
+        // thread, and it has to run on the *injectable* ioDispatcher (mirroring
+        // LauncherViewModel.ioDispatcher) rather than a hardcoded Dispatchers.IO
+        // so tests can drive it deterministically. This locks that seam in: a
+        // recording dispatcher runs the delete block inline and flags itself, so
+        // a regression back to Dispatchers.IO leaves `dispatched` false.
+        val recording = RecordingCoroutineDispatcher()
+        composeRule.activity.runOnUiThread { composeRule.activity.ioDispatcher = recording }
+
+        composeRule.activity.viewModel.addWidget(42)
+        composeRule.waitForIdle()
+        awaitUnavailableWidgetCards(count = 1)
+
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:42").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:42").performClick()
+        composeRule.waitForIdle()
+
+        assertTrue(
+            "removeWidget must run the host-binding delete on the injected ioDispatcher",
+            recording.dispatched,
+        )
+        assertEquals(emptyList<Int>(), composeRule.activity.viewModel.uiState.value.widgetIds)
     }
 
     @Test
@@ -3657,5 +3685,21 @@ class MainActivityRobolectricScreenshotTest {
         )
 
         const val WORK_USER_TEST_UID = 1_010_000
+    }
+}
+
+/**
+ * A [CoroutineDispatcher] that runs each block inline on the caller's thread and
+ * records that it was used. Lets a test assert that work MainActivity intends to
+ * push onto its injectable ioDispatcher actually goes there — deterministically,
+ * with no background thread to await.
+ */
+private class RecordingCoroutineDispatcher : CoroutineDispatcher() {
+    var dispatched = false
+        private set
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        dispatched = true
+        block.run()
     }
 }
