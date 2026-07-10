@@ -74,6 +74,35 @@ class WidgetsScreenTest {
     }
 
     @Test
+    fun widgetPicker_showsSingularAndPluralWidgetCounts() {
+        val month = fakeWidgetProvider(appName = "Calendar", label = "Calendar month view")
+        val schedule = fakeWidgetProvider(appName = "Calendar", label = "Calendar schedule")
+        val clock = fakeWidgetProvider(appName = "Clock", label = "Analog clock")
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(month, schedule, clock),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").performScrollTo()
+        composeRule.onNodeWithText("2 widgets").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock").performScrollTo()
+        composeRule.onNodeWithText("1 widget").assertIsDisplayed()
+    }
+
+    @Test
     fun widgetPicker_filtersAppGroupsByName() {
         val clock = fakeWidgetProvider(appName = "Clock", label = "Analog clock")
         val notes = fakeWidgetProvider(appName = "Notes", label = "Sticky note")
