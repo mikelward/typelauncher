@@ -1191,6 +1191,21 @@ private fun SwipeNavigationBox(
     val scrollConsumptionTracker = remember { ScrollConsumptionTracker() }
     val coroutineScope = rememberCoroutineScope()
     var carouselAnimationJob by remember { mutableStateOf<Job?>(null) }
+    // Bumped whenever a carousel animation job finishes (see
+    // [trackCarouselAnimationJob]) so the destination-sync effect below
+    // re-evaluates once its bail conditions (job active / offset mid-flight /
+    // transition not Idle) have cleared. Without a re-run key, a destination
+    // change that lands *during* a snap-back or external settle is dropped
+    // forever: the effect bails, nothing re-triggers it (its other keys are
+    // unchanged), and the carousel is left desynced from `state.destination`
+    // — at which point the claim gate's `currentLauncherPage ==
+    // candidateLauncherPage` check refuses every subsequent swipe until an
+    // unrelated destination event or a rotation resyncs it.
+    var carouselResyncTick by remember { mutableStateOf(0) }
+    fun trackCarouselAnimationJob(job: Job) {
+        carouselAnimationJob = job
+        job.invokeOnCompletion { carouselResyncTick++ }
+    }
     var carouselTransition by remember { mutableStateOf<CarouselTransitionState>(CarouselTransitionState.Idle) }
     var allowSwipeWithUnackedScreen by remember { mutableStateOf(false) }
     var queuedSettleSwipe by remember { mutableStateOf<QueuedSettleSwipe?>(null) }
@@ -1288,7 +1303,7 @@ private fun SwipeNavigationBox(
         currentOnCarouselGestureClaimed()
         setCarouselTransition(CarouselTransitionState.UserAnimating(targetPage, targetLauncherPage))
         hideKeyboardForCarouselPage(targetLauncherPage.screen)
-        carouselAnimationJob = coroutineScope.launch {
+        trackCarouselAnimationJob(coroutineScope.launch {
             try {
                 val targetOffsetPx = if (targetPage > settledPage) -pageWidthPx else pageWidthPx
                 animateCarouselOffsetTo(targetOffsetPx)
@@ -1302,7 +1317,7 @@ private fun SwipeNavigationBox(
             } finally {
                 currentOnCarouselGestureEnded()
             }
-        }
+        })
     }
     // Hold off on composing carousel pages other than the visible one until the
     // first frame has rendered. The visible page is what triggers the soft
@@ -1675,7 +1690,7 @@ private fun SwipeNavigationBox(
                         )
                         hideKeyboardForCarouselPage(targetLauncherPage.screen)
                     }
-                    carouselAnimationJob = coroutineScope.launch {
+                    trackCarouselAnimationJob(coroutineScope.launch {
                         try {
                             val targetOffsetPx = when {
                                 targetPage > gestureStartPage -> -pageWidthPx
@@ -1699,7 +1714,7 @@ private fun SwipeNavigationBox(
                             // RemoteViews.
                             currentOnCarouselGestureEnded()
                         }
-                    }
+                    })
                     releaseAnimationLaunched = true
                     } finally {
                         // If the pointer stream was cancelled after claim
@@ -1813,7 +1828,13 @@ private fun SwipeNavigationBox(
     ) {
         val pageWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val statePage = destination.toLauncherPage()
-        LaunchedEffect(destination, pageWidthPx, isAgendaEnabled, widgetPageCount) {
+        // `carouselResyncTick` re-runs this sync whenever an animation job
+        // completes, closing the windows in which a destination change lands
+        // while the effect's bail conditions below hold (snap-back in flight,
+        // an external settle animating) and would otherwise be dropped
+        // permanently — leaving the carousel showing a different page than
+        // `state.destination` and the claim gate refusing every swipe.
+        LaunchedEffect(destination, pageWidthPx, isAgendaEnabled, widgetPageCount, carouselResyncTick) {
             val newConfig = CarouselPageConfig(widgetPageCount = widgetPageCount, isAgendaEnabled = isAgendaEnabled)
             if (carouselPageConfig != newConfig) {
                 currentPage = LauncherScreen.reanchoredCarouselPage(
@@ -1858,14 +1879,14 @@ private fun SwipeNavigationBox(
                 val startPage = currentPage
                 allowSwipeWithUnackedScreen = false
                 setCarouselTransition(CarouselTransitionState.ExternalAnimating(targetPage, statePage))
-                carouselAnimationJob = coroutineScope.launch {
+                trackCarouselAnimationJob(coroutineScope.launch {
                     val targetOffsetPx = if (targetPage > startPage) -pageWidthPx else pageWidthPx
                     animateCarouselOffsetTo(targetOffsetPx)
                     currentPage = targetPage
                     carouselOffsetPx = 0f
                     setCarouselTransition(CarouselTransitionState.Idle)
                     playQueuedSettleSwipe(targetPage, pageWidthPx)
-                }
+                })
             } else {
                 setCarouselTransition(CarouselTransitionState.Idle)
             }
