@@ -19,6 +19,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.core.content.getSystemService
@@ -27,6 +28,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -54,6 +56,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var appWidgetManager: AppWidgetManager
     private lateinit var playUpdateChecker: PlayUpdateChecker
     private var hasSeenInitialWindowFocus = false
+
+    // The dispatcher the widget-host Binder IPCs (orphan reconciliation,
+    // removal) hop onto, kept off the main thread. Injectable so Robolectric
+    // tests can pass a deterministic dispatcher, mirroring
+    // LauncherViewModel.ioDispatcher — the production default is Dispatchers.IO.
+    @VisibleForTesting
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
     private val requestDefaultLauncherLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
@@ -549,7 +558,7 @@ class MainActivity : ComponentActivity() {
     private fun reconcileOrphanedWidgets() {
         if (hasReconciledWidgets || !::appWidgetHost.isInitialized) return
         hasReconciledWidgets = true
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(ioDispatcher) {
             val allocatedIds = runCatching { appWidgetHost.appWidgetIds }.getOrElse { exception ->
                 LauncherDebugLog.warning("widget reconciliation: failed to read allocated ids", exception)
                 return@launch
@@ -722,7 +731,7 @@ class MainActivity : ComponentActivity() {
         // AppWidgetService can't stall the menu-dismiss frame. If the process
         // dies before the delete lands, the next start's orphan sweep
         // releases the id.
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(ioDispatcher) {
             runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
                 .onFailure { exception ->
                     LauncherDebugLog.warning("removeWidget: failed to delete id=$appWidgetId", exception)
