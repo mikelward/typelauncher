@@ -74,8 +74,35 @@ internal class LauncherAppWidgetHost(
         }
     }
 
-    private fun mergeLoadedSizes(loaded: Map<Int, IntPairDp>) {
-        for ((widgetId, pair) in loaded) {
+    private fun mergeLoadedSizes(loaded: LoadedSizes) {
+        // Migrate keys written by older builds via String.format under a
+        // non-Latin-digit device language (e.g. "size:۱۰۰"): `toIntOrNull`
+        // parses them, but every write and remove uses the ASCII key only,
+        // so left in place a legacy entry would survive `forgetWidgetSize`
+        // forever and could hand stale dimensions to a recycled widget id.
+        // The prefs rewrite happens here on the main thread — not on the
+        // load executor — because it must consult `forgottenBeforeLoad`
+        // (main-thread confined): a widget forgotten while the disk load
+        // was still pending removed only the ASCII key, and a background
+        // migration would write that key right back, resurrecting the
+        // forgotten entry on the next cold start.
+        if (loaded.legacyEntries.isNotEmpty()) {
+            val editor = sizePrefs.edit()
+            for ((rawKey, widgetId, pair) in loaded.legacyEntries) {
+                editor.remove(rawKey)
+                val forgotten = widgetId in forgottenBeforeLoad
+                // An entry already in `cachedSizes` (an apply that raced the
+                // load) or in the ASCII-keyed load result is fresher than
+                // the legacy value — keep it, only drop the legacy key.
+                val superseded = widgetId in cachedSizes || widgetId in loaded.sizes
+                if (!forgotten && !superseded) {
+                    loaded.sizes[widgetId] = pair
+                    editor.putString(sizeKey(widgetId), pair.serialize())
+                }
+            }
+            editor.apply()
+        }
+        for ((widgetId, pair) in loaded.sizes) {
             // In-memory entries are fresher: an apply that raced the load has
             // already persisted its newer value too.
             if (widgetId !in cachedSizes && widgetId !in forgottenBeforeLoad) {
@@ -129,15 +156,31 @@ internal class LauncherAppWidgetHost(
         }
     }
 
-    private fun loadCachedSizes(): MutableMap<Int, IntPairDp> {
+    private fun loadCachedSizes(): LoadedSizes {
         val out = mutableMapOf<Int, IntPairDp>()
+        // Entries whose raw key doesn't match sizeKey(widgetId) were written
+        // by older builds via String.format under a non-Latin-digit device
+        // language (e.g. "size:۱۰۰"). They're collected — not rewritten —
+        // here: the migration edit lives in [mergeLoadedSizes] on the main
+        // thread, where `forgottenBeforeLoad` can be consulted safely.
+        val legacyEntries = mutableListOf<Triple<String, Int, IntPairDp>>()
         for ((rawKey, rawValue) in sizePrefs.all) {
             val widgetId = rawKey.removePrefix(WIDGET_SIZE_KEY_PREFIX).toIntOrNull() ?: continue
             val pair = (rawValue as? String)?.let(IntPairDp::parse) ?: continue
-            out[widgetId] = pair
+            if (rawKey == sizeKey(widgetId)) {
+                out[widgetId] = pair
+            } else {
+                legacyEntries += Triple(rawKey, widgetId, pair)
+            }
         }
-        return out
+        return LoadedSizes(sizes = out, legacyEntries = legacyEntries)
     }
+
+    /** Result of the one-time persisted-cache read; see [loadCachedSizes]. */
+    private class LoadedSizes(
+        val sizes: MutableMap<Int, IntPairDp>,
+        val legacyEntries: List<Triple<String, Int, IntPairDp>>,
+    )
 
     @VisibleForTesting
     internal fun cachedSizeForTest(widgetId: Int): IntPairDp? = cachedSizes[widgetId]

@@ -263,6 +263,70 @@ class LauncherAppWidgetHostSizeCacheTest {
     }
 
     @Test
+    fun legacyLocaleDigitKey_isMigratedToAsciiOnLoad() {
+        // Older builds formatted keys with String.format under the device
+        // locale, so an entry persisted under e.g. Farsi used Eastern Arabic
+        // digits. The load must rewrite it to the ASCII key — otherwise
+        // forgetWidgetSize (ASCII-only) can never remove it and the orphan
+        // could hand stale dimensions to a recycled widget id.
+        val prefs = context.applicationContext
+            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+        prefs.edit().putString("size:۱۰۰", "320x240").apply()
+
+        val host = newHost(hostId = 13)
+
+        assertEquals(IntPairDp(320, 240), host.cachedSizeForTest(100))
+        assertNull("legacy key must be removed", prefs.getString("size:۱۰۰", null))
+        assertEquals("320x240", prefs.getString("size:100", null))
+
+        host.forgetWidgetSize(100)
+        assertNull(
+            "the migrated entry must be removable",
+            newHost(hostId = 13).cachedSizeForTest(100),
+        )
+    }
+
+    @Test
+    fun widgetForgottenBeforeLoad_isNotResurrectedByLegacyKeyMigration() {
+        // A widget removed while the disk load is still pending removes only
+        // the ASCII key; if prefs held a legacy-locale key for that id, the
+        // migration must not write the ASCII key back — that would resurrect
+        // the forgotten entry on the next cold start.
+        val prefs = context.applicationContext
+            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+        prefs.edit().putString("size:۱۰۰", "320x240").apply()
+        val deferred = mutableListOf<Runnable>()
+        val host = LauncherAppWidgetHost(context, hostId = 15, cacheLoadExecutor = Executor { deferred += it })
+
+        host.forgetWidgetSize(100)
+        deferred.forEach(Runnable::run)
+
+        assertNull("forgotten widget must not merge", host.cachedSizeForTest(100))
+        assertNull("legacy key must be removed", prefs.getString("size:۱۰۰", null))
+        assertNull("migration must not re-persist a forgotten entry", prefs.getString("size:100", null))
+        assertNull("nothing to resurrect on the next start", newHost(hostId = 15).cachedSizeForTest(100))
+    }
+
+    @Test
+    fun asciiEntryWinsOverLegacyDuplicateOnLoad() {
+        // If both a legacy-locale key and an ASCII key exist for the same
+        // widget id, the ASCII one was written by the current code path and
+        // is fresher — the migration must keep its value.
+        val prefs = context.applicationContext
+            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("size:۱۰۰", "111x111")
+            .putString("size:100", "320x240")
+            .apply()
+
+        val host = newHost(hostId = 14)
+
+        assertEquals(IntPairDp(320, 240), host.cachedSizeForTest(100))
+        assertNull("legacy duplicate must be removed", prefs.getString("size:۱۰۰", null))
+        assertEquals("320x240", prefs.getString("size:100", null))
+    }
+
+    @Test
     fun corruptPersistedValue_isIgnored() {
         // Pollute the prefs with a malformed value, then construct a host
         // and verify it loads cleanly without that entry.
