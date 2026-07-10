@@ -124,6 +124,10 @@
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Claro</string>
     <string name="settings_theme_option_dark">Oscuro</string>
+    <string name="settings_icon_shape_title">Forma del icono</string>
+    <string name="settings_icon_shape_option_system">Sistema</string>
+    <string name="settings_icon_shape_option_circle">Círculo</string>
+    <string name="settings_icon_shape_option_squircle">Cuadrado redondeado</string>
     <string name="settings_icon_theme_title">Tema de los iconos</string>
     <string name="settings_icon_theme_option_default">Predeterminado</string>
     <string name="settings_icon_theme_option_monochrome">Monocromo</string>

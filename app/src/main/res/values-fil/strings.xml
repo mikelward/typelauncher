@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Maliwanag</string>
     <string name="settings_theme_option_dark">Madilim</string>
+    <string name="settings_icon_shape_title">Hugis ng icon</string>
+    <string name="settings_icon_shape_option_system">Sistema</string>
+    <string name="settings_icon_shape_option_circle">Bilog</string>
+    <string name="settings_icon_shape_option_squircle">Bilog na parisukat</string>
     <string name="settings_icon_theme_title">Tema ng icon</string>
     <string name="settings_icon_theme_option_default">Default</string>
     <string name="settings_icon_theme_option_monochrome">Monochrome</string>

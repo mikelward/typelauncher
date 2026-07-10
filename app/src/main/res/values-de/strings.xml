@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Hell</string>
     <string name="settings_theme_option_dark">Dunkel</string>
+    <string name="settings_icon_shape_title">Symbolform</string>
+    <string name="settings_icon_shape_option_system">System</string>
+    <string name="settings_icon_shape_option_circle">Kreis</string>
+    <string name="settings_icon_shape_option_squircle">Abgerundetes Quadrat</string>
     <string name="settings_icon_theme_title">Symboldesign</string>
     <string name="settings_icon_theme_option_default">Standard</string>
     <string name="settings_icon_theme_option_monochrome">Monochrom</string>

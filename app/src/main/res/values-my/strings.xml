@@ -122,6 +122,10 @@
     <string name="settings_theme_option_system">စနစ်</string>
     <string name="settings_theme_option_light">အလင်း</string>
     <string name="settings_theme_option_dark">အမှောင်</string>
+    <string name="settings_icon_shape_title">သင်္ကေတပုံသဏ္ဌာန်</string>
+    <string name="settings_icon_shape_option_system">စနစ်</string>
+    <string name="settings_icon_shape_option_circle">စက်ဝိုင်း</string>
+    <string name="settings_icon_shape_option_squircle">ထောင့်ဝိုင်းစတုရန်း</string>
     <string name="settings_icon_theme_title">အိုင်ကွန် အပြင်အဆင်</string>
     <string name="settings_icon_theme_option_default">မူရင်း</string>
     <string name="settings_icon_theme_option_monochrome">တစ်ရောင်တည်း</string>

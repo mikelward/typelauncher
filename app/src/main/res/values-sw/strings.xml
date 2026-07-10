@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">Mfumo</string>
     <string name="settings_theme_option_light">Nyepesi</string>
     <string name="settings_theme_option_dark">Nyeusi</string>
+    <string name="settings_icon_shape_title">Umbo la aikoni</string>
+    <string name="settings_icon_shape_option_system">Mfumo</string>
+    <string name="settings_icon_shape_option_circle">Duara</string>
+    <string name="settings_icon_shape_option_squircle">Mraba wenye kona za mviringo</string>
     <string name="settings_icon_theme_title">Mandhari ya aikoni</string>
     <string name="settings_icon_theme_option_default">Chaguo-msingi</string>
     <string name="settings_icon_theme_option_monochrome">Rangi moja</string>

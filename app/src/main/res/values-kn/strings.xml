@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">ಸಿಸ್ಟಮ್</string>
     <string name="settings_theme_option_light">ತಿಳಿ</string>
     <string name="settings_theme_option_dark">ಗಾಢ</string>
+    <string name="settings_icon_shape_title">ಐಕಾನ್ ಆಕಾರ</string>
+    <string name="settings_icon_shape_option_system">ಸಿಸ್ಟಮ್</string>
+    <string name="settings_icon_shape_option_circle">ವೃತ್ತ</string>
+    <string name="settings_icon_shape_option_squircle">ದುಂಡಾದ ಚೌಕ</string>
     <string name="settings_icon_theme_title">ಐಕಾನ್ ಥೀಮ್</string>
     <string name="settings_icon_theme_option_default">ಡೀಫಾಲ್ಟ್</string>
     <string name="settings_icon_theme_option_monochrome">ಮೊನೊಕ್ರೋಮ್</string>

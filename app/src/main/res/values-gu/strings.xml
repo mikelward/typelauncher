@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">સિસ્ટમ</string>
     <string name="settings_theme_option_light">આછી</string>
     <string name="settings_theme_option_dark">ઘેરી</string>
+    <string name="settings_icon_shape_title">આઇકનનો આકાર</string>
+    <string name="settings_icon_shape_option_system">સિસ્ટમ</string>
+    <string name="settings_icon_shape_option_circle">વર્તુળ</string>
+    <string name="settings_icon_shape_option_squircle">ગોળાકાર ચોરસ</string>
     <string name="settings_icon_theme_title">આઇકન થીમ</string>
     <string name="settings_icon_theme_option_default">ડિફૉલ્ટ</string>
     <string name="settings_icon_theme_option_monochrome">મોનોક્રોમ</string>

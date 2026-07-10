@@ -125,6 +125,10 @@
     <string name="settings_theme_option_system">Systemowy</string>
     <string name="settings_theme_option_light">Jasny</string>
     <string name="settings_theme_option_dark">Ciemny</string>
+    <string name="settings_icon_shape_title">Kształt ikony</string>
+    <string name="settings_icon_shape_option_system">Systemowy</string>
+    <string name="settings_icon_shape_option_circle">Koło</string>
+    <string name="settings_icon_shape_option_squircle">Zaokrąglony kwadrat</string>
     <string name="settings_icon_theme_title">Motyw ikon</string>
     <string name="settings_icon_theme_option_default">Domyślny</string>
     <string name="settings_icon_theme_option_monochrome">Monochromatyczny</string>

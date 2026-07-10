@@ -125,6 +125,10 @@
     <string name="settings_theme_option_system">Системна</string>
     <string name="settings_theme_option_light">Світла</string>
     <string name="settings_theme_option_dark">Темна</string>
+    <string name="settings_icon_shape_title">Форма значка</string>
+    <string name="settings_icon_shape_option_system">Системна</string>
+    <string name="settings_icon_shape_option_circle">Коло</string>
+    <string name="settings_icon_shape_option_squircle">Заокруглений квадрат</string>
     <string name="settings_icon_theme_title">Тема піктограм</string>
     <string name="settings_icon_theme_option_default">За замовчуванням</string>
     <string name="settings_icon_theme_option_monochrome">Монохромна</string>

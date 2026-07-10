@@ -125,6 +125,10 @@
     <string name="settings_theme_option_system">Systémový</string>
     <string name="settings_theme_option_light">Světlý</string>
     <string name="settings_theme_option_dark">Tmavý</string>
+    <string name="settings_icon_shape_title">Tvar ikony</string>
+    <string name="settings_icon_shape_option_system">Systémový</string>
+    <string name="settings_icon_shape_option_circle">Kruh</string>
+    <string name="settings_icon_shape_option_squircle">Zaoblený čtverec</string>
     <string name="settings_icon_theme_title">Motiv ikon</string>
     <string name="settings_icon_theme_option_default">Výchozí</string>
     <string name="settings_icon_theme_option_monochrome">Monochromatický</string>

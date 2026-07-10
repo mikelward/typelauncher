@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">सिस्टम</string>
     <string name="settings_theme_option_light">हल्की</string>
     <string name="settings_theme_option_dark">गहरी</string>
+    <string name="settings_icon_shape_title">आइकन का आकार</string>
+    <string name="settings_icon_shape_option_system">सिस्टम</string>
+    <string name="settings_icon_shape_option_circle">वृत्त</string>
+    <string name="settings_icon_shape_option_squircle">गोल चौकोर</string>
     <string name="settings_icon_theme_title">आइकन थीम</string>
     <string name="settings_icon_theme_option_default">डिफ़ॉल्ट</string>
     <string name="settings_icon_theme_option_monochrome">मोनोक्रोम</string>

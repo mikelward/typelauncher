@@ -122,6 +122,10 @@
     <string name="settings_theme_option_system">システム</string>
     <string name="settings_theme_option_light">ライト</string>
     <string name="settings_theme_option_dark">ダーク</string>
+    <string name="settings_icon_shape_title">アイコンの形</string>
+    <string name="settings_icon_shape_option_system">システム</string>
+    <string name="settings_icon_shape_option_circle">円</string>
+    <string name="settings_icon_shape_option_squircle">角丸四角形</string>
     <string name="settings_icon_theme_title">アイコンのテーマ</string>
     <string name="settings_icon_theme_option_default">既定</string>
     <string name="settings_icon_theme_option_monochrome">モノクロ</string>

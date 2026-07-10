@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">පද්ධතිය</string>
     <string name="settings_theme_option_light">ආලෝක</string>
     <string name="settings_theme_option_dark">අඳුරු</string>
+    <string name="settings_icon_shape_title">නිරූපක හැඩය</string>
+    <string name="settings_icon_shape_option_system">පද්ධතිය</string>
+    <string name="settings_icon_shape_option_circle">කවය</string>
+    <string name="settings_icon_shape_option_squircle">වටකුරු හතරැස්</string>
     <string name="settings_icon_theme_title">අයිකන තේමාව</string>
     <string name="settings_icon_theme_option_default">පෙරනිමි</string>
     <string name="settings_icon_theme_option_monochrome">ඒකවර්ණ</string>

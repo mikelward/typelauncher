@@ -125,6 +125,10 @@
     <string name="settings_theme_option_system">Системная</string>
     <string name="settings_theme_option_light">Светлая</string>
     <string name="settings_theme_option_dark">Тёмная</string>
+    <string name="settings_icon_shape_title">Форма значка</string>
+    <string name="settings_icon_shape_option_system">Системная</string>
+    <string name="settings_icon_shape_option_circle">Круг</string>
+    <string name="settings_icon_shape_option_squircle">Скруглённый квадрат</string>
     <string name="settings_icon_theme_title">Тема значков</string>
     <string name="settings_icon_theme_option_default">По умолчанию</string>
     <string name="settings_icon_theme_option_monochrome">Монохромная</string>

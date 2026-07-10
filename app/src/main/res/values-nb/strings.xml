@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Lyst</string>
     <string name="settings_theme_option_dark">Mørkt</string>
+    <string name="settings_icon_shape_title">Ikonform</string>
+    <string name="settings_icon_shape_option_system">System</string>
+    <string name="settings_icon_shape_option_circle">Sirkel</string>
+    <string name="settings_icon_shape_option_squircle">Avrundet firkant</string>
     <string name="settings_icon_theme_title">Ikontema</string>
     <string name="settings_icon_theme_option_default">Standard</string>
     <string name="settings_icon_theme_option_monochrome">Monokrom</string>

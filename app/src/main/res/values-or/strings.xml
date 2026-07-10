@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">ସିଷ୍ଟମ୍</string>
     <string name="settings_theme_option_light">ହାଲୁକା</string>
     <string name="settings_theme_option_dark">ଗାଢ଼</string>
+    <string name="settings_icon_shape_title">ଆଇକନ୍ ଆକୃତି</string>
+    <string name="settings_icon_shape_option_system">ସିଷ୍ଟମ୍</string>
+    <string name="settings_icon_shape_option_circle">ବୃତ୍ତ</string>
+    <string name="settings_icon_shape_option_squircle">ଗୋଲାକାର ବର୍ଗ</string>
     <string name="settings_icon_theme_title">ଆଇକନ୍ ଥିମ୍</string>
     <string name="settings_icon_theme_option_default">ଡିଫଲ୍ଟ</string>
     <string name="settings_icon_theme_option_monochrome">ମୋନୋକ୍ରୋମ୍</string>

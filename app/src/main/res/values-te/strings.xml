@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">సిస్టమ్</string>
     <string name="settings_theme_option_light">కాంతి</string>
     <string name="settings_theme_option_dark">చీకటి</string>
+    <string name="settings_icon_shape_title">చిహ్నం ఆకారం</string>
+    <string name="settings_icon_shape_option_system">సిస్టమ్</string>
+    <string name="settings_icon_shape_option_circle">వృత్తం</string>
+    <string name="settings_icon_shape_option_squircle">గుండ్రని చతురస్రం</string>
     <string name="settings_icon_theme_title">ఐకాన్ థీమ్</string>
     <string name="settings_icon_theme_option_default">డిఫాల్ట్</string>
     <string name="settings_icon_theme_option_monochrome">మోనోక్రోమ్</string>
