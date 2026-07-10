@@ -225,6 +225,44 @@ class LauncherAppWidgetHostSizeCacheTest {
     }
 
     @Test
+    fun forgetAfterDeviceLanguageChange_stillRemovesThePersistedEntry() {
+        // `String.format("%d")` renders the default locale's digit glyphs, so
+        // an entry persisted under a Farsi device language used the Eastern
+        // Arabic key `size:۱۰۰`. Loading tolerated it (`toIntOrNull` parses
+        // Unicode digits), which masked the bug until the user switched the
+        // device to a Latin-digit language: `forgetWidgetSize` then removed
+        // the ASCII key, the old-locale entry survived forever, and the merge
+        // resurrected it on every start. Keys must be locale-independent.
+        val defaultLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("fa"))
+            val farsiHost = newHost(hostId = 12)
+            farsiHost.applyAppWidgetSizeIfChanged(
+                CountingHostView(context, farsiHost),
+                widgetId = 100,
+                widthDp = 320,
+                heightDp = 240,
+            )
+
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val englishHost = newHost(hostId = 12)
+            assertEquals(
+                "the persisted entry must load across the language change",
+                IntPairDp(320, 240),
+                englishHost.cachedSizeForTest(100),
+            )
+            englishHost.forgetWidgetSize(100)
+
+            assertNull(
+                "the persisted entry must not survive the forget",
+                newHost(hostId = 12).cachedSizeForTest(100),
+            )
+        } finally {
+            java.util.Locale.setDefault(defaultLocale)
+        }
+    }
+
+    @Test
     fun corruptPersistedValue_isIgnored() {
         // Pollute the prefs with a malformed value, then construct a host
         // and verify it loads cleanly without that entry.
