@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">Süsteem</string>
     <string name="settings_theme_option_light">Hele</string>
     <string name="settings_theme_option_dark">Tume</string>
+    <string name="settings_icon_shape_title">Ikooni kuju</string>
+    <string name="settings_icon_shape_option_system">Süsteem</string>
+    <string name="settings_icon_shape_option_circle">Ring</string>
+    <string name="settings_icon_shape_option_squircle">Ümardatud ruut</string>
     <string name="settings_icon_theme_title">Ikooniteema</string>
     <string name="settings_icon_theme_option_default">Vaikimisi</string>
     <string name="settings_icon_theme_option_monochrome">Monokroomne</string>

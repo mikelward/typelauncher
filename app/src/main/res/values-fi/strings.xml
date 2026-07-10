@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">Järjestelmä</string>
     <string name="settings_theme_option_light">Vaalea</string>
     <string name="settings_theme_option_dark">Tumma</string>
+    <string name="settings_icon_shape_title">Kuvakkeen muoto</string>
+    <string name="settings_icon_shape_option_system">Järjestelmä</string>
+    <string name="settings_icon_shape_option_circle">Ympyrä</string>
+    <string name="settings_icon_shape_option_squircle">Pyöristetty neliö</string>
     <string name="settings_icon_theme_title">Kuvaketeema</string>
     <string name="settings_icon_theme_option_default">Oletus</string>
     <string name="settings_icon_theme_option_monochrome">Yksivärinen</string>

@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">سیستم</string>
     <string name="settings_theme_option_light">روشن</string>
     <string name="settings_theme_option_dark">تیره</string>
+    <string name="settings_icon_shape_title">شکل نماد</string>
+    <string name="settings_icon_shape_option_system">سیستم</string>
+    <string name="settings_icon_shape_option_circle">دایره</string>
+    <string name="settings_icon_shape_option_squircle">مربع گرد</string>
     <string name="settings_icon_theme_title">تم نمادها</string>
     <string name="settings_icon_theme_option_default">پیش‌فرض</string>
     <string name="settings_icon_theme_option_monochrome">تک‌رنگ</string>

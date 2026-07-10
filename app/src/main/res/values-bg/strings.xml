@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">Системна</string>
     <string name="settings_theme_option_light">Светла</string>
     <string name="settings_theme_option_dark">Тъмна</string>
+    <string name="settings_icon_shape_title">Форма на иконата</string>
+    <string name="settings_icon_shape_option_system">Системна</string>
+    <string name="settings_icon_shape_option_circle">Кръг</string>
+    <string name="settings_icon_shape_option_squircle">Заоблен квадрат</string>
     <string name="settings_icon_theme_title">Тема на иконите</string>
     <string name="settings_icon_theme_option_default">По подразбиране</string>
     <string name="settings_icon_theme_option_monochrome">Монохромна</string>

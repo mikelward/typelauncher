@@ -122,6 +122,10 @@
     <string name="settings_theme_option_system">ລະບົບ</string>
     <string name="settings_theme_option_light">ສະຫວ່າງ</string>
     <string name="settings_theme_option_dark">ມືດ</string>
+    <string name="settings_icon_shape_title">ຮູບຊົງໄອຄອນ</string>
+    <string name="settings_icon_shape_option_system">ລະບົບ</string>
+    <string name="settings_icon_shape_option_circle">ວົງມົນ</string>
+    <string name="settings_icon_shape_option_squircle">ສີ່ຫຼ່ຽມມົນ</string>
     <string name="settings_icon_theme_title">ຮູບແບບໄອຄອນ</string>
     <string name="settings_icon_theme_option_default">ຄ່າເລີ່ມຕົ້ນ</string>
     <string name="settings_icon_theme_option_monochrome">ສີດຽວ</string>

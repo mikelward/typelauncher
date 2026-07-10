@@ -124,6 +124,10 @@
     <string name="settings_theme_option_system">Sustav</string>
     <string name="settings_theme_option_light">Svijetla</string>
     <string name="settings_theme_option_dark">Tamna</string>
+    <string name="settings_icon_shape_title">Oblik ikone</string>
+    <string name="settings_icon_shape_option_system">Sustav</string>
+    <string name="settings_icon_shape_option_circle">Krug</string>
+    <string name="settings_icon_shape_option_squircle">Zaobljeni kvadrat</string>
     <string name="settings_icon_theme_title">Tema ikona</string>
     <string name="settings_icon_theme_option_default">Zadana</string>
     <string name="settings_icon_theme_option_monochrome">Monokromatska</string>

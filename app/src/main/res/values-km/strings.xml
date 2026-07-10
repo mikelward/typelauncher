@@ -122,6 +122,10 @@
     <string name="settings_theme_option_system">ប្រព័ន្ធ</string>
     <string name="settings_theme_option_light">ភ្លឺ</string>
     <string name="settings_theme_option_dark">ងងឹត</string>
+    <string name="settings_icon_shape_title">រូបរាងរូបតំណាង</string>
+    <string name="settings_icon_shape_option_system">ប្រព័ន្ធ</string>
+    <string name="settings_icon_shape_option_circle">រង្វង់</string>
+    <string name="settings_icon_shape_option_squircle">ការេជ្រុងមូល</string>
     <string name="settings_icon_theme_title">រូបរាងរូបតំណាង</string>
     <string name="settings_icon_theme_option_default">លំនាំដើម</string>
     <string name="settings_icon_theme_option_monochrome">ពណ៌តែមួយ</string>

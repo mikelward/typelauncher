@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">கணினி</string>
     <string name="settings_theme_option_light">வெளிச்சம்</string>
     <string name="settings_theme_option_dark">இருள்</string>
+    <string name="settings_icon_shape_title">ஐகான் வடிவம்</string>
+    <string name="settings_icon_shape_option_system">கணினி</string>
+    <string name="settings_icon_shape_option_circle">வட்டம்</string>
+    <string name="settings_icon_shape_option_squircle">வட்டமான சதுரம்</string>
     <string name="settings_icon_theme_title">படவுரு தீம்</string>
     <string name="settings_icon_theme_option_default">இயல்புநிலை</string>
     <string name="settings_icon_theme_option_monochrome">மோனோக்ரோம்</string>

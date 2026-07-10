@@ -123,6 +123,10 @@
     <string name="settings_theme_option_system">सिस्टम</string>
     <string name="settings_theme_option_light">हलका</string>
     <string name="settings_theme_option_dark">गडद</string>
+    <string name="settings_icon_shape_title">चिन्हाचा आकार</string>
+    <string name="settings_icon_shape_option_system">सिस्टम</string>
+    <string name="settings_icon_shape_option_circle">वर्तुळ</string>
+    <string name="settings_icon_shape_option_squircle">गोलाकार चौरस</string>
     <string name="settings_icon_theme_title">आयकॉन थीम</string>
     <string name="settings_icon_theme_option_default">डीफॉल्ट</string>
     <string name="settings_icon_theme_option_monochrome">मोनोक्रोम</string>

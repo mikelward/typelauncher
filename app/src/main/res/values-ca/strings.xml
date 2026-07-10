@@ -124,6 +124,10 @@
     <string name="settings_theme_option_system">Sistema</string>
     <string name="settings_theme_option_light">Clar</string>
     <string name="settings_theme_option_dark">Fosc</string>
+    <string name="settings_icon_shape_title">Forma de la icona</string>
+    <string name="settings_icon_shape_option_system">Sistema</string>
+    <string name="settings_icon_shape_option_circle">Cercle</string>
+    <string name="settings_icon_shape_option_squircle">Quadrat arrodonit</string>
     <string name="settings_icon_theme_title">Tema de les icones</string>
     <string name="settings_icon_theme_option_default">Per defecte</string>
     <string name="settings_icon_theme_option_monochrome">Monocrom</string>

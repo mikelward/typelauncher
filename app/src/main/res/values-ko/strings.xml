@@ -122,6 +122,10 @@
     <string name="settings_theme_option_system">시스템</string>
     <string name="settings_theme_option_light">밝게</string>
     <string name="settings_theme_option_dark">어둡게</string>
+    <string name="settings_icon_shape_title">아이콘 모양</string>
+    <string name="settings_icon_shape_option_system">시스템</string>
+    <string name="settings_icon_shape_option_circle">원</string>
+    <string name="settings_icon_shape_option_squircle">둥근 사각형</string>
     <string name="settings_icon_theme_title">아이콘 테마</string>
     <string name="settings_icon_theme_option_default">기본값</string>
     <string name="settings_icon_theme_option_monochrome">단색</string>
