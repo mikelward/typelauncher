@@ -721,6 +721,147 @@ class CarouselScreenSyncRaceTest {
         assertEquals(LauncherDestination.Widgets(0), state.destination)
     }
 
+    @Test
+    fun navigationLandingDuringSnapBackStillSyncsTheCarousel() {
+        // Regression: a destination change that lands while a *non-committed*
+        // release is snapping back (transition stays Idle, but the animation
+        // job is running and the offset is mid-flight) used to be dropped
+        // forever — the sync effect bailed on the in-flight animation and
+        // nothing re-ran it once the snap-back finished, leaving the carousel
+        // on Widgets while state said Home. From there the claim gate's
+        // currentLauncherPage == candidatePage check refused every swipe.
+        // Reachable by pressing the home button inside the ~200 ms snap-back
+        // window after an under-threshold drag.
+        var state by mutableStateOf(LauncherUiState(destination = LauncherDestination.Widgets()))
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val widgetsPage = carousel.carouselVirtualPage()
+
+        composeRule.mainClock.autoAdvance = false
+        // An under-threshold drag: ~210 px is well below the pageWidth/2
+        // commit distance at this qualifier, and the trailing crawl decays
+        // the release velocity below the fling bar, so the release snaps
+        // back rather than committing.
+        carousel.performTouchInput {
+            down(center)
+            moveBy(Offset(-200f, 0f))
+            repeat(10) { moveBy(Offset(-1f, 0f)) }
+            up()
+        }
+        composeRule.mainClock.advanceTimeByFrame()
+        // The home press lands while the snap-back is still animating.
+        state = state.copy(destination = LauncherDestination.Home)
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "A Home navigation landing during snap-back must sync the carousel once the snap-back ends",
+            widgetsPage - 1,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherDestination.Home, state.destination)
+    }
+
+    @Test
+    fun navigationLandingDuringExternalSettleStillSyncsTheCarousel() {
+        // Same dropped-window regression, external-animation flavor: a second
+        // external destination change arriving while the first is still
+        // animating used to be swallowed by the effect's ExternalAnimating
+        // bail, with nothing re-running the sync when the settle finished.
+        var state by mutableStateOf(LauncherUiState())
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TypeLauncherApp(
+                    state = state,
+                    onQueryChanged = {},
+                    onClearQuery = {},
+                    onLaunchActiveApp = {},
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onHideApp = {},
+                    onUnhideApp = {},
+                    onOpenSettings = {},
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onShowAgenda = { state = state.copy(destination = LauncherDestination.Agenda) },
+                    onShowWidgets = { state = state.copy(destination = LauncherDestination.Widgets()) },
+                    onShowHome = { state = state.copy(destination = LauncherDestination.Home) },
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRequestCalendarPermission = {},
+                    onOpenAgendaEvent = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        val carousel = composeRule.onNodeWithTag(CAROUSEL_TAG)
+        val homePage = carousel.carouselVirtualPage()
+
+        composeRule.mainClock.autoAdvance = false
+        state = state.copy(destination = LauncherDestination.Widgets())
+        composeRule.mainClock.advanceTimeByFrame()
+        // A second navigation lands while the Home -> Widgets settle is
+        // still animating.
+        state = state.copy(destination = LauncherDestination.Agenda)
+        composeRule.mainClock.advanceTimeBy(2_000)
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(
+            "An Agenda navigation landing during the Widgets settle must sync once the settle ends",
+            homePage + 2,
+            carousel.carouselVirtualPage(),
+        )
+        assertEquals(LauncherDestination.Agenda, state.destination)
+    }
+
     private fun SemanticsNodeInteraction.carouselVirtualPage(): Int =
         fetchSemanticsNode().config[CarouselVirtualPageKey]
 }
