@@ -269,19 +269,30 @@ internal class DockedAppStore(
     }
 
     /**
-     * Move [appId] to [targetIndex] within [folderId]'s member order (a no-op if
-     * the folder or app is gone, or the index is unchanged). Backs the Overlay
-     * folder card's drag-to-reorder. The index is clamped into range.
+     * Move [appId] onto [targetMemberId]'s position within [folderId]'s member
+     * order (a no-op if the folder or either app is gone, or they already
+     * coincide). Backs the Overlay folder card's drag-to-reorder.
+     *
+     * The target is named by id, not by index: the open-folder UI renders a
+     * *filtered* member list (hidden apps and quiet-profile work apps are
+     * dropped), so an index into the displayed grid does not match a position
+     * in the unfiltered [memberAppIds] whenever the folder holds an invisible
+     * member — a display-index reorder then lands in the wrong cell or
+     * silently no-ops. "Put [appId] where [targetMemberId] sits" is exact in
+     * both lists.
      */
-    fun reorderFolderMember(folderId: String, appId: String, targetIndex: Int) = synchronized(lock) {
+    fun reorderFolderMember(folderId: String, appId: String, targetMemberId: String) = synchronized(lock) {
         val folder = folders[folderId] ?: return@synchronized
         val currentIndex = folder.memberAppIds.indexOf(appId)
-        if (currentIndex < 0) return@synchronized
-        val clamped = targetIndex.coerceIn(0, folder.memberAppIds.size - 1)
-        if (clamped == currentIndex) return@synchronized
+        val targetIndex = folder.memberAppIds.indexOf(targetMemberId)
+        if (currentIndex < 0 || targetIndex < 0 || currentIndex == targetIndex) return@synchronized
         val reordered = folder.memberAppIds.toMutableList()
         reordered.removeAt(currentIndex)
-        reordered.add(clamped, appId)
+        // `targetIndex` was measured before the removal, so inserting at it
+        // post-removal lands the member exactly on the target's old slot:
+        // dragging right places it after the target, dragging left before it
+        // — the same geometry as the previous index-based remove-then-insert.
+        reordered.add(targetIndex, appId)
         folders[folderId] = folder.copy(memberAppIds = reordered)
         save()
     }
