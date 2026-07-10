@@ -68,6 +68,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -1035,12 +1036,9 @@ private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context:
 
 private fun WidgetProvider.icon(): Drawable? = icon ?: appIcon
 
+@Composable
 private fun widgetProviderCountLabel(providerCount: Int): String =
-    if (providerCount == 1) {
-        "1 widget"
-    } else {
-        "$providerCount widgets"
-    }
+    pluralStringResource(R.plurals.widgets_picker_widget_count, providerCount, providerCount)
 
 private const val ADD_WIDGET_CARD_HEIGHT_DP = 112
 
