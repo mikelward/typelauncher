@@ -45,7 +45,18 @@ internal class IconOverrideStore(context: Context) {
         index?.let { return it }
         val built = mutableMapOf<String, File>()
         directory.listFiles().orEmpty().forEach { file ->
-            if (!file.isFile || file.name.endsWith(TMP_SUFFIX)) return@forEach
+            if (!file.isFile) return@forEach
+            if (file.name.endsWith(TMP_SUFFIX)) {
+                // Orphaned by a crash mid-[setIcon]: nothing references it
+                // again (a retried save writes its own tmp), so delete on
+                // sight rather than let it accumulate for the process's
+                // lifetime — the same policy IconSnapshotStore applies to
+                // its stray tmp files. Safe against an in-flight save: this
+                // scan runs once per process, at first lookup, which
+                // precedes any user-initiated icon pick.
+                file.delete()
+                return@forEach
+            }
             val stem = file.name.substringBeforeLast('.', missingDelimiterValue = "")
             val id = if (stem.isEmpty()) null else decodeAppIdFromFileName(stem)
             if (id != null) built[id] = file
@@ -74,22 +85,47 @@ internal class IconOverrideStore(context: Context) {
         val tmp = File(directory, target.name + TMP_SUFFIX)
         try {
             tmp.outputStream().use { output -> source.copyTo(output) }
-            // Drop any existing override files for this app id so only the
-            // freshly-picked one survives; otherwise switching between e.g. an
-            // SVG override and a PNG override would leave the older file
-            // behind, and `iconFileFor` would non-deterministically pick one.
-            val prefix = encodeAppIdForFileName(appId) + "."
-            directory.listFiles { file ->
-                file.isFile && file.name != tmp.name && file.name.startsWith(prefix)
-            }?.forEach { it.delete() }
-            if (target.exists()) target.delete()
-            if (!tmp.renameTo(target)) {
-                tmp.inputStream().use { input ->
-                    target.outputStream().use { output -> input.copyTo(output) }
+            // Commit under `lock` so a concurrent [clear] (main thread —
+            // the user tapping "Reset icon" while this save streams on the
+            // IO dispatcher) can't interleave between the rename and the
+            // index update: unsynchronized, the clear's file sweep could
+            // run between them and leave the index mapping to a deleted
+            // file — or the rename could land after the sweep and leave an
+            // on-disk file that resurrects the cleared override on the
+            // next cold start. With the lock, a clear either runs before
+            // the commit (it deletes `tmp`, the rename fails, and this
+            // save fails cleanly — the reset wins) or after it (a normal
+            // clear of the fresh override). Only the fast local-FS commit
+            // runs under the lock, never the source stream copy above, so
+            // main-thread lookups can't stall behind a slow content
+            // provider.
+            synchronized(lock) {
+                // `renameTo` atomically replaces an existing same-name
+                // target, so a same-extension replacement keeps the prior
+                // override on disk until the very moment the new one takes
+                // its place — a failure before this line loses nothing.
+                if (!tmp.renameTo(target)) {
+                    tmp.inputStream().use { input ->
+                        target.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    tmp.delete()
                 }
-                tmp.delete()
+                // Only after the new file is in place, drop other-extension
+                // override files for this app id so only the freshly-picked
+                // one survives; otherwise switching between e.g. an SVG
+                // override and a PNG override would leave the older file
+                // behind, and `iconFileFor` would non-deterministically
+                // pick one. Sweeping before the commit destroyed the
+                // existing override when the commit then failed.
+                val prefix = encodeAppIdForFileName(appId) + "."
+                directory.listFiles { file ->
+                    file.isFile &&
+                        file.name != target.name &&
+                        file.name != tmp.name &&
+                        file.name.startsWith(prefix)
+                }?.forEach { it.delete() }
+                index()[appId] = target
             }
-            synchronized(lock) { index()[appId] = target }
             return target
         } catch (t: Throwable) {
             tmp.delete()
@@ -98,11 +134,18 @@ internal class IconOverrideStore(context: Context) {
     }
 
     fun clear(appId: String) {
-        synchronized(lock) { index().remove(appId) }
-        if (!directory.isDirectory) return
-        val prefix = encodeAppIdForFileName(appId) + "."
-        directory.listFiles { file -> file.name.startsWith(prefix) }
-            ?.forEach { it.delete() }
+        synchronized(lock) {
+            index().remove(appId)
+            if (!directory.isDirectory) return
+            // The file sweep shares the index's lock so it is atomic with
+            // respect to [setIcon]'s commit — see the comment there. The
+            // prefix match also catches an in-flight save's `.tmp`, which
+            // makes that save fail cleanly instead of re-creating the
+            // override the user just reset.
+            val prefix = encodeAppIdForFileName(appId) + "."
+            directory.listFiles { file -> file.name.startsWith(prefix) }
+                ?.forEach { it.delete() }
+        }
     }
 
     /**

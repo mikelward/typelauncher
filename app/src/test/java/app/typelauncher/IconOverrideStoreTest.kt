@@ -110,10 +110,67 @@ class IconOverrideStoreTest {
         // file in the directory must not be returned by `iconFileFor` and must
         // not appear in `overriddenAppIds`.
         directory.mkdirs()
-        File(directory, "garbage.png.tmp").writeText("partial")
+        val stray = File(directory, "garbage.png.tmp")
+        stray.writeText("partial")
         val store = IconOverrideStore(context)
 
         assertNull(store.iconFileFor("anything"))
         assertFalse("tmp filenames should not surface as app ids", store.overriddenAppIds().any { it.contains("tmp") })
+        // Nothing ever references the orphan again (a retried save writes its
+        // own tmp), so the scan deletes it rather than leaving it to
+        // accumulate across crashes for the install's lifetime.
+        assertFalse("orphaned tmp files should be deleted by the scan", stray.exists())
+    }
+
+    @Test
+    fun resetDuringInFlightSaveWins() {
+        // The user picks a new icon (the save streams on the IO dispatcher)
+        // and taps "Reset icon" while the copy is still in flight. The reset
+        // must win: the save fails cleanly instead of committing a file the
+        // store's index no longer knows about — which used to resurrect the
+        // cleared override on the next cold start.
+        val store = IconOverrideStore(context)
+        val appId = "0:com.example/Main"
+        store.setIcon(appId, "old".byteInputStream(), "png")
+
+        val sourceStarted = java.util.concurrent.CountDownLatch(1)
+        val resetDone = java.util.concurrent.CountDownLatch(1)
+        // Blocks mid-copy until the main thread has cleared the override,
+        // deterministically interleaving the reset before the save's commit.
+        val blockedSource = object : java.io.InputStream() {
+            private var emitted = false
+            override fun read(): Int {
+                if (!emitted) {
+                    emitted = true
+                    sourceStarted.countDown()
+                    resetDone.await()
+                    return 'x'.code
+                }
+                return -1
+            }
+        }
+        var saveError: Throwable? = null
+        val saver = Thread {
+            try {
+                store.setIcon(appId, blockedSource, "svg")
+            } catch (t: Throwable) {
+                saveError = t
+            }
+        }
+        saver.start()
+        sourceStarted.await()
+        store.clear(appId)
+        resetDone.countDown()
+        saver.join()
+
+        assertNotNull("the interrupted save must fail rather than commit", saveError)
+        assertNull("the reset must win over the in-flight save", store.iconFileFor(appId))
+        assertEquals(
+            "no override file may survive for the cleared id",
+            emptyList<File>(),
+            directory.listFiles().orEmpty().filter { !it.name.endsWith(".tmp") },
+        )
+        // A process restart must agree: nothing on disk to resurrect.
+        assertNull(IconOverrideStore(context).iconFileFor(appId))
     }
 }
