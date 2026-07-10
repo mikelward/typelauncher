@@ -84,10 +84,7 @@ internal data class InstalledApp(
     // token — "Amex UK" with a "UK" badge stays "Amex UK" rather than
     // becoming the redundant "Amex UK (UK)".
     val displayName: String
-        get() {
-            customName?.takeIf { it.isNotBlank() }?.let { return it }
-            return displayBase.withDisambiguator()
-        }
+        get() = effectiveCustomName ?: displayBase.withDisambiguator()
 
     // Extra label the typed-search filter matches against so a work-profile
     // app's "Work " prefix never demotes the match tier: it lets a query
@@ -102,10 +99,17 @@ internal data class InstalledApp(
     val workPrefixStrippedSearchName: String?
         get() {
             if (!isWorkApp) return null
-            if (customName?.takeIf { it.isNotBlank() } != null) return null
+            if (effectiveCustomName != null) return null
             if (unprefixedName == displayBase) return null
             return unprefixedName.withDisambiguator()
         }
+
+    // The user's rename, when one is set. [RenamedAppStore] only persists
+    // non-blank trimmed names, but `customName` also arrives via plain
+    // constructor calls, so the non-blank rule is re-enforced here — in one
+    // place — rather than trusted at each read site.
+    private val effectiveCustomName: String?
+        get() = customName?.takeIf { it.isNotBlank() }
 
     // Appends the parenthesised disambiguator (e.g. "Chase (US)") when this app
     // shares an icon-level identity with peers. Skips the suffix if the
@@ -134,7 +138,7 @@ internal data class InstalledApp(
      */
     val effectiveDisambiguator: String?
         get() {
-            val customLabel = customName?.takeIf { it.isNotBlank() }
+            val customLabel = effectiveCustomName
                 ?: return disambiguator?.takeIf { it.isNotEmpty() }
             return parseTrailingDisambiguatorTag(customLabel)
         }
