@@ -374,17 +374,31 @@ internal open class LauncherAppWidgetHostView(
             MotionEvent.ACTION_CANCEL -> {
                 host.onChildScrollChange?.invoke(false)
                 removeCallbacks(checkLongPress)
-                // This is the path a Compose ancestor (the carousel) that has
-                // consumed the gesture elsewhere is expected to reach via a
-                // synthetic ACTION_CANCEL, distinct from a real finger lift —
-                // see checkLongPress's doc for why this line exists. Gated on
-                // longPressTimerArmedForLogging (see the onInterceptTouchEvent
-                // MOVE branch's doc) so this only logs when it actually
-                // cancelled a still-armed timer.
-                if (ev.actionMasked == MotionEvent.ACTION_CANCEL && longPressTimerArmedForLogging) {
+                // This backstop is also the *only* place that ever sees
+                // UP/CANCEL for a gesture whose ACTION_DOWN never landed on a
+                // child (a gap or non-interactive area of the widget's
+                // RemoteViews content): per ViewGroup.dispatchTouchEvent,
+                // onInterceptTouchEvent is only called again for a later
+                // event when mFirstTouchTarget is non-null, so with no touch
+                // target ever established, its MOVE-slop and UP/CANCEL
+                // branches above never run for that gesture. Logging both
+                // actions here (not just CANCEL) — labelled separately so a
+                // synthetic ACTION_CANCEL (the carousel claiming the gesture
+                // elsewhere, per checkLongPress's doc) stays distinguishable
+                // from a real finger lift — keeps that gesture shape from
+                // showing an armed timer with no matching cancel in the log.
+                // Gated on longPressTimerArmedForLogging (see the
+                // onInterceptTouchEvent MOVE branch's doc) so this only logs
+                // when it actually cancelled a still-armed timer.
+                if (longPressTimerArmedForLogging) {
                     longPressTimerArmedForLogging = false
+                    val source = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        "dispatchCancel"
+                    } else {
+                        "dispatchUp"
+                    }
                     LauncherDebugLog.event(
-                        "LauncherAppWidgetHostView longPressTimer cancelled(dispatchCancel) widgetId=$appWidgetId",
+                        "LauncherAppWidgetHostView longPressTimer cancelled($source) widgetId=$appWidgetId",
                     )
                 }
             }
