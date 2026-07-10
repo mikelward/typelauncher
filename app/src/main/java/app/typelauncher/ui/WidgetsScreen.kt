@@ -156,6 +156,7 @@ internal fun WidgetsScreen(
                 onMoveWidget = onMoveWidget,
                 workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
                 resolvedProviderInfos = resolvedProviderInfos,
+                isCurrentPage = isCurrentPage,
             )
         }
         if (isAddingWidget) {
@@ -616,6 +617,17 @@ internal fun HostedWidgetCard(
     // is the long-press menu's Resize item, which Robolectric can't drive
     // through the host view's View-level long-press detection.
     initiallyResizing: Boolean = false,
+    // Starts the card with its actions menu open. Test seam: the production
+    // entry point is the host view's View-level long-press detection, which
+    // Robolectric can't drive directly.
+    initiallyMenuExpanded: Boolean = false,
+    // Whether this card's page is the carousel's current page. False once the
+    // page has settled off-screen (see WidgetsScreen's `isCurrentPage` doc) —
+    // used to close the actions menu so a `DropdownMenu` popup, which does
+    // not track its anchor's carousel `graphicsLayer` translation, can never
+    // freeze at a stale screen position and reappear over whichever page
+    // later settles under it.
+    isCurrentPage: Boolean = true,
     // Test seam: replaces the initial provider-info lookup so a test can hold
     // the card in its resolving state deterministically. Default null = the
     // real AppWidgetManager lookup on Dispatchers.IO.
@@ -697,7 +709,20 @@ internal fun HostedWidgetCard(
         )
         return
     }
-    var menuExpanded by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(initiallyMenuExpanded) }
+    // Close the menu the moment this card's page stops being current. A
+    // `DropdownMenu` popup positions itself once from the anchor's
+    // `LayoutCoordinates` and does not re-track a later `graphicsLayer`-only
+    // translation (the carousel's page-slide is exactly that: a draw-phase
+    // transform with no new layout pass), so a menu left open while paging
+    // away stays frozen at its original screen position — then reappears,
+    // looking like a spurious long-press menu, once another page settles
+    // under that stale spot. Keyed on isCurrentPage alone, matching the
+    // scroll-position reset above, so opening the menu while the page stays
+    // current is unaffected.
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) menuExpanded = false
+    }
     if (appWidgetHost == null || providerInfo == null) {
         Box {
             SectionCard(
