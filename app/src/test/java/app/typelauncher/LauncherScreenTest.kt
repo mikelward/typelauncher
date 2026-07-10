@@ -7,27 +7,42 @@ class LauncherScreenTest {
     @Test
     fun disabledAgendaCarouselWrapsBetweenHomeAndWidgets() {
         val homePage = LauncherScreen.initialCarouselPage(
-            screen = LauncherScreen.Home,
+            page = LauncherPage(LauncherScreen.Home),
+            widgetPageCount = 1,
             isAgendaEnabled = false,
         )
 
-        assertEquals(LauncherScreen.Home, LauncherScreen.fromCarouselPage(homePage, isAgendaEnabled = false))
-        assertEquals(LauncherScreen.Widgets, LauncherScreen.fromCarouselPage(homePage + 1, isAgendaEnabled = false))
-        assertEquals(LauncherScreen.Home, LauncherScreen.fromCarouselPage(homePage + 2, isAgendaEnabled = false))
-        assertEquals(LauncherScreen.Widgets, LauncherScreen.fromCarouselPage(homePage - 1, isAgendaEnabled = false))
+        assertEquals(
+            LauncherPage(LauncherScreen.Home),
+            LauncherScreen.fromCarouselPage(homePage, 1, isAgendaEnabled = false),
+        )
+        assertEquals(
+            LauncherPage(LauncherScreen.Widgets, 0),
+            LauncherScreen.fromCarouselPage(homePage + 1, 1, isAgendaEnabled = false),
+        )
+        assertEquals(
+            LauncherPage(LauncherScreen.Home),
+            LauncherScreen.fromCarouselPage(homePage + 2, 1, isAgendaEnabled = false),
+        )
+        assertEquals(
+            LauncherPage(LauncherScreen.Widgets, 0),
+            LauncherScreen.fromCarouselPage(homePage - 1, 1, isAgendaEnabled = false),
+        )
     }
 
     @Test
     fun disabledAgendaInitialPageFallsBackToHome() {
         val homePage = LauncherScreen.initialCarouselPage(
-            screen = LauncherScreen.Home,
+            page = LauncherPage(LauncherScreen.Home),
+            widgetPageCount = 1,
             isAgendaEnabled = false,
         )
 
         assertEquals(
             homePage,
             LauncherScreen.initialCarouselPage(
-                screen = LauncherScreen.Agenda,
+                page = LauncherPage(LauncherScreen.Agenda),
+                widgetPageCount = 1,
                 isAgendaEnabled = false,
             ),
         )
