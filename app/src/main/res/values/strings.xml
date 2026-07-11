@@ -78,9 +78,9 @@
     <string name="widgets_picker_done">Done</string>
     <string name="widgets_picker_empty_title">No widgets available</string>
     <string name="widgets_picker_empty_body">Install apps with widgets to add them here.</string>
-    <string name="widgets_picker_no_matches_title">No matching apps</string>
-    <string name="widgets_picker_no_matches_body">Try a shorter app name or clear the filter.</string>
-    <string name="widgets_picker_filter_hint">Filter by app name</string>
+    <string name="widgets_picker_no_matches_title">No matching widgets</string>
+    <string name="widgets_picker_no_matches_body">Try a shorter name or clear the filter.</string>
+    <string name="widgets_picker_filter_hint">Type an app or widget name</string>
     <string name="widgets_picker_filter_clear_description">Clear filter</string>
     <string name="widgets_picker_size_label">%1$dx%2$d</string>
     <string name="widgets_picker_padded_note">Very small, will be padded</string>
