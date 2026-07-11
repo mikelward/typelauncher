@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -135,7 +136,7 @@ class WidgetsScreenTest {
 
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("zzz")
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("No matching apps").assertIsDisplayed()
+        composeRule.onNodeWithText("No matching widgets").assertIsDisplayed()
 
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_CLEAR_TAG).performClick()
         composeRule.waitForIdle()
@@ -186,7 +187,7 @@ class WidgetsScreenTest {
         // "ass" doesn't anchor against any of the three (the 'a' inside
         // "1password" / "BofA" is mid-word lowercase or unreachable), but
         // "1password" contains the literal substring, so the picker now shows
-        // it via the substring tier instead of "No matching apps".
+        // it via the substring tier instead of "No matching widgets".
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("ass")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:1password").assertIsDisplayed()
@@ -196,7 +197,137 @@ class WidgetsScreenTest {
         // A query with no tier match anywhere still shows the empty state.
         composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("zzz")
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("No matching apps").assertIsDisplayed()
+        composeRule.onNodeWithText("No matching widgets").assertIsDisplayed()
+    }
+
+    @Test
+    fun widgetPicker_findsGroupByWidgetLabelWhenAppNameDoesNotMatch() {
+        // "Calendar" has an "Agenda" widget; the app name never mentions
+        // "agenda", so matching only by app name would hide it. The label match
+        // surfaces the Calendar group, and — because the app name itself did not
+        // match — narrows it to just the matching widget.
+        val month = fakeWidgetProvider(appName = "Calendar", label = "Month view")
+        val agenda = fakeWidgetProvider(appName = "Calendar", label = "Agenda")
+        val clock = fakeWidgetProvider(appName = "Clock", label = "Analog clock")
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(month, agenda, clock),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextInput("agenda")
+        composeRule.waitForIdle()
+
+        // The Calendar group shows via its Agenda widget; Clock has no match.
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock").assertDoesNotExist()
+
+        // Only the matching widget is kept when the app name itself didn't match.
+        composeRule.onNodeWithText("1 widget").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${agenda.id}")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${month.id}").assertDoesNotExist()
+    }
+
+    @Test
+    fun widgetPicker_keepsAllWidgetsWhenAppNameMatches() {
+        // When the app name matches, the whole group is kept even though only
+        // one of its widget labels would match the query on its own.
+        val month = fakeWidgetProvider(appName = "Calendar", label = "Month view")
+        val agenda = fakeWidgetProvider(appName = "Calendar", label = "Agenda")
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(month, agenda),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextInput("cal")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("2 widgets").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${month.id}")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_PROVIDER_ROW_TAG:${agenda.id}")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun widgetPicker_ranksGroupByBestHitAcrossAppNameAndWidgetLabels() {
+        // "Weather Mail" matches the query "mail" only at the weaker anchored
+        // tier via its app name, but its "Mail digest" widget is a prefix hit —
+        // a stronger match. "Notes" doesn't match by app name at all, but its
+        // "Mailer" widget is also a prefix hit. Ranking by the best match across
+        // app name and widget labels puts both groups at the prefix tier, so the
+        // first one listed ("Weather Mail") sorts above "Notes". Before the fix
+        // the app-name group was ranked by its anchored app tier alone and sank
+        // below the label-only prefix match.
+        val weatherMail = fakeWidgetProvider(appName = "Weather Mail", label = "Mail digest")
+        val notesMailer = fakeWidgetProvider(appName = "Notes", label = "Mailer")
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(weatherMail, notesMailer),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextInput("mail")
+        composeRule.waitForIdle()
+
+        val weatherMailTop = composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Weather Mail")
+            .fetchSemanticsNode().boundsInRoot.top
+        val notesTop = composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Notes")
+            .fetchSemanticsNode().boundsInRoot.top
+        assertTrue(
+            "Weather Mail (prefix widget hit) should sort above Notes",
+            weatherMailTop < notesTop,
+        )
     }
 
     @Test

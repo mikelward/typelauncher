@@ -235,7 +235,6 @@ private fun WidgetPickerCard(
                     expandedGroupKey = null
                 },
             )
-            // TODO: also filter individual widget labels within an app group, not just the app group names.
             val trimmedQuery = filterQuery.trim()
             // Group key includes the work-profile flag so the personal and work
             // copies of the same package render as distinct sections and bind
@@ -248,11 +247,38 @@ private fun WidgetPickerCard(
                     } else {
                         groups.entries
                             .mapNotNull { entry ->
-                                entry.key.appName.launcherMatchTier(trimmedQuery)
-                                    ?.let { tier -> entry to tier }
+                                // A group surfaces when its app name matches — in
+                                // which case every widget in the group is kept, as
+                                // if the app itself were the hit — or, failing
+                                // that, when any individual widget label matches,
+                                // in which case only the matching widgets are kept
+                                // so an "agenda" search finds the Calendar app's
+                                // Agenda widget without the app name mentioning it.
+                                val appTier = entry.key.appName.launcherMatchTier(trimmedQuery)
+                                val labelMatches = entry.value.mapNotNull { provider ->
+                                    provider.label.launcherMatchTier(trimmedQuery)
+                                        ?.let { tier -> provider to tier }
+                                }
+                                val bestLabelTier = labelMatches
+                                    .minByOrNull { (_, tier) -> tier.ordinal }
+                                    ?.second
+                                // Rank the group by its single best hit across the
+                                // app name and every widget label, so a strong
+                                // widget-label match (e.g. a prefix) still outranks
+                                // a weaker app-name match (e.g. an anchored hit) —
+                                // not just whichever kind of hit was checked first.
+                                val bestTier = listOfNotNull(appTier, bestLabelTier)
+                                    .minByOrNull { it.ordinal }
+                                    ?: return@mapNotNull null
+                                val providers = if (appTier != null) {
+                                    entry.value
+                                } else {
+                                    labelMatches.map { (provider, _) -> provider }
+                                }
+                                Triple(entry.key, providers, bestTier)
                             }
-                            .sortedBy { (_, tier) -> tier.ordinal }
-                            .associate { (entry, _) -> entry.toPair() }
+                            .sortedBy { (_, _, tier) -> tier.ordinal }
+                            .associate { (key, providers, _) -> key to providers }
                     }
                 }
             if (filteredGroups.isEmpty()) {
