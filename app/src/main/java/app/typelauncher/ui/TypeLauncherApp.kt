@@ -1610,12 +1610,14 @@ private fun SwipeNavigationBox(
                     } while (event.changes.any { it.pressed })
 
                     if (!carouselClaimed) {
-                        val settleTargetPage = when (val transition = carouselTransition) {
-                            is CarouselTransitionState.UserAnimating -> transition.targetPage
-                            is CarouselTransitionState.ExternalAnimating -> transition.targetPage
-                            is CarouselTransitionState.AwaitingAck -> transition.settledPage
-                            CarouselTransitionState.Idle -> null
-                        }
+                        val settleTargetPage = carouselSettleTargetPage(
+                            transition = carouselTransition,
+                            // Idle + an active animation job is the tail of an
+                            // uncommitted snap-back — queue the flick against the
+                            // page it's settling back to instead of dropping it.
+                            isSettleAnimationActive = carouselAnimationJob?.isActive == true,
+                            settledPage = currentPage,
+                        )
                         if (owner == LauncherGestureOwner.HorizontalLauncher &&
                             !barReservedGesture &&
                             !dockDraggedDuringGesture &&
@@ -1720,6 +1722,18 @@ private fun SwipeNavigationBox(
                             // preempting this one) still flushes parked
                             // RemoteViews.
                             currentOnCarouselGestureEnded()
+                        }
+                        if (!willChangePage) {
+                            // Uncommitted snap-back completed normally (a
+                            // cancellation would have propagated past this
+                            // point). The transition stayed Idle throughout, so
+                            // neither the AwaitingAck resolve nor the external-
+                            // animation completion replays a flick queued while
+                            // the carousel was settling back — replay it here
+                            // from the page we returned to. A no-queue snap-back
+                            // no-ops. Runs after the finally above, so the fresh
+                            // gesture's defer-apply window opens on a clean slate.
+                            playQueuedSettleSwipe(gestureStartPage, pageWidthPx)
                         }
                     })
                     releaseAnimationLaunched = true
@@ -1997,7 +2011,7 @@ private class ScrollConsumptionTracker {
     }
 }
 
-private sealed interface CarouselTransitionState {
+internal sealed interface CarouselTransitionState {
     data object Idle : CarouselTransitionState
 
     data class UserAnimating(
@@ -2014,6 +2028,34 @@ private sealed interface CarouselTransitionState {
         val settledPage: Int,
         val expectedPage: LauncherPage,
     ) : CarouselTransitionState
+}
+
+/**
+ * The carousel page a launcher-owned horizontal swipe should be queued against
+ * when it is released while the carousel is still settling, or `null` when the
+ * swipe should just be dropped.
+ *
+ * The three explicit transition states carry their own in-flight target. The
+ * subtle case is [CarouselTransitionState.Idle] *with a settle animation still
+ * running* ([isSettleAnimationActive]): that is the tail of an **uncommitted
+ * snap-back** — a claimed drag released short of committing, animating back to
+ * [settledPage] without ever setting a transition. A flick that lands in that
+ * window can't claim (the claim gate rejects an active animation) and, without
+ * this, would resolve its settle target to `null` and be silently dropped —
+ * the one settle window with no queue-and-replay. Returning [settledPage] there
+ * queues the flick so it replays once the snap-back finishes. A truly idle
+ * carousel (no animation) still returns `null`: a swipe then would have claimed
+ * outright rather than reaching this path.
+ */
+internal fun carouselSettleTargetPage(
+    transition: CarouselTransitionState,
+    isSettleAnimationActive: Boolean,
+    settledPage: Int,
+): Int? = when (transition) {
+    is CarouselTransitionState.UserAnimating -> transition.targetPage
+    is CarouselTransitionState.ExternalAnimating -> transition.targetPage
+    is CarouselTransitionState.AwaitingAck -> transition.settledPage
+    CarouselTransitionState.Idle -> if (isSettleAnimationActive) settledPage else null
 }
 
 private data class CarouselPageConfig(
