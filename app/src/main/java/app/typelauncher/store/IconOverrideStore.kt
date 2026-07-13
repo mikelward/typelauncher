@@ -30,20 +30,28 @@ import java.io.InputStream
  * file's `lastModified()` timestamp doubles as the override's version: it is
  * baked into [InstalledApp.iconCacheId] so that re-uploading an icon for the
  * same app produces a fresh `AppIconLoader` cache entry instead of returning
- * the previous bitmap.
+ * the previous bitmap. The timestamp is captured into the index at seed and
+ * at [setIcon] commit — every mutation goes through this class — so
+ * [iconVersionFor] answers from memory: `markVisibility` reads the version
+ * for every overridden app on every keystroke, and a `File.lastModified()`
+ * there re-stats the disk on the main thread per app per refresh.
  */
 internal class IconOverrideStore(context: Context) {
     private val directory: File = File(context.filesDir, DIRECTORY_NAME)
 
-    // appId → override file, lazily seeded from one directory scan. Guarded
-    // by `lock`: lookups run on the main thread while `setIcon` runs on the
-    // IO dispatcher.
+    // appId → override file plus its captured version. Lazily seeded from one
+    // directory scan. Guarded by `lock`: lookups run on the main thread while
+    // `setIcon` runs on the IO dispatcher.
     private val lock = Any()
-    private var index: MutableMap<String, File>? = null
+    private var index: MutableMap<String, Override>? = null
 
-    private fun index(): MutableMap<String, File> {
+    // The override file and the `lastModified()` timestamp captured when the
+    // index last recorded it, so a lookup never has to stat the file again.
+    private class Override(val file: File, val version: Long)
+
+    private fun index(): MutableMap<String, Override> {
         index?.let { return it }
-        val built = mutableMapOf<String, File>()
+        val built = mutableMapOf<String, Override>()
         directory.listFiles().orEmpty().forEach { file ->
             if (!file.isFile) return@forEach
             if (file.name.endsWith(TMP_SUFFIX)) {
@@ -59,13 +67,23 @@ internal class IconOverrideStore(context: Context) {
             }
             val stem = file.name.substringBeforeLast('.', missingDelimiterValue = "")
             val id = if (stem.isEmpty()) null else decodeAppIdFromFileName(stem)
-            if (id != null) built[id] = file
+            if (id != null) built[id] = Override(file, file.lastModified())
         }
         index = built
         return built
     }
 
-    fun iconFileFor(appId: String): File? = synchronized(lock) { index()[appId] }
+    fun iconFileFor(appId: String): File? = synchronized(lock) { index()[appId]?.file }
+
+    /**
+     * The override's version for [appId] — the file's `lastModified()`
+     * captured when the index recorded it — or `0L` when no override exists.
+     * Answered from the in-memory index so callers on the main thread (chiefly
+     * `markVisibility`, which runs per overridden app on every keystroke) never
+     * re-stat the file. Kept in lock-step with [iconFileFor] by every mutation
+     * going through [setIcon] / [clear].
+     */
+    fun iconVersionFor(appId: String): Long = synchronized(lock) { index()[appId]?.version ?: 0L }
 
     /**
      * Streams the contents of [source] into a new override file for [appId]
@@ -124,7 +142,10 @@ internal class IconOverrideStore(context: Context) {
                         file.name != tmp.name &&
                         file.name.startsWith(prefix)
                 }?.forEach { it.delete() }
-                index()[appId] = target
+                // Capture the fresh file's timestamp now, under the lock, so
+                // `iconVersionFor` reflects the new override without a later
+                // re-stat. This is the value that busts the icon cache.
+                index()[appId] = Override(target, target.lastModified())
             }
             return target
         } catch (t: Throwable) {
