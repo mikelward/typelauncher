@@ -267,6 +267,26 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun cardOpacityDefaultsToFullyOpaque() {
+        assertEquals(1f, DockSettingsStore(context).cardOpacity)
+    }
+
+    @Test
+    fun cardOpacityPersistsExplicitSelection() {
+        DockSettingsStore(context).cardOpacity = 0.6f
+
+        assertEquals(0.6f, DockSettingsStore(context).cardOpacity)
+    }
+
+    @Test
+    fun cardOpacityClampsBelowFloor() {
+        DockSettingsStore(context).cardOpacity = 0.1f
+
+        // The floor keeps translucent cards legible; a lower request is clamped.
+        assertEquals(CARD_OPACITY_MIN, DockSettingsStore(context).cardOpacity)
+    }
+
+    @Test
     fun themeModeFallsBackToSystemForUnknownStoredValue() {
         context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
             .edit()

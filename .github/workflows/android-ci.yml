@@ -293,6 +293,12 @@ jobs:
         # two lines.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.NameBelowGridScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run card opacity screenshot tests
+        # Renders SectionCard at a few "Card opacity" levels over a bright
+        # gradient so the PR `roborazzi-screenshots` artifact shows the fill
+        # fading while the card text stays fully opaque.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.CardOpacityScreenshotTest" -Proborazzi.test.record=true
+
       - name: Run dock folder screenshot tests
         # Renders the dock folder mini-icon (2x2 corners) and the open folder
         # grid so the PR `roborazzi-screenshots` artifact shows the folder UI.

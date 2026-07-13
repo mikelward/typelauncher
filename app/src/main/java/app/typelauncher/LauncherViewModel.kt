@@ -196,6 +196,7 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
+            cardOpacity = dockSettingsStore.cardOpacity,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
@@ -2033,6 +2034,14 @@ internal class LauncherViewModel(
         dockSettingsStore.isWallpaperShown = isShown
         _uiState.update { it.copy(isWallpaperShown = isShown) }
         logState("setWallpaperShown=$isShown")
+    }
+
+    fun setCardOpacity(opacity: Float) {
+        dockSettingsStore.cardOpacity = opacity
+        // Read back the clamped value the store persisted so state matches disk.
+        val stored = dockSettingsStore.cardOpacity
+        _uiState.update { it.copy(cardOpacity = stored) }
+        logState("setCardOpacity=$stored")
     }
 
     fun setAgendaEnabled(isEnabled: Boolean) {
