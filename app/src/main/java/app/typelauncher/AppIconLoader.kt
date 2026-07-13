@@ -408,6 +408,24 @@ internal object AppIconLoader {
 
     private fun renderSvgToBitmap(file: File, sizePx: Int): Bitmap {
         val svg = file.inputStream().use { input -> SVG.getFromInputStream(input) }
+        // AndroidSVG only scales the document into the render viewport when the
+        // document declares a `viewBox` (the viewBox is the user-space rect that
+        // maps onto the viewport). A file exported as e.g. `width="24"
+        // height="24"` with no viewBox — a common exporter output — has its
+        // paths in 0..24 user units; without a viewBox, overriding the document
+        // size below does not rescale those paths, so the art renders at ~24px
+        // in the corner of the tile. Seed a viewBox from the intrinsic size
+        // first (read *before* the size override, which would otherwise clobber
+        // it) so the paths scale to fill the tile. A file that declares neither
+        // a viewBox nor an intrinsic size is left as-is — there is no reliable
+        // extent to map from, and this matches the prior behavior for it.
+        if (svg.documentViewBox == null) {
+            val intrinsicWidth = svg.documentWidth
+            val intrinsicHeight = svg.documentHeight
+            if (intrinsicWidth > 0f && intrinsicHeight > 0f) {
+                svg.setDocumentViewBox(0f, 0f, intrinsicWidth, intrinsicHeight)
+            }
+        }
         // Override the SVG's intrinsic dimensions so `renderToCanvas` scales
         // the document into the entire `sizePx × sizePx` target instead of
         // honouring whatever size the original document declared. Use the
