@@ -815,6 +815,35 @@ class MainActivity : ComponentActivity() {
         startWidgetBind(record.component, profile, restoreTargetId = widgetId)
     }
 
+    /**
+     * Allocates a host widget ID that doesn't collide with one the launcher
+     * already tracks. Restore keeps stranded placeholder IDs in the store even
+     * though the host has freed them, so `allocateAppWidgetId` can hand back one
+     * of those IDs — and adding a widget under an ID already in the store is a
+     * no-op ([WidgetStore.add]) / mis-slot ([WidgetStore.replaceId]). Re-rolls
+     * past any collision, releasing the discarded IDs. Runs on [ioDispatcher]
+     * (host IPCs); reads the tracked set from the ViewModel's state snapshot.
+     * Bounded so a pathological host can't spin forever — the cap is far above
+     * any real placeholder count, and overshooting only risks the original rare
+     * collision, not a hang.
+     */
+    private fun allocateFreshWidgetId(): Int {
+        val tracked = viewModel.uiState.value.widgetIds.toHashSet()
+        val discarded = mutableListOf<Int>()
+        var id = appWidgetHost.allocateAppWidgetId()
+        var attempts = 0
+        while (id in tracked && attempts < 16) {
+            discarded += id
+            id = appWidgetHost.allocateAppWidgetId()
+            attempts++
+        }
+        if (discarded.isNotEmpty()) {
+            LauncherDebugLog.event("allocateFreshWidgetId re-rolled past ${discarded.size} tracked ids=$discarded")
+            discarded.forEach { discardedId -> runCatching { appWidgetHost.deleteAppWidgetId(discardedId) } }
+        }
+        return id
+    }
+
     private fun startWidgetBind(
         component: ComponentName,
         profile: UserHandle,
@@ -845,7 +874,7 @@ class MainActivity : ComponentActivity() {
         // Toast stays on the main thread, where lifecycleScope.launch resumes.
         lifecycleScope.launch {
             val appWidgetId = withContext(ioDispatcher) {
-                appWidgetHost.allocateAppWidgetId().also { id ->
+                allocateFreshWidgetId().also { id ->
                     // Guard the fresh ID against the startup orphan sweep before
                     // yielding for the bind IPC — set on the same thread as the
                     // allocation so no sweep can observe it allocated-but-
