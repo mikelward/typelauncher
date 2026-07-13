@@ -3,5 +3,12 @@
         <item name="android:statusBarColor">@color/type_launcher_light_background</item>
         <item name="android:navigationBarColor">@color/type_launcher_light_background</item>
         <item name="android:windowBackground">@color/type_launcher_light_background</item>
+        <!-- Always request the wallpaper behind the window so the "Show
+             wallpaper" setting only has to flip the window background to
+             transparent to reveal it — the wallpaper is always composited, so
+             there is no window-flag transition that leaves stale pixels. The
+             opaque windowBackground keeps ordinary (wallpaper-off) Home and
+             cold start fully opaque. -->
+        <item name="android:windowShowWallpaper">true</item>
     </style>
 </resources>

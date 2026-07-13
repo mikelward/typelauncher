@@ -1,11 +1,12 @@
 package app.typelauncher
 
+import android.app.WallpaperColors
+import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
-import android.view.WindowManager
 import android.net.Uri
 import android.view.KeyEvent
 import android.widget.Toast
@@ -135,6 +136,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
@@ -161,6 +163,9 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
@@ -692,32 +697,59 @@ internal fun HomeScreen(
         }
     }
     val context = LocalContext.current
+    val view = LocalView.current
     val homeBackgroundColor = MaterialTheme.colorScheme.background
-    // While the wallpaper is active, let the system draw the real wallpaper
-    // behind the window (`FLAG_SHOW_WALLPAPER`) and make the window background
-    // transparent so the transparent Home background (below) reveals it.
-    // `WallpaperManager.getDrawable()` can't read the wallpaper on API 34+
-    // without permissions a launcher can't hold, so this window flag is the
-    // supported path. Keyed on `wallpaperActive`, not the query, so the flag
-    // toggles only on entering/leaving Home — not on every keystroke — and is
-    // reverted when the wallpaper goes away (leaving Home or turning it off) so
-    // ordinary Home stays fully opaque and never composites the wallpaper.
-    DisposableEffect(wallpaperActive) {
+    // Whether Home's solid background is light — used to restore the system-bar
+    // icon contrast (dark icons over a light surface) when the wallpaper is off.
+    val surfaceIsLight = homeBackgroundColor.luminance() > 0.5f
+    // The window always carries `FLAG_SHOW_WALLPAPER` (set in the theme, not
+    // toggled here), so the system keeps the real wallpaper composited behind
+    // it — that is what `WallpaperManager.getDrawable()` can't give us on API
+    // 34+. We only flip the window *background* between transparent (revealing
+    // the always-composited wallpaper through the transparent Home background)
+    // and opaque, so there is no window-flag transition that leaves stale,
+    // uncleared pixels behind (the "Settings → Done doesn't repaint" smear).
+    // We also set the status/navigation-bar icon contrast from the wallpaper's
+    // own color hints while it shows, then restore the surface-based contrast.
+    DisposableEffect(wallpaperActive, surfaceIsLight) {
         val window = context.findActivity()?.window
         if (window != null) {
-            if (wallpaperActive) {
-                window.setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
-                window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
-            } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
-                window.setBackgroundDrawable(ColorDrawable(homeBackgroundColor.toArgb()))
-            }
+            val bars = WindowInsetsControllerCompat(window, view)
+            window.setBackgroundDrawable(
+                if (wallpaperActive) {
+                    ColorDrawable(AndroidColor.TRANSPARENT)
+                } else {
+                    ColorDrawable(homeBackgroundColor.toArgb())
+                },
+            )
+            // Start from the surface-based icon contrast (no IPC). While the
+            // wallpaper shows, the effect below refines it from the wallpaper's
+            // own colors once that lookup resolves off the main thread.
+            bars.isAppearanceLightStatusBars = surfaceIsLight
+            bars.isAppearanceLightNavigationBars = surfaceIsLight
         }
         onDispose {
             context.findActivity()?.window?.let { window ->
-                window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
                 window.setBackgroundDrawable(ColorDrawable(homeBackgroundColor.toArgb()))
+                val bars = WindowInsetsControllerCompat(window, view)
+                bars.isAppearanceLightStatusBars = surfaceIsLight
+                bars.isAppearanceLightNavigationBars = surfaceIsLight
             }
+        }
+    }
+    // Refine the status/navigation-bar icon contrast from the wallpaper's own
+    // colors while it shows. `getWallpaperColors` is a system-service Binder
+    // IPC, so it runs off the main thread and applies only once resolved —
+    // never blocking Home's first frame; until then the surface-based contrast
+    // set above stands.
+    LaunchedEffect(wallpaperActive, surfaceIsLight) {
+        if (!wallpaperActive) return@LaunchedEffect
+        val darkIcons = withContext(Dispatchers.IO) { wallpaperSupportsDarkText(context) }
+            ?: return@LaunchedEffect
+        context.findActivity()?.window?.let { window ->
+            val bars = WindowInsetsControllerCompat(window, view)
+            bars.isAppearanceLightStatusBars = darkIcons
+            bars.isAppearanceLightNavigationBars = darkIcons
         }
     }
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
@@ -1146,6 +1178,24 @@ internal fun searchDockRevealTopPx(
     layoutHeightPx + contentInsetPx,
     layoutHeightPx + contentInsetPx + keyboardReservationPx - dockHeightPx,
 ).coerceAtLeast(0)
+
+/**
+ * Whether dark status/navigation bar icons are legible over the system
+ * wallpaper — read from the wallpaper's own `HINT_SUPPORTS_DARK_TEXT` color
+ * hint, which the system computes for exactly this (legibility of a dark
+ * foreground over the whole wallpaper, not just its dominant color). Exposed
+ * for Material You with no permission, unlike the wallpaper *image*. Null when
+ * the colors can't be read, so the caller falls back to the launcher surface's
+ * own luminance.
+ */
+private fun wallpaperSupportsDarkText(context: Context): Boolean? =
+    try {
+        WallpaperManager.getInstance(context)
+            .getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
+            ?.let { (it.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0 }
+    } catch (_: Exception) {
+        null
+    }
 
 /**
  * The app-list slot when "Show wallpaper" is on and the query is empty (see
