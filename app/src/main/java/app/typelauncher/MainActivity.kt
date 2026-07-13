@@ -65,6 +65,17 @@ class MainActivity : ComponentActivity() {
     // `bindWidget` and its lifecycleScope continuation, both on the main thread.
     private var bindLaunchInFlight = false
 
+    // An ID that `bindWidget` has allocated but not yet marked pending, held
+    // only for the duration of the off-main-thread bind IPC. reconcileOrphaned-
+    // Widgets excludes it so the startup sweep can't delete a just-allocated ID
+    // mid-handshake during that window (pendingWidgetId isn't set until after
+    // the bind). @Volatile because it's written on the bind coroutine and read
+    // by the sweep coroutine; deliberately not persisted, so a coroutine the
+    // system cancels mid-bind leaves the merely-allocated ID for the next
+    // sweep to reclaim rather than wedging a restored-but-unresolvable pending.
+    @Volatile
+    private var bindingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
+
     // The dispatcher the widget-host Binder IPCs (orphan reconciliation,
     // removal) hop onto, kept off the main thread. Injectable so Robolectric
     // tests can pass a deterministic dispatcher, mirroring
@@ -591,6 +602,9 @@ class MainActivity : ComponentActivity() {
                 allocatedIds = allocatedIds,
                 knownWidgetIds = viewModel.uiState.value.widgetIds,
                 pendingWidgetId = widgetAddFlow.pendingWidgetId,
+                // An add that allocated its ID but hasn't finished the bind IPC
+                // is tracked here, not yet in pendingWidgetId — spare it too.
+                bindingWidgetId = bindingWidgetId,
             )
             if (orphans.isEmpty()) return@launch
             LauncherDebugLog.event("widget reconciliation deleting ${orphans.size} orphaned ids=$orphans")
@@ -729,7 +743,15 @@ class MainActivity : ComponentActivity() {
         // mutates WidgetAddFlow state, launches the system dialog, or shows a
         // Toast stays on the main thread, where lifecycleScope.launch resumes.
         lifecycleScope.launch {
-            val appWidgetId = withContext(ioDispatcher) { appWidgetHost.allocateAppWidgetId() }
+            val appWidgetId = withContext(ioDispatcher) {
+                appWidgetHost.allocateAppWidgetId().also { id ->
+                    // Guard the fresh ID against the startup orphan sweep before
+                    // yielding for the bind IPC — set on the same thread as the
+                    // allocation so no sweep can observe it allocated-but-
+                    // unprotected across the hop back to the main thread.
+                    bindingWidgetId = id
+                }
+            }
             LauncherDebugLog.event(
                 "bindWidget provider=${provider.componentName.flattenToShortString()} appWidgetId=$appWidgetId",
             )
@@ -741,11 +763,14 @@ class MainActivity : ComponentActivity() {
             // below. If a configuration change or process death cancels this
             // coroutine mid-IPC, pendingWidgetId was never set (so it isn't
             // persisted into a wedged isAddInFlight) and the merely-allocated
-            // ID is reclaimed by the next cold start's orphan sweep. Setting
-            // it before the bind — as the old synchronous path could — would
-            // leave a restored-but-unresolvable pending ID after that race.
+            // ID is reclaimed by the next sweep (bindingWidgetId, being
+            // transient, is gone on recreation so it no longer shields it).
+            // Setting pending before the bind — as the old synchronous path
+            // could — would instead leave a restored-but-unresolvable pending.
             widgetAddFlow.onBindStarted(appWidgetId)
-            // pendingWidgetId now carries the guard, so release the latch.
+            // pendingWidgetId now carries the sweep exclusion and the re-entrancy
+            // guard, so hand both off: drop the pre-pending shield and latch.
+            bindingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
             bindLaunchInFlight = false
             if (allowed) {
                 LauncherDebugLog.event("bindWidget allowed appWidgetId=$appWidgetId")

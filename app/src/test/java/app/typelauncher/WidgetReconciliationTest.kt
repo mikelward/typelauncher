@@ -47,6 +47,20 @@ class WidgetReconciliationTest {
     }
 
     @Test
+    fun neverSweepsAnIdBeingBound() {
+        // An add that has allocated its ID but hasn't finished the bind IPC
+        // tracks it as bindingWidgetId, not pendingWidgetId yet. A sweep racing
+        // that window must spare it just like a pending one.
+        val orphans = orphanedAllocatedWidgetIds(
+            allocatedIds = intArrayOf(4, 12),
+            knownWidgetIds = listOf(4),
+            bindingWidgetId = 12,
+        )
+
+        assertEquals(emptyList<Int>(), orphans)
+    }
+
+    @Test
     fun ignoresInvalidWidgetIds() {
         val orphans = orphanedAllocatedWidgetIds(
             allocatedIds = intArrayOf(AppWidgetManager.INVALID_APPWIDGET_ID, 6),
