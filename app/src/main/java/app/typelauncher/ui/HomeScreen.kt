@@ -6379,7 +6379,9 @@ private fun isDarkColorScheme(): Boolean =
 
 private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
 private const val SETTINGS_PREVIEW_BAR_COUNT = 3
-private const val SETTINGS_PREVIEW_SPACING_DP = 16
+// The preview mirrors the home screen's stacked cards, so its bar-to-bar gap
+// tracks the same shared constant that drives every home card-to-card margin.
+private const val SETTINGS_PREVIEW_SPACING_DP = HOME_CARD_SPACING_DP
 
 // Play update badge dot — a "presence" dot (no count or number), matching
 // Android's standard notification dot, scaled down for the smaller
