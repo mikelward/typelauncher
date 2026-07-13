@@ -41,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -74,8 +75,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -141,6 +144,16 @@ private const val IME_GROWTH_DEBOUNCE_MS = 250L
 // growth debounce because growth is far more disruptive than a one-off
 // missed shrink.
 private const val IME_SHRINK_DEBOUNCE_MS = 600L
+
+// How long the keyboard-space pin outlives a search-time dock reveal: after
+// the reveal ends the reservation stays applied until the restored keyboard
+// starts animating back in (a seamless hand-off) or the query clears (a dock
+// drop landed, so the blank-query layout takes over immediately) — otherwise
+// the gesture's end would collapse the reservation for the few frames before
+// the keyboard's insets report, reflowing the layout twice back to back. The
+// timeout covers the no-IME case (hardware keyboard, IME disabled), where
+// neither signal ever arrives.
+private const val SEARCH_DOCK_REVEAL_RESERVATION_GRACE_MS = 500L
 
 private val CarouselPageAnimationSpec = tween<Float>(
     durationMillis = 220,
@@ -713,7 +726,37 @@ internal fun TypeLauncherApp(
         // it (reservation present) and when the keyboard is gone the bar sits
         // flush at the bottom (reservation collapsed).
         val keyboardReservationCollapsed = keyboardSeenThisHomePresence && !keyboardShowingOrAnimatingIn
-        val effectiveKeyboardReservationDp = if (keyboardReservationCollapsed) 0.dp else keyboardReservationDp
+        val unpinnedKeyboardReservationDp = if (keyboardReservationCollapsed) 0.dp else keyboardReservationDp
+        // --- Search-time dock reveal: pin the keyboard reservation. ---
+        // While a long-press-with-query drag has hidden the keyboard to reveal
+        // the dock (see the reveal block in HomeScreen), the reservation must
+        // not move: collapsing it mid-drag would reflow the app list under the
+        // user's finger — and the drag gesture lives in the pressed list
+        // item's modifier node, so a reflow that scrolled the item out of the
+        // lazy list's composition would kill the drag outright. The pin
+        // freezes the reservation at its value when the reveal started and
+        // releases once the restored keyboard starts animating back in, the
+        // query clears (a dock drop landed), or a grace timeout passes (no
+        // IME ever came) — see [SEARCH_DOCK_REVEAL_RESERVATION_GRACE_MS].
+        var searchDockRevealActive by remember { mutableStateOf(false) }
+        var searchDockRevealReservationPinned by remember { mutableStateOf(false) }
+        var searchDockRevealPinnedReservationDp by remember { mutableStateOf(0.dp) }
+        val currentUnpinnedReservationDp by rememberUpdatedState(unpinnedKeyboardReservationDp)
+        val currentKeyboardShowingOrAnimatingIn by rememberUpdatedState(keyboardShowingOrAnimatingIn)
+        val currentQueryIsBlank by rememberUpdatedState(state.query.isBlank())
+        LaunchedEffect(searchDockRevealActive) {
+            if (searchDockRevealActive || !searchDockRevealReservationPinned) return@LaunchedEffect
+            withTimeoutOrNull(SEARCH_DOCK_REVEAL_RESERVATION_GRACE_MS) {
+                snapshotFlow { currentKeyboardShowingOrAnimatingIn || currentQueryIsBlank }
+                    .first { it }
+            }
+            searchDockRevealReservationPinned = false
+        }
+        val effectiveKeyboardReservationDp = if (searchDockRevealReservationPinned) {
+            searchDockRevealPinnedReservationDp
+        } else {
+            unpinnedKeyboardReservationDp
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -865,6 +908,18 @@ internal fun TypeLauncherApp(
                                     recentsScrollRegionState.value = region
                                 },
                                 onDockDragChanged = { isDockDraggingState.value = it },
+                                onSearchDockRevealChanged = { active ->
+                                    if (active) {
+                                        // Pin before flagging active so the same
+                                        // frame's layout already reads the pinned
+                                        // value.
+                                        searchDockRevealPinnedReservationDp =
+                                            currentUnpinnedReservationDp
+                                        searchDockRevealReservationPinned = true
+                                    }
+                                    searchDockRevealActive = active
+                                },
+                                onRequestShowKeyboard = onRequestShowKeyboard,
                             )
                             // Floats the dragged-out folder member above everything
                             // (incl. the app list), positioned in root coordinates.

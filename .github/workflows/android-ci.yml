@@ -309,6 +309,12 @@ jobs:
         # slot, so the PR `roborazzi-screenshots` artifact shows the empty gap.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppListPickUpScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run search dock reveal screenshot tests
+        # Renders the search-time dock reveal mid-drag: query active, a list
+        # app picked up, and the dock floated in at the bottom as the drop
+        # target while the list above holds its geometry.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SearchDockRevealScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

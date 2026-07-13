@@ -96,4 +96,59 @@ class FolderMemberDropTest {
         )
         assertEquals(FolderMemberDropTarget.Undock, target)
     }
+
+    // canMergeIntoDockOccupant mirrors the ViewModel's over-cap merge guard so
+    // a refused merge is never treated as a landed drop (which would, e.g.,
+    // clear the query at the end of a search-time dock reveal).
+
+    private fun folderWithMembers(
+        memberCount: Int,
+        hiddenMemberCount: Int = 0,
+    ): ResolvedDockFolder =
+        ResolvedDockFolder(
+            id = "folder:a",
+            members = List(memberCount) { index ->
+                InstalledApp(
+                    name = "Member$index",
+                    packageName = "app.typelauncher.fake.member$index",
+                    launchIntent = android.content.Intent(),
+                    user = android.os.Process.myUserHandle(),
+                    isWorkApp = false,
+                    launchWithLauncherApps = false,
+                )
+            },
+            persistedMemberCount = memberCount + hiddenMemberCount,
+        )
+
+    @Test
+    fun mergeIntoAppOccupantIsAlwaysAllowed() {
+        assertEquals(
+            true,
+            canMergeIntoDockOccupant("someAppId", listOf(folderWithMembers(1))),
+        )
+    }
+
+    @Test
+    fun mergeIntoFolderBelowCapIsAllowed() {
+        val folder = folderWithMembers(MAX_DOCK_FOLDER_MEMBERS - 1)
+        assertEquals(true, canMergeIntoDockOccupant("folder:a", listOf(folder)))
+    }
+
+    @Test
+    fun mergeIntoFullFolderIsRefused() {
+        val folder = folderWithMembers(MAX_DOCK_FOLDER_MEMBERS)
+        assertEquals(false, canMergeIntoDockOccupant("folder:a", listOf(folder)))
+    }
+
+    @Test
+    fun mergeCountsHiddenMembersAgainstTheCap() {
+        // Hidden/uninstalled members are dropped from the rendered list but
+        // still occupy persisted capacity, and the store's merge guard counts
+        // them — so the UI check must too.
+        val folder = folderWithMembers(
+            memberCount = MAX_DOCK_FOLDER_MEMBERS - 2,
+            hiddenMemberCount = 2,
+        )
+        assertEquals(false, canMergeIntoDockOccupant("folder:a", listOf(folder)))
+    }
 }
