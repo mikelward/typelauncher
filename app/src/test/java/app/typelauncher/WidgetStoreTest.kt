@@ -172,4 +172,81 @@ class WidgetStoreTest {
 
         assertEquals(listOf(listOf(2, 1)), reloaded.widgetPages)
     }
+
+    @Test
+    fun applyRestoredIdMappingRewritesPagesPreservingLayout() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(2)
+        store.add(appWidgetId = 3, pageIndex = 0, addToNewPageAfter = true)
+
+        store.applyRestoredIdMapping(mapOf(1 to 51, 2 to 52, 3 to 53))
+
+        assertEquals(listOf(listOf(51, 52), listOf(53)), store.widgetPages)
+        assertEquals(listOf(listOf(51, 52), listOf(53)), WidgetStore(context).widgetPages)
+    }
+
+    @Test
+    fun applyRestoredIdMappingDropsUnmappedWidgetsAndEmptiedPages() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(appWidgetId = 2, pageIndex = 0, addToNewPageAfter = true)
+
+        // 2 was not restored by the platform, so its page collapses away.
+        store.applyRestoredIdMapping(mapOf(1 to 51))
+
+        assertEquals(listOf(listOf(51)), store.widgetPages)
+    }
+
+    @Test
+    fun applyRestoredIdMappingMovesCustomHeightsToNewIds() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.setCustomHeight(1, 240)
+
+        store.applyRestoredIdMapping(mapOf(1 to 51))
+
+        val reloaded = WidgetStore(context)
+        assertEquals(mapOf(51 to 240), reloaded.customHeights)
+    }
+
+    @Test
+    fun applyRestoredIdMappingPreservesHeightsWhenIdSpacesOverlap() {
+        val store = WidgetStore(context)
+        store.add(2)
+        store.add(3)
+        store.setCustomHeight(2, 220)
+        store.setCustomHeight(3, 330)
+
+        // The restored new IDs overlap the old ones: old 2 -> new 3 while old
+        // 3 -> new 4. Each widget must keep its own height across the remap.
+        store.applyRestoredIdMapping(mapOf(2 to 3, 3 to 4))
+
+        val reloaded = WidgetStore(context)
+        assertEquals(listOf(listOf(3, 4)), reloaded.widgetPages)
+        assertEquals(mapOf(3 to 220, 4 to 330), reloaded.customHeights)
+    }
+
+    @Test
+    fun applyRestoredIdMappingDropsHeightOfUnmappedWidget() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(2)
+        store.setCustomHeight(2, 300)
+
+        store.applyRestoredIdMapping(mapOf(1 to 51))
+
+        assertEquals(emptyMap<Int, Int>(), WidgetStore(context).customHeights)
+    }
+
+    @Test
+    fun applyRestoredIdMappingWithEmptyMappingIsNoOp() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(2)
+
+        store.applyRestoredIdMapping(emptyMap())
+
+        assertEquals(listOf(listOf(1, 2)), store.widgetPages)
+    }
 }

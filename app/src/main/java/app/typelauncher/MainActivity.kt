@@ -39,7 +39,9 @@ import kotlinx.coroutines.withContext
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
-private const val APP_WIDGET_HOST_ID = 1024
+// APP_WIDGET_HOST_ID lives in WidgetRestore.kt — it is shared with the
+// restore-broadcast receiver, which must construct/filter against the same
+// host ID.
 private const val PLAY_UPDATE_REQUEST_CODE = 42
 // Safe alongside ActivityResultRegistry codes, which start at 0x00010000.
 private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
@@ -589,6 +591,16 @@ class MainActivity : ComponentActivity() {
      * deletes are Binder IPCs) and after home-ready so it never competes with
      * the cold-start app load. Deferred to here, not `onCreate`, because the
      * persisted widget set is already published in `uiState` by then.
+     *
+     * Deliberately one-directional: it never prunes an ID the launcher tracks
+     * but the host hasn't allocated. A backup restore repopulates the widget
+     * store before the platform's `ACTION_APPWIDGET_HOST_RESTORED` remap
+     * (`WidgetRestoredReceiver`) has run and before providers — which reinstall
+     * asynchronously over minutes to hours — are back, so a widget the user
+     * still wants routinely reads as "not allocated here" during that window.
+     * Deleting on that signal would destroy the restored layout mid-flight;
+     * instead such widgets render as self-healing "unavailable" cards that
+     * resolve once their provider returns.
      */
     private fun reconcileOrphanedWidgets() {
         if (hasReconciledWidgets || !::appWidgetHost.isInitialized) return

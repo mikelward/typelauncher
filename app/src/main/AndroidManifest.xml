@@ -55,6 +55,22 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Applies the platform's old→new widget ID translation after a backup
+            restore. Delivered even when the launcher isn't running, so it must
+            be a manifest receiver. exported="true" is required for the system
+            (a different UID) to deliver it; safe because
+            APPWIDGET_HOST_RESTORED is a framework protected-broadcast that only
+            the system can send.
+        -->
+        <receiver
+            android:name=".WidgetRestoredReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_HOST_RESTORED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
