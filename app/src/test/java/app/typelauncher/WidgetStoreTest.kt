@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.content.ComponentName
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
@@ -248,5 +249,61 @@ class WidgetStoreTest {
         store.applyRestoredIdMapping(emptyMap())
 
         assertEquals(listOf(listOf(1, 2)), store.widgetPages)
+    }
+
+    @Test
+    fun setProviderRoundTripsAndSurfacesLabel() {
+        val store = WidgetStore(context)
+        store.add(1)
+        val record = WidgetProviderRecord(
+            component = ComponentName("com.example", "com.example.WeatherWidget"),
+            profileSerial = 0L,
+            label = "Weather",
+        )
+
+        store.setProvider(1, record)
+
+        assertEquals(record, WidgetStore(context).providerRecord(1))
+        assertEquals(mapOf(1 to "Weather"), WidgetStore(context).providerLabels)
+    }
+
+    @Test
+    fun providerRecordSurvivesLabelsContainingTheSeparator() {
+        val store = WidgetStore(context)
+        store.add(1)
+        val record = WidgetProviderRecord(
+            component = ComponentName("com.example", "com.example.W"),
+            profileSerial = 7L,
+            label = "A | B",
+        )
+
+        store.setProvider(1, record)
+
+        assertEquals(record, WidgetStore(context).providerRecord(1))
+    }
+
+    @Test
+    fun removeAlsoDropsProviderRecord() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.setProvider(1, WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X"))
+
+        store.remove(1)
+
+        assertEquals(null, WidgetStore(context).providerRecord(1))
+    }
+
+    @Test
+    fun applyRestoredIdMappingCarriesProviderRecordToNewId() {
+        val store = WidgetStore(context)
+        store.add(1)
+        val record = WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X")
+        store.setProvider(1, record)
+
+        store.applyRestoredIdMapping(mapOf(1 to 51))
+
+        val reloaded = WidgetStore(context)
+        assertEquals(record, reloaded.providerRecord(51))
+        assertEquals(null, reloaded.providerRecord(1))
     }
 }

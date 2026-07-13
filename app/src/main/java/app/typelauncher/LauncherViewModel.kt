@@ -1668,6 +1668,7 @@ internal class LauncherViewModel(
             pageIndex = placement.pageIndex,
             addToNewPageAfter = placement.addToNewPageAfterSelection,
         )
+        rememberWidgetProvider(appWidgetId)
         pendingWidgetPlacement = null
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
@@ -1683,6 +1684,24 @@ internal class LauncherViewModel(
             )
         }
         logState("addWidget")
+    }
+
+    /**
+     * Records the provider behind a just-added widget so a future backup
+     * restore can offer to re-bind it (see [WidgetProviderRecord]). The widget
+     * is bound by the time [addWidget] runs, so [AppWidgetManager.getAppWidgetInfo]
+     * resolves here even though it won't after a restore strands the ID. Best
+     * effort: a null lookup (a bind that resolves late) just skips the record,
+     * and the widget falls back to the plain "unavailable" card.
+     */
+    private fun rememberWidgetProvider(appWidgetId: Int) {
+        val info = runCatching { AppWidgetManager.getInstance(app).getAppWidgetInfo(appWidgetId) }.getOrNull()
+        val component = info?.provider ?: return
+        val profile = info.profile ?: Process.myUserHandle()
+        val serial = app.getSystemService<UserManager>()?.getSerialNumberForUser(profile) ?: 0L
+        val label = info.loadLabel(app.packageManager)?.takeIf { it.isNotBlank() } ?: component.packageName
+        widgetStore.setProvider(appWidgetId, WidgetProviderRecord(component, serial, label))
+        LauncherDebugLog.event("rememberWidgetProvider id=$appWidgetId component=${component.flattenToShortString()}")
     }
 
     fun moveWidget(appWidgetId: Int, direction: WidgetMoveDirection) {
