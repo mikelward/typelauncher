@@ -1,9 +1,39 @@
 package app.typelauncher
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 
 internal enum class WidgetMoveDirection { UP, DOWN }
+
+/**
+ * The identity of the widget provider behind a hosted widget, remembered at add
+ * time so a widget whose binding is lost in a backup restore can be re-bound to
+ * the same provider later instead of dropped. [component] and [profileSerial]
+ * (the [android.os.UserManager] serial for the widget's user, used because a
+ * raw `UserHandle` can't be persisted and rebuilt) together locate the provider
+ * for a fresh bind; [label] is the human name shown on the restore placeholder.
+ */
+internal data class WidgetProviderRecord(
+    val component: ComponentName,
+    val profileSerial: Long,
+    val label: String,
+) {
+    // "<serial>|<component>|<label>" — serial is numeric and a flattened
+    // ComponentName never contains '|', so a limit-3 split recovers the label
+    // verbatim even if it (the only free-form field) contains a '|'.
+    fun serialize(): String = "$profileSerial|${component.flattenToShortString()}|$label"
+
+    companion object {
+        fun parse(value: String): WidgetProviderRecord? {
+            val parts = value.split('|', limit = 3)
+            if (parts.size != 3) return null
+            val serial = parts[0].toLongOrNull() ?: return null
+            val component = ComponentName.unflattenFromString(parts[1]) ?: return null
+            return WidgetProviderRecord(component, serial, parts[2])
+        }
+    }
+}
 
 internal class WidgetStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -20,6 +50,10 @@ internal class WidgetStore(context: Context) {
             val h = sharedPreferences.getInt(heightKey(id), -1)
             if (h == -1) null else id to h
         }.toMap()
+
+    /** The provider name to show on the restore placeholder, per widget ID. */
+    val providerLabels: Map<Int, String>
+        get() = widgetIds.mapNotNull { id -> providerRecord(id)?.let { id to it.label } }.toMap()
 
     fun add(appWidgetId: Int, pageIndex: Int = pages.lastIndex, addToNewPageAfter: Boolean = false) {
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID || appWidgetId in widgetIds) {
@@ -43,7 +77,10 @@ internal class WidgetStore(context: Context) {
                 .map { ids -> ids.filterNot { id -> id == appWidgetId } }
                 .filter { ids -> ids.isNotEmpty() }
                 .ensureAtLeastOnePage()
-            sharedPreferences.edit().remove(heightKey(appWidgetId)).apply()
+            sharedPreferences.edit()
+                .remove(heightKey(appWidgetId))
+                .remove(providerKey(appWidgetId))
+                .apply()
             save()
         }
     }
@@ -51,6 +88,14 @@ internal class WidgetStore(context: Context) {
     fun setCustomHeight(appWidgetId: Int, heightDp: Int) {
         sharedPreferences.edit().putInt(heightKey(appWidgetId), heightDp).apply()
     }
+
+    /** Remembers [record] as the provider behind [appWidgetId] for later restore. */
+    fun setProvider(appWidgetId: Int, record: WidgetProviderRecord) {
+        sharedPreferences.edit().putString(providerKey(appWidgetId), record.serialize()).apply()
+    }
+
+    fun providerRecord(appWidgetId: Int): WidgetProviderRecord? =
+        sharedPreferences.getString(providerKey(appWidgetId), null)?.let(WidgetProviderRecord::parse)
 
     /**
      * Rewrites every persisted widget reference from its old, backed-up ID to
@@ -85,13 +130,16 @@ internal class WidgetStore(context: Context) {
         // a later put on a key wins over an earlier remove — keeps every height
         // with its widget across an overlapping remap.
         val oldHeights = previousIds.associateWith { id -> sharedPreferences.getInt(heightKey(id), -1) }
+        val oldProviders = previousIds.associateWith { id -> sharedPreferences.getString(providerKey(id), null) }
         val editor = sharedPreferences.edit()
-        previousIds.forEach { oldId -> editor.remove(heightKey(oldId)) }
-        for ((oldId, height) in oldHeights) {
-            val newId = oldToNew[oldId]
-            if (newId != null && height != -1) {
-                editor.putInt(heightKey(newId), height)
-            }
+        previousIds.forEach { oldId ->
+            editor.remove(heightKey(oldId))
+            editor.remove(providerKey(oldId))
+        }
+        for (oldId in previousIds) {
+            val newId = oldToNew[oldId] ?: continue
+            oldHeights.getValue(oldId).let { height -> if (height != -1) editor.putInt(heightKey(newId), height) }
+            oldProviders[oldId]?.let { record -> editor.putString(providerKey(newId), record) }
         }
         editor.apply()
         save()
@@ -160,6 +208,8 @@ internal class WidgetStore(context: Context) {
         const val APP_WIDGET_PAGE_SEPARATOR = "\n\n"
 
         fun heightKey(appWidgetId: Int) = "height_$appWidgetId"
+
+        fun providerKey(appWidgetId: Int) = "provider_$appWidgetId"
     }
 }
 
