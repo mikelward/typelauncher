@@ -608,6 +608,15 @@ internal data class LauncherUiState(
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
     val widgetHeights: Map<Int, Int> = emptyMap(),
+    // The provider label remembered for each widget, shown on the restore
+    // placeholder. Empty for widgets added before provider capture existed.
+    val widgetProviderLabels: Map<Int, String> = emptyMap(),
+    // Widget IDs the launcher still tracks that the host has not allocated on
+    // this device — the residue of a backup restore whose bindings didn't come
+    // across. Combined with [widgetProviderLabels] they render as tappable
+    // "restore" placeholders. Populated by the startup reconciliation sweep;
+    // never used to delete anything (that would race an in-flight restore).
+    val strandedWidgetIds: Set<Int> = emptySet(),
     // Bumped each time a managed (work) profile becomes available again — the
     // user resumes "Pause work apps" or otherwise turns the work profile back
     // on. While the profile was unavailable the platform painted its own

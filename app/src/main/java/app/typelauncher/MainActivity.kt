@@ -5,10 +5,13 @@ import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
+import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.UserHandle
+import android.os.UserManager
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.WindowInsets
@@ -50,6 +53,10 @@ private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
 // mistaken for an orphan by the startup sweep, and so the configure-result
 // fallback can still recover the ID when the result intent omits the extra.
 private const val KEY_PENDING_WIDGET_ID = "app.typelauncher.PENDING_WIDGET_ID"
+// Persists the stranded widget ID a restore-placeholder tap is re-binding, so
+// an in-place swap survives a configuration change during the provider's
+// configure activity (mirrors KEY_PENDING_WIDGET_ID).
+private const val KEY_RESTORE_TARGET_WIDGET_ID = "app.typelauncher.RESTORE_TARGET_WIDGET_ID"
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
@@ -77,6 +84,14 @@ class MainActivity : ComponentActivity() {
     // sweep to reclaim rather than wedging a restored-but-unresolvable pending.
     @Volatile
     private var bindingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    // The stranded widget ID a restore-placeholder tap is currently re-binding,
+    // or INVALID for an ordinary add. When the bind/configure succeeds, the
+    // freshly-allocated ID replaces this one in its existing slot rather than
+    // being appended. Persisted across recreation (KEY_RESTORE_TARGET_WIDGET_ID)
+    // so a rotation during the provider's configure activity still lands the
+    // in-place swap. Main-thread confined.
+    private var restoreTargetWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
 
     // The dispatcher the widget-host Binder IPCs (orphan reconciliation,
     // removal) hop onto, kept off the main thread. Injectable so Robolectric
@@ -153,8 +168,22 @@ class MainActivity : ComponentActivity() {
                 WidgetAddFlow.ConfigureLaunch.NotNeeded
             }
         },
-        addWidget = { appWidgetId -> viewModel.addWidget(appWidgetId) },
+        addWidget = { appWidgetId ->
+            // A restore in flight re-binds an existing placeholder: swap the new
+            // ID into the stranded widget's slot instead of appending a second
+            // copy. restoreTargetWidgetId is consumed here (the flow's success
+            // terminal); the cancel/fail terminal clears it in deleteWidget.
+            val restoreTarget = restoreTargetWidgetId
+            restoreTargetWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            if (restoreTarget != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                viewModel.replaceWidget(restoreTarget, appWidgetId)
+            } else {
+                viewModel.addWidget(appWidgetId)
+            }
+        },
         deleteWidget = { appWidgetId ->
+            // A canceled/failed bind ends any restore attempt too.
+            restoreTargetWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
             LauncherDebugLog.event("deletePendingWidget appWidgetId=$appWidgetId")
             // The host-binding delete is a Binder IPC — keep it off the main
             // thread (same policy as removeWidget and
@@ -211,6 +240,9 @@ class MainActivity : ComponentActivity() {
         // re-delivered configure result) can act on a stale INVALID value.
         savedInstanceState?.getInt(KEY_PENDING_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
             ?.let { widgetAddFlow.restorePendingWidgetId(it) }
+        restoreTargetWidgetId = savedInstanceState
+            ?.getInt(KEY_RESTORE_TARGET_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+            ?: AppWidgetManager.INVALID_APPWIDGET_ID
         playUpdateChecker = PlayUpdateChecker(application)
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         androidTrace("launcher.viewmodel_init") {
@@ -266,6 +298,7 @@ class MainActivity : ComponentActivity() {
                         onDismissWidgetPicker = viewModel::hideWidgetPicker,
                         onSelectWidget = ::bindWidget,
                         onRemoveWidget = ::removeWidget,
+                        onRestoreWidget = ::onRestoreWidget,
                         onRequestCalendarPermission = {
                             requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
                         },
@@ -598,9 +631,9 @@ class MainActivity : ComponentActivity() {
      * (`WidgetRestoredReceiver`) has run and before providers — which reinstall
      * asynchronously over minutes to hours — are back, so a widget the user
      * still wants routinely reads as "not allocated here" during that window.
-     * Deleting on that signal would destroy the restored layout mid-flight;
-     * instead such widgets render as self-healing "unavailable" cards that
-     * resolve once their provider returns.
+     * Deleting on that signal would destroy the restored layout mid-flight.
+     * Instead it *publishes* that set (`setStrandedWidgetIds`) so those widgets
+     * render as re-bindable restore placeholders; nothing is deleted.
      */
     private fun reconcileOrphanedWidgets() {
         if (hasReconciledWidgets || !::appWidgetHost.isInitialized) return
@@ -610,31 +643,47 @@ class MainActivity : ComponentActivity() {
                 LauncherDebugLog.warning("widget reconciliation: failed to read allocated ids", exception)
                 return@launch
             }
+            val knownWidgetIds = viewModel.uiState.value.widgetIds
             val orphans = orphanedAllocatedWidgetIds(
                 allocatedIds = allocatedIds,
-                knownWidgetIds = viewModel.uiState.value.widgetIds,
+                knownWidgetIds = knownWidgetIds,
                 pendingWidgetId = widgetAddFlow.pendingWidgetId,
                 // An add that allocated its ID but hasn't finished the bind IPC
                 // is tracked here, not yet in pendingWidgetId — spare it too.
                 bindingWidgetId = bindingWidgetId,
             )
-            if (orphans.isEmpty()) return@launch
-            LauncherDebugLog.event("widget reconciliation deleting ${orphans.size} orphaned ids=$orphans")
-            orphans.forEach { id ->
-                // The host-binding delete is a Binder IPC — keep it off the main
-                // thread.
-                runCatching { appWidgetHost.deleteAppWidgetId(id) }
-                    .onFailure { exception ->
-                        LauncherDebugLog.warning("widget reconciliation: failed to delete orphaned id=$id", exception)
-                    }
+            // Widgets the launcher tracks that the host hasn't allocated here —
+            // restore residue. Read only, never deleted (see the KDoc): they
+            // render as re-bindable restore placeholders. Excludes the two
+            // in-flight IDs so an add racing the sweep isn't mislabeled stranded.
+            val allocatedSet = allocatedIds.toHashSet()
+            val stranded = knownWidgetIds.filterTo(mutableSetOf()) { id ->
+                id != AppWidgetManager.INVALID_APPWIDGET_ID &&
+                    id != widgetAddFlow.pendingWidgetId &&
+                    id != bindingWidgetId &&
+                    id !in allocatedSet
             }
-            // forgetWidgetSize mutates the host's cachedSizes map, which
-            // HostedWidgetCard's size-hint path reads/writes on the main thread
-            // every layout pass and which carries no lock. Hop back to the main
-            // thread for the cache cleanup so the sweep can't race first
-            // layout/resize of a retained widget and corrupt that map.
+            if (orphans.isNotEmpty()) {
+                LauncherDebugLog.event("widget reconciliation deleting ${orphans.size} orphaned ids=$orphans")
+                orphans.forEach { id ->
+                    // The host-binding delete is a Binder IPC — keep it off the
+                    // main thread.
+                    runCatching { appWidgetHost.deleteAppWidgetId(id) }
+                        .onFailure { exception ->
+                            LauncherDebugLog.warning(
+                                "widget reconciliation: failed to delete orphaned id=$id",
+                                exception,
+                            )
+                        }
+                }
+            }
+            // forgetWidgetSize and the stranded publish touch main-thread-confined
+            // state (the host's cachedSizes map that HostedWidgetCard's size-hint
+            // path reads/writes every layout pass and which carries no lock, and
+            // the ViewModel's state), so hop back to the main thread.
             withContext(Dispatchers.Main) {
                 orphans.forEach { id -> appWidgetHost.forgetWidgetSize(id) }
+                viewModel.setStrandedWidgetIds(stranded)
             }
         }
     }
@@ -643,6 +692,7 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("MainActivity.onSaveInstanceState beforeSuper outState=${outState.debugSummary()}")
         // Carry the in-flight add ID across recreation; see KEY_PENDING_WIDGET_ID.
         outState.putInt(KEY_PENDING_WIDGET_ID, widgetAddFlow.pendingWidgetId)
+        outState.putInt(KEY_RESTORE_TARGET_WIDGET_ID, restoreTargetWidgetId)
         super.onSaveInstanceState(outState)
         LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=${outState.debugSummary()}")
     }
@@ -734,6 +784,42 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun bindWidget(provider: WidgetProvider) {
+        startWidgetBind(provider.componentName, provider.profile)
+    }
+
+    /**
+     * Re-binds a stranded restore placeholder ([widgetId]) to the provider it
+     * was remembered with, swapping the fresh ID into its slot on success (see
+     * the [widgetAddFlow] `addWidget` callback and [LauncherViewModel.replaceWidget]).
+     * Best effort: a missing record or an unresolvable user (a work profile that
+     * didn't survive a cross-device restore) surfaces a toast and leaves the
+     * placeholder in place.
+     */
+    private fun onRestoreWidget(widgetId: Int) {
+        val record = viewModel.widgetProviderRecord(widgetId)
+        if (record == null) {
+            LauncherDebugLog.warning("onRestoreWidget: no provider record for id=$widgetId")
+            return
+        }
+        val profile = getSystemService<UserManager>()?.getUserForSerialNumber(record.profileSerial)
+        if (profile == null) {
+            LauncherDebugLog.warning(
+                "onRestoreWidget: unresolved profile serial=${record.profileSerial} id=$widgetId",
+            )
+            Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        LauncherDebugLog.event(
+            "onRestoreWidget id=$widgetId component=${record.component.flattenToShortString()}",
+        )
+        startWidgetBind(record.component, profile, restoreTargetId = widgetId)
+    }
+
+    private fun startWidgetBind(
+        component: ComponentName,
+        profile: UserHandle,
+        restoreTargetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID,
+    ) {
         // One add at a time: WidgetAddFlow tracks a single pendingWidgetId, so
         // a second Add tap while a bind/configure launch is still in flight
         // (the window before its dialog covers the picker) must be ignored.
@@ -747,6 +833,9 @@ class MainActivity : ComponentActivity() {
             )
             return
         }
+        // Set only past the guard so a refused tap doesn't clobber an in-flight
+        // restore target. INVALID for an ordinary add clears any stale target.
+        restoreTargetWidgetId = restoreTargetId
         bindLaunchInFlight = true
         // allocateAppWidgetId and bindAppWidgetIdIfAllowed are AppWidgetService
         // Binder IPCs — keep them off the main thread (same policy as
@@ -765,10 +854,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
             LauncherDebugLog.event(
-                "bindWidget provider=${provider.componentName.flattenToShortString()} appWidgetId=$appWidgetId",
+                "bindWidget provider=${component.flattenToShortString()} appWidgetId=$appWidgetId " +
+                    "restoreTargetId=$restoreTargetId",
             )
             val allowed = withContext(ioDispatcher) {
-                appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, provider.profile, provider.componentName, null)
+                appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, profile, component, null)
             }
             // Commit the pending ID only now — past both cancellable IPCs and
             // with no suspension point between here and the resolving call
@@ -792,8 +882,8 @@ class MainActivity : ComponentActivity() {
 
             val bindIntent: Intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.componentName)
-                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, provider.profile)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, component)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, profile)
             try {
                 LauncherDebugLog.event("bindWidget launching system bind intent appWidgetId=$appWidgetId")
                 bindWidgetLauncher.launch(bindIntent)

@@ -187,6 +187,7 @@ internal class LauncherViewModel(
             widgetIds = widgetStore.widgetIds,
             widgetPages = widgetStore.widgetPages,
             widgetHeights = widgetStore.customHeights,
+            widgetProviderLabels = widgetStore.providerLabels,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
@@ -1681,6 +1682,7 @@ internal class LauncherViewModel(
                 widgetIds = widgetStore.widgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetProviderLabels = widgetStore.providerLabels,
             )
         }
         logState("addWidget")
@@ -1717,6 +1719,7 @@ internal class LauncherViewModel(
                 widgetIds = widgetStore.widgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetProviderLabels = widgetStore.providerLabels,
             )
         }
         logState("moveWidget")
@@ -1781,9 +1784,48 @@ internal class LauncherViewModel(
                 widgetIds = widgetStore.widgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetProviderLabels = widgetStore.providerLabels,
+                strandedWidgetIds = it.strandedWidgetIds - appWidgetId,
             )
         }
         logState("removeWidget")
+    }
+
+    /** The provider remembered for [appWidgetId], for re-binding a restore placeholder. */
+    fun widgetProviderRecord(appWidgetId: Int): WidgetProviderRecord? =
+        widgetStore.providerRecord(appWidgetId)
+
+    /**
+     * Swaps a restore placeholder's stranded [oldWidgetId] for the freshly-bound
+     * [newWidgetId] in its existing slot (see [WidgetStore.replaceId]), then
+     * refreshes the provider record from the now-live binding. The widget stops
+     * being stranded and renders normally.
+     */
+    fun replaceWidget(oldWidgetId: Int, newWidgetId: Int) {
+        LauncherDebugLog.event("replaceWidget old=$oldWidgetId new=$newWidgetId")
+        widgetStore.replaceId(oldWidgetId, newWidgetId)
+        rememberWidgetProvider(newWidgetId)
+        _uiState.update {
+            it.copy(
+                widgetIds = widgetStore.widgetIds,
+                widgetPages = widgetStore.widgetPages,
+                widgetHeights = widgetStore.customHeights,
+                widgetProviderLabels = widgetStore.providerLabels,
+                strandedWidgetIds = it.strandedWidgetIds - oldWidgetId,
+            )
+        }
+        logState("replaceWidget")
+    }
+
+    /**
+     * Publishes the set of widget IDs the host hasn't allocated on this device,
+     * computed by the startup reconciliation sweep. Those with a remembered
+     * provider render as tappable restore placeholders. Purely informational —
+     * nothing is deleted on this signal.
+     */
+    fun setStrandedWidgetIds(ids: Set<Int>) {
+        LauncherDebugLog.event("setStrandedWidgetIds ${ids.size} ids=$ids")
+        _uiState.update { it.copy(strandedWidgetIds = ids) }
     }
 
     fun openSettings() {
