@@ -396,6 +396,7 @@ class MainActivity : ComponentActivity() {
         playUpdateChecker.checkForUpdate(
             onAvailable = viewModel::setPlayUpdateAvailable,
             onUnavailable = viewModel::setPlayUpdateUnavailable,
+            onCheckFailed = viewModel::setPlayUpdateCheckFailed,
         )
     }
 
