@@ -52,6 +52,12 @@ jobs:
   build:
     name: Build and unit test
     runs-on: ubuntu-latest
+    # Without this the job inherits GitHub's 6-hour default, so a unit test
+    # that deadlocks (a latch that never releases, an await with no timeout)
+    # burns hours before the runner is reclaimed instead of failing fast. The
+    # full build + test + lint finishes well under this cap; the screenshot
+    # job below already sets the same limit.
+    timeout-minutes: 30
     permissions:
       contents: read
       # Used by "Print failing test details" to post a comment on the
