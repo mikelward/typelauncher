@@ -53,6 +53,51 @@ internal class WidgetStore(context: Context) {
     }
 
     /**
+     * Rewrites every persisted widget reference from its old, backed-up ID to
+     * the new ID the platform reallocated on this device, applying the mapping
+     * the restore broadcast supplied (see [restoredWidgetIdMapping]). Called
+     * from [WidgetRestoredReceiver] on
+     * [android.appwidget.AppWidgetManager.ACTION_APPWIDGET_HOST_RESTORED].
+     *
+     * Page order and grouping are preserved; each ID is replaced in place. An
+     * old ID absent from [oldToNew] was not restored by the platform (its
+     * provider opted out of backup, or its binding didn't survive) — it names
+     * no widget on this device, so it is dropped rather than left as a dead
+     * card, and a page emptied by the drop is removed. Custom heights follow
+     * their widget to the new ID; a dropped widget's height entry is cleaned up
+     * too so the prefs file doesn't accumulate references to IDs that will
+     * never resolve.
+     */
+    fun applyRestoredIdMapping(oldToNew: Map<Int, Int>) {
+        if (oldToNew.isEmpty()) return
+        val previousIds = widgetIds
+        pages = pages
+            .map { ids -> ids.mapNotNull { id -> oldToNew[id] } }
+            .filter { ids -> ids.isNotEmpty() }
+            .ensureAtLeastOnePage()
+        // Snapshot every old height before touching the store, then clear all
+        // old keys and write the new ones. Widget IDs are host-local and the
+        // old and new ID spaces can overlap (e.g. old 2 -> new 3 while old 3 ->
+        // new 4): a single interleaved read/remove/write pass would remove
+        // `height_3` for old widget 3 *after* it had just been written as old
+        // widget 2's new key, silently dropping old widget 2's height. Two
+        // phases — capture, then remove-all-then-write-all in one editor, where
+        // a later put on a key wins over an earlier remove — keeps every height
+        // with its widget across an overlapping remap.
+        val oldHeights = previousIds.associateWith { id -> sharedPreferences.getInt(heightKey(id), -1) }
+        val editor = sharedPreferences.edit()
+        previousIds.forEach { oldId -> editor.remove(heightKey(oldId)) }
+        for ((oldId, height) in oldHeights) {
+            val newId = oldToNew[oldId]
+            if (newId != null && height != -1) {
+                editor.putInt(heightKey(newId), height)
+            }
+        }
+        editor.apply()
+        save()
+    }
+
+    /**
      * Moves [appWidgetId] one slot up or down within the page it currently
      * lives on. No-op if the widget is unknown or already at the page edge in
      * the requested direction — moving widgets across pages is intentionally
