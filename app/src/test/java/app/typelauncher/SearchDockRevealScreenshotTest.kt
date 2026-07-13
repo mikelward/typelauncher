@@ -51,6 +51,13 @@ class SearchDockRevealScreenshotTest {
                 query = "ca",
                 filteredApps = apps,
                 dockedApps = listOf(fakeApp("Docked01").copy(isDocked = true)),
+                // Seed a persisted keyboard reservation so the layout holds a
+                // keyboard-height band at the bottom (as it does on a device
+                // mid-search) and the revealed dock renders inside that band —
+                // without it, Robolectric has no IME, the reservation is zero,
+                // and the reveal falls back to the drop-shelf overlap where the
+                // dock card is visually indistinguishable from the apps card.
+                keyboardReservation = KeyboardReservation(bottomPx = 900),
             ),
         )
         composeRule.setContent {
