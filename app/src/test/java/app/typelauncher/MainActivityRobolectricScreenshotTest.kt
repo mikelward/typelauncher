@@ -12,6 +12,7 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Process
 import android.os.UserHandle
 import android.view.KeyEvent as AndroidKeyEvent
+import android.view.WindowManager
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getBoundsInRoot
@@ -146,6 +147,29 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
     }
+
+    @Test
+    fun wallpaperShownSetting_togglesWindowWallpaperFlag() {
+        // Default (setting off): no FLAG_SHOW_WALLPAPER on the window, so the
+        // launcher composites no wallpaper and forwards no touches to a live
+        // wallpaper — everything wallpaper-related stays off until the setting.
+        assertFalse(windowRequestsWallpaper())
+
+        // Turning "Show wallpaper" on requests the flag.
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { windowRequestsWallpaper() }
+        assertTrue(windowRequestsWallpaper())
+
+        // Turning it back off clears the flag again.
+        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { !windowRequestsWallpaper() }
+        assertFalse(windowRequestsWallpaper())
+    }
+
+    private fun windowRequestsWallpaper(): Boolean =
+        (composeRule.activity.window.attributes.flags and
+            WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER) != 0
 
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
