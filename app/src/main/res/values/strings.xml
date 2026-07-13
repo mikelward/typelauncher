@@ -91,6 +91,8 @@
     <string name="widgets_preview_unavailable">Preview unavailable</string>
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>
     <string name="widgets_unavailable">Widget unavailable</string>
+    <!-- TODO: translate -->
+    <string name="widgets_restore_action" tools:ignore="MissingTranslation">Tap to restore %1$s widget</string>
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_move_up">Move up</string>
     <string name="widget_menu_move_down">Move down</string>

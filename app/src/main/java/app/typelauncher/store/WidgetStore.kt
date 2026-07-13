@@ -104,31 +104,37 @@ internal class WidgetStore(context: Context) {
      * from [WidgetRestoredReceiver] on
      * [android.appwidget.AppWidgetManager.ACTION_APPWIDGET_HOST_RESTORED].
      *
-     * Page order and grouping are preserved; each ID is replaced in place. An
-     * old ID absent from [oldToNew] was not restored by the platform (its
-     * provider opted out of backup, or its binding didn't survive) — it names
-     * no widget on this device, so it is dropped rather than left as a dead
-     * card, and a page emptied by the drop is removed. Custom heights follow
-     * their widget to the new ID; a dropped widget's height entry is cleaned up
-     * too so the prefs file doesn't accumulate references to IDs that will
-     * never resolve.
+     * Page order and grouping are preserved. A mapped ID takes its new value.
+     * An old ID absent from [oldToNew] was not restored by the platform (its
+     * provider opted out of backup, or its binding didn't survive), but it is
+     * **kept in place, not dropped** — it renders as a "restore" placeholder
+     * ([providerRecord] carries the provider to re-bind), and the user recovers
+     * the widget in its original slot rather than silently losing it. The one
+     * exception is an unmapped ID that collides with some widget's new ID: the
+     * freshly-remapped widget owns that ID, so the stale duplicate is dropped.
+     * Custom heights and provider records follow each widget to its result ID.
      */
     fun applyRestoredIdMapping(oldToNew: Map<Int, Int>) {
         if (oldToNew.isEmpty()) return
         val previousIds = widgetIds
+        val remappedNewIds = oldToNew.values.toHashSet()
+        // A mapped widget takes its new id; an unmapped one stays put unless its
+        // id collides with a remapped new id (then the stale duplicate loses).
+        fun resultId(oldId: Int): Int? = oldToNew[oldId] ?: oldId.takeUnless { it in remappedNewIds }
+
         pages = pages
-            .map { ids -> ids.mapNotNull { id -> oldToNew[id] } }
+            .map { ids -> ids.mapNotNull { id -> resultId(id) } }
             .filter { ids -> ids.isNotEmpty() }
             .ensureAtLeastOnePage()
-        // Snapshot every old height before touching the store, then clear all
-        // old keys and write the new ones. Widget IDs are host-local and the
-        // old and new ID spaces can overlap (e.g. old 2 -> new 3 while old 3 ->
-        // new 4): a single interleaved read/remove/write pass would remove
-        // `height_3` for old widget 3 *after* it had just been written as old
-        // widget 2's new key, silently dropping old widget 2's height. Two
-        // phases — capture, then remove-all-then-write-all in one editor, where
-        // a later put on a key wins over an earlier remove — keeps every height
-        // with its widget across an overlapping remap.
+        // Snapshot every old height/provider before touching the store, then
+        // clear all old keys and write the new ones. Widget IDs are host-local
+        // and the old and new ID spaces can overlap (e.g. old 2 -> new 3 while
+        // old 3 -> new 4): a single interleaved read/remove/write pass would
+        // remove `height_3` for old widget 3 *after* it had just been written
+        // as old widget 2's result key, silently dropping old widget 2's value.
+        // Two phases — capture, then remove-all-then-write-all in one editor,
+        // where a later put on a key wins over an earlier remove — keeps every
+        // value with its widget across an overlapping remap.
         val oldHeights = previousIds.associateWith { id -> sharedPreferences.getInt(heightKey(id), -1) }
         val oldProviders = previousIds.associateWith { id -> sharedPreferences.getString(providerKey(id), null) }
         val editor = sharedPreferences.edit()
@@ -137,10 +143,32 @@ internal class WidgetStore(context: Context) {
             editor.remove(providerKey(oldId))
         }
         for (oldId in previousIds) {
-            val newId = oldToNew[oldId] ?: continue
-            oldHeights.getValue(oldId).let { height -> if (height != -1) editor.putInt(heightKey(newId), height) }
-            oldProviders[oldId]?.let { record -> editor.putString(providerKey(newId), record) }
+            val target = resultId(oldId) ?: continue
+            oldHeights.getValue(oldId).let { height -> if (height != -1) editor.putInt(heightKey(target), height) }
+            oldProviders[oldId]?.let { record -> editor.putString(providerKey(target), record) }
         }
+        editor.apply()
+        save()
+    }
+
+    /**
+     * Swaps a widget's [oldId] for the freshly-bound [newId] in place, keeping
+     * its page and slot and carrying its custom height and provider record
+     * across. Used when the user re-binds a restore placeholder: the old ID had
+     * no live binding on this device, so only the persisted reference moves.
+     * No-op if [oldId] is unknown or [newId] is invalid or already tracked
+     * (guarding against a duplicate ID in the store).
+     */
+    fun replaceId(oldId: Int, newId: Int) {
+        if (oldId !in widgetIds || newId == AppWidgetManager.INVALID_APPWIDGET_ID || newId in widgetIds) return
+        pages = pages.map { ids -> ids.map { id -> if (id == oldId) newId else id } }
+        val height = sharedPreferences.getInt(heightKey(oldId), -1)
+        val provider = sharedPreferences.getString(providerKey(oldId), null)
+        val editor = sharedPreferences.edit()
+            .remove(heightKey(oldId))
+            .remove(providerKey(oldId))
+        if (height != -1) editor.putInt(heightKey(newId), height)
+        if (provider != null) editor.putString(providerKey(newId), provider)
         editor.apply()
         save()
     }

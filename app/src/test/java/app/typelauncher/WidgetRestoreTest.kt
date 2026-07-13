@@ -72,16 +72,17 @@ class WidgetRestoreTest {
     }
 
     @Test
-    fun receiverDropsWidgetsMissingFromTheRestoreMapping() {
+    fun receiverKeepsWidgetsMissingFromTheRestoreMappingAsPlaceholders() {
         WidgetStore(context).apply {
             add(10)
             add(11)
         }
 
-        // Only 10 was restored by the platform; 11's binding didn't survive.
+        // Only 10 was restored by the platform; 11's binding didn't survive but
+        // is kept in place so it can render as a re-bindable restore placeholder.
         WidgetRestoredReceiver().onReceive(context, hostRestoredIntent(APP_WIDGET_HOST_ID, intArrayOf(10), intArrayOf(40)))
 
-        assertEquals(listOf(listOf(40)), WidgetStore(context).widgetPages)
+        assertEquals(listOf(listOf(40, 11)), WidgetStore(context).widgetPages)
     }
 
     @Test

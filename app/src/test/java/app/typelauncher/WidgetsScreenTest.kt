@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +30,68 @@ import org.robolectric.annotation.Config
 class WidgetsScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun strandedWidget_showsRestorePlaceholderAndRebindsOnTap() {
+        var restoredId = -1
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = listOf(10),
+                    availableWidgets = emptyList(),
+                    isAddingWidget = false,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    widgetProviderLabels = mapOf(10 to "Weather"),
+                    strandedWidgetIds = setOf(10),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRestoreWidget = { restoredId = it },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Tap to restore Weather widget").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performClick()
+
+        assertEquals(10, restoredId)
+    }
+
+    @Test
+    fun unavailableNonStrandedWidget_showsPlainTextAndDoesNotRestoreOnTap() {
+        var restoredId = -1
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = listOf(10),
+                    availableWidgets = emptyList(),
+                    isAddingWidget = false,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    // Has a remembered label but is NOT stranded (still bound,
+                    // provider merely mid-reinstall), so no restore is offered.
+                    widgetProviderLabels = mapOf(10 to "Weather"),
+                    strandedWidgetIds = emptySet(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                    onRestoreWidget = { restoredId = it },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Widget unavailable").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performClick()
+
+        assertEquals(-1, restoredId)
+    }
 
     @Test
     fun widgetPicker_autoLoadsProviderPreviewsWhenAppExpands() {

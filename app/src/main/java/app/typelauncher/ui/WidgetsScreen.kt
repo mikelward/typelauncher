@@ -98,11 +98,17 @@ internal fun WidgetsScreen(
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
     widgetHeights: Map<Int, Int> = emptyMap(),
+    // The provider label to show on a stranded widget's restore placeholder.
+    widgetProviderLabels: Map<Int, String> = emptyMap(),
+    // Widget IDs with no host binding on this device (restore residue) that
+    // therefore render as re-bindable placeholders rather than plain unavailable.
+    strandedWidgetIds: Set<Int> = emptySet(),
     isCurrentPage: Boolean = true,
     onAddWidget: (isCurrentPageScrollable: Boolean) -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onRestoreWidget: (Int) -> Unit = {},
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
     workProfileWidgetRefreshToken: Int = 0,
@@ -151,7 +157,12 @@ internal fun WidgetsScreen(
                 customHeightDp = widgetHeights[widgetId],
                 canMoveUp = index > 0,
                 canMoveDown = index < widgetIds.lastIndex,
+                // Only stranded widgets (no live binding) offer restore; a widget
+                // merely waiting for its provider to reinstall keeps its binding
+                // and self-heals, so it isn't re-bound.
+                restoreLabel = widgetProviderLabels[widgetId]?.takeIf { widgetId in strandedWidgetIds },
                 onRemoveWidget = onRemoveWidget,
+                onRestoreWidget = onRestoreWidget,
                 onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
                 onMoveWidget = onMoveWidget,
                 workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
@@ -626,7 +637,12 @@ internal fun HostedWidgetCard(
     customHeightDp: Int?,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    // Non-null when this widget lost its binding in a backup restore but its
+    // provider is remembered: the unavailable card becomes a tappable "Restore
+    // <label> widget" placeholder that re-binds it in place.
+    restoreLabel: String? = null,
     onRemoveWidget: (Int) -> Unit,
+    onRestoreWidget: (Int) -> Unit = {},
     onResizeWidget: (Int) -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
     // Bumped when a work profile becomes available again; see the token's doc in
@@ -754,13 +770,19 @@ internal fun HostedWidgetCard(
             SectionCard(
                 Modifier
                     .combinedClickable(
-                        onClick = {},
+                        // A stranded widget's card re-binds its provider on tap;
+                        // an ordinary unavailable card has no tap action.
+                        onClick = { if (restoreLabel != null) onRestoreWidget(widgetId) },
                         onLongClick = { menuExpanded = true },
                     )
                     .testTag("$WIDGET_CARD_TAG:$widgetId"),
             ) {
                 Text(
-                    text = stringResource(R.string.widgets_unavailable),
+                    text = if (restoreLabel != null) {
+                        stringResource(R.string.widgets_restore_action, restoreLabel)
+                    } else {
+                        stringResource(R.string.widgets_unavailable)
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
