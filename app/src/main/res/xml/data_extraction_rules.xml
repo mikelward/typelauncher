@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Type Launcher currently relies on Android's default cloud-backup include set.
-   Add explicit include/exclude rules here only when product behavior requires
-   custom backup scope.
+   Backup / transfer scope for Android 12+ (API 31+).
+
+   App-widget IDs are device-local: they index into this device's
+   AppWidgetService, which has no matching bindings on any other device. The
+   `widgets` SharedPreferences (persisted widget-ID pages and per-widget
+   heights) is therefore excluded from both cloud backup and direct
+   device-to-device transfer — restoring it onto a new phone would render
+   every widget as a permanent "Widget unavailable" card, and its stale IDs
+   could collide with IDs the fresh device's host later allocates. Everything
+   else keeps Android's default include set.
 -->
 <data-extraction-rules>
-    <cloud-backup />
-    <!--
+    <cloud-backup>
+        <exclude domain="sharedpref" path="widgets.xml" />
+    </cloud-backup>
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="widgets.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   Legacy full-backup scope (API <= 30). minSdk is 34, so no device actually
+   uses this file; the operative rules live in data_extraction_rules.xml. Kept
+   in sync for correctness: app-widget IDs are device-local and must never be
+   restored onto another device (see data_extraction_rules.xml), so the
+   `widgets` SharedPreferences is excluded here too.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="widgets.xml" />
 </full-backup-content>
