@@ -1,7 +1,11 @@
 package app.typelauncher
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
+import android.view.WindowManager
 import android.net.Uri
 import android.view.KeyEvent
 import android.widget.Toast
@@ -115,6 +119,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -651,6 +656,66 @@ internal fun HomeScreen(
     val showSearchCard = (landscapeTier != HomeLandscapeTier.Compact && searchBoxFitsWithKeyboard) ||
         searchRevealed ||
         state.query.isNotBlank()
+    // `wallpaperActive` keeps the wallpaper as Home's backdrop for the whole
+    // Home experience while the setting is on — empty query *and* while typing
+    // — so the search box, dock, and app list render as opaque cards on top of
+    // it rather than the wallpaper being torn down the instant the user types.
+    // Gated on the search box being visible: in the cramped-landscape Compact
+    // state (and any landscape without typing headroom) the list is the only
+    // launch surface, so we never hand the background to the wallpaper there.
+    val wallpaperActive = isHome && state.isWallpaperShown && showSearchCard
+    // `showWallpaperSlot` is the empty-query case: the app-list slot itself is
+    // left transparent so the wallpaper shows through it. Typing brings the
+    // opaque `AppsCard` back into that slot, over the same wallpaper backdrop.
+    val showWallpaperSlot = wallpaperActive && state.query.isBlank()
+    // In the empty-query slot the transparent [HomeWallpaper] replaces
+    // `AppsCard`, which then leaves composition
+    // without emitting a final `onAppListBoundsChanged(null)` (its clear-on-
+    // empty effect is cancelled, not run, on the way out). Clear the last
+    // published *scrollable-list* bounds ourselves so the carousel's "started
+    // in the Home app list" reservation — which returns early instead of
+    // dispatching the vertical pull — doesn't treat pull-up/pull-down over the
+    // wallpaper as list scrolling and swallow the recents / notification-shade
+    // gestures. `AppsCard` republishes these when it re-enters composition
+    // (typing, or turning the setting off). The *card* bounds
+    // (`appListBoundsInRoot`) are deliberately NOT cleared here — they are the
+    // drag-to-undock drop target, and the wallpaper slot republishes its own
+    // bounds into them below so dragging a docked app onto the wallpaper still
+    // undocks it.
+    LaunchedEffect(showWallpaperSlot) {
+        if (showWallpaperSlot) {
+            onAppListBoundsChanged(null)
+        }
+    }
+    val context = LocalContext.current
+    val homeBackgroundColor = MaterialTheme.colorScheme.background
+    // While the wallpaper is active, let the system draw the real wallpaper
+    // behind the window (`FLAG_SHOW_WALLPAPER`) and make the window background
+    // transparent so the transparent Home background (below) reveals it.
+    // `WallpaperManager.getDrawable()` can't read the wallpaper on API 34+
+    // without permissions a launcher can't hold, so this window flag is the
+    // supported path. Keyed on `wallpaperActive`, not the query, so the flag
+    // toggles only on entering/leaving Home — not on every keystroke — and is
+    // reverted when the wallpaper goes away (leaving Home or turning it off) so
+    // ordinary Home stays fully opaque and never composites the wallpaper.
+    DisposableEffect(wallpaperActive) {
+        val window = context.findActivity()?.window
+        if (window != null) {
+            if (wallpaperActive) {
+                window.setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+                window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                window.setBackgroundDrawable(ColorDrawable(homeBackgroundColor.toArgb()))
+            }
+        }
+        onDispose {
+            context.findActivity()?.window?.let { window ->
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                window.setBackgroundDrawable(ColorDrawable(homeBackgroundColor.toArgb()))
+            }
+        }
+    }
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
     // revealed the box in a landscape state that keeps the keyboard down
     // (Compact or DockNoKeyboard) — a pull-up is an explicit request, so it
@@ -812,7 +877,12 @@ internal fun HomeScreen(
     Layout(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // Transparent while the wallpaper is showing so the system wallpaper
+            // (drawn behind the window by `FLAG_SHOW_WALLPAPER`, see the window
+            // effect above) shows through the empty Home; the search box and
+            // dock are opaque cards that float on it. Opaque otherwise, so
+            // ordinary Home is unchanged.
+            .background(if (wallpaperActive) Color.Transparent else MaterialTheme.colorScheme.background)
             .padding(bottom = primaryBottomPadding)
             .padding(innerPadding)
             .padding(
@@ -851,7 +921,20 @@ internal fun HomeScreen(
             // composition; the holdback is a cold-start optimisation, not
             // a per-mount one. See the comment on `homeBodyReady` in
             // TypeLauncherApp for the why.
-            if (bodyReady) {
+            if (bodyReady && showWallpaperSlot) {
+                // Same slot as the apps card (index 1, measured to `appHeight`),
+                // so swapping wallpaper ↔ list when the query flips never
+                // reflows the search box or dock above/below it. The slot
+                // publishes its bounds into `appListBoundsInRoot` (the same
+                // drag-to-undock drop target the apps card feeds), so dragging a
+                // docked app up onto the wallpaper still undocks it, and the
+                // target tracks the slot as the layout shifts (e.g. recents
+                // opening) instead of relying on the apps card's last value.
+                HomeWallpaper(
+                    modifier = Modifier.fillMaxSize(),
+                    onBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
+                )
+            } else if (bodyReady) {
                 AppsCard(
                     apps = state.filteredApps,
                     isLoading = state.isLoadingApps,
@@ -1054,6 +1137,30 @@ internal fun searchDockRevealTopPx(
     layoutHeightPx + contentInsetPx,
     layoutHeightPx + contentInsetPx + keyboardReservationPx - dockHeightPx,
 ).coerceAtLeast(0)
+
+/**
+ * The app-list slot when "Show wallpaper" is on and the query is empty (see
+ * `showWallpaperSlot` in [HomeScreen]). Rather than reading the wallpaper bitmap
+ * (unsupported on API 34+ without permissions a launcher can't hold), the slot
+ * is simply left transparent: Home's background is transparent while the
+ * wallpaper is showing, so the system wallpaper — drawn behind the window by
+ * `FLAG_SHOW_WALLPAPER`, see the window effect in [HomeScreen] — shows through
+ * here (and everywhere else the opaque search box and dock don't cover). The
+ * slot still reports its bounds so the carousel undock drop target tracks it.
+ */
+@Composable
+private fun HomeWallpaper(
+    modifier: Modifier = Modifier,
+    onBoundsChanged: (Rect?) -> Unit = {},
+) {
+    Box(
+        modifier = modifier
+            .testTag(HOME_WALLPAPER_TAG)
+            .onGloballyPositioned { coords ->
+                onBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+            },
+    )
+}
 
 /**
  * The height (dp) the home layout reserves for the apps list: one
@@ -5096,6 +5203,7 @@ internal fun SettingsScreen(
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
+    onWallpaperShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -5273,6 +5381,23 @@ internal fun SettingsScreen(
                     checked = state.isKeyboardAutoShown,
                     onCheckedChange = onKeyboardAutoShownChanged,
                     modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_wallpaper_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isWallpaperShown,
+                    onCheckedChange = onWallpaperShownChanged,
+                    modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
                 )
             }
             Row(

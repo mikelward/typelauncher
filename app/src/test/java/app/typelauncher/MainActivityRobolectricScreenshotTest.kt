@@ -112,6 +112,58 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun wallpaper_replacesAppListOnEmptyHomeUntilTyping() {
+        // Default: the app list is the empty-Home surface, no wallpaper slot.
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertDoesNotExist()
+
+        // Turn on "Show wallpaper" through Settings — exercises the whole
+        // string/switch/callback/ViewModel/state wiring end to end.
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // Empty Home now shows the wallpaper slot in place of the app list; the
+        // search box stays visible (the gate) so the user can still type.
+        composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        // No screenshot here: the slot is a transparent hole to the window
+        // wallpaper (via FLAG_SHOW_WALLPAPER), which Robolectric can't composite,
+        // so a capture would only show empty background. The wallpaper rendering
+        // is verified on-device.
+
+        // Typing brings the filtered list back and hides the wallpaper.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("ca")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
+
+        // Clearing the query returns to the wallpaper.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextClearance()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w600dp-h240dp-420dpi")
+    fun wallpaper_notShownWhenSearchBoxHidden() {
+        composeRule.waitForIdle()
+        // Cramped landscape (Compact) hides the search box, so the app list is
+        // the only launch surface — the wallpaper must not take it over even
+        // with the setting on, or the user would be stranded with nothing to
+        // type into and no list.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+        composeRule.runOnUiThread { composeRule.activity.viewModel.setWallpaperShown(true) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
+    }
+
+    @Test
     @Config(qualifiers = "w1280dp-h900dp-420dpi")
     fun screenshot_landscape_full_showsDockAndBox() {
         composeRule.waitForIdle()

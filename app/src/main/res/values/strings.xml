@@ -129,6 +129,8 @@
     <string name="settings_work_dock_enabled_title">Show work dock</string>
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
+    <!-- TODO: translate -->
+    <string name="settings_show_wallpaper_title" tools:ignore="MissingTranslation">Show wallpaper</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>

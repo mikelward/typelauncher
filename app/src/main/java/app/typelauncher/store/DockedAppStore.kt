@@ -569,6 +569,19 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * When on, the empty-query Home shows the device wallpaper in the app-list
+     * slot instead of the browse list until the user starts typing — an opt-in,
+     * so it defaults off to preserve the browse-first Home for existing users.
+     */
+    var isWallpaperShown: Boolean
+        get() = sharedPreferences.getBoolean(KEY_SHOW_WALLPAPER, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_SHOW_WALLPAPER, value)
+                .apply()
+        }
+
+    /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
      * keyboard was opening, paired with the configuration it was measured
      * under and the source that produced it. Used to reserve Home's
@@ -698,6 +711,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
+        const val KEY_SHOW_WALLPAPER = "show_wallpaper"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"
         const val KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP = "keyboard_reservation_screen_width_dp"
