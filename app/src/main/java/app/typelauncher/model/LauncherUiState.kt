@@ -683,6 +683,11 @@ internal data class LauncherUiState(
     // `MainActivity` applies `stateAlwaysHidden` so the keyboard stays down
     // until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
+    // When true, the empty-query Home shows the device wallpaper in the
+    // app-list slot (instead of the browse list) until the user starts typing,
+    // and only where the search box is visible. Defaults off. See the
+    // `showWallpaper` gate in `HomeScreen`.
+    val isWallpaperShown: Boolean = false,
     // Last keyboard bottom inset observed while the IME was opening, paired
     // with the configuration it was measured under and the source that
     // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show

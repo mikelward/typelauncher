@@ -251,6 +251,22 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun wallpaperShownDefaultsToFalse() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(false, store.isWallpaperShown)
+    }
+
+    @Test
+    fun wallpaperShownPersistsExplicitSelection() {
+        DockSettingsStore(context).isWallpaperShown = true
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(true, reloaded.isWallpaperShown)
+    }
+
+    @Test
     fun themeModeFallsBackToSystemForUnknownStoredValue() {
         context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
             .edit()

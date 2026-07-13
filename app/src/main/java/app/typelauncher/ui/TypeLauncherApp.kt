@@ -46,6 +46,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -288,6 +289,7 @@ internal fun TypeLauncherApp(
         onWorkDockEnabledChanged = viewModel::setWorkDockEnabled,
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
+        onWallpaperShownChanged = viewModel::setWallpaperShown,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onThemeModeChanged = viewModel::setThemeMode,
         onIconShapeChanged = viewModel::setIconShape,
@@ -367,6 +369,7 @@ internal fun TypeLauncherApp(
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
+    onWallpaperShownChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -452,6 +455,14 @@ internal fun TypeLauncherApp(
         homeBodyReady = true
     }
     Scaffold(
+        // Transparent so Home's "Show wallpaper" hole can reach the window
+        // wallpaper: every screen paints its own opaque background full-bleed,
+        // so the Scaffold's own container fill was redundant, and dropping it
+        // removes one opaque layer between Home's punched-through app-list slot
+        // and the `FLAG_SHOW_WALLPAPER` wallpaper behind the window. Off the
+        // wallpaper path the window background (an opaque color) backs it, so
+        // there is no visible change.
+        containerColor = Color.Transparent,
         // `MainActivity` uses adjustResize, so the window is already resized
         // as the IME animates. Applying WindowInsets.ime here as well would
         // change Home's height twice during the same keyboard transition.
@@ -775,6 +786,7 @@ internal fun TypeLauncherApp(
                         onWorkDockEnabledChanged = onWorkDockEnabledChanged,
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
+                        onWallpaperShownChanged = onWallpaperShownChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onThemeModeChanged = onThemeModeChanged,
                         onIconShapeChanged = onIconShapeChanged,

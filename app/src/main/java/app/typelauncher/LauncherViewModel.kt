@@ -195,6 +195,7 @@ internal class LauncherViewModel(
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
+            isWallpaperShown = dockSettingsStore.isWallpaperShown,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
@@ -2026,6 +2027,12 @@ internal class LauncherViewModel(
         dockSettingsStore.isKeyboardAutoShown = isAutoShown
         _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
         logState("setKeyboardAutoShown=$isAutoShown")
+    }
+
+    fun setWallpaperShown(isShown: Boolean) {
+        dockSettingsStore.isWallpaperShown = isShown
+        _uiState.update { it.copy(isWallpaperShown = isShown) }
+        logState("setWallpaperShown=$isShown")
     }
 
     fun setAgendaEnabled(isEnabled: Boolean) {
