@@ -1,31 +1,47 @@
 package app.typelauncher
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
+// Height of the search field's outlined box. Material's own `OutlinedTextField`
+// floors at 56dp, so the field is built from `BasicTextField` + the outlined
+// decoration box to reach this denser height. 48dp is the accessibility minimum
+// for a tappable target — don't go below it.
+private const val SEARCH_FIELD_HEIGHT_DP = 48
+
+// DecorationBox / Container / contentPadding on OutlinedTextFieldDefaults are
+// experimental in some Material3 releases; opt in explicitly so the dense field
+// compiles across versions. Harmless if they graduate to stable.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LauncherFilterField(
     value: String,
@@ -35,21 +51,48 @@ internal fun LauncherFilterField(
     trailingIcon: (@Composable () -> Unit)? = null,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
-    OutlinedTextField(
+    val interactionSource = remember { MutableInteractionSource() }
+    val textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground)
+    BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = trailingIcon,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = SEARCH_FIELD_HEIGHT_DP.dp),
         singleLine = true,
-        placeholder = { Text(placeholder) },
-        textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
+        textStyle = textStyle,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Words,
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Search,
         ),
         keyboardActions = keyboardActions,
+        interactionSource = interactionSource,
+        decorationBox = { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = value,
+                innerTextField = innerTextField,
+                enabled = true,
+                singleLine = true,
+                visualTransformation = VisualTransformation.None,
+                interactionSource = interactionSource,
+                placeholder = { Text(placeholder) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = trailingIcon,
+                // Trim the vertical content padding (default 16dp) to 12dp so the
+                // 24dp icon/text row plus padding lands at the 48dp target height;
+                // the horizontal padding keeps Material's default.
+                contentPadding = OutlinedTextFieldDefaults.contentPadding(top = 12.dp, bottom = 12.dp),
+                container = {
+                    OutlinedTextFieldDefaults.Container(
+                        enabled = true,
+                        isError = false,
+                        interactionSource = interactionSource,
+                    )
+                },
+            )
+        },
     )
 }
 

@@ -53,9 +53,11 @@ internal data class HomeLandscapeUi(
 
 // Estimated height of the search card (the `SectionCard` wrapping the filter
 // field) used only by the fit decision below — never to lay the card out. The
-// filter field is a default-height text field (~56dp) inside the card's
-// `SECTION_CARD_PADDING_DP` of vertical chrome on each side (16 * 2 = 32).
-internal const val SEARCH_CARD_ESTIMATED_HEIGHT_DP = 88
+// filter field is the dense 48dp search field (see `LauncherFilterField`)
+// inside the search card's 8dp of vertical chrome on each side (8 * 2 = 16).
+// Keep this in step with that field height and the search card's vertical
+// padding in `SearchCard`, or the landscape fit gate mis-hides the box.
+internal const val SEARCH_CARD_ESTIMATED_HEIGHT_DP = 64
 
 // Height of one text-mode app row: the 40dp `AppIcon` plus the row's 8dp
 // vertical padding on each side (see `AppRow`). Text rows don't scale with the
