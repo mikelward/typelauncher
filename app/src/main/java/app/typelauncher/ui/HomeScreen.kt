@@ -83,6 +83,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -114,12 +115,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -686,6 +689,37 @@ internal fun HomeScreen(
     // Home's cards fade to `cardOpacity` only while the wallpaper is actually
     // behind them, so the wallpaper can show through; fully opaque otherwise.
     val homeCardAlpha = if (wallpaperActive) state.cardOpacity else 1f
+    // Home's cards tint from a chosen system-palette color while the wallpaper
+    // shows (the "Card tint" swatch picker); off the wallpaper path they keep
+    // Material You's neutral surface. `Neutral` (and being off the wallpaper)
+    // leaves `LocalCardTint` null so each card keeps its own
+    // `CardDefaults.cardColors()`; the accents fill with the matching Material
+    // You container role and its paired content color so text stays legible.
+    val cardScheme = MaterialTheme.colorScheme
+    val cardTintColors: CardColors? = if (wallpaperActive) {
+        when (state.cardTint) {
+            CardTint.Neutral -> null
+            CardTint.Tinted -> CardDefaults.cardColors(
+                // A neutral-based wash keeps the default onSurface content color
+                // legible, so no contentColor override here.
+                containerColor = lerp(cardScheme.surfaceContainerHighest, cardScheme.surfaceTint, 0.18f),
+            )
+            CardTint.Primary -> CardDefaults.cardColors(
+                containerColor = cardScheme.primaryContainer,
+                contentColor = cardScheme.onPrimaryContainer,
+            )
+            CardTint.Secondary -> CardDefaults.cardColors(
+                containerColor = cardScheme.secondaryContainer,
+                contentColor = cardScheme.onSecondaryContainer,
+            )
+            CardTint.Tertiary -> CardDefaults.cardColors(
+                containerColor = cardScheme.tertiaryContainer,
+                contentColor = cardScheme.onTertiaryContainer,
+            )
+        }
+    } else {
+        null
+    }
     // `showWallpaperSlot` is the empty-query case: the app-list slot itself is
     // left transparent so the wallpaper shows through it. Typing brings the
     // opaque `AppsCard` back into that slot, over the same wallpaper backdrop.
@@ -926,7 +960,10 @@ internal fun HomeScreen(
     // Provide the card alpha to every SectionCard on Home (search box, dock,
     // app list, recents) so they fade uniformly while the wallpaper shows.
     // Scoped here so Settings and dialog cards, composed elsewhere, stay opaque.
-    CompositionLocalProvider(LocalCardAlpha provides homeCardAlpha) {
+    CompositionLocalProvider(
+        LocalCardAlpha provides homeCardAlpha,
+        LocalCardTint provides cardTintColors,
+    ) {
     Layout(
         modifier = Modifier
             .fillMaxSize()
@@ -5277,6 +5314,7 @@ internal fun SettingsScreen(
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onCardOpacityChanged: (Float) -> Unit = {},
+    onCardTintChanged: (CardTint) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -5493,6 +5531,24 @@ internal fun SettingsScreen(
                     valueRange = CARD_OPACITY_MIN..1f,
                     enabled = cardOpacityEnabled,
                     modifier = Modifier.testTag(CARD_OPACITY_SLIDER_TAG),
+                )
+            }
+            // Card tint — which system-palette color bleeds into Home's cards.
+            // A row of swatches: a current-color preview followed by the palette
+            // choices. Same gate as opacity (only meaningful while the wallpaper
+            // is behind them), so it's disabled unless Show wallpaper is on.
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.settings_card_tint_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = if (cardOpacityEnabled) 1f else 0.38f),
+                )
+                CardTintSwatchRow(
+                    selected = state.cardTint,
+                    enabled = cardOpacityEnabled,
+                    onCardTintChanged = onCardTintChanged,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
             Row(
@@ -5964,6 +6020,116 @@ private fun ThemeMode.optionTag(): String =
         ThemeMode.System -> THEME_MODE_OPTION_SYSTEM_TAG
         ThemeMode.Light -> THEME_MODE_OPTION_LIGHT_TAG
         ThemeMode.Dark -> THEME_MODE_OPTION_DARK_TAG
+    }
+
+// The palette swatch picker for the Card tint setting: a non-interactive
+// preview of the current color, then one tappable circle per [CardTint] showing
+// that role's live color from the system (Material You) palette. The selected
+// option carries a ring. Disabled (dimmed, non-interactive) unless Show
+// wallpaper is on, matching the opacity slider's gate.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CardTintSwatchRow(
+    selected: CardTint,
+    enabled: Boolean,
+    onCardTintChanged: (CardTint) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // A wrapping row (FlowRow) so the swatches never overflow a narrow screen —
+    // they flow onto a second line instead. Each swatch fills a 48dp touch
+    // target, so the visible spacing between circles comes mostly from that
+    // padding; the 4dp arrangement just keeps the targets from touching.
+    FlowRow(
+        modifier = modifier.testTag(CARD_TINT_ROW_TAG),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        CardTintSwatch(
+            color = selected.swatchColor(),
+            diameter = 32.dp,
+            selected = false,
+            enabled = enabled,
+            description = stringResource(R.string.settings_card_tint_current),
+            onClick = null,
+        )
+        CardTint.entries.forEach { tint ->
+            CardTintSwatch(
+                color = tint.swatchColor(),
+                diameter = 28.dp,
+                selected = tint == selected,
+                enabled = enabled,
+                description = stringResource(tint.descriptionRes()),
+                onClick = { onCardTintChanged(tint) },
+                modifier = Modifier.testTag(tint.optionTag()),
+            )
+        }
+    }
+}
+
+// Every swatch fills a 48dp box — the standard accessible touch target (matching
+// BadgePickerDialog) — with the smaller color circle centered inside, so the tap
+// area stays comfortable even though the visual circle is only 28–32dp.
+@Composable
+private fun CardTintSwatch(
+    color: Color,
+    diameter: Dp,
+    selected: Boolean,
+    enabled: Boolean,
+    description: String,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val dim = if (enabled) 1f else 0.38f
+    val ringColor = if (selected) onSurface.copy(alpha = dim) else onSurface.copy(alpha = 0.24f * dim)
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .then(if (onClick != null && enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(diameter)
+                .clip(CircleShape)
+                .background(color.copy(alpha = color.alpha * dim))
+                .border(width = if (selected) 2.dp else 1.dp, color = ringColor, shape = CircleShape),
+        )
+    }
+}
+
+@Composable
+private fun CardTint.swatchColor(): Color =
+    when (this) {
+        CardTint.Neutral -> MaterialTheme.colorScheme.surfaceContainerHighest
+        CardTint.Tinted -> lerp(
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+            MaterialTheme.colorScheme.surfaceTint,
+            0.18f,
+        )
+        CardTint.Primary -> MaterialTheme.colorScheme.primaryContainer
+        CardTint.Secondary -> MaterialTheme.colorScheme.secondaryContainer
+        CardTint.Tertiary -> MaterialTheme.colorScheme.tertiaryContainer
+    }
+
+private fun CardTint.descriptionRes(): Int =
+    when (this) {
+        CardTint.Neutral -> R.string.settings_card_tint_option_neutral
+        CardTint.Tinted -> R.string.settings_card_tint_option_tinted
+        CardTint.Primary -> R.string.settings_card_tint_option_primary
+        CardTint.Secondary -> R.string.settings_card_tint_option_secondary
+        CardTint.Tertiary -> R.string.settings_card_tint_option_tertiary
+    }
+
+private fun CardTint.optionTag(): String =
+    when (this) {
+        CardTint.Neutral -> CARD_TINT_OPTION_NEUTRAL_TAG
+        CardTint.Tinted -> CARD_TINT_OPTION_TINTED_TAG
+        CardTint.Primary -> CARD_TINT_OPTION_PRIMARY_TAG
+        CardTint.Secondary -> CARD_TINT_OPTION_SECONDARY_TAG
+        CardTint.Tertiary -> CARD_TINT_OPTION_TERTIARY_TAG
     }
 
 @Composable

@@ -133,6 +133,20 @@
     <string name="settings_show_wallpaper_title" tools:ignore="MissingTranslation">Show wallpaper</string>
     <!-- TODO: translate -->
     <string name="settings_card_opacity_label" tools:ignore="MissingTranslation">Card opacity: %1$d%%</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_title" tools:ignore="MissingTranslation">Card tint</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_current" tools:ignore="MissingTranslation">Current card tint</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_option_neutral" tools:ignore="MissingTranslation">Neutral</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_option_tinted" tools:ignore="MissingTranslation">Tinted</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_option_primary" tools:ignore="MissingTranslation">Primary color</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_option_secondary" tools:ignore="MissingTranslation">Secondary color</string>
+    <!-- TODO: translate -->
+    <string name="settings_card_tint_option_tertiary" tools:ignore="MissingTranslation">Tertiary color</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
