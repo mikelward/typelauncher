@@ -223,6 +223,27 @@ class LauncherViewModelPlayUpdateTest {
     }
 
     @Test
+    fun checkFailedRecoversStuckStartingSpinnerToIdle() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101)
+        // User taps Update: the banner shows the "Updating…" spinner while the
+        // Play sheet opens.
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
+        idle()
+
+        // User cancels the sheet (no install-listener event fires) and the
+        // resume-time recheck then fails. A preserved Starting would leave the
+        // spinner stuck forever with click disabled and dismiss hidden — recover
+        // it to Idle so the user can tap Update again.
+        viewModel.setPlayUpdateCheckFailed()
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Idle, state.progress)
+        assertTrue("banner must be tappable again after recovery", state.shouldPrompt)
+    }
+
+    @Test
     fun successfulUnavailableStillClearsBanner() {
         // A check that *succeeds* and reports no update still clears the banner,
         // so the fix distinguishes "check failed" from "no update available".
