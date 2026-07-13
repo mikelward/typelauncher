@@ -688,6 +688,10 @@ internal data class LauncherUiState(
     // and only where the search box is visible. Defaults off. See the
     // `showWallpaper` gate in `HomeScreen`.
     val isWallpaperShown: Boolean = false,
+    // Opacity of Home's cards while the wallpaper is showing (search box, dock,
+    // app list, recents), so the wallpaper can show through them. Only applied
+    // when [isWallpaperShown] is on; 1f = fully opaque (default).
+    val cardOpacity: Float = 1f,
     // Last keyboard bottom inset observed while the IME was opening, paired
     // with the configuration it was measured under and the source that
     // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show

@@ -438,6 +438,12 @@ internal class DockedAppStore(
         }
 }
 
+// Floor for [DockSettingsStore.cardOpacity]: Home cards never fade below this
+// while the wallpaper shows, so their text and icons stay legible. The Settings
+// slider's range starts here. Top-level (not in the store's private companion)
+// so the Settings slider and tests can share the exact same floor.
+internal const val CARD_OPACITY_MIN = 0.4f
+
 internal class DockSettingsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
@@ -582,6 +588,20 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Opacity of Home's cards (search box, dock, app list, recents) while the
+     * wallpaper is showing, so the wallpaper can show through them. Only takes
+     * effect when [isWallpaperShown] is on. Clamped to [CARD_OPACITY_MIN]..1 so
+     * a translucent card never becomes illegible; defaults to fully opaque.
+     */
+    var cardOpacity: Float
+        get() = sharedPreferences.getFloat(KEY_CARD_OPACITY, 1f).coerceIn(CARD_OPACITY_MIN, 1f)
+        set(value) {
+            sharedPreferences.edit()
+                .putFloat(KEY_CARD_OPACITY, value.coerceIn(CARD_OPACITY_MIN, 1f))
+                .apply()
+        }
+
+    /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
      * keyboard was opening, paired with the configuration it was measured
      * under and the source that produced it. Used to reserve Home's
@@ -712,6 +732,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
+        const val KEY_CARD_OPACITY = "card_opacity"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"
         const val KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP = "keyboard_reservation_screen_width_dp"

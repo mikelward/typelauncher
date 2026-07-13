@@ -164,6 +164,21 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun cardOpacitySlider_isDisabledUntilShowWallpaperIsOn() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // The slider only affects the wallpaper backdrop, so it's disabled until
+        // Show wallpaper is turned on.
+        composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).performScrollTo().assertIsNotEnabled()
+
+        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).assertIsEnabled()
+    }
+
+    @Test
     @Config(qualifiers = "w1280dp-h900dp-420dpi")
     fun screenshot_landscape_full_showsDockAndBox() {
         composeRule.waitForIdle()

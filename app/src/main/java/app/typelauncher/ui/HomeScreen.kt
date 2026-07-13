@@ -97,6 +97,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -664,6 +665,9 @@ internal fun HomeScreen(
     // state (and any landscape without typing headroom) the list is the only
     // launch surface, so we never hand the background to the wallpaper there.
     val wallpaperActive = isHome && state.isWallpaperShown && showSearchCard
+    // Home's cards fade to `cardOpacity` only while the wallpaper is actually
+    // behind them, so the wallpaper can show through; fully opaque otherwise.
+    val homeCardAlpha = if (wallpaperActive) state.cardOpacity else 1f
     // `showWallpaperSlot` is the empty-query case: the app-list slot itself is
     // left transparent so the wallpaper shows through it. Typing brings the
     // opaque `AppsCard` back into that slot, over the same wallpaper backdrop.
@@ -874,6 +878,10 @@ internal fun HomeScreen(
             }
         }
     }
+    // Provide the card alpha to every SectionCard on Home (search box, dock,
+    // app list, recents) so they fade uniformly while the wallpaper shows.
+    // Scoped here so Settings and dialog cards, composed elsewhere, stay opaque.
+    CompositionLocalProvider(LocalCardAlpha provides homeCardAlpha) {
     Layout(
         modifier = Modifier
             .fillMaxSize()
@@ -1115,6 +1123,7 @@ internal fun HomeScreen(
                 )
             }
         }
+    }
     }
 }
 
@@ -5204,6 +5213,7 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
+    onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -5398,6 +5408,28 @@ internal fun SettingsScreen(
                     checked = state.isWallpaperShown,
                     onCheckedChange = onWallpaperShownChanged,
                     modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
+                )
+            }
+            // Card opacity — how much the wallpaper shows through Home's cards.
+            // Only meaningful while the wallpaper is behind them, so it's
+            // disabled (and dimmed) unless Show wallpaper is on.
+            val cardOpacityEnabled = state.isWallpaperShown
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(
+                        R.string.settings_card_opacity_label,
+                        (state.cardOpacity * 100).roundToInt(),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = if (cardOpacityEnabled) 1f else 0.38f),
+                )
+                Slider(
+                    value = state.cardOpacity,
+                    onValueChange = onCardOpacityChanged,
+                    valueRange = CARD_OPACITY_MIN..1f,
+                    enabled = cardOpacityEnabled,
+                    modifier = Modifier.testTag(CARD_OPACITY_SLIDER_TAG),
                 )
             }
             Row(
