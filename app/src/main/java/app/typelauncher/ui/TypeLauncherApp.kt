@@ -869,13 +869,14 @@ internal fun TypeLauncherApp(
                         recentsScrollRegionState = recentsScrollRegionState,
                         isDockDraggingState = isDockDraggingState,
                         isWidgetScrollingState = isWidgetScrollingState,
-                    ) { page, isCurrentPage ->
+                    ) { page, isCurrentPage, isCurrentOrIncoming ->
                         when (page.screen) {
                             LauncherScreen.Home -> Box(modifier = Modifier.fillMaxSize()) {
                             HomeScreen(
                                 state = state,
                                 innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
+                                isVisibleHomePage = isCurrentOrIncoming,
                                 landscapeTier = homeLandscapeTier,
                                 searchBoxFitsWithKeyboard = searchBoxFitsOrMidKeyboardSession,
                                 searchRevealed = searchRevealedInTightLandscape,
@@ -1185,7 +1186,11 @@ private fun SwipeNavigationBox(
     onCarouselGestureEnded: () -> Unit = {},
     isDockDraggingState: State<Boolean> = mutableStateOf(false),
     isWidgetScrollingState: State<Boolean> = mutableStateOf(false),
-    content: @Composable (LauncherPage, Boolean) -> Unit,
+    // (page, isCurrentPage, isCurrentOrIncoming): `isCurrentOrIncoming` is true
+    // for the settled page and for the page a transition is animating toward, so
+    // a page can present its "visible" state as it slides in rather than waiting
+    // for the destination to commit at the end of the settle.
+    content: @Composable (LauncherPage, Boolean, Boolean) -> Unit,
 ) {
     // A pointer sequence locks once, shortly after touch slop, to either the
     // child scrollable that consumed movement at gesture start or to a
@@ -2024,6 +2029,16 @@ private fun SwipeNavigationBox(
                 if (taken.add(launcherPage)) add(page to launcherPage)
             }
         }
+        // The virtual page a transition is animating toward (settled page while
+        // awaiting its ack), or null when idle. A page matching this is sliding
+        // into view, so it can present its visible state before the destination
+        // commits at settle-end.
+        val transitionTargetPage = when (val transition = carouselTransition) {
+            is CarouselTransitionState.UserAnimating -> transition.targetPage
+            is CarouselTransitionState.ExternalAnimating -> transition.targetPage
+            is CarouselTransitionState.AwaitingAck -> transition.settledPage
+            CarouselTransitionState.Idle -> null
+        }
         slotAssignments.sortedBy { (page, _) -> page }.forEach { (page, launcherPage) ->
             // Keyed by destination, not virtual page index: the -1/+1 slots
             // can alias to one destination (deduplicated above), and a
@@ -2050,7 +2065,12 @@ private fun SwipeNavigationBox(
                     // first-frame gate.
                     val offscreenComposeAllowed = if (isWidgetPage) widgetsWarmed else offscreenPagesReady
                     if (page == currentPage || launcherPage == statePage || offscreenComposeAllowed) {
-                        content(launcherPage, page == currentPage)
+                        // A page is "current or incoming" if it is the settled
+                        // page or the one a transition is animating toward, so it
+                        // can render its visible state as it slides in (Home's
+                        // wallpaper) instead of at settle-end.
+                        val isCurrentOrIncoming = page == currentPage || page == transitionTargetPage
+                        content(launcherPage, page == currentPage, isCurrentOrIncoming)
                     }
                 }
             }

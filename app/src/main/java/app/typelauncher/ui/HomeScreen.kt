@@ -176,6 +176,15 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
+    // True when this Home page is the carousel's settled page *or* the page a
+    // carousel transition is animating toward — i.e. Home is on screen or
+    // sliding into view. Drives the wallpaper presentation so it leads the
+    // `state.destination` commit (which only lands after the settle animation
+    // finishes): without it, swiping Widgets→Home would render the opaque app
+    // list for the whole slide-in and only swap to the wallpaper at commit,
+    // flashing the app list. Defaults true so direct callers (previews, unit
+    // tests that compose Home alone) behave as the live page.
+    isVisibleHomePage: Boolean = true,
     landscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
     // Whether the search box, the raised keyboard, and one result row fit
     // together (see HomeLandscapeMetrics.searchBoxFitsWithKeyboard). When
@@ -669,7 +678,11 @@ internal fun HomeScreen(
     // Gated on the search box being visible: in the cramped-landscape Compact
     // state (and any landscape without typing headroom) the list is the only
     // launch surface, so we never hand the background to the wallpaper there.
-    val wallpaperActive = isHome && state.isWallpaperShown && showSearchCard
+    // Uses `isVisibleHomePage` (carousel current-or-incoming) rather than
+    // `isHome` (the committed destination) so the wallpaper is already in place
+    // as Home slides into view, instead of the app list flashing for the whole
+    // Widgets→Home settle before the destination commits at the end of it.
+    val wallpaperActive = isVisibleHomePage && state.isWallpaperShown && showSearchCard
     // Home's cards fade to `cardOpacity` only while the wallpaper is actually
     // behind them, so the wallpaper can show through; fully opaque otherwise.
     val homeCardAlpha = if (wallpaperActive) state.cardOpacity else 1f
