@@ -96,7 +96,15 @@ internal class IconOverrideStore(context: Context) {
     fun setIcon(appId: String, source: InputStream, extension: String): File {
         val normalizedExt = extension.lowercase().trimStart('.')
         require(normalizedExt.isNotEmpty()) { "extension must not be empty" }
-        if (!directory.isDirectory && !directory.mkdirs()) {
+        // Create the directory race-safely: two first-ever saves can run at
+        // once (the user picks icons for two apps in quick succession, each on
+        // the IO dispatcher), and `mkdirs()` returns false for the loser
+        // because the winner already made the directory. Checking isDirectory
+        // *after* mkdirs — rather than gating mkdirs on !isDirectory — treats
+        // that lost race as success instead of throwing a spurious
+        // "Failed to create" and dropping the loser's save.
+        directory.mkdirs()
+        if (!directory.isDirectory) {
             throw IOException("Failed to create $directory")
         }
         val target = File(directory, encodeAppIdForFileName(appId) + "." + normalizedExt)
