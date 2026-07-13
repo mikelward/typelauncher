@@ -97,6 +97,57 @@ class IconOverrideStoreTest {
     }
 
     @Test
+    fun iconVersionForMatchesFileTimestampAfterSetIcon() {
+        // The cached version is what busts the AppIconLoader cache; it must
+        // equal the override file's real `lastModified()` so a re-upload that
+        // changes the file changes the version. `markVisibility` reads this
+        // from the index instead of re-stat'ing on the main thread.
+        val store = IconOverrideStore(context)
+        val saved = store.setIcon("0:com.example/Main", "PNG_BYTES".byteInputStream(), "png")
+
+        assertEquals(saved.lastModified(), store.iconVersionFor("0:com.example/Main"))
+    }
+
+    @Test
+    fun iconVersionForUnknownIdIsZero() {
+        assertEquals(0L, IconOverrideStore(context).iconVersionFor("never-set"))
+    }
+
+    @Test
+    fun clearResetsIconVersionToZero() {
+        val store = IconOverrideStore(context)
+        store.setIcon("0:com.example/Main", "PNG".byteInputStream(), "png")
+        store.clear("0:com.example/Main")
+        assertEquals(0L, store.iconVersionFor("0:com.example/Main"))
+    }
+
+    @Test
+    fun iconVersionForSurvivesProcessRestartFromDiskScan() {
+        // A cold start rebuilds the index from the directory listing; the
+        // version must be re-seeded from each file's on-disk timestamp so the
+        // reloaded value still matches the file.
+        val saved = IconOverrideStore(context).setIcon("0:com.example/Main", "BYTES".byteInputStream(), "png")
+        val reloaded = IconOverrideStore(context)
+        assertEquals(saved.lastModified(), reloaded.iconVersionFor("0:com.example/Main"))
+    }
+
+    @Test
+    fun iconVersionForTracksReupload() {
+        // Re-uploading a new icon for the same id commits a fresh file; the
+        // cached version must follow that file's timestamp, not stay pinned to
+        // the first upload's — otherwise the icon cache wouldn't bust.
+        val store = IconOverrideStore(context)
+        val appId = "0:com.example/Main"
+        store.setIcon(appId, "old".byteInputStream(), "png")
+
+        val replaced = store.setIcon(appId, "new".byteInputStream(), "svg")
+        // Read straight from the index, the version reflects the freshly-
+        // committed file (its on-disk timestamp, untouched since the commit).
+        assertEquals(replaced.lastModified(), store.iconVersionFor(appId))
+        assertEquals(replaced.absolutePath, store.iconFileFor(appId)?.absolutePath)
+    }
+
+    @Test
     fun setIconSurvivesProcessRestart() {
         IconOverrideStore(context).setIcon("0:com.example/Main", "BYTES".byteInputStream(), "png")
         val reloaded = IconOverrideStore(context).iconFileFor("0:com.example/Main")

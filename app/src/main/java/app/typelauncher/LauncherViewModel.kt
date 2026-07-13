@@ -1593,7 +1593,10 @@ internal class LauncherViewModel(
             // triggers a fresh load) but a waste of memory.
             AppIconLoader.evict(app.packageName, app.user)
             val path = savedFile.absolutePath
-            val version = savedFile.lastModified()
+            // Read the version the store captured at commit rather than
+            // re-stat'ing: markVisibility later compares against exactly this
+            // cached value, so reading the same source keeps the two in step.
+            val version = iconOverrideStore.iconVersionFor(app.id)
             installedApps = installedApps.map { existing ->
                 if (existing.id == app.id) {
                     existing.copy(customIconPath = path, customIconVersion = version)
@@ -2554,7 +2557,7 @@ internal class LauncherViewModel(
                     if (app.customIconPath == null) app else app.copy(customIconPath = null, customIconVersion = 0L)
                 } else {
                     val path = file.absolutePath
-                    val version = file.lastModified()
+                    val version = iconOverrideStore.iconVersionFor(app.id)
                     if (app.customIconPath == path && app.customIconVersion == version) {
                         app
                     } else {
@@ -2660,7 +2663,10 @@ internal class LauncherViewModel(
             val customBadge = customBadgeStore.customBadgeFor(app.id)
             val overrideFile = iconOverrideStore.iconFileFor(app.id)
             val customIconPath = overrideFile?.absolutePath
-            val customIconVersion = overrideFile?.lastModified() ?: 0L
+            // Read the cached version rather than `overrideFile.lastModified()`:
+            // this runs per overridden app on every keystroke refresh, and a
+            // disk stat here re-hits the file system on the main thread each time.
+            val customIconVersion = if (overrideFile == null) 0L else iconOverrideStore.iconVersionFor(app.id)
             if (app.isDocked == isDocked &&
                 app.isWorkDocked == isWorkDocked &&
                 app.isInFolder == isInFolder &&
