@@ -57,6 +57,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var playUpdateChecker: PlayUpdateChecker
     private var hasSeenInitialWindowFocus = false
 
+    // True from the moment `bindWidget` accepts a tap until its allocate/bind
+    // IPCs finish (or fail). `WidgetAddFlow.isAddInFlight` only turns true once
+    // an ID is allocated, but those IPCs now run off the main thread, so this
+    // flag carries the "one add at a time" guard across the async gap before
+    // pendingWidgetId is set. Main-thread confined — only touched from
+    // `bindWidget` and its lifecycleScope continuation, both on the main thread.
+    private var bindLaunchInFlight = false
+
     // The dispatcher the widget-host Binder IPCs (orphan reconciliation,
     // removal) hop onto, kept off the main thread. Injectable so Robolectric
     // tests can pass a deterministic dispatcher, mirroring
@@ -702,40 +710,65 @@ class MainActivity : ComponentActivity() {
     private fun bindWidget(provider: WidgetProvider) {
         // One add at a time: WidgetAddFlow tracks a single pendingWidgetId, so
         // a second Add tap while a bind/configure launch is still in flight
-        // (the window before its dialog covers the picker) must be ignored —
-        // checked before allocating, so the refused tap doesn't leak an ID.
-        if (widgetAddFlow.isAddInFlight) {
+        // (the window before its dialog covers the picker) must be ignored.
+        // The allocate/bind IPCs below run off the main thread, so between the
+        // tap and the ID allocation `isAddInFlight` is still false; the
+        // synchronous `bindLaunchInFlight` latch closes that window so the
+        // refused second tap doesn't allocate — and leak — a second ID.
+        if (widgetAddFlow.isAddInFlight || bindLaunchInFlight) {
             LauncherDebugLog.event(
                 "bindWidget ignored: add in flight pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
             )
             return
         }
-        val appWidgetId = appWidgetHost.allocateAppWidgetId()
-        widgetAddFlow.onBindStarted(appWidgetId)
-        LauncherDebugLog.event(
-            "bindWidget provider=${provider.componentName.flattenToShortString()} appWidgetId=$appWidgetId",
-        )
-        if (appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, provider.profile, provider.componentName, null)) {
-            LauncherDebugLog.event("bindWidget allowed appWidgetId=$appWidgetId")
-            widgetAddFlow.onBindAllowed(appWidgetId)
-            return
-        }
+        bindLaunchInFlight = true
+        // allocateAppWidgetId and bindAppWidgetIdIfAllowed are AppWidgetService
+        // Binder IPCs — keep them off the main thread (same policy as
+        // removeWidget / reconcileOrphanedWidgets) so a busy AppWidgetService
+        // can't stall the frame on which the picker dismisses. Everything that
+        // mutates WidgetAddFlow state, launches the system dialog, or shows a
+        // Toast stays on the main thread, where lifecycleScope.launch resumes.
+        lifecycleScope.launch {
+            val appWidgetId = withContext(ioDispatcher) { appWidgetHost.allocateAppWidgetId() }
+            LauncherDebugLog.event(
+                "bindWidget provider=${provider.componentName.flattenToShortString()} appWidgetId=$appWidgetId",
+            )
+            val allowed = withContext(ioDispatcher) {
+                appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, provider.profile, provider.componentName, null)
+            }
+            // Commit the pending ID only now — past both cancellable IPCs and
+            // with no suspension point between here and the resolving call
+            // below. If a configuration change or process death cancels this
+            // coroutine mid-IPC, pendingWidgetId was never set (so it isn't
+            // persisted into a wedged isAddInFlight) and the merely-allocated
+            // ID is reclaimed by the next cold start's orphan sweep. Setting
+            // it before the bind — as the old synchronous path could — would
+            // leave a restored-but-unresolvable pending ID after that race.
+            widgetAddFlow.onBindStarted(appWidgetId)
+            // pendingWidgetId now carries the guard, so release the latch.
+            bindLaunchInFlight = false
+            if (allowed) {
+                LauncherDebugLog.event("bindWidget allowed appWidgetId=$appWidgetId")
+                widgetAddFlow.onBindAllowed(appWidgetId)
+                return@launch
+            }
 
-        val bindIntent: Intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.componentName)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, provider.profile)
-        try {
-            LauncherDebugLog.event("bindWidget launching system bind intent appWidgetId=$appWidgetId")
-            bindWidgetLauncher.launch(bindIntent)
-        } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("bindWidget failed: picker unavailable", exception)
-            widgetAddFlow.onBindLaunchFailed()
-            Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
-        } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("bindWidget failed: security exception", exception)
-            widgetAddFlow.onBindLaunchFailed()
-            Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+            val bindIntent: Intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.componentName)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, provider.profile)
+            try {
+                LauncherDebugLog.event("bindWidget launching system bind intent appWidgetId=$appWidgetId")
+                bindWidgetLauncher.launch(bindIntent)
+            } catch (exception: ActivityNotFoundException) {
+                LauncherDebugLog.warning("bindWidget failed: picker unavailable", exception)
+                widgetAddFlow.onBindLaunchFailed()
+                Toast.makeText(this@MainActivity, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+            } catch (exception: SecurityException) {
+                LauncherDebugLog.warning("bindWidget failed: security exception", exception)
+                widgetAddFlow.onBindLaunchFailed()
+                Toast.makeText(this@MainActivity, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
