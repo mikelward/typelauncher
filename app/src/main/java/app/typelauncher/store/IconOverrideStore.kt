@@ -100,7 +100,15 @@ internal class IconOverrideStore(context: Context) {
             throw IOException("Failed to create $directory")
         }
         val target = File(directory, encodeAppIdForFileName(appId) + "." + normalizedExt)
-        val tmp = File(directory, target.name + TMP_SUFFIX)
+        // Unique tmp name per call: two saves for the same app and extension
+        // (e.g. the user re-picks from a slow content:// provider before the
+        // first stream finishes) must not stream into the same tmp file, or
+        // their bytes interleave and whichever commits first renames a
+        // corrupted image onto `target`. createTempFile guarantees a distinct
+        // path; the name still starts with `<encoded>.` so [clear]'s prefix
+        // sweep still catches it, and still ends with TMP_SUFFIX so the
+        // index() scan still treats a crash-orphaned copy as stray.
+        val tmp = File.createTempFile(target.name + ".", TMP_SUFFIX, directory)
         try {
             tmp.outputStream().use { output -> source.copyTo(output) }
             // Commit under `lock` so a concurrent [clear] (main thread —
@@ -139,7 +147,12 @@ internal class IconOverrideStore(context: Context) {
                 directory.listFiles { file ->
                     file.isFile &&
                         file.name != target.name &&
-                        file.name != tmp.name &&
+                        // Skip every tmp, not just this call's: a concurrent
+                        // same-app save streams into its own unique tmp, and
+                        // deleting it here would corrupt that save. Committed
+                        // tmps don't exist (a commit renames the tmp onto
+                        // target), and crash-orphaned ones are reaped by index().
+                        !file.name.endsWith(TMP_SUFFIX) &&
                         file.name.startsWith(prefix)
                 }?.forEach { it.delete() }
                 // Capture the fresh file's timestamp now, under the lock, so

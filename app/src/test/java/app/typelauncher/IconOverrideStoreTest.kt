@@ -224,4 +224,71 @@ class IconOverrideStoreTest {
         // A process restart must agree: nothing on disk to resurrect.
         assertNull(IconOverrideStore(context).iconFileFor(appId))
     }
+
+    @Test
+    fun overlappingSavesForSameAppDoNotCorruptTheCommittedIcon() {
+        // Two saves for the same app and extension overlap — e.g. the user
+        // picks a PNG from a slow content:// provider, then reopens the dialog
+        // and picks another PNG before the first stream finishes. Each save
+        // must stream into its own tmp file; a shared tmp interleaves their
+        // bytes and commits an undecodable image. The winner's file must be
+        // exactly one of the two inputs, byte-for-byte — never a mix.
+        val store = IconOverrideStore(context)
+        val appId = "0:com.example/Main"
+
+        val bothStreaming = java.util.concurrent.CountDownLatch(2)
+        val release = java.util.concurrent.CountDownLatch(1)
+        // Emits a distinct payload for the whole save, but parks mid-stream
+        // until both saves are provably in their copy loop at once, so a
+        // shared tmp would have interleaved by the time either commits.
+        fun blockingSource(payload: String) = object : java.io.InputStream() {
+            private val bytes = payload.encodeToByteArray()
+            private var i = 0
+            override fun read(): Int {
+                if (i == 1) {
+                    bothStreaming.countDown()
+                    release.await()
+                }
+                return if (i < bytes.size) bytes[i++].toInt() and 0xFF else -1
+            }
+        }
+
+        val errors = java.util.concurrent.CopyOnWriteArrayList<Throwable>()
+        val a = Thread {
+            try {
+                store.setIcon(appId, blockingSource("AAAAAAAA"), "png")
+            } catch (t: Throwable) {
+                errors.add(t)
+            }
+        }
+        val b = Thread {
+            try {
+                store.setIcon(appId, blockingSource("BBBBBBBB"), "png")
+            } catch (t: Throwable) {
+                errors.add(t)
+            }
+        }
+        a.start()
+        b.start()
+        bothStreaming.await()
+        release.countDown()
+        a.join()
+        b.join()
+
+        val committed = store.iconFileFor(appId)
+        assertNotNull("one save must win and leave a committed override", committed)
+        val contents = committed!!.readText()
+        assertTrue(
+            "committed icon must be one input verbatim, not a byte-interleaved mix (was: $contents)",
+            contents == "AAAAAAAA" || contents == "BBBBBBBB",
+        )
+        // No stray tmp files left behind, and the surviving on-disk override
+        // agrees after a process restart.
+        assertEquals(
+            "no tmp files may survive the overlapping saves",
+            emptyList<File>(),
+            directory.listFiles().orEmpty().filter { it.name.endsWith(".tmp") },
+        )
+        assertEquals(contents, IconOverrideStore(context).iconFileFor(appId)?.readText())
+    }
 }
