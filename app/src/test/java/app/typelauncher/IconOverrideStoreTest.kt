@@ -184,6 +184,13 @@ class IconOverrideStoreTest {
         // exactly one of the two inputs, byte-for-byte — never a mix.
         val store = IconOverrideStore(context)
         val appId = "0:com.example/Main"
+        // Model the real re-pick: the first save is already in flight (and has
+        // created the overrides directory) when the second starts, so seed the
+        // directory here. This also keeps the two saves off the first-ever
+        // mkdirs path, so neither can throw before streaming and strand the
+        // `bothStreaming` latch — the awaits below are still bounded as a
+        // belt-and-suspenders against any future regression that does.
+        directory.mkdirs()
 
         val bothStreaming = java.util.concurrent.CountDownLatch(2)
         val release = java.util.concurrent.CountDownLatch(1)
@@ -219,10 +226,15 @@ class IconOverrideStoreTest {
         }
         a.start()
         b.start()
-        bothStreaming.await()
+        // Bounded waits so a regression that stops a save from streaming fails
+        // the test fast instead of hanging the whole `gradle test` job.
+        assertTrue(
+            "both saves must reach their streaming park",
+            bothStreaming.await(30, java.util.concurrent.TimeUnit.SECONDS),
+        )
         release.countDown()
-        a.join()
-        b.join()
+        a.join(30_000)
+        b.join(30_000)
 
         val committed = store.iconFileFor(appId)
         assertNotNull("one save must win and leave a committed override", committed)
