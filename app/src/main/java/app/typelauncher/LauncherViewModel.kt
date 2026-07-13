@@ -2587,9 +2587,22 @@ internal class LauncherViewModel(
             ?: listOf(personalUser)
         // Mirror `loadInstalledApps`: drop work-profile providers whose
         // profile is currently in quiet mode so the picker hides them
-        // alongside the launcher icons.
+        // alongside the launcher icons. Also mirror its SecurityException
+        // guard — a profile being removed can leave the caller's profile
+        // group between the `profiles` snapshot and this call, and the
+        // rejection would otherwise escape `showWidgetPicker`'s launch and
+        // crash the launcher. Drop the dying profile like a quiet one; the
+        // removal's own broadcast triggers a reload without it.
         val profiles = allProfiles.filterNot { profile ->
-            profile != personalUser && (userManager?.isQuietModeEnabled(profile) == true)
+            profile != personalUser && try {
+                userManager?.isQuietModeEnabled(profile) == true
+            } catch (exception: SecurityException) {
+                LauncherDebugLog.warning(
+                    "loadAvailableWidgets profile rejected user=${profile.hashCode()}",
+                    exception,
+                )
+                true
+            }
         }
         return profiles
             .flatMap { profile ->
