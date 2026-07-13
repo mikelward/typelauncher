@@ -2532,7 +2532,9 @@ private fun DockFolderMemberActionsMenu(
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
 ) {
-    var editDialogVisible by remember { mutableStateOf(false) }
+    // rememberSaveable (keyed on app.id) so an in-progress Edit survives a
+    // configuration change — same rationale as AppActionsMenu.
+    var editDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
     LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -3992,7 +3994,13 @@ private fun AppActionsMenu(
     // Boolean rather than the InstalledApp itself so dialog visibility doesn't
     // re-evaluate identity-based equality on every parent recomposition; the
     // dialog reads `app` directly from this composable's parameter.
-    var editDialogVisible by remember { mutableStateOf(false) }
+    // rememberSaveable (keyed on app.id) so the dialog — and the half-typed
+    // rename its EditAppDialogContent holds in its own rememberSaveable —
+    // survives a configuration change (rotation, dark-mode toggle, font-scale)
+    // instead of vanishing with the recreated activity. The activity declares
+    // no android:configChanges, so a plain remember resets to false on
+    // recreation and the saveable text below could never be shown again.
+    var editDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
     LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -4168,7 +4176,9 @@ internal fun EditAppDialogContent(
     // instead of resetting it to the app's current name. Keyed on app.id so
     // reusing the slot for a different app still resets to that app's name.
     var text by rememberSaveable(app.id) { mutableStateOf(app.customName ?: app.name) }
-    var badgePickerVisible by remember { mutableStateOf(false) }
+    // Saveable so the badge picker re-opens over the restored Edit dialog after
+    // a configuration change, rather than silently collapsing back to it.
+    var badgePickerVisible by rememberSaveable(app.id) { mutableStateOf(false) }
     val hasOverride = !app.customName.isNullOrBlank()
     val hasIconOverride = app.customIconPath != null
     Column(
