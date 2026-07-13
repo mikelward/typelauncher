@@ -17,20 +17,30 @@ import android.appwidget.AppWidgetManager
  *    ever reconciles them away.
  *
  * The pass compares the host's allocated IDs against [knownWidgetIds] (the
- * persisted set the launcher renders) and returns the difference. [pendingWidgetId]
- * — the ID of a bind/configure currently in flight — is always excluded so a
- * reconciliation that races an active add can't delete a widget mid-handshake;
- * at cold start it is `INVALID_APPWIDGET_ID` and excludes nothing.
+ * persisted set the launcher renders) and returns the difference. Two in-flight
+ * IDs are always excluded so a reconciliation that races an active add can't
+ * delete a widget mid-handshake:
+ *  - [pendingWidgetId] — the ID of a bind/configure currently in flight.
+ *  - [bindingWidgetId] — an ID that has been allocated but whose bind IPC has
+ *    not yet completed, so it isn't `pendingWidgetId` yet. `bindWidget` runs
+ *    that IPC off the main thread and only marks the ID pending afterwards
+ *    (marking it earlier would let a cancelled coroutine persist an
+ *    unresolvable pending ID), which opens a window where the ID is allocated
+ *    on the host but not yet tracked anywhere the sweep would spare.
+ *
+ * At cold start both are `INVALID_APPWIDGET_ID` and exclude nothing.
  */
 internal fun orphanedAllocatedWidgetIds(
     allocatedIds: IntArray,
     knownWidgetIds: Collection<Int>,
     pendingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID,
+    bindingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID,
 ): List<Int> {
     val known = knownWidgetIds.toHashSet()
     return allocatedIds.filter { id ->
         id != AppWidgetManager.INVALID_APPWIDGET_ID &&
             id != pendingWidgetId &&
+            id != bindingWidgetId &&
             id !in known
     }
 }
