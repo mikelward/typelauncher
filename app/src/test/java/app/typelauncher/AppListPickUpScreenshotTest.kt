@@ -50,7 +50,7 @@ class AppListPickUpScreenshotTest {
         onDrag = { _, _ -> },
         onDragEnd = { _, _ -> },
         onReportCenter = { _, _ -> },
-        onLongPressArmed = {},
+        onLongPressArmed = { _, _ -> },
     )
 
     @Test

@@ -46,10 +46,17 @@ internal fun String.isDockFolderId(): Boolean = startsWith(DOCK_FOLDER_ID_PREFIX
  * persisted order), so the UI never has to resolve ids itself. Hidden or
  * uninstalled members are dropped from [members] but kept in persistence so an
  * unhide / reinstall restores them.
+ *
+ * [persistedMemberCount] is the store-side [DockFolder.memberAppIds] size —
+ * including the hidden/uninstalled members absent from [members] — so UI
+ * checks that mirror store capacity rules (the [MAX_DOCK_FOLDER_MEMBERS]
+ * merge guard) count exactly what the store counts. Defaults to [members]'s
+ * size for the common no-hidden-members case.
  */
 @Immutable
 internal data class ResolvedDockFolder(
     val id: String,
     val members: List<InstalledApp>,
     val name: String? = null,
+    val persistedMemberCount: Int = members.size,
 )

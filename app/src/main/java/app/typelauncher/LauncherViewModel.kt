@@ -1385,7 +1385,18 @@ internal class LauncherViewModel(
         val byId = visibleApps.associateBy { it.id }
         return store.dockFolders.mapNotNull { folder ->
             val members = folder.memberAppIds.mapNotNull { byId[it] }
-            if (members.isEmpty()) null else ResolvedDockFolder(folder.id, members, folder.name)
+            if (members.isEmpty()) {
+                null
+            } else {
+                ResolvedDockFolder(
+                    id = folder.id,
+                    members = members,
+                    name = folder.name,
+                    // The store's own count (hidden/uninstalled members
+                    // included), so UI capacity checks match the store's.
+                    persistedMemberCount = folder.memberAppIds.size,
+                )
+            }
         }
     }
 
