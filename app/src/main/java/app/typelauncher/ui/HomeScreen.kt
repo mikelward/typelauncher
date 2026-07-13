@@ -1011,6 +1011,11 @@ private fun SearchCard(
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
+                                            // Off-grid 2dp: an optical nudge that
+                                            // seats the notification dot into the
+                                            // gear's top-right corner (matching
+                                            // Android's standard dot placement)
+                                            // rather than aligning to the 4dp grid.
                                             .offset(x = 2.dp, y = (-2).dp)
                                             .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
                                             .background(MaterialTheme.colorScheme.primary, CircleShape)
@@ -3374,6 +3379,10 @@ private fun ChevronIcon(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 shape = CircleShape,
             )
+            // Off-grid 2dp: a hairline inset between the chevron glyph and its
+            // translucent circular plate, sized to the plate rather than the
+            // 4dp layout grid so the affordance stays inside the 32dp tap
+            // target and its ±18dp edge offset (see the chevron geometry below).
             .padding(2.dp),
     )
 }
@@ -4882,6 +4891,10 @@ internal fun SettingsScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
+            // Asymmetric top (8) vs bottom (16): the header row below leads with
+            // a Material Button whose own content padding already adds optical
+            // top space, so a full 16dp here would sit the header too low; the
+            // bottom keeps the standard 16dp before the scroll ends.
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
             .testTag(SETTINGS_SCREEN_TAG),
         verticalArrangement = Arrangement.spacedBy(16.dp),

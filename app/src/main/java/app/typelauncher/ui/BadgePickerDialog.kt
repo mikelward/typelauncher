@@ -185,7 +185,7 @@ private fun BadgeTile(
             .background(background)
             .border(2.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp)
+            .padding(8.dp)
             .testTag(testTag)
             .semantics { contentDescription = label },
         horizontalAlignment = Alignment.CenterHorizontally,
