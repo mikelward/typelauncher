@@ -31,6 +31,7 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
     fun checkForUpdate(
         onAvailable: (availableVersionCode: Int?, installStatus: Int) -> Unit,
         onUnavailable: () -> Unit,
+        onCheckFailed: () -> Unit = onUnavailable,
     ) {
         if (!BuildConfig.PLAY_UPDATE_CHECKS_ENABLED) {
             updateInfo = null
@@ -55,9 +56,16 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
                 }
             }
             .addOnFailureListener { exception ->
-                updateInfo = null
+                // A failed appUpdateInfo fetch (flaky network, Play transiently
+                // unavailable) is inconclusive — it does NOT mean "no update".
+                // Report it as a check failure, distinct from the success-but-
+                // not-available branch above, so the ViewModel can preserve the
+                // last known banner instead of wiping it. Critically, don't
+                // null `updateInfo`: if a flexible update is already downloaded,
+                // the Restart action and the in-flight install listener must
+                // keep working across a transient recheck failure.
                 LauncherDebugLog.warning("Play update check failed", exception)
-                onUnavailable()
+                onCheckFailed()
             }
     }
 

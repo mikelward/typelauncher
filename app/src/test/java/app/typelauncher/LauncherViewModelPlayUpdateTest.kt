@@ -190,6 +190,52 @@ class LauncherViewModelPlayUpdateTest {
         assertFalse(state.shouldPrompt)
     }
 
+    @Test
+    fun checkFailedPreservesDownloadedBanner() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADED)
+        idle()
+
+        // The update finished downloading and the banner shows Restart. A
+        // resume-time recheck then fails (flaky network / Play unavailable).
+        viewModel.setPlayUpdateCheckFailed()
+        idle()
+
+        // Before the fix the failure routed to setPlayUpdateUnavailable and
+        // wiped the banner to NotAvailable, hiding Restart and stranding the
+        // already-downloaded update. It must survive a failed check.
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Downloaded, state.progress)
+        assertTrue("Restart banner must survive a failed recheck", state.shouldPrompt)
+    }
+
+    @Test
+    fun checkFailedPreservesInFlightDownloadProgress() {
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADING)
+        idle()
+
+        viewModel.setPlayUpdateCheckFailed()
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Downloading, state.progress)
+    }
+
+    @Test
+    fun successfulUnavailableStillClearsBanner() {
+        // A check that *succeeds* and reports no update still clears the banner,
+        // so the fix distinguishes "check failed" from "no update available".
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADED)
+        idle()
+
+        viewModel.setPlayUpdateUnavailable()
+        idle()
+
+        assertEquals(PlayUpdateState.NotAvailable, viewModel.uiState.value.playUpdate)
+    }
+
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),

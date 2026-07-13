@@ -1807,6 +1807,20 @@ internal class LauncherViewModel(
         logState("setPlayUpdateUnavailable")
     }
 
+    /**
+     * Called when a Play update *check* fails (flaky network, Play transiently
+     * unavailable) — distinct from a check that succeeds and reports no update
+     * ([setPlayUpdateUnavailable]). A failed check carries no information, so it
+     * must not regress the banner: wiping an in-flight or already-downloaded
+     * update here would hide the Restart action and drop the in-flight progress
+     * the install listener drives (`setPlayUpdateProgress` early-returns once
+     * the state is no longer `Available`). Preserve the current state; the next
+     * successful check corrects it if the update really is gone.
+     */
+    fun setPlayUpdateCheckFailed() {
+        logState("setPlayUpdateCheckFailed preserving=${_uiState.value.playUpdate}")
+    }
+
     fun dismissPlayUpdate() {
         val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
         playUpdateStore.dismissedVersionCode = update.versionCode ?: BuildConfig.VERSION_CODE + 1
