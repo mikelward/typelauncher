@@ -272,14 +272,18 @@ class WidgetStoreTest {
     }
 
     @Test
-    fun applyRestoredIdMappingWithEmptyMappingIsNoOp() {
+    fun applyRestoredIdMappingWithEmptyMappingReconcilesRatherThanNoOp() {
         val store = WidgetStore(context)
         store.add(1)
         store.add(2)
+        // 1 has a provider record (kept as placeholder); 2 has none (dropped).
+        store.setProvider(1, WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X"))
 
+        // An empty but real restore (nothing came back) still reconciles: a
+        // widget with no way to re-bind is dropped rather than left stranded.
         store.applyRestoredIdMapping(emptyMap())
 
-        assertEquals(listOf(listOf(1, 2)), store.widgetPages)
+        assertEquals(listOf(listOf(1)), store.widgetPages)
     }
 
     @Test
