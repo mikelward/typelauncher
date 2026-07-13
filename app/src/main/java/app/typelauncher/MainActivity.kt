@@ -8,6 +8,7 @@ import android.content.ComponentCallbacks2
 import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.UserHandle
@@ -291,6 +292,11 @@ class MainActivity : ComponentActivity() {
         // sync as the user changes the setting at runtime.
         applyEdgeToEdgeForThemeMode(viewModel.uiState.value.themeMode)
         observeThemeModePreference()
+        // Put the window's wallpaper flag + surface format under the persisted
+        // "Show wallpaper" preference before setContent so the first frame is
+        // already correct, then keep it in sync as the user toggles the setting.
+        applyWallpaperWindowMode(viewModel.uiState.value.isWallpaperShown)
+        observeWallpaperShownPreference()
         observeHomeReady()
         checkPlayUpdate()
         LauncherDebugLog.event("setContent begin")
@@ -554,6 +560,57 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collect(::applyEdgeToEdgeForThemeMode)
         }
+    }
+
+    private fun observeWallpaperShownPreference() {
+        lifecycleScope.launch {
+            viewModel.uiState
+                .map { it.isWallpaperShown }
+                .distinctUntilChanged()
+                .collect(::applyWallpaperWindowMode)
+        }
+    }
+
+    /**
+     * Puts the window's wallpaper machinery entirely under the persisted `Show
+     * wallpaper` preference: with it on, request `FLAG_SHOW_WALLPAPER` (so the
+     * system composites the live wallpaper behind the window — the only path
+     * that works on API 34+, since `WallpaperManager.getDrawable()` needs
+     * permissions a launcher can't hold) and a translucent surface format; with
+     * it off, clear the flag and go back to an opaque surface.
+     *
+     * Gating *everything* on the setting — not just the window background flip
+     * Home already does — is what keeps the default launcher clean: with the
+     * setting off there is no wallpaper flag, so nothing composites a wallpaper
+     * behind the window and nothing forwards the window's touch events to a live
+     * wallpaper, and the opaque surface lets the activity behind the launcher
+     * stay occluded and stopped (no extra background compositing on the launch
+     * path).
+     *
+     * The translucent format is required whenever the wallpaper can show:
+     * revealing it means Home punches its own window background transparent, and
+     * HWUI only clears the surface to transparent every frame when the surface
+     * is translucent-format. An opaque-format surface skips that clear over the
+     * punched-through regions and leaves stale pixels behind (a typed query
+     * drawn over its own placeholder, a dock frozen at its previous card
+     * opacity, the pull chevron ghosted into an app cell).
+     *
+     * Keyed on the setting rather than the live wallpaper-visible state so the
+     * flag/format flip only on the rare, deliberate toggle — never on a Home
+     * entry/exit or a carousel swipe (which is what left the earlier "Home
+     * didn't repaint after Settings" smear when the flag was toggled per
+     * navigation against an opaque surface). Home still flips only its *window
+     * background* transparent/opaque as the wallpaper becomes visible/hidden.
+     */
+    private fun applyWallpaperWindowMode(wallpaperShown: Boolean) {
+        if (wallpaperShown) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+            window.setFormat(PixelFormat.TRANSLUCENT)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+            window.setFormat(PixelFormat.OPAQUE)
+        }
+        LauncherDebugLog.event("applyWallpaperWindowMode wallpaperShown=$wallpaperShown")
     }
 
     /**

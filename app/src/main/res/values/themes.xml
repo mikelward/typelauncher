@@ -3,12 +3,12 @@
         <item name="android:statusBarColor">@color/type_launcher_light_background</item>
         <item name="android:navigationBarColor">@color/type_launcher_light_background</item>
         <item name="android:windowBackground">@color/type_launcher_light_background</item>
-        <!-- Always request the wallpaper behind the window so the "Show
-             wallpaper" setting only has to flip the window background to
-             transparent to reveal it — the wallpaper is always composited, so
-             there is no window-flag transition that leaves stale pixels. The
-             opaque windowBackground keeps ordinary (wallpaper-off) Home and
-             cold start fully opaque. -->
-        <item name="android:windowShowWallpaper">true</item>
+        <!-- FLAG_SHOW_WALLPAPER and the translucent surface format are not set
+             here: they are toggled at runtime from the "Show wallpaper" setting
+             (see MainActivity.applyWallpaperWindowMode). Keeping the whole
+             wallpaper machinery off the window until the setting is on means the
+             default launcher composites no wallpaper and forwards no touches to
+             a live wallpaper, and the opaque windowBackground keeps ordinary
+             (wallpaper-off) Home and cold start fully opaque. -->
     </style>
 </resources>
