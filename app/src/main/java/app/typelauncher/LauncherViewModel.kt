@@ -1697,13 +1697,31 @@ internal class LauncherViewModel(
      * and the widget falls back to the plain "unavailable" card.
      */
     private fun rememberWidgetProvider(appWidgetId: Int) {
-        val info = runCatching { AppWidgetManager.getInstance(app).getAppWidgetInfo(appWidgetId) }.getOrNull()
-        val component = info?.provider ?: return
-        val profile = info.profile ?: Process.myUserHandle()
-        val serial = app.getSystemService<UserManager>()?.getSerialNumberForUser(profile) ?: 0L
-        val label = info.loadLabel(app.packageManager)?.takeIf { it.isNotBlank() } ?: component.packageName
-        widgetStore.setProvider(appWidgetId, WidgetProviderRecord(component, serial, label))
-        LauncherDebugLog.event("rememberWidgetProvider id=$appWidgetId component=${component.flattenToShortString()}")
+        // getAppWidgetInfo crosses AppWidgetService and loadLabel goes through
+        // PackageManager, so resolve off the main thread — this runs from the
+        // add/replace success callback, on the frame that dismisses the picker
+        // or configure screen. Only the resolve is on IO; the store write and
+        // state update hop back to the main thread, where every other widget
+        // mutation lives, so the store's in-memory pages are never touched
+        // across threads.
+        viewModelScope.launch {
+            val record = withContext(ioDispatcher) {
+                val info = runCatching { AppWidgetManager.getInstance(app).getAppWidgetInfo(appWidgetId) }.getOrNull()
+                val component = info?.provider ?: return@withContext null
+                val profile = info.profile ?: Process.myUserHandle()
+                val serial = app.getSystemService<UserManager>()?.getSerialNumberForUser(profile) ?: 0L
+                val label = info.loadLabel(app.packageManager)?.takeIf { it.isNotBlank() } ?: component.packageName
+                WidgetProviderRecord(component, serial, label)
+            } ?: return@launch
+            // The widget may have been removed while the lookup ran; don't
+            // resurrect a provider entry for an ID that's no longer tracked.
+            if (appWidgetId !in widgetStore.widgetIds) return@launch
+            widgetStore.setProvider(appWidgetId, record)
+            _uiState.update { it.copy(widgetProviderLabels = widgetStore.providerLabels) }
+            LauncherDebugLog.event(
+                "rememberWidgetProvider id=$appWidgetId component=${record.component.flattenToShortString()}",
+            )
+        }
     }
 
     fun moveWidget(appWidgetId: Int, direction: WidgetMoveDirection) {

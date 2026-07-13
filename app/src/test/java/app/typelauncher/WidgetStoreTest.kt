@@ -188,16 +188,31 @@ class WidgetStoreTest {
     }
 
     @Test
-    fun applyRestoredIdMappingKeepsUnmappedWidgetsInPlace() {
+    fun applyRestoredIdMappingKeepsUnmappedWidgetWithProviderRecord() {
         val store = WidgetStore(context)
         store.add(1)
         store.add(appWidgetId = 2, pageIndex = 0, addToNewPageAfter = true)
+        // 2 has a remembered provider, so it can become a restore placeholder.
+        store.setProvider(2, WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X"))
 
         // 2 wasn't in the restore mapping, but it's kept in its slot as a
         // restore placeholder rather than dropped; 1 is remapped.
         store.applyRestoredIdMapping(mapOf(1 to 51))
 
         assertEquals(listOf(listOf(51), listOf(2)), store.widgetPages)
+    }
+
+    @Test
+    fun applyRestoredIdMappingDropsUnmappedWidgetWithoutProviderRecord() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(appWidgetId = 2, pageIndex = 0, addToNewPageAfter = true)
+
+        // 2 is a legacy widget with no remembered provider — it can't be
+        // restored, so it is dropped rather than left as a permanent dead card.
+        store.applyRestoredIdMapping(mapOf(1 to 51))
+
+        assertEquals(listOf(listOf(51)), store.widgetPages)
     }
 
     @Test
@@ -243,13 +258,14 @@ class WidgetStoreTest {
     }
 
     @Test
-    fun applyRestoredIdMappingKeepsHeightOfUnmappedWidget() {
+    fun applyRestoredIdMappingKeepsHeightOfUnmappedWidgetWithProviderRecord() {
         val store = WidgetStore(context)
         store.add(1)
         store.add(2)
         store.setCustomHeight(2, 300)
+        store.setProvider(2, WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X"))
 
-        // 2 is kept in place, so its height stays with it.
+        // 2 is kept in place (it has a provider record), so its height stays.
         store.applyRestoredIdMapping(mapOf(1 to 51))
 
         assertEquals(mapOf(2 to 300), WidgetStore(context).customHeights)

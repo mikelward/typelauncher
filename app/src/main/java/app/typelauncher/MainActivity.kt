@@ -823,23 +823,27 @@ class MainActivity : ComponentActivity() {
      * no-op ([WidgetStore.add]) / mis-slot ([WidgetStore.replaceId]). Re-rolls
      * past any collision, releasing the discarded IDs. Runs on [ioDispatcher]
      * (host IPCs); reads the tracked set from the ViewModel's state snapshot.
-     * Bounded so a pathological host can't spin forever — the cap is far above
-     * any real placeholder count, and overshooting only risks the original rare
-     * collision, not a hang.
+     * `allocateAppWidgetId` returns a distinct fresh ID each call, so at most
+     * `tracked.size` of them can collide before one is untracked — the loop is
+     * bounded by that, not an arbitrary constant, so even a restore with a long
+     * run of stranded IDs (say 1..N) can't exhaust the retries and leak a
+     * collision. (A contract-violating host that repeats IDs would still exit
+     * after `tracked.size` tries; that's logged rather than looping forever.)
      */
     private fun allocateFreshWidgetId(): Int {
         val tracked = viewModel.uiState.value.widgetIds.toHashSet()
         val discarded = mutableListOf<Int>()
         var id = appWidgetHost.allocateAppWidgetId()
-        var attempts = 0
-        while (id in tracked && attempts < 16) {
+        while (id in tracked && discarded.size < tracked.size) {
             discarded += id
             id = appWidgetHost.allocateAppWidgetId()
-            attempts++
         }
         if (discarded.isNotEmpty()) {
             LauncherDebugLog.event("allocateFreshWidgetId re-rolled past ${discarded.size} tracked ids=$discarded")
             discarded.forEach { discardedId -> runCatching { appWidgetHost.deleteAppWidgetId(discardedId) } }
+        }
+        if (id in tracked) {
+            LauncherDebugLog.warning("allocateFreshWidgetId exhausted retries, id=$id still tracked")
         }
         return id
     }

@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
@@ -76,6 +77,8 @@ class WidgetRestoreTest {
         WidgetStore(context).apply {
             add(10)
             add(11)
+            // 11 has a remembered provider, so it survives as a placeholder.
+            setProvider(11, WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X"))
         }
 
         // Only 10 was restored by the platform; 11's binding didn't survive but
