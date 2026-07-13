@@ -106,21 +106,29 @@ internal class WidgetStore(context: Context) {
      *
      * Page order and grouping are preserved. A mapped ID takes its new value.
      * An old ID absent from [oldToNew] was not restored by the platform (its
-     * provider opted out of backup, or its binding didn't survive), but it is
-     * **kept in place, not dropped** — it renders as a "restore" placeholder
-     * ([providerRecord] carries the provider to re-bind), and the user recovers
-     * the widget in its original slot rather than silently losing it. The one
-     * exception is an unmapped ID that collides with some widget's new ID: the
-     * freshly-remapped widget owns that ID, so the stale duplicate is dropped.
-     * Custom heights and provider records follow each widget to its result ID.
+     * provider opted out of backup, or its binding didn't survive). If it has a
+     * remembered provider ([providerRecord]) it is **kept in place** to render
+     * as a re-bindable "restore" placeholder, so the user recovers the widget
+     * in its original slot. If it has no record — a legacy widget added before
+     * provider capture — it can't be restored, so it is dropped rather than left
+     * as a permanent dead card (the pre-placeholder behavior). An unmapped ID
+     * that collides with some widget's new ID is also dropped: the
+     * freshly-remapped widget owns that ID. Custom heights and provider records
+     * follow each surviving widget to its result ID.
      */
     fun applyRestoredIdMapping(oldToNew: Map<Int, Int>) {
         if (oldToNew.isEmpty()) return
         val previousIds = widgetIds
         val remappedNewIds = oldToNew.values.toHashSet()
-        // A mapped widget takes its new id; an unmapped one stays put unless its
-        // id collides with a remapped new id (then the stale duplicate loses).
-        fun resultId(oldId: Int): Int? = oldToNew[oldId] ?: oldId.takeUnless { it in remappedNewIds }
+        // A mapped widget takes its new id. An unmapped one stays put only if it
+        // has a remembered provider to re-bind and its id doesn't collide with a
+        // remapped new id; otherwise (collision, or no way to restore) it drops.
+        fun resultId(oldId: Int): Int? = when {
+            oldToNew.containsKey(oldId) -> oldToNew[oldId]
+            oldId in remappedNewIds -> null
+            sharedPreferences.contains(providerKey(oldId)) -> oldId
+            else -> null
+        }
 
         pages = pages
             .map { ids -> ids.mapNotNull { id -> resultId(id) } }
