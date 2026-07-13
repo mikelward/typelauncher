@@ -252,12 +252,12 @@ internal object AppIconLoader {
                     // as soon as the theme switches back to Default.
                     trace.setAttribute("result", "override_themed")
                     return@traceBlock withContext(Dispatchers.Default) {
-                        IconNormalizer.normalizeToTile(
+                        normalizeToTileOrNull(
                             BitmapDrawable(context.resources, override),
                             sizePx,
                             app.packageName,
                             themedColors,
-                        ).asImageBitmap()
+                        )
                     }
                 }
                 trace.setAttribute("override_result", "decode_failed")
@@ -289,11 +289,36 @@ internal object AppIconLoader {
             // monochrome layer exists; below that the colors would never be
             // consumed, so themedColorsOrNull returns null and rendering is
             // unchanged.
-            IconNormalizer.normalizeToTile(drawable, sizePx, app.packageName, themedColorsOrNull(context)).asImageBitmap()
+            normalizeToTileOrNull(drawable, sizePx, app.packageName, themedColorsOrNull(context))
         }
         trace.incrementMetric("bitmap_ms", SystemClock.elapsedRealtime() - bitmapStart)
-        trace.setAttribute("result", "success")
+        trace.setAttribute("result", if (bitmap != null) "success" else "normalize_failed")
         bitmap
+    }
+
+    /**
+     * Runs [IconNormalizer.normalizeToTile] and degrades any failure to a null
+     * bitmap (the missing-icon placeholder). The rasterize stage executes
+     * third-party drawable code — `Drawable.draw`, and on API 33+ the lazy
+     * resource inflate behind `AdaptiveIconDrawable.getMonochrome` — which can
+     * throw, e.g. `Resources.NotFoundException` when the app updates on disk
+     * while this load is in flight and the resolved drawable's resource table
+     * has gone stale. Guarded for the same reason [resolve] guards its lookups:
+     * any throwable escaping the producer is re-thrown by `Deferred.await()`
+     * inside every awaiting composition — an unhandled composition exception,
+     * i.e. a process crash that, for a HOME app, immediately relaunches into
+     * the same load.
+     */
+    private fun normalizeToTileOrNull(
+        drawable: Drawable,
+        sizePx: Int,
+        packageName: String,
+        themedColors: IconNormalizer.ThemedIconColors?,
+    ): ImageBitmap? = try {
+        IconNormalizer.normalizeToTile(drawable, sizePx, packageName, themedColors).asImageBitmap()
+    } catch (exception: Exception) {
+        LauncherDebugLog.warning("normalizeToTile failed for $packageName", exception)
+        null
     }
 
     /**
@@ -344,9 +369,14 @@ internal object AppIconLoader {
                 badged.setBounds(0, 0, sizePx, sizePx)
                 badged.draw(Canvas(tile))
             }
-        } catch (exception: Resources.NotFoundException) {
-            // getUserBadgedIcon can throw while a work profile is still booting;
-            // returning null keeps it out of the cache so a later load retries.
+        } catch (exception: Exception) {
+            // getUserBadgedIcon can throw Resources.NotFoundException while a
+            // work profile is still booting, and the OEM badge drawable's own
+            // draw() runs third-party code that can throw too. Like the
+            // rasterize stage (see normalizeToTileOrNull), a throwable escaping
+            // this producer re-throws inside every awaiting composition and
+            // crashes the launcher; returning null keeps the failure out of the
+            // cache so a later load retries.
             LauncherDebugLog.warning("performWorkBadgeLoad: badge unavailable for user=$user", exception)
             return null
         }
