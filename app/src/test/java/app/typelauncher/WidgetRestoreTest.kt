@@ -7,6 +7,7 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,19 +35,21 @@ class WidgetRestoreTest {
     }
 
     @Test
-    fun mappingIsEmptyWhenEitherArrayIsNull() {
-        assertEquals(emptyMap<Int, Int>(), restoredWidgetIdMapping(null, intArrayOf(1)))
-        assertEquals(emptyMap<Int, Int>(), restoredWidgetIdMapping(intArrayOf(1), null))
+    fun mappingIsNullWhenEitherArrayIsNull() {
+        assertNull(restoredWidgetIdMapping(null, intArrayOf(1)))
+        assertNull(restoredWidgetIdMapping(intArrayOf(1), null))
     }
 
     @Test
-    fun mappingIsEmptyWhenArrayLengthsDiffer() {
-        val mapping = restoredWidgetIdMapping(
-            oldIds = intArrayOf(1, 2),
-            newIds = intArrayOf(9),
-        )
+    fun mappingIsNullWhenArrayLengthsDiffer() {
+        assertNull(restoredWidgetIdMapping(oldIds = intArrayOf(1, 2), newIds = intArrayOf(9)))
+    }
 
-        assertEquals(emptyMap<Int, Int>(), mapping)
+    @Test
+    fun mappingIsEmptyButNonNullForAWellFormedZeroWidgetRestore() {
+        // Both arrays present and same (zero) length: a real restore that
+        // brought nothing back — distinct from a malformed (null) payload.
+        assertEquals(emptyMap<Int, Int>(), restoredWidgetIdMapping(intArrayOf(), intArrayOf()))
     }
 
     @Test
@@ -86,6 +89,35 @@ class WidgetRestoreTest {
         WidgetRestoredReceiver().onReceive(context, hostRestoredIntent(APP_WIDGET_HOST_ID, intArrayOf(10), intArrayOf(40)))
 
         assertEquals(listOf(listOf(40, 11)), WidgetStore(context).widgetPages)
+    }
+
+    @Test
+    fun receiverWithWellFormedEmptyRestoreDropsRecordlessWidgetsButKeepsPlaceholders() {
+        WidgetStore(context).apply {
+            add(10)
+            add(11)
+            // 11 has a provider record; 10 is a legacy widget with none.
+            setProvider(11, WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "X"))
+        }
+
+        // A well-formed restore that brought nothing back: 10 can't be restored
+        // so it's dropped; 11 survives as a re-bindable placeholder.
+        WidgetRestoredReceiver().onReceive(context, hostRestoredIntent(APP_WIDGET_HOST_ID, intArrayOf(), intArrayOf()))
+
+        assertEquals(listOf(listOf(11)), WidgetStore(context).widgetPages)
+    }
+
+    @Test
+    fun receiverIgnoresMalformedRestorePayload() {
+        WidgetStore(context).add(10)
+
+        // Mismatched array lengths = malformed: ignored, store untouched.
+        WidgetRestoredReceiver().onReceive(
+            context,
+            hostRestoredIntent(APP_WIDGET_HOST_ID, oldIds = intArrayOf(10, 11), newIds = intArrayOf(40)),
+        )
+
+        assertEquals(listOf(listOf(10)), WidgetStore(context).widgetPages)
     }
 
     @Test

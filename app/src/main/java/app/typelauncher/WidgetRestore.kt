@@ -26,14 +26,17 @@ internal const val APP_WIDGET_HOST_ID = 1024
  * extras are index-aligned — `old[i]` became `new[i]` — so the mapping is the
  * zip, minus any pair touching [AppWidgetManager.INVALID_APPWIDGET_ID].
  *
- * Defensive against a malformed broadcast: a null array, mismatched lengths,
- * or an invalid ID on either side yields an empty map (or drops just that
- * pair), so a bad restore payload is a no-op rather than a scramble of the
- * user's widget layout. A [LinkedHashMap] preserves order purely for
- * deterministic logging and tests.
+ * Returns `null` for a **malformed** broadcast — a null array or mismatched
+ * lengths — so the caller ignores it entirely. A **well-formed but empty**
+ * payload (both arrays present and same length, e.g. a restore where every
+ * provider opted out so nothing came back) returns an empty map, which is
+ * distinct: the caller still runs it through the restore reconciliation so
+ * widgets that can't be re-bound are cleaned up. An invalid ID on either side
+ * of an otherwise valid pair just drops that pair. A [LinkedHashMap] preserves
+ * order purely for deterministic logging and tests.
  */
-internal fun restoredWidgetIdMapping(oldIds: IntArray?, newIds: IntArray?): Map<Int, Int> {
-    if (oldIds == null || newIds == null || oldIds.size != newIds.size) return emptyMap()
+internal fun restoredWidgetIdMapping(oldIds: IntArray?, newIds: IntArray?): Map<Int, Int>? {
+    if (oldIds == null || newIds == null || oldIds.size != newIds.size) return null
     val mapping = LinkedHashMap<Int, Int>(oldIds.size)
     for (index in oldIds.indices) {
         val oldId = oldIds[index]

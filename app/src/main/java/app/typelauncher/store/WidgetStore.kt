@@ -117,7 +117,11 @@ internal class WidgetStore(context: Context) {
      * follow each surviving widget to its result ID.
      */
     fun applyRestoredIdMapping(oldToNew: Map<Int, Int>) {
-        if (oldToNew.isEmpty()) return
+        // No early-out on an empty map: an empty *but real* restore (nothing came
+        // back) must still run the reconciliation below so an unmapped widget
+        // without a provider record is dropped rather than stranded. The receiver
+        // filters malformed broadcasts out before calling, so this only runs for
+        // a genuine restore.
         val previousIds = widgetIds
         val remappedNewIds = oldToNew.values.toHashSet()
         // A mapped widget takes its new id. An unmapped one stays put only if it

@@ -175,10 +175,25 @@ class MainActivity : ComponentActivity() {
             // terminal); the cancel/fail terminal clears it in deleteWidget.
             val restoreTarget = restoreTargetWidgetId
             restoreTargetWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-            if (restoreTarget != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                viewModel.replaceWidget(restoreTarget, appWidgetId)
-            } else {
-                viewModel.addWidget(appWidgetId)
+            when {
+                restoreTarget == AppWidgetManager.INVALID_APPWIDGET_ID -> viewModel.addWidget(appWidgetId)
+                restoreTarget in viewModel.uiState.value.widgetIds -> viewModel.replaceWidget(restoreTarget, appWidgetId)
+                else -> {
+                    // The user removed the placeholder while its bind/configure
+                    // was still on screen. The in-place swap can't land (the slot
+                    // is gone), so honor the removal: delete the freshly-bound ID
+                    // instead of adding it — otherwise it leaks in AppWidgetService.
+                    LauncherDebugLog.event(
+                        "restore target $restoreTarget removed mid-flight; deleting fresh id=$appWidgetId",
+                    )
+                    lifecycleScope.launch(ioDispatcher) {
+                        runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
+                            .onFailure { exception ->
+                                LauncherDebugLog.warning("failed to delete abandoned restore id=$appWidgetId", exception)
+                            }
+                    }
+                    appWidgetHost.forgetWidgetSize(appWidgetId)
+                }
             }
         },
         deleteWidget = { appWidgetId ->

@@ -37,11 +37,17 @@ internal class WidgetRestoredReceiver : BroadcastReceiver() {
         }
         val oldIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_OLD_IDS)
         val newIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
+        // null = malformed payload (ignore); an empty (but well-formed) map is a
+        // real restore that brought no widget back — still reconciled below so
+        // widgets that can't be re-bound are cleaned up rather than stranded.
         val mapping = restoredWidgetIdMapping(oldIds, newIds)
+        if (mapping == null) {
+            LauncherDebugLog.warning("WidgetRestoredReceiver ignoring malformed restore payload hostId=$hostId")
+            return
+        }
         LauncherDebugLog.event(
             "WidgetRestoredReceiver hostId=$hostId restored ${mapping.size} widget id(s) mapping=$mapping",
         )
-        if (mapping.isEmpty()) return
         // Runs on the main thread; the store's constructor read and single
         // `apply()` are cheap, and the framework flushes pending writes before
         // tearing the receiver's process down (QueuedWork on receiver finish),
