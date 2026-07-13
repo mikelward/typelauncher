@@ -2,6 +2,7 @@ package app.typelauncher
 
 import androidx.annotation.StringRes
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 // Globe glyph rendered when an ambiguous app group falls back to the
 // "INTL" regional marker (Chase / Chase International), and one of the
@@ -98,6 +99,18 @@ internal val WORLD_BADGE_OPTION: BadgeOption = BadgeOption(
     labelRes = R.string.badge_preset_world,
 )
 
+// Per-locale memo of the fully-built, sorted country list. Building it is
+// ~250 ICU display-name lookups plus a collated sort — cheap enough to run
+// once, but far too costly to redo on the badge picker's dialog-open frame
+// every time it opens (the composable's `remember` only survives one open).
+// The list for a given locale never changes within a process, and a
+// system-language change simply keys a fresh entry, so this only ever grows
+// by the handful of locales a session actually renders the picker in.
+// ConcurrentHashMap.computeIfAbsent keeps a concurrent open (unlikely, but
+// the picker composes on the main thread while nothing else touches this)
+// from double-building; a rare lost race just recomputes once, never corrupts.
+private val countryBadgeOptionsCache = ConcurrentHashMap<Locale, List<BadgeOption>>()
+
 /**
  * Every ISO 3166-1 alpha-2 country code reported by the JVM, mapped to a
  * regional-indicator flag glyph and the localised country name from
@@ -108,8 +121,15 @@ internal val WORLD_BADGE_OPTION: BadgeOption = BadgeOption(
  * handful of historical reservations that have no display name in the
  * current locale's data) are dropped so the picker doesn't show
  * unlabelled rows.
+ *
+ * Memoized per locale — see [countryBadgeOptionsCache] — so the expensive
+ * build runs at most once per locale per process instead of on every
+ * dialog-open frame.
  */
-internal fun countryBadgeOptions(locale: Locale = Locale.getDefault()): List<BadgeOption> {
+internal fun countryBadgeOptions(locale: Locale = Locale.getDefault()): List<BadgeOption> =
+    countryBadgeOptionsCache.computeIfAbsent(locale, ::buildCountryBadgeOptions)
+
+private fun buildCountryBadgeOptions(locale: Locale): List<BadgeOption> {
     // Collate rather than compare code points: raw string order puts accented
     // names after "Z" ("Åland Islands", "Égypte"), so users scanning the grid
     // alphabetically can't find them. Same collation rule as displayNameOrder();
