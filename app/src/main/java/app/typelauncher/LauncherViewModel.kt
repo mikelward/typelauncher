@@ -1810,15 +1810,30 @@ internal class LauncherViewModel(
     /**
      * Called when a Play update *check* fails (flaky network, Play transiently
      * unavailable) — distinct from a check that succeeds and reports no update
-     * ([setPlayUpdateUnavailable]). A failed check carries no information, so it
-     * must not regress the banner: wiping an in-flight or already-downloaded
-     * update here would hide the Restart action and drop the in-flight progress
-     * the install listener drives (`setPlayUpdateProgress` early-returns once
-     * the state is no longer `Available`). Preserve the current state; the next
-     * successful check corrects it if the update really is gone.
+     * ([setPlayUpdateUnavailable]). A failed check carries no information about
+     * an actual download, so it must not wipe a real in-flight or already-
+     * downloaded update: doing so would hide the Restart action and drop the
+     * progress the install listener drives (`setPlayUpdateProgress` early-
+     * returns once the state is no longer `Available`). Those states
+     * (`Downloading` / `Downloaded`) are preserved.
+     *
+     * `Starting` is the exception. It means the user tapped Update and the Play
+     * sheet was launched (which consumed the cached `AppUpdateInfo`); a
+     * cancelled sheet delivers no install-listener event, so a preserved
+     * `Starting` would leave the banner stuck on an indefinite "Updating…"
+     * spinner with its click disabled and dismiss hidden. Recover it to `Idle`
+     * — exactly what the `UNKNOWN` success recheck does — so the user can tap
+     * Update again. `Idle` and `NotAvailable` are left untouched.
      */
     fun setPlayUpdateCheckFailed() {
-        logState("setPlayUpdateCheckFailed preserving=${_uiState.value.playUpdate}")
+        val update = _uiState.value.playUpdate as? PlayUpdateState.Available
+        if (update != null && update.progress == UpdateProgress.Starting) {
+            currentPlayUpdateProgress = UpdateProgress.Idle
+            _uiState.update { it.copy(playUpdate = update.copy(progress = UpdateProgress.Idle)) }
+            logState("setPlayUpdateCheckFailed reset Starting->Idle")
+        } else {
+            logState("setPlayUpdateCheckFailed preserving=${_uiState.value.playUpdate}")
+        }
     }
 
     fun dismissPlayUpdate() {
