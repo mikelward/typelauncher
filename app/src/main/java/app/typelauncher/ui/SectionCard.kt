@@ -3,6 +3,7 @@ package app.typelauncher
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +47,12 @@ internal const val SECTION_CARD_PADDING_DP = 16
 internal fun SectionCard(
     modifier: Modifier = Modifier,
     colors: CardColors = CardDefaults.cardColors(),
+    // Defaults to the uniform 16dp inner padding every card shares. Overridden
+    // only by the search card, whose bordered text field already supplies its
+    // own frame, so the redundant vertical padding is trimmed there — see
+    // `SearchCard` in HomeScreen.kt. Keep the sides at 16dp in any override so
+    // the card stays on the same left/right rhythm as its siblings.
+    contentPadding: PaddingValues = PaddingValues(SECTION_CARD_PADDING_DP.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
@@ -53,7 +60,7 @@ internal fun SectionCard(
         colors = colors,
     ) {
         Column(
-            modifier = Modifier.padding(SECTION_CARD_PADDING_DP.dp),
+            modifier = Modifier.padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             content = content,
         )

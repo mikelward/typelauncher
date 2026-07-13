@@ -1143,7 +1143,12 @@ private fun SearchCard(
             keyboard?.show()
         }
     }
-    SectionCard {
+    SectionCard(
+        // Sides stay 16dp to match the apps and dock cards; top/bottom drop to
+        // 8dp because the field draws its own outline and doesn't need a second
+        // frame of padding around it.
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    ) {
         Box {
             LauncherFilterField(
                 value = query,
