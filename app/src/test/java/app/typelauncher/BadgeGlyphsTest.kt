@@ -3,6 +3,8 @@ package app.typelauncher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.text.Collator
@@ -91,5 +93,30 @@ class BadgeGlyphsTest {
         val us = countryBadgeOptions(Locale.ENGLISH).firstOrNull { it.key == "country:US" }
         assertNotNull(us)
         assertEquals("🇺🇸", us!!.glyph)
+    }
+
+    @Test
+    fun countryBadgeOptionsAreMemoizedPerLocale() {
+        // Building the list is ~250 ICU display-name lookups plus a collated
+        // sort — far too costly to redo on the badge picker's dialog-open frame
+        // every time it opens. The result is cached per locale, so repeated
+        // calls for one locale hand back the very same instance.
+        val first = countryBadgeOptions(Locale.ENGLISH)
+        val second = countryBadgeOptions(Locale.ENGLISH)
+        assertSame(first, second)
+    }
+
+    @Test
+    fun countryBadgeOptionsCacheIsKeyedByLocale() {
+        // A different locale keys a distinct entry, so a system-language change
+        // still re-collates the names in the new locale rather than serving the
+        // previous locale's ordering.
+        val english = countryBadgeOptions(Locale.ENGLISH)
+        val french = countryBadgeOptions(Locale.FRENCH)
+        assertNotSame(english, french)
+        // Both are non-empty, well-formed lists — the cache doesn't corrupt one
+        // locale's result by keying it under another.
+        assertTrue(english.any { it.key == "country:US" })
+        assertTrue(french.any { it.key == "country:US" })
     }
 }
