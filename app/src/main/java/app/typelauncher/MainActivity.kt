@@ -886,8 +886,30 @@ class MainActivity : ComponentActivity() {
                 "bindWidget provider=${component.flattenToShortString()} appWidgetId=$appWidgetId " +
                     "restoreTargetId=$restoreTargetId",
             )
-            val allowed = withContext(ioDispatcher) {
-                appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, profile, component, null)
+            val allowed = try {
+                withContext(ioDispatcher) {
+                    appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, profile, component, null)
+                }
+            } catch (exception: RuntimeException) {
+                // A restore tap binds a *remembered* provider, which may no
+                // longer exist — its app hasn't reinstalled yet, was removed, or
+                // changed the provider class. AppWidgetService throws
+                // (IllegalArgumentException "unknown provider", or SecurityException)
+                // rather than returning false, and this runs off the main thread
+                // in lifecycleScope, so an uncaught throw crashes the launcher.
+                // Release the allocated ID and reset the latches (onBindStarted
+                // hasn't run yet, so no pendingWidgetId is wedged), then surface
+                // the same unavailable toast as a failed picker launch.
+                LauncherDebugLog.warning(
+                    "bindWidget failed: provider ${component.flattenToShortString()} not bindable",
+                    exception,
+                )
+                withContext(ioDispatcher) { runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) } }
+                bindingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+                bindLaunchInFlight = false
+                restoreTargetWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+                Toast.makeText(this@MainActivity, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
+                return@launch
             }
             // Commit the pending ID only now — past both cancellable IPCs and
             // with no suspension point between here and the resolving call
