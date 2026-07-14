@@ -6366,47 +6366,36 @@ private fun SettingsPreview(
     //     never consumes, which lets the settings page's outer
     //     verticalScroll still drive vertical drags that start inside the
     //     preview region.
+    // Mirror Home's card treatment so the preview responds to the "Card opacity"
+    // slider live as the user drags it: fade the cards' fill to `cardOpacity`,
+    // but only while "Show wallpaper" is on — the same gate Home uses, and the
+    // same gate that enables the slider. Off the wallpaper path the preview stays
+    // fully opaque, matching ordinary Home. Robolectric can't composite the real
+    // wallpaper behind Settings, so the fade reveals the settings surface here;
+    // on-device it reveals the wallpaper exactly as Home does.
+    val previewCardAlpha = if (state.isWallpaperShown) state.cardOpacity else 1f
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clearAndSetSemantics {},
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
-        ) {
-            AppsCard(
-                apps = state.filteredApps,
-                dockLimit = Int.MAX_VALUE,
-                layout = state.appListLayout,
-                iconSizeDp = dockIconSizeDp,
-                highlightFirst = state.query.isNotBlank(),
-                reverseLayout = state.appListSortOrder.isReversed,
-                scrollResetKey = state.query,
-                modifier = Modifier.height(appListHeight),
-                onLaunchApp = {},
-                onOpenAppInfo = {},
-                onToggleDock = { _, _ -> },
-                onResetRank = {},
-                onRenameApp = { _, _ -> },
-                onSetAppIconOverride = {},
-                onClearAppIconOverride = {},
-                onSetAppBadge = { _, _ -> },
-                onHideApp = {},
-            )
-            if (state.isDockEnabled) {
-                DockCard(
-                    dockedApps = state.dockedApps,
-                    dockPositions = state.dockPositions,
-                    dockFolders = state.dockFolders,
-                    dockIconSizeDp = dockIconSizeDp,
-                    dockIconCount = dockIconCount,
-                    dockLayout = state.dockLayout,
-                    modifier = Modifier.height(dockPreviewHeight),
+        CompositionLocalProvider(LocalCardAlpha provides previewCardAlpha) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
+            ) {
+                AppsCard(
+                    apps = state.filteredApps,
+                    dockLimit = Int.MAX_VALUE,
+                    layout = state.appListLayout,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = state.query.isNotBlank(),
+                    reverseLayout = state.appListSortOrder.isReversed,
+                    scrollResetKey = state.query,
+                    modifier = Modifier.height(appListHeight),
                     onLaunchApp = {},
                     onOpenAppInfo = {},
                     onToggleDock = { _, _ -> },
-                    onReorderDock = { _, _, _ -> },
                     onResetRank = {},
                     onRenameApp = { _, _ -> },
                     onSetAppIconOverride = {},
@@ -6414,18 +6403,39 @@ private fun SettingsPreview(
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
                 )
+                if (state.isDockEnabled) {
+                    DockCard(
+                        dockedApps = state.dockedApps,
+                        dockPositions = state.dockPositions,
+                        dockFolders = state.dockFolders,
+                        dockIconSizeDp = dockIconSizeDp,
+                        dockIconCount = dockIconCount,
+                        dockLayout = state.dockLayout,
+                        modifier = Modifier.height(dockPreviewHeight),
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onReorderDock = { _, _, _ -> },
+                        onResetRank = {},
+                        onRenameApp = { _, _ -> },
+                        onSetAppIconOverride = {},
+                        onClearAppIconOverride = {},
+                        onSetAppBadge = { _, _ -> },
+                        onHideApp = {},
+                    )
+                }
+                // Mirror Home: recents is always a secondary bar, independent of the dock.
+                RecentsCard(
+                    recentApps = state.recentApps,
+                    isVisible = true,
+                    dockIconSizeDp = dockIconSizeDp,
+                    modifier = Modifier.height(previewHeight),
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onDismissRecent = {},
+                )
             }
-            // Mirror Home: recents is always a secondary bar, independent of the dock.
-            RecentsCard(
-                recentApps = state.recentApps,
-                isVisible = true,
-                dockIconSizeDp = dockIconSizeDp,
-                modifier = Modifier.height(previewHeight),
-                onLaunchApp = {},
-                onOpenAppInfo = {},
-                onToggleDock = { _, _ -> },
-                onDismissRecent = {},
-            )
         }
         Box(
             modifier = Modifier
