@@ -49,16 +49,16 @@ internal fun EmptyState(
 // content area. Exposed so callers that need to size a card around a known
 // content height (e.g. the home dock slot capping the work dock at one icon
 // row) can add the chrome without recomputing it from a literal.
-internal const val SECTION_CARD_PADDING_DP = 16
+internal const val SECTION_CARD_PADDING_DP = 12
 
 @Composable
 internal fun SectionCard(
     modifier: Modifier = Modifier,
     colors: CardColors = CardDefaults.cardColors(),
-    // Defaults to the uniform 16dp inner padding every card shares. Overridden
+    // Defaults to the uniform 12dp inner padding every card shares. Overridden
     // only by the search card, whose bordered text field already supplies its
     // own frame, so the redundant vertical padding is trimmed there — see
-    // `SearchCard` in HomeScreen.kt. Keep the sides at 16dp in any override so
+    // `SearchCard` in HomeScreen.kt. Keep the sides at 12dp in any override so
     // the card stays on the same left/right rhythm as its siblings.
     contentPadding: PaddingValues = PaddingValues(SECTION_CARD_PADDING_DP.dp),
     content: @Composable ColumnScope.() -> Unit,

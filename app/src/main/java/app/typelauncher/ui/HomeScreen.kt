@@ -1323,11 +1323,11 @@ private fun SearchCard(
         }
     }
     SectionCard(
-        // Sides stay 16dp to match the apps and dock cards. Top/bottom are 12dp:
-        // tighter than the cards' 16dp (the field draws its own outline, so it
+        // Sides stay 12dp to match the apps and dock cards. Top/bottom are 8dp:
+        // tighter than the cards' 12dp (the field draws its own outline, so it
         // needs less of a second frame) but not so tight that the field crowds
         // the card edge.
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Box {
             LauncherFilterField(
