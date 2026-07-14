@@ -2518,38 +2518,6 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun screenshot_settings_cardTintSwatches() {
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-        // Enable Show wallpaper so the tint swatches render enabled (in color)
-        // rather than dimmed.
-        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(CARD_TINT_ROW_TAG).performScrollTo().assertIsDisplayed()
-
-        saveScreenshot("compose_settings_card_tint_swatches_robolectric.png")
-    }
-
-    @Test
-    fun cardTintSwatches_inSettings_persistSelectionWhenWallpaperOn() {
-        val viewModel = composeRule.activity.viewModel
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-        // The tint swatches are gated on Show wallpaper — enable it first.
-        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag(CARD_TINT_ROW_TAG).performScrollTo().assertIsDisplayed()
-        assertEquals(CardTint.Neutral, viewModel.uiState.value.cardTint)
-
-        composeRule.onNodeWithTag(CARD_TINT_OPTION_SECONDARY_TAG).performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        assertEquals(CardTint.Secondary, viewModel.uiState.value.cardTint)
-    }
-
-    @Test
     fun iconShapeDropdown_inSettings_persistsSelection() {
         val viewModel = composeRule.activity.viewModel
         composeRule.waitForIdle()

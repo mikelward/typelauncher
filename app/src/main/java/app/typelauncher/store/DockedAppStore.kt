@@ -602,20 +602,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * How Home's cards are tinted while the wallpaper shows (see [CardTint]).
-     * Stored by name so an unknown value (a renamed entry from a newer build)
-     * falls back to the neutral default. Only takes effect when [isWallpaperShown]
-     * is on.
-     */
-    var cardTint: CardTint
-        get() = sharedPreferences.enumOrDefault(KEY_CARD_TINT, CardTint.Neutral)
-        set(value) {
-            sharedPreferences.edit()
-                .putString(KEY_CARD_TINT, value.name)
-                .apply()
-        }
-
-    /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
      * keyboard was opening, paired with the configuration it was measured
      * under and the source that produced it. Used to reserve Home's
@@ -747,7 +733,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
         const val KEY_CARD_OPACITY = "card_opacity"
-        const val KEY_CARD_TINT = "card_tint"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"
         const val KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP = "keyboard_reservation_screen_width_dp"
