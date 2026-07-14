@@ -1580,6 +1580,36 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun settingsPreview_reflectsCardOpacityLive() {
+        val viewModel = composeRule.activity.viewModel
+        val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
+        viewModel.toggleDock(calculator, maxDockedApps = 6)
+        // The preview mirrors Home's "Card opacity" only while Show wallpaper is
+        // on — the same gate that enables the slider — so turn it on and drop the
+        // opacity. The preview cards' fill should fade in the snapshot while their
+        // icons and text stay fully opaque, so a drag of the slider is visible
+        // without leaving Settings. (Robolectric can't composite the real
+        // wallpaper behind Settings, so the fade reveals the settings surface
+        // here; on-device it reveals the wallpaper exactly as Home does.)
+        composeRule.runOnUiThread {
+            viewModel.setWallpaperShown(true)
+            viewModel.setCardOpacity(0.5f)
+        }
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // Bring the preview into the viewport before capturing (its four-bar
+        // budget pushes the dock card below the fold on the test screen). The
+        // preview strips its cards' semantics via clearAndSetSemantics {}, so
+        // query the testTag through the unmerged tree — same convention as the
+        // dock-preview test above.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).performScrollTo()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).assertIsDisplayed()
+
+        saveScreenshot("compose_settings_preview_card_opacity_robolectric.png")
+    }
+
+    @Test
     fun settingsQuery_highlightsSettingsAndLaunchesAndroidSettingsBySearchAction() {
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("settings")
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performImeAction()
