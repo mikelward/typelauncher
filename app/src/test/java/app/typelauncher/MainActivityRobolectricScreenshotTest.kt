@@ -3708,7 +3708,11 @@ class MainActivityRobolectricScreenshotTest {
         private fun seedOverflowLauncherApps() {
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             val packageManager = shadowOf(ApplicationProvider.getApplicationContext<android.content.Context>().packageManager)
-            (1..60).forEach { index ->
+            // 90 apps so the icon-only grid overflows its card even at the wider
+            // column counts the roomier layout can fit — 60 stopped overflowing
+            // at 411 dp once the card's inner padding dropped to 12 dp and an
+            // extra column appeared.
+            (1..90).forEach { index ->
                 val label = "Overflow App %02d".format(index)
                 val packageName = "app.typelauncher.overflow$index"
                 val componentName = ComponentName(packageName, "$packageName.LaunchActivity")

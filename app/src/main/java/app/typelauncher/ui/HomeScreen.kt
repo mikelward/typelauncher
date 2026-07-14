@@ -1323,11 +1323,9 @@ private fun SearchCard(
         }
     }
     SectionCard(
-        // Sides stay 16dp to match the apps and dock cards. Top/bottom are 12dp:
-        // tighter than the cards' 16dp (the field draws its own outline, so it
-        // needs less of a second frame) but not so tight that the field crowds
-        // the card edge.
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        // Uses the shared 12dp inner padding so the search card sits on the same
+        // left/right rhythm as the apps and dock cards. The field draws its own
+        // outline inside that frame.
     ) {
         Box {
             LauncherFilterField(
@@ -6614,7 +6612,8 @@ internal fun selectionHighlightOnColor(): Color =
 private fun isDarkColorScheme(): Boolean =
     MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
+private const val SETTINGS_PREVIEW_CARD_CHROME_DP =
+    DOCK_ITEM_VERTICAL_PADDING_DP + SECTION_CARD_PADDING_DP * 2
 private const val SETTINGS_PREVIEW_BAR_COUNT = 3
 // The preview mirrors the home screen's stacked cards, so its bar-to-bar gap
 // tracks the same shared constant that drives every home card-to-card margin.
