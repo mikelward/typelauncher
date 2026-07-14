@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">ಫೋಲ್ಡರ್</string>
     <string name="dock_folder_close_description">ಫೋಲ್ಡರ್ ಮುಚ್ಚಿ</string>
     <string name="app_label_with_work_prefix">ಕೆಲಸ %1$s</string>
+    <string name="widgets_restore_action">%1$s ವಿಜೆಟ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ</string>
+    <string name="settings_show_wallpaper_title">ವಾಲ್‌ಪೇಪರ್ ತೋರಿಸಿ</string>
+    <string name="settings_card_opacity_label">ಕಾರ್ಡ್ ಅಪಾರದರ್ಶಕತೆ: %1$d%%</string>
 </resources>

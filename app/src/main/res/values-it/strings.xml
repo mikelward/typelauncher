@@ -160,4 +160,7 @@
     <string name="dock_folder_content_description">Cartella</string>
     <string name="dock_folder_close_description">Chiudi cartella</string>
     <string name="app_label_with_work_prefix">Lavoro %1$s</string>
+    <string name="widgets_restore_action">Tocca per ripristinare il widget %1$s</string>
+    <string name="settings_show_wallpaper_title">Mostra sfondo</string>
+    <string name="settings_card_opacity_label">Opacità della scheda: %1$d%%</string>
 </resources>

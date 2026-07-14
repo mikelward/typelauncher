@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Klasör</string>
     <string name="dock_folder_close_description">Klasörü kapat</string>
     <string name="app_label_with_work_prefix">İş %1$s</string>
+    <string name="widgets_restore_action">%1$s pencere öğesini geri yüklemek için dokunun</string>
+    <string name="settings_show_wallpaper_title">Duvar kağıdını göster</string>
+    <string name="settings_card_opacity_label">Kart opaklığı: %1$d%%</string>
 </resources>

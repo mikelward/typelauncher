@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>
@@ -91,8 +91,7 @@
     <string name="widgets_preview_unavailable">Preview unavailable</string>
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>
     <string name="widgets_unavailable">Widget unavailable</string>
-    <!-- TODO: translate -->
-    <string name="widgets_restore_action" tools:ignore="MissingTranslation">Tap to restore %1$s widget</string>
+    <string name="widgets_restore_action">Tap to restore %1$s widget</string>
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_move_up">Move up</string>
     <string name="widget_menu_move_down">Move down</string>
@@ -129,10 +128,8 @@
     <string name="settings_work_dock_enabled_title">Show work dock</string>
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
-    <!-- TODO: translate -->
-    <string name="settings_show_wallpaper_title" tools:ignore="MissingTranslation">Show wallpaper</string>
-    <!-- TODO: translate -->
-    <string name="settings_card_opacity_label" tools:ignore="MissingTranslation">Card opacity: %1$d%%</string>
+    <string name="settings_show_wallpaper_title">Show wallpaper</string>
+    <string name="settings_card_opacity_label">Card opacity: %1$d%%</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>

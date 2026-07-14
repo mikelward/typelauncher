@@ -158,4 +158,7 @@
     <string name="dock_folder_content_description">โฟลเดอร์</string>
     <string name="dock_folder_close_description">ปิดโฟลเดอร์</string>
     <string name="app_label_with_work_prefix">งาน %1$s</string>
+    <string name="widgets_restore_action">แตะเพื่อคืนค่าวิดเจ็ต %1$s</string>
+    <string name="settings_show_wallpaper_title">แสดงวอลเปเปอร์</string>
+    <string name="settings_card_opacity_label">ความทึบของการ์ด: %1$d%%</string>
 </resources>

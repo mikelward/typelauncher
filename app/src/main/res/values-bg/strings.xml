@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Папка</string>
     <string name="dock_folder_close_description">Затвори папката</string>
     <string name="app_label_with_work_prefix">Служебно %1$s</string>
+    <string name="widgets_restore_action">Докоснете за възстановяване на джаджата %1$s</string>
+    <string name="settings_show_wallpaper_title">Покажи тапет</string>
+    <string name="settings_card_opacity_label">Непрозрачност на картата: %1$d%%</string>
 </resources>

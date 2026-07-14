@@ -160,4 +160,7 @@
     <string name="dock_folder_content_description">Pasta</string>
     <string name="dock_folder_close_description">Fechar pasta</string>
     <string name="app_label_with_work_prefix">Trabalho %1$s</string>
+    <string name="widgets_restore_action">Toque para restaurar o widget %1$s</string>
+    <string name="settings_show_wallpaper_title">Mostrar papel de parede</string>
+    <string name="settings_card_opacity_label">Opacidade do cartão: %1$d%%</string>
 </resources>

@@ -158,4 +158,7 @@
     <string name="dock_folder_content_description">폴더</string>
     <string name="dock_folder_close_description">폴더 닫기</string>
     <string name="app_label_with_work_prefix">업무용 %1$s</string>
+    <string name="widgets_restore_action">탭하여 %1$s 위젯을 복원하세요</string>
+    <string name="settings_show_wallpaper_title">배경화면 표시</string>
+    <string name="settings_card_opacity_label">카드 불투명도: %1$d%%</string>
 </resources>

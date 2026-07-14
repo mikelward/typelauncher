@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">ਫੋਲਡਰ</string>
     <string name="dock_folder_close_description">ਫੋਲਡਰ ਬੰਦ ਕਰੋ</string>
     <string name="app_label_with_work_prefix">ਕੰਮ %1$s</string>
+    <string name="widgets_restore_action">%1$s ਵਿਜੇਟ ਮੁੜ-ਬਹਾਲ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ</string>
+    <string name="settings_show_wallpaper_title">ਵਾਲਪੇਪਰ ਦਿਖਾਓ</string>
+    <string name="settings_card_opacity_label">ਕਾਰਡ ਧੁੰਦਲਾਪਨ: %1$d%%</string>
 </resources>

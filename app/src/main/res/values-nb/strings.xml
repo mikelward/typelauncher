@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Mappe</string>
     <string name="dock_folder_close_description">Lukk mappe</string>
     <string name="app_label_with_work_prefix">Jobb %1$s</string>
+    <string name="widgets_restore_action">Trykk for å gjenopprette %1$s-widgeten</string>
+    <string name="settings_show_wallpaper_title">Vis bakgrunnsbilde</string>
+    <string name="settings_card_opacity_label">Kortopasitet: %1$d%%</string>
 </resources>

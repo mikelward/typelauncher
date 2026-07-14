@@ -161,4 +161,7 @@
     <string name="dock_folder_content_description">Mapa</string>
     <string name="dock_folder_close_description">Zapri mapo</string>
     <string name="app_label_with_work_prefix">Služba %1$s</string>
+    <string name="widgets_restore_action">Tapnite za obnovitev pripomočka %1$s</string>
+    <string name="settings_show_wallpaper_title">Prikaži ozadje</string>
+    <string name="settings_card_opacity_label">Prekrivnost kartice: %1$d%%</string>
 </resources>

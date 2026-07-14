@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">ഫോൾഡർ</string>
     <string name="dock_folder_close_description">ഫോൾഡർ അടയ്ക്കുക</string>
     <string name="app_label_with_work_prefix">ജോലി %1$s</string>
+    <string name="widgets_restore_action">%1$s വിജറ്റ് പുനഃസ്ഥാപിക്കാൻ ടാപ്പ് ചെയ്യുക</string>
+    <string name="settings_show_wallpaper_title">വാൾപേപ്പർ കാണിക്കുക</string>
+    <string name="settings_card_opacity_label">കാർഡ് അതാര്യത: %1$d%%</string>
 </resources>
