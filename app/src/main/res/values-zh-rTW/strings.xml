@@ -158,4 +158,7 @@
     <string name="dock_folder_content_description">資料夾</string>
     <string name="dock_folder_close_description">關閉資料夾</string>
     <string name="app_label_with_work_prefix">工作 %1$s</string>
+    <string name="widgets_restore_action">點按以還原 %1$s 小工具</string>
+    <string name="settings_show_wallpaper_title">顯示桌布</string>
+    <string name="settings_card_opacity_label">卡片不透明度: %1$d%%</string>
 </resources>

@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">ফোল্ডার</string>
     <string name="dock_folder_close_description">ফোল্ডার বন্ধ করুন</string>
     <string name="app_label_with_work_prefix">কর্মক্ষেত্র %1$s</string>
+    <string name="widgets_restore_action">%1$s উইজেট পুনরুদ্ধার করতে ট্যাপ করুন</string>
+    <string name="settings_show_wallpaper_title">ওয়ালপেপার দেখান</string>
+    <string name="settings_card_opacity_label">কার্ডের অস্বচ্ছতা: %1$d%%</string>
 </resources>

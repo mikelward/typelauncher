@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Ifolda</string>
     <string name="dock_folder_close_description">Vala ifolda</string>
     <string name="app_label_with_work_prefix">Umsebenzi %1$s</string>
+    <string name="widgets_restore_action">Thepha ukuze ubuyisele iwijethi ye-%1$s</string>
+    <string name="settings_show_wallpaper_title">Bonisa isithombe sangemuva</string>
+    <string name="settings_card_opacity_label">Ukufiphala kwekhadi: %1$d%%</string>
 </resources>

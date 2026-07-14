@@ -158,4 +158,7 @@
     <string name="dock_folder_content_description">Folder</string>
     <string name="dock_folder_close_description">Tutup folder</string>
     <string name="app_label_with_work_prefix">Kerja %1$s</string>
+    <string name="widgets_restore_action">Ketik untuk memulihkan widget %1$s</string>
+    <string name="settings_show_wallpaper_title">Tunjukkan kertas dinding</string>
+    <string name="settings_card_opacity_label">Kelegapan kad: %1$d%%</string>
 </resources>

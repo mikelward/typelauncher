@@ -161,4 +161,7 @@
     <string name="dock_folder_content_description">Aplankas</string>
     <string name="dock_folder_close_description">Uždaryti aplanką</string>
     <string name="app_label_with_work_prefix">Darbo %1$s</string>
+    <string name="widgets_restore_action">Bakstelėkite, kad atkurtumėte %1$s valdiklį</string>
+    <string name="settings_show_wallpaper_title">Rodyti foną</string>
+    <string name="settings_card_opacity_label">Kortelės nepermatomumas: %1$d%%</string>
 </resources>

@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Folder</string>
     <string name="dock_folder_close_description">Isara ang folder</string>
     <string name="app_label_with_work_prefix">Trabaho %1$s</string>
+    <string name="widgets_restore_action">I-tap para ibalik ang widget na %1$s</string>
+    <string name="settings_show_wallpaper_title">Ipakita ang wallpaper</string>
+    <string name="settings_card_opacity_label">Opacity ng card: %1$d%%</string>
 </resources>

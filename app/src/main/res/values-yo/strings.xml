@@ -158,4 +158,7 @@
     <string name="dock_folder_content_description">Fódà</string>
     <string name="dock_folder_close_description">Ti fódà</string>
     <string name="app_label_with_work_prefix">Iṣẹ́ %1$s</string>
+    <string name="widgets_restore_action">Tẹ̀ láti mú wíjẹ́ẹ̀tì %1$s padà</string>
+    <string name="settings_show_wallpaper_title">Fihàn aworan abẹ́lẹ̀</string>
+    <string name="settings_card_opacity_label">Opacity káàdì: %1$d%%</string>
 </resources>

@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Mapp</string>
     <string name="dock_folder_close_description">Stäng mapp</string>
     <string name="app_label_with_work_prefix">Jobb %1$s</string>
+    <string name="widgets_restore_action">Tryck för att återställa widgeten %1$s</string>
+    <string name="settings_show_wallpaper_title">Visa bakgrundsbild</string>
+    <string name="settings_card_opacity_label">Kortets opacitet: %1$d%%</string>
 </resources>

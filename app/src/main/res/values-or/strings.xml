@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">ଫୋଲ୍ଡର୍</string>
     <string name="dock_folder_close_description">ଫୋଲ୍ଡର୍ ବନ୍ଦ କରନ୍ତୁ</string>
     <string name="app_label_with_work_prefix">କାର୍ଯ୍ୟ %1$s</string>
+    <string name="widgets_restore_action">%1$s ୱିଜେଟ୍ ପୁନରୁଦ୍ଧାର କରିବାକୁ ଟ୍ୟାପ୍ କରନ୍ତୁ</string>
+    <string name="settings_show_wallpaper_title">ୱାଲପେପର ଦେଖାନ୍ତୁ</string>
+    <string name="settings_card_opacity_label">କାର୍ଡ ଅସ୍ୱଚ୍ଛତା: %1$d%%</string>
 </resources>

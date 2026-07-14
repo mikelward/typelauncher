@@ -160,4 +160,7 @@
     <string name="dock_folder_content_description">Mapa</string>
     <string name="dock_folder_close_description">Zatvori mapu</string>
     <string name="app_label_with_work_prefix">Poslovni %1$s</string>
+    <string name="widgets_restore_action">Dodirnite za vraćanje widgeta %1$s</string>
+    <string name="settings_show_wallpaper_title">Prikaži pozadinu</string>
+    <string name="settings_card_opacity_label">Neprozirnost kartice: %1$d%%</string>
 </resources>

@@ -159,4 +159,7 @@
     <string name="dock_folder_content_description">Karpeta</string>
     <string name="dock_folder_close_description">Itxi karpeta</string>
     <string name="app_label_with_work_prefix">Laneko %1$s</string>
+    <string name="widgets_restore_action">Sakatu %1$s widgeta berrezartzeko</string>
+    <string name="settings_show_wallpaper_title">Erakutsi horma-papera</string>
+    <string name="settings_card_opacity_label">Txartelaren opakutasuna: %1$d%%</string>
 </resources>

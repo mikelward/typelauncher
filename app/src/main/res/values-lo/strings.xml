@@ -158,4 +158,7 @@
     <string name="dock_folder_content_description">ໂຟນເດີ</string>
     <string name="dock_folder_close_description">ປິດໂຟນເດີ</string>
     <string name="app_label_with_work_prefix">ວຽກ %1$s</string>
+    <string name="widgets_restore_action">ແຕະເພື່ອກັບຄືນວິດເຈັດ %1$s</string>
+    <string name="settings_show_wallpaper_title">ສະແດງພາບພື້ນຫຼັງ</string>
+    <string name="settings_card_opacity_label">ຄວາມທຶບຂອງບັດ: %1$d%%</string>
 </resources>
