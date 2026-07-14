@@ -425,8 +425,8 @@ class HomeLandscapeLayoutTest {
     @Test
     fun searchBoxFitsOnlyWhenTheKeyboardLeavesAResultRow() {
         // 851x393 landscape at 320dpi, slot-4 sizing → 68dp icons, so the
-        // floor row is 68 + 16 = 84. The box fits while box(72) + gap(8) +
-        // row(84) + gap(8) + keyboard <= available(377), i.e. keyboard <= 205.
+        // floor row is 68 + 16 = 84. The box fits while box(64) + gap(8) +
+        // row(84) + gap(8) + keyboard <= available(377), i.e. keyboard <= 213.
         fun fitsWithKeyboard(keyboardDp: Int): Boolean {
             val fp = fingerprint(851, 393, 320, navBottomPx = 0)
             return homeLandscapeMetrics(
@@ -449,8 +449,8 @@ class HomeLandscapeLayoutTest {
             ).searchBoxFitsWithKeyboard
         }
 
-        assertTrue(fitsWithKeyboard(205))
-        assertEquals(false, fitsWithKeyboard(206))
+        assertTrue(fitsWithKeyboard(213))
+        assertEquals(false, fitsWithKeyboard(214))
     }
 
     @Test
@@ -461,7 +461,7 @@ class HomeLandscapeLayoutTest {
         // bar and a 24dp gesture-nav bar (96px at 320dpi = 2x), so real content
         // is 393dp. The reference width min(851, 441) grows the 4-slot icons to
         // the 72dp cap → floor row 88, and the box + one result row + a
-        // measured 227dp keyboard need 72 + 8 + 88 + 8 + 227 = 403dp against
+        // measured 227dp keyboard need 64 + 8 + 88 + 8 + 227 = 395dp against
         // the real 377dp budget (441 − 48 − 16) — the box must hide. Trusting
         // the raw screen height (the pre-fix bug) saw 425dp available and kept
         // the box, clipping the one promised result row to a sliver under the
@@ -522,7 +522,7 @@ class HomeLandscapeLayoutTest {
     fun searchBoxDefaultsToHiddenWithoutAConfidentFit() {
         // The gate always engages: the default is no search box in landscape
         // unless typing is known to fit. With no reservation the 55% fallback
-        // (216dp here) exceeds the 205dp budget, so the box is hidden from the
+        // (216dp here) exceeds the 213dp budget, so the box is hidden from the
         // very first landscape frame — the user should never have to suffer
         // one squeezed typing session to teach the launcher.
         fun fitsWith(reservation: KeyboardReservation): Boolean =
