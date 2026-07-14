@@ -27,15 +27,6 @@ import androidx.compose.ui.unit.dp
 // so cards outside Home (Settings, dialogs) are unaffected.
 internal val LocalCardAlpha = compositionLocalOf { 1f }
 
-// Optional color override applied to every [SectionCard] in the current subtree,
-// so Home can tint its cards from the wallpaper palette while the wallpaper
-// shows (the "Card tint" setting). Null (the default) leaves each card's own
-// `CardDefaults.cardColors()` — Material You's neutral surface. Home provides a
-// tinted `CardColors` only while the wallpaper is active, so cards outside Home
-// (Settings, dialogs) keep the neutral surface. The container fill is still
-// faded by [LocalCardAlpha] on top of whichever base this selects.
-internal val LocalCardTint = compositionLocalOf<CardColors?> { null }
-
 @Composable
 internal fun EmptyState(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -72,20 +63,13 @@ internal fun SectionCard(
     contentPadding: PaddingValues = PaddingValues(SECTION_CARD_PADDING_DP.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Start from the Home tint override when one is provided (wallpaper on with
-    // a non-neutral "Card tint"), else the caller's own colors. Then fade only
-    // the container fill (not the whole card, which would dim text and icons
-    // too) so the wallpaper shows through while content stays legible.
-    val tintedBase = LocalCardTint.current ?: colors
+    // Fade only the container fill (not the whole card, which would dim text and
+    // icons too) so the wallpaper shows through while content stays legible.
     val cardAlpha = LocalCardAlpha.current
     val resolvedColors = if (cardAlpha < 1f) {
-        tintedBase.copy(
-            containerColor = tintedBase.containerColor.copy(
-                alpha = tintedBase.containerColor.alpha * cardAlpha,
-            ),
-        )
+        colors.copy(containerColor = colors.containerColor.copy(alpha = colors.containerColor.alpha * cardAlpha))
     } else {
-        tintedBase
+        colors
     }
     Card(
         modifier = modifier.fillMaxWidth(),

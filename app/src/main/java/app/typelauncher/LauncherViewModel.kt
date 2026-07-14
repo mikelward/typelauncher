@@ -197,7 +197,6 @@ internal class LauncherViewModel(
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
             cardOpacity = dockSettingsStore.cardOpacity,
-            cardTint = dockSettingsStore.cardTint,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             themeMode = dockSettingsStore.themeMode,
@@ -2043,12 +2042,6 @@ internal class LauncherViewModel(
         val stored = dockSettingsStore.cardOpacity
         _uiState.update { it.copy(cardOpacity = stored) }
         logState("setCardOpacity=$stored")
-    }
-
-    fun setCardTint(tint: CardTint) {
-        dockSettingsStore.cardTint = tint
-        _uiState.update { it.copy(cardTint = tint) }
-        logState("setCardTint=$tint")
     }
 
     fun setAgendaEnabled(isEnabled: Boolean) {

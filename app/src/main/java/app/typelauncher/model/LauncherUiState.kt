@@ -435,25 +435,6 @@ internal enum class IconTheme {
 }
 
 /**
- * Which system-palette color Home's cards are tinted with while the wallpaper
- * shows (the `Card tint` swatch picker). [Neutral] keeps Material You's neutral
- * surface (the near-gray `surfaceContainerHighest`); [Tinted] washes the
- * wallpaper accent (`surfaceTint`) into that neutral surface for a subtle
- * wash that keeps the default text color legible; [Primary]/[Secondary]/
- * [Tertiary] fill the cards with the matching Material You *container* role and
- * its paired content color (`primaryContainer` / `onPrimaryContainer`, etc.),
- * a stronger wallpaper-derived accent. Only applied while `Show wallpaper` is
- * on, and only to Home's cards (via a `LocalCardTint` scoped to Home).
- */
-internal enum class CardTint {
-    Neutral,
-    Tinted,
-    Primary,
-    Secondary,
-    Tertiary,
-}
-
-/**
  * Distinguishes a keyboard reservation that has been confirmed by a real
  * visible IME from one that only ever came in via `WindowInsets.imeAnimationTarget`.
  *
@@ -711,10 +692,6 @@ internal data class LauncherUiState(
     // app list, recents), so the wallpaper can show through them. Only applied
     // when [isWallpaperShown] is on; 1f = fully opaque (default).
     val cardOpacity: Float = 1f,
-    // Which system-palette color Home's cards are tinted with while the
-    // wallpaper shows (see [CardTint]). Only applied when [isWallpaperShown] is
-    // on; defaults to the neutral Material You surface ([CardTint.Neutral]).
-    val cardTint: CardTint = CardTint.Neutral,
     // Last keyboard bottom inset observed while the IME was opening, paired
     // with the configuration it was measured under and the source that
     // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show

@@ -287,28 +287,6 @@ class DockedAppStoreTest {
     }
 
     @Test
-    fun cardTintDefaultsToNeutral() {
-        assertEquals(CardTint.Neutral, DockSettingsStore(context).cardTint)
-    }
-
-    @Test
-    fun cardTintPersistsExplicitSelection() {
-        DockSettingsStore(context).cardTint = CardTint.Secondary
-
-        assertEquals(CardTint.Secondary, DockSettingsStore(context).cardTint)
-    }
-
-    @Test
-    fun cardTintFallsBackToNeutralForUnknownStoredValue() {
-        context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
-            .edit()
-            .putString("card_tint", "Bogus")
-            .commit()
-
-        assertEquals(CardTint.Neutral, DockSettingsStore(context).cardTint)
-    }
-
-    @Test
     fun themeModeFallsBackToSystemForUnknownStoredValue() {
         context.getSharedPreferences("dock_settings", android.content.Context.MODE_PRIVATE)
             .edit()
