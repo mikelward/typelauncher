@@ -108,6 +108,36 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
+    fun starredContactRanksAboveAlphabeticallyEarlierNonStarredContact() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(
+            listOf(
+                FakeContact(1, "Marcus Aurelius"),
+                FakeContact(2, "Marge Simpson"),
+                FakeContact(3, "Margot Robbie", starred = true),
+            ),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("mar")
+
+        // All three are equally-good prefix matches for "mar" — Margot ranks
+        // first for being starred despite "Marcus" and "Marge" sorting ahead
+        // of her alphabetically; the two non-starred contacts keep their
+        // alphabetical order behind her.
+        assertEquals(
+            listOf("Margot Robbie", "Marcus Aurelius", "Marge Simpson"),
+            viewModel.uiState.value.contactResults.map { it.displayName },
+        )
+    }
+
+    @Test
     fun disabledSourcesStayEmptyEvenWithMatches() {
         seedApp("Mail", "com.example.mail")
         grantPermissions()
@@ -384,6 +414,7 @@ class LauncherViewModelContentSearchTest {
                             ContactsContract.Contacts.LOOKUP_KEY -> "lookup-${contact.id}"
                             ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> contact.name
                             ContactsContract.Contacts.PHOTO_THUMBNAIL_URI -> contact.photoUri
+                            ContactsContract.Contacts.STARRED -> if (contact.starred) 1 else 0
                             else -> null
                         }
                     },
@@ -458,7 +489,12 @@ class LauncherViewModelContentSearchTest {
         }
     }
 
-    private data class FakeContact(val id: Long, val name: String, val photoUri: String? = null)
+    private data class FakeContact(
+        val id: Long,
+        val name: String,
+        val photoUri: String? = null,
+        val starred: Boolean = false,
+    )
     private data class FakeEvent(
         val id: Long,
         val title: String,

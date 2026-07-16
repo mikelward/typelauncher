@@ -12,12 +12,19 @@ package app.typelauncher
  * the index — the bitmap itself is decoded lazily per rendered row (see
  * `ContactPhotoLoader`), so indexing a thousand contacts never reads a single
  * photo blob.
+ *
+ * [starred] mirrors `ContactsContract.Contacts.STARRED` — the contact is in
+ * the user's "Starred in Android" / favorites group. `LauncherViewModel`
+ * pre-sorts the index starred-first, so [filterContactResults]'s stable tier
+ * sort carries that ordering through as the within-tier tie-break, ahead of
+ * the alphabetical order among equally-starred contacts.
  */
 internal data class ContactResult(
     val contactId: Long,
     val lookupKey: String,
     val displayName: String,
     val photoThumbnailUri: String? = null,
+    val starred: Boolean = false,
 )
 
 /**
@@ -29,7 +36,9 @@ internal data class ContactResult(
  * use for humans (initials and cross-word abbreviations like `jd` → John Doe),
  * and a mid-word-skip tail of weakly-related people reads worse than the same
  * tail of apps. Within the section the precise tiers rank in the usual order;
- * the sort is stable, so the index's alphabetical pre-sort is the tie-break.
+ * the sort is stable, so the index's starred-then-alphabetical pre-sort is the
+ * tie-break — a starred contact ranks above a non-starred contact in the same
+ * match tier, same as the app list floats docked apps to the top of their tier.
  * TODO: decide whether contacts should also admit the Fuzzy tier — revisit if
  *  precise-only leaves real names unreachable (mid-word abbreviations of
  *  concatenated names like "MacKenzie"). The tier ranking already sinks fuzzy

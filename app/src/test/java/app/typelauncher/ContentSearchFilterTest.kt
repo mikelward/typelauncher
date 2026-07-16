@@ -70,6 +70,27 @@ class ContentSearchFilterTest {
     }
 
     @Test
+    fun starredContactRanksAboveNonStarredWithinTier() {
+        // filterContactResults never inspects `starred` itself — it only
+        // preserves whatever order it's handed (the tier sort is stable). The
+        // starred-first ranking is entirely a property of the index's
+        // pre-sort (see LauncherViewModel.loadContactIndex): starred contacts
+        // first, alphabetical within each starred/non-starred group. This
+        // list is built in exactly that pre-sorted shape — Miguel (starred)
+        // ahead of alphabetically-earlier Maria and Mark — to confirm the
+        // filter carries it through unchanged for a same-tier match.
+        val preSorted = listOf(
+            contact(6, "Miguel Hernandez", starred = true),
+            contact(4, "Maria Lopez"),
+            contact(5, "Mark Chen"),
+        )
+        assertEquals(
+            listOf("Miguel Hernandez", "Maria Lopez", "Mark Chen"),
+            preSorted.filterContactResults("m").map { it.displayName },
+        )
+    }
+
+    @Test
     fun eventFilterMatchesPreciseTiersOnly() {
         val events = listOf(
             event(1, "Dentist appointment"),
@@ -114,10 +135,11 @@ class ContentSearchFilterTest {
         assertNull(searchInlineSuggestion(query = "", topMatch = null, fallbackName = "Maria Lopez"))
     }
 
-    private fun contact(id: Long, name: String) = ContactResult(
+    private fun contact(id: Long, name: String, starred: Boolean = false) = ContactResult(
         contactId = id,
         lookupKey = "lookup-$id",
         displayName = name,
+        starred = starred,
     )
 
     private fun event(id: Long, title: String) = AgendaEvent(
