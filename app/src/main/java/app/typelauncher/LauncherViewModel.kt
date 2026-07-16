@@ -186,6 +186,12 @@ internal class LauncherViewModel(
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action ?: return
             scheduleReload("dateChanged:$action")
+            // Refresh the typed-search event *set* on a day/clock/zone change so
+            // a foreground launcher rolls the 14-day window forward and drops
+            // events that ended overnight, rather than waiting for the next
+            // resume (the now-relative labels themselves are formatted per query
+            // in eventResultsFor, so they never go stale on their own).
+            refreshContentSearchIndices("dateChanged:$action")
         }
     }
     private var dateChangedReceiverRegistered = false
@@ -2427,8 +2433,20 @@ internal class LauncherViewModel(
     private fun contactResultsFor(state: LauncherUiState, query: String): List<ContactResult> =
         if (state.isContactSearchEnabled) contactIndex.filterContactResults(query) else emptyList()
 
-    private fun eventResultsFor(state: LauncherUiState, query: String): List<AgendaEvent> =
-        if (state.isCalendarSearchEnabled) searchEventIndex.filterEventResults(query) else emptyList()
+    private fun eventResultsFor(state: LauncherUiState, query: String): List<AgendaEvent> {
+        if (!state.isCalendarSearchEnabled) return emptyList()
+        // The time column shows now-relative labels ("Today", "Fri", an
+        // in-progress range), so it is formatted here against the current
+        // clock rather than baked into the index at load — otherwise a row
+        // would keep the label it had when the index loaded, e.g. still show
+        // "Today 9:00 AM" after a foreground-open launcher crosses the event's
+        // start time instead of flipping to the in-progress range. Only the
+        // matched rows (a handful) are formatted, and `now` is read once, so
+        // the keystroke path stays cheap.
+        val now = System.currentTimeMillis()
+        return searchEventIndex.filterEventResults(query)
+            .map { event -> event.copy(displayTime = event.formatSearchTime(app, now)) }
+    }
 
     private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
         dockedAppStore.dockedAppIdsFor(
@@ -2740,6 +2758,10 @@ internal class LauncherViewModel(
                 // forSearch, not forNow: the agenda's intersects-today all-day
                 // rule would drop a next-week vacation/birthday from the index.
                 organize = AgendaEventOrganizer::forSearch,
+                // The now-relative time label is formatted per query in
+                // `eventResultsFor`, not baked here, so it can't go stale
+                // between index loads; the index only needs the raw event.
+                formatDisplayTime = { _, _ -> "" },
             )
         } catch (exception: RuntimeException) {
             // Same provider-failure containment as loadContactIndex: the shared
@@ -2756,6 +2778,10 @@ internal class LauncherViewModel(
         nowMillis: Long = System.currentTimeMillis(),
         lookaheadDays: Long = AGENDA_LOOKAHEAD_DAYS,
         organize: (List<AgendaEvent>, Long, Long, Long) -> List<AgendaEvent> = AgendaEventOrganizer::forNow,
+        // The agenda groups events under day headers, so its rows show time
+        // only; search results are a flat, headerless list, so they need the
+        // day/date baked into the time column (see [formatSearchTime]).
+        formatDisplayTime: (AgendaEvent, Long) -> String = { event, _ -> event.formatTime(app) },
     ): List<AgendaEvent> {
         val zone = ZoneId.systemDefault()
         val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
@@ -2807,7 +2833,7 @@ internal class LauncherViewModel(
         }
 
         return organize(events, nowMillis, utcTodayStart, utcTomorrowStart)
-            .map { event -> event.copy(displayTime = event.formatTime(app)) }
+            .map { event -> event.copy(displayTime = formatDisplayTime(event, nowMillis)) }
     }
 
     /**
@@ -3196,6 +3222,71 @@ private fun AgendaEvent.formatTime(context: Context): String {
     }
     return DateUtils.formatDateRange(context, beginMillis, endMillis, DateUtils.FORMAT_SHOW_TIME).toString()
 }
+
+/**
+ * The time-column text for a typed-search event row. Search results are a flat,
+ * headerless list spanning the whole [SEARCH_EVENT_LOOKAHEAD_DAYS] window, so —
+ * unlike the agenda, which leans on day-header separators for date context —
+ * an upcoming row has to carry its own day or a match reads as if it were today.
+ *
+ * Called per query against the current [nowMillis] (see `eventResultsFor`), not
+ * baked into the index at load, so the label can't go stale between reloads —
+ * a row flips to the in-progress range the moment the event starts even while
+ * the launcher stays foreground.
+ *
+ * A timed event that is happening *right now* keeps the agenda's start–end
+ * range (so an in-progress event never reads as if it starts later — an
+ * overnight event that began yesterday must not look like a future
+ * "Today 11:00 PM"). Every other row stacks a day label over its start time:
+ * "Today" for a match later today, an abbreviated weekday ("Sun") for the next
+ * six days — before weekday names repeat within the window — then an
+ * abbreviated month + day ("Jul 25") from a week out. Spaces inside each half
+ * are made non-breaking and the two halves are joined with a newline so the
+ * 64dp column never wraps a single label mid-token onto a clipped third line
+ * (same reasoning as [formatTimeForRow]'s range stacking).
+ */
+internal fun AgendaEvent.formatSearchTime(context: Context, nowMillis: Long): String {
+    // In progress now: show the range (which [formatTimeForRow] stacks), never
+    // a day label over a start time that may be on a previous day.
+    if (!isAllDay && beginMillis <= nowMillis && endMillis > nowMillis) {
+        return formatTime(context)
+    }
+    val zone = ZoneId.systemDefault()
+    val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+    // An all-day event's begin is UTC midnight of its day (an Android calendar
+    // quirk), so read it in UTC; a timed event's begin is a real instant.
+    val eventDate = if (isAllDay) {
+        Instant.ofEpochMilli(beginMillis).atZone(ZoneOffset.UTC).toLocalDate()
+    } else {
+        Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate()
+    }
+    val daysAhead = eventDate.toEpochDay() - today.toEpochDay()
+    val labelMillis = eventDate.atStartOfDay(zone).toInstant().toEpochMilli()
+    val dateLabel = when {
+        // Today (an event still to start today, or an all-day event covering
+        // today — an in-progress timed event took the range path above).
+        daysAhead <= 0 -> context.getString(R.string.agenda_day_today)
+        // Within the week, before weekday names repeat inside the window.
+        daysAhead < 7 -> DateUtils.formatDateTime(
+            context,
+            labelMillis,
+            DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY,
+        )
+        else -> DateUtils.formatDateTime(
+            context,
+            labelMillis,
+            DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+        )
+    }.makeNonBreaking()
+    val timeLabel = if (isAllDay) {
+        context.getString(R.string.agenda_all_day_label)
+    } else {
+        DateUtils.formatDateTime(context, beginMillis, DateUtils.FORMAT_SHOW_TIME)
+    }.makeNonBreaking()
+    return "$dateLabel\n$timeLabel"
+}
+
+private fun String.makeNonBreaking(): String = replace(' ', '\u00A0')
 
 // Internal (not private) so unit tests can drive the work-only resolver
 // fallback with a fake resolver — Robolectric can't register a package in a

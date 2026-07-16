@@ -53,7 +53,9 @@ class ContentSearchScreenshotTest {
             beginMillis = 0L,
             endMillis = 0L,
             isAllDay = false,
-            displayTime = "9:00 AM",
+            // A today match stacks a "Today" label over the start time (see
+            // LauncherViewModel.formatSearchTime).
+            displayTime = "Today\n9:00 AM",
             eventId = 10,
         ),
         AgendaEvent(
@@ -61,7 +63,9 @@ class ContentSearchScreenshotTest {
             beginMillis = 1L,
             endMillis = 1L,
             isAllDay = false,
-            displayTime = "2:30 PM – 4:00 PM",
+            // A future match in the headerless search list stacks its day over
+            // the start time (see LauncherViewModel.formatSearchTime).
+            displayTime = "Sun\n12:00 PM",
             eventId = 11,
         ),
     )
