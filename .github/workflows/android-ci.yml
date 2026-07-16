@@ -179,9 +179,11 @@ jobs:
     timeout-minutes: 30
     permissions:
       # Write so "Commit refreshed screenshots" below can push regenerated
-      # snapshot PNGs back to a same-repo PR branch. Every other step only
-      # reads the checkout.
+      # snapshot PNGs back to a same-repo PR branch, and so "Post screenshot
+      # diffs" can upsert its PR comment. Every other step only reads the
+      # checkout.
       contents: write
+      pull-requests: write
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
@@ -408,6 +410,72 @@ jobs:
             fi
             echo "::error::Screenshot refresh push to ${GITHUB_HEAD_REF} failed for a non-race reason; the snapshot sync automation is broken."
             exit 1
+          fi
+
+      - name: Post screenshot diffs as a PR comment
+        # Embeds every snapshot this PR adds or changes, pinned to commit
+        # SHAs, into a single auto-updated PR comment (marker:
+        # <!-- screenshot-diff -->) so reviewers see the visual delta inline
+        # without downloading the artifact. Posted from CI's own token
+        # because agent-side tooling can't post working image embeds. Runs
+        # after "Commit refreshed screenshots" so HEAD includes the refreshed
+        # PNGs; if that push lost its race (warning path above), the pinned
+        # HEAD SHA may briefly 404 until the next run re-records. Same-repo
+        # PRs only — the fork-PR token can't write comments.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          BASE_SHA=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")
+          HEAD_SHA=$(git rev-parse HEAD)
+          mapfile -t entries < <(git diff --name-status "$BASE_SHA" HEAD -- app/src/test/snapshots/images/ | grep -E '^[AM]' || true)
+          if [ ${#entries[@]} -eq 0 ]; then
+            echo "No added or changed screenshots vs merge-base; skipping comment."
+            exit 0
+          fi
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}"
+          body="<!-- screenshot-diff -->"$'\n'"## Screenshot diffs"$'\n\n'"Auto-posted by CI. Images pinned to \`${HEAD_SHA:0:7}\` (before images to the merge-base \`${BASE_SHA:0:7}\`)."$'\n'
+          count=0
+          for entry in "${entries[@]}"; do
+            status="${entry%%$'\t'*}"
+            path="${entry#*$'\t'}"
+            name=$(basename "$path")
+            count=$((count+1))
+            # GitHub caps comment bodies at 65536 chars; 20 embeds stays well
+            # under it. The artifact still carries everything.
+            if [ "$count" -gt 20 ]; then
+              body+=$'\n'"_…truncated: more than 20 added/changed screenshots; see the roborazzi-screenshots artifact._"
+              break
+            fi
+            if [ "$status" = "A" ]; then
+              body+=$'\n'"**Added — \`${name}\`**"$'\n\n'"<img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\">"$'\n'
+            else
+              body+=$'\n'"**Changed — \`${name}\`**"$'\n\n'"| Before | After |"$'\n'"| --- | --- |"$'\n'"| <img src=\"${raw}/${BASE_SHA}/${path}\" width=\"320\"> | <img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\"> |"$'\n'
+            fi
+          done
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          existing=$(curl -sS \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/issues/${PR_NUMBER}/comments?per_page=100" \
+            | jq -r '[.[] | select(.body | startswith("<!-- screenshot-diff -->"))][0].id // empty')
+          payload=$(jq -n --arg body "$body" '{body:$body}')
+          if [ -n "$existing" ]; then
+            curl -sS -X PATCH \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "${api}/issues/comments/${existing}" \
+              -d "$payload" > /dev/null
+            echo "Updated screenshot-diff comment ${existing}."
+          else
+            curl -sS -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "${api}/issues/${PR_NUMBER}/comments" \
+              -d "$payload" > /dev/null
+            echo "Posted new screenshot-diff comment."
           fi
 
       - name: Upload Roborazzi screenshots
