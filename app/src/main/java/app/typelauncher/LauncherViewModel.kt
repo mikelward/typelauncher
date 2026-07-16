@@ -1101,6 +1101,13 @@ internal class LauncherViewModel(
         val intent = Intent(ContactsContract.QuickContact.ACTION_QUICK_CONTACT).apply {
             data = lookupUri
             putExtra(ContactsContract.QuickContact.EXTRA_MODE, ContactsContract.QuickContact.MODE_LARGE)
+            // Match the flags the framework's own showQuickContact helper adds
+            // for a non-Activity launch context: the card opens as its own
+            // document task (NEW_DOCUMENT) with the singleTop-via-CLEAR_TOP
+            // workaround, so it never nests into a Contacts task the user left
+            // in recents — Back from the card returns to the launcher, not to an
+            // old Contacts screen. startActivity supplies NEW_TASK.
+            addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         try {
             startActivity(intent)

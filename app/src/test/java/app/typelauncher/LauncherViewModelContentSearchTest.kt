@@ -226,6 +226,11 @@ class LauncherViewModelContentSearchTest {
             ContactsContract.QuickContact.MODE_LARGE,
             started.getIntExtra(ContactsContract.QuickContact.EXTRA_MODE, -1),
         )
+        assertTrue(
+            "The card launches as its own document task so Back returns to the launcher, " +
+                "not a stale Contacts screen",
+            started.flags and Intent.FLAG_ACTIVITY_NEW_DOCUMENT != 0,
+        )
         assertEquals("Opening a result clears the search", "", viewModel.uiState.value.query)
     }
 
