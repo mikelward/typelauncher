@@ -321,6 +321,13 @@ jobs:
         # target while the list above holds its geometry.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SearchDockRevealScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run content search sections screenshot tests
+        # Renders the typed-search contacts / calendar-events sections appended
+        # below the app results (and above them under a reversed sort) so the
+        # PR `roborazzi-screenshots` artifact shows the divider, monogram
+        # contact rows, and time+stripe event rows.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContentSearchScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

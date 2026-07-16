@@ -7,6 +7,7 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
@@ -26,6 +27,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
@@ -107,6 +109,19 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             LauncherDebugLog.event("requestCalendarPermission result granted=$it")
             viewModel.refreshAgenda()
+        }
+    // Settings "Search contacts" / "Search calendar events": the toggle only
+    // persists once its permission is granted, so a denial simply leaves the
+    // switch off — no revert bookkeeping.
+    private val requestContactSearchPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            LauncherDebugLog.event("requestContactSearchPermission result granted=$granted")
+            if (granted) viewModel.setContactSearchEnabled(true)
+        }
+    private val requestCalendarSearchPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            LauncherDebugLog.event("requestCalendarSearchPermission result granted=$granted")
+            if (granted) viewModel.setCalendarSearchEnabled(true)
         }
     private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -322,6 +337,20 @@ class MainActivity : ComponentActivity() {
                         onRestoreWidget = ::onRestoreWidget,
                         onRequestCalendarPermission = {
                             requestCalendarPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                        },
+                        onContactSearchEnabledChanged = { enabled ->
+                            if (enabled && !hasPermission(Manifest.permission.READ_CONTACTS)) {
+                                requestContactSearchPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                            } else {
+                                viewModel.setContactSearchEnabled(enabled)
+                            }
+                        },
+                        onCalendarSearchEnabledChanged = { enabled ->
+                            if (enabled && !hasPermission(Manifest.permission.READ_CALENDAR)) {
+                                requestCalendarSearchPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                            } else {
+                                viewModel.setCalendarSearchEnabled(enabled)
+                            }
                         },
                         onRequestDefaultLauncher = ::requestDefaultLauncher,
                         onSwipeDown = ::expandNotificationShade,
@@ -1065,6 +1094,9 @@ class MainActivity : ComponentActivity() {
     private fun expandNotificationShade() {
         NotificationShade.expand(this)
     }
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 }
 
 private fun Intent.isLauncherEntryIntent(): Boolean =

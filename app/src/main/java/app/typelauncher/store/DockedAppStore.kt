@@ -680,6 +680,32 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Settings → "Search contacts". Off by default: the contacts section of
+     * Home's typed search only loads, queries, or renders anything after the
+     * user opts in here (which is also where READ_CONTACTS is requested).
+     */
+    var isContactSearchEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_CONTACT_SEARCH_ENABLED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_CONTACT_SEARCH_ENABLED, value)
+                .apply()
+        }
+
+    /**
+     * Settings → "Search calendar events". Off by default, mirroring
+     * [isContactSearchEnabled] for the calendar-events section of Home's
+     * typed search. Independent of the Agenda screen's `Show agenda` toggle.
+     */
+    var isCalendarSearchEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_CALENDAR_SEARCH_ENABLED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_CALENDAR_SEARCH_ENABLED, value)
+                .apply()
+        }
+
+    /**
      * Settings → "Theme" mode. Defaults to [ThemeMode.System] so the launcher
      * follows the device's night-mode configuration; users can pin to
      * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
@@ -741,6 +767,8 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KEYBOARD_RESERVATION_NAV_BOTTOM_PX = "keyboard_reservation_nav_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_SOURCE = "keyboard_reservation_source"
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
+        const val KEY_CONTACT_SEARCH_ENABLED = "contact_search_enabled"
+        const val KEY_CALENDAR_SEARCH_ENABLED = "calendar_search_enabled"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ICON_SHAPE = "icon_shape"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"

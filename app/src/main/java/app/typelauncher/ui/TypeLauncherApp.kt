@@ -190,6 +190,12 @@ internal fun TypeLauncherApp(
     onSwipeDown: () -> Unit,
     onStartPlayUpdate: () -> Unit = {},
     onCompletePlayUpdate: () -> Unit = {},
+    // The Settings "Search contacts" / "Search calendar events" toggles route
+    // through the host so enabling can request the runtime permission first;
+    // the defaults skip that gate for hosts without a permission launcher
+    // (previews, tests).
+    onContactSearchEnabledChanged: (Boolean) -> Unit = viewModel::setContactSearchEnabled,
+    onCalendarSearchEnabledChanged: (Boolean) -> Unit = viewModel::setCalendarSearchEnabled,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -292,9 +298,13 @@ internal fun TypeLauncherApp(
         onWallpaperShownChanged = viewModel::setWallpaperShown,
         onCardOpacityChanged = viewModel::setCardOpacity,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
+        onContactSearchEnabledChanged = onContactSearchEnabledChanged,
+        onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
         onThemeModeChanged = viewModel::setThemeMode,
         onIconShapeChanged = viewModel::setIconShape,
         onIconThemeChanged = viewModel::setIconTheme,
+        onOpenContact = viewModel::openContactResult,
+        onOpenEvent = viewModel::openEventResult,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
         onShowHome = viewModel::showHome,
@@ -373,9 +383,13 @@ internal fun TypeLauncherApp(
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
+    onContactSearchEnabledChanged: (Boolean) -> Unit = {},
+    onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
+    onOpenContact: (ContactResult) -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
     onShowHome: () -> Unit,
@@ -791,6 +805,8 @@ internal fun TypeLauncherApp(
                         onWallpaperShownChanged = onWallpaperShownChanged,
                         onCardOpacityChanged = onCardOpacityChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
+                        onContactSearchEnabledChanged = onContactSearchEnabledChanged,
+                        onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
                         onThemeModeChanged = onThemeModeChanged,
                         onIconShapeChanged = onIconShapeChanged,
                         onIconThemeChanged = onIconThemeChanged,
@@ -919,6 +935,8 @@ internal fun TypeLauncherApp(
                                 onHideApp = onHideApp,
                                 onDismissRecent = onDismissRecent,
                                 onOpenSettings = onOpenSettings,
+                                onOpenContact = onOpenContact,
+                                onOpenEvent = onOpenEvent,
                                 onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
                                 onBarScrollRegionChanged = { region ->
                                     recentsScrollRegionState.value = region

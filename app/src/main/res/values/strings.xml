@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Type Launcher</string>
     <string name="app_search_hint">Type an app name%1$s</string>
     <string name="app_search_clear_button_description">Clear search text</string>
@@ -131,6 +131,10 @@
     <string name="settings_show_wallpaper_title">Show wallpaper</string>
     <string name="settings_card_opacity_label">Card opacity: %1$d%%</string>
     <string name="settings_show_agenda_title">Show agenda</string>
+    <!-- TODO: translate -->
+    <string name="settings_search_contacts_title" tools:ignore="MissingTranslation">Search contacts</string>
+    <!-- TODO: translate -->
+    <string name="settings_search_calendar_title" tools:ignore="MissingTranslation">Search calendar events</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>

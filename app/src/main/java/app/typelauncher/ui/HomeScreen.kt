@@ -55,11 +55,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -87,6 +90,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -240,6 +244,11 @@ internal fun HomeScreen(
     onHideApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
+    // Typed-search content sections (contacts / calendar events): open the
+    // tapped result in its owning app. Defaults keep direct callers (previews,
+    // tests that compose Home alone) compiling.
+    onOpenContact: (ContactResult) -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
     onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
     onDockDragChanged: (Boolean) -> Unit = {},
@@ -956,6 +965,10 @@ internal fun HomeScreen(
                     suggestion = searchInlineSuggestion(
                         query = state.query,
                         topMatch = state.filteredApps.firstOrNull(),
+                        // When zero apps match, the first content result is the
+                        // Enter target, so the inline preview follows it there.
+                        fallbackName = state.contactResults.firstOrNull()?.displayName
+                            ?: state.eventResults.firstOrNull()?.title,
                     ),
                     keyboardShowRequests = keyboardShowRequests,
                     onQueryChanged = onQueryChanged,
@@ -1006,6 +1019,10 @@ internal fun HomeScreen(
                     iconSizeDp = dockIconSizeDp,
                     highlightFirst = state.query.isNotBlank(),
                     reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
+                    contactResults = state.contactResults,
+                    eventResults = state.eventResults,
+                    onOpenContact = onOpenContact,
+                    onOpenEvent = onOpenEvent,
                     scrollResetKey = state.query,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
@@ -3804,7 +3821,7 @@ private val VerticalScrollChevronEdgeOffset = 18.dp
 private val VerticalScrollChevronTapTargetSize = 32.dp
 
 @Composable
-private fun AppsCard(
+internal fun AppsCard(
     apps: List<InstalledApp>,
     isLoading: Boolean = false,
     overflowChevronsReady: Boolean = true,
@@ -3813,6 +3830,13 @@ private fun AppsCard(
     iconSizeDp: Int,
     highlightFirst: Boolean,
     reverseLayout: Boolean = false,
+    // The typed-search content sections, appended after the apps in data order
+    // (contacts, then events) so reverseLayout keeps them beyond the apps in
+    // the scroll direction. Empty lists render nothing.
+    contactResults: List<ContactResult> = emptyList(),
+    eventResults: List<AgendaEvent> = emptyList(),
+    onOpenContact: (ContactResult) -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
     // Anything that should yank the list back to the natural top (item 0). The
     // search query is the canonical caller: `rememberLazyListState` /
     // `rememberLazyGridState` survives query changes, so without this reset a
@@ -3844,17 +3868,28 @@ private fun AppsCard(
     // as picked up into the floating drag overlay instead of duplicated in place.
     draggedAppId: String? = null,
 ) {
-    LaunchedEffect(isLoading, apps.isEmpty()) {
-        if (isLoading || apps.isEmpty()) {
+    // "No results" means no apps AND no content sections: a content-only
+    // result set still renders the scrollable list, whose bounds must stay
+    // published so the carousel keeps reserving in-list vertical gestures for
+    // list scrolling (clearing them here would let a pull over the results
+    // open recents / the notification shade instead).
+    val hasAnyResults = apps.isNotEmpty() || contactResults.isNotEmpty() || eventResults.isNotEmpty()
+    LaunchedEffect(isLoading, hasAnyResults) {
+        if (isLoading || !hasAnyResults) {
             onAppListBoundsChanged(null)
         }
     }
     // NameBelow and IconOnly both render the grid; only NameBeside renders rows.
     val isGrid = layout != AppListLayout.NameBeside
     val showLabels = layout == AppListLayout.NameBelow
-    val chevronLayoutKey = remember(apps, layout, reverseLayout) {
+    val chevronLayoutKey = remember(apps, contactResults, eventResults, layout, reverseLayout) {
         AppListChevronLayoutKey(
-            appIds = apps.map { it.id },
+            // Content sections change the scrollable extent just like apps do,
+            // so their keys join the measured-layout fingerprint the chevrons
+            // wait on.
+            appIds = apps.map { it.id } +
+                contactResults.map { "contact:${it.contactId}" } +
+                eventResults.map { "event:${it.eventId}:${it.beginMillis}" },
             layout = layout,
             reverseLayout = reverseLayout,
         )
@@ -3878,7 +3913,7 @@ private fun AppsCard(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (apps.isEmpty()) {
+        } else if (apps.isEmpty() && contactResults.isEmpty() && eventResults.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Search,
                 title = stringResource(R.string.home_empty_title),
@@ -3927,6 +3962,10 @@ private fun AppsCard(
                         showLabel = showLabels,
                         highlightFirst = highlightFirst,
                         reverseLayout = reverseLayout,
+                        contactResults = contactResults,
+                        eventResults = eventResults,
+                        onOpenContact = onOpenContact,
+                        onOpenEvent = onOpenEvent,
                         state = gridState,
                         onBoundsChanged = { bounds ->
                             onAppListBoundsChanged(bounds)
@@ -4003,6 +4042,14 @@ private fun AppsCard(
                                 isDragged = appDrag != null && app.id == draggedAppId,
                             )
                         }
+                        contentSearchSectionItems(
+                            contactResults = contactResults,
+                            eventResults = eventResults,
+                            appsEmpty = apps.isEmpty(),
+                            highlightFirst = highlightFirst,
+                            onOpenContact = onOpenContact,
+                            onOpenEvent = onOpenEvent,
+                        )
                     }
                 }
             }
@@ -4046,6 +4093,12 @@ internal fun IconOnlyAppGrid(
     state: LazyGridState,
     showLabel: Boolean = false,
     reverseLayout: Boolean = false,
+    // Content sections hosted as full-span name-beside rows below the icon
+    // tiles — see `contentSearchSectionItems` for why grids don't tile them.
+    contactResults: List<ContactResult> = emptyList(),
+    eventResults: List<AgendaEvent> = emptyList(),
+    onOpenContact: (ContactResult) -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
     onBoundsChanged: (Rect?) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -4100,6 +4153,236 @@ internal fun IconOnlyAppGrid(
                 isDragged = appDrag != null && app.id == draggedAppId,
             )
         }
+        contentSearchSectionItems(
+            contactResults = contactResults,
+            eventResults = eventResults,
+            appsEmpty = apps.isEmpty(),
+            highlightFirst = highlightFirst,
+            onOpenContact = onOpenContact,
+            onOpenEvent = onOpenEvent,
+        )
+    }
+}
+
+/**
+ * The typed-search content sections (contacts, then calendar events), appended
+ * after the app items in the same lazy surface so `reverseLayout` places them
+ * beyond the apps in the scroll direction under both sort directions. A
+ * hairline divider separates adjacent non-empty sections only — a section
+ * never opens with a leading divider when nothing renders above it. Content
+ * rows are always name-beside rows, even when the app list is a grid: events
+ * have no tile representation, and a nameless contact tile is useless, so the
+ * grid hosts them as full-span items.
+ */
+private fun LazyListScope.contentSearchSectionItems(
+    contactResults: List<ContactResult>,
+    eventResults: List<AgendaEvent>,
+    appsEmpty: Boolean,
+    highlightFirst: Boolean,
+    onOpenContact: (ContactResult) -> Unit,
+    onOpenEvent: (AgendaEvent) -> Unit,
+) {
+    if (contactResults.isNotEmpty()) {
+        if (!appsEmpty) {
+            item(key = CONTACTS_SECTION_DIVIDER_KEY) { ContentSectionDivider() }
+        }
+        itemsIndexed(contactResults, key = { _, contact -> "contact:${contact.contactId}" }) { index, contact ->
+            ContactResultRow(
+                contact = contact,
+                // Content only takes the active-row highlight (the Enter
+                // target) when zero apps match — see `launchActiveApp`.
+                isActive = highlightFirst && appsEmpty && index == 0,
+                onOpenContact = onOpenContact,
+            )
+        }
+    }
+    if (eventResults.isNotEmpty()) {
+        if (!appsEmpty || contactResults.isNotEmpty()) {
+            item(key = EVENTS_SECTION_DIVIDER_KEY) { ContentSectionDivider() }
+        }
+        itemsIndexed(
+            eventResults,
+            // One row per occurrence of a recurring event, so the key needs
+            // beginMillis alongside eventId (same rule as the agenda list).
+            key = { _, event -> "event:${event.eventId}:${event.beginMillis}" },
+        ) { index, event ->
+            EventResultRow(
+                event = event,
+                isActive = highlightFirst && appsEmpty && contactResults.isEmpty() && index == 0,
+                onOpenEvent = onOpenEvent,
+            )
+        }
+    }
+}
+
+/** Grid twin of the [LazyListScope] version: identical rows, hosted full-span. */
+private fun LazyGridScope.contentSearchSectionItems(
+    contactResults: List<ContactResult>,
+    eventResults: List<AgendaEvent>,
+    appsEmpty: Boolean,
+    highlightFirst: Boolean,
+    onOpenContact: (ContactResult) -> Unit,
+    onOpenEvent: (AgendaEvent) -> Unit,
+) {
+    if (contactResults.isNotEmpty()) {
+        if (!appsEmpty) {
+            item(key = CONTACTS_SECTION_DIVIDER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                ContentSectionDivider()
+            }
+        }
+        itemsIndexed(
+            contactResults,
+            key = { _, contact -> "contact:${contact.contactId}" },
+            span = { _, _ -> GridItemSpan(maxLineSpan) },
+        ) { index, contact ->
+            ContactResultRow(
+                contact = contact,
+                isActive = highlightFirst && appsEmpty && index == 0,
+                onOpenContact = onOpenContact,
+            )
+        }
+    }
+    if (eventResults.isNotEmpty()) {
+        if (!appsEmpty || contactResults.isNotEmpty()) {
+            item(key = EVENTS_SECTION_DIVIDER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                ContentSectionDivider()
+            }
+        }
+        itemsIndexed(
+            eventResults,
+            key = { _, event -> "event:${event.eventId}:${event.beginMillis}" },
+            span = { _, _ -> GridItemSpan(maxLineSpan) },
+        ) { index, event ->
+            EventResultRow(
+                event = event,
+                isActive = highlightFirst && appsEmpty && contactResults.isEmpty() && index == 0,
+                onOpenEvent = onOpenEvent,
+            )
+        }
+    }
+}
+
+private const val CONTACTS_SECTION_DIVIDER_KEY = "contacts_section_divider"
+private const val EVENTS_SECTION_DIVIDER_KEY = "events_section_divider"
+
+@Composable
+private fun ContentSectionDivider() {
+    HorizontalDivider(
+        modifier = Modifier
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .testTag(CONTENT_SECTION_DIVIDER_TAG),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
+}
+
+/**
+ * A contacts-section row: monogram circle + name, mirroring [AppRow]'s
+ * geometry (40dp leading visual, 12dp gap, 4/8dp padding, 8dp-rounded
+ * highlight) so mixed app/contact results read as one list. The monogram is
+ * the contact's first letter on a secondary-container plate — photo thumbnails
+ * are a possible follow-up, but the monogram keeps this row free of any
+ * per-row image IO.
+ */
+@Composable
+private fun ContactResultRow(
+    contact: ContactResult,
+    isActive: Boolean,
+    onOpenContact: (ContactResult) -> Unit,
+) {
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val textColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowColor, RoundedCornerShape(8.dp))
+            .clickable { onOpenContact(contact) }
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .testTag("$CONTACT_RESULT_ROW_TAG:${contact.displayName}")
+            .semantics { selected = isActive },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        val initial = remember(contact.displayName) {
+            val trimmed = contact.displayName.trim()
+            // First code point, not first char, so a surrogate-pair initial
+            // (emoji contact names exist) doesn't render as half a character.
+            String(Character.toChars(trimmed.codePointAt(0))).uppercase()
+        }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = initial,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+        Text(
+            contact.displayName,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            color = textColor,
+        )
+    }
+}
+
+/**
+ * A calendar-events-section row: the agenda row's time-column + color-stripe +
+ * title treatment (fixed 72dp time column, 4dp stripe) inside the app list's
+ * row geometry, so the event is recognizable as an event without a section
+ * header while still aligning with the rows around it.
+ */
+@Composable
+private fun EventResultRow(
+    event: AgendaEvent,
+    isActive: Boolean,
+    onOpenEvent: (AgendaEvent) -> Unit,
+) {
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val titleColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
+    val stripeColor = event.calendarColor
+        ?.let { Color(it) }
+        ?: MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowColor, RoundedCornerShape(8.dp))
+            .clickable { onOpenEvent(event) }
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .testTag("$EVENT_RESULT_ROW_TAG:${event.eventId}:${event.beginMillis}")
+            .semantics { selected = isActive },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = formatTimeForRow(event.displayTime),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Visible,
+            modifier = Modifier.width(72.dp),
+        )
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .heightIn(min = 28.dp)
+                .background(stripeColor, RoundedCornerShape(2.dp)),
+        )
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = titleColor,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -5278,6 +5561,11 @@ internal fun SettingsScreen(
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
+    // "Search contacts" / "Search calendar events". Enabling routes through
+    // MainActivity's permission request first; the persisted flag (and this
+    // switch) only flips on once the permission is granted.
+    onContactSearchEnabledChanged: (Boolean) -> Unit = {},
+    onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
@@ -5510,6 +5798,40 @@ internal fun SettingsScreen(
                     checked = state.isAgendaEnabled,
                     onCheckedChange = onAgendaEnabledChanged,
                     modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_search_contacts_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isContactSearchEnabled,
+                    onCheckedChange = onContactSearchEnabledChanged,
+                    modifier = Modifier.testTag(CONTACT_SEARCH_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_search_calendar_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isCalendarSearchEnabled,
+                    onCheckedChange = onCalendarSearchEnabledChanged,
+                    modifier = Modifier.testTag(CALENDAR_SEARCH_SWITCH_TAG),
                 )
             }
             Row(
