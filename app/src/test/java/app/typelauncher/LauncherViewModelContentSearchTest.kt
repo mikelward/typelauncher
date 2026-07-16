@@ -79,6 +79,35 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
+    fun contactIndexCarriesPhotoThumbnailUri() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(
+            listOf(
+                FakeContact(1, "Maria Lopez", photoUri = "content://com.android.contacts/contacts/1/photo"),
+                FakeContact(2, "Mark Chen"),
+            ),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("ma")
+
+        val results = viewModel.uiState.value.contactResults
+        assertEquals(listOf("Maria Lopez", "Mark Chen"), results.map { it.displayName })
+        // The photo URI rides the index so the row can decode lazily; a
+        // photo-less contact carries null and renders the monogram.
+        assertEquals(
+            listOf("content://com.android.contacts/contacts/1/photo", null),
+            results.map { it.photoThumbnailUri },
+        )
+    }
+
+    @Test
     fun disabledSourcesStayEmptyEvenWithMatches() {
         seedApp("Mail", "com.example.mail")
         grantPermissions()
@@ -354,6 +383,7 @@ class LauncherViewModelContentSearchTest {
                             ContactsContract.Contacts._ID -> contact.id
                             ContactsContract.Contacts.LOOKUP_KEY -> "lookup-${contact.id}"
                             ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> contact.name
+                            ContactsContract.Contacts.PHOTO_THUMBNAIL_URI -> contact.photoUri
                             else -> null
                         }
                     },
@@ -428,7 +458,7 @@ class LauncherViewModelContentSearchTest {
         }
     }
 
-    private data class FakeContact(val id: Long, val name: String)
+    private data class FakeContact(val id: Long, val name: String, val photoUri: String? = null)
     private data class FakeEvent(
         val id: Long,
         val title: String,

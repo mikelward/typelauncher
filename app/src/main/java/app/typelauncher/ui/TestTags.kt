@@ -22,10 +22,11 @@ internal const val APP_ICON_ONLY_BUTTON_TAG = "app_icon_only_button"
 internal const val APP_ICON_ONLY_ICON_TAG = "app_icon_only_icon"
 internal const val APP_ICON_TAG = "app_icon"
 
-// Present on an app icon's placeholder surface only while its async bitmap
-// load is in flight; dropped once the load resolves (with or without a
-// bitmap). Screenshot tests wait for zero of these before capturing so a
-// recording never freezes an arbitrary mid-load subset of icons.
+// Present on an async-loaded image's placeholder — an app icon's surface, or
+// a contact row's monogram circle while its photo decodes — only while the
+// load is in flight; dropped once it resolves (with or without a bitmap).
+// Screenshot tests wait for zero of these before capturing so a recording
+// never freezes an arbitrary mid-load subset of icons/photos.
 internal const val APP_ICON_LOADING_TAG = "app_icon_loading"
 internal const val APP_ICON_DISAMBIGUATOR_TAG = "app_icon_disambiguator"
 internal const val APP_ICON_WORK_BADGE_TAG = "app_icon_work_badge"

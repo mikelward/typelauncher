@@ -21,6 +21,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -4276,12 +4277,14 @@ private fun ContentSectionDivider() {
 }
 
 /**
- * A contacts-section row: monogram circle + name, mirroring [AppRow]'s
+ * A contacts-section row: photo-or-monogram circle + name, mirroring [AppRow]'s
  * geometry (40dp leading visual, 12dp gap, 4/8dp padding, 8dp-rounded
- * highlight) so mixed app/contact results read as one list. The monogram is
- * the contact's first letter on a secondary-container plate — photo thumbnails
- * are a possible follow-up, but the monogram keeps this row free of any
- * per-row image IO.
+ * highlight) so mixed app/contact results read as one list. A contact with a
+ * photo shows its thumbnail circle-cropped; everyone else gets their first
+ * letter on a secondary-container plate. The photo decodes asynchronously off
+ * the main thread ([rememberContactPhotoResolution]) with the monogram as the
+ * placeholder, so the keystroke path never blocks on image IO — the row is
+ * fully usable before (and without) the swap-in.
  */
 @Composable
 private fun ContactResultRow(
@@ -4310,17 +4313,36 @@ private fun ContactResultRow(
             // (emoji contact names exist) doesn't render as half a character.
             String(Character.toChars(trimmed.codePointAt(0))).uppercase()
         }
+        val photoResolution = rememberContactPhotoResolution(contact, 40.dp)
+        val photo = photoResolution.bitmap
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .then(
+                    // Same settling contract as AppIcon: tagged only while the
+                    // async photo decode is in flight, so screenshot tests can
+                    // wait for every row's photo-or-monogram to be final.
+                    if (photoResolution.isResolved) Modifier else Modifier.testTag(APP_ICON_LOADING_TAG),
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = initial,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
+            if (photo != null) {
+                Image(
+                    bitmap = photo,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Text(
+                    text = initial,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
         }
         Text(
             contact.displayName,

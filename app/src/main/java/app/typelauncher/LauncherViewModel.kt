@@ -2166,6 +2166,9 @@ internal class LauncherViewModel(
             // when nothing is still enabled and reloads the survivor otherwise.
             contentSearchVersion++
             contactIndex = emptyList()
+            // The "holds nothing in memory" contract covers decoded photo
+            // thumbnails too, not just the name index.
+            ContactPhotoLoader.evictAll()
             refreshFilteredApps()
             refreshContentSearchIndices(reason = "contactSearchDisabled")
         }
@@ -2252,6 +2255,15 @@ internal class LauncherViewModel(
             if (contentSearchVersion != requestVersion) return@launch
             contactIndex = contacts
             searchEventIndex = events
+            // Drop cached photo thumbnails whenever the contact index reloads:
+            // a photo edited in the Contacts app keeps its stable
+            // PHOTO_THUMBNAIL_URI, so the cache key alone can never observe the
+            // change — the index reload (resume, enable, permission grant) is
+            // the freshness boundary, same as for display names. Cheap in
+            // practice: photos only decode for rendered search rows, so the
+            // repopulation cost is a handful of thumbnail reads after the next
+            // keystroke, off the main thread.
+            if (wantContacts) ContactPhotoLoader.evictAll()
             LauncherDebugLog.event(
                 "$reason content search indices loaded contacts=${contacts.size} events=${events.size}",
             )
@@ -2661,6 +2673,7 @@ internal class LauncherViewModel(
             ContactsContract.Contacts._ID,
             ContactsContract.Contacts.LOOKUP_KEY,
             ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+            ContactsContract.Contacts.PHOTO_THUMBNAIL_URI,
         )
         try {
             app.contentResolver.query(
@@ -2673,6 +2686,7 @@ internal class LauncherViewModel(
                 val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
                 val lookupIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
                 val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                val photoIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_THUMBNAIL_URI)
                 while (cursor.moveToNext()) {
                     val name = cursor.getString(nameIndex)?.takeIf { it.isNotBlank() } ?: continue
                     val lookupKey = cursor.getString(lookupIndex) ?: continue
@@ -2680,6 +2694,7 @@ internal class LauncherViewModel(
                         contactId = cursor.getLong(idIndex),
                         lookupKey = lookupKey,
                         displayName = name,
+                        photoThumbnailUri = cursor.getString(photoIndex)?.takeIf { it.isNotBlank() },
                     )
                 }
             }
