@@ -8,6 +8,7 @@ import android.app.role.RoleManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
 import android.os.Process
 import android.os.UserHandle
@@ -149,22 +150,43 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun wallpaperShownSetting_togglesWindowWallpaperFlag() {
-        // Default (setting off): no FLAG_SHOW_WALLPAPER on the window, so the
-        // launcher composites no wallpaper and forwards no touches to a live
-        // wallpaper — everything wallpaper-related stays off until the setting.
+    fun wallpaperShownSetting_togglesWindowWallpaperFlagAndSurfaceFormat() {
+        // Default (setting off): no FLAG_SHOW_WALLPAPER on the window and an
+        // opaque surface, so the launcher composites no wallpaper, forwards no
+        // touches to a live wallpaper, and keeps ordinary Home fully opaque —
+        // everything wallpaper-related stays off until the setting.
         assertFalse(windowRequestsWallpaper())
+        assertEquals(
+            "surface format while wallpaper is off",
+            PixelFormat.OPAQUE,
+            composeRule.activity.window.attributes.format,
+        )
 
-        // Turning "Show wallpaper" on requests the flag.
+        // Turning "Show wallpaper" on requests the flag AND flips the surface to
+        // a translucent format. The translucent format is what makes the
+        // compositor clear the surface every frame, so Home's transparent
+        // wallpaper slot reveals the live wallpaper rather than stale pixels; if
+        // this regressed to an opaque surface the slot would strand whatever was
+        // last drawn there (e.g. the Settings screen still showing under Home).
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { windowRequestsWallpaper() }
         assertTrue(windowRequestsWallpaper())
+        assertEquals(
+            "surface format after enabling wallpaper",
+            PixelFormat.TRANSLUCENT,
+            composeRule.activity.window.attributes.format,
+        )
 
-        // Turning it back off clears the flag again.
+        // Turning it back off clears the flag and reverts to an opaque surface.
         composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { !windowRequestsWallpaper() }
         assertFalse(windowRequestsWallpaper())
+        assertEquals(
+            "surface format after disabling wallpaper",
+            PixelFormat.OPAQUE,
+            composeRule.activity.window.attributes.format,
+        )
     }
 
     private fun windowRequestsWallpaper(): Boolean =
