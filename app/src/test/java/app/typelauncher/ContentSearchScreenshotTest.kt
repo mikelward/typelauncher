@@ -97,6 +97,31 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun contentSections_renderAsRowsUnderIconOnlyGrid() {
+        // The app grid honors the "Icon only" style; the content sections stay
+        // full-span name-beside rows below it (events have no tile form, and a
+        // nameless contact tile is useless until profile photos exist).
+        composeContent(reverseLayout = false, apps = apps, layout = AppListLayout.IconOnly)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Maria Lopez", useUnmergedTree = true).assertExists()
+
+        capture("compose_content_search_icon_only_grid_robolectric.png")
+    }
+
+    @Test
+    fun contentSections_renderAsRowsUnderNameBelowGrid() {
+        // Same contract for the "Name below" grid: labeled app tiles, then the
+        // full-span content rows.
+        composeContent(reverseLayout = false, apps = apps, layout = AppListLayout.NameBelow)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Maria Lopez", useUnmergedTree = true).assertExists()
+
+        capture("compose_content_search_name_below_grid_robolectric.png")
+    }
+
+    @Test
     fun contentOnlyResultsKeepListBoundsPublished() {
         // Regression: with zero app matches but content results, the lazy list
         // renders — so the "no results" effect must not null the published
@@ -141,7 +166,11 @@ class ContentSearchScreenshotTest {
         )
     }
 
-    private fun composeContent(reverseLayout: Boolean, apps: List<InstalledApp>) {
+    private fun composeContent(
+        reverseLayout: Boolean,
+        apps: List<InstalledApp>,
+        layout: AppListLayout = AppListLayout.NameBeside,
+    ) {
         composeRule.setContent {
             TypeLauncherTheme {
                 Box(
@@ -153,7 +182,7 @@ class ContentSearchScreenshotTest {
                     AppsCard(
                         apps = apps,
                         dockLimit = Int.MAX_VALUE,
-                        layout = AppListLayout.NameBeside,
+                        layout = layout,
                         iconSizeDp = 43,
                         highlightFirst = true,
                         reverseLayout = reverseLayout,
