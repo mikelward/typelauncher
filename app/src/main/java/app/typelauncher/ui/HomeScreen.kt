@@ -4359,7 +4359,15 @@ private fun ContactResultRow(
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = stringResource(R.string.contact_result_starred_description),
-                tint = CONTACT_STARRED_STAR_COLOR,
+                // Amber normally, but on the active (selected) row the fixed
+                // gold and the fixed light-theme highlight background
+                // (#CFE2FF) are both pale warm tones — ~1.2:1 contrast, so the
+                // star all but disappears exactly on the row where the
+                // starred-first ranking most needs explaining. textColor is
+                // already the row's contrast-safe color for this exact
+                // highlight (it's what the name Text uses), so reuse it
+                // instead of introducing a separate active-state gold.
+                tint = if (isActive) textColor else CONTACT_STARRED_STAR_COLOR,
                 modifier = Modifier
                     .size(20.dp)
                     .testTag("$CONTACT_RESULT_STARRED_TAG:${contact.displayName}"),
@@ -4372,9 +4380,9 @@ private fun ContactResultRow(
 // fixed rather than derived from the dynamic color scheme — same rationale
 // as selectionHighlightColor: a star only reads as "starred" at a glance if
 // it keeps the color people already associate with the concept (Gmail,
-// Contacts), which the dynamic per-wallpaper palette can't guarantee. Unlike
-// that highlight it does not need a separate dark-mode value: this amber has
-// enough contrast against both the light and dark card surface.
+// Contacts), which the dynamic per-wallpaper palette can't guarantee. Only
+// used on an inactive row — see the isActive branch above for why the active
+// row overrides it.
 private val CONTACT_STARRED_STAR_COLOR = Color(0xFFFFC107)
 
 /**

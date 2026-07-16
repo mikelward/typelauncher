@@ -148,6 +148,31 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun contactRows_starRemainsVisibleOnActiveHighlightedRow() {
+        // Zero app matches promotes the first contact result to the active
+        // row (see contentSections_zeroAppMatchesHighlightFirstContact); when
+        // that contact is starred, the trailing star must switch off the
+        // fixed amber — which contrasts poorly (~1.2:1) against the
+        // light-theme highlight background — and onto the row's already
+        // contrast-safe active text color instead, or the star (the only
+        // visual explanation for the starred-first ranking) nearly
+        // disappears exactly on the row where it matters most.
+        val mixedContacts = listOf(
+            ContactResult(contactId = 2, lookupKey = "l2", displayName = "Mark Chen", starred = true),
+            ContactResult(contactId = 1, lookupKey = "l1", displayName = "Maria Lopez"),
+        )
+        composeContent(reverseLayout = false, apps = emptyList(), contacts = mixedContacts)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(
+            "$CONTACT_RESULT_STARRED_TAG:Mark Chen",
+            useUnmergedTree = true,
+        ).assertExists()
+
+        capture("compose_content_search_contact_starred_active_robolectric.png")
+    }
+
+    @Test
     fun contentSections_renderAsRowsUnderIconOnlyGrid() {
         // The app grid honors the "Icon only" style; the content sections stay
         // full-span name-beside rows below it (events have no tile form, and
