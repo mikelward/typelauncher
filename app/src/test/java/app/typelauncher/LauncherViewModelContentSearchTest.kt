@@ -182,10 +182,49 @@ class LauncherViewModelContentSearchTest {
 
         val started = shadowOf(context as android.app.Application).nextStartedActivity
         assertNotNull("Enter with only a contact match must open the contact", started)
-        assertEquals(Intent.ACTION_VIEW, started.action)
+        assertEquals(
+            "The contact opens as the compact QuickContact card, not the full Contacts screen",
+            ContactsContract.QuickContact.ACTION_QUICK_CONTACT,
+            started.action,
+        )
         assertEquals(
             ContactsContract.Contacts.getLookupUri(7L, "lookup-7"),
             started.data,
+        )
+        assertEquals("Opening a result clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun tappingContactOpensQuickContactCard() {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+        viewModel.openContactResult(contact)
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertNotNull("Tapping a contact must open a card", started)
+        assertEquals(
+            "Tapping opens the compact QuickContact card, not the full Contacts screen",
+            ContactsContract.QuickContact.ACTION_QUICK_CONTACT,
+            started.action,
+        )
+        assertEquals(
+            ContactsContract.Contacts.getLookupUri(7L, "lookup-7"),
+            started.data,
+        )
+        assertEquals(
+            "The card requests the large mode",
+            ContactsContract.QuickContact.MODE_LARGE,
+            started.getIntExtra(ContactsContract.QuickContact.EXTRA_MODE, -1),
         )
         assertEquals("Opening a result clears the search", "", viewModel.uiState.value.query)
     }

@@ -1082,18 +1082,30 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Opens the contact card for a contacts-section result and clears the
-     * search, mirroring the app-launch contract (launch surfaces reset the
-     * query so returning to Home starts fresh). No launch count is recorded —
-     * ranking inside the section is match-tier + alphabetical, not usage.
+     * Opens the tapped (or Enter-targeted) contact as Android's QuickContact
+     * card — the compact call / message / email popup — instead of the full
+     * Contacts screen, so acting on a searched-for person is a single tap from
+     * the keyboard-driven result. The card is drawn by the Contacts app from
+     * the same lookup URI the index already holds, so no phone number is read
+     * and no new permission is needed; a contact with several numbers is
+     * disambiguated by the card itself, and tapping the card's name still opens
+     * the full contact. The search is cleared like an app launch, mirroring
+     * [openEventResult]: only when the handoff actually launched, so a device
+     * with no Contacts app to host the card leaves the query intact rather than
+     * silently erasing it. No launch count is recorded — ranking inside the
+     * section is match-tier + alphabetical, not usage.
      */
     fun openContactResult(contact: ContactResult) {
         LauncherDebugLog.event("openContactResult contactId=${contact.contactId}")
         val lookupUri = ContactsContract.Contacts.getLookupUri(contact.contactId, contact.lookupKey)
+        val intent = Intent(ContactsContract.QuickContact.ACTION_QUICK_CONTACT).apply {
+            data = lookupUri
+            putExtra(ContactsContract.QuickContact.EXTRA_MODE, ContactsContract.QuickContact.MODE_LARGE)
+        }
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, lookupUri))
+            startActivity(intent)
         } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("openContactResult no activity for contact uri", exception)
+            LauncherDebugLog.warning("openContactResult no activity for quick contact", exception)
             return
         }
         _uiState.update { it.copy(isRecentsOpen = false) }
