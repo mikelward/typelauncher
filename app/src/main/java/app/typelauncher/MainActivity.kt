@@ -639,6 +639,23 @@ class MainActivity : ComponentActivity() {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
             window.setFormat(PixelFormat.OPAQUE)
         }
+        // Changing the surface format recreates the window surface. `setFormat`
+        // only *schedules* that relayout, so when the format changes at runtime
+        // it can still be in flight a moment later. That mattered most when
+        // "Show wallpaper" was turned on from Settings: the opaque→translucent
+        // recreation could still be settling when Settings was dismissed, so
+        // Home revealed its transparent wallpaper slot over the old opaque
+        // surface and stranded the previous Settings frame in the slot (Settings
+        // still visible under Home's search box and dock). Forcing the traversal
+        // and a full repaint here runs the recreation while the deliberate toggle
+        // is happening — tens of frames before the user can navigate — instead of
+        // racing the Settings→Home transition. Guarded on an existing decor view
+        // so the pre-`setContent` call from `onCreate` stays a no-op: there the
+        // surface is built with the right format from the start, no recreation.
+        window.peekDecorView()?.let { decor ->
+            decor.requestLayout()
+            decor.invalidate()
+        }
         LauncherDebugLog.event("applyWallpaperWindowMode wallpaperShown=$wallpaperShown")
     }
 
