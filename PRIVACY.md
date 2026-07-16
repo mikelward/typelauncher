@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-06-10_
+_Last updated: 2026-07-16_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -15,7 +15,7 @@ the app does and does not do with your data.
   developer.
 - The app may collect anonymous crash reports and performance analytics.
   These are described below and never include PII, your typed queries, your
-  app list, your notifications, or your calendar contents.
+  app list, your notifications, your contacts, or your calendar contents.
 
 ## Data stored on your device
 
@@ -49,20 +49,29 @@ transmitted off your device by the app.
   the list of apps installed on your device so they can be shown and
   launched.
 - **Read calendar** (`READ_CALENDAR`): read calendar events from your device
-  to render the Agenda screen. Event data is read on demand from
-  `CalendarContract` and is never stored beyond the in-memory state of the
-  current session.
+  to render the Agenda screen and, if you turn on "Search calendar events" in
+  Settings, to match upcoming events in home screen search. Event data is
+  read on demand from `CalendarContract` and is never stored beyond the
+  in-memory state of the current session.
+- **Read contacts** (`READ_CONTACTS`): requested only if you turn on "Search
+  contacts" in Settings, and used to show matching contacts — their names and
+  photo thumbnails — in home screen search. Contact data is read from
+  `ContactsContract` and is never stored beyond the in-memory state of the
+  current session; turning the setting off releases it immediately.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
   shade when you pull down on the home screen.
 
 ## What the app does not do
 
 - It does not contact a backend service operated by the developer.
-- It does not collect your name, email, phone number, contacts, location, or
-  device identifiers (IMEI, advertising ID, etc.).
+- It does not collect your name, email, phone number, location, or device
+  identifiers (IMEI, advertising ID, etc.). Contacts and calendar events are
+  read on your device only for the opt-in search and agenda features
+  described under "Permissions" and are never stored beyond the current
+  session or transmitted.
 - It does not log or transmit your search queries.
 - It does not log or transmit the names or contents of your installed apps,
-  notifications, calendar events, or widgets.
+  notifications, contacts, calendar events, or widgets.
 - It does not show ads.
 - It does not sell or share data with third parties for marketing.
 
@@ -79,7 +88,8 @@ These services may collect:
 - A short rolling buffer of non-PII diagnostic breadcrumbs describing
   launcher lifecycle events (for example, "cold start began", "agenda load
   completed", "app icon cache miss"). These breadcrumbs do not include your
-  search queries, app names, calendar contents, or notification contents.
+  search queries, app names, contact names or photos, calendar contents, or
+  notification contents.
 - Anonymous performance traces (for example, how long cold start, agenda
   loading, or icon loading took) and high-level counters (for example, icon
   cache hit rate).
