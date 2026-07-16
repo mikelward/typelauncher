@@ -106,7 +106,10 @@ class ManifestUnitTest {
         assertTrue(typeLauncherAppSource.contains("collectAsStateWithLifecycle"))
         assertTrue(viewModelSource.contains("ViewModel"))
         assertTrue(themeSource.contains("dynamicLightColorScheme"))
-        assertTrue(viewModelSource.contains("AgendaEventOrganizer.forNow"))
+        // The agenda path routes through the organizer as loadAgendaEvents'
+        // default `organize` parameter (a function reference, since the search
+        // index passes forSearch through the same seam).
+        assertTrue(viewModelSource.contains("AgendaEventOrganizer::forNow"))
         assertTrue(mainActivitySource.contains("onWindowFocusChanged"))
         assertTrue(mainActivitySource.contains("onTrimMemory"))
         assertTrue(typeLauncherAppSource.contains("LauncherDebugLog.event"))

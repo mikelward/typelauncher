@@ -721,6 +721,20 @@ internal data class LauncherUiState(
     // Settings → "Show agenda". When false, Agenda is removed from the
     // horizontal carousel and calendar loading is deferred until re-enabled.
     val isAgendaEnabled: Boolean = true,
+    // Settings → "Search contacts" / "Search calendar events". Both default
+    // off; each is only persisted true once its runtime permission has been
+    // granted (the toggle requests it), so an enabled flag implies a queryable
+    // source. They gate the content sections below.
+    val isContactSearchEnabled: Boolean = false,
+    val isCalendarSearchEnabled: Boolean = false,
+    // The contacts / calendar-events sections of Home's typed search, appended
+    // after `filteredApps` in data order so `reverseLayout` naturally keeps
+    // them beyond the apps in the scroll direction under both sort directions.
+    // Always empty while the query is blank or the source is disabled; hidden
+    // sections cost nothing. Contacts render before events (same fixed order
+    // as the Settings toggles).
+    val contactResults: List<ContactResult> = emptyList(),
+    val eventResults: List<AgendaEvent> = emptyList(),
     // User-selected appearance mode. `System` (default) follows the device's
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.
@@ -786,9 +800,13 @@ internal data class InlineSearchSuggestion(val name: String, val boldIndices: Li
 internal fun searchInlineSuggestion(
     query: String,
     topMatch: InstalledApp?,
+    // The first content result's name (contact, then event) — the Enter target
+    // when zero apps match — so the suggestion keeps previewing what Enter
+    // opens even when the query only hits the content sections.
+    fallbackName: String? = null,
 ): InlineSearchSuggestion? {
-    if (query.isBlank() || topMatch == null) return null
-    val name = topMatch.displayName
+    if (query.isBlank()) return null
+    val name = topMatch?.displayName ?: fallbackName ?: return null
     return InlineSearchSuggestion(
         // Highlight against the trimmed query — the same string every
         // `filterByName` path matches with — so a whitespace-padded query

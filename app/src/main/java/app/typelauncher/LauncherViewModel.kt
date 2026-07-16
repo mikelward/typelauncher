@@ -21,8 +21,10 @@ import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
 import android.provider.CalendarContract
+import android.provider.ContactsContract
 import android.provider.Settings
 import android.text.format.DateUtils
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModel
@@ -85,6 +87,19 @@ internal class LauncherViewModel(
     // initial agenda load so the calendar query can't compete with the cold-
     // start app list load on Dispatchers.IO.
     private var initialAgendaTriggered = false
+    // In-memory indices behind the typed-search content sections. Loaded off
+    // the main thread (home-ready, source enable, permission grant, resume)
+    // and filtered synchronously per keystroke alongside `filteredApps`, so
+    // the keystroke path never touches a content resolver. Main-thread
+    // confined; empty whenever the matching source is disabled.
+    private var contactIndex: List<ContactResult> = emptyList()
+    private var searchEventIndex: List<AgendaEvent> = emptyList()
+    // Deconflicts concurrent index loads the same way `agendaVersion` does for
+    // agenda loads: only the most recent request may publish. @Volatile because
+    // the IO stage re-reads it before touching a provider (see
+    // refreshContentSearchIndices) while every write happens on Main.
+    @Volatile
+    private var contentSearchVersion = 0
     // Flips `true` when the deferred icon-snapshot restore coroutine finishes
     // populating `AppIconLoader`. Until then, `persistIconSnapshot` must skip
     // saving — `AppIconLoader.cacheSnapshot()` cannot represent the on-disk
@@ -199,6 +214,8 @@ internal class LauncherViewModel(
             cardOpacity = dockSettingsStore.cardOpacity,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
+            isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
+            isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
             iconTheme = dockSettingsStore.iconTheme,
@@ -223,6 +240,10 @@ internal class LauncherViewModel(
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+        // A backup restore or permission auto-reset can leave a content-search
+        // toggle persisted on without its permission; coerce before anything
+        // can render or load from the stale flag.
+        coerceContentSearchSettingsToPermissions()
         // Seed the loader's mirror of the icon theme setting before any load
         // can run (loads start from composition, after this constructor), so
         // the very first rasterize pass already honors the persisted setting.
@@ -650,6 +671,10 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(isHomeReady = true) }
         LauncherDebugLog.event("onHomeReady published")
         triggerInitialAgendaLoadIfEnabled(reason = "homeReady")
+        // Same deferral rationale as the agenda load: the content-search
+        // indices are cold-start-adjacent IO, so they wait for home-ready
+        // rather than competing with the app list on Dispatchers.IO.
+        refreshContentSearchIndices(reason = "homeReady")
     }
 
     private fun triggerInitialAgendaLoadIfEnabled(reason: String) {
@@ -872,6 +897,14 @@ internal class LauncherViewModel(
         if (_uiState.value.destination is LauncherDestination.Agenda) {
             refreshAgenda()
         }
+        // Auto-reset (or a settings restore) may have revoked a source's
+        // permission while its toggle is persisted on — coerce the toggles
+        // first so the refresh below never queries a permission-less source.
+        coerceContentSearchSettingsToPermissions()
+        // Re-read contacts / calendar on every resume so edits made in the
+        // Contacts or Calendar app while the launcher was backgrounded show up
+        // in the next typed search. No-op unless a source is enabled.
+        refreshContentSearchIndices(reason = "resume")
     }
 
     /**
@@ -975,16 +1008,25 @@ internal class LauncherViewModel(
         }
     }
 
-    fun openAgendaEvent(event: AgendaEvent) {
+    /**
+     * Returns whether the calendar app actually launched, so callers that
+     * chain side effects onto a successful handoff (the search path clearing
+     * the query in [openEventResult]) can skip them when no calendar app
+     * handles the intent. The Agenda screen ignores the result — its tap has
+     * no follow-up state to guard.
+     */
+    fun openAgendaEvent(event: AgendaEvent): Boolean {
         LauncherDebugLog.event("openAgendaEvent eventId=${event.eventId} begin=${event.beginMillis}")
         val eventUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
         val intent = Intent(Intent.ACTION_VIEW, eventUri)
             .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.beginMillis)
             .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.endMillis)
-        try {
+        return try {
             startActivity(intent)
+            true
         } catch (exception: ActivityNotFoundException) {
             LauncherDebugLog.warning("openAgendaEvent no activity for event uri", exception)
+            false
         }
     }
 
@@ -1018,7 +1060,51 @@ internal class LauncherViewModel(
                 ?.takeIf { state.isDockEnabled }
             ?: state.workDockedApps.firstOrNull { app -> app.displayName.launcherMatchTier(trimmedQuery) != null }
                 ?.takeIf { state.isWorkDockEnabled && state.isWorkProfileActive }
-        target?.let(::launchApp)
+        if (target != null) {
+            launchApp(target)
+            return
+        }
+        // Only when *zero* apps match does the first content result become the
+        // Enter target — apps always own Enter when they match at any tier. The
+        // order mirrors the rendered sections: contacts before events.
+        val contact = state.contactResults.firstOrNull()
+        if (contact != null) {
+            openContactResult(contact)
+            return
+        }
+        state.eventResults.firstOrNull()?.let(::openEventResult)
+    }
+
+    /**
+     * Opens the contact card for a contacts-section result and clears the
+     * search, mirroring the app-launch contract (launch surfaces reset the
+     * query so returning to Home starts fresh). No launch count is recorded —
+     * ranking inside the section is match-tier + alphabetical, not usage.
+     */
+    fun openContactResult(contact: ContactResult) {
+        LauncherDebugLog.event("openContactResult contactId=${contact.contactId}")
+        val lookupUri = ContactsContract.Contacts.getLookupUri(contact.contactId, contact.lookupKey)
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, lookupUri))
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("openContactResult no activity for contact uri", exception)
+            return
+        }
+        _uiState.update { it.copy(isRecentsOpen = false) }
+        setQuery("")
+    }
+
+    /**
+     * Opens an events-section result in the user's calendar app (same intent
+     * path as tapping an Agenda row) and clears the search, mirroring
+     * [openContactResult]. Like that path, the query is only cleared when the
+     * handoff actually launched — on a device with no calendar app the tap
+     * stays a no-op instead of silently erasing what the user typed.
+     */
+    fun openEventResult(event: AgendaEvent) {
+        if (!openAgendaEvent(event)) return
+        _uiState.update { it.copy(isRecentsOpen = false) }
+        setQuery("")
     }
 
     fun launchApp(app: InstalledApp) {
@@ -2060,6 +2146,129 @@ internal class LauncherViewModel(
         }
     }
 
+    /**
+     * Settings → "Search contacts". Only ever called with `true` after
+     * READ_CONTACTS is granted (`MainActivity` gates the toggle on the
+     * permission request), so enabled implies queryable. Enabling loads the
+     * index; disabling drops it and empties the section immediately.
+     */
+    fun setContactSearchEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isContactSearchEnabled = isEnabled
+        _uiState.update { it.copy(isContactSearchEnabled = isEnabled) }
+        logState("setContactSearchEnabled=$isEnabled")
+        if (isEnabled) {
+            refreshContentSearchIndices(reason = "contactSearchEnabled")
+        } else {
+            // Invalidate any in-flight index load so it can't republish after
+            // this clear — a disabled source must hold nothing in memory, not
+            // just render nothing. The invalidation also discards an in-flight
+            // load for the *other* source, so re-kick the refresh: it no-ops
+            // when nothing is still enabled and reloads the survivor otherwise.
+            contentSearchVersion++
+            contactIndex = emptyList()
+            refreshFilteredApps()
+            refreshContentSearchIndices(reason = "contactSearchDisabled")
+        }
+    }
+
+    /**
+     * Settings → "Search calendar events". Mirrors [setContactSearchEnabled]
+     * for the events section (gated on READ_CALENDAR).
+     */
+    fun setCalendarSearchEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isCalendarSearchEnabled = isEnabled
+        _uiState.update { it.copy(isCalendarSearchEnabled = isEnabled) }
+        logState("setCalendarSearchEnabled=$isEnabled")
+        if (isEnabled) {
+            refreshContentSearchIndices(reason = "calendarSearchEnabled")
+        } else {
+            // Same in-flight invalidation + survivor re-kick as
+            // setContactSearchEnabled.
+            contentSearchVersion++
+            searchEventIndex = emptyList()
+            refreshFilteredApps()
+            refreshContentSearchIndices(reason = "calendarSearchDisabled")
+        }
+    }
+
+    /**
+     * Turns a persisted content-search toggle back off when its runtime
+     * permission is gone. Android's permission auto-reset (and a backup
+     * restore onto a fresh install) can leave `contact_search_enabled` /
+     * `calendar_search_enabled` true with no permission behind them — the
+     * switch would render on while the source silently loads nothing, and the
+     * first tap would turn it *off* instead of prompting. Coercing the flag to
+     * off keeps the settings honest and makes the next tap the permission
+     * request. Checked at construction and on every resume; the permission
+     * check is gated on the flag so users who never enabled a source pay
+     * nothing.
+     */
+    private fun coerceContentSearchSettingsToPermissions() {
+        if (dockSettingsStore.isContactSearchEnabled && !hasContactsPermission()) {
+            LauncherDebugLog.event("contact search disabled: permission not granted")
+            setContactSearchEnabled(false)
+        }
+        if (dockSettingsStore.isCalendarSearchEnabled && !hasCalendarPermission()) {
+            LauncherDebugLog.event("calendar search disabled: permission not granted")
+            setCalendarSearchEnabled(false)
+        }
+    }
+
+    /**
+     * Reloads the in-memory contact / calendar-event indices off the main
+     * thread for whichever sources are enabled. Called from home-ready (the
+     * deferred cold-start load), the Settings enable path, the permission-grant
+     * callback, and every resume — never from the keystroke path, which only
+     * filters the already-loaded indices. A version counter deconflicts
+     * overlapping loads the same way `agendaVersion` does; when a load lands
+     * mid-typing, the visible results are recomputed so the sections fill in
+     * under the current query.
+     */
+    private fun refreshContentSearchIndices(reason: String) {
+        val state = _uiState.value
+        val wantContacts = state.isContactSearchEnabled
+        val wantEvents = state.isCalendarSearchEnabled
+        if (!wantContacts && !wantEvents) return
+        val requestVersion = ++contentSearchVersion
+        viewModelScope.launch {
+            // Each IO stage re-checks the version before touching its provider:
+            // a disable that lands while this load is queued must not *query*
+            // the just-opted-out source at all — the publish check below only
+            // stops the result from landing, not the read itself.
+            val contacts = if (wantContacts) {
+                withContext(ioDispatcher) {
+                    if (contentSearchVersion == requestVersion) loadContactIndex() else emptyList()
+                }
+            } else {
+                contactIndex
+            }
+            val events = if (wantEvents) {
+                withContext(ioDispatcher) {
+                    if (contentSearchVersion == requestVersion) loadSearchEventIndex() else emptyList()
+                }
+            } else {
+                searchEventIndex
+            }
+            if (contentSearchVersion != requestVersion) return@launch
+            contactIndex = contacts
+            searchEventIndex = events
+            LauncherDebugLog.event(
+                "$reason content search indices loaded contacts=${contacts.size} events=${events.size}",
+            )
+            if (_uiState.value.query.isNotBlank()) refreshFilteredApps()
+        }
+    }
+
+    /**
+     * The in-memory index sizes, exposed for tests only: the opt-out contract
+     * ("a disabled source holds nothing in memory") is otherwise invisible
+     * from [uiState] — a stale index renders nothing while its setting is off,
+     * so only the retention itself can be asserted.
+     */
+    @VisibleForTesting
+    internal fun contentSearchIndexSizesForTest(): Pair<Int, Int> =
+        contactIndex.size to searchEventIndex.size
+
     fun setThemeMode(mode: ThemeMode) {
         dockSettingsStore.themeMode = mode
         // Re-resolve the themed-icon palette: with the Monochrome icon theme,
@@ -2173,6 +2382,8 @@ internal class LauncherViewModel(
                 isWorkProfileActive = installedApps.any { it.isWorkApp && !it.isQuietMode },
                 recentApps = newRecentApps,
                 hiddenApps = installedApps.filterHidden(hiddenAppStore.hiddenAppIds).markVisibility(),
+                contactResults = contactResultsFor(state, query),
+                eventResults = eventResultsFor(state, query),
             )
         }
     }
@@ -2190,9 +2401,22 @@ internal class LauncherViewModel(
                     dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                     sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
                 ).markVisibility(),
+                contactResults = contactResultsFor(state, query),
+                eventResults = eventResultsFor(state, query),
             )
         }
     }
+
+    // The typed-search content sections, recomputed wherever `filteredApps` is
+    // (the keystroke fast-path and the full refresh) so the sections always
+    // describe the same query as the app results beside them. Blank queries and
+    // disabled sources return the `emptyList()` singleton, so the empty-query
+    // copy keeps reference equality and recomposes nothing.
+    private fun contactResultsFor(state: LauncherUiState, query: String): List<ContactResult> =
+        if (state.isContactSearchEnabled) contactIndex.filterContactResults(query) else emptyList()
+
+    private fun eventResultsFor(state: LauncherUiState, query: String): List<AgendaEvent> =
+        if (state.isCalendarSearchEnabled) searchEventIndex.filterEventResults(query) else emptyList()
 
     private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
         dockedAppStore.dockedAppIdsFor(
@@ -2418,13 +2642,101 @@ internal class LauncherViewModel(
     private fun hasCalendarPermission(): Boolean =
         ContextCompat.checkSelfPermission(app, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    private fun loadAgendaEvents(nowMillis: Long = System.currentTimeMillis()): List<AgendaEvent> {
+    private fun hasContactsPermission(): Boolean =
+        ContextCompat.checkSelfPermission(app, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Loads the in-memory contact index for the typed-search contacts section:
+     * every visible aggregated contact (the same set the Contacts app lists —
+     * invisible auto-collected addresses are excluded), pre-sorted with the
+     * locale-aware display-name collator so the per-keystroke filter's stable
+     * sort inherits alphabetical order within each match tier. Runs on
+     * [ioDispatcher] only; a missing permission or a provider exception yields
+     * an empty index rather than an error surface.
+     */
+    private fun loadContactIndex(): List<ContactResult> {
+        if (!hasContactsPermission()) return emptyList()
+        val contacts = mutableListOf<ContactResult>()
+        val projection = arrayOf(
+            ContactsContract.Contacts._ID,
+            ContactsContract.Contacts.LOOKUP_KEY,
+            ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+        )
+        try {
+            app.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                projection,
+                "${ContactsContract.Contacts.IN_VISIBLE_GROUP} = 1",
+                null,
+                null,
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                val lookupIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
+                val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(nameIndex)?.takeIf { it.isNotBlank() } ?: continue
+                    val lookupKey = cursor.getString(lookupIndex) ?: continue
+                    contacts += ContactResult(
+                        contactId = cursor.getLong(idIndex),
+                        lookupKey = lookupKey,
+                        displayName = name,
+                    )
+                }
+            }
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.warning("loadContactIndex security exception", exception)
+            return emptyList()
+        } catch (exception: RuntimeException) {
+            // A provider-side failure (disabled/corrupt OEM contacts provider,
+            // transient database error) surfaces here as a RuntimeException.
+            // An optional search source must degrade to no results, never
+            // crash the launcher's index-load coroutine.
+            LauncherDebugLog.warning("loadContactIndex provider failure", exception)
+            return emptyList()
+        }
+        // Sort here, once per load, rather than per keystroke: the filter's
+        // stable tier sort keeps this order as the within-tier tie-break.
+        val order = displayNameOrder()
+        return contacts.sortedWith(compareBy(order) { contact -> contact.displayName })
+    }
+
+    /**
+     * Loads the in-memory event index for the typed-search calendar section —
+     * the same `CalendarContract.Instances` query the agenda uses, over a
+     * wider [SEARCH_EVENT_LOOKAHEAD_DAYS] window so search reaches further
+     * ahead than the 7-day agenda page. Runs on [ioDispatcher] only.
+     */
+    private fun loadSearchEventIndex(): List<AgendaEvent> {
+        if (!hasCalendarPermission()) return emptyList()
+        return try {
+            loadAgendaEvents(
+                lookaheadDays = SEARCH_EVENT_LOOKAHEAD_DAYS,
+                // forSearch, not forNow: the agenda's intersects-today all-day
+                // rule would drop a next-week vacation/birthday from the index.
+                organize = AgendaEventOrganizer::forSearch,
+            )
+        } catch (exception: RuntimeException) {
+            // Same provider-failure containment as loadContactIndex: the shared
+            // calendar query only guards SecurityException itself (the agenda
+            // page's long-standing behavior), but the search index also loads
+            // on every resume, so a flaky provider must degrade to an empty
+            // section rather than crash the launcher.
+            LauncherDebugLog.warning("loadSearchEventIndex provider failure", exception)
+            emptyList()
+        }
+    }
+
+    private fun loadAgendaEvents(
+        nowMillis: Long = System.currentTimeMillis(),
+        lookaheadDays: Long = AGENDA_LOOKAHEAD_DAYS,
+        organize: (List<AgendaEvent>, Long, Long, Long) -> List<AgendaEvent> = AgendaEventOrganizer::forNow,
+    ): List<AgendaEvent> {
         val zone = ZoneId.systemDefault()
         val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
         val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
         val utcTodayStart = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val utcTomorrowStart = today.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-        val queryEnd = today.plusDays(AGENDA_LOOKAHEAD_DAYS).atStartOfDay(zone).toInstant().toEpochMilli()
+        val queryEnd = today.plusDays(lookaheadDays).atStartOfDay(zone).toInstant().toEpochMilli()
         val instanceUri = CalendarContract.Instances.CONTENT_URI.buildUpon().apply {
             ContentUris.appendId(this, startOfDay)
             ContentUris.appendId(this, queryEnd)
@@ -2473,12 +2785,8 @@ internal class LauncherViewModel(
             return emptyList()
         }
 
-        return AgendaEventOrganizer.forNow(
-            events = events,
-            nowMillis = nowMillis,
-            utcTodayStartMillis = utcTodayStart,
-            utcTomorrowStartMillis = utcTomorrowStart,
-        ).map { event -> event.copy(displayTime = event.formatTime(app)) }
+        return organize(events, nowMillis, utcTodayStart, utcTomorrowStart)
+            .map { event -> event.copy(displayTime = event.formatTime(app)) }
     }
 
     /**
@@ -2978,6 +3286,12 @@ internal fun isDynamicCalendarIconId(iconCacheId: String): Boolean =
 
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L
+
+// The typed-search calendar section looks twice as far ahead as the agenda
+// page: search is "find that appointment", not "what's next", so a 7-day
+// horizon misses the dentist visit a week from Friday, while the index stays
+// small enough to filter per keystroke.
+private const val SEARCH_EVENT_LOOKAHEAD_DAYS = 14L
 private const val WIDGET_CELL_ESTIMATE_DP = 56
 
 // How many of the most-launched apps to include in the icon snapshot beyond the dock.
