@@ -34,6 +34,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -122,6 +123,14 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             LauncherDebugLog.event("requestCalendarSearchPermission result granted=$granted")
             if (granted) viewModel.setCalendarSearchEnabled(true)
+        }
+    // The first Call on a contact's quick-action card requests CALL_PHONE; the
+    // ViewModel parked the number and resumes it on the result (placing the
+    // call when granted, opening the dialer when refused).
+    private val requestCallPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            LauncherDebugLog.event("requestCallPermission result granted=$granted")
+            viewModel.onCallPermissionResult(granted)
         }
     private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -266,6 +275,15 @@ class MainActivity : ComponentActivity() {
         androidTrace("launcher.appwidget_init") {
             appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
             appWidgetManager = AppWidgetManager.getInstance(this)
+        }
+        // Bridge the ViewModel's "ask for CALL_PHONE" effect to this Activity's
+        // permission launcher — the ViewModel has no Activity to prompt from.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.requestCallPermission.collect {
+                    requestCallPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+                }
+            }
         }
         // Re-seed the in-flight add ID before anything (the orphan sweep, a
         // re-delivered configure result) can act on a stale INVALID value.

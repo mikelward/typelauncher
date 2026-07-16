@@ -330,6 +330,13 @@ jobs:
         # contact rows, and time+title event rows.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContentSearchScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run contact quick-actions sheet screenshot tests
+        # Renders the compact contact quick-actions sheet — the channel list
+        # (Phone, Message, installed-app actions, Email, Open contact) and the
+        # number picker after drilling into a multi-number channel — so the PR
+        # `roborazzi-screenshots` artifact shows both steps.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContactActionsSheetScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
@@ -446,6 +453,13 @@ jobs:
         # PNGs; if that push lost its race (warning path above), the pinned
         # HEAD SHA may briefly 404 until the next run re-records. Same-repo
         # PRs only — the fork-PR token can't write comments.
+        #
+        # continue-on-error: this is a convenience comment, not a gate. A
+        # transient GitHub API hiccup (a non-JSON response breaking the
+        # `curl | jq` comment lookup has been seen here) must not turn the
+        # whole screenshot job red — the snapshots are already committed and
+        # in the roborazzi-screenshots artifact regardless.
+        continue-on-error: true
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}

@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -180,22 +181,20 @@ class LauncherViewModelContentSearchTest {
         viewModel.launchActiveApp()
         idle()
 
-        val started = shadowOf(context as android.app.Application).nextStartedActivity
-        assertNotNull("Enter with only a contact match must open the contact", started)
         assertEquals(
-            "The contact opens as the compact QuickContact card, not the full Contacts screen",
-            ContactsContract.QuickContact.ACTION_QUICK_CONTACT,
-            started.action,
+            "Enter with only a contact match opens that contact's quick-actions sheet",
+            7L,
+            viewModel.uiState.value.contactActions?.contact?.contactId,
         )
-        assertEquals(
-            ContactsContract.Contacts.getLookupUri(7L, "lookup-7"),
-            started.data,
+        assertNull(
+            "Opening the sheet launches nothing yet — an action does that",
+            shadowOf(context as android.app.Application).nextStartedActivity,
         )
-        assertEquals("Opening a result clears the search", "", viewModel.uiState.value.query)
+        assertEquals("The query stays while the sheet is up so dismissing returns to search", "zoe", viewModel.uiState.value.query)
     }
 
     @Test
-    fun tappingContactOpensQuickContactCard() {
+    fun tappingContactOpensActionsSheet() {
         grantPermissions()
         enableBothSources()
         registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
@@ -210,28 +209,197 @@ class LauncherViewModelContentSearchTest {
         viewModel.openContactResult(contact)
         idle()
 
+        assertEquals(
+            "Tapping a contact opens its quick-actions sheet",
+            7L,
+            viewModel.uiState.value.contactActions?.contact?.contactId,
+        )
+        assertNull(
+            "The sheet itself launches nothing",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+
+        viewModel.dismissContactActions()
+        assertNull("Dismissing closes the sheet", viewModel.uiState.value.contactActions)
+        assertEquals("Dismissing leaves the search intact", "zoe", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun openContactCardLaunchesQuickContactAndClearsQuery() {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+        viewModel.openContactResult(contact)
+        idle()
+
+        // The "Open contact" escape hatch opens the full QuickContact card.
+        viewModel.openContactCard(contact)
+        idle()
+
         val started = shadowOf(context as android.app.Application).nextStartedActivity
-        assertNotNull("Tapping a contact must open a card", started)
-        assertEquals(
-            "Tapping opens the compact QuickContact card, not the full Contacts screen",
-            ContactsContract.QuickContact.ACTION_QUICK_CONTACT,
-            started.action,
-        )
-        assertEquals(
-            ContactsContract.Contacts.getLookupUri(7L, "lookup-7"),
-            started.data,
-        )
-        assertEquals(
-            "The card requests the large mode",
-            ContactsContract.QuickContact.MODE_LARGE,
-            started.getIntExtra(ContactsContract.QuickContact.EXTRA_MODE, -1),
-        )
+        assertNotNull("Open contact must launch the QuickContact card", started)
+        assertEquals(ContactsContract.QuickContact.ACTION_QUICK_CONTACT, started.action)
+        assertEquals(ContactsContract.Contacts.getLookupUri(7L, "lookup-7"), started.data)
         assertTrue(
-            "The card launches as its own document task so Back returns to the launcher, " +
-                "not a stale Contacts screen",
+            "The card launches as its own document task so Back returns to the launcher",
             started.flags and Intent.FLAG_ACTIVITY_NEW_DOCUMENT != 0,
         )
-        assertEquals("Opening a result clears the search", "", viewModel.uiState.value.query)
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActions)
+        assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun staleContactResolveIsDiscardedAfterDismiss() {
+        // Regression: a slow resolve must not pop a sheet after the user has
+        // already dismissed. The QueueDispatcher parks the resolve so the
+        // dismiss lands first; draining then runs the stale resolve, which the
+        // request token must drop.
+        val io = QueueDispatcher()
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        val contact = ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn")
+        viewModel.openContactResult(contact)
+        // Dismiss before the parked resolve runs.
+        viewModel.dismissContactActions()
+        settle(io)
+
+        assertNull(
+            "A resolve that returns after dismiss must not re-open the sheet",
+            viewModel.uiState.value.contactActions,
+        )
+    }
+
+    @Test
+    fun laterContactOpenSupersedesEarlierResolve() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn"), FakeContact(8, "Bo Vale")))
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        viewModel.openContactResult(ContactResult(8, "lookup-8", "Bo Vale"))
+        settle(io)
+
+        assertEquals(
+            "The latest opened contact wins regardless of resolve order",
+            8L,
+            viewModel.uiState.value.contactActions?.contact?.contactId,
+        )
+    }
+
+    @Test
+    fun launchActionStartsIntentAndClearsSearch() {
+        val viewModel = viewModelWithOpenSheet()
+        val sms = ContactAction(
+            label = "Mobile",
+            detail = "+15550100",
+            isDefault = true,
+            kind = ContactActionKind.Launch(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:+15550100"))),
+        )
+
+        viewModel.onContactActionSelected(sms)
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals(Intent.ACTION_SENDTO, started.action)
+        assertEquals("smsto:+15550100", started.data.toString())
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActions)
+        assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun grantedCallPlacesCallDirectly() {
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("A granted Call is placed with ACTION_CALL", Intent.ACTION_CALL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun callNumberWithHashIsNotTruncated() {
+        // Regression: a '#' in a service / extension / USSD number must reach
+        // the dialer intact. Building "tel:$number" as a string would parse the
+        // '#' as a URI fragment and truncate the dial string.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+1800555#123"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals(Intent.ACTION_CALL, started.action)
+        assertEquals(
+            "The '#' must survive into the dial string, not be dropped as a URI fragment",
+            "+1800555#123",
+            started.data?.schemeSpecificPart,
+        )
+    }
+
+    @Test
+    fun callWithoutPermissionWaitsThenPlacesOnGrant() {
+        // CALL_PHONE is not granted, so the tap parks the number and asks the
+        // Activity to prompt rather than dialing anything yet.
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        assertNull(
+            "Nothing launches until the permission is resolved",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+
+        viewModel.onCallPermissionResult(granted = true)
+        idle()
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("A granted prompt places the parked call", Intent.ACTION_CALL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun deniedCallFallsBackToDialer() {
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        viewModel.onCallPermissionResult(granted = false)
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("A refused Call falls back to the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActions)
     }
 
     @Test
@@ -448,6 +616,29 @@ class LauncherViewModelContentSearchTest {
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
         ioDispatcher = Dispatchers.Unconfined,
+    )
+
+    /** A view model showing a searched contact's (empty-channel) quick-actions sheet, query "zoe". */
+    private fun viewModelWithOpenSheet(): LauncherViewModel {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+        return viewModel
+    }
+
+    private fun callAction(number: String) = ContactAction(
+        label = "Mobile",
+        detail = number,
+        isDefault = true,
+        kind = ContactActionKind.Call(number),
     )
 
     private fun grantPermissions() {

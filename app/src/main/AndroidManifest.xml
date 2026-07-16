@@ -6,6 +6,14 @@
     <!-- Requested only from the Settings "Search contacts" toggle; backs the
          typed-search contacts section. Never requested at first run. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Requested the first time the user taps Call on a contact's quick-action
+         card; a denial falls back to opening the dialer. Never requested at
+         first run. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- CALL_PHONE implies telephony hardware; declare it optional so the
+         launcher still installs on tablets / ChromeOS with no phone radio (the
+         Call action simply won't resolve there). -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 

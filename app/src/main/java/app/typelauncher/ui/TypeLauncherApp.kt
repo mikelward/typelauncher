@@ -304,6 +304,9 @@ internal fun TypeLauncherApp(
         onIconShapeChanged = viewModel::setIconShape,
         onIconThemeChanged = viewModel::setIconTheme,
         onOpenContact = viewModel::openContactResult,
+        onContactActionSelected = viewModel::onContactActionSelected,
+        onDismissContactActions = viewModel::dismissContactActions,
+        onOpenContactCard = viewModel::openContactCard,
         onOpenEvent = viewModel::openEventResult,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
@@ -389,6 +392,9 @@ internal fun TypeLauncherApp(
     onIconShapeChanged: (IconShape) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
     onOpenContact: (ContactResult) -> Unit = {},
+    onContactActionSelected: (ContactAction) -> Unit = {},
+    onDismissContactActions: () -> Unit = {},
+    onOpenContactCard: (ContactResult) -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -1015,6 +1021,17 @@ internal fun TypeLauncherApp(
                 }
             }
         }
+    }
+    // The contact quick-actions sheet floats over whatever destination is
+    // showing (it is a Dialog, so it owns its own window regardless of where it
+    // is composed). Present only while a contact result is open.
+    state.contactActions?.let { actions ->
+        ContactActionsSheet(
+            actions = actions,
+            onAction = onContactActionSelected,
+            onOpenContactCard = { onOpenContactCard(actions.contact) },
+            onDismiss = onDismissContactActions,
+        )
     }
 }
 

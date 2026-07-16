@@ -244,6 +244,23 @@ internal class LauncherViewModel(
     )
     val keyboardShowRequests: SharedFlow<Unit> = _keyboardShowRequests.asSharedFlow()
 
+    // A one-shot ask to the Activity to request CALL_PHONE for a contact's Call
+    // action (the ViewModel has no Activity to prompt from). The number waiting
+    // on the grant is parked here; the result comes back via
+    // onCallPermissionResult. Same effect-flow shape as keyboardShowRequests.
+    private val _requestCallPermission = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val requestCallPermission: SharedFlow<Unit> = _requestCallPermission.asSharedFlow()
+    private var pendingCallNumber: String? = null
+    // Monotonic token identifying the latest quick-actions-sheet open request.
+    // A contact resolve publishes only while its token is still the latest, so a
+    // stale resolve (superseded tap, dismiss, or fired action) is discarded.
+    // Only touched on the main thread.
+    private var contactResolveToken = 0L
+
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
         // A backup restore or permission auto-reset can leave a content-search
@@ -1082,41 +1099,142 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Opens the tapped (or Enter-targeted) contact as Android's QuickContact
-     * card — the compact call / message / email popup — instead of the full
-     * Contacts screen, so acting on a searched-for person is a single tap from
-     * the keyboard-driven result. The card is drawn by the Contacts app from
-     * the same lookup URI the index already holds, so no phone number is read
-     * and no new permission is needed; a contact with several numbers is
-     * disambiguated by the card itself, and tapping the card's name still opens
-     * the full contact. The search is cleared like an app launch, mirroring
-     * [openEventResult]: only when the handoff actually launched, so a device
-     * with no Contacts app to host the card leaves the query intact rather than
-     * silently erasing it. No launch count is recorded — ranking inside the
-     * section is match-tier + alphabetical, not usage.
+     * Opens the compact quick-actions sheet for a tapped (or Enter-targeted)
+     * contact: resolves the contact's channels off the main thread (Phone,
+     * Message, whatever apps have registered contact actions, Email) and shows
+     * the sheet when they land. The query is left intact while the sheet is up
+     * so dismissing it returns to the search; it is cleared only when an action
+     * actually fires (see [onContactActionSelected]). No launch count is
+     * recorded — ranking inside the section is match-tier + alphabetical.
      */
     fun openContactResult(contact: ContactResult) {
-        LauncherDebugLog.event("openContactResult contactId=${contact.contactId}")
+        val token = ++contactResolveToken
+        LauncherDebugLog.event("openContactResult contactId=${contact.contactId} token=$token")
+        viewModelScope.launch {
+            val channels = withContext(ioDispatcher) { resolveContactChannels(app, contact) }
+            // Drop a resolve the user has already moved past: a slow provider /
+            // PackageManager can return after another contact was tapped, or the
+            // sheet was dismissed, or an action fired. Publishing then would show
+            // the wrong contact's actions or pop a sheet after the user moved on.
+            // The token is only touched on the main thread, so this check races
+            // nothing.
+            if (token != contactResolveToken) {
+                LauncherDebugLog.event("openContactResult superseded token=$token latest=$contactResolveToken")
+                return@launch
+            }
+            LauncherDebugLog.event("openContactResult resolved channels=${channels.size}")
+            _uiState.update { it.copy(contactActions = ContactActions(contact, channels)) }
+        }
+    }
+
+    /** Closes the quick-actions sheet without acting, leaving the search as-is. */
+    fun dismissContactActions() {
+        // Invalidate any in-flight resolve so it can't pop a sheet after dismiss.
+        contactResolveToken++
+        _uiState.update { it.copy(contactActions = null) }
+    }
+
+    /**
+     * Dispatches a chosen quick action. A [ContactActionKind.Launch] (SMS,
+     * email, or a third-party contact row) starts straight away. A
+     * [ContactActionKind.Call] needs `CALL_PHONE`: when it is already granted
+     * the call is placed now, otherwise the number is parked and the Activity is
+     * asked to request the permission (see [onCallPermissionResult]) — nothing
+     * is dispatched yet in that case, so the sheet stays up behind the prompt.
+     */
+    fun onContactActionSelected(action: ContactAction) {
+        when (val kind = action.kind) {
+            is ContactActionKind.Launch -> {
+                LauncherDebugLog.event("onContactActionSelected launch=${kind.intent.debugSummary()}")
+                if (!tryStartContactAction(kind.intent)) return
+                finishContactAction()
+            }
+            is ContactActionKind.Call -> {
+                if (hasCallPhonePermission()) {
+                    placeCall(kind.number)
+                } else {
+                    LauncherDebugLog.event("onContactActionSelected requesting CALL_PHONE")
+                    pendingCallNumber = kind.number
+                    _requestCallPermission.tryEmit(Unit)
+                }
+            }
+        }
+    }
+
+    /**
+     * Continues a call that was waiting on the `CALL_PHONE` prompt: places it
+     * with [placeCall] when granted, or falls back to opening the dialer with
+     * the number pre-filled when refused, so a Call tap is never a dead end.
+     */
+    fun onCallPermissionResult(granted: Boolean) {
+        val number = pendingCallNumber ?: return
+        pendingCallNumber = null
+        LauncherDebugLog.event("onCallPermissionResult granted=$granted")
+        if (granted) {
+            placeCall(number)
+        } else {
+            if (!tryStartContactAction(Intent(Intent.ACTION_DIAL, telUri(number)))) return
+            finishContactAction()
+        }
+    }
+
+    private fun placeCall(number: String) {
+        if (!tryStartContactAction(Intent(Intent.ACTION_CALL, telUri(number)))) return
+        finishContactAction()
+    }
+
+    // Uri.fromParts keeps the whole number as the scheme-specific part rather
+    // than re-parsing it: a "tel:$number" string would treat a `#` in a
+    // service / extension / USSD number as a URI fragment and truncate the dial
+    // string.
+    private fun telUri(number: String): Uri = Uri.fromParts("tel", number, null)
+
+    /**
+     * Starts a quick-action intent, returning whether it launched. A missing
+     * handler (or a revoked `CALL_PHONE` racing the check) leaves the sheet and
+     * query untouched rather than clearing what the user typed, mirroring
+     * [openEventResult]'s no-handler contract.
+     */
+    private fun tryStartContactAction(intent: Intent): Boolean =
+        try {
+            startActivity(intent)
+            true
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.warning("contact action no handler", exception)
+            false
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.warning("contact action denied", exception)
+            false
+        }
+
+    private fun finishContactAction() {
+        // Invalidate any in-flight resolve so it can't re-open a sheet after the
+        // user has already acted and left.
+        contactResolveToken++
+        _uiState.update { it.copy(contactActions = null, isRecentsOpen = false) }
+        setQuery("")
+    }
+
+    private fun hasCallPhonePermission(): Boolean =
+        ContextCompat.checkSelfPermission(app, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Opens the full contact card — the sheet's "Open contact" escape hatch —
+     * as Android's QuickContact screen for everything the compact sheet doesn't
+     * surface. Launched as its own document task (the flags the framework's own
+     * `showQuickContact` helper uses for a non-Activity context) so Back returns
+     * to the launcher, not a Contacts task left in recents.
+     */
+    fun openContactCard(contact: ContactResult) {
+        LauncherDebugLog.event("openContactCard contactId=${contact.contactId}")
         val lookupUri = ContactsContract.Contacts.getLookupUri(contact.contactId, contact.lookupKey)
         val intent = Intent(ContactsContract.QuickContact.ACTION_QUICK_CONTACT).apply {
             data = lookupUri
             putExtra(ContactsContract.QuickContact.EXTRA_MODE, ContactsContract.QuickContact.MODE_LARGE)
-            // Match the flags the framework's own showQuickContact helper adds
-            // for a non-Activity launch context: the card opens as its own
-            // document task (NEW_DOCUMENT) with the singleTop-via-CLEAR_TOP
-            // workaround, so it never nests into a Contacts task the user left
-            // in recents — Back from the card returns to the launcher, not to an
-            // old Contacts screen. startActivity supplies NEW_TASK.
             addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        try {
-            startActivity(intent)
-        } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("openContactResult no activity for quick contact", exception)
-            return
-        }
-        _uiState.update { it.copy(isRecentsOpen = false) }
-        setQuery("")
+        if (!tryStartContactAction(intent)) return
+        finishContactAction()
     }
 
     /**

@@ -735,6 +735,12 @@ internal data class LauncherUiState(
     // as the Settings toggles).
     val contactResults: List<ContactResult> = emptyList(),
     val eventResults: List<AgendaEvent> = emptyList(),
+    // The contact whose compact quick-actions sheet is open, with its resolved
+    // channels, or null when no sheet is showing. Set when a contacts-section
+    // result is tapped or picked with Enter; the query is left intact while the
+    // sheet is up so dismissing it returns to the search, and cleared only once
+    // an action actually fires.
+    val contactActions: ContactActions? = null,
     // User-selected appearance mode. `System` (default) follows the device's
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.
