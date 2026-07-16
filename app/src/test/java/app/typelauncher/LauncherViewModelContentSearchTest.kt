@@ -71,7 +71,12 @@ class LauncherViewModelContentSearchTest {
         viewModel.setQuery("mar")
 
         assertEquals(listOf("Maria Lopez"), viewModel.uiState.value.contactResults.map { it.displayName })
-        assertEquals(listOf("Marathon training"), viewModel.uiState.value.eventResults.map { it.title })
+        val event = viewModel.uiState.value.eventResults.single()
+        assertEquals("Marathon training", event.title)
+        // The time label is formatted per query (not baked into the index), so
+        // a matched event carries a non-blank now-relative time column — the
+        // default fake event starts an hour out, so it's an upcoming timed row.
+        assertTrue("event row must carry a formatted time label", event.displayTime.contains(":"))
         // Blank query empties the sections again — they only exist while typing.
         viewModel.setQuery("")
         assertTrue(viewModel.uiState.value.contactResults.isEmpty())
@@ -244,6 +249,32 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             listOf("Vacation in Lisbon"),
             viewModel.uiState.value.eventResults.map { it.title },
+        )
+    }
+
+    @Test
+    fun dateChangedBroadcastReloadsSearchEventIndex() {
+        // The event index bakes day-relative labels ("Today", "Fri", "Jul 25")
+        // at load time, so the midnight-rollover / clock-change broadcast has
+        // to reload it or the visible rows keep yesterday's labels.
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(emptyList())
+        val calendarProvider = registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        val queriesAfterInitialLoad = calendarProvider.queryCount
+        assertTrue("initial load must query the calendar provider", queriesAfterInitialLoad > 0)
+
+        context.sendBroadcast(Intent(Intent.ACTION_DATE_CHANGED))
+        idle()
+
+        assertTrue(
+            "Date-changed broadcast must reload the search event index",
+            calendarProvider.queryCount > queriesAfterInitialLoad,
         )
     }
 
@@ -426,13 +457,11 @@ class LauncherViewModelContentSearchTest {
         return provider
     }
 
-    private fun registerCalendarProvider(events: List<FakeEvent>) {
+    private fun registerCalendarProvider(events: List<FakeEvent>): FakeQueryProvider {
         // Default begin: one hour from now, so the organizer keeps the event
         // (it drops instances that already ended).
         val defaultBegin = System.currentTimeMillis() + 60 * 60 * 1000
-        ShadowContentResolver.registerProviderInternal(
-            CalendarContract.AUTHORITY,
-            FakeQueryProvider { projection ->
+        val provider = FakeQueryProvider { projection ->
                 val cursor = MatrixCursor(projection)
                 events.forEach { event ->
                     val begin = event.beginMillis ?: defaultBegin
@@ -451,8 +480,9 @@ class LauncherViewModelContentSearchTest {
                     )
                 }
                 cursor
-            },
-        )
+            }
+        ShadowContentResolver.registerProviderInternal(CalendarContract.AUTHORITY, provider)
+        return provider
     }
 
     private fun idle() {
