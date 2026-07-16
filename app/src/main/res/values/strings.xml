@@ -137,6 +137,16 @@
     <string name="settings_search_calendar_title" tools:ignore="MissingTranslation">Search calendar events</string>
     <!-- TODO: translate -->
     <string name="contact_result_starred_description" tools:ignore="MissingTranslation">Starred contact</string>
+    <!-- TODO: translate -->
+    <string name="contact_action_call" tools:ignore="MissingTranslation">Call</string>
+    <!-- TODO: translate -->
+    <string name="contact_action_message" tools:ignore="MissingTranslation">Message</string>
+    <!-- TODO: translate -->
+    <string name="contact_action_email" tools:ignore="MissingTranslation">Email</string>
+    <!-- TODO: translate -->
+    <string name="contact_actions_open_contact" tools:ignore="MissingTranslation">Open contact</string>
+    <!-- TODO: translate -->
+    <string name="contact_actions_choose_number" tools:ignore="MissingTranslation">Choose a number</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>
