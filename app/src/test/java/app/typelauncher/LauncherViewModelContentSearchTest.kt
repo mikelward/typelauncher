@@ -384,7 +384,6 @@ class LauncherViewModelContentSearchTest {
                                 CalendarContract.Instances.BEGIN -> begin
                                 CalendarContract.Instances.END -> end
                                 CalendarContract.Instances.ALL_DAY -> if (event.allDay) 1 else 0
-                                CalendarContract.Instances.DISPLAY_COLOR -> null
                                 else -> null
                             }
                         },

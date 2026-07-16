@@ -185,7 +185,6 @@ private fun AgendaEventsPreview() {
                             isAllDay = true,
                             displayTime = "All day",
                             eventId = 1L,
-                            calendarColor = 0xFF7CB342.toInt(),
                         ),
                         AgendaEvent(
                             title = "Planning",
@@ -194,7 +193,6 @@ private fun AgendaEventsPreview() {
                             isAllDay = false,
                             displayTime = "10:00 AM",
                             eventId = 2L,
-                            calendarColor = 0xFF1A73E8.toInt(),
                         ),
                         AgendaEvent(
                             title = "Design review",
@@ -203,7 +201,6 @@ private fun AgendaEventsPreview() {
                             isAllDay = false,
                             displayTime = "1:30 PM",
                             eventId = 3L,
-                            calendarColor = 0xFFD50000.toInt(),
                         ),
                     ),
                 ),

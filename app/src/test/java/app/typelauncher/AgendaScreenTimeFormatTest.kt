@@ -9,10 +9,10 @@ class AgendaScreenTimeFormatTest {
     @Test
     fun timeRange_replacesInternalSpacesWithNonBreakingSpaces() {
         val formatted = formatTimeForRow("12:00 PM \u2013 1:00 PM")
-        assertEquals("12:00\u00A0PM \u2013 1:00\u00A0PM", formatted)
+        assertEquals("12:00\u00A0PM \u2013\u00A01:00\u00A0PM", formatted)
         assertEquals(
-            "the only regular spaces remaining are around the en-dash",
-            2,
+            "the only regular space remaining is before the en-dash",
+            1,
             formatted.count { it == ' ' },
         )
         assertFalse(
@@ -23,15 +23,15 @@ class AgendaScreenTimeFormatTest {
     }
 
     @Test
-    fun timeRange_normalisesAsciiHyphenToEnDashWithBreakableSpaces() {
+    fun timeRange_normalisesAsciiHyphenToEnDashBoundToEndTime() {
         val formatted = formatTimeForRow("12:00-13:00")
-        assertEquals("12:00 \u2013 13:00", formatted)
+        assertEquals("12:00 \u2013\u00A013:00", formatted)
     }
 
     @Test
-    fun timeRange_compactEnDashWithoutSpaces_getsSpacesAroundDash() {
+    fun timeRange_compactEnDashWithoutSpaces_getsSpacedDashBoundToEndTime() {
         val formatted = formatTimeForRow("12:00\u201313:00")
-        assertEquals("12:00 \u2013 13:00", formatted)
+        assertEquals("12:00 \u2013\u00A013:00", formatted)
     }
 
     @Test

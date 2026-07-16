@@ -2748,7 +2748,6 @@ internal class LauncherViewModel(
             CalendarContract.Instances.BEGIN,
             CalendarContract.Instances.END,
             CalendarContract.Instances.ALL_DAY,
-            CalendarContract.Instances.DISPLAY_COLOR,
         )
 
         try {
@@ -2764,7 +2763,6 @@ internal class LauncherViewModel(
                 val beginIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.BEGIN)
                 val endIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.END)
                 val allDayIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.ALL_DAY)
-                val colorIndex = cursor.getColumnIndex(CalendarContract.Instances.DISPLAY_COLOR)
                 while (cursor.moveToNext()) {
                     events += AgendaEvent(
                         title = cursor.getString(titleIndex)?.takeIf { it.isNotBlank() }
@@ -2774,9 +2772,6 @@ internal class LauncherViewModel(
                         isAllDay = cursor.getInt(allDayIndex) == 1,
                         displayTime = "",
                         eventId = cursor.getLong(eventIdIndex),
-                        calendarColor = colorIndex
-                            .takeIf { it >= 0 && !cursor.isNull(it) }
-                            ?.let(cursor::getInt),
                     )
                 }
             }

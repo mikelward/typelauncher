@@ -7,5 +7,4 @@ internal data class AgendaEvent(
     val isAllDay: Boolean,
     val displayTime: String = "",
     val eventId: Long = 0L,
-    val calendarColor: Int? = null,
 )

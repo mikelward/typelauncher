@@ -25,7 +25,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * Renders the typed-search content sections — contact rows (monogram + name)
- * and calendar-event rows (time + color stripe + title) appended after the app
+ * and calendar-event rows (time + title) appended after the app
  * results with a hairline divider between non-empty sections — so the PR
  * `roborazzi-screenshots` artifact captures the mixed list. Also covers the
  * reversed sort (sections render visually above the apps, which stay anchored
@@ -53,7 +53,6 @@ class ContentSearchScreenshotTest {
             isAllDay = false,
             displayTime = "9:00 AM",
             eventId = 10,
-            calendarColor = 0xFF4285F4.toInt(),
         ),
         AgendaEvent(
             title = "Market visit",
@@ -62,7 +61,6 @@ class ContentSearchScreenshotTest {
             isAllDay = false,
             displayTime = "2:30 PM – 4:00 PM",
             eventId = 11,
-            calendarColor = 0xFF34A853.toInt(),
         ),
     )
 

@@ -4,17 +4,14 @@ import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material3.Button
@@ -25,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -198,9 +194,6 @@ private fun AgendaEventRow(
     event: AgendaEvent,
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
 ) {
-    val stripeColor = event.calendarColor
-        ?.let { Color(it) }
-        ?: MaterialTheme.colorScheme.primary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,18 +205,14 @@ private fun AgendaEventRow(
     ) {
         Text(
             text = formatTimeForRow(event.displayTime),
-            style = MaterialTheme.typography.bodyMedium,
+            // bodySmall so a wrapped range's widest half ("– 12:30 PM") fits
+            // the 64dp column; at bodyMedium it breaks mid-word and maxLines
+            // drops the tail.
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Visible,
-            modifier = Modifier.width(72.dp),
-        )
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .heightIn(min = 28.dp)
-                .background(stripeColor, RoundedCornerShape(2.dp))
-                .testTag("$AGENDA_EVENT_STRIPE_TAG:${event.eventId}"),
+            modifier = Modifier.width(64.dp),
         )
         Text(
             text = event.title,
@@ -239,16 +228,19 @@ private val TIME_RANGE_DASH_REGEX = Regex("\\s*[\u2013\u2014-]\\s*")
 
 internal fun formatTimeForRow(rawTime: String): String {
     // For a start/end range, force the whitespace inside each time half to be
-    // non-breaking. The only remaining wrap opportunities are the regular
-    // spaces flanking the en-dash, so the fixed-width time column breaks at
-    // the dash ("12:00\u00A0PM\n\u2013 1:00\u00A0PM") instead of mid-time
-    // ("12:00-13:0\n0"). Single-time strings ("9:30 AM", "All day") pass
-    // through unchanged so tests and accessibility tooling see the natural
-    // text.
+    // non-breaking and bind the en-dash to the end time. The only remaining
+    // wrap opportunity is the regular space after the start time, so the
+    // fixed-width time column breaks at the dash
+    // ("12:00\u00A0PM\n\u2013\u00A01:00\u00A0PM") instead of mid-time
+    // ("12:00-13:0\n0"). And because each line is a single unbreakable
+    // chunk, a long end time can never spill onto a clipped third line; it
+    // draws a few dp past the column edge instead (overflow is Visible).
+    // Single-time strings ("9:30 AM", "All day") pass through unchanged so
+    // tests and accessibility tooling see the natural text.
     val match = TIME_RANGE_DASH_REGEX.find(rawTime) ?: return rawTime
     val before = rawTime.substring(0, match.range.first).replace(' ', '\u00A0')
     val after = rawTime.substring(match.range.last + 1).replace(' ', '\u00A0')
-    return "$before \u2013 $after"
+    return "$before \u2013\u00A0$after"
 }
 
 private fun AgendaEvent.groupDate(zone: ZoneId, today: LocalDate): LocalDate =
