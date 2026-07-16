@@ -2,36 +2,35 @@ package app.typelauncher
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AgendaScreenTimeFormatTest {
     @Test
-    fun timeRange_replacesInternalSpacesWithNonBreakingSpaces() {
+    fun timeRange_replacesInternalSpacesWithNonBreakingSpacesAndDropsDash() {
         val formatted = formatTimeForRow("12:00 PM \u2013 1:00 PM")
-        assertEquals("12:00\u00A0PM \u2013\u00A01:00\u00A0PM", formatted)
+        assertEquals("12:00\u00A0PM\n1:00\u00A0PM", formatted)
         assertEquals(
-            "the only regular space remaining is before the en-dash",
-            1,
+            "no regular spaces remain; the halves are joined by a newline",
+            0,
             formatted.count { it == ' ' },
         )
         assertFalse(
             "internal whitespace inside each time is non-breaking",
             formatted.startsWith("12:00 ") || formatted.endsWith(" PM"),
         )
-        assertTrue("contains the en-dash separator", formatted.contains('\u2013'))
+        assertFalse("the dash separator is dropped", formatted.contains('\u2013'))
     }
 
     @Test
-    fun timeRange_normalisesAsciiHyphenToEnDashBoundToEndTime() {
+    fun timeRange_normalisesAsciiHyphenToNewline() {
         val formatted = formatTimeForRow("12:00-13:00")
-        assertEquals("12:00 \u2013\u00A013:00", formatted)
+        assertEquals("12:00\n13:00", formatted)
     }
 
     @Test
-    fun timeRange_compactEnDashWithoutSpaces_getsSpacedDashBoundToEndTime() {
+    fun timeRange_compactEnDashWithoutSpaces_getsNewline() {
         val formatted = formatTimeForRow("12:00\u201313:00")
-        assertEquals("12:00 \u2013\u00A013:00", formatted)
+        assertEquals("12:00\n13:00", formatted)
     }
 
     @Test

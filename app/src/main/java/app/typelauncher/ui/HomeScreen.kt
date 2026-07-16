@@ -4382,7 +4382,7 @@ private fun EventResultRow(
     ) {
         Text(
             text = formatTimeForRow(event.displayTime),
-            // bodySmall so a wrapped range's widest half ("– 12:30 PM") fits
+            // bodySmall so a stacked range's widest half ("12:30 PM") fits
             // the 64dp column; at bodyMedium it breaks mid-word and maxLines
             // drops the tail.
             style = MaterialTheme.typography.bodySmall,
