@@ -396,15 +396,39 @@ jobs:
           git commit -m "ci: refresh recorded screenshots"
           push_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           if ! git push "$push_url" "HEAD:${GITHUB_HEAD_REF}"; then
+            # The branch can vanish mid-run: the PR merged (or closed) while
+            # this job was still recording and GitHub auto-deleted the head
+            # ref, so there is nowhere left to sync the drift to. That is not
+            # broken automation — the tree the drift was recorded against is
+            # already merged or moot — so it downgrades to a warning like the
+            # lost race below. Only that specific case is benign: ls-remote
+            # --exit-code exits 2 exactly when the remote answered and the
+            # ref does not exist, while auth/transport failures exit
+            # differently and must still fail the job, or drift would hide
+            # under a green check. (The step runs under bash -e, so the
+            # probe's exit code is captured with the guard toggled off.)
+            set +e
+            remote_ref=$(git ls-remote --exit-code "$push_url" "refs/heads/${GITHUB_HEAD_REF}")
+            ref_status=$?
+            set -e
+            if [ "$ref_status" -eq 2 ]; then
+              echo "::warning::Branch ${GITHUB_HEAD_REF} no longer exists (PR merged or closed while this job ran); skipping the screenshot refresh push."
+              exit 0
+            fi
+            if [ "$ref_status" -ne 0 ]; then
+              echo "::error::Could not query refs/heads/${GITHUB_HEAD_REF} on the remote (ls-remote exit ${ref_status}); the snapshot sync automation is broken."
+              exit 1
+            fi
             # Only a genuine lost race — someone pushed to the branch while
             # this job ran, so the remote head no longer matches the commit we
             # built on (HEAD^) — is downgraded to a warning; the next run
-            # re-records and retries. Any other failure (auth, branch
-            # protection, network) means the sync automation itself is broken
-            # and must fail the job rather than leave drift uncommitted under
-            # a green check.
-            git fetch "$push_url" "refs/heads/${GITHUB_HEAD_REF}"
-            if [ "$(git rev-parse FETCH_HEAD)" != "$(git rev-parse HEAD^)" ]; then
+            # re-records and retries. The comparison uses the SHA the probe
+            # above just returned (ls-remote output is "<sha>\t<ref>"; no
+            # fetch runs in this handler, so FETCH_HEAD would be stale).
+            # Any other failure (auth, branch protection, network) means the
+            # sync automation itself is broken and must fail the job rather
+            # than leave drift uncommitted under a green check.
+            if [ "${remote_ref%%[[:space:]]*}" != "$(git rev-parse HEAD^)" ]; then
               echo "::warning::Screenshot refresh push lost a race with another push to ${GITHUB_HEAD_REF}; the next run will retry."
               exit 0
             fi
