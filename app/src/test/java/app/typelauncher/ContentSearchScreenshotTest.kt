@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -118,6 +119,32 @@ class ContentSearchScreenshotTest {
         composeRule.onNodeWithText("Maria Lopez", useUnmergedTree = true).assertExists()
 
         capture("compose_content_search_contact_photo_robolectric.png")
+    }
+
+    @Test
+    fun contactRows_renderStarBesideStarredContactOnly() {
+        // Starred contacts rank first (see LauncherViewModel.loadContactIndex)
+        // and show a trailing star; a non-starred contact renders the plain
+        // name-beside row with no star. Both contacts here share a tier and
+        // are pre-sorted starred-first, matching what the ViewModel would hand
+        // the row in practice.
+        val mixedContacts = listOf(
+            ContactResult(contactId = 2, lookupKey = "l2", displayName = "Mark Chen", starred = true),
+            ContactResult(contactId = 1, lookupKey = "l1", displayName = "Maria Lopez"),
+        )
+        composeContent(reverseLayout = false, apps = apps, contacts = mixedContacts)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(
+            "$CONTACT_RESULT_STARRED_TAG:Mark Chen",
+            useUnmergedTree = true,
+        ).assertExists()
+        composeRule.onNodeWithTag(
+            "$CONTACT_RESULT_STARRED_TAG:Maria Lopez",
+            useUnmergedTree = true,
+        ).assertDoesNotExist()
+
+        capture("compose_content_search_contact_starred_robolectric.png")
     }
 
     @Test
