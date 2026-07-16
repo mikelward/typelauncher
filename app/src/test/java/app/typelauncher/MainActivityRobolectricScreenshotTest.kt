@@ -451,6 +451,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("9:30 AM").assertIsDisplayed()
         composeRule.onNodeWithText("Design review").assertIsDisplayed()
         composeRule.onNodeWithText("1:00 PM").assertIsDisplayed()
+        composeRule.onNodeWithText("Team lunch").assertIsDisplayed()
+        composeRule.onNodeWithText(formatTimeForRow("12:00 PM – 12:30 PM")).assertIsDisplayed()
         composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$today").assertIsDisplayed()
         composeRule.onNodeWithTag("$AGENDA_DAY_HEADER_TAG:$tomorrow").assertIsDisplayed()
         composeRule.onNodeWithText("Today").assertIsDisplayed()
@@ -3765,6 +3767,14 @@ class MainActivityRobolectricScreenshotTest {
                 isAllDay = false,
                 displayTime = "1:00 PM",
                 eventId = 42L,
+            ),
+            AgendaEvent(
+                title = "Team lunch",
+                beginMillis = today.atTime(12, 0).atZone(zone).toInstant().toEpochMilli(),
+                endMillis = today.atTime(12, 30).atZone(zone).toInstant().toEpochMilli(),
+                isAllDay = false,
+                displayTime = "12:00 PM – 12:30 PM",
+                eventId = 12L,
             ),
             AgendaEvent(
                 title = "Workout",

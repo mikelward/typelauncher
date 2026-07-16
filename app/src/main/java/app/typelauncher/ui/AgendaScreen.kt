@@ -205,7 +205,7 @@ private fun AgendaEventRow(
     ) {
         Text(
             text = formatTimeForRow(event.displayTime),
-            // bodySmall so a wrapped range's widest half ("– 12:30 PM") fits
+            // bodySmall so a stacked range's widest half ("12:30 PM") fits
             // the 64dp column; at bodyMedium it breaks mid-word and maxLines
             // drops the tail.
             style = MaterialTheme.typography.bodySmall,
@@ -227,20 +227,19 @@ private fun AgendaEventRow(
 private val TIME_RANGE_DASH_REGEX = Regex("\\s*[\u2013\u2014-]\\s*")
 
 internal fun formatTimeForRow(rawTime: String): String {
-    // For a start/end range, force the whitespace inside each time half to be
-    // non-breaking and bind the en-dash to the end time. The only remaining
-    // wrap opportunity is the regular space after the start time, so the
-    // fixed-width time column breaks at the dash
-    // ("12:00\u00A0PM\n\u2013\u00A01:00\u00A0PM") instead of mid-time
-    // ("12:00-13:0\n0"). And because each line is a single unbreakable
-    // chunk, a long end time can never spill onto a clipped third line; it
-    // draws a few dp past the column edge instead (overflow is Visible).
-    // Single-time strings ("9:30 AM", "All day") pass through unchanged so
-    // tests and accessibility tooling see the natural text.
+    // For a start/end range, drop the dash entirely and stack the start and
+    // end time on their own line, with the whitespace inside each time half
+    // forced non-breaking so a line never wraps mid-time
+    // ("12:00\u00A0PM\n1:00\u00A0PM" instead of "12:00-13:0\n0"). Because
+    // each line is a single unbreakable chunk, a long end time can never
+    // spill onto a clipped third line; it draws a few dp past the column
+    // edge instead (overflow is Visible). Single-time strings ("9:30 AM",
+    // "All day") pass through unchanged so tests and accessibility tooling
+    // see the natural text.
     val match = TIME_RANGE_DASH_REGEX.find(rawTime) ?: return rawTime
     val before = rawTime.substring(0, match.range.first).replace(' ', '\u00A0')
     val after = rawTime.substring(match.range.last + 1).replace(' ', '\u00A0')
-    return "$before \u2013\u00A0$after"
+    return "$before\n$after"
 }
 
 private fun AgendaEvent.groupDate(zone: ZoneId, today: LocalDate): LocalDate =
