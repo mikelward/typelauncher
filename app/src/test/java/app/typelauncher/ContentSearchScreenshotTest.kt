@@ -39,7 +39,8 @@ class ContentSearchScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    private val apps = listOf("Maps", "Mail").map { installedApp(it) }
+    // Distinct initials so the letter icons differ tile-to-tile.
+    private val apps = listOf("Maps", "Phone", "Camera", "Notes").map { installedApp(it) }
     private val contacts = listOf(
         ContactResult(contactId = 1, lookupKey = "l1", displayName = "Maria Lopez"),
         ContactResult(contactId = 2, lookupKey = "l2", displayName = "Mark Chen"),
@@ -202,13 +203,68 @@ class ContentSearchScreenshotTest {
 
     private fun installedApp(name: String): InstalledApp {
         val component = ComponentName("com.example.${name.lowercase()}", "Main")
+        // Give every fake package a recognizable icon — the app's initial in
+        // white on a colored plate — so the snapshots show real tiles instead
+        // of the blank placeholders an icon-less package renders. A letter
+        // (not a bare color swatch) keeps the tile distinguishable from the
+        // active-first-result highlight, which also paints a colored rounded
+        // square behind the icon. Same addActivityIcon seeding pattern as
+        // AppIconDisambiguatorScreenshotTest.
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        org.robolectric.Shadows.shadowOf(context.packageManager).addActivityIcon(
+            component,
+            LetterIconDrawable(
+                letter = name.first().uppercaseChar(),
+                color = ICON_COLORS[iconColorCursor++ % ICON_COLORS.size],
+            ),
+        )
         return InstalledApp(
             name = name,
             packageName = "com.example.${name.lowercase()}",
             launchIntent = Intent.makeMainActivity(component),
             user = Process.myUserHandle(),
             isWorkApp = false,
-            launchWithLauncherApps = true,
+            // PackageManager path, not LauncherApps: AppIconLoader.resolve
+            // reads LauncherApps.getActivityList for launcher-apps entries,
+            // which Robolectric's shadow leaves empty — the PM path is what
+            // addActivityIcon above seeds.
+            launchWithLauncherApps = false,
+        )
+    }
+
+    private var iconColorCursor = 0
+
+    /** The app's initial in white, centered on a solid colored plate. */
+    private class LetterIconDrawable(
+        private val letter: Char,
+        private val color: Int,
+    ) : android.graphics.drawable.Drawable() {
+        override fun draw(canvas: Canvas) {
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            paint.color = color
+            canvas.drawRect(bounds, paint)
+            paint.color = android.graphics.Color.WHITE
+            paint.textAlign = android.graphics.Paint.Align.CENTER
+            paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            paint.textSize = bounds.height() * 0.55f
+            val centerY = bounds.exactCenterY() - (paint.descent() + paint.ascent()) / 2f
+            canvas.drawText(letter.toString(), bounds.exactCenterX(), centerY, paint)
+        }
+
+        override fun setAlpha(alpha: Int) = Unit
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) = Unit
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = android.graphics.PixelFormat.OPAQUE
+        override fun getIntrinsicWidth(): Int = 108
+        override fun getIntrinsicHeight(): Int = 108
+    }
+
+    private companion object {
+        val ICON_COLORS = intArrayOf(
+            android.graphics.Color.rgb(0x42, 0x85, 0xF4),
+            android.graphics.Color.rgb(0xEA, 0x43, 0x35),
+            android.graphics.Color.rgb(0xFB, 0xBC, 0x05),
+            android.graphics.Color.rgb(0x34, 0xA8, 0x53),
         )
     }
 
