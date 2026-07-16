@@ -4332,10 +4332,10 @@ private fun ContactResultRow(
 }
 
 /**
- * A calendar-events-section row: the agenda row's time-column + color-stripe +
- * title treatment (fixed 72dp time column, 4dp stripe) inside the app list's
- * row geometry, so the event is recognizable as an event without a section
- * header while still aligning with the rows around it.
+ * A calendar-events-section row: the agenda row's time-column + title
+ * treatment (fixed-width time column) inside the app list's row geometry, so
+ * the event is recognizable as an event without a section header while still
+ * aligning with the rows around it.
  */
 @Composable
 private fun EventResultRow(
@@ -4347,9 +4347,6 @@ private fun EventResultRow(
     val highlightOnColor = selectionHighlightOnColor()
     val rowColor = if (isActive) highlightColor else Color.Transparent
     val titleColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
-    val stripeColor = event.calendarColor
-        ?.let { Color(it) }
-        ?: MaterialTheme.colorScheme.primary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -4363,17 +4360,14 @@ private fun EventResultRow(
     ) {
         Text(
             text = formatTimeForRow(event.displayTime),
-            style = MaterialTheme.typography.bodyMedium,
+            // bodySmall so a wrapped range's widest half ("– 12:30 PM") fits
+            // the 64dp column; at bodyMedium it breaks mid-word and maxLines
+            // drops the tail.
+            style = MaterialTheme.typography.bodySmall,
             color = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Visible,
-            modifier = Modifier.width(72.dp),
-        )
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .heightIn(min = 28.dp)
-                .background(stripeColor, RoundedCornerShape(2.dp)),
+            modifier = Modifier.width(64.dp),
         )
         Text(
             text = event.title,

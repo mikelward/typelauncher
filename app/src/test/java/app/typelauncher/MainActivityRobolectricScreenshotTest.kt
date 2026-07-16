@@ -3757,7 +3757,6 @@ class MainActivityRobolectricScreenshotTest {
                 isAllDay = false,
                 displayTime = "9:30 AM",
                 eventId = 1L,
-                calendarColor = 0xFF1A73E8.toInt(),
             ),
             AgendaEvent(
                 title = "Design review",
@@ -3766,7 +3765,6 @@ class MainActivityRobolectricScreenshotTest {
                 isAllDay = false,
                 displayTime = "1:00 PM",
                 eventId = 42L,
-                calendarColor = 0xFFD50000.toInt(),
             ),
             AgendaEvent(
                 title = "Workout",
@@ -3775,7 +3773,6 @@ class MainActivityRobolectricScreenshotTest {
                 isAllDay = false,
                 displayTime = "7:00 AM",
                 eventId = 7L,
-                calendarColor = 0xFF7CB342.toInt(),
             ),
         )
     }
