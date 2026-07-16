@@ -243,6 +243,14 @@ class MainActivity : ComponentActivity() {
     // and on every subsequent `onStart` cycle.
     private var deferStartListening = true
 
+    // The "Show wallpaper" value the current window was built for, captured in
+    // `onCreate` right after `applyWallpaperWindowMode`. The preference observer
+    // compares against it so it recreates the activity only on a genuine runtime
+    // change, never on the StateFlow's initial replay of the value onCreate
+    // already applied (which would loop recreate forever). See
+    // `observeWallpaperShownPreference`.
+    private var appliedWallpaperShown = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
         LauncherDebugLog.event("onCreate savedInstanceState=${savedInstanceState.debugSummary()}")
@@ -311,6 +319,7 @@ class MainActivity : ComponentActivity() {
         // "Show wallpaper" preference before setContent so the first frame is
         // already correct, then keep it in sync as the user toggles the setting.
         applyWallpaperWindowMode(viewModel.uiState.value.isWallpaperShown)
+        appliedWallpaperShown = viewModel.uiState.value.isWallpaperShown
         observeWallpaperShownPreference()
         observeHomeReady()
         checkPlayUpdate()
@@ -596,7 +605,28 @@ class MainActivity : ComponentActivity() {
             viewModel.uiState
                 .map { it.isWallpaperShown }
                 .distinctUntilChanged()
-                .collect(::applyWallpaperWindowMode)
+                .collect { wallpaperShown ->
+                    // Skip the StateFlow's initial replay: `onCreate` already
+                    // applied this value and recorded it, so only a genuine
+                    // runtime toggle reaches the recreate below.
+                    if (wallpaperShown == appliedWallpaperShown) return@collect
+                    // The setting changed while the activity is running.
+                    // Flipping `FLAG_SHOW_WALLPAPER` and the surface format
+                    // (opaque <-> translucent) on the *live* window is a
+                    // surface-format transition, and even after the surface
+                    // settles nothing re-clears Home's transparent wallpaper
+                    // slot when it is later revealed — so the slot keeps whatever
+                    // was last drawn there (the "Settings still showing under
+                    // Home after enabling Show wallpaper from Settings" smear).
+                    // Recreate instead: `onCreate` applies the mode before
+                    // `setContent`, so the window is rebuilt from scratch with
+                    // the correct format from its very first frame, exactly like
+                    // a fresh launch (which never smears). The toggle is a rare,
+                    // deliberate action, so the one-off recreate is acceptable;
+                    // the ViewModel survives it, so no launcher state is lost.
+                    appliedWallpaperShown = wallpaperShown
+                    recreate()
+                }
         }
     }
 
@@ -630,6 +660,15 @@ class MainActivity : ComponentActivity() {
      * didn't repaint after Settings" smear when the flag was toggled per
      * navigation against an opaque surface). Home still flips only its *window
      * background* transparent/opaque as the wallpaper becomes visible/hidden.
+     *
+     * Applied only from `onCreate`, before `setContent`, so the window is built
+     * with the correct flag/format from its first frame. A runtime toggle does
+     * NOT patch the live window — patching a live surface between opaque and
+     * translucent left stale pixels stranded in Home's wallpaper slot (Settings
+     * still showing under Home after enabling the setting from Settings). Instead
+     * `observeWallpaperShownPreference` recreates the activity on a genuine
+     * change, which re-runs this from a clean window — the same path as a fresh
+     * launch.
      */
     private fun applyWallpaperWindowMode(wallpaperShown: Boolean) {
         if (wallpaperShown) {
@@ -638,23 +677,6 @@ class MainActivity : ComponentActivity() {
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
             window.setFormat(PixelFormat.OPAQUE)
-        }
-        // Changing the surface format recreates the window surface. `setFormat`
-        // only *schedules* that relayout, so when the format changes at runtime
-        // it can still be in flight a moment later. That mattered most when
-        // "Show wallpaper" was turned on from Settings: the opaque→translucent
-        // recreation could still be settling when Settings was dismissed, so
-        // Home revealed its transparent wallpaper slot over the old opaque
-        // surface and stranded the previous Settings frame in the slot (Settings
-        // still visible under Home's search box and dock). Forcing the traversal
-        // and a full repaint here runs the recreation while the deliberate toggle
-        // is happening — tens of frames before the user can navigate — instead of
-        // racing the Settings→Home transition. Guarded on an existing decor view
-        // so the pre-`setContent` call from `onCreate` stays a no-op: there the
-        // surface is built with the right format from the start, no recreation.
-        window.peekDecorView()?.let { decor ->
-            decor.requestLayout()
-            decor.invalidate()
         }
         LauncherDebugLog.event("applyWallpaperWindowMode wallpaperShown=$wallpaperShown")
     }

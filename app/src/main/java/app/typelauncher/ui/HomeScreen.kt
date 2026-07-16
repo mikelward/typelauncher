@@ -727,15 +727,16 @@ internal fun HomeScreen(
     // icon contrast (dark icons over a light surface) when the wallpaper is off.
     val surfaceIsLight = homeBackgroundColor.luminance() > 0.5f
     // While "Show wallpaper" is on the window carries `FLAG_SHOW_WALLPAPER` and
-    // a translucent surface format (both applied from the setting in
-    // `MainActivity.applyWallpaperWindowMode`, which also drives the surface
-    // recreation to completion at toggle time so the format flip can't strand
-    // stale pixels in Home's slot). Here we only flip the window *background*
-    // between transparent (revealing the composited wallpaper through the
-    // transparent Home background) and opaque, tracking whether the wallpaper is
-    // actually active on the current Home page. We also set the
-    // status/navigation-bar icon contrast from the wallpaper's own color hints
-    // while it shows, then restore the surface-based contrast.
+    // a translucent surface format, both applied from the setting in
+    // `MainActivity.applyWallpaperWindowMode` at `onCreate` time (a runtime
+    // toggle recreates the activity rather than patching the live surface, so
+    // the format never flips under a live window and can't strand stale pixels
+    // in Home's slot). Here we only flip the window *background* between
+    // transparent (revealing the composited wallpaper through the transparent
+    // Home background) and opaque, tracking whether the wallpaper is actually
+    // active on the current Home page. We also set the status/navigation-bar icon
+    // contrast from the wallpaper's own color hints while it shows, then restore
+    // the surface-based contrast.
     DisposableEffect(wallpaperActive, surfaceIsLight) {
         val window = context.findActivity()?.window
         if (window != null) {
