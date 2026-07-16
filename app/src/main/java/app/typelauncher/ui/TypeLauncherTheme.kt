@@ -8,9 +8,11 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalCursorBlinkEnabled
 
 @Composable
 internal fun TypeLauncherTheme(
@@ -32,11 +34,22 @@ internal fun TypeLauncherTheme(
         darkTheme -> darkScheme
         else -> lightScheme
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content,
-    )
+    // Pin the text-field caret fully visible under Robolectric: the caret
+    // blinks on a wall-clock schedule, so two otherwise identical screenshot
+    // recordings can disagree about whether the capture landed mid-blink,
+    // producing spurious snapshot drift (a caret-only pixel diff). With blink
+    // disabled the caret's alpha snaps to 1 and stays whenever the field is
+    // focused, so recordings are deterministic; on-device behavior is
+    // untouched and the caret blinks as normal.
+    CompositionLocalProvider(LocalCursorBlinkEnabled provides cursorBlinkEnabled) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content,
+        )
+    }
 }
+
+private val cursorBlinkEnabled = !Build.FINGERPRINT.contains("robolectric")
 
 private val lightScheme = lightColorScheme(
     primary = Color(0xFF1E6FFF),
