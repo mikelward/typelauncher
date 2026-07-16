@@ -2660,9 +2660,11 @@ internal class LauncherViewModel(
     /**
      * Loads the in-memory contact index for the typed-search contacts section:
      * every visible aggregated contact (the same set the Contacts app lists —
-     * invisible auto-collected addresses are excluded), pre-sorted with the
-     * locale-aware display-name collator so the per-keystroke filter's stable
-     * sort inherits alphabetical order within each match tier. Runs on
+     * invisible auto-collected addresses are excluded), pre-sorted starred
+     * contacts first (mirroring how the app list floats docked apps to the top
+     * of their match tier) and alphabetically within each starred/non-starred
+     * group via the locale-aware display-name collator, so the per-keystroke
+     * filter's stable sort inherits that order within each match tier. Runs on
      * [ioDispatcher] only; a missing permission or a provider exception yields
      * an empty index rather than an error surface.
      */
@@ -2674,6 +2676,7 @@ internal class LauncherViewModel(
             ContactsContract.Contacts.LOOKUP_KEY,
             ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
             ContactsContract.Contacts.PHOTO_THUMBNAIL_URI,
+            ContactsContract.Contacts.STARRED,
         )
         try {
             app.contentResolver.query(
@@ -2687,6 +2690,7 @@ internal class LauncherViewModel(
                 val lookupIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
                 val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
                 val photoIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_THUMBNAIL_URI)
+                val starredIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.STARRED)
                 while (cursor.moveToNext()) {
                     val name = cursor.getString(nameIndex)?.takeIf { it.isNotBlank() } ?: continue
                     val lookupKey = cursor.getString(lookupIndex) ?: continue
@@ -2695,6 +2699,7 @@ internal class LauncherViewModel(
                         lookupKey = lookupKey,
                         displayName = name,
                         photoThumbnailUri = cursor.getString(photoIndex)?.takeIf { it.isNotBlank() },
+                        starred = cursor.getInt(starredIndex) != 0,
                     )
                 }
             }
@@ -2711,8 +2716,14 @@ internal class LauncherViewModel(
         }
         // Sort here, once per load, rather than per keystroke: the filter's
         // stable tier sort keeps this order as the within-tier tie-break.
+        // Starred (descending, so true sorts first) is the primary key so a
+        // favorited contact always ranks above a non-favorited one within the
+        // same match tier; alphabetical is the tie-break within each group.
         val order = displayNameOrder()
-        return contacts.sortedWith(compareBy(order) { contact -> contact.displayName })
+        return contacts.sortedWith(
+            compareByDescending<ContactResult> { contact -> contact.starred }
+                .thenBy(order) { contact -> contact.displayName },
+        )
     }
 
     /**
