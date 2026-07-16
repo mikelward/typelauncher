@@ -83,6 +83,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -4284,7 +4285,11 @@ private fun ContentSectionDivider() {
  * letter on a secondary-container plate. The photo decodes asynchronously off
  * the main thread ([rememberContactPhotoResolution]) with the monogram as the
  * placeholder, so the keystroke path never blocks on image IO — the row is
- * fully usable before (and without) the swap-in.
+ * fully usable before (and without) the swap-in. A starred contact
+ * ([ContactResult.starred] — the ranking signal, see `ContentSearch.kt`) shows
+ * a small trailing star after the name, at the row's fixed far edge — the
+ * same position Gmail and the Contacts app use for a favorite indicator — so
+ * the star reads as a row-level badge rather than name punctuation.
  */
 @Composable
 private fun ContactResultRow(
@@ -4350,8 +4355,27 @@ private fun ContactResultRow(
             style = MaterialTheme.typography.titleMedium,
             color = textColor,
         )
+        if (contact.starred) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = stringResource(R.string.contact_result_starred_description),
+                tint = CONTACT_STARRED_STAR_COLOR,
+                modifier = Modifier
+                    .size(20.dp)
+                    .testTag("$CONTACT_RESULT_STARRED_TAG:${contact.displayName}"),
+            )
+        }
     }
 }
+
+// The traditional Material/Android "favorite" gold (Material Amber 500),
+// fixed rather than derived from the dynamic color scheme — same rationale
+// as selectionHighlightColor: a star only reads as "starred" at a glance if
+// it keeps the color people already associate with the concept (Gmail,
+// Contacts), which the dynamic per-wallpaper palette can't guarantee. Unlike
+// that highlight it does not need a separate dark-mode value: this amber has
+// enough contrast against both the light and dark card surface.
+private val CONTACT_STARRED_STAR_COLOR = Color(0xFFFFC107)
 
 /**
  * A calendar-events-section row: the agenda row's time-column + title

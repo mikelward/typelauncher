@@ -135,6 +135,8 @@
     <string name="settings_search_contacts_title" tools:ignore="MissingTranslation">Search contacts</string>
     <!-- TODO: translate -->
     <string name="settings_search_calendar_title" tools:ignore="MissingTranslation">Search calendar events</string>
+    <!-- TODO: translate -->
+    <string name="contact_result_starred_description" tools:ignore="MissingTranslation">Starred contact</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>
