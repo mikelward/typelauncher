@@ -6,11 +6,18 @@ package app.typelauncher
  * needs to open the contact card, and the display name is what search matches
  * and the row renders. The full index is held in memory so the per-keystroke
  * filter never touches the content resolver (see `LauncherViewModel`).
+ *
+ * [photoThumbnailUri] is the contact's `PHOTO_THUMBNAIL_URI` when the contact
+ * has a photo, or null for the monogram fallback. Only the URI string lives in
+ * the index — the bitmap itself is decoded lazily per rendered row (see
+ * `ContactPhotoLoader`), so indexing a thousand contacts never reads a single
+ * photo blob.
  */
 internal data class ContactResult(
     val contactId: Long,
     val lookupKey: String,
     val displayName: String,
+    val photoThumbnailUri: String? = null,
 )
 
 /**

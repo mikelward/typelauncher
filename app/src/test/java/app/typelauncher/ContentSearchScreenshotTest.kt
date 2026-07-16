@@ -24,13 +24,14 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the typed-search content sections — contact rows (monogram + name)
- * and calendar-event rows (time + title) appended after the app
- * results with a hairline divider between non-empty sections — so the PR
+ * Renders the typed-search content sections — contact rows (photo-or-monogram
+ * circle + name) and calendar-event rows (time + title) appended after the
+ * app results with a hairline divider between non-empty sections — so the PR
  * `roborazzi-screenshots` artifact captures the mixed list. Also covers the
  * reversed sort (sections render visually above the apps, which stay anchored
- * to the bottom) and the zero-app-match state (first content row takes the
- * active-row highlight as the Enter target, with no leading divider).
+ * to the bottom), the zero-app-match state (first content row takes the
+ * active-row highlight as the Enter target, with no leading divider), and the
+ * contact-photo row (thumbnail circle beside a monogram fallback row).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -96,10 +97,34 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun contactRows_renderPhotoThumbnailWithMonogramFallback() {
+        // One contact with a photo (decoded async from the shadow resolver's
+        // registered stream — the capture helper waits for the swap-in), one
+        // without: the row renders the circle-cropped thumbnail when a photo
+        // exists and keeps the monogram otherwise.
+        registerContactPhoto(PHOTO_URI)
+        val mixedContacts = listOf(
+            ContactResult(
+                contactId = 1,
+                lookupKey = "l1",
+                displayName = "Maria Lopez",
+                photoThumbnailUri = PHOTO_URI,
+            ),
+            ContactResult(contactId = 2, lookupKey = "l2", displayName = "Mark Chen"),
+        )
+        composeContent(reverseLayout = false, apps = apps, contacts = mixedContacts)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Maria Lopez", useUnmergedTree = true).assertExists()
+
+        capture("compose_content_search_contact_photo_robolectric.png")
+    }
+
+    @Test
     fun contentSections_renderAsRowsUnderIconOnlyGrid() {
         // The app grid honors the "Icon only" style; the content sections stay
-        // full-span name-beside rows below it (events have no tile form, and a
-        // nameless contact tile is useless until profile photos exist).
+        // full-span name-beside rows below it (events have no tile form, and
+        // contacts keep the name-beside row so the name stays scannable).
         composeContent(reverseLayout = false, apps = apps, layout = AppListLayout.IconOnly)
         composeRule.waitForIdle()
 
@@ -169,6 +194,7 @@ class ContentSearchScreenshotTest {
         reverseLayout: Boolean,
         apps: List<InstalledApp>,
         layout: AppListLayout = AppListLayout.NameBeside,
+        contacts: List<ContactResult> = this.contacts,
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -232,6 +258,30 @@ class ContentSearchScreenshotTest {
 
     private var iconColorCursor = 0
 
+    /**
+     * Registers a decodable photo blob for [uri] on the shadow resolver: a
+     * simple avatar (light head-and-shoulders silhouette on a teal plate) so
+     * the snapshot visibly shows a photo thumbnail rather than anything that
+     * could be mistaken for the monogram fallback.
+     */
+    private fun registerContactPhoto(uri: String) {
+        val size = 96
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        paint.color = android.graphics.Color.rgb(0x00, 0x69, 0x6B)
+        canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
+        paint.color = android.graphics.Color.rgb(0xF2, 0xDF, 0xCE)
+        canvas.drawCircle(size / 2f, size * 0.38f, size * 0.2f, paint)
+        canvas.drawOval(size * 0.2f, size * 0.62f, size * 0.8f, size * 1.1f, paint)
+        val bytes = java.io.ByteArrayOutputStream()
+            .also { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
+            .toByteArray()
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        org.robolectric.Shadows.shadowOf(context.contentResolver)
+            .registerInputStream(android.net.Uri.parse(uri), java.io.ByteArrayInputStream(bytes))
+    }
+
     /** The app's initial in white, centered on a solid colored plate. */
     private class LetterIconDrawable(
         private val letter: Char,
@@ -258,6 +308,7 @@ class ContentSearchScreenshotTest {
     }
 
     private companion object {
+        const val PHOTO_URI = "content://com.android.contacts/contacts/1/photo"
         val ICON_COLORS = intArrayOf(
             android.graphics.Color.rgb(0x42, 0x85, 0xF4),
             android.graphics.Color.rgb(0xEA, 0x43, 0x35),
