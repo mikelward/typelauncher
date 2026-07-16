@@ -123,7 +123,14 @@ internal object ContactPhotoLoader {
             ?.use { stream -> BitmapFactory.decodeStream(stream) }
         raw?.let { cropScaleToSquare(it, sizePx).asImageBitmap() }
     } catch (exception: Exception) {
-        LauncherDebugLog.warning("ContactPhotoLoader decode failed for $photoUri", exception)
+        // Message only, no URI and no throwable: warnings mirror into
+        // Crashlytics breadcrumbs (and recordException uploads the throwable),
+        // and both the photo URI and a provider exception's own message can
+        // identify a contact — PRIVACY.md promises breadcrumbs carry no
+        // contact data. The exception class is the useful non-identifying
+        // signal; the full stack still lands in logcat for local debugging.
+        LauncherDebugLog.warning("ContactPhotoLoader decode failed: ${exception.javaClass.simpleName}")
+        LauncherDebugLog.trace("ContactPhotoLoader decode failure detail: $exception")
         null
     }
 
