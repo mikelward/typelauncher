@@ -85,6 +85,63 @@ internal data class ContactAction(
 )
 
 /**
+ * One row of the in-list contact-actions mode. Step one lists the contact's
+ * [Channel]s plus the trailing [OpenContact] escape hatch; drilling into a
+ * channel with more than one action replaces them with that channel's [Action]
+ * rows (step two). Every row exposes a [label] so the mode filters by the same
+ * launcher matcher the app list uses and Enter fires the first row — the mode
+ * navigates exactly like typing to launch an app.
+ */
+internal sealed interface ContactActionRow {
+    val label: String
+
+    data class Channel(val channel: ContactChannel) : ContactActionRow {
+        override val label: String get() = channel.label
+    }
+
+    data class Action(val channel: ContactChannel, val action: ContactAction) : ContactActionRow {
+        override val label: String get() = action.label
+    }
+
+    /** The "Open contact" escape hatch. Its localized [label] is passed in from resources. */
+    data class OpenContact(override val label: String) : ContactActionRow
+}
+
+/**
+ * The rows to show in the in-list contact-actions mode, filtered by [query].
+ * When [selectedChannelId] names a channel, that channel's actions are shown
+ * (step two); otherwise the channel list plus a trailing "Open contact" row
+ * ([openContactLabel]) is shown (step one). A non-blank query keeps only rows
+ * whose label matches the launcher matcher — restricted to the precise tiers
+ * (prefix → anchored → substring), the same tiers content search admits, since
+ * these are short curated labels where fuzzy/brand matches would only add noise
+ * — ordered best tier first so Enter (the first row) fires the closest match.
+ */
+internal fun ContactActions.visibleRows(
+    selectedChannelId: String?,
+    query: String,
+    openContactLabel: String,
+): List<ContactActionRow> {
+    val selected = selectedChannelId?.let { id -> channels.firstOrNull { it.id == id } }
+    val rows: List<ContactActionRow> = if (selected != null) {
+        selected.actions.map { action -> ContactActionRow.Action(selected, action) }
+    } else {
+        channels.map { channel -> ContactActionRow.Channel(channel) } +
+            ContactActionRow.OpenContact(openContactLabel)
+    }
+    val trimmed = query.trim()
+    if (trimmed.isEmpty()) return rows
+    return rows
+        .mapNotNull { row ->
+            row.label.launcherMatchTier(trimmed)
+                ?.takeIf { tier -> tier.ordinal <= LauncherMatchTier.Substring.ordinal }
+                ?.let { tier -> row to tier }
+        }
+        .sortedBy { (_, tier) -> tier.ordinal }
+        .map { (row, _) -> row }
+}
+
+/**
  * How an action is dispatched. [Call] is special: it is placed with
  * `ACTION_CALL` after a one-time `CALL_PHONE` grant (falling back to the dialer
  * when the permission is refused), so it carries the raw [number] rather than a
