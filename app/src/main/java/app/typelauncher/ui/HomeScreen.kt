@@ -5698,6 +5698,24 @@ internal fun SettingsScreen(
     // Home's mechanism. Off the wallpaper path this is a plain opaque fill and
     // Settings is unchanged.
     val settingsBackgroundColor = MaterialTheme.colorScheme.background
+    val context = LocalContext.current
+    val view = LocalView.current
+    // While the wallpaper backs Settings (same backdrop as Home), refine the
+    // status/navigation-bar icon contrast from the wallpaper's own colors,
+    // exactly as Home does — the surface-based contrast left by the theme or
+    // by Home's bar effect stands until the off-main-thread lookup resolves.
+    // Home re-applies its own contrast when Settings closes, so nothing needs
+    // restoring on the way out.
+    LaunchedEffect(state.isWallpaperShown) {
+        if (!state.isWallpaperShown) return@LaunchedEffect
+        val darkIcons = withContext(Dispatchers.IO) { wallpaperSupportsDarkText(context) }
+            ?: return@LaunchedEffect
+        context.findActivity()?.window?.let { window ->
+            val bars = WindowInsetsControllerCompat(window, view)
+            bars.isAppearanceLightStatusBars = darkIcons
+            bars.isAppearanceLightNavigationBars = darkIcons
+        }
+    }
     // Fade Settings' own cards to the user's "Card opacity" while the wallpaper
     // is behind them — the same treatment Home's cards get — so the whole page
     // follows one wallpaper/transparency/opacity model. Scoped to the page
