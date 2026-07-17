@@ -115,18 +115,13 @@ class MainActivityRobolectricScreenshotTest {
 
     @Test
     fun wallpaper_replacesAppListOnEmptyHomeUntilTyping() {
-        // Default: the app list is the empty-Home surface, no wallpaper slot.
-        composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
-        composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertDoesNotExist()
+        // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule):
+        // a runtime toggle restarts the activity through a fresh start — the fix
+        // for the stale-Settings-under-Home smear — which the ActivityScenario
+        // behind the compose rule can't follow. The toggle-path wiring is covered
+        // by wallpaperShownSetting_toggleRestartsThroughFreshLaunch.
 
-        // Turn on "Show wallpaper" through Settings — exercises the whole
-        // string/switch/callback/ViewModel/state wiring end to end.
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        // Empty Home now shows the wallpaper slot in place of the app list; the
+        // Empty Home shows the wallpaper slot in place of the app list; the
         // search box stays visible (the gate) so the user can still type.
         composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(APPS_CARD_TAG).assertDoesNotExist()
@@ -150,7 +145,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun wallpaperShownSetting_togglesWindowWallpaperFlagAndSurfaceFormat() {
+    fun wallpaperShownSetting_toggleRestartsThroughFreshLaunch() {
         // Default (setting off): no FLAG_SHOW_WALLPAPER on the window and an
         // opaque surface, so the launcher composites no wallpaper, forwards no
         // touches to a live wallpaper, and keeps ordinary Home fully opaque —
@@ -162,31 +157,40 @@ class MainActivityRobolectricScreenshotTest {
             composeRule.activity.window.attributes.format,
         )
 
-        // Turning "Show wallpaper" on requests the flag AND flips the surface to
-        // a translucent format. The translucent format is what makes the
-        // compositor clear the surface every frame, so Home's transparent
-        // wallpaper slot reveals the live wallpaper rather than stale pixels; if
-        // this regressed to an opaque surface the slot would strand whatever was
-        // last drawn there (e.g. the Settings screen still showing under Home).
+        // Turning "Show wallpaper" on must NOT patch the live window: flipping
+        // the surface between opaque and translucent in place (whether directly
+        // or via recreate()) left the rebuilt window compositing as opaque
+        // on-device, stranding the old Settings frame in Home's transparent
+        // wallpaper slot. The activity instead finishes and relaunches itself
+        // through the same fresh-start path as a cold launch, asking the new
+        // instance to reopen Settings so the user stays where they toggled.
+        val activity = composeRule.activity
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000) { windowRequestsWallpaper() }
-        assertTrue(windowRequestsWallpaper())
-        assertEquals(
-            "surface format after enabling wallpaper",
-            PixelFormat.TRANSLUCENT,
-            composeRule.activity.window.attributes.format,
-        )
+        composeRule.waitUntil(timeoutMillis = 5_000) { activity.isFinishing }
 
-        // Turning it back off clears the flag and reverts to an opaque surface.
-        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000) { !windowRequestsWallpaper() }
-        assertFalse(windowRequestsWallpaper())
+        val restart = shadowOf(activity).nextStartedActivity
+        assertTrue("restart intent should be launched", restart != null)
         assertEquals(
-            "surface format after disabling wallpaper",
-            PixelFormat.OPAQUE,
-            composeRule.activity.window.attributes.format,
+            "restart should relaunch the launcher activity",
+            MainActivity::class.java.name,
+            restart.component?.className,
         )
+        assertTrue(
+            "restart should reopen Settings",
+            restart.getBooleanExtra(EXTRA_REOPEN_SETTINGS, false),
+        )
+        // NEW_TASK + CLEAR_TASK guarantee a brand-new root instance under the
+        // singleTask launch mode instead of onNewIntent delivery to the dying
+        // instance, whose window would keep the old surface format.
+        assertEquals(
+            "restart should force a fresh root instance",
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK,
+            restart.flags and (Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+        )
+        // Launch-time window state for the wallpaper-on path (FLAG_SHOW_WALLPAPER
+        // + translucent surface) is asserted in WallpaperWindowModeRestartTest,
+        // which can launch with the preference pre-persisted.
     }
 
     private fun windowRequestsWallpaper(): Boolean =
@@ -196,15 +200,15 @@ class MainActivityRobolectricScreenshotTest {
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
     fun wallpaper_notShownWhenSearchBoxHidden() {
+        // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule)
+        // because a runtime toggle restarts the activity, which the compose
+        // rule's scenario can't follow.
         composeRule.waitForIdle()
         // Cramped landscape (Compact) hides the search box, so the app list is
         // the only launch surface — the wallpaper must not take it over even
         // with the setting on, or the user would be stranded with nothing to
         // type into and no list.
         composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
-        composeRule.runOnUiThread { composeRule.activity.viewModel.setWallpaperShown(true) }
-        composeRule.waitForIdle()
-
         composeRule.onNodeWithTag(HOME_WALLPAPER_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(APPS_CARD_TAG).assertIsDisplayed()
     }
@@ -217,11 +221,19 @@ class MainActivityRobolectricScreenshotTest {
         // The slider only affects the wallpaper backdrop, so it's disabled until
         // Show wallpaper is turned on.
         composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).performScrollTo().assertIsNotEnabled()
+    }
 
-        composeRule.onNodeWithTag(WALLPAPER_SHOWN_SWITCH_TAG).performScrollTo().performClick()
+    @Test
+    fun cardOpacitySlider_enabledWhenShowWallpaperIsOn() {
+        // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule):
+        // toggling it at runtime restarts the activity, which the compose rule's
+        // scenario can't follow, so the enabled state is asserted on a launch
+        // that already has the setting on — the same state the restarted
+        // instance lands in after a real toggle.
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).assertIsEnabled()
+        composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).performScrollTo().assertIsEnabled()
     }
 
     @Test
@@ -3737,6 +3749,20 @@ class MainActivityRobolectricScreenshotTest {
                             configFingerprint = null,
                             source = KeyboardReservationSource.VisibleIme,
                         )
+                    }
+                    if (description.methodName in listOf(
+                            "wallpaper_replacesAppListOnEmptyHomeUntilTyping",
+                            "wallpaper_notShownWhenSearchBoxHidden",
+                            "cardOpacitySlider_enabledWhenShowWallpaperIsOn",
+                        )
+                    ) {
+                        // "Show wallpaper" must be on before the activity
+                        // launches: toggling it at runtime finishes the
+                        // activity and starts a fresh instance (see
+                        // MainActivity.restartForWallpaperWindowMode), which
+                        // the ActivityScenario behind the compose rule cannot
+                        // follow.
+                        DockSettingsStore(application).isWallpaperShown = true
                     }
                     if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveWithKeyboardDown") {
                         // A keyboard height already cached for this landscape size

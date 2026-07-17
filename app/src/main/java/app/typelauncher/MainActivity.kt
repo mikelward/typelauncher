@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.Manifest
+import android.app.ActivityOptions
 import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
@@ -42,6 +43,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+// Set on the restart intent `restartForWallpaperWindowMode` launches so the
+// replacement instance reopens Settings, keeping the user where they were when
+// they flipped the "Show wallpaper" switch. Honored only when
+// `savedInstanceState` is null: a configuration change redelivers the same
+// intent, and re-opening Settings on every rotation after the user closed them
+// would be wrong.
+internal const val EXTRA_REOPEN_SETTINGS = "app.typelauncher.REOPEN_SETTINGS"
 
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
@@ -313,6 +322,18 @@ class MainActivity : ComponentActivity() {
         }
         playUpdateChecker.setInstallStatusListener(viewModel::onPlayUpdateInstallStatus)
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
+        // A "Show wallpaper" toggle restarts the launcher through a fresh
+        // activity start (see `restartForWallpaperWindowMode`); the restart
+        // intent asks the new instance to land back in Settings so the toggle
+        // doesn't kick the user out to Home. Gated on a null
+        // `savedInstanceState` because a configuration change redelivers the
+        // same intent, and reopening Settings on every rotation after the user
+        // closed them would be wrong.
+        if (savedInstanceState == null &&
+            intent?.getBooleanExtra(EXTRA_REOPEN_SETTINGS, false) == true
+        ) {
+            viewModel.openSettings()
+        }
         // Apply the persisted keyboard-auto-show preference before setContent
         // so the cold-start IME state matches the setting on the very first
         // frame. Compose owns the Home search focus target; the window keeps
@@ -626,26 +647,54 @@ class MainActivity : ComponentActivity() {
                 .collect { wallpaperShown ->
                     // Skip the StateFlow's initial replay: `onCreate` already
                     // applied this value and recorded it, so only a genuine
-                    // runtime toggle reaches the recreate below.
+                    // runtime toggle reaches the restart below.
                     if (wallpaperShown == appliedWallpaperShown) return@collect
                     // The setting changed while the activity is running.
                     // Flipping `FLAG_SHOW_WALLPAPER` and the surface format
-                    // (opaque <-> translucent) on the *live* window is a
-                    // surface-format transition, and even after the surface
-                    // settles nothing re-clears Home's transparent wallpaper
-                    // slot when it is later revealed — so the slot keeps whatever
-                    // was last drawn there (the "Settings still showing under
-                    // Home after enabling Show wallpaper from Settings" smear).
-                    // Recreate instead: `onCreate` applies the mode before
-                    // `setContent`, so the window is rebuilt from scratch with
-                    // the correct format from its very first frame, exactly like
-                    // a fresh launch (which never smears). The toggle is a rare,
-                    // deliberate action, so the one-off recreate is acceptable;
-                    // the ViewModel survives it, so no launcher state is lost.
+                    // (opaque <-> translucent) needs a window rebuilt from
+                    // scratch, and `recreate()` is not enough: on-device, the
+                    // window that comes back from an in-place relaunch still
+                    // composites as opaque, so Home's transparent wallpaper
+                    // slot keeps showing whatever was drawn before (the
+                    // "Settings still visible under Home after enabling Show
+                    // wallpaper" smear survived the recreate() approach). Only
+                    // a genuinely fresh activity start — the same path as a
+                    // cold launch, which is verified clean — reliably builds
+                    // the window with the new format from its first frame. The
+                    // toggle is a rare, deliberate action, so the one-off
+                    // restart (and the state reload it implies) is acceptable.
                     appliedWallpaperShown = wallpaperShown
-                    recreate()
+                    restartForWallpaperWindowMode()
                 }
         }
+    }
+
+    /**
+     * Tears this instance down and starts a fresh one, carrying
+     * [EXTRA_REOPEN_SETTINGS] so the replacement reopens Settings where the
+     * user flipped the switch. Used instead of [recreate] for "Show wallpaper"
+     * toggles: an in-place relaunch reuses activity/window state, and on-device
+     * the rebuilt window kept compositing as opaque — leaving the previous
+     * screen's pixels stranded in Home's transparent wallpaper slot — while a
+     * true fresh start builds the window through the same path as a cold
+     * launch, which shows the wallpaper correctly. The transition is animated
+     * away so the swap reads as an in-place refresh, matching what recreate()
+     * looked like.
+     */
+    private fun restartForWallpaperWindowMode() {
+        val restart = Intent(this, MainActivity::class.java)
+            .putExtra(EXTRA_REOPEN_SETTINGS, true)
+            // Hardening for the singleTask launch mode: intent delivery already
+            // skips a finishing instance (finish() below runs before
+            // startActivity, and only non-finishing activities are eligible for
+            // onNewIntent reuse), but CLEAR_TASK makes the fresh-root guarantee
+            // explicit — the home task is cleared down to a brand-new root
+            // instance instead of relying on that exclusion, so the restart can
+            // never be routed to this dying instance.
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        finish()
+        startActivity(restart, ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle())
+        LauncherDebugLog.event("restartForWallpaperWindowMode")
     }
 
     /**
@@ -683,10 +732,13 @@ class MainActivity : ComponentActivity() {
      * with the correct flag/format from its first frame. A runtime toggle does
      * NOT patch the live window — patching a live surface between opaque and
      * translucent left stale pixels stranded in Home's wallpaper slot (Settings
-     * still showing under Home after enabling the setting from Settings). Instead
-     * `observeWallpaperShownPreference` recreates the activity on a genuine
-     * change, which re-runs this from a clean window — the same path as a fresh
-     * launch.
+     * still showing under Home after enabling the setting from Settings), and
+     * `recreate()` was not enough either: on-device the relaunched window still
+     * composited as opaque, so the smear survived. Instead
+     * `observeWallpaperShownPreference` finishes the activity and starts a
+     * fresh instance on a genuine change (`restartForWallpaperWindowMode`), so
+     * this runs against a window built through the same path as a cold launch —
+     * the one path verified to composite the wallpaper correctly.
      */
     private fun applyWallpaperWindowMode(wallpaperShown: Boolean) {
         if (wallpaperShown) {
