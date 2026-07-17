@@ -2,6 +2,8 @@ package app.typelauncher
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
 import android.content.ActivityNotFoundException
 import android.os.Build
 import android.widget.Toast
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -47,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -481,6 +485,32 @@ internal fun TypeLauncherApp(
     LaunchedEffect(Unit) {
         withFrameNanos { }
         homeBodyReady = true
+    }
+    // Single owner of the window *background*, keyed on the persisted "Show
+    // wallpaper" setting: transparent while the setting is on (so any screen's
+    // transparent regions — Home's wallpaper slot, Settings' page margins and
+    // preview slot — reveal the composited `FLAG_SHOW_WALLPAPER` wallpaper),
+    // opaque theme background otherwise. This deliberately lives here, above
+    // every screen, instead of in per-screen DisposableEffects: Home and
+    // Settings used to hand the background back and forth on navigation, and
+    // on-device that left Settings sitting on an opaque background (gray where
+    // the wallpaper should show) even though the same hand-off passed under
+    // Robolectric. One owner, keyed on the setting, has no hand-off to race.
+    // Screens that don't want the wallpaper behind them paint their own opaque
+    // background full-bleed (they already do — see the Scaffold note below).
+    val windowBackgroundColor = MaterialTheme.colorScheme.background
+    val windowContext = LocalContext.current
+    DisposableEffect(state.isWallpaperShown, windowBackgroundColor) {
+        windowContext.findActivity()?.window?.setBackgroundDrawable(
+            ColorDrawable(
+                if (state.isWallpaperShown) {
+                    AndroidColor.TRANSPARENT
+                } else {
+                    windowBackgroundColor.toArgb()
+                },
+            ),
+        )
+        onDispose {}
     }
     Scaffold(
         // Transparent so Home's "Show wallpaper" hole can reach the window

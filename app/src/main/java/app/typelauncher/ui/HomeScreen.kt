@@ -5,8 +5,6 @@ import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color as AndroidColor
-import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.view.KeyEvent
 import android.widget.Toast
@@ -119,21 +117,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.ClipOp
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -141,7 +132,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -736,28 +726,18 @@ internal fun HomeScreen(
     // Whether Home's solid background is light — used to restore the system-bar
     // icon contrast (dark icons over a light surface) when the wallpaper is off.
     val surfaceIsLight = homeBackgroundColor.luminance() > 0.5f
-    // While "Show wallpaper" is on the window carries `FLAG_SHOW_WALLPAPER` and
-    // a translucent surface format, both applied from the setting in
-    // `MainActivity.applyWallpaperWindowMode` at `onCreate` time (a runtime
-    // toggle recreates the activity rather than patching the live surface, so
-    // the format never flips under a live window and can't strand stale pixels
-    // in Home's slot). Here we only flip the window *background* between
-    // transparent (revealing the composited wallpaper through the transparent
-    // Home background) and opaque, tracking whether the wallpaper is actually
-    // active on the current Home page. We also set the status/navigation-bar icon
-    // contrast from the wallpaper's own color hints while it shows, then restore
-    // the surface-based contrast.
+    // The window *background* is owned by `TypeLauncherApp` (transparent
+    // whenever "Show wallpaper" is on, opaque otherwise) — it is deliberately
+    // NOT flipped per screen. Per-screen DisposableEffects that handed the
+    // background back and forth between Home and Settings left Settings sitting
+    // on an opaque background on-device, so the launcher keeps a single owner
+    // keyed on the persisted setting instead. Here we only manage the
+    // status/navigation-bar icon contrast: surface-based while the wallpaper is
+    // off, refined from the wallpaper's own color hints while it shows.
     DisposableEffect(wallpaperActive, surfaceIsLight) {
         val window = context.findActivity()?.window
         if (window != null) {
             val bars = WindowInsetsControllerCompat(window, view)
-            window.setBackgroundDrawable(
-                if (wallpaperActive) {
-                    ColorDrawable(AndroidColor.TRANSPARENT)
-                } else {
-                    ColorDrawable(homeBackgroundColor.toArgb())
-                },
-            )
             // Start from the surface-based icon contrast (no IPC). While the
             // wallpaper shows, the effect below refines it from the wallpaper's
             // own colors once that lookup resolves off the main thread.
@@ -766,7 +746,6 @@ internal fun HomeScreen(
         }
         onDispose {
             context.findActivity()?.window?.let { window ->
-                window.setBackgroundDrawable(ColorDrawable(homeBackgroundColor.toArgb()))
                 val bars = WindowInsetsControllerCompat(window, view)
                 bars.isAppearanceLightStatusBars = surfaceIsLight
                 bars.isAppearanceLightNavigationBars = surfaceIsLight
@@ -5703,88 +5682,34 @@ internal fun SettingsScreen(
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
     var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
-    // --- Live wallpaper cutout behind the dock preview ---
-    // With "Show wallpaper" on, cut a rounded hole out of the otherwise-opaque
-    // Settings backdrop at the preview's footprint so the preview reveals the
-    // real system wallpaper — exactly what Home shows — instead of fading to the
-    // gray Settings surface. The wallpaper can only be revealed (never drawn: its
-    // bitmap is off-limits on API 34+), so the hole region is simply left
-    // unpainted down to the window, whose background we flip transparent below;
-    // the live `FLAG_SHOW_WALLPAPER` wallpaper then shows through. This is the
-    // exact mechanism Home's wallpaper slot uses (absence of drawing on the
-    // translucent window surface), which is verified working on-device — an
-    // earlier version instead painted the hole with `BlendMode.Clear`, which
-    // renders correctly under Robolectric's software canvas but left the
-    // backdrop gray on real-device GPU rendering. Scoped to the preview strip
-    // only — the rest of Settings stays opaque.
-    val wallpaperCutoutActive = state.isWallpaperShown
+    // --- Wallpaper backdrop, exactly like Home ---
+    // With "Show wallpaper" on, Settings adopts Home's backdrop model wholesale:
+    // the page background is simply transparent, so the composited
+    // `FLAG_SHOW_WALLPAPER` wallpaper shows through everywhere the opaque cards
+    // and buttons don't cover — the page margins, the gaps between cards, and
+    // the preview's wallpaper slot. This is the exact absence-of-drawing reveal
+    // Home's slot uses (the wallpaper can only be revealed, never drawn: its
+    // bitmap is off-limits on API 34+), and it is the only mechanism verified
+    // working on-device. Two scoped-cutout variants were tried and both left
+    // the region gray on real devices while passing under Robolectric's
+    // software canvas: painting the hole with `BlendMode.Clear`, and painting
+    // the backdrop with the hole clipped out (clip-difference). Do not
+    // reintroduce a partial backdrop here — keep Settings byte-for-byte on
+    // Home's mechanism. Off the wallpaper path this is a plain opaque fill and
+    // Settings is unchanged.
     val settingsBackgroundColor = MaterialTheme.colorScheme.background
-    val cutoutCornerRadiusPx = with(LocalDensity.current) { 16.dp.toPx() }
-    // The Settings root's own layout coordinates and the preview's, captured so
-    // the hole can be placed in the backdrop's (unscrolled) coordinate space via
-    // `localBoundingBoxOf`, which maps through the scroll offset automatically —
-    // so the hole tracks the preview as the page scrolls. Read only in the draw
-    // phase (`drawBehind`) so scroll updates repaint without recomposing.
-    val settingsRootCoords = remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val previewCoords = remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val context = LocalContext.current
-    // Flip the window background transparent while the cutout is active so the
-    // hole reveals the composited wallpaper rather than an opaque window fill;
-    // restore the opaque Settings color on the way out (and whenever the setting
-    // is off). Home manages the window background independently when it is shown.
-    DisposableEffect(wallpaperCutoutActive, settingsBackgroundColor) {
-        context.findActivity()?.window?.setBackgroundDrawable(
-            ColorDrawable(
-                if (wallpaperCutoutActive) AndroidColor.TRANSPARENT
-                else settingsBackgroundColor.toArgb(),
-            ),
-        )
-        onDispose {
-            context.findActivity()?.window?.setBackgroundDrawable(
-                ColorDrawable(settingsBackgroundColor.toArgb()),
-            )
-        }
-    }
+    // Fade Settings' own cards to the user's "Card opacity" while the wallpaper
+    // is behind them — the same treatment Home's cards get — so the whole page
+    // follows one wallpaper/transparency/opacity model. Scoped to the page
+    // content (same pattern as Home): dialogs opened from Settings stay opaque.
+    val settingsCardAlpha = if (state.isWallpaperShown) state.cardOpacity else 1f
+    CompositionLocalProvider(LocalCardAlpha provides settingsCardAlpha) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned { settingsRootCoords.value = it }
-            // Opaque Settings backdrop, but with a rounded hole cut out at the
-            // preview's footprint when the wallpaper cutout is active. Replaces
-            // a plain `.background()` fill: painting everything *except* the
-            // hole (clip-difference) leaves that region unpainted down to the
-            // transparent window, revealing the wallpaper — the same
-            // absence-of-drawing mechanism as Home's wallpaper slot, which is
-            // what a translucent-format window surface needs (unpainted pixels
-            // are cleared to transparent every frame). Do NOT switch this to an
-            // active `BlendMode.Clear` erase: that renders correctly under
-            // Robolectric's software canvas but fails to punch through on
-            // real-device GPU rendering, leaving the backdrop gray where the
-            // wallpaper should show. Off the cutout path it is just a full
-            // opaque fill.
-            .drawBehind {
-                val root = settingsRootCoords.value
-                val preview = previewCoords.value
-                val hole = if (wallpaperCutoutActive && root != null && preview != null &&
-                    root.isAttached && preview.isAttached
-                ) {
-                    root.localBoundingBoxOf(preview, clipBounds = true)
-                } else {
-                    null
-                }
-                if (hole != null && !hole.isEmpty) {
-                    val holePath = Path().apply {
-                        addRoundRect(
-                            RoundRect(hole, CornerRadius(cutoutCornerRadiusPx, cutoutCornerRadiusPx)),
-                        )
-                    }
-                    clipPath(holePath, ClipOp.Difference) {
-                        drawRect(settingsBackgroundColor)
-                    }
-                } else {
-                    drawRect(settingsBackgroundColor)
-                }
-            }
+            .background(
+                if (state.isWallpaperShown) Color.Transparent else settingsBackgroundColor,
+            )
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             // Asymmetric top (8) vs bottom (16): the header row below leads with
@@ -6093,8 +6018,8 @@ internal fun SettingsScreen(
             state = state,
             dockIconSizeDp = dockIconSizeDp,
             dockIconCount = dockIconCount,
-            modifier = Modifier.onGloballyPositioned { previewCoords.value = it },
         )
+    }
     }
     if (hiddenAppsDialogVisible) {
         HiddenAppsDialog(

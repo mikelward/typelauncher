@@ -1680,12 +1680,12 @@ class MainActivityRobolectricScreenshotTest {
         // "Card opacity" only while Show wallpaper is on — the same gate that
         // enables the slider. The preview cards' fill should fade in the
         // snapshot while their icons and text stay fully opaque, so a drag of
-        // the slider is visible without leaving Settings. Settings also punches
-        // a transparent hole through its backdrop at the preview's footprint so
-        // the fade reveals the real wallpaper exactly as Home does. (Robolectric
-        // can't composite the live wallpaper, so in the snapshot the hole shows
-        // the empty window rather than a wallpaper — verified separately that
-        // the hole lands on the preview and nowhere else.)
+        // the slider is visible without leaving Settings. With the setting on,
+        // the Settings page background is transparent — Home's exact backdrop
+        // model — so the real wallpaper shows behind the page and through the
+        // preview's wallpaper slot. (Robolectric can't composite the live
+        // wallpaper, so in the snapshot the transparent regions show the empty
+        // window rather than a wallpaper.)
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
