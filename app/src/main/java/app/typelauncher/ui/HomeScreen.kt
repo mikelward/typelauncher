@@ -119,12 +119,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -135,6 +141,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -5630,10 +5637,76 @@ internal fun SettingsScreen(
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
     var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
+    // --- Live wallpaper cutout behind the dock preview ---
+    // With "Show wallpaper" on, punch a framed hole through the otherwise-opaque
+    // Settings backdrop at the preview's footprint so the preview reveals the
+    // real system wallpaper — exactly what Home shows — instead of fading to the
+    // gray Settings surface. The wallpaper can only be revealed (never drawn: its
+    // bitmap is off-limits on API 34+), so this leaves the hole region unpainted
+    // down to the window, whose background we flip transparent below; the live
+    // `FLAG_SHOW_WALLPAPER` wallpaper then shows through. Scoped to the preview
+    // strip only — the rest of Settings stays opaque.
+    val wallpaperCutoutActive = state.isWallpaperShown
+    val settingsBackgroundColor = MaterialTheme.colorScheme.background
+    val cutoutCornerRadiusPx = with(LocalDensity.current) { 16.dp.toPx() }
+    // The Settings root's own layout coordinates and the preview's, captured so
+    // the hole can be placed in the backdrop's (unscrolled) coordinate space via
+    // `localBoundingBoxOf`, which maps through the scroll offset automatically —
+    // so the hole tracks the preview as the page scrolls. Read only in the draw
+    // phase (`drawBehind`) so scroll updates repaint without recomposing.
+    val settingsRootCoords = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val previewCoords = remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val context = LocalContext.current
+    // Flip the window background transparent while the cutout is active so the
+    // hole reveals the composited wallpaper rather than an opaque window fill;
+    // restore the opaque Settings color on the way out (and whenever the setting
+    // is off). Home manages the window background independently when it is shown.
+    DisposableEffect(wallpaperCutoutActive, settingsBackgroundColor) {
+        context.findActivity()?.window?.setBackgroundDrawable(
+            ColorDrawable(
+                if (wallpaperCutoutActive) AndroidColor.TRANSPARENT
+                else settingsBackgroundColor.toArgb(),
+            ),
+        )
+        onDispose {
+            context.findActivity()?.window?.setBackgroundDrawable(
+                ColorDrawable(settingsBackgroundColor.toArgb()),
+            )
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .onGloballyPositioned { settingsRootCoords.value = it }
+            // Opaque Settings backdrop, but with a rounded hole cut out at the
+            // preview's footprint when the wallpaper cutout is active. Replaces a
+            // plain `.background()` fill: painting everything *except* the hole
+            // (clip-difference) leaves that region unpainted down to the
+            // transparent window, revealing the wallpaper. Off the cutout path it
+            // is just a full opaque fill.
+            .drawBehind {
+                val root = settingsRootCoords.value
+                val preview = previewCoords.value
+                val hole = if (wallpaperCutoutActive && root != null && preview != null &&
+                    root.isAttached && preview.isAttached
+                ) {
+                    root.localBoundingBoxOf(preview, clipBounds = true)
+                } else {
+                    null
+                }
+                if (hole != null && !hole.isEmpty) {
+                    val holePath = Path().apply {
+                        addRoundRect(
+                            RoundRect(hole, CornerRadius(cutoutCornerRadiusPx, cutoutCornerRadiusPx)),
+                        )
+                    }
+                    clipPath(holePath, ClipOp.Difference) {
+                        drawRect(settingsBackgroundColor)
+                    }
+                } else {
+                    drawRect(settingsBackgroundColor)
+                }
+            }
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             // Asymmetric top (8) vs bottom (16): the header row below leads with
@@ -5942,6 +6015,7 @@ internal fun SettingsScreen(
             state = state,
             dockIconSizeDp = dockIconSizeDp,
             dockIconCount = dockIconCount,
+            modifier = Modifier.onGloballyPositioned { previewCoords.value = it },
         )
     }
     if (hiddenAppsDialogVisible) {
@@ -6680,6 +6754,7 @@ private fun SettingsPreview(
     state: LauncherUiState,
     dockIconSizeDp: Int,
     dockIconCount: Int,
+    modifier: Modifier = Modifier,
 ) {
     val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
     // The dock preview tracks the live `state.dockLayout`: `TitleBelow` adds a
@@ -6734,12 +6809,14 @@ private fun SettingsPreview(
     // slider live as the user drags it: fade the cards' fill to `cardOpacity`,
     // but only while "Show wallpaper" is on — the same gate Home uses, and the
     // same gate that enables the slider. Off the wallpaper path the preview stays
-    // fully opaque, matching ordinary Home. Robolectric can't composite the real
-    // wallpaper behind Settings, so the fade reveals the settings surface here;
-    // on-device it reveals the wallpaper exactly as Home does.
+    // fully opaque, matching ordinary Home. The caller punches a transparent hole
+    // through the Settings backdrop at this preview's footprint (and flips the
+    // window background transparent), so on-device the faded cards reveal the
+    // real wallpaper exactly as Home does. Robolectric can't composite the live
+    // wallpaper, so under test the hole shows the empty window instead.
     val previewCardAlpha = if (state.isWallpaperShown) state.cardOpacity else 1f
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clearAndSetSemantics {},
     ) {
