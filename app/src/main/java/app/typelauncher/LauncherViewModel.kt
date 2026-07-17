@@ -25,6 +25,7 @@ import android.os.UserManager
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import android.provider.Settings
+import android.telecom.TelecomManager
 import android.text.format.DateUtils
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
@@ -227,6 +228,7 @@ internal class LauncherViewModel(
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
             isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
+            useDefaultDialer = dockSettingsStore.useDefaultDialer,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
             iconTheme = dockSettingsStore.iconTheme,
@@ -1548,10 +1550,13 @@ internal class LauncherViewModel(
     /**
      * Dispatches a chosen quick action. A [ContactActionKind.Launch] (SMS,
      * email, or a third-party contact row) starts straight away. A
-     * [ContactActionKind.Call] needs `CALL_PHONE`: when it is already granted
-     * the call is placed now, otherwise the number is parked and the Activity is
-     * asked to request the permission (see [onCallPermissionResult]) — nothing
-     * is dispatched yet in that case, so the sheet stays up behind the prompt.
+     * [ContactActionKind.Call] hands the number to the user's default dialer
+     * (`ACTION_DIAL`, no permission) while Settings → "Use default dialer" is
+     * on (the default); with it off it needs `CALL_PHONE`: when it is already
+     * granted the call is placed now, otherwise the number is parked and the
+     * Activity is asked to request the permission (see
+     * [onCallPermissionResult]) — nothing is dispatched yet in that case, so
+     * the sheet stays up behind the prompt.
      */
     fun onContactActionSelected(action: ContactAction) {
         when (val kind = action.kind) {
@@ -1561,7 +1566,11 @@ internal class LauncherViewModel(
                 finishContactAction()
             }
             is ContactActionKind.Call -> {
-                if (hasCallPhonePermission()) {
+                if (_uiState.value.useDefaultDialer) {
+                    LauncherDebugLog.event("onContactActionSelected handing off to dialer")
+                    if (!handOffToDialer(kind.number)) return
+                    finishContactAction()
+                } else if (hasCallPhonePermission()) {
                     placeCall(kind.number)
                 } else {
                     LauncherDebugLog.event("onContactActionSelected requesting CALL_PHONE")
@@ -1584,7 +1593,7 @@ internal class LauncherViewModel(
         if (granted) {
             placeCall(number)
         } else {
-            if (!tryStartContactAction(Intent(Intent.ACTION_DIAL, telUri(number)))) return
+            if (!handOffToDialer(number)) return
             finishContactAction()
         }
     }
@@ -1592,6 +1601,28 @@ internal class LauncherViewModel(
     private fun placeCall(number: String) {
         if (!tryStartContactAction(Intent(Intent.ACTION_CALL, telUri(number)))) return
         finishContactAction()
+    }
+
+    /**
+     * Opens the dialer with [number] pre-filled, returning whether it
+     * launched. The `ACTION_DIAL` intent is targeted at the phone's default
+     * dialer package: left untargeted, Android resolves it against *every*
+     * dial-capable app and raises its "which app do you want to use" sheet
+     * whenever more than one is installed with no pinned default — the
+     * hand-off must land in the dialer, not in a picker. With no default
+     * dialer to name (no telephony), or when the targeted start fails, the
+     * untargeted intent is the fallback so the tap still goes somewhere the
+     * system can resolve.
+     */
+    private fun handOffToDialer(number: String): Boolean {
+        val defaultDialer = runCatching {
+            app.getSystemService(TelecomManager::class.java)?.defaultDialerPackage
+        }.getOrNull()
+        if (defaultDialer != null) {
+            val targeted = Intent(Intent.ACTION_DIAL, telUri(number)).setPackage(defaultDialer)
+            if (tryStartContactAction(targeted)) return true
+        }
+        return tryStartContactAction(Intent(Intent.ACTION_DIAL, telUri(number)))
     }
 
     // Uri.fromParts keeps the whole number as the scheme-specific part rather
@@ -2761,6 +2792,19 @@ internal class LauncherViewModel(
             refreshFilteredApps()
             refreshContentSearchIndices(reason = "calendarSearchDisabled")
         }
+    }
+
+    /**
+     * Settings → "Use default dialer". Unlike the content-search toggles, the
+     * switch flips without a permission gate: `CALL_PHONE` is requested on the
+     * first Call tap after turning it off (with the dialer hand-off as the
+     * refusal fallback), so a disabled flag never implies a granted permission
+     * and needs no coercion when the permission is auto-reset.
+     */
+    fun setUseDefaultDialer(isEnabled: Boolean) {
+        dockSettingsStore.useDefaultDialer = isEnabled
+        _uiState.update { it.copy(useDefaultDialer = isEnabled) }
+        logState("setUseDefaultDialer=$isEnabled")
     }
 
     /**

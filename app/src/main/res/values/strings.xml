@@ -138,6 +138,8 @@
     <!-- TODO: translate -->
     <string name="settings_search_calendar_title" tools:ignore="MissingTranslation">Search calendar events</string>
     <!-- TODO: translate -->
+    <string name="settings_use_default_dialer_title" tools:ignore="MissingTranslation">Use default dialer</string>
+    <!-- TODO: translate -->
     <string name="contact_result_starred_description" tools:ignore="MissingTranslation">Starred contact</string>
     <!-- TODO: translate -->
     <string name="contact_action_call" tools:ignore="MissingTranslation">Call</string>
