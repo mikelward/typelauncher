@@ -32,6 +32,29 @@ internal data class ContactActions(
 )
 
 /**
+ * The launcher's in-list contact-actions mode: the whole surface that renders in
+ * the app-list slot in place of the apps while a contact is open, held as a
+ * single nullable value on `LauncherUiState` (null = normal search). Grouping the
+ * three pieces of mode state into one holder means opening, exiting, or clearing
+ * the mode is a single assignment — no way to leave a stale [selectedChannelId]
+ * or [returnQuery] behind by resetting only some of them.
+ *
+ * - [actions]: the open contact and its resolved channels.
+ * - [selectedChannelId]: the channel drilled into (step two — its numbers/actions
+ *   are shown), or null on the channel list (step one). Back pops step two → step
+ *   one → out of the mode.
+ * - [returnQuery]: the search query to restore when the mode exits back to search.
+ *   Opening the mode clears the query so the user can type to filter the channels;
+ *   backing all the way out restores what they had typed.
+ */
+@Immutable
+internal data class ContactActionsMode(
+    val actions: ContactActions,
+    val selectedChannelId: String? = null,
+    val returnQuery: String = "",
+)
+
+/**
  * One row of the first step: a way to reach the contact, grouping the concrete
  * [actions] it offers. [iconPackageName], when set, is the app whose launcher
  * icon represents the channel — the app that owns a third-party integration
