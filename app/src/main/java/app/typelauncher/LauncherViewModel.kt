@@ -226,7 +226,6 @@ internal class LauncherViewModel(
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
             isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
-            useDefaultDialer = dockSettingsStore.useDefaultDialer,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
             iconTheme = dockSettingsStore.iconTheme,
@@ -1564,13 +1563,11 @@ internal class LauncherViewModel(
     /**
      * Dispatches a chosen quick action. A [ContactActionKind.Launch] (SMS,
      * email, or a third-party contact row) starts straight away. A
-     * [ContactActionKind.Call] hands the number to the user's default dialer
-     * (`ACTION_DIAL`, no permission) while Settings → "Use default dialer" is
-     * on (the default); with it off it needs `CALL_PHONE`: when it is already
-     * granted the call is placed now, otherwise the number is parked and the
-     * Activity is asked to request the permission (see
-     * [onCallPermissionResult]) — nothing is dispatched yet in that case, so
-     * the sheet stays up behind the prompt.
+     * [ContactActionKind.Call] places the call itself, which needs
+     * `CALL_PHONE`: when it is already granted the call is placed now,
+     * otherwise the number is parked and the Activity is asked to request the
+     * permission (see [onCallPermissionResult]) — nothing is dispatched yet
+     * in that case, so the sheet stays up behind the prompt.
      */
     fun onContactActionSelected(action: ContactAction) {
         when (val kind = action.kind) {
@@ -1580,11 +1577,7 @@ internal class LauncherViewModel(
                 finishContactAction()
             }
             is ContactActionKind.Call -> {
-                if (_uiState.value.useDefaultDialer) {
-                    LauncherDebugLog.event("onContactActionSelected handing off to dialer")
-                    if (!handOffToDialer(kind.number)) return
-                    finishContactAction()
-                } else if (hasCallPhonePermission()) {
+                if (hasCallPhonePermission()) {
                     placeCall(kind.number)
                 } else {
                     LauncherDebugLog.event("onContactActionSelected requesting CALL_PHONE")
@@ -1612,8 +1605,17 @@ internal class LauncherViewModel(
         }
     }
 
+    /**
+     * Places [number] with `ACTION_CALL`, falling back to the dialer hand-off
+     * when the start fails even though the permission check passed —
+     * `CALL_PHONE` revoked between the check and the start, or a device
+     * profile with no call-capable activity — so the granted path is never a
+     * dead end either.
+     */
     private fun placeCall(number: String) {
-        if (!tryStartContactAction(Intent(Intent.ACTION_CALL, telUri(number)))) return
+        if (!tryStartContactAction(Intent(Intent.ACTION_CALL, telUri(number)))) {
+            if (!handOffToDialer(number)) return
+        }
         finishContactAction()
     }
 
@@ -2792,19 +2794,6 @@ internal class LauncherViewModel(
             refreshFilteredApps()
             refreshContentSearchIndices(reason = "calendarSearchDisabled")
         }
-    }
-
-    /**
-     * Settings → "Use default dialer". Unlike the content-search toggles, the
-     * switch flips without a permission gate: `CALL_PHONE` is requested on the
-     * first Call tap after turning it off (with the dialer hand-off as the
-     * refusal fallback), so a disabled flag never implies a granted permission
-     * and needs no coercion when the permission is auto-reset.
-     */
-    fun setUseDefaultDialer(isEnabled: Boolean) {
-        dockSettingsStore.useDefaultDialer = isEnabled
-        _uiState.update { it.copy(useDefaultDialer = isEnabled) }
-        logState("setUseDefaultDialer=$isEnabled")
     }
 
     /**
