@@ -30,6 +30,18 @@ internal object LauncherDebugLog {
     }
 
     /**
+     * Like [event] but records only to the in-memory buffer and logcat — it
+     * does NOT forward to Crashlytics. Use for diagnostics that may carry user
+     * content (e.g. a contact's linked account types / data-kind mimetypes):
+     * that must never leave the device via automatic crash breadcrumbs, only
+     * through a user-initiated bug report, which reads [snapshot].
+     */
+    fun bufferOnly(message: String) {
+        record('D', message, throwable = null)
+        Log.d(LAUNCHER_DEBUG_TAG, message)
+    }
+
+    /**
      * Logcat-only diagnostic for high-frequency, per-icon detail (icon-tile
      * composition, dynamic-calendar resolution). Goes to `adb logcat -s
      * TypeLauncherDebug` like [event], but is deliberately kept *out* of the
