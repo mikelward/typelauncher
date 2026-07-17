@@ -8,6 +8,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.ResolveInfo
 import android.database.Cursor
 import android.database.MatrixCursor
@@ -165,6 +167,52 @@ class ContactActionsTest {
     }
 
     @Test
+    fun labelsAppActionsFromTheActivityWhenTheSummaryIsBlank() {
+        // Meet's audio and video rows leave DATA3 empty, so they'd both fall back
+        // to the app name "Meet"; the resolved activity's own label distinguishes
+        // them into two usable entries.
+        val pkg = "com.google.android.apps.tachyon"
+        val audio = "vnd.android.cursor.item/com.google.android.apps.tachyon.phone.meet.audio"
+        val video = "vnd.android.cursor.item/com.google.android.apps.tachyon.phone.meet"
+        installApp(pkg, "Meet")
+        registerAppRow(pkg, "Audio meeting", 801, audio)
+        registerAppRow(pkg, "Video meeting", 802, video)
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+            custom(801, audio, account = pkg),
+            custom(802, video, account = pkg),
+        )
+
+        val meet = resolveContactChannels(context, contact).first { it.id == pkg }
+
+        assertEquals("Meet", meet.label)
+        assertEquals(listOf("Audio meeting", "Video meeting"), meet.actions.map { it.label })
+    }
+
+    @Test
+    fun collapsesAppActionsThatRenderTheIdenticalLabel() {
+        // When neither DATA3 nor the activity label distinguishes two rows — both
+        // just say "Meet" — the indistinguishable entries collapse to one, and the
+        // single-action channel then fires on tap.
+        val pkg = "com.google.android.apps.tachyon"
+        val audio = "vnd.android.cursor.item/com.google.android.apps.tachyon.phone.meet.audio"
+        val video = "vnd.android.cursor.item/com.google.android.apps.tachyon.phone.meet"
+        installApp(pkg, "Meet")
+        registerAppRow(pkg, "Meet", 801, audio)
+        registerAppRow(pkg, "Meet", 802, video)
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+            custom(801, audio, account = pkg),
+            custom(802, video, account = pkg),
+        )
+
+        val meet = resolveContactChannels(context, contact).first { it.id == pkg }
+
+        assertEquals(1, meet.actions.size)
+        assertEquals("Meet", meet.actions.single().label)
+    }
+
+    @Test
     fun keepsSeparateAppsAsSeparateChannels() {
         // Regression for the shipped bug: WhatsApp, Signal and Meet all resolved
         // to the system chooser (package "android") and collapsed into one
@@ -307,8 +355,20 @@ class ContactActionsTest {
     private fun email(address: String, type: Int): Map<String, Any?> =
         row(mimeType = Email.CONTENT_ITEM_TYPE, data1 = address, data2 = type)
 
-    private fun custom(dataId: Long, mimeType: String, account: String, summary: String): Map<String, Any?> =
+    private fun custom(dataId: Long, mimeType: String, account: String, summary: String? = null): Map<String, Any?> =
         row(id = dataId, mimeType = mimeType, data3 = summary, account = account)
+
+    /** Installs a package so its application label resolves (device apps have one; Robolectric's don't by default). */
+    private fun installApp(packageName: String, label: String) {
+        val info = PackageInfo().apply {
+            this.packageName = packageName
+            applicationInfo = ApplicationInfo().apply {
+                this.packageName = packageName
+                nonLocalizedLabel = label
+            }
+        }
+        shadowOf(context.packageManager).installPackage(info)
+    }
 
     private fun row(
         id: Long = 1,

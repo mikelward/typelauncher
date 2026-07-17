@@ -215,6 +215,13 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
                             // The summary column (DATA3) is the app's own action
                             // label — "Message", "Voice call", "Video call".
                             label = cursor.getString(data3Index)?.takeIf { it.isNotBlank() },
+                            // The resolved activity's own label is the secondary
+                            // distinguisher when DATA3 is empty: Meet contributes an
+                            // audio and a video row that both fall back to the app
+                            // name "Meet" otherwise, but their activities can carry
+                            // distinct labels ("Audio meeting" / "Video meeting").
+                            activityLabel = owner.resolveInfo.loadLabel(context.packageManager)
+                                ?.toString()?.takeIf { it.isNotBlank() },
                             intent = owner.intent,
                             superPrimary = superPrimary,
                             primary = primary,
@@ -283,14 +290,23 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
             label = appLabel,
             iconPackageName = packageName,
             glyph = null,
+            // Label each row from its own summary (DATA3), falling back to the
+            // resolved activity's label before the app name so distinct actions
+            // stay distinct: Meet's audio and video rows leave DATA3 empty but
+            // their activities can carry "Audio meeting" / "Video meeting". Only
+            // rows that still render the identical label collapse — two entries a
+            // user can't tell apart are worse than one, and a lone survivor lets
+            // the whole channel fire on tap instead of drilling into a picker.
             actions = orderedRows.map { row ->
                 ContactAction(
-                    label = row.label ?: appLabel,
+                    label = row.label
+                        ?: row.activityLabel?.takeIf { it != appLabel }
+                        ?: appLabel,
                     detail = null,
                     isDefault = row.superPrimary || row.primary,
                     kind = ContactActionKind.Launch(row.intent),
                 )
-            },
+            }.distinctBy { it.label },
         )
     }
 
@@ -381,6 +397,7 @@ private data class EmailRow(
 
 private data class AppRow(
     val label: String?,
+    val activityLabel: String?,
     val intent: Intent,
     val superPrimary: Boolean,
     val primary: Boolean,
