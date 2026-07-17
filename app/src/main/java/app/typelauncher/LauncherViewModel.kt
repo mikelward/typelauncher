@@ -8,6 +8,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.ContentProviderOperation
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -273,6 +274,7 @@ internal class LauncherViewModel(
     // Serializes the favorite (STARRED) provider writes so rapid toggles on a row
     // can't complete out of order and leave Contacts on a stale choice.
     private val favoriteWriteMutex = Mutex()
+    private val numberDefaultWriteMutex = Mutex()
     // Optimistic favorite states whose provider write a contact-index reload may
     // not observe yet, keyed by contact id. Overlaid onto every reloaded index so
     // a resume-driven reload can't clobber the star. Each carries the epoch its
@@ -1168,6 +1170,95 @@ internal class LauncherViewModel(
         // Invalidate any in-flight resolve so it can't pop a sheet after dismiss.
         contactResolveToken++
         _uiState.update { it.copy(contactActions = null) }
+    }
+
+    /**
+     * Sets (or clears) a contact number as the default to call and text it by,
+     * writing `IS_SUPER_PRIMARY` / `IS_PRIMARY` on its `Data` row from the
+     * long-press menu on a number in the quick-actions picker. Needs
+     * `WRITE_CONTACTS`, requested on first use like the favorite toggle. On
+     * success the open sheet is re-resolved so the new default sorts to the top.
+     */
+    fun setNumberDefault(dataId: Long, makeDefault: Boolean) {
+        LauncherDebugLog.event("setNumberDefault dataId=$dataId makeDefault=$makeDefault")
+        runWithWriteContacts { writeNumberDefault(dataId, makeDefault) }
+    }
+
+    private fun writeNumberDefault(dataId: Long, makeDefault: Boolean) {
+        // The other phone Data rows of the open contact, so a new default can
+        // demote a previous one that sits on a different raw contact: the
+        // provider only clears IS_SUPER_PRIMARY within the *target's own* raw
+        // contact, so for an aggregated contact a stale default on another raw
+        // contact would otherwise stay marked default (both super-primary). The
+        // stock Contacts app clears these siblings itself for the same reason.
+        // Read from the phone channels' full `dataIds` (every backing row,
+        // pre-dedup) rather than the deduped actions, so a hidden duplicate of
+        // the same number synced under another raw contact is demoted too — taken
+        // from the already-resolved sheet, so no extra query on the write path.
+        val siblingDataIds = _uiState.value.contactActions
+            ?.channels.orEmpty()
+            .flatMap { channel -> channel.dataIds }
+            .filter { it != dataId }
+            .distinct()
+        viewModelScope.launch {
+            // Serialize the provider writes so two rapid default changes can't
+            // land out of order and leave Contacts on the earlier choice: the
+            // coroutines acquire the lock in launch order, so the last change is
+            // the last write and therefore wins — the same guard the favorite
+            // toggle uses.
+            val ok = numberDefaultWriteMutex.withLock {
+                withContext(ioDispatcher) {
+                    runCatching {
+                        // Apply the sibling demotions and the target update as one
+                        // ContactsProvider batch so it's atomic: if the target write
+                        // fails, the demotions roll back too rather than leaving the
+                        // contact with no default. Siblings are demoted before the
+                        // target is set so exactly one number ends up super-primary.
+                        // This runs on both paths: making a number default clears the
+                        // old default's rows, and undefaulting clears any hidden
+                        // duplicate of the same number (another super-primary row
+                        // synced under a different raw contact, collapsed out of the
+                        // picker) so the number doesn't stay resolving as the default.
+                        // A row that isn't super-primary just no-ops.
+                        val ops = ArrayList<ContentProviderOperation>()
+                        siblingDataIds.forEach { siblingId ->
+                            ops.add(
+                                ContentProviderOperation
+                                    .newUpdate(ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, siblingId))
+                                    .withValue(ContactsContract.Data.IS_SUPER_PRIMARY, 0)
+                                    .build(),
+                            )
+                        }
+                        ops.add(
+                            ContentProviderOperation
+                                .newUpdate(ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, dataId))
+                                .withValue(ContactsContract.Data.IS_SUPER_PRIMARY, if (makeDefault) 1 else 0)
+                                .withValue(ContactsContract.Data.IS_PRIMARY, if (makeDefault) 1 else 0)
+                                // A zero-row target write (the row was deleted or
+                                // rejected) throws, rolling the whole batch back so
+                                // the demotions above don't leave the contact with
+                                // no default. Siblings carry no such expectation — a
+                                // sibling that's since gone is simply nothing to
+                                // demote, not a failure.
+                                .withExpectedCount(1)
+                                .build(),
+                        )
+                        val results = app.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+                        (results.lastOrNull()?.count ?: 0) > 0
+                    }.getOrElse { exception ->
+                        LauncherDebugLog.warning("writeNumberDefault failed dataId=$dataId", exception)
+                        false
+                    }
+                }
+            }
+            if (ok) reResolveOpenContact()
+        }
+    }
+
+    /** Re-reads the open contact's channels so a just-changed default number re-sorts to the top. */
+    private fun reResolveOpenContact() {
+        val contact = _uiState.value.contactActions?.contact ?: return
+        openContactResult(contact)
     }
 
     /**

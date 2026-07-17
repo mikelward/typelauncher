@@ -74,6 +74,74 @@ class ContactActionsTest {
     }
 
     @Test
+    fun phoneActionsCarryTheirDataRowIdForTheSetDefaultAction() {
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE, id = 11, superPrimary = true),
+            phone("+1-555-0199", Phone.TYPE_HOME, id = 12),
+        )
+
+        val channels = resolveContactChannels(context, contact)
+
+        // Both the Call and Message rows for a number carry that number's Data
+        // row id — what the set-default action writes IS_SUPER_PRIMARY on.
+        assertEquals(
+            listOf(11L, 12L),
+            channels.first { it.id == "call" }.actions.map { it.dataId },
+        )
+        assertEquals(
+            listOf(11L, 12L),
+            channels.first { it.id == "message" }.actions.map { it.dataId },
+        )
+    }
+
+    @Test
+    fun phoneChannelDataIdsRetainDuplicatesTheActionsCollapse() {
+        // The same number synced under two raw contacts collapses to one visible
+        // action, but the channel's dataIds keep both — the set-default write
+        // needs every backing row to demote a hidden duplicate default.
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE, id = 11, superPrimary = true),
+            phone("+1-555-0100", Phone.TYPE_MOBILE, id = 13, account = "com.example", superPrimary = true),
+            phone("+1-555-0199", Phone.TYPE_HOME, id = 12),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(
+            "The duplicate number collapses to one visible action",
+            listOf(11L, 12L),
+            call.actions.map { it.dataId },
+        )
+        assertEquals(
+            "But dataIds retain every backing row, including the hidden duplicate",
+            listOf(11L, 13L, 12L),
+            call.dataIds,
+        )
+    }
+
+    @Test
+    fun onlyTheSuperPrimaryNumberIsMarkedDefaultForTheSetDefaultMenu() {
+        // An aggregated contact: one row is the contact-wide default
+        // (IS_SUPER_PRIMARY) and another raw-contact row is only its own raw
+        // contact's primary (IS_PRIMARY). Only the true super-primary counts as
+        // the default the set-default menu offers to clear — the primary-only row
+        // must read as non-default so the menu lets the user promote it, not
+        // "Undefault" a number that isn't actually the contact-wide default.
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE, id = 11, superPrimary = true),
+            phone("+1-555-0199", Phone.TYPE_HOME, id = 12, primary = true),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(
+            "Only the super-primary row is the default the menu clears",
+            listOf(true, false),
+            call.actions.map { it.isDefault },
+        )
+    }
+
+    @Test
     fun callChannelUsesTheDefaultDialerIconWhenOneIsSet() {
         installApp("com.android.dialer", "Phone")
         shadowOf(context.getSystemService(TelecomManager::class.java))
@@ -500,7 +568,9 @@ class ContactActionsTest {
         account: String = "com.google",
         superPrimary: Boolean = false,
         primary: Boolean = false,
+        id: Long = 1,
     ): Map<String, Any?> = row(
+        id = id,
         mimeType = Phone.CONTENT_ITEM_TYPE,
         data1 = number,
         data2 = type,

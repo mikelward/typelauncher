@@ -21,6 +21,7 @@ internal const val CONTACT_RESULT_FAVORITE_ACTION_TAG = "contact_result_favorite
 internal const val CONTACT_ACTIONS_SHEET_TAG = "contact_actions_sheet"
 internal const val CONTACT_ACTIONS_CHANNEL_TAG = "contact_actions_channel"
 internal const val CONTACT_ACTIONS_ACTION_TAG = "contact_actions_action"
+internal const val CONTACT_ACTIONS_DEFAULT_ACTION_TAG = "contact_actions_default_action"
 internal const val CONTACT_ACTIONS_OPEN_CONTACT_TAG = "contact_actions_open_contact"
 internal const val CONTACT_ACTIONS_BACK_TAG = "contact_actions_back"
 internal const val EVENT_RESULT_ROW_TAG = "event_result_row"

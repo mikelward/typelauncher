@@ -152,6 +152,11 @@
     <string name="contact_action_favorite" tools:ignore="MissingTranslation">Favorite</string>
     <!-- TODO: translate -->
     <string name="contact_action_unfavorite" tools:ignore="MissingTranslation">Unfavorite</string>
+    <!-- Long-press menu on a number in the quick-actions picker: set / clear it as the default. -->
+    <!-- TODO: translate -->
+    <string name="contact_action_make_default" tools:ignore="MissingTranslation">Default</string>
+    <!-- TODO: translate -->
+    <string name="contact_action_clear_default" tools:ignore="MissingTranslation">Undefault</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>

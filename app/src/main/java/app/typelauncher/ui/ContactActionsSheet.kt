@@ -3,6 +3,7 @@ package app.typelauncher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.PopupProperties
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,6 +66,7 @@ internal fun ContactActionsSheet(
     actions: ContactActions,
     onAction: (ContactAction) -> Unit,
     onOpenContactCard: () -> Unit,
+    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -77,6 +82,7 @@ internal fun ContactActionsSheet(
                 actions = actions,
                 onAction = onAction,
                 onOpenContactCard = onOpenContactCard,
+                onSetNumberDefault = onSetNumberDefault,
             )
         }
     }
@@ -96,6 +102,7 @@ internal fun ContactActionsSheetContent(
     actions: ContactActions,
     onAction: (ContactAction) -> Unit,
     onOpenContactCard: () -> Unit,
+    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit = { _, _ -> },
 ) {
     // Saveable so a configuration change (rotation, theme toggle) while the
     // second step is open keeps the user on that channel rather than snapping
@@ -142,15 +149,21 @@ internal fun ContactActionsSheetContent(
             )
         } else {
             selectedChannel.actions.forEach { action ->
-                ContactSheetRow(
-                    glyph = selectedChannel.glyph,
-                    iconPackageName = selectedChannel.iconPackageName,
-                    title = action.label,
-                    subtitle = action.detail,
-                    trailingChevron = false,
-                    modifier = Modifier.testTag("$CONTACT_ACTIONS_ACTION_TAG:${action.label}"),
-                    onClick = { onAction(action) },
-                )
+                // Key by the Data row (falling back to the label for app actions,
+                // which have no row id) so each row's menu-open state follows its
+                // number by identity. A default write re-resolves and re-sorts the
+                // picker default-first; without a key the state is positional and a
+                // menu left open on one number could jump to whatever action slid
+                // into its slot, then act on the wrong row.
+                key(action.dataId ?: action.label) {
+                    ContactActionRow(
+                        glyph = selectedChannel.glyph,
+                        iconPackageName = selectedChannel.iconPackageName,
+                        action = action,
+                        onClick = { onAction(action) },
+                        onSetNumberDefault = onSetNumberDefault,
+                    )
+                }
             }
         }
     }
@@ -232,6 +245,74 @@ private fun ContactChannelRow(channel: ContactChannel, onClick: () -> Unit) {
  * search result rows (40dp visual, 12dp gap, 8dp-rounded highlight) so the card
  * reads as part of the same launcher.
  */
+/**
+ * A step-two action row (a number, or an app's action). When the action is a
+ * contact phone row ([ContactAction.dataId] set) it gets a long-press menu to
+ * set or clear it as the default to call/text, mirroring the app-row long-press
+ * affordance; other actions are a plain tappable row.
+ */
+@Composable
+private fun ContactActionRow(
+    glyph: ContactChannelGlyph?,
+    iconPackageName: String?,
+    action: ContactAction,
+    onClick: () -> Unit,
+    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit,
+) {
+    val dataId = action.dataId
+    if (dataId == null) {
+        ContactSheetRow(
+            glyph = glyph,
+            iconPackageName = iconPackageName,
+            title = action.label,
+            subtitle = action.detail,
+            trailingChevron = false,
+            modifier = Modifier.testTag("$CONTACT_ACTIONS_ACTION_TAG:${action.label}"),
+            onClick = onClick,
+        )
+        return
+    }
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        ContactSheetRow(
+            glyph = glyph,
+            iconPackageName = iconPackageName,
+            title = action.label,
+            subtitle = action.detail,
+            trailingChevron = false,
+            modifier = Modifier.testTag("$CONTACT_ACTIONS_ACTION_TAG:${action.label}"),
+            onClick = onClick,
+            onLongClick = { menuExpanded = true },
+        )
+        LauncherDropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            // Non-focusable like the launcher's other row menus, so it never
+            // grabs focus off the sheet / search field behind it.
+            properties = PopupProperties(focusable = false),
+        ) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (action.isDefault) {
+                                R.string.contact_action_clear_default
+                            } else {
+                                R.string.contact_action_make_default
+                            },
+                        ),
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onSetNumberDefault(dataId, !action.isDefault)
+                },
+                modifier = Modifier.testTag("$CONTACT_ACTIONS_DEFAULT_ACTION_TAG:${action.label}"),
+            )
+        }
+    }
+}
+
 @Composable
 private fun ContactSheetRow(
     glyph: ContactChannelGlyph?,
@@ -240,12 +321,19 @@ private fun ContactSheetRow(
     subtitle: String?,
     trailingChevron: Boolean,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
