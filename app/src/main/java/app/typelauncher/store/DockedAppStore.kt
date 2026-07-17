@@ -438,12 +438,6 @@ internal class DockedAppStore(
         }
 }
 
-// Floor for [DockSettingsStore.cardOpacity]: Home cards never fade below this
-// while the wallpaper shows, so their text and icons stay legible. The Settings
-// slider's range starts here. Top-level (not in the store's private companion)
-// so the Settings slider and tests can share the exact same floor.
-internal const val CARD_OPACITY_MIN = 0.4f
-
 internal class DockSettingsStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
@@ -584,34 +578,6 @@ internal class DockSettingsStore(context: Context) {
         set(value) {
             sharedPreferences.edit()
                 .putBoolean(KEY_SHOW_WALLPAPER, value)
-                .apply()
-        }
-
-    /**
-     * When on, the Widgets and Agenda carousel pages also drop their opaque
-     * page backgrounds so the wallpaper shows behind them, matching Home's
-     * treatment. Only takes effect when [isWallpaperShown] is on; defaults off
-     * so the existing wallpaper setup keeps its Home-only backdrop.
-     */
-    var isWallpaperShownOnAllPages: Boolean
-        get() = sharedPreferences.getBoolean(KEY_SHOW_WALLPAPER_ALL_PAGES, false)
-        set(value) {
-            sharedPreferences.edit()
-                .putBoolean(KEY_SHOW_WALLPAPER_ALL_PAGES, value)
-                .apply()
-        }
-
-    /**
-     * Opacity of Home's cards (search box, dock, app list, recents) while the
-     * wallpaper is showing, so the wallpaper can show through them. Only takes
-     * effect when [isWallpaperShown] is on. Clamped to [CARD_OPACITY_MIN]..1 so
-     * a translucent card never becomes illegible; defaults to fully opaque.
-     */
-    var cardOpacity: Float
-        get() = sharedPreferences.getFloat(KEY_CARD_OPACITY, 1f).coerceIn(CARD_OPACITY_MIN, 1f)
-        set(value) {
-            sharedPreferences.edit()
-                .putFloat(KEY_CARD_OPACITY, value.coerceIn(CARD_OPACITY_MIN, 1f))
                 .apply()
         }
 
@@ -787,8 +753,10 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
-        const val KEY_SHOW_WALLPAPER_ALL_PAGES = "show_wallpaper_all_pages"
-        const val KEY_CARD_OPACITY = "card_opacity"
+        // Legacy wallpaper companions ("show_wallpaper_all_pages",
+        // "card_opacity") may remain on disk after upgrade but are no longer
+        // read: the wallpaper now always backs every page, at full card
+        // opacity, whenever KEY_SHOW_WALLPAPER is on.
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"
         const val KEY_KEYBOARD_RESERVATION_SCREEN_WIDTH_DP = "keyboard_reservation_screen_width_dp"

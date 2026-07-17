@@ -14,18 +14,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-
-// Opacity applied to every [SectionCard]'s container fill within the current
-// subtree, so Home can let the wallpaper show through its cards while keeping
-// their text and icons fully opaque. Defaults to 1 (fully opaque); Home
-// provides the user's "Card opacity" value only while the wallpaper is active,
-// so cards outside Home (Settings, dialogs) are unaffected.
-internal val LocalCardAlpha = compositionLocalOf { 1f }
 
 @Composable
 internal fun EmptyState(
@@ -63,17 +55,9 @@ internal fun SectionCard(
     contentPadding: PaddingValues = PaddingValues(SECTION_CARD_PADDING_DP.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Fade only the container fill (not the whole card, which would dim text and
-    // icons too) so the wallpaper shows through while content stays legible.
-    val cardAlpha = LocalCardAlpha.current
-    val resolvedColors = if (cardAlpha < 1f) {
-        colors.copy(containerColor = colors.containerColor.copy(alpha = colors.containerColor.alpha * cardAlpha))
-    } else {
-        colors
-    }
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = resolvedColors,
+        colors = colors,
     ) {
         Column(
             modifier = Modifier.padding(contentPadding),

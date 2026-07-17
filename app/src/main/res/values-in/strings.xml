@@ -160,5 +160,4 @@
     <string name="app_label_with_work_prefix">Kerja %1$s</string>
     <string name="widgets_restore_action">Ketuk untuk mengembalikan widget %1$s</string>
     <string name="settings_show_wallpaper_title">Tampilkan wallpaper</string>
-    <string name="settings_card_opacity_label">Opasitas kartu: %1$d%%</string>
 </resources>

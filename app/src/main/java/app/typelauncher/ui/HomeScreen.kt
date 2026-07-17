@@ -100,7 +100,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -707,9 +706,6 @@ internal fun HomeScreen(
     // as Home slides into view, instead of the app list flashing for the whole
     // Widgets→Home settle before the destination commits at the end of it.
     val wallpaperActive = isVisibleHomePage && state.isWallpaperShown && showSearchCard
-    // Home's cards fade to `cardOpacity` only while the wallpaper is actually
-    // behind them, so the wallpaper can show through; fully opaque otherwise.
-    val homeCardAlpha = if (wallpaperActive) state.cardOpacity else 1f
     // `showWallpaperSlot` is the empty-query case: the app-list slot itself is
     // left transparent so the wallpaper shows through it. Typing brings the
     // opaque `AppsCard` back into that slot, over the same wallpaper backdrop.
@@ -905,10 +901,6 @@ internal fun HomeScreen(
             }
         }
     }
-    // Provide the card alpha to every SectionCard on Home (search box, dock,
-    // app list, recents) so they fade uniformly while the wallpaper shows.
-    // Scoped here so Settings and dialog cards, composed elsewhere, stay opaque.
-    CompositionLocalProvider(LocalCardAlpha provides homeCardAlpha) {
     Layout(
         modifier = Modifier
             .fillMaxSize()
@@ -1206,7 +1198,6 @@ internal fun HomeScreen(
                 )
             }
         }
-    }
     }
 }
 
@@ -5683,8 +5674,6 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
-    onWallpaperShownOnAllPagesChanged: (Boolean) -> Unit = {},
-    onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     // "Search contacts" / "Search calendar events". Enabling routes through
     // MainActivity's permission request first; the persisted flag (and this
@@ -5767,12 +5756,6 @@ internal fun SettingsScreen(
         true -> Color.Black
         false -> Color.White
     }
-    // Fade Settings' own cards to the user's "Card opacity" while the wallpaper
-    // is behind them — the same treatment Home's cards get — so the whole page
-    // follows one wallpaper/transparency/opacity model. Scoped to the page
-    // content (same pattern as Home): dialogs opened from Settings stay opaque.
-    val settingsCardAlpha = if (state.isWallpaperShown) state.cardOpacity else 1f
-    CompositionLocalProvider(LocalCardAlpha provides settingsCardAlpha) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -5959,53 +5942,6 @@ internal fun SettingsScreen(
                     modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
                 )
             }
-            // Wallpaper on all screens — extends the wallpaper backdrop to the
-            // Widgets and Agenda carousel pages. Meaningless without a
-            // wallpaper behind the window, so like Card opacity it's disabled
-            // (and dimmed) unless Show wallpaper is on.
-            val wallpaperAllPagesEnabled = state.isWallpaperShown
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_show_wallpaper_all_pages_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                            .copy(alpha = if (wallpaperAllPagesEnabled) 1f else 0.38f),
-                    )
-                }
-                Switch(
-                    checked = state.isWallpaperShownOnAllPages,
-                    onCheckedChange = onWallpaperShownOnAllPagesChanged,
-                    enabled = wallpaperAllPagesEnabled,
-                    modifier = Modifier.testTag(WALLPAPER_ALL_PAGES_SWITCH_TAG),
-                )
-            }
-            // Card opacity — how much the wallpaper shows through Home's cards.
-            // Only meaningful while the wallpaper is behind them, so it's
-            // disabled (and dimmed) unless Show wallpaper is on.
-            val cardOpacityEnabled = state.isWallpaperShown
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(
-                        R.string.settings_card_opacity_label,
-                        (state.cardOpacity * 100).roundToInt(),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = if (cardOpacityEnabled) 1f else 0.38f),
-                )
-                Slider(
-                    value = state.cardOpacity,
-                    onValueChange = onCardOpacityChanged,
-                    valueRange = CARD_OPACITY_MIN..1f,
-                    enabled = cardOpacityEnabled,
-                    modifier = Modifier.testTag(CARD_OPACITY_SLIDER_TAG),
-                )
-            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -6141,7 +6077,6 @@ internal fun SettingsScreen(
             dockIconSizeDp = dockIconSizeDp,
             dockIconCount = dockIconCount,
         )
-    }
     }
     if (hiddenAppsDialogVisible) {
         HiddenAppsDialog(
@@ -6937,16 +6872,6 @@ private fun SettingsPreview(
     //     never consumes, which lets the settings page's outer
     //     verticalScroll still drive vertical drags that start inside the
     //     preview region.
-    // Mirror Home's card treatment so the preview responds to the "Card opacity"
-    // slider live as the user drags it: fade the cards' fill to `cardOpacity`,
-    // but only while "Show wallpaper" is on — the same gate Home uses, and the
-    // same gate that enables the slider. Off the wallpaper path the preview stays
-    // fully opaque, matching ordinary Home. The caller punches a transparent hole
-    // through the Settings backdrop at this preview's footprint (and flips the
-    // window background transparent), so on-device the faded cards reveal the
-    // real wallpaper exactly as Home does. Robolectric can't composite the live
-    // wallpaper, so under test the hole shows the empty window instead.
-    val previewCardAlpha = if (state.isWallpaperShown) state.cardOpacity else 1f
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -6955,81 +6880,79 @@ private fun SettingsPreview(
             // through it while the cards' descendant semantics stay stripped.
             .clearAndSetSemantics { testTag = SETTINGS_PREVIEW_TAG },
     ) {
-        CompositionLocalProvider(LocalCardAlpha provides previewCardAlpha) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
-            ) {
-                if (state.isWallpaperShown) {
-                    // Mirror Home's empty-query state exactly: with "Show
-                    // wallpaper" on, Home replaces the app list with a
-                    // transparent wallpaper slot, so the preview does the same —
-                    // the backdrop cutout behind this strip reveals the real
-                    // wallpaper through this slot, which is both what Home
-                    // actually looks like and what makes the wallpaper clearly
-                    // visible in the preview. The cards below keep exactly the
-                    // widths and sizes Home uses (no inset), so the dock preview
-                    // is true to the real dock.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(appListHeight)
-                            .testTag(SETTINGS_PREVIEW_WALLPAPER_SLOT_TAG),
-                    )
-                } else {
-                    AppsCard(
-                        apps = state.filteredApps,
-                        dockLimit = Int.MAX_VALUE,
-                        layout = state.appListLayout,
-                        iconSizeDp = dockIconSizeDp,
-                        highlightFirst = state.query.isNotBlank(),
-                        reverseLayout = state.appListSortOrder.isReversed,
-                        scrollResetKey = state.query,
-                        modifier = Modifier.height(appListHeight),
-                        onLaunchApp = {},
-                        onOpenAppInfo = {},
-                        onToggleDock = { _, _ -> },
-                        onResetRank = {},
-                        onRenameApp = { _, _ -> },
-                        onSetAppIconOverride = {},
-                        onClearAppIconOverride = {},
-                        onSetAppBadge = { _, _ -> },
-                        onHideApp = {},
-                    )
-                }
-                if (state.isDockEnabled) {
-                    DockCard(
-                        dockedApps = state.dockedApps,
-                        dockPositions = state.dockPositions,
-                        dockFolders = state.dockFolders,
-                        dockIconSizeDp = dockIconSizeDp,
-                        dockIconCount = dockIconCount,
-                        dockLayout = state.dockLayout,
-                        modifier = Modifier.height(dockPreviewHeight),
-                        onLaunchApp = {},
-                        onOpenAppInfo = {},
-                        onToggleDock = { _, _ -> },
-                        onReorderDock = { _, _, _ -> },
-                        onResetRank = {},
-                        onRenameApp = { _, _ -> },
-                        onSetAppIconOverride = {},
-                        onClearAppIconOverride = {},
-                        onSetAppBadge = { _, _ -> },
-                        onHideApp = {},
-                    )
-                }
-                // Mirror Home: recents is always a secondary bar, independent of the dock.
-                RecentsCard(
-                    recentApps = state.recentApps,
-                    isVisible = true,
-                    dockIconSizeDp = dockIconSizeDp,
-                    modifier = Modifier.height(previewHeight),
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
+        ) {
+            if (state.isWallpaperShown) {
+                // Mirror Home's empty-query state exactly: with "Show
+                // wallpaper" on, Home replaces the app list with a
+                // transparent wallpaper slot, so the preview does the same —
+                // the backdrop cutout behind this strip reveals the real
+                // wallpaper through this slot, which is both what Home
+                // actually looks like and what makes the wallpaper clearly
+                // visible in the preview. The cards below keep exactly the
+                // widths and sizes Home uses (no inset), so the dock preview
+                // is true to the real dock.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(appListHeight)
+                        .testTag(SETTINGS_PREVIEW_WALLPAPER_SLOT_TAG),
+                )
+            } else {
+                AppsCard(
+                    apps = state.filteredApps,
+                    dockLimit = Int.MAX_VALUE,
+                    layout = state.appListLayout,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = state.query.isNotBlank(),
+                    reverseLayout = state.appListSortOrder.isReversed,
+                    scrollResetKey = state.query,
+                    modifier = Modifier.height(appListHeight),
                     onLaunchApp = {},
                     onOpenAppInfo = {},
                     onToggleDock = { _, _ -> },
-                    onDismissRecent = {},
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onSetAppIconOverride = {},
+                    onClearAppIconOverride = {},
+                    onSetAppBadge = { _, _ -> },
+                    onHideApp = {},
                 )
             }
+            if (state.isDockEnabled) {
+                DockCard(
+                    dockedApps = state.dockedApps,
+                    dockPositions = state.dockPositions,
+                    dockFolders = state.dockFolders,
+                    dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = dockIconCount,
+                    dockLayout = state.dockLayout,
+                    modifier = Modifier.height(dockPreviewHeight),
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onReorderDock = { _, _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onSetAppIconOverride = {},
+                    onClearAppIconOverride = {},
+                    onSetAppBadge = { _, _ -> },
+                    onHideApp = {},
+                )
+            }
+            // Mirror Home: recents is always a secondary bar, independent of the dock.
+            RecentsCard(
+                recentApps = state.recentApps,
+                isVisible = true,
+                dockIconSizeDp = dockIconSizeDp,
+                modifier = Modifier.height(previewHeight),
+                onLaunchApp = {},
+                onOpenAppInfo = {},
+                onToggleDock = { _, _ -> },
+                onDismissRecent = {},
+            )
         }
         Box(
             modifier = Modifier

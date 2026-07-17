@@ -160,5 +160,4 @@
     <string name="app_label_with_work_prefix">အလုပ် %1$s</string>
     <string name="widgets_restore_action">%1$s ဝစ်ဂျက်ကို ပြန်လည်ရယူရန် တို့ပါ</string>
     <string name="settings_show_wallpaper_title">နောက်ခံပုံ ပြသမည်</string>
-    <string name="settings_card_opacity_label">ကတ်၏ အလင်းပိတ်နှုန်း - %1$d%%</string>
 </resources>

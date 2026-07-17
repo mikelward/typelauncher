@@ -685,18 +685,11 @@ internal data class LauncherUiState(
     val isKeyboardAutoShown: Boolean = true,
     // When true, the empty-query Home shows the device wallpaper in the
     // app-list slot (instead of the browse list) until the user starts typing,
-    // and only where the search box is visible. Defaults off. See the
-    // `showWallpaper` gate in `HomeScreen`.
+    // and only where the search box is visible; the Widgets and Agenda
+    // carousel pages also drop their opaque page backgrounds so the wallpaper
+    // backs every page. Defaults off. See the `showWallpaper` gate in
+    // `HomeScreen`.
     val isWallpaperShown: Boolean = false,
-    // When true, the Widgets and Agenda carousel pages also drop their opaque
-    // page backgrounds so the wallpaper shows behind them, matching Home's
-    // treatment. Only applied when [isWallpaperShown] is on; defaults off so
-    // the wallpaper backdrop stays Home-only unless the user opts in.
-    val isWallpaperShownOnAllPages: Boolean = false,
-    // Opacity of Home's cards while the wallpaper is showing (search box, dock,
-    // app list, recents), so the wallpaper can show through them. Only applied
-    // when [isWallpaperShown] is on; 1f = fully opaque (default).
-    val cardOpacity: Float = 1f,
     // Last keyboard bottom inset observed while the IME was opening, paired
     // with the configuration it was measured under and the source that
     // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show

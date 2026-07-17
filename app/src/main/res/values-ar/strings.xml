@@ -165,5 +165,4 @@
     <string name="app_label_with_work_prefix">عمل %1$s</string>
     <string name="widgets_restore_action">انقر لاستعادة أداة %1$s</string>
     <string name="settings_show_wallpaper_title">إظهار الخلفية</string>
-    <string name="settings_card_opacity_label">عتامة البطاقة: %1$d%%</string>
 </resources>

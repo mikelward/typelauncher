@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">பணி %1$s</string>
     <string name="widgets_restore_action">%1$s விட்ஜெட்டை மீட்டமைக்க தட்டவும்</string>
     <string name="settings_show_wallpaper_title">வால்பேப்பரைக் காட்டு</string>
-    <string name="settings_card_opacity_label">அட்டையின் ஒளிபுகாநிலை: %1$d%%</string>
 </resources>

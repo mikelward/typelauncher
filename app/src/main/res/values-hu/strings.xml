@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">Munkahelyi %1$s</string>
     <string name="widgets_restore_action">Koppintson a(z) %1$s widget visszaállításához</string>
     <string name="settings_show_wallpaper_title">Háttérkép megjelenítése</string>
-    <string name="settings_card_opacity_label">Kártya átlátszatlansága: %1$d%%</string>
 </resources>

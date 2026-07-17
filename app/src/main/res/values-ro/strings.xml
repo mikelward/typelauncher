@@ -162,5 +162,4 @@
     <string name="app_label_with_work_prefix">Serviciu %1$s</string>
     <string name="widgets_restore_action">Apăsați pentru a restabili widgetul %1$s</string>
     <string name="settings_show_wallpaper_title">Afișează imaginea de fundal</string>
-    <string name="settings_card_opacity_label">Opacitatea cardului: %1$d%%</string>
 </resources>

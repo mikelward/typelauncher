@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">කාර්යාල %1$s</string>
     <string name="widgets_restore_action">%1$s විජට් යළි පිහිටුවීමට තට්ටු කරන්න</string>
     <string name="settings_show_wallpaper_title">බිතුපත පෙන්වන්න</string>
-    <string name="settings_card_opacity_label">කාඩ්පත් අපාරදෘශ්‍යතාව: %1$d%%</string>
 </resources>

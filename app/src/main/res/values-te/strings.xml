@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">వర్క్ %1$s</string>
     <string name="widgets_restore_action">%1$s విడ్జెట్‌ను పునరుద్ధరించడానికి నొక్కండి</string>
     <string name="settings_show_wallpaper_title">వాల్‌పేపర్‌ను చూపించు</string>
-    <string name="settings_card_opacity_label">కార్డ్ అపారదర్శకత: %1$d%%</string>
 </resources>

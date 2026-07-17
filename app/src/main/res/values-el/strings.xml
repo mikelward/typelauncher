@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">Εργασία %1$s</string>
     <string name="widgets_restore_action">Πατήστε για επαναφορά του γραφικού στοιχείου %1$s</string>
     <string name="settings_show_wallpaper_title">Εμφάνιση ταπετσαρίας</string>
-    <string name="settings_card_opacity_label">Αδιαφάνεια κάρτας: %1$d%%</string>
 </resources>

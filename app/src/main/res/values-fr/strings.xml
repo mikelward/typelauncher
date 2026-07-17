@@ -162,5 +162,4 @@
     <string name="app_label_with_work_prefix">Pro %1$s</string>
     <string name="widgets_restore_action">Appuyez pour restaurer le widget %1$s</string>
     <string name="settings_show_wallpaper_title">Afficher le fond d\'écran</string>
-    <string name="settings_card_opacity_label">Opacité des cartes : %1$d%%</string>
 </resources>

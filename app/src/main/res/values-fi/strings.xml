@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">Työ %1$s</string>
     <string name="widgets_restore_action">Napauta palauttaaksesi widgetin %1$s</string>
     <string name="settings_show_wallpaper_title">Näytä taustakuva</string>
-    <string name="settings_card_opacity_label">Kortin peittävyys: %1$d%%</string>
 </resources>
