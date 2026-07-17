@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.Manifest
 import android.app.ActivityOptions
+import android.app.WallpaperManager
 import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
@@ -13,6 +14,7 @@ import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.os.UserHandle
 import android.os.UserManager
 import android.provider.Settings
@@ -106,10 +108,11 @@ class MainActivity : ComponentActivity() {
     // in-place swap. Main-thread confined.
     private var restoreTargetWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
 
-    // The dispatcher the widget-host Binder IPCs (orphan reconciliation,
-    // removal) hop onto, kept off the main thread. Injectable so Robolectric
-    // tests can pass a deterministic dispatcher, mirroring
-    // LauncherViewModel.ioDispatcher — the production default is Dispatchers.IO.
+    // The dispatcher the activity's Binder IPCs (widget-host orphan
+    // reconciliation and removal, the wallpaper-offset report) hop onto, kept
+    // off the main thread. Injectable so Robolectric tests can pass a
+    // deterministic dispatcher, mirroring LauncherViewModel.ioDispatcher — the
+    // production default is Dispatchers.IO.
     @VisibleForTesting
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
@@ -768,6 +771,33 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * Reports a fixed, centered wallpaper offset for this window. The system
+     * pans a wallpaper crop that is larger than the display by the offsets the
+     * wallpaper-target window reports, and a window that never reports any is
+     * defaulted to the wallpaper's left edge (right edge in RTL) — not its
+     * center — so a wallpaper the user centered in the system picker rendered
+     * shifted sideways behind Home. The launcher never scrolls the wallpaper
+     * with the carousel, so a single centered report per window attach keeps
+     * it exactly where the picker previewed it (the zero step sizes tell live
+     * wallpapers there are no pages to parallax between). Skipped when the
+     * window was built without `FLAG_SHOW_WALLPAPER`: nothing composites a
+     * wallpaper there, and the "Show wallpaper" restart builds a fresh window
+     * whose own attach reports the offsets. `setWallpaperOffsets` is a window
+     * manager Binder call and the attach runs just before the first frame, so
+     * the IPC hops onto [ioDispatcher] to stay off the cold-start main thread.
+     */
+    @VisibleForTesting
+    internal fun reportCenteredWallpaperOffsets(windowToken: IBinder) {
+        if (!appliedWallpaperShown) return
+        lifecycleScope.launch(ioDispatcher) {
+            val wallpaperManager = WallpaperManager.getInstance(this@MainActivity)
+            wallpaperManager.setWallpaperOffsetSteps(0f, 0f)
+            wallpaperManager.setWallpaperOffsets(windowToken, 0.5f, 0.5f)
+            LauncherDebugLog.event("reportCenteredWallpaperOffsets")
+        }
+    }
+
+    /**
      * (Re-)applies `enableEdgeToEdge` with explicit `SystemBarStyle`s derived
      * from [mode], so the status / navigation bar icon contrast tracks the
      * launcher-selected theme rather than only the device's night-mode flag.
@@ -937,6 +967,7 @@ class MainActivity : ComponentActivity() {
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         LauncherDebugLog.event("MainActivity.onAttachedToWindow window=${window.debugSummary()}")
+        window.decorView.windowToken?.let(::reportCenteredWallpaperOffsets)
     }
 
     override fun onDetachedFromWindow() {
