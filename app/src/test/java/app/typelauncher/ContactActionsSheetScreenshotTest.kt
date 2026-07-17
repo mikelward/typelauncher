@@ -12,6 +12,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
@@ -31,7 +33,9 @@ import org.robolectric.annotation.GraphicsMode
  * Renders the in-list contact quick-actions card so the PR `roborazzi-screenshots`
  * artifact captures both steps: the channel list (Phone, Message, an installed
  * app, Email, and "Open contact") and, with the multi-number Call channel
- * selected, its number picker with the default number on top. Composes
+ * selected, its number picker with the default number on top — plus the
+ * typed-filter state, where the surviving top row carries the active-row
+ * (Enter-target) highlight. Composes
  * [ContactActionsCard] directly (the step is driven by the `selectedChannelId`
  * parameter rather than internal state), so the Robolectric tree renders the
  * card without any popup window.
@@ -102,6 +106,48 @@ class ContactActionsSheetScreenshotTest {
         composeSheet(selectedChannelId = "call")
         composeRule.waitForIdle()
         capture("compose_contact_actions_numbers_robolectric.png")
+    }
+
+    @Test
+    fun sheet_channelList_typedFilter() {
+        // Typing narrows the channels; the surviving top row is what Enter
+        // fires, so it renders with the active-row highlight — the state the
+        // filtered-to-Email screenshot in the bug report was missing.
+        composeSheet(query = "Em")
+        composeRule.waitForIdle()
+        capture("compose_contact_actions_filtered_robolectric.png")
+    }
+
+    @Test
+    fun channelList_firstRowIsSelectedAsEnterTarget() {
+        // Enter fires the first visible row even on a blank query (unlike the
+        // app list, where a blank query routes Enter to settings), so the top
+        // channel is highlighted from the moment the mode opens.
+        composeSheet()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:call").assertIsSelected()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:message").assertIsNotSelected()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:email").assertIsNotSelected()
+        composeRule.onNodeWithTag(CONTACT_ACTIONS_OPEN_CONTACT_TAG).assertIsNotSelected()
+    }
+
+    @Test
+    fun typedFilter_movesSelectionToTopMatch() {
+        // "Em" filters the channel list down to Email, which becomes the Enter
+        // target and takes the highlight over from the Call row.
+        composeSheet(query = "Em")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:email").assertIsSelected()
+    }
+
+    @Test
+    fun numberPicker_firstNumberIsSelectedAsEnterTarget() {
+        composeSheet(selectedChannelId = "call")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_ACTION_TAG:Mobile", useUnmergedTree = true)
+            .assertIsSelected()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_ACTION_TAG:Home", useUnmergedTree = true)
+            .assertIsNotSelected()
     }
 
     @Test

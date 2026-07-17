@@ -44,6 +44,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
@@ -60,8 +62,12 @@ import kotlinx.coroutines.withContext
  * step one, or a drilled-into channel's actions with the default number on top
  * at step two. The rows are already filtered by the live [query] and the step is
  * driven by the ViewModel's [selectedChannelId], so typing filters the rows and
- * Enter fires the top one exactly like the app list. A step-two phone row keeps
- * the long-press Default / Undefault menu.
+ * Enter fires the top one exactly like the app list. The first row carries the
+ * active-row highlight the app list gives its top match — unconditionally, not
+ * only while typing, because Enter fires the top row here even on a blank query
+ * (see `launchActiveApp`), unlike the blank-query app list where Enter opens
+ * settings instead. A step-two phone row keeps the long-press Default /
+ * Undefault menu.
  */
 @Composable
 internal fun ContactActionsCard(
@@ -99,7 +105,11 @@ internal fun ContactActionsCard(
             channel = selectedChannel,
             onBack = onBack,
         )
-        rows.forEach { row ->
+        rows.forEachIndexed { index, row ->
+            // The first row is what Enter fires (`launchActiveApp` →
+            // `currentContactRows(state).firstOrNull()`), so it takes the
+            // active-row highlight.
+            val isActive = index == 0
             // Key by identity (channel id / Data row / the open-contact marker) so
             // a row's transient state — a step-two number's open Default menu —
             // follows its content when the query re-filters or a default write
@@ -109,12 +119,14 @@ internal fun ContactActionsCard(
                 when (row) {
                     is ContactActionRow.Channel -> ContactChannelRow(
                         channel = row.channel,
+                        isActive = isActive,
                         onClick = { onRowSelected(row) },
                     )
                     is ContactActionRow.Action -> ContactActionItemRow(
                         glyph = row.channel.glyph,
                         iconPackageName = row.channel.iconPackageName,
                         action = row.action,
+                        isActive = isActive,
                         onClick = { onRowSelected(row) },
                         onSetNumberDefault = onSetNumberDefault,
                     )
@@ -124,6 +136,7 @@ internal fun ContactActionsCard(
                         title = row.label,
                         subtitle = null,
                         trailingChevron = false,
+                        isActive = isActive,
                         modifier = Modifier.testTag(CONTACT_ACTIONS_OPEN_CONTACT_TAG),
                         onClick = { onRowSelected(row) },
                     )
@@ -197,13 +210,14 @@ private fun ContactActionsHeader(
 
 /** A channel row (step one): app-or-glyph icon, label, and a chevron when the channel expands. */
 @Composable
-private fun ContactChannelRow(channel: ContactChannel, onClick: () -> Unit) {
+private fun ContactChannelRow(channel: ContactChannel, isActive: Boolean, onClick: () -> Unit) {
     ContactSheetRow(
         glyph = channel.glyph,
         iconPackageName = channel.iconPackageName,
         title = channel.label,
         subtitle = channel.actions.singleOrNull()?.detail,
         trailingChevron = channel.actions.size > 1,
+        isActive = isActive,
         modifier = Modifier.testTag("$CONTACT_ACTIONS_CHANNEL_TAG:${channel.id}"),
         onClick = onClick,
     )
@@ -227,6 +241,7 @@ private fun ContactActionItemRow(
     glyph: ContactChannelGlyph?,
     iconPackageName: String?,
     action: ContactAction,
+    isActive: Boolean,
     onClick: () -> Unit,
     onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit,
 ) {
@@ -238,6 +253,7 @@ private fun ContactActionItemRow(
             title = action.label,
             subtitle = action.detail,
             trailingChevron = false,
+            isActive = isActive,
             modifier = Modifier.testTag("$CONTACT_ACTIONS_ACTION_TAG:${action.label}"),
             onClick = onClick,
         )
@@ -251,6 +267,7 @@ private fun ContactActionItemRow(
             title = action.label,
             subtitle = action.detail,
             trailingChevron = false,
+            isActive = isActive,
             modifier = Modifier.testTag("$CONTACT_ACTIONS_ACTION_TAG:${action.label}"),
             onClick = onClick,
             onLongClick = { menuExpanded = true },
@@ -291,13 +308,20 @@ private fun ContactSheetRow(
     title: String,
     subtitle: String?,
     trailingChevron: Boolean,
+    isActive: Boolean,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val titleColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onSurface
+    val secondaryColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .background(rowColor, RoundedCornerShape(8.dp))
             .then(
                 if (onLongClick != null) {
                     Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -305,7 +329,8 @@ private fun ContactSheetRow(
                     Modifier.clickable(onClick = onClick)
                 },
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .semantics { selected = isActive },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -314,7 +339,7 @@ private fun ContactSheetRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -322,7 +347,7 @@ private fun ContactSheetRow(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = secondaryColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -332,7 +357,7 @@ private fun ContactSheetRow(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = secondaryColor,
             )
         }
     }
