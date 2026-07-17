@@ -9,6 +9,7 @@ import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -44,6 +45,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
@@ -255,6 +258,39 @@ internal class LauncherViewModel(
     )
     val requestCallPermission: SharedFlow<Unit> = _requestCallPermission.asSharedFlow()
     private var pendingCallNumber: String? = null
+
+    // The same effect-flow shape for WRITE_CONTACTS, which the favorite toggle
+    // and the set-default-number action both need to modify a contact. The write
+    // waiting on the grant is parked as a thunk here and replayed once the result
+    // comes back via onWriteContactsPermissionResult.
+    private val _requestWriteContactsPermission = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val requestWriteContactsPermission: SharedFlow<Unit> = _requestWriteContactsPermission.asSharedFlow()
+    private var pendingWriteContactsAction: (() -> Unit)? = null
+    // Serializes the favorite (STARRED) provider writes so rapid toggles on a row
+    // can't complete out of order and leave Contacts on a stale choice.
+    private val favoriteWriteMutex = Mutex()
+    // Optimistic favorite states whose provider write a contact-index reload may
+    // not observe yet, keyed by contact id. Overlaid onto every reloaded index so
+    // a resume-driven reload can't clobber the star. Each carries the epoch its
+    // write committed at (null while still in flight); a reload whose read
+    // happened at or after that epoch is authoritative — the provider now reflects
+    // the write (or a later external edit) — so the override is dropped rather
+    // than overlaid, which is what keeps an external favorite change from being
+    // masked. Main-thread only.
+    private val pendingStars = mutableMapOf<Long, PendingStar>()
+    // Monotonic counter bumped on each committed favorite write; a reload captures
+    // it at read time to tell a pre-commit read (stale, overlay) from a post-commit
+    // one (authoritative, drop the override). Written on the main thread only;
+    // volatile so the reload's IO read sees the latest value.
+    @Volatile
+    private var favoriteCommitEpoch = 0L
+
+    /** An optimistic favorite override: the intended [starred] value and the epoch its write committed at (null while in flight). */
+    private data class PendingStar(val starred: Boolean, val commitEpoch: Long?)
     // Monotonic token identifying the latest quick-actions-sheet open request.
     // A contact resolve publishes only while its token is still the latest, so a
     // stale resolve (superseded tap, dismiss, or fired action) is discarded.
@@ -1133,6 +1169,129 @@ internal class LauncherViewModel(
         contactResolveToken++
         _uiState.update { it.copy(contactActions = null) }
     }
+
+    /**
+     * Toggles the contact's platform favorite (`ContactsContract.Contacts.STARRED`)
+     * from the long-press menu on a contacts-section row. Needs `WRITE_CONTACTS`:
+     * when it is already granted the flip runs now, otherwise it is parked and the
+     * Activity is asked to request the permission (see [onWriteContactsPermissionResult]).
+     */
+    fun toggleContactStarred(contact: ContactResult) {
+        LauncherDebugLog.event("toggleContactStarred contactId=${contact.contactId} to=${!contact.starred}")
+        runWithWriteContacts { writeStarred(contact, !contact.starred) }
+    }
+
+    /**
+     * Runs [action] when `WRITE_CONTACTS` is held; otherwise parks it and asks the
+     * Activity for the permission, replaying it on grant. A single parked slot is
+     * enough — the user only drives one contact write at a time.
+     */
+    private fun runWithWriteContacts(action: () -> Unit) {
+        if (hasWriteContactsPermission()) {
+            action()
+        } else {
+            LauncherDebugLog.event("runWithWriteContacts requesting WRITE_CONTACTS")
+            pendingWriteContactsAction = action
+            _requestWriteContactsPermission.tryEmit(Unit)
+        }
+    }
+
+    /** Resumes a parked contact write once the `WRITE_CONTACTS` prompt resolves; a denial simply drops it. */
+    fun onWriteContactsPermissionResult(granted: Boolean) {
+        val action = pendingWriteContactsAction ?: return
+        pendingWriteContactsAction = null
+        LauncherDebugLog.event("onWriteContactsPermissionResult granted=$granted")
+        if (granted) action()
+    }
+
+    private fun writeStarred(contact: ContactResult, starred: Boolean) {
+        // Record the intended state as pending and flip in place first, so the
+        // star and its long-press menu update on the spot — a slow or blocked
+        // provider must not hold the UI on the old state, and the immediate flip
+        // is what lets a second long-press offer the inverse (undo). The pending
+        // override also survives a contact-index reload that races the write (a
+        // resume re-reads the not-yet-committed old value), and is cleared once a
+        // fresh read agrees with it (see [withPendingStars]).
+        pendingStars[contact.contactId] = PendingStar(starred, commitEpoch = null)
+        applyStarredLocally(contact.contactId, starred)
+        viewModelScope.launch {
+            // Serialize the provider writes so a rapid favorite→unfavorite on the
+            // same row can't land out of order and leave Contacts on the earlier
+            // choice: the coroutines acquire the lock in launch order, so the last
+            // toggle is the last write and therefore wins.
+            val ok = favoriteWriteMutex.withLock {
+                writeStarredToProvider(contact.contactId, starred)
+            }
+            // Only touch the override if it still reflects *this* write — a newer
+            // toggle may have replaced it, and that toggle's own write owns it now.
+            val current = pendingStars[contact.contactId]
+            if (current == null || current.starred != starred || current.commitEpoch != null) return@launch
+            if (ok) {
+                // Stamp the commit epoch so a later authoritative read drops it.
+                favoriteCommitEpoch += 1
+                pendingStars[contact.contactId] = current.copy(commitEpoch = favoriteCommitEpoch)
+            } else {
+                // The write failed. Drop the override and re-read so the row lands
+                // on the real provider value rather than the inverse of the failed
+                // request — inverting is wrong for a rapid favorite→unfavorite
+                // where both writes fail (the second failure would flip the row
+                // back to starred though nothing committed).
+                pendingStars.remove(contact.contactId)
+                refreshContentSearchIndices(reason = "favoriteWriteFailed")
+            }
+        }
+    }
+
+    /**
+     * Overlays any in-flight [pendingStars] onto a freshly loaded contact list so
+     * an index reload that races a favorite write can't clobber the optimistic
+     * star. [readEpoch] is [favoriteCommitEpoch] captured when this reload read the
+     * provider: an override whose write committed at or before that epoch is
+     * already reflected by the read (the provider is authoritative, including a
+     * later external edit), so it is dropped; the rest — still in flight, or
+     * committed after the read — are overlaid. Main-thread only.
+     */
+    private fun List<ContactResult>.withPendingStars(readEpoch: Long): List<ContactResult> {
+        if (pendingStars.isEmpty()) return this
+        pendingStars.entries.removeAll { (_, pending) ->
+            pending.commitEpoch != null && readEpoch >= pending.commitEpoch
+        }
+        if (pendingStars.isEmpty()) return this
+        return map { contact -> pendingStars[contact.contactId]?.let { contact.copy(starred = it.starred) } ?: contact }
+    }
+
+    private suspend fun writeStarredToProvider(contactId: Long, starred: Boolean): Boolean =
+        withContext(ioDispatcher) {
+            runCatching {
+                val values = ContentValues().apply {
+                    put(ContactsContract.Contacts.STARRED, if (starred) 1 else 0)
+                }
+                app.contentResolver.update(
+                    ContactsContract.Contacts.CONTENT_URI,
+                    values,
+                    "${ContactsContract.Contacts._ID} = ?",
+                    arrayOf(contactId.toString()),
+                ) > 0
+            }.getOrElse { exception ->
+                LauncherDebugLog.warning("writeStarred failed contactId=$contactId", exception)
+                false
+            }
+        }
+
+    /**
+     * Optimistically flips the starred flag in the in-memory index and the visible
+     * results so the star updates immediately, without waiting for the next full
+     * index reload (resume / source enable) to re-read it from the provider. The
+     * row keeps its position — the starred-first re-sort only applies on that next
+     * reload, so the list doesn't jump under the finger that just toggled it.
+     */
+    private fun applyStarredLocally(contactId: Long, starred: Boolean) {
+        contactIndex = contactIndex.map { if (it.contactId == contactId) it.copy(starred = starred) else it }
+        _uiState.update { state -> state.copy(contactResults = contactResultsFor(state, state.query.trim())) }
+    }
+
+    private fun hasWriteContactsPermission(): Boolean =
+        ContextCompat.checkSelfPermission(app, Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED
 
     /**
      * Dispatches a chosen quick action. A [ContactActionKind.Launch] (SMS,
@@ -2309,6 +2468,10 @@ internal class LauncherViewModel(
             // when nothing is still enabled and reloads the survivor otherwise.
             contentSearchVersion++
             contactIndex = emptyList()
+            // A disabled source holds nothing in memory — drop any pending
+            // favorite overrides too; the writes still commit to the provider,
+            // and a re-enable reload reads the committed value.
+            pendingStars.clear()
             // The "holds nothing in memory" contract covers decoded photo
             // thumbnails too, not just the name index.
             ContactPhotoLoader.evictAll()
@@ -2381,9 +2544,24 @@ internal class LauncherViewModel(
             // a disable that lands while this load is queued must not *query*
             // the just-opted-out source at all — the publish check below only
             // stops the result from landing, not the read itself.
+            // Captured *before* the read so pending favorite overrides can tell a
+            // pre-commit read (overlay) from a post-commit one (drop). Capturing
+            // after the query would misjudge a write that commits between the read
+            // and the capture — the read still holds the old value, yet the higher
+            // epoch would drop the override as authoritative. Reading before is
+            // conservative: a write committing during/after the read keeps a higher
+            // commit epoch, so the override stays overlaid (harmless if the read
+            // already saw the new value). Defaults to the current epoch for the
+            // "source disabled, keep the index" branch.
+            var readEpoch = favoriteCommitEpoch
             val contacts = if (wantContacts) {
                 withContext(ioDispatcher) {
-                    if (contentSearchVersion == requestVersion) loadContactIndex() else emptyList()
+                    if (contentSearchVersion == requestVersion) {
+                        readEpoch = favoriteCommitEpoch
+                        loadContactIndex()
+                    } else {
+                        emptyList()
+                    }
                 }
             } else {
                 contactIndex
@@ -2396,7 +2574,7 @@ internal class LauncherViewModel(
                 searchEventIndex
             }
             if (contentSearchVersion != requestVersion) return@launch
-            contactIndex = contacts
+            contactIndex = contacts.withPendingStars(readEpoch)
             searchEventIndex = events
             // Drop cached photo thumbnails whenever the contact index reloads:
             // a photo edited in the Contacts app keeps its stable
