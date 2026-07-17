@@ -1,5 +1,7 @@
 package app.typelauncher
 
+import android.accounts.AccountManager
+import android.accounts.AuthenticatorDescription
 import android.content.ContentProvider
 import android.content.ContentUris
 import android.content.ContentValues
@@ -26,9 +28,9 @@ import org.robolectric.shadows.ShadowContentResolver
 
 /**
  * Unit coverage for [resolveContactChannels]: the contact → channels grouping,
- * default-first ordering within a channel, and the generic "resolve, don't
- * hardcode" surfacing of third-party actions (a WhatsApp-shaped custom mimetype
- * stands in for any installed integration).
+ * default-first ordering, phone dedupe, and the account-type attribution that
+ * surfaces real app integrations (WhatsApp-shaped rows) while dropping generic
+ * data kinds an unrelated app merely declares a handler for.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -79,15 +81,70 @@ class ContactActionsTest {
     }
 
     @Test
-    fun surfacesInstalledAppActionsGenerically() {
+    fun dedupesTheSameNumberSyncedAcrossAccounts() {
+        // The same number often rides under several accounts (Google + WhatsApp
+        // + Signal each carry a phone row); the Call/Message channels list it once.
+        registerDataProvider(
+            phone("+1 555 0100", Phone.TYPE_MOBILE, account = "com.google", superPrimary = true),
+            phone("+15550100", Phone.TYPE_MOBILE, account = "com.whatsapp"),
+            phone("+1-555-0100", Phone.TYPE_MOBILE, account = "org.thoughtcrime.securesms"),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals("The number appears once despite three synced rows", 1, call.actions.size)
+        assertEquals("+1 555 0100", call.actions.single().detail)
+    }
+
+    @Test
+    fun keepsNumbersThatDifferOnlyByDialingSyntax() {
+        // Same leading digits but a different dial string (an extension / pause):
+        // these are distinct numbers and must both survive the dedupe.
+        registerDataProvider(
+            phone("555-0100", Phone.TYPE_MOBILE, superPrimary = true),
+            phone("555-0100,,99", Phone.TYPE_WORK),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(2, call.actions.size)
+        assertEquals(setOf("555-0100", "555-0100,,99"), call.actions.map { it.detail }.toSet())
+    }
+
+    @Test
+    fun mapsAccountNamespaceToItsAuthenticatorPackage() {
+        // An app whose account type is a namespace rather than its APK package:
+        // the owning package is recovered from the registered authenticator.
+        val accountType = "com.example.messenger.account"
+        val pkg = "com.example.messenger"
+        val mime = "vnd.android.cursor.item/vnd.com.example.messenger.call"
+        shadowOf(AccountManager.get(context)).addAuthenticator(
+            AuthenticatorDescription(accountType, pkg, 0, 0, 0, 0),
+        )
+        registerAppRow(pkg, "Messenger", dataId = 701, mimeType = mime)
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+            custom(dataId = 701, mimeType = mime, account = accountType, summary = "Call"),
+        )
+
+        val channels = resolveContactChannels(context, contact)
+
+        val app = channels.first { it.id == pkg }
+        assertEquals("Messenger", app.label)
+        assertEquals(pkg, app.iconPackageName)
+        assertEquals(pkg, (app.actions.single().kind as ContactActionKind.Launch).intent.`package`)
+    }
+
+    @Test
+    fun surfacesInstalledAppActionsByAccountType() {
         val whatsappMessage = "vnd.android.cursor.item/vnd.com.whatsapp.profile"
         val whatsappCall = "vnd.android.cursor.item/vnd.com.whatsapp.voip.call"
-        registerResolver("com.whatsapp", "WhatsApp", dataId = 201, mimeType = whatsappMessage)
-        registerResolver("com.whatsapp", "WhatsApp", dataId = 202, mimeType = whatsappCall)
+        registerAppRow("com.whatsapp", "WhatsApp", dataId = 201, mimeType = whatsappMessage)
+        registerAppRow("com.whatsapp", "WhatsApp", dataId = 202, mimeType = whatsappCall)
         registerDataProvider(
             phone("+1-555-0100", Phone.TYPE_MOBILE, superPrimary = true),
-            custom(dataId = 201, mimeType = whatsappMessage, summary = "Message"),
-            custom(dataId = 202, mimeType = whatsappCall, summary = "Voice call"),
+            custom(dataId = 201, mimeType = whatsappMessage, account = "com.whatsapp", summary = "Message"),
+            custom(dataId = 202, mimeType = whatsappCall, account = "com.whatsapp", summary = "Voice call"),
         )
 
         val channels = resolveContactChannels(context, contact)
@@ -100,16 +157,60 @@ class ContactActionsTest {
         val firstAction = whatsapp.actions.first().kind as ContactActionKind.Launch
         assertEquals(Intent.ACTION_VIEW, firstAction.intent.action)
         assertEquals(whatsappMessage, firstAction.intent.type)
-        // Phone/Message come first, the app channel after them.
+        // The intent is targeted at the account's package so it launches the real
+        // app instead of the system chooser.
+        assertEquals("com.whatsapp", firstAction.intent.`package`)
+        // Phone/Message first, the app channel after them.
         assertEquals(listOf("call", "message", "com.whatsapp"), channels.map { it.id })
     }
 
     @Test
+    fun keepsSeparateAppsAsSeparateChannels() {
+        // Regression for the shipped bug: WhatsApp, Signal and Meet all resolved
+        // to the system chooser (package "android") and collapsed into one
+        // channel. Attributing by account type keeps them distinct.
+        registerAppRow("com.whatsapp", "WhatsApp", 301, "vnd.android.cursor.item/vnd.com.whatsapp.voip.call")
+        registerAppRow("org.thoughtcrime.securesms", "Signal", 302, "vnd.android.cursor.item/vnd.org.thoughtcrime.securesms.call")
+        registerAppRow("com.google.android.apps.tachyon", "Meet", 303, "vnd.android.cursor.item/com.google.android.apps.tachyon.phone.meet")
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+            custom(301, "vnd.android.cursor.item/vnd.com.whatsapp.voip.call", "com.whatsapp", "Voice call"),
+            custom(302, "vnd.android.cursor.item/vnd.org.thoughtcrime.securesms.call", "org.thoughtcrime.securesms", "Signal call"),
+            custom(303, "vnd.android.cursor.item/com.google.android.apps.tachyon.phone.meet", "com.google.android.apps.tachyon", "Meet"),
+        )
+
+        val ids = resolveContactChannels(context, contact).map { it.id }
+
+        assertEquals(
+            listOf("call", "message", "com.whatsapp", "org.thoughtcrime.securesms", "com.google.android.apps.tachyon"),
+            ids,
+        )
+    }
+
+    @Test
+    fun dropsGenericDataKindOnAPlainAccount() {
+        // The eufyMake case: an unrelated app registers a handler for a generic
+        // `calling_card` row that lives on a plain `com.google` account. Because
+        // the row is attributed to its account (com.google, not the handler's
+        // package), targeting the intent there resolves to nothing and it drops —
+        // no junk channel, even though a package-less resolve would have matched.
+        registerAppRow("com.oceanwing.fdmprint", "eufyMake", dataId = 401, mimeType = "vnd.android.cursor.item/calling_card")
+        registerDataProvider(
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+            custom(dataId = 401, mimeType = "vnd.android.cursor.item/calling_card", account = "com.google", summary = "eufyMake"),
+        )
+
+        val ids = resolveContactChannels(context, contact).map { it.id }
+
+        assertEquals("No junk channel from the generic com.google row", listOf("call", "message"), ids)
+    }
+
+    @Test
     fun ordersChannelsPhoneMessageAppsThenEmail() {
-        registerResolver("com.whatsapp", "WhatsApp", dataId = 301, mimeType = "vnd.android.cursor.item/vnd.com.whatsapp.profile")
+        registerAppRow("com.whatsapp", "WhatsApp", dataId = 501, mimeType = "vnd.android.cursor.item/vnd.com.whatsapp.profile")
         registerDataProvider(
             email("jess@example.com", Email.TYPE_HOME),
-            custom(dataId = 301, mimeType = "vnd.android.cursor.item/vnd.com.whatsapp.profile", summary = "Message"),
+            custom(dataId = 501, mimeType = "vnd.android.cursor.item/vnd.com.whatsapp.profile", account = "com.whatsapp", summary = "Message"),
             phone("+1-555-0100", Phone.TYPE_MOBILE),
         )
 
@@ -136,7 +237,12 @@ class ContactActionsTest {
         // A custom mimetype whose app isn't installed resolves to nothing and is
         // dropped rather than surfaced as a dead button.
         registerDataProvider(
-            custom(dataId = 401, mimeType = "vnd.android.cursor.item/vnd.com.uninstalled.chat", summary = "Chat"),
+            custom(
+                dataId = 601,
+                mimeType = "vnd.android.cursor.item/vnd.com.uninstalled.chat",
+                account = "com.uninstalled",
+                summary = "Chat",
+            ),
         )
 
         assertTrue(resolveContactChannels(context, contact).isEmpty())
@@ -144,11 +250,11 @@ class ContactActionsTest {
 
     // --- helpers -------------------------------------------------------------
 
-    private fun registerResolver(packageName: String, label: String, dataId: Long, mimeType: String) {
-        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(
-            ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, dataId),
-            mimeType,
-        )
+    /** Registers a resolver for the exact intent the resolver builds: ACTION_VIEW + data + type, targeted at [packageName]. */
+    private fun registerAppRow(packageName: String, label: String, dataId: Long, mimeType: String) {
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, dataId), mimeType)
+            .setPackage(packageName)
         val resolveInfo = ResolveInfo().apply {
             nonLocalizedLabel = label
             activityInfo = ActivityInfo().apply {
@@ -186,12 +292,14 @@ class ContactActionsTest {
     private fun phone(
         number: String,
         type: Int,
+        account: String = "com.google",
         superPrimary: Boolean = false,
         primary: Boolean = false,
     ): Map<String, Any?> = row(
         mimeType = Phone.CONTENT_ITEM_TYPE,
         data1 = number,
         data2 = type,
+        account = account,
         superPrimary = superPrimary,
         primary = primary,
     )
@@ -199,8 +307,8 @@ class ContactActionsTest {
     private fun email(address: String, type: Int): Map<String, Any?> =
         row(mimeType = Email.CONTENT_ITEM_TYPE, data1 = address, data2 = type)
 
-    private fun custom(dataId: Long, mimeType: String, summary: String): Map<String, Any?> =
-        row(id = dataId, mimeType = mimeType, data3 = summary)
+    private fun custom(dataId: Long, mimeType: String, account: String, summary: String): Map<String, Any?> =
+        row(id = dataId, mimeType = mimeType, data3 = summary, account = account)
 
     private fun row(
         id: Long = 1,
@@ -208,6 +316,7 @@ class ContactActionsTest {
         data1: String? = null,
         data2: Int? = null,
         data3: String? = null,
+        account: String = "com.google",
         superPrimary: Boolean = false,
         primary: Boolean = false,
     ): Map<String, Any?> = mapOf(
@@ -218,6 +327,7 @@ class ContactActionsTest {
         ContactsContract.Data.DATA3 to data3,
         ContactsContract.Data.IS_SUPER_PRIMARY to if (superPrimary) 1 else 0,
         ContactsContract.Data.IS_PRIMARY to if (primary) 1 else 0,
+        ContactsContract.RawContacts.ACCOUNT_TYPE to account,
     )
 
     private companion object {
@@ -229,6 +339,7 @@ class ContactActionsTest {
             ContactsContract.Data.DATA3,
             ContactsContract.Data.IS_SUPER_PRIMARY,
             ContactsContract.Data.IS_PRIMARY,
+            ContactsContract.RawContacts.ACCOUNT_TYPE,
         )
     }
 }
