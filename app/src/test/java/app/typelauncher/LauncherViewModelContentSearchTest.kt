@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.Manifest
 import android.content.ContentProvider
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -914,6 +915,343 @@ class LauncherViewModelContentSearchTest {
             viewModel.uiState.value.contactResults.single().starred,
         )
     }
+
+    @Test
+    fun setNumberDefaultWritesSuperPrimary() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val superPrimaryWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                superPrimaryWrites.add(values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        viewModel.setNumberDefault(dataId = 11, makeDefault = true)
+        idle()
+
+        assertEquals("Setting a number default writes IS_SUPER_PRIMARY = 1", listOf(1), superPrimaryWrites)
+    }
+
+    @Test
+    fun clearNumberDefaultWritesZeroSuperPrimary() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val superPrimaryWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                superPrimaryWrites.add(values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        viewModel.setNumberDefault(dataId = 11, makeDefault = false)
+        idle()
+
+        assertEquals("Clearing a number default writes IS_SUPER_PRIMARY = 0", listOf(0), superPrimaryWrites)
+    }
+
+    @Test
+    fun rapidNumberDefaultChangesSerializeSoTheLatestWins() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val superPrimaryWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                superPrimaryWrites.add(values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        // Make a number the default, then immediately clear it while both writes
+        // are still parked on the io queue.
+        viewModel.setNumberDefault(dataId = 11, makeDefault = true)
+        viewModel.setNumberDefault(dataId = 11, makeDefault = false)
+        settle(io)
+
+        assertEquals(
+            "The two writes land in call order, so the latest wins",
+            listOf(1, 0),
+            superPrimaryWrites,
+        )
+    }
+
+    @Test
+    fun makingANumberDefaultDemotesThePreviousDefaultOnAnotherRawContact() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // Aggregated contact: dataId 11 (one raw contact) is the current
+        // contact-wide default; dataId 12 (a different number on another raw
+        // contact) is not. Making 12 the default must demote 11 — the provider
+        // won't clear super-primary across raw contacts for us.
+        val superPrimaryWritesById = mutableListOf<Pair<Long, Int?>>()
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int {
+                superPrimaryWritesById.add(
+                    ContentUris.parseId(uri) to values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY),
+                )
+                return 1
+            }
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        assertEquals(
+            "Both numbers resolved into the call channel",
+            listOf(11L, 12L),
+            viewModel.uiState.value.contactActions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
+        )
+
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "The previous default (11) is demoted before the target (12) is set",
+            listOf(11L to 0, 12L to 1),
+            superPrimaryWritesById,
+        )
+    }
+
+    @Test
+    fun aFailedTargetWriteDoesNotReResolveTheSheet() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // The target row's update reports 0 rows (deleted / rejected). The batch's
+        // expected-count guard turns that into a thrown failure, so the whole
+        // rewrite — including the sibling demotion — rolls back atomically and the
+        // sheet is not re-resolved onto a broken state.
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        var queryCount = 0
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                queryCount++
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            // The target (12) reports 0 rows updated; the sibling (11) succeeds.
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int =
+                if (ContentUris.parseId(uri) == 12L) 0 else 1
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        val queriesAfterOpen = queryCount
+
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "A failed target write reports failure and does not re-resolve the sheet",
+            queriesAfterOpen,
+            queryCount,
+        )
+    }
+
+    @Test
+    fun makingANumberDefaultAlsoDemotesAHiddenDuplicateOfTheOldDefault() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // The old default number is synced under two raw contacts (dataIds 11 and
+        // 13, both super-primary); the number picker collapses them to one visible
+        // row. Making a different number (12) the default must demote *both* copies
+        // — clearing only the visible one would leave the hidden duplicate
+        // super-primary and the old number still resolving as a default.
+        val superPrimaryWritesById = mutableListOf<Pair<Long, Int?>>()
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(13, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int {
+                superPrimaryWritesById.add(
+                    ContentUris.parseId(uri) to values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY),
+                )
+                return 1
+            }
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        // The duplicate collapses in the visible picker.
+        assertEquals(
+            "The duplicate number is collapsed to one visible action",
+            listOf(11L, 12L),
+            viewModel.uiState.value.contactActions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
+        )
+
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "Both copies of the old default (11 and hidden 13) are demoted before 12 is set",
+            listOf(11L to 0, 13L to 0, 12L to 1),
+            superPrimaryWritesById,
+        )
+    }
+
+    @Test
+    fun undefaultingANumberAlsoClearsItsHiddenDuplicate() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // The current default number is backed by two super-primary rows (11 and
+        // 13) collapsed into one picker row. Undefaulting the visible one must also
+        // clear the hidden duplicate, or the number stays resolving as the default.
+        val superPrimaryWritesById = mutableListOf<Pair<Long, Int?>>()
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(13, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int {
+                superPrimaryWritesById.add(
+                    ContentUris.parseId(uri) to values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY),
+                )
+                return 1
+            }
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+
+        // Undefault the visible default (row 11); its hidden duplicate is 13.
+        viewModel.setNumberDefault(dataId = 11, makeDefault = false)
+        idle()
+
+        assertEquals(
+            "The hidden duplicate (13) is cleared along with the target (11)",
+            listOf(13L to 0, 12L to 0, 11L to 0),
+            superPrimaryWritesById,
+        )
+    }
+
+    private fun phoneDataRow(id: Long, number: String, type: Int, superPrimary: Boolean): Map<String, Any?> = mapOf(
+        ContactsContract.Data._ID to id,
+        ContactsContract.Data.MIMETYPE to ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
+        ContactsContract.Data.DATA1 to number,
+        ContactsContract.Data.DATA2 to type,
+        ContactsContract.Data.DATA3 to null,
+        ContactsContract.Data.IS_SUPER_PRIMARY to if (superPrimary) 1 else 0,
+        ContactsContract.Data.IS_PRIMARY to if (superPrimary) 1 else 0,
+        ContactsContract.RawContacts.ACCOUNT_TYPE to "com.google",
+    )
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),

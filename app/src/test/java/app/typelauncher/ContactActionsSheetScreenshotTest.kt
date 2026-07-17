@@ -13,11 +13,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,8 +59,8 @@ class ContactActionsSheetScreenshotTest {
                 iconPackageName = "com.example.dialer",
                 glyph = ContactChannelGlyph.Call,
                 actions = listOf(
-                    call("Mobile", "+1 555-0100", isDefault = true),
-                    call("Home", "+1 555-0199", isDefault = false),
+                    call("Mobile", "+1 555-0100", isDefault = true, dataId = 11L),
+                    call("Home", "+1 555-0199", isDefault = false, dataId = 12L),
                 ),
             ),
             ContactChannel(
@@ -104,6 +107,25 @@ class ContactActionsSheetScreenshotTest {
         capture("compose_contact_actions_numbers_robolectric.png")
     }
 
+    @Test
+    fun numberRow_longPressShowsDefaultMenu() {
+        composeSheet()
+        composeRule.waitForIdle()
+        // Drill into the multi-number Call channel, then long-press the
+        // non-default number to reveal its "Default" menu item. The menu is a
+        // DropdownMenu Compose hosts in a separate popup window, so this captures
+        // with captureScreenRoboImage (composites every window) rather than the
+        // decorView-only capture the other cases use.
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:call", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_ACTION_TAG:Home", useUnmergedTree = true)
+            .performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$CONTACT_ACTIONS_DEFAULT_ACTION_TAG:Home", useUnmergedTree = true)
+            .assertExists()
+        composeRule.waitForIdle()
+        captureScreen("compose_contact_actions_default_menu_robolectric.png")
+    }
+
     private fun composeSheet() {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -129,10 +151,11 @@ class ContactActionsSheetScreenshotTest {
         }
     }
 
-    private fun call(label: String, number: String, isDefault: Boolean) = ContactAction(
+    private fun call(label: String, number: String, isDefault: Boolean, dataId: Long? = null) = ContactAction(
         label = label,
         detail = number,
         isDefault = isDefault,
+        dataId = dataId,
         kind = ContactActionKind.Call(number),
     )
 
@@ -149,6 +172,15 @@ class ContactActionsSheetScreenshotTest {
         isDefault = false,
         kind = ContactActionKind.Launch(Intent(Intent.ACTION_VIEW)),
     )
+
+    // Composites every window (the DropdownMenu popup rides in its own), unlike
+    // [capture], which draws only the activity decorView.
+    private fun captureScreen(name: String) {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+        captureScreenRoboImage(filePath = "src/test/snapshots/images/$name")
+    }
 
     private fun capture(name: String, widthPx: Int = 840, heightPx: Int = 900) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"

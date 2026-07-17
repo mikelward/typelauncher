@@ -48,6 +48,16 @@ internal data class ContactChannel(
     val iconPackageName: String?,
     val glyph: ContactChannelGlyph?,
     val actions: List<ContactAction>,
+    /**
+     * Every `ContactsContract.Data` row id backing this channel, *before* the
+     * `distinctBy { number }` collapse that produces [actions] — populated for the
+     * phone channels (Call / Message), empty otherwise. The set-default write uses
+     * it to demote *all* of the contact's other default phone rows, including a
+     * hidden duplicate of the same number synced under another raw contact that
+     * [actions] dropped; clearing only the visible copies would leave that
+     * duplicate super-primary and the old number resolving as a default.
+     */
+    val dataIds: List<Long> = emptyList(),
 )
 
 /** The built-in channels' fallback glyphs, painted when no real app icon resolves. */
@@ -56,8 +66,14 @@ internal enum class ContactChannelGlyph { Call, Message, Email }
 /**
  * A concrete thing the sheet can do — a leaf of the second step, or fired
  * immediately when its channel has only one. [isDefault] marks the contact's
- * primary number/address (`IS_SUPER_PRIMARY` / `IS_PRIMARY`), which the resolver
- * sorts to the top so the default sits first in the number picker.
+ * single contact-wide default (`IS_SUPER_PRIMARY`) — for an aggregated contact
+ * only the true super-primary counts, not a per-raw-contact `IS_PRIMARY`, so
+ * the set-default menu offers "Undefault" on it and "Default" on every other
+ * number (letting the user promote a primary-only row to the real default). The
+ * picker still sorts the super-primary to the top. [dataId] is the
+ * `ContactsContract.Data` row id for a phone action — it's what the set-default
+ * action writes `IS_SUPER_PRIMARY` on — and null for actions that aren't a
+ * contact phone row (email, an app's own intent).
  */
 @Immutable
 internal data class ContactAction(
@@ -65,6 +81,7 @@ internal data class ContactAction(
     val detail: String?,
     val isDefault: Boolean,
     val kind: ContactActionKind,
+    val dataId: Long? = null,
 )
 
 /**
@@ -176,6 +193,7 @@ internal fun resolveContactChannels(
                     mimeType == Phone.CONTENT_ITEM_TYPE -> {
                         val number = cursor.getString(data1Index)?.takeIf { it.isNotBlank() } ?: continue
                         phones += PhoneRow(
+                            dataId = cursor.getLong(idIndex),
                             number = number,
                             type = cursor.getInt(data2Index),
                             typeLabel = cursor.getString(data3Index),
@@ -290,12 +308,14 @@ internal fun resolveContactChannels(
             label = context.getString(R.string.contact_action_call),
             iconPackageName = defaultDialerPackage(context),
             glyph = ContactChannelGlyph.Call,
+            dataIds = phones.map { it.dataId },
             actions = callPhones.map { phone ->
                 ContactAction(
                     label = Phone.getTypeLabel(resources, phone.type, phone.typeLabel).toString(),
                     detail = phone.number,
-                    isDefault = phone.superPrimary || phone.primary,
+                    isDefault = phone.superPrimary,
                     kind = ContactActionKind.Call(phone.number),
+                    dataId = phone.dataId,
                 )
             },
         )
@@ -304,14 +324,16 @@ internal fun resolveContactChannels(
             label = context.getString(R.string.contact_action_message),
             iconPackageName = defaultSmsPackage(context),
             glyph = ContactChannelGlyph.Message,
+            dataIds = phones.map { it.dataId },
             actions = smsPhones.map { phone ->
                 ContactAction(
                     label = Phone.getTypeLabel(resources, phone.type, phone.typeLabel).toString(),
                     detail = phone.number,
-                    isDefault = phone.superPrimary || phone.primary,
+                    isDefault = phone.superPrimary,
                     kind = ContactActionKind.Launch(
                         Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", phone.number, null)),
                     ),
+                    dataId = phone.dataId,
                 )
             },
         )
@@ -338,7 +360,7 @@ internal fun resolveContactChannels(
                         ?: row.activityLabel?.takeIf { it != appLabel }
                         ?: appLabel,
                     detail = null,
-                    isDefault = row.superPrimary || row.primary,
+                    isDefault = row.superPrimary,
                     kind = ContactActionKind.Launch(row.intent),
                 )
             }.distinctBy { it.label },
@@ -356,7 +378,7 @@ internal fun resolveContactChannels(
                 ContactAction(
                     label = Email.getTypeLabel(resources, email.type, email.typeLabel).toString(),
                     detail = email.address,
-                    isDefault = email.superPrimary || email.primary,
+                    isDefault = email.superPrimary,
                     kind = ContactActionKind.Launch(
                         Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", email.address, null)),
                     ),
@@ -443,6 +465,7 @@ private inline fun <T> defaultFirst(crossinline rank: (T) -> Pair<Boolean, Boole
     compareByDescending<T> { rank(it).first }.thenByDescending { rank(it).second }
 
 private data class PhoneRow(
+    val dataId: Long,
     val number: String,
     val type: Int,
     val typeLabel: String?,

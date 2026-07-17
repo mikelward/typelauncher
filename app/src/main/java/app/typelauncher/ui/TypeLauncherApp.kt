@@ -307,6 +307,7 @@ internal fun TypeLauncherApp(
         onToggleStarred = viewModel::toggleContactStarred,
         onContactLongPress = viewModel::dismissContactActions,
         onContactActionSelected = viewModel::onContactActionSelected,
+        onSetNumberDefault = viewModel::setNumberDefault,
         onDismissContactActions = viewModel::dismissContactActions,
         onOpenContactCard = viewModel::openContactCard,
         onOpenEvent = viewModel::openEventResult,
@@ -397,6 +398,7 @@ internal fun TypeLauncherApp(
     onToggleStarred: (ContactResult) -> Unit = {},
     onContactLongPress: () -> Unit = {},
     onContactActionSelected: (ContactAction) -> Unit = {},
+    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit = { _, _ -> },
     onDismissContactActions: () -> Unit = {},
     onOpenContactCard: (ContactResult) -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
@@ -1036,6 +1038,7 @@ internal fun TypeLauncherApp(
             actions = actions,
             onAction = onContactActionSelected,
             onOpenContactCard = { onOpenContactCard(actions.contact) },
+            onSetNumberDefault = onSetNumberDefault,
             onDismiss = onDismissContactActions,
         )
     }
