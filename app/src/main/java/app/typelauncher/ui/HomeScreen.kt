@@ -5833,7 +5833,7 @@ internal fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = bareTextColor,
             )
-            SettingsOverflowMenu(onOpenLauncherAppInfo = onOpenLauncherAppInfo)
+            SettingsOverflowMenu(onOpenLauncherAppInfo = onOpenLauncherAppInfo, iconTint = bareTextColor)
             Button(
                 onClick = onCloseSettings,
                 modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
@@ -6618,7 +6618,13 @@ private fun IconTheme.optionTag(): String =
     }
 
 @Composable
-private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
+private fun SettingsOverflowMenu(
+    onOpenLauncherAppInfo: () -> Unit,
+    // The icon sits in Settings' bare (uncarded) header row, so over the
+    // wallpaper it needs the same wallpaper-hint contrast color as the title
+    // next to it; the theme color stands when the wallpaper is off.
+    iconTint: Color,
+) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
     var consentVisible by remember { mutableStateOf(false) }
@@ -6637,7 +6643,7 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
             Icon(
                 Icons.Filled.MoreVert,
                 contentDescription = stringResource(R.string.settings_overflow_button_description),
-                tint = MaterialTheme.colorScheme.onBackground,
+                tint = iconTint,
             )
         }
         LauncherDropdownMenu(
