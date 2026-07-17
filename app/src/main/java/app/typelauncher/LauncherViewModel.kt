@@ -263,6 +263,14 @@ internal class LauncherViewModel(
     val requestCallPermission: SharedFlow<Unit> = _requestCallPermission.asSharedFlow()
     private var pendingCallNumber: String? = null
 
+    // The phone's default dialer package, refreshed off the main thread every
+    // time a contact's actions resolve — the only gate to a Call tap — so the
+    // tap-time dialer hand-off can target it without putting a Telecom IPC on
+    // the main-thread click path. Null when unknown (no telephony, lookup
+    // failure); the hand-off then goes untargeted.
+    @Volatile
+    private var cachedDefaultDialerPackage: String? = null
+
     // The same effect-flow shape for WRITE_CONTACTS, which the favorite toggle
     // and the set-default-number action both need to modify a contact. The write
     // waiting on the grant is parked as a thunk here and replayed once the result
@@ -1193,7 +1201,15 @@ internal class LauncherViewModel(
         val token = ++contactResolveToken
         LauncherDebugLog.event("openContactResult contactId=${contact.contactId} token=$token")
         viewModelScope.launch {
-            val channels = withContext(ioDispatcher) { resolveContactChannels(app, contact) }
+            val channels = withContext(ioDispatcher) {
+                // Refresh the default-dialer cache on the same off-main-thread
+                // hop as the channel resolution, so it's current for any Call
+                // tap this mode produces.
+                cachedDefaultDialerPackage = runCatching {
+                    app.getSystemService(TelecomManager::class.java)?.defaultDialerPackage
+                }.getOrNull()
+                resolveContactChannels(app, contact)
+            }
             // Drop a resolve the user has already moved past: a slow provider /
             // PackageManager can return after another contact was tapped, or the
             // sheet was dismissed, or an action fired. Publishing then would show
@@ -1609,15 +1625,15 @@ internal class LauncherViewModel(
      * dialer package: left untargeted, Android resolves it against *every*
      * dial-capable app and raises its "which app do you want to use" sheet
      * whenever more than one is installed with no pinned default — the
-     * hand-off must land in the dialer, not in a picker. With no default
-     * dialer to name (no telephony), or when the targeted start fails, the
-     * untargeted intent is the fallback so the tap still goes somewhere the
-     * system can resolve.
+     * hand-off must land in the dialer, not in a picker. The package comes
+     * from [cachedDefaultDialerPackage] (refreshed off the main thread when
+     * the contact's actions resolved) rather than a tap-time Telecom lookup,
+     * keeping the click path free of IPC. With no default dialer to name (no
+     * telephony), or when the targeted start fails, the untargeted intent is
+     * the fallback so the tap still goes somewhere the system can resolve.
      */
     private fun handOffToDialer(number: String): Boolean {
-        val defaultDialer = runCatching {
-            app.getSystemService(TelecomManager::class.java)?.defaultDialerPackage
-        }.getOrNull()
+        val defaultDialer = cachedDefaultDialerPackage
         if (defaultDialer != null) {
             val targeted = Intent(Intent.ACTION_DIAL, telUri(number)).setPackage(defaultDialer)
             if (tryStartContactAction(targeted)) return true
