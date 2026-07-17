@@ -10,6 +10,7 @@ import android.provider.ContactsContract.CommonDataKinds.Email
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.provider.Telephony
 import android.telecom.TelecomManager
+import android.telephony.SubscriptionManager
 import androidx.compose.runtime.Immutable
 
 /**
@@ -107,8 +108,18 @@ private val NON_ACTION_MIME_TYPES: Set<String> = setOf(
  * permission or a provider/resolver failure degrades to empty channels rather
  * than throwing — the sheet then offers only "Open contact", the same graceful
  * floor the search index uses.
+ *
+ * [simCallingCode] maps a subscription id to that SIM's country calling code
+ * and defaults to the real telephony lookup; it is a parameter because
+ * Robolectric's `TelephonyManager` shadow keeps one process-global SIM country,
+ * so a dual-SIM device (different voice and SMS SIMs) is only testable by
+ * injection.
  */
-internal fun resolveContactChannels(context: Context, contact: ContactResult): List<ContactChannel> {
+internal fun resolveContactChannels(
+    context: Context,
+    contact: ContactResult,
+    simCallingCode: (subscriptionId: Int) -> String? = { simCountryCallingCode(context, it) },
+): List<ContactChannel> {
     val phones = mutableListOf<PhoneRow>()
     val emails = mutableListOf<EmailRow>()
     // Third-party rows keyed by their owning app's package, preserving first-seen
@@ -249,17 +260,37 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
     // + Signal + Meet each carry a phone row), so dedupe by digits before
     // building the Call / Message channels — otherwise the number picker lists
     // the same line four times. Sort default-first so the retained copy is the
-    // primary one.
-    val orderedPhones = phones
-        .sortedWith(defaultFirst { it.superPrimary to it.primary })
-        .distinctBy { phone -> phone.number.dedupeKey() }
-    if (orderedPhones.isNotEmpty()) {
+    // primary one, then local-country numbers ahead of foreign ones: the Call
+    // picker keys off the default voice SIM's country and the Message picker
+    // off the default SMS SIM's, since a dual-SIM user routinely calls on one
+    // SIM and texts on the other. With no known SIM country the order is
+    // unchanged.
+    if (phones.isNotEmpty()) {
+        // runCatching because the static subscription-id lookups throw
+        // UnsupportedOperationException on devices without
+        // FEATURE_TELEPHONY_SUBSCRIPTION (the manifest keeps telephony
+        // optional) — a Wi-Fi-only tablet degrades to the resolver order.
+        val callCallingCode = runCatching {
+            simCallingCode(SubscriptionManager.getDefaultVoiceSubscriptionId())
+        }.getOrNull()
+        val smsCallingCode = runCatching {
+            simCallingCode(SubscriptionManager.getDefaultSmsSubscriptionId())
+        }.getOrNull()
+        fun orderedPhones(localCallingCode: String?): List<PhoneRow> = phones
+            .sortedWith(
+                defaultFirst<PhoneRow> { it.superPrimary to it.primary }
+                    .thenBy { isForeignPhoneNumber(it.number, localCallingCode) },
+            )
+            .distinctBy { phone -> phone.number.dedupeKey() }
+        val callPhones = orderedPhones(callCallingCode)
+        val smsPhones =
+            if (smsCallingCode == callCallingCode) callPhones else orderedPhones(smsCallingCode)
         channels += ContactChannel(
             id = "call",
             label = context.getString(R.string.contact_action_call),
             iconPackageName = defaultDialerPackage(context),
             glyph = ContactChannelGlyph.Call,
-            actions = orderedPhones.map { phone ->
+            actions = callPhones.map { phone ->
                 ContactAction(
                     label = Phone.getTypeLabel(resources, phone.type, phone.typeLabel).toString(),
                     detail = phone.number,
@@ -273,7 +304,7 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
             label = context.getString(R.string.contact_action_message),
             iconPackageName = defaultSmsPackage(context),
             glyph = ContactChannelGlyph.Message,
-            actions = orderedPhones.map { phone ->
+            actions = smsPhones.map { phone ->
                 ContactAction(
                     label = Phone.getTypeLabel(resources, phone.type, phone.typeLabel).toString(),
                     detail = phone.number,
@@ -404,12 +435,6 @@ private fun defaultMailPackage(context: Context): String? {
 /** True when [this] package is installed and its icon can be loaded — the gate before naming it as a channel's icon source. */
 private fun String.hasLoadableIcon(packageManager: PackageManager): Boolean =
     runCatching { packageManager.getApplicationInfo(this, 0) }.isSuccess
-
-// Visual phone-number separators, stripped to compare two numbers for the
-// cross-account dedupe. Dialing-significant characters (`+`, `#`, `*`, and the
-// pause / wait `,` `;`) are deliberately kept, so a number with an extension or
-// USSD suffix is not merged with its bare-digits sibling.
-private val PHONE_SEPARATOR_CHARS = "\u0020\u00A0-().\u2013\u2014/".toSet()
 
 /** Dedupe key that ignores formatting but preserves dialing syntax; falls back to the raw number if it's all separators. */
 private fun String.dedupeKey(): String = filterNot { it in PHONE_SEPARATOR_CHARS }.ifBlank { this }

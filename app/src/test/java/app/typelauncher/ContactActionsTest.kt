@@ -18,6 +18,7 @@ import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Email
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.telecom.TelecomManager
+import android.telephony.TelephonyManager
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -28,6 +29,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowContentResolver
+import org.robolectric.shadows.ShadowSubscriptionManager
 
 /**
  * Unit coverage for [resolveContactChannels]: the contact → channels grouping,
@@ -119,6 +121,110 @@ class ContactActionsTest {
         val call = resolveContactChannels(context, contact).first { it.id == "call" }
 
         assertEquals("Primary number leads when nothing is super-primary", "+1-555-0002", call.actions.first().detail)
+    }
+
+    @Test
+    fun sortsLocalCountryNumbersAheadOfForeignOnes() {
+        // A US SIM: the +1 number leads even though the resolver returned the
+        // Australian number first.
+        setDefaultSimCountry("us")
+        registerDataProvider(
+            phone("+61 3 9876 5432", Phone.TYPE_HOME),
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(listOf("+1-555-0100", "+61 3 9876 5432"), call.actions.map { it.detail })
+    }
+
+    @Test
+    fun defaultNumberStillLeadsAheadOfALocalCountryMatch() {
+        // The user's explicit default beats the country tiebreak.
+        setDefaultSimCountry("us")
+        registerDataProvider(
+            phone("+61 3 9876 5432", Phone.TYPE_HOME, superPrimary = true),
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(listOf("+61 3 9876 5432", "+1-555-0100"), call.actions.map { it.detail })
+    }
+
+    @Test
+    fun nationalFormatNumberRanksAsLocal() {
+        setDefaultSimCountry("us")
+        registerDataProvider(
+            phone("+44 20 7946 0958", Phone.TYPE_WORK),
+            phone("555-0100", Phone.TYPE_MOBILE),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(listOf("555-0100", "+44 20 7946 0958"), call.actions.map { it.detail })
+    }
+
+    @Test
+    fun messageChannelSortsByTheSmsSimCountryOnADualSimDevice() {
+        // Dual SIM split defaults: calls go out on the US SIM (subscription 1),
+        // texts on the AU SIM (subscription 2) — each picker leads with the
+        // numbers its own SIM reaches domestically. The per-SIM countries are
+        // injected because Robolectric's TelephonyManager shadow keeps one
+        // process-global SIM country; the subscription choice itself (voice
+        // default for Call, SMS default for Message) is the real code path.
+        ShadowSubscriptionManager.setDefaultVoiceSubscriptionId(1)
+        ShadowSubscriptionManager.setDefaultSmsSubscriptionId(2)
+        registerDataProvider(
+            phone("+61 3 9876 5432", Phone.TYPE_HOME),
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+        )
+
+        val channels = resolveContactChannels(context, contact) { subscriptionId ->
+            when (subscriptionId) {
+                1 -> "1"
+                2 -> "61"
+                else -> null
+            }
+        }
+
+        val call = channels.first { it.id == "call" }
+        assertEquals(listOf("+1-555-0100", "+61 3 9876 5432"), call.actions.map { it.detail })
+        val message = channels.first { it.id == "message" }
+        assertEquals(listOf("+61 3 9876 5432", "+1-555-0100"), message.actions.map { it.detail })
+    }
+
+    @Test
+    fun brokenTelephonyLeavesNumberOrderAlone() {
+        // Devices without FEATURE_TELEPHONY_SUBSCRIPTION (Wi-Fi-only tablets;
+        // telephony is optional in the manifest) throw
+        // UnsupportedOperationException from the subscription lookups on API
+        // 34+; the sheet degrades to resolver order instead of crashing.
+        registerDataProvider(
+            phone("+61 3 9876 5432", Phone.TYPE_HOME),
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+        )
+
+        val channels = resolveContactChannels(context, contact) {
+            throw UnsupportedOperationException("no telephony")
+        }
+
+        val call = channels.first { it.id == "call" }
+        assertEquals(listOf("+61 3 9876 5432", "+1-555-0100"), call.actions.map { it.detail })
+    }
+
+    @Test
+    fun unknownSimCountryLeavesNumberOrderAlone() {
+        // No default SIM and no SIM country (Robolectric's defaults — the same
+        // shape as no SIM at all): the resolver order stands.
+        registerDataProvider(
+            phone("+61 3 9876 5432", Phone.TYPE_HOME),
+            phone("+1-555-0100", Phone.TYPE_MOBILE),
+        )
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals(listOf("+61 3 9876 5432", "+1-555-0100"), call.actions.map { it.detail })
     }
 
     @Test
@@ -336,6 +442,18 @@ class ContactActionsTest {
     }
 
     // --- helpers -------------------------------------------------------------
+
+    /**
+     * Simulates a single-SIM device in [countryIso]: the one subscription is
+     * the default for both calls and texts, and the default `TelephonyManager`
+     * carries its country (`createForSubscriptionId` is unregistered in the
+     * shadow, so the lookup falls back to the default manager — the same SIM).
+     */
+    private fun setDefaultSimCountry(countryIso: String) {
+        shadowOf(context.getSystemService(TelephonyManager::class.java)).setSimCountryIso(countryIso)
+        ShadowSubscriptionManager.setDefaultVoiceSubscriptionId(1)
+        ShadowSubscriptionManager.setDefaultSmsSubscriptionId(1)
+    }
 
     /** Registers a resolver for the exact intent the resolver builds: ACTION_VIEW + data + type, targeted at [packageName]. */
     private fun registerAppRow(packageName: String, label: String, dataId: Long, mimeType: String) {
