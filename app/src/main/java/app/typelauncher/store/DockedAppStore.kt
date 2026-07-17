@@ -588,6 +588,20 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * When on, the Widgets and Agenda carousel pages also drop their opaque
+     * page backgrounds so the wallpaper shows behind them, matching Home's
+     * treatment. Only takes effect when [isWallpaperShown] is on; defaults off
+     * so the existing wallpaper setup keeps its Home-only backdrop.
+     */
+    var isWallpaperShownOnAllPages: Boolean
+        get() = sharedPreferences.getBoolean(KEY_SHOW_WALLPAPER_ALL_PAGES, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_SHOW_WALLPAPER_ALL_PAGES, value)
+                .apply()
+        }
+
+    /**
      * Opacity of Home's cards (search box, dock, app list, recents) while the
      * wallpaper is showing, so the wallpaper can show through them. Only takes
      * effect when [isWallpaperShown] is on. Clamped to [CARD_OPACITY_MIN]..1 so
@@ -758,6 +772,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
+        const val KEY_SHOW_WALLPAPER_ALL_PAGES = "show_wallpaper_all_pages"
         const val KEY_CARD_OPACITY = "card_opacity"
         const val KEY_KEYBOARD_RESERVATION_BOTTOM_PX = "keyboard_reservation_bottom_px"
         const val KEY_KEYBOARD_RESERVATION_ORIENTATION = "keyboard_reservation_orientation"

@@ -221,6 +221,7 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
+            isWallpaperShownOnAllPages = dockSettingsStore.isWallpaperShownOnAllPages,
             cardOpacity = dockSettingsStore.cardOpacity,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
@@ -2678,6 +2679,12 @@ internal class LauncherViewModel(
         dockSettingsStore.isWallpaperShown = isShown
         _uiState.update { it.copy(isWallpaperShown = isShown) }
         logState("setWallpaperShown=$isShown")
+    }
+
+    fun setWallpaperShownOnAllPages(isShown: Boolean) {
+        dockSettingsStore.isWallpaperShownOnAllPages = isShown
+        _uiState.update { it.copy(isWallpaperShownOnAllPages = isShown) }
+        logState("setWallpaperShownOnAllPages=$isShown")
     }
 
     fun setCardOpacity(opacity: Float) {

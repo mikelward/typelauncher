@@ -237,6 +237,62 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun wallpaperAllPagesSwitch_isDisabledUntilShowWallpaperIsOn() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // The option only extends the wallpaper backdrop, so like Card opacity
+        // it's disabled until Show wallpaper is turned on.
+        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG)
+            .performScrollTo()
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun wallpaperAllPagesSwitch_toggleExtendsBackdropWithoutRestart() {
+        // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule)
+        // because toggling IT restarts the activity. The all-screens option is
+        // different: it only flips Compose page backgrounds — the window's
+        // FLAG_SHOW_WALLPAPER / surface format are already in place — so its
+        // own toggle must apply live, with no restart.
+        val activity = composeRule.activity
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG)
+            .performScrollTo()
+            .assertIsEnabled()
+            .assertIsOff()
+        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG).assertIsOn()
+        assertTrue(
+            "the option should land in launcher state",
+            activity.viewModel.uiState.value.isWallpaperShownOnAllPages,
+        )
+        assertTrue(
+            "the option should persist",
+            DockSettingsStore(activity).isWallpaperShownOnAllPages,
+        )
+        assertFalse("an all-screens toggle must not restart the launcher", activity.isFinishing)
+
+        // With the option on, the Widgets and Agenda pages render with the
+        // wallpaper backdrop (transparent page background — the visual is
+        // covered by WallpaperAllPagesScreenshotTest; Robolectric can't
+        // composite the real wallpaper here, so this asserts the pages still
+        // stand up over it).
+        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        activity.viewModel.showWidgets()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
+        activity.viewModel.showAgenda()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AGENDA_SCREEN_TAG).assertIsDisplayed()
+    }
+
+    @Test
     @Config(qualifiers = "w1280dp-h900dp-420dpi")
     fun screenshot_landscape_full_showsDockAndBox() {
         composeRule.waitForIdle()
@@ -3777,6 +3833,7 @@ class MainActivityRobolectricScreenshotTest {
                             "wallpaper_replacesAppListOnEmptyHomeUntilTyping",
                             "wallpaper_notShownWhenSearchBoxHidden",
                             "cardOpacitySlider_enabledWhenShowWallpaperIsOn",
+                            "wallpaperAllPagesSwitch_toggleExtendsBackdropWithoutRestart",
                         )
                     ) {
                         // "Show wallpaper" must be on before the activity
