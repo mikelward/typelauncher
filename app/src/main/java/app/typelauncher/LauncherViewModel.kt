@@ -866,21 +866,47 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Closes the open bottom bar (recents) when the launcher is resumed to
-     * Home, so returning from another app starts with a clean Home rather than
-     * carrying a stale open bar back.
+     * Drops the transient Home surfaces — the open bottom bar (recents) and the
+     * in-list contact-actions mode — when the launcher is resumed to Home, so
+     * returning from another app starts on a clean Home rather than carrying a
+     * stale open bar or a half-finished contact's action list back.
      */
     fun closeSecondaryTrayOnResume() {
         val state = _uiState.value
-        if (
-            state.destination is LauncherDestination.Home &&
-            !state.isSettingsOpen &&
-            !state.isAddingWidget &&
-            state.isRecentsOpen
-        ) {
-            _uiState.update { it.copy(isRecentsOpen = false) }
-            LauncherDebugLog.event("closeSecondaryTrayOnResume")
+        if (state.destination !is LauncherDestination.Home || state.isSettingsOpen || state.isAddingWidget) return
+        // A contact permission prompt (CALL_PHONE / WRITE_CONTACTS) resumes the
+        // launcher through this same path, but the user hasn't left the contact
+        // flow — the parked action still owns the open contact and its re-resolve
+        // (e.g. a first-use default-number write that keeps the picker open with
+        // the new default on top). Leave the mode and any in-flight resolve alone;
+        // only close a stale open tray, as this method always did.
+        if (pendingWriteContactsAction != null || pendingCallNumber != null) {
+            if (state.isRecentsOpen) {
+                _uiState.update { it.copy(isRecentsOpen = false) }
+                LauncherDebugLog.event("closeSecondaryTrayOnResume tray-only (permission pending)")
+            }
+            return
         }
+        // Genuine resume to Home: cancel any in-flight contact resolve — even one
+        // that hasn't published its mode yet — so a slow resolve returning after
+        // this reset can't pop stale contact actions onto the clean Home. Harmless
+        // when nothing is resolving.
+        contactResolveToken++
+        // Drop the mode if it's showing, clearing the channel-filter text it left
+        // in `query` (typing in the mode filters the channels via `query`) so resume
+        // lands on a clean empty search rather than the app list filtered to stale
+        // channel text. A plain search query with no mode open is left untouched.
+        val hadMode = state.contactActionsMode != null
+        val clearFilter = hadMode && state.query.isNotEmpty()
+        _uiState.update {
+            it.copy(
+                isRecentsOpen = false,
+                contactActionsMode = null,
+                query = if (hadMode) "" else it.query,
+            )
+        }
+        if (clearFilter) refreshFilteredApps()
+        LauncherDebugLog.event("closeSecondaryTrayOnResume hadMode=$hadMode")
     }
 
     fun showWidgetPicker(
