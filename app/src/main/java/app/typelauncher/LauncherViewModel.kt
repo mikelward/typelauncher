@@ -1092,7 +1092,16 @@ internal class LauncherViewModel(
     }
 
     fun launchActiveApp() {
-        val query = _uiState.value.query
+        val state = _uiState.value
+        // In the in-list contact-actions mode, Enter fires the first visible row
+        // (the closest label match, or the top channel/action when the query is
+        // blank) — the same "Enter launches the top match" contract the app list
+        // has, applied to the contact's channels.
+        if (state.contactActions != null) {
+            currentContactRows(state).firstOrNull()?.let(::onContactRowSelected)
+            return
+        }
+        val query = state.query
         LauncherDebugLog.event("launchActiveApp queryLength=${query.length} filtered=${_uiState.value.filteredApps.size}")
         val trimmedQuery = query.trim()
         if (trimmedQuery.isEmpty()) {
@@ -1115,7 +1124,6 @@ internal class LauncherViewModel(
         // picks the target. The work dock is checked after the personal dock
         // so the personal copy of a shared app (e.g. Gmail) wins when both
         // profiles have it.
-        val state = _uiState.value
         val target = state.filteredApps.firstOrNull()
             ?: state.dockedApps.firstOrNull { app -> app.displayName.launcherMatchTier(trimmedQuery) != null }
                 ?.takeIf { state.isDockEnabled }
@@ -1161,15 +1169,98 @@ internal class LauncherViewModel(
                 return@launch
             }
             LauncherDebugLog.event("openContactResult resolved channels=${channels.size}")
-            _uiState.update { it.copy(contactActions = ContactActions(contact, channels)) }
+            // Swap into the in-list mode atomically when the channels land: save
+            // the current search text to restore on the way out, then clear the
+            // query so the freshly shown channel list isn't pre-filtered by the
+            // contact name the user typed to find this contact. Swapping only on
+            // resolve avoids a flash of the (cleared-query) app list first.
+            _uiState.update {
+                it.copy(
+                    contactActions = ContactActions(contact, channels),
+                    contactActionsChannelId = null,
+                    contactActionsReturnQuery = it.query,
+                    query = "",
+                )
+            }
+            refreshFilteredApps()
         }
     }
 
-    /** Closes the quick-actions sheet without acting, leaving the search as-is. */
-    fun dismissContactActions() {
-        // Invalidate any in-flight resolve so it can't pop a sheet after dismiss.
+    /**
+     * The rows the in-list contact-actions mode currently shows: the channel list
+     * (plus "Open contact") at step one, or a drilled-into channel's actions at
+     * step two, filtered by the live query. Empty when the mode isn't open.
+     */
+    private fun currentContactRows(state: LauncherUiState): List<ContactActionRow> {
+        val actions = state.contactActions ?: return emptyList()
+        return actions.visibleRows(
+            selectedChannelId = state.contactActionsChannelId,
+            query = state.query,
+            openContactLabel = app.getString(R.string.contact_actions_open_contact),
+        )
+    }
+
+    /**
+     * Acts on a row picked in the in-list contact-actions mode (by tap or Enter).
+     * A single-action channel fires immediately; a multi-action one drills into
+     * step two (clearing the query so its actions aren't pre-filtered). An action
+     * row dispatches its action; the "Open contact" row opens the full card.
+     */
+    fun onContactRowSelected(row: ContactActionRow) {
+        when (row) {
+            is ContactActionRow.Channel -> {
+                val single = row.channel.actions.singleOrNull()
+                if (single != null) {
+                    onContactActionSelected(single)
+                } else {
+                    _uiState.update { it.copy(contactActionsChannelId = row.channel.id, query = "") }
+                    refreshFilteredApps()
+                }
+            }
+            is ContactActionRow.Action -> onContactActionSelected(row.action)
+            is ContactActionRow.OpenContact -> {
+                val contact = _uiState.value.contactActions?.contact ?: return
+                openContactCard(contact)
+            }
+        }
+    }
+
+    /**
+     * Handles system Back / the up affordance while the in-list contact-actions
+     * mode is open: pops step two → step one, then step one → out of the mode
+     * (restoring the saved search query). Returns whether it consumed the Back.
+     */
+    fun onContactActionsBack(): Boolean {
+        val state = _uiState.value
+        if (state.contactActions == null) return false
+        if (state.contactActionsChannelId != null) {
+            _uiState.update { it.copy(contactActionsChannelId = null, query = "") }
+            refreshFilteredApps()
+            return true
+        }
+        exitContactActions()
+        return true
+    }
+
+    /** Leaves the in-list contact-actions mode back to search, restoring the saved query. */
+    private fun exitContactActions() {
+        // Invalidate any in-flight resolve so it can't re-open the mode after exit.
         contactResolveToken++
-        _uiState.update { it.copy(contactActions = null) }
+        _uiState.update {
+            it.copy(
+                contactActions = null,
+                contactActionsChannelId = null,
+                contactActionsReturnQuery = "",
+                query = it.contactActionsReturnQuery,
+            )
+        }
+        refreshFilteredApps()
+    }
+
+    /** Closes the quick-actions sheet without acting, leaving the search as-is. */
+    /** Leaves the contact-actions mode entirely, restoring the saved search query. */
+    fun dismissContactActions() {
+        exitContactActions()
     }
 
     /**
@@ -1458,10 +1549,17 @@ internal class LauncherViewModel(
         }
 
     private fun finishContactAction() {
-        // Invalidate any in-flight resolve so it can't re-open a sheet after the
+        // Invalidate any in-flight resolve so it can't re-open the mode after the
         // user has already acted and left.
         contactResolveToken++
-        _uiState.update { it.copy(contactActions = null, isRecentsOpen = false) }
+        _uiState.update {
+            it.copy(
+                contactActions = null,
+                contactActionsChannelId = null,
+                contactActionsReturnQuery = "",
+                isRecentsOpen = false,
+            )
+        }
         setQuery("")
     }
 

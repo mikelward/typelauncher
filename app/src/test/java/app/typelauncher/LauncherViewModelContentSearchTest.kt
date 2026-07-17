@@ -192,7 +192,10 @@ class LauncherViewModelContentSearchTest {
             "Opening the sheet launches nothing yet — an action does that",
             shadowOf(context as android.app.Application).nextStartedActivity,
         )
-        assertEquals("The query stays while the sheet is up so dismissing returns to search", "zoe", viewModel.uiState.value.query)
+        // Opening the mode clears the query so the channel list isn't pre-filtered
+        // by the contact name; the typed text is saved to restore on the way out.
+        assertEquals("Opening the mode clears the query so channels aren't pre-filtered", "", viewModel.uiState.value.query)
+        assertEquals("The typed query is saved to restore on exit", "zoe", viewModel.uiState.value.contactActionsReturnQuery)
     }
 
     @Test
@@ -217,13 +220,14 @@ class LauncherViewModelContentSearchTest {
             viewModel.uiState.value.contactActions?.contact?.contactId,
         )
         assertNull(
-            "The sheet itself launches nothing",
+            "Opening the mode launches nothing",
             shadowOf(context as android.app.Application).nextStartedActivity,
         )
+        assertEquals("Opening the mode clears the query", "", viewModel.uiState.value.query)
 
         viewModel.dismissContactActions()
-        assertNull("Dismissing closes the sheet", viewModel.uiState.value.contactActions)
-        assertEquals("Dismissing leaves the search intact", "zoe", viewModel.uiState.value.query)
+        assertNull("Dismissing leaves the mode", viewModel.uiState.value.contactActions)
+        assertEquals("Dismissing restores the saved search query", "zoe", viewModel.uiState.value.query)
     }
 
     @Test
@@ -1240,6 +1244,93 @@ class LauncherViewModelContentSearchTest {
             listOf(13L to 0, 12L to 0, 11L to 0),
             superPrimaryWritesById,
         )
+    }
+
+    @Test
+    fun enterInContactModeDrillsIntoAMultiNumberChannelThenBackExitsRestoringQuery() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        assertEquals("The mode opens with the query cleared", "", viewModel.uiState.value.query)
+
+        // Enter on the channel list fires the top row — the multi-number Call
+        // channel — which drills into step two rather than acting immediately.
+        viewModel.launchActiveApp()
+        idle()
+        assertEquals("Enter drills into the multi-number Call channel", "call", viewModel.uiState.value.contactActionsChannelId)
+        assertNull(
+            "Drilling in launches nothing",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+
+        // Back pops step two → step one, then step one → out of the mode.
+        assertTrue("Back is consumed at step two", viewModel.onContactActionsBack())
+        assertNull("Back from step two returns to the channel list", viewModel.uiState.value.contactActionsChannelId)
+        assertNotNull("Still in the mode at step one", viewModel.uiState.value.contactActions)
+
+        assertTrue("Back is consumed at step one", viewModel.onContactActionsBack())
+        assertNull("Back from step one exits the mode", viewModel.uiState.value.contactActions)
+        assertEquals("Exiting restores the saved query", "zoe", viewModel.uiState.value.query)
+        assertFalse("Back is not consumed once out of the mode", viewModel.onContactActionsBack())
+    }
+
+    @Test
+    fun typingInContactModeFiltersChannelsSoEnterFiresTheMatch() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+
+        // A single-number Call channel plus a single-number Message channel. Typing
+        // "mess" filters to Message; Enter then fires it (a single-action channel
+        // acts immediately — an SMS intent, needing no permission).
+        viewModel.setQuery("mess")
+        viewModel.launchActiveApp()
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertNotNull("Enter fires the filtered Message channel", started)
+        assertEquals(Intent.ACTION_SENDTO, started.action)
+        assertEquals("smsto", started.data?.scheme)
+        assertNull("Firing an action exits the mode", viewModel.uiState.value.contactActions)
+    }
+
+    private fun registerPhoneDataProvider(vararg dataRows: Map<String, Any?>) {
+        val rows = dataRows.toList()
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                rows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int = 1
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
     }
 
     private fun phoneDataRow(id: Long, number: String, type: Int, superPrimary: Boolean): Map<String, Any?> = mapOf(
