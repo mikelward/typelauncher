@@ -107,7 +107,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -126,7 +125,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
@@ -162,6 +164,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.window.Dialog
@@ -783,27 +786,6 @@ internal fun HomeScreen(
             val bars = WindowInsetsControllerCompat(window, view)
             bars.isAppearanceLightStatusBars = darkIcons
             bars.isAppearanceLightNavigationBars = darkIcons
-        }
-    }
-    // Force a full redraw the moment the wallpaper becomes active on Home, so the
-    // transparent wallpaper slot actually clears and reveals the wallpaper. Plain
-    // Home (cold start, carousel return) already shows the wallpaper because its
-    // slot is transparent from the first frame; but when Home is reached by
-    // closing Settings, the slot region held opaque Settings pixels, and some
-    // devices' compositors don't wipe an opaque->transparent region on their own —
-    // so the old Settings frame stays painted under Home's search box and dock.
-    // Invalidate the *Compose* view (which owns those pixels — invalidating only
-    // the decor redraws the window background layer, not the composition), forcing
-    // the same clean redraw plain Home gets, which clears the slot. Repeated over
-    // a few frames so it lands after the Settings->Home layout settles and covers
-    // buffering; cheap, one-shot per activation, never runs off the wallpaper path.
-    LaunchedEffect(wallpaperActive) {
-        if (!wallpaperActive) return@LaunchedEffect
-        val decor = context.findActivity()?.window?.decorView
-        repeat(3) {
-            withFrameNanos { }
-            view.invalidate()
-            decor?.invalidate()
         }
     }
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
@@ -5722,16 +5704,19 @@ internal fun SettingsScreen(
     val dockIconSizeDp = dockSizing.iconSizeDp
     var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
     // --- Live wallpaper cutout behind the dock preview ---
-    // With "Show wallpaper" on, punch a framed hole through the otherwise-opaque
+    // With "Show wallpaper" on, cut a rounded hole out of the otherwise-opaque
     // Settings backdrop at the preview's footprint so the preview reveals the
     // real system wallpaper — exactly what Home shows — instead of fading to the
     // gray Settings surface. The wallpaper can only be revealed (never drawn: its
-    // bitmap is off-limits on API 34+), so the hole is cleared down to the window,
-    // whose background we flip transparent below; the live `FLAG_SHOW_WALLPAPER`
-    // wallpaper then shows through. The backdrop draw actively clears the hole and
-    // a forced repaint (below) wipes the surface on entry, because some devices'
-    // compositors won't clear an opaque->transparent region on their own. Scoped
-    // to the preview strip only — the rest of Settings stays opaque.
+    // bitmap is off-limits on API 34+), so the hole region is simply left
+    // unpainted down to the window, whose background we flip transparent below;
+    // the live `FLAG_SHOW_WALLPAPER` wallpaper then shows through. This is the
+    // exact mechanism Home's wallpaper slot uses (absence of drawing on the
+    // translucent window surface), which is verified working on-device — an
+    // earlier version instead painted the hole with `BlendMode.Clear`, which
+    // renders correctly under Robolectric's software canvas but left the
+    // backdrop gray on real-device GPU rendering. Scoped to the preview strip
+    // only — the rest of Settings stays opaque.
     val wallpaperCutoutActive = state.isWallpaperShown
     val settingsBackgroundColor = MaterialTheme.colorScheme.background
     val cutoutCornerRadiusPx = with(LocalDensity.current) { 16.dp.toPx() }
@@ -5743,7 +5728,6 @@ internal fun SettingsScreen(
     val settingsRootCoords = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val previewCoords = remember { mutableStateOf<LayoutCoordinates?>(null) }
     val context = LocalContext.current
-    val view = LocalView.current
     // Flip the window background transparent while the cutout is active so the
     // hole reveals the composited wallpaper rather than an opaque window fill;
     // restore the opaque Settings color on the way out (and whenever the setting
@@ -5761,40 +5745,24 @@ internal fun SettingsScreen(
             )
         }
     }
-    // Force a redraw when the cutout activates so the hole clears to the wallpaper
-    // on entry. Opening Settings paints the backdrop opaque over the hole region
-    // on the frame before the hole exists; on devices that don't wipe an
-    // opaque->transparent region, the stale gray survives. Invalidate the Compose
-    // view (which owns those pixels) to force a clean redraw that clears the
-    // surface (repeated over a few frames to cover buffering). The backdrop's
-    // `BlendMode.Clear` keeps the hole clear as it moves on scroll thereafter.
-    LaunchedEffect(wallpaperCutoutActive) {
-        if (!wallpaperCutoutActive) return@LaunchedEffect
-        val decor = context.findActivity()?.window?.decorView
-        repeat(3) {
-            withFrameNanos { }
-            view.invalidate()
-            decor?.invalidate()
-        }
-    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .onGloballyPositioned { settingsRootCoords.value = it }
-            // Opaque Settings backdrop, but with a rounded hole punched at the
-            // preview's footprint when the wallpaper cutout is active, so the
-            // preview reveals the composited wallpaper (window background is
-            // flipped transparent below). Fill the whole surface, then *actively*
-            // clear the hole with `BlendMode.Clear` rather than merely leaving it
-            // unpainted: some devices' compositors don't wipe a region that goes
-            // opaque->transparent (they only redraw "dirty" areas), so an
-            // unpainted hole keeps whatever gray was last drawn there instead of
-            // revealing the wallpaper. Clearing writes transparency into the
-            // surface every time the backdrop draws — including as the hole moves
-            // on scroll — so the wallpaper actually shows through. Off the cutout
-            // path it is just a full opaque fill.
+            // Opaque Settings backdrop, but with a rounded hole cut out at the
+            // preview's footprint when the wallpaper cutout is active. Replaces
+            // a plain `.background()` fill: painting everything *except* the
+            // hole (clip-difference) leaves that region unpainted down to the
+            // transparent window, revealing the wallpaper — the same
+            // absence-of-drawing mechanism as Home's wallpaper slot, which is
+            // what a translucent-format window surface needs (unpainted pixels
+            // are cleared to transparent every frame). Do NOT switch this to an
+            // active `BlendMode.Clear` erase: that renders correctly under
+            // Robolectric's software canvas but fails to punch through on
+            // real-device GPU rendering, leaving the backdrop gray where the
+            // wallpaper should show. Off the cutout path it is just a full
+            // opaque fill.
             .drawBehind {
-                drawRect(settingsBackgroundColor)
                 val root = settingsRootCoords.value
                 val preview = previewCoords.value
                 val hole = if (wallpaperCutoutActive && root != null && preview != null &&
@@ -5805,13 +5773,16 @@ internal fun SettingsScreen(
                     null
                 }
                 if (hole != null && !hole.isEmpty) {
-                    drawRoundRect(
-                        color = Color.Black,
-                        topLeft = hole.topLeft,
-                        size = hole.size,
-                        cornerRadius = CornerRadius(cutoutCornerRadiusPx, cutoutCornerRadiusPx),
-                        blendMode = BlendMode.Clear,
-                    )
+                    val holePath = Path().apply {
+                        addRoundRect(
+                            RoundRect(hole, CornerRadius(cutoutCornerRadiusPx, cutoutCornerRadiusPx)),
+                        )
+                    }
+                    clipPath(holePath, ClipOp.Difference) {
+                        drawRect(settingsBackgroundColor)
+                    }
+                } else {
+                    drawRect(settingsBackgroundColor)
                 }
             }
             .padding(innerPadding)
@@ -6926,32 +6897,53 @@ private fun SettingsPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clearAndSetSemantics {},
+            // The tag is set inside clearAndSetSemantics (not via testTag before
+            // it) so it survives the wipe: tests locate the preview's footprint
+            // through it while the cards' descendant semantics stay stripped.
+            .clearAndSetSemantics { testTag = SETTINGS_PREVIEW_TAG },
     ) {
         CompositionLocalProvider(LocalCardAlpha provides previewCardAlpha) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
             ) {
-                AppsCard(
-                    apps = state.filteredApps,
-                    dockLimit = Int.MAX_VALUE,
-                    layout = state.appListLayout,
-                    iconSizeDp = dockIconSizeDp,
-                    highlightFirst = state.query.isNotBlank(),
-                    reverseLayout = state.appListSortOrder.isReversed,
-                    scrollResetKey = state.query,
-                    modifier = Modifier.height(appListHeight),
-                    onLaunchApp = {},
-                    onOpenAppInfo = {},
-                    onToggleDock = { _, _ -> },
-                    onResetRank = {},
-                    onRenameApp = { _, _ -> },
-                    onSetAppIconOverride = {},
-                    onClearAppIconOverride = {},
-                    onSetAppBadge = { _, _ -> },
-                    onHideApp = {},
-                )
+                if (state.isWallpaperShown) {
+                    // Mirror Home's empty-query state exactly: with "Show
+                    // wallpaper" on, Home replaces the app list with a
+                    // transparent wallpaper slot, so the preview does the same —
+                    // the backdrop cutout behind this strip reveals the real
+                    // wallpaper through this slot, which is both what Home
+                    // actually looks like and what makes the wallpaper clearly
+                    // visible in the preview. The cards below keep exactly the
+                    // widths and sizes Home uses (no inset), so the dock preview
+                    // is true to the real dock.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(appListHeight)
+                            .testTag(SETTINGS_PREVIEW_WALLPAPER_SLOT_TAG),
+                    )
+                } else {
+                    AppsCard(
+                        apps = state.filteredApps,
+                        dockLimit = Int.MAX_VALUE,
+                        layout = state.appListLayout,
+                        iconSizeDp = dockIconSizeDp,
+                        highlightFirst = state.query.isNotBlank(),
+                        reverseLayout = state.appListSortOrder.isReversed,
+                        scrollResetKey = state.query,
+                        modifier = Modifier.height(appListHeight),
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onRenameApp = { _, _ -> },
+                        onSetAppIconOverride = {},
+                        onClearAppIconOverride = {},
+                        onSetAppBadge = { _, _ -> },
+                        onHideApp = {},
+                    )
+                }
                 if (state.isDockEnabled) {
                     DockCard(
                         dockedApps = state.dockedApps,

@@ -1659,28 +1659,36 @@ class MainActivityRobolectricScreenshotTest {
         val smallerIconSize = largerIconBounds.right - largerIconBounds.left
         assertTrue("preview icon shrinks to fit more visible dock icons", smallerIconSize < defaultIconSize)
 
+        // With "Show wallpaper" off there is no backdrop cutout, so the cards
+        // stay edge-to-edge in the preview — no wallpaper frame inset.
+        val previewBounds = composeRule.onNodeWithTag(SETTINGS_PREVIEW_TAG).getBoundsInRoot()
+        val dockCardBounds = composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).getBoundsInRoot()
+        assertTrue(
+            "preview cards should not be inset while the wallpaper is off",
+            (dockCardBounds.left - previewBounds.left) < 1.dp,
+        )
+
         saveScreenshot("compose_settings_dock_preview_robolectric.png")
     }
 
     @Test
     fun settingsPreview_reflectsCardOpacityLive() {
+        // "Show wallpaper" (on) and "Card opacity" (50%) are seeded before
+        // launch by SeedLauncherStateRule — toggling the wallpaper setting at
+        // runtime restarts the activity through a fresh start, which the
+        // compose rule's scenario can't follow. The preview mirrors Home's
+        // "Card opacity" only while Show wallpaper is on — the same gate that
+        // enables the slider. The preview cards' fill should fade in the
+        // snapshot while their icons and text stay fully opaque, so a drag of
+        // the slider is visible without leaving Settings. Settings also punches
+        // a transparent hole through its backdrop at the preview's footprint so
+        // the fade reveals the real wallpaper exactly as Home does. (Robolectric
+        // can't composite the live wallpaper, so in the snapshot the hole shows
+        // the empty window rather than a wallpaper — verified separately that
+        // the hole lands on the preview and nowhere else.)
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
-        // The preview mirrors Home's "Card opacity" only while Show wallpaper is
-        // on — the same gate that enables the slider — so turn it on and drop the
-        // opacity. The preview cards' fill should fade in the snapshot while their
-        // icons and text stay fully opaque, so a drag of the slider is visible
-        // without leaving Settings. Settings also punches a transparent hole
-        // through its backdrop at the preview's footprint so the fade reveals the
-        // real wallpaper exactly as Home does. (Robolectric can't composite the
-        // live wallpaper, so in the snapshot the hole shows the empty window
-        // rather than a wallpaper — verified separately that the hole lands on the
-        // preview and nowhere else.)
-        composeRule.runOnUiThread {
-            viewModel.setWallpaperShown(true)
-            viewModel.setCardOpacity(0.5f)
-        }
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
 
@@ -1691,6 +1699,21 @@ class MainActivityRobolectricScreenshotTest {
         // dock-preview test above.
         composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).performScrollTo()
         composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).assertIsDisplayed()
+
+        // While the wallpaper is on, the preview mirrors Home's empty-query
+        // state: the app list is replaced by a transparent wallpaper slot (the
+        // backdrop cutout reveals the real wallpaper through it), and the cards
+        // keep exactly Home's widths — no inset, so the dock preview stays true
+        // to the real dock.
+        composeRule.onNodeWithTag(SETTINGS_PREVIEW_WALLPAPER_SLOT_TAG, useUnmergedTree = true)
+            .assertExists()
+        composeRule.onNodeWithTag(APPS_CARD_TAG, useUnmergedTree = true).assertDoesNotExist()
+        val previewBounds = composeRule.onNodeWithTag(SETTINGS_PREVIEW_TAG).getBoundsInRoot()
+        val dockCardBounds = composeRule.onNodeWithTag(DOCK_CARD_TAG, useUnmergedTree = true).getBoundsInRoot()
+        assertTrue(
+            "preview cards should keep Home's full width while the wallpaper is on",
+            (dockCardBounds.left - previewBounds.left) < 1.dp,
+        )
 
         saveScreenshot("compose_settings_preview_card_opacity_robolectric.png")
     }
@@ -3763,6 +3786,14 @@ class MainActivityRobolectricScreenshotTest {
                         // the ActivityScenario behind the compose rule cannot
                         // follow.
                         DockSettingsStore(application).isWallpaperShown = true
+                    }
+                    if (description.methodName == "settingsPreview_reflectsCardOpacityLive") {
+                        // Same pre-launch seeding constraint as above, plus the
+                        // 50% card opacity the snapshot demonstrates.
+                        DockSettingsStore(application).apply {
+                            isWallpaperShown = true
+                            cardOpacity = 0.5f
+                        }
                     }
                     if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveWithKeyboardDown") {
                         // A keyboard height already cached for this landscape size
