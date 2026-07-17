@@ -1612,9 +1612,12 @@ class MainActivityRobolectricScreenshotTest {
         // on — the same gate that enables the slider — so turn it on and drop the
         // opacity. The preview cards' fill should fade in the snapshot while their
         // icons and text stay fully opaque, so a drag of the slider is visible
-        // without leaving Settings. (Robolectric can't composite the real
-        // wallpaper behind Settings, so the fade reveals the settings surface
-        // here; on-device it reveals the wallpaper exactly as Home does.)
+        // without leaving Settings. Settings also punches a transparent hole
+        // through its backdrop at the preview's footprint so the fade reveals the
+        // real wallpaper exactly as Home does. (Robolectric can't composite the
+        // live wallpaper, so in the snapshot the hole shows the empty window
+        // rather than a wallpaper — verified separately that the hole lands on the
+        // preview and nowhere else.)
         composeRule.runOnUiThread {
             viewModel.setWallpaperShown(true)
             viewModel.setCardOpacity(0.5f)
