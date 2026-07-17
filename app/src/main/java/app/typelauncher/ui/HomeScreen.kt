@@ -5770,16 +5770,33 @@ internal fun SettingsScreen(
     // exactly as Home does — the surface-based contrast left by the theme or
     // by Home's bar effect stands until the off-main-thread lookup resolves.
     // Home re-applies its own contrast when Settings closes, so nothing needs
-    // restoring on the way out.
+    // restoring on the way out. The resolved hint is also kept for the page's
+    // bare (uncarded) texts below.
+    var wallpaperDarkText by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(state.isWallpaperShown) {
-        if (!state.isWallpaperShown) return@LaunchedEffect
+        if (!state.isWallpaperShown) {
+            wallpaperDarkText = null
+            return@LaunchedEffect
+        }
         val darkIcons = withContext(Dispatchers.IO) { wallpaperSupportsDarkText(context) }
             ?: return@LaunchedEffect
+        wallpaperDarkText = darkIcons
         context.findActivity()?.window?.let { window ->
             val bars = WindowInsetsControllerCompat(window, view)
             bars.isAppearanceLightStatusBars = darkIcons
             bars.isAppearanceLightNavigationBars = darkIcons
         }
+    }
+    // The page title and the "Preview" label sit directly on the wallpaper
+    // while the setting is on (no card behind them), so the theme's
+    // onBackground can land on a clashing wallpaper. Follow the wallpaper's
+    // own dark-text hint — the same signal the system-bar icons use, resolved
+    // by the effect above — and fall back to the theme color until it
+    // resolves (or whenever the wallpaper is off).
+    val bareTextColor = when (if (state.isWallpaperShown) wallpaperDarkText else null) {
+        null -> MaterialTheme.colorScheme.onBackground
+        true -> Color.Black
+        false -> Color.White
     }
     // Fade Settings' own cards to the user's "Card opacity" while the wallpaper
     // is behind them — the same treatment Home's cards get — so the whole page
@@ -5814,7 +5831,7 @@ internal fun SettingsScreen(
                     .weight(1f)
                     .testTag(SETTINGS_TITLE_TAG),
                 style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = bareTextColor,
             )
             SettingsOverflowMenu(onOpenLauncherAppInfo = onOpenLauncherAppInfo)
             Button(
@@ -5834,6 +5851,17 @@ internal fun SettingsScreen(
         Button(
             onClick = onRequestDefaultLauncher,
             enabled = !state.isDefaultLauncher,
+            // Material's default disabled colors are translucent (12% fill /
+            // 38% text over the page surface), which reads fine on an opaque
+            // page but all but vanishes over the wallpaper backdrop. Give the
+            // disabled "Already default launcher" state an opaque surface so
+            // it stays readable on any wallpaper — consistent with the opaque
+            // cards around it, and unchanged in meaning (still visibly muted
+            // next to the filled enabled buttons).
+            colors = ButtonDefaults.buttonColors(
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(DEFAULT_LAUNCHER_BUTTON_TAG),
@@ -6095,7 +6123,7 @@ internal fun SettingsScreen(
         Text(
             text = stringResource(R.string.settings_dock_preview_label),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = bareTextColor,
         )
         SettingsPreview(
             state = state,
