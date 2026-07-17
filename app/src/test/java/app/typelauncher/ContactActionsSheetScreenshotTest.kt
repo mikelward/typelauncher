@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -29,13 +28,13 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the contact quick-actions sheet so the PR `roborazzi-screenshots`
+ * Renders the in-list contact quick-actions card so the PR `roborazzi-screenshots`
  * artifact captures both steps: the channel list (Phone, Message, an installed
- * app, Email, and "Open contact") and, after tapping the multi-number Call
- * channel, its number picker with the default number on top. Composes
- * [ContactActionsSheetContent] directly (not the `Dialog` wrapper) so the
- * Robolectric tree renders without a popup window, mirroring the
- * EditAppDialogContent screenshot approach.
+ * app, Email, and "Open contact") and, with the multi-number Call channel
+ * selected, its number picker with the default number on top. Composes
+ * [ContactActionsCard] directly (the step is driven by the `selectedChannelId`
+ * parameter rather than internal state), so the Robolectric tree renders the
+ * card without any popup window.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -99,24 +98,19 @@ class ContactActionsSheetScreenshotTest {
 
     @Test
     fun sheet_numberPicker() {
-        composeSheet()
-        composeRule.waitForIdle()
-        // Drill into the multi-number Call channel to show step two.
-        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:call", useUnmergedTree = true).performClick()
+        // The multi-number Call channel is selected (step two) via the parameter.
+        composeSheet(selectedChannelId = "call")
         composeRule.waitForIdle()
         capture("compose_contact_actions_numbers_robolectric.png")
     }
 
     @Test
     fun numberRow_longPressShowsDefaultMenu() {
-        composeSheet()
-        composeRule.waitForIdle()
-        // Drill into the multi-number Call channel, then long-press the
-        // non-default number to reveal its "Default" menu item. The menu is a
-        // DropdownMenu Compose hosts in a separate popup window, so this captures
-        // with captureScreenRoboImage (composites every window) rather than the
-        // decorView-only capture the other cases use.
-        composeRule.onNodeWithTag("$CONTACT_ACTIONS_CHANNEL_TAG:call", useUnmergedTree = true).performClick()
+        // With the Call channel selected, long-press the non-default number to
+        // reveal its "Default" menu item. The menu is a DropdownMenu Compose hosts
+        // in a separate popup window, so this captures with captureScreenRoboImage
+        // (composites every window) rather than the decorView-only capture.
+        composeSheet(selectedChannelId = "call")
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$CONTACT_ACTIONS_ACTION_TAG:Home", useUnmergedTree = true)
             .performTouchInput { longClick() }
@@ -126,7 +120,7 @@ class ContactActionsSheetScreenshotTest {
         captureScreen("compose_contact_actions_default_menu_robolectric.png")
     }
 
-    private fun composeSheet() {
+    private fun composeSheet(selectedChannelId: String? = null, query: String = "") {
         composeRule.setContent {
             TypeLauncherTheme {
                 Box(
@@ -140,10 +134,13 @@ class ContactActionsSheetScreenshotTest {
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 6.dp,
                     ) {
-                        ContactActionsSheetContent(
+                        ContactActionsCard(
                             actions = actions,
-                            onAction = {},
-                            onOpenContactCard = {},
+                            selectedChannelId = selectedChannelId,
+                            query = query,
+                            onRowSelected = {},
+                            onSetNumberDefault = { _, _ -> },
+                            onBack = {},
                         )
                     }
                 }

@@ -306,10 +306,9 @@ internal fun TypeLauncherApp(
         onOpenContact = viewModel::openContactResult,
         onToggleStarred = viewModel::toggleContactStarred,
         onContactLongPress = viewModel::dismissContactActions,
-        onContactActionSelected = viewModel::onContactActionSelected,
+        onContactRowSelected = viewModel::onContactRowSelected,
+        onContactActionsBack = { viewModel.onContactActionsBack() },
         onSetNumberDefault = viewModel::setNumberDefault,
-        onDismissContactActions = viewModel::dismissContactActions,
-        onOpenContactCard = viewModel::openContactCard,
         onOpenEvent = viewModel::openEventResult,
         onShowAgenda = viewModel::showAgenda,
         onShowWidgets = viewModel::showWidgets,
@@ -397,10 +396,9 @@ internal fun TypeLauncherApp(
     onOpenContact: (ContactResult) -> Unit = {},
     onToggleStarred: (ContactResult) -> Unit = {},
     onContactLongPress: () -> Unit = {},
-    onContactActionSelected: (ContactAction) -> Unit = {},
+    onContactRowSelected: (ContactActionRow) -> Unit = {},
+    onContactActionsBack: () -> Unit = {},
     onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit = { _, _ -> },
-    onDismissContactActions: () -> Unit = {},
-    onOpenContactCard: (ContactResult) -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -440,10 +438,21 @@ internal fun TypeLauncherApp(
     // keeps the system default on a bare Home screen, where back should do
     // nothing. Dialogs and dropdown menus are absent from the chain on
     // purpose — their popup windows consume back natively.
-    BackHandler(enabled = state.isSettingsOpen || state.isAddingWidget || state.isRecentsOpen) {
+    // The contact-actions mode renders only in Home's app-list slot, so its Back
+    // handling is gated to the Home page — otherwise swiping the carousel to
+    // Widgets/Agenda (which leaves the mode set but off-screen) would let this
+    // handler swallow Back on those pages instead of their own back behavior.
+    val contactActionsOnHome = state.contactActions != null &&
+        state.destination is LauncherDestination.Home
+    BackHandler(
+        enabled = state.isSettingsOpen || state.isAddingWidget || state.isRecentsOpen ||
+            contactActionsOnHome,
+    ) {
         when {
             state.isSettingsOpen -> onCloseSettings()
             state.isAddingWidget -> onDismissWidgetPicker()
+            // Pop the in-list contact-actions mode: step two → step one → out.
+            contactActionsOnHome -> onContactActionsBack()
             else -> onSetRecentsOpen(false)
         }
     }
@@ -950,6 +959,9 @@ internal fun TypeLauncherApp(
                                 onOpenContact = onOpenContact,
                                 onToggleStarred = onToggleStarred,
                                 onContactLongPress = onContactLongPress,
+                                onContactRowSelected = onContactRowSelected,
+                                onSetNumberDefault = onSetNumberDefault,
+                                onContactActionsBack = onContactActionsBack,
                                 onOpenEvent = onOpenEvent,
                                 onAppListBoundsChanged = { homeAppListBoundsInRoot = it },
                                 onBarScrollRegionChanged = { region ->
@@ -1030,18 +1042,8 @@ internal fun TypeLauncherApp(
             }
         }
     }
-    // The contact quick-actions sheet floats over whatever destination is
-    // showing (it is a Dialog, so it owns its own window regardless of where it
-    // is composed). Present only while a contact result is open.
-    state.contactActions?.let { actions ->
-        ContactActionsSheet(
-            actions = actions,
-            onAction = onContactActionSelected,
-            onOpenContactCard = { onOpenContactCard(actions.contact) },
-            onSetNumberDefault = onSetNumberDefault,
-            onDismiss = onDismissContactActions,
-        )
-    }
+    // The contact quick-actions render inline in the app-list slot (see
+    // HomeScreen's `state.contactActions` branch), not as a floating dialog.
 }
 
 /**

@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,125 +46,98 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * The compact quick-actions card for a searched-for contact. A low-level
- * [Dialog] + [Surface] (rather than `AlertDialog`) for the same reason
- * `EditAppDialog` uses one — a hand-rolled body avoids the material dialog's
- * scrollable wrapper — and so the body can be screenshot-tested via
- * [ContactActionsSheetContent] without the popup window.
+ * The in-list contact quick-actions surface: rendered in the app list's slot in
+ * place of the app results while a contact is open, so acting on the person
+ * found stays in the same keyboard-driven list the launcher uses everywhere. A
+ * contact header, then the current step's rows — the channel list (Phone,
+ * Message, the contact's installed-app actions, Email) plus "Open contact" at
+ * step one, or a drilled-into channel's actions with the default number on top
+ * at step two. The rows are already filtered by the live [query] and the step is
+ * driven by the ViewModel's [selectedChannelId], so typing filters the rows and
+ * Enter fires the top one exactly like the app list. A step-two phone row keeps
+ * the long-press Default / Undefault menu.
  */
 @Composable
-internal fun ContactActionsSheet(
+internal fun ContactActionsCard(
     actions: ContactActions,
-    onAction: (ContactAction) -> Unit,
-    onOpenContactCard: () -> Unit,
+    selectedChannelId: String?,
+    query: String,
+    onRowSelected: (ContactActionRow) -> Unit,
     onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(CONTACT_ACTIONS_SHEET_TAG),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-        ) {
-            ContactActionsSheetContent(
-                actions = actions,
-                onAction = onAction,
-                onOpenContactCard = onOpenContactCard,
-                onSetNumberDefault = onSetNumberDefault,
-            )
-        }
-    }
-}
-
-/**
- * The card body: a contact header, then either the channel list (step one —
- * Phone, Message, the contact's installed-app actions, Email, and "Open
- * contact") or, once a channel with more than one action is chosen, that
- * channel's actions with the default number on top (step two). Tapping a
- * single-action channel acts immediately, skipping step two. Factored out of
- * [ContactActionsSheet] so a Robolectric screenshot test can compose it inside
- * an activity-hosted tree rather than the `Dialog` popup window.
- */
-@Composable
-internal fun ContactActionsSheetContent(
-    actions: ContactActions,
-    onAction: (ContactAction) -> Unit,
-    onOpenContactCard: () -> Unit,
-    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit = { _, _ -> },
-) {
-    // Saveable so a configuration change (rotation, theme toggle) while the
-    // second step is open keeps the user on that channel rather than snapping
-    // back to the channel list. Keyed on the contact so reusing the sheet for a
-    // different contact resets to step one.
-    var selectedChannelId by rememberSaveable(actions.contact.contactId) {
-        mutableStateOf<String?>(null)
-    }
-    val selectedChannel = actions.channels.firstOrNull { it.id == selectedChannelId }
-
+    val selectedChannel = selectedChannelId?.let { id -> actions.channels.firstOrNull { it.id == id } }
+    val rows = actions.visibleRows(
+        selectedChannelId = selectedChannelId,
+        query = query,
+        openContactLabel = stringResource(R.string.contact_actions_open_contact),
+    )
     // Scrollable: a contact with many channels or numbers — or a large
-    // font/display size — can make the card taller than the window, and without
-    // scrolling the lower rows (including "Open contact") would clip out of
-    // reach. The Dialog bounds the height to the window, so the column scrolls
-    // within it.
+    // font/display size — can make the list taller than the slot, and without
+    // scrolling the lower rows (including "Open contact") would clip out of reach.
+    val scrollState = rememberScrollState()
+    // Snap back to the top whenever the filter or the step changes, so a card the
+    // user scrolled down isn't left offset away from the first row — which Enter
+    // now fires — mirroring the app list's query scroll-reset.
+    LaunchedEffect(selectedChannelId, query) { scrollState.scrollTo(0) }
     Column(
-        modifier = Modifier
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = 16.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(scrollState)
+            .testTag(CONTACT_ACTIONS_SHEET_TAG)
+            .padding(vertical = 8.dp),
     ) {
         ContactActionsHeader(
             contact = actions.contact,
             channel = selectedChannel,
-            onBack = { selectedChannelId = null },
+            onBack = onBack,
         )
-        if (selectedChannel == null) {
-            actions.channels.forEach { channel ->
-                ContactChannelRow(
-                    channel = channel,
-                    onClick = {
-                        val single = channel.actions.singleOrNull()
-                        if (single != null) onAction(single) else selectedChannelId = channel.id
-                    },
-                )
-            }
-            ContactSheetRow(
-                glyph = null,
-                iconPackageName = null,
-                title = stringResource(R.string.contact_actions_open_contact),
-                subtitle = null,
-                trailingChevron = false,
-                modifier = Modifier.testTag(CONTACT_ACTIONS_OPEN_CONTACT_TAG),
-                onClick = onOpenContactCard,
-            )
-        } else {
-            selectedChannel.actions.forEach { action ->
-                // Key by the Data row (falling back to the label for app actions,
-                // which have no row id) so each row's menu-open state follows its
-                // number by identity. A default write re-resolves and re-sorts the
-                // picker default-first; without a key the state is positional and a
-                // menu left open on one number could jump to whatever action slid
-                // into its slot, then act on the wrong row.
-                key(action.dataId ?: action.label) {
-                    ContactActionRow(
-                        glyph = selectedChannel.glyph,
-                        iconPackageName = selectedChannel.iconPackageName,
-                        action = action,
-                        onClick = { onAction(action) },
+        rows.forEach { row ->
+            // Key by identity (channel id / Data row / the open-contact marker) so
+            // a row's transient state — a step-two number's open Default menu —
+            // follows its content when the query re-filters or a default write
+            // re-sorts the list, rather than staying positional and acting on
+            // whatever row slid into the slot.
+            key(contactRowKey(row)) {
+                when (row) {
+                    is ContactActionRow.Channel -> ContactChannelRow(
+                        channel = row.channel,
+                        onClick = { onRowSelected(row) },
+                    )
+                    is ContactActionRow.Action -> ContactActionItemRow(
+                        glyph = row.channel.glyph,
+                        iconPackageName = row.channel.iconPackageName,
+                        action = row.action,
+                        onClick = { onRowSelected(row) },
                         onSetNumberDefault = onSetNumberDefault,
+                    )
+                    is ContactActionRow.OpenContact -> ContactSheetRow(
+                        glyph = null,
+                        iconPackageName = null,
+                        title = row.label,
+                        subtitle = null,
+                        trailingChevron = false,
+                        modifier = Modifier.testTag(CONTACT_ACTIONS_OPEN_CONTACT_TAG),
+                        onClick = { onRowSelected(row) },
                     )
                 }
             }
         }
     }
+}
+
+/** Stable identity for a [ContactActionRow], so Compose keeps per-row state with its content across re-filters. */
+private fun contactRowKey(row: ContactActionRow): Any = when (row) {
+    is ContactActionRow.Channel -> "channel:${row.channel.id}"
+    is ContactActionRow.Action -> "action:${row.action.dataId ?: row.action.label}"
+    is ContactActionRow.OpenContact -> "open-contact"
 }
 
 @Composable
@@ -252,7 +223,7 @@ private fun ContactChannelRow(channel: ContactChannel, onClick: () -> Unit) {
  * affordance; other actions are a plain tappable row.
  */
 @Composable
-private fun ContactActionRow(
+private fun ContactActionItemRow(
     glyph: ContactChannelGlyph?,
     iconPackageName: String?,
     action: ContactAction,

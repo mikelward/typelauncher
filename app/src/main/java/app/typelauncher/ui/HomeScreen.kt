@@ -257,6 +257,12 @@ internal fun HomeScreen(
     onOpenContact: (ContactResult) -> Unit = {},
     onToggleStarred: (ContactResult) -> Unit = {},
     onContactLongPress: () -> Unit = {},
+    // In-list contact-actions mode (rendered in the app-list slot in place of the
+    // apps while `state.contactActions` is set): fire a channel/action row, set a
+    // number's default, and pop the mode on Back.
+    onContactRowSelected: (ContactActionRow) -> Unit = {},
+    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit = { _, _ -> },
+    onContactActionsBack: () -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
     onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
@@ -651,6 +657,12 @@ internal fun HomeScreen(
     // IME up.
     val isDockSlotPresent =
         bodyReady && state.query.isBlank() &&
+            // The contact-actions mode clears the query but is a focused
+            // "acting on this contact" surface like an active search, so the dock
+            // stays hidden — otherwise it would reappear and take height from the
+            // app-list slot the moment a contact opens, reflowing the layout the
+            // in-list actions are meant to slot into cleanly.
+            state.contactActions == null &&
             landscapeTier != HomeLandscapeTier.Compact &&
             !dockSuppressedByKeyboard &&
             (state.isDockEnabled || showWorkDock)
@@ -688,7 +700,11 @@ internal fun HomeScreen(
     // while the query is still retained).
     val showSearchCard = (landscapeTier != HomeLandscapeTier.Compact && searchBoxFitsWithKeyboard) ||
         searchRevealed ||
-        state.query.isNotBlank()
+        state.query.isNotBlank() ||
+        // The contact-actions mode clears the query but is type-to-filter, so the
+        // search box must stay to take that input. (Unreachable in Compact, which
+        // has no content search to open a contact from.)
+        state.contactActions != null
     // `wallpaperActive` keeps the wallpaper as Home's backdrop for the whole
     // Home experience while the setting is on — empty query *and* while typing
     // — so the search box, dock, and app list render as opaque cards on top of
@@ -707,7 +723,10 @@ internal fun HomeScreen(
     // `showWallpaperSlot` is the empty-query case: the app-list slot itself is
     // left transparent so the wallpaper shows through it. Typing brings the
     // opaque `AppsCard` back into that slot, over the same wallpaper backdrop.
-    val showWallpaperSlot = wallpaperActive && state.query.isBlank()
+    // Not while the contact-actions mode owns the app-list slot: it clears the
+    // query but renders its own (opaque, SectionCard-wrapped) card there, so the
+    // wallpaper slot is not what's showing.
+    val showWallpaperSlot = wallpaperActive && state.query.isBlank() && state.contactActions == null
     // In the empty-query slot the transparent [HomeWallpaper] replaces
     // `AppsCard`, which then leaves composition
     // without emitting a final `onAppListBoundsChanged(null)` (its clear-on-
@@ -994,14 +1013,34 @@ internal fun HomeScreen(
                     autoShowKeyboard = autoShowKeyboard,
                     showPlayUpdateBadge = state.playUpdate.showBadge,
                     placeholderSuffix = searchPlaceholderSuffix,
-                    suggestion = searchInlineSuggestion(
-                        query = state.query,
-                        topMatch = state.filteredApps.firstOrNull(),
-                        // When zero apps match, the first content result is the
-                        // Enter target, so the inline preview follows it there.
-                        fallbackName = state.contactResults.firstOrNull()?.displayName
-                            ?: state.eventResults.firstOrNull()?.title,
-                    ),
+                    // The inline preview must name whatever Enter fires. In the
+                    // contact-actions mode Enter fires the first visible channel/
+                    // action row, so the suggestion follows those rows there —
+                    // otherwise typing a channel filter like "mess" would preview
+                    // the Messages app while Enter sent this contact's Message
+                    // action. Everywhere else it previews the first app (or the
+                    // first content result when zero apps match).
+                    suggestion = if (state.contactActions != null) {
+                        searchInlineSuggestion(
+                            query = state.query,
+                            topMatch = null,
+                            fallbackName = state.contactActions
+                                .visibleRows(
+                                    selectedChannelId = state.contactActionsChannelId,
+                                    query = state.query,
+                                    openContactLabel = stringResource(R.string.contact_actions_open_contact),
+                                )
+                                .firstOrNull()
+                                ?.label,
+                        )
+                    } else {
+                        searchInlineSuggestion(
+                            query = state.query,
+                            topMatch = state.filteredApps.firstOrNull(),
+                            fallbackName = state.contactResults.firstOrNull()?.displayName
+                                ?: state.eventResults.firstOrNull()?.title,
+                        )
+                    },
                     keyboardShowRequests = keyboardShowRequests,
                     onQueryChanged = onQueryChanged,
                     onClearQuery = onClearQuery,
@@ -1019,7 +1058,33 @@ internal fun HomeScreen(
             // composition; the holdback is a cold-start optimisation, not
             // a per-mount one. See the comment on `homeBodyReady` in
             // TypeLauncherApp for the why.
-            if (bodyReady && showWallpaperSlot) {
+            val contactActions = state.contactActions
+            if (bodyReady && contactActions != null) {
+                // A contact is open: the app-list slot renders the contact's
+                // channels/actions in place of the apps (same slot, so the search
+                // box and dock don't reflow), filterable by the live query and
+                // Enter-launchable exactly like the app list. Wrapped in the same
+                // SectionCard the apps use so it sits on the opaque/faded card
+                // surface (and honors the wallpaper card-opacity treatment) rather
+                // than floating unreadable directly over the wallpaper.
+                SectionCard(
+                    Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coords ->
+                            appListBoundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize())
+                        },
+                ) {
+                    ContactActionsCard(
+                        actions = contactActions,
+                        selectedChannelId = state.contactActionsChannelId,
+                        query = state.query,
+                        onRowSelected = onContactRowSelected,
+                        onSetNumberDefault = onSetNumberDefault,
+                        onBack = onContactActionsBack,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else if (bodyReady && showWallpaperSlot) {
                 // Same slot as the apps card (index 1, measured to `appHeight`),
                 // so swapping wallpaper ↔ list when the query flips never
                 // reflows the search box or dock above/below it. The slot

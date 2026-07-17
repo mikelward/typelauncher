@@ -133,12 +133,27 @@ internal fun ContactActions.visibleRows(
     if (trimmed.isEmpty()) return rows
     return rows
         .mapNotNull { row ->
-            row.label.launcherMatchTier(trimmed)
+            row.matchTier(trimmed)
                 ?.takeIf { tier -> tier.ordinal <= LauncherMatchTier.Substring.ordinal }
                 ?.let { tier -> row to tier }
         }
         .sortedBy { (_, tier) -> tier.ordinal }
         .map { (row, _) -> row }
+}
+
+/**
+ * The best (lowest) match tier for a row against [query]. An [ContactActionRow.Action]
+ * matches on both its type label *and* its [ContactAction.detail] — the actual
+ * selectable value (a phone number, email address) the row renders — so typing a
+ * digit or part of an address in a channel's picker filters to it, not just the
+ * "Mobile" / "Home" type word. Other rows match on their [label] alone.
+ */
+private fun ContactActionRow.matchTier(query: String): LauncherMatchTier? {
+    val texts = when (this) {
+        is ContactActionRow.Action -> listOfNotNull(action.label, action.detail)
+        else -> listOf(label)
+    }
+    return texts.mapNotNull { text -> text.launcherMatchTier(query) }.minByOrNull { tier -> tier.ordinal }
 }
 
 /**

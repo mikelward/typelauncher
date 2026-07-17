@@ -931,6 +931,12 @@ internal class LauncherViewModel(
 
     fun returnToLauncherHome() {
         pendingWidgetPlacement = null
+        // A HOME press / relaunch is a fresh start, so drop the in-list
+        // contact-actions mode too (it lives in Home state): otherwise the
+        // app-list slot would still show that contact's actions after the reset,
+        // and Back could restore the pre-contact query this clears. Invalidate any
+        // in-flight resolve so it can't re-open the mode after the reset.
+        contactResolveToken++
         val hadQuery = _uiState.value.query.isNotEmpty()
         _uiState.update {
             it.copy(
@@ -940,6 +946,9 @@ internal class LauncherViewModel(
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
                 query = "",
+                contactActions = null,
+                contactActionsChannelId = null,
+                contactActionsReturnQuery = "",
                 homeReturnToken = it.homeReturnToken + 1,
             )
         }
@@ -1169,20 +1178,38 @@ internal class LauncherViewModel(
                 return@launch
             }
             LauncherDebugLog.event("openContactResult resolved channels=${channels.size}")
-            // Swap into the in-list mode atomically when the channels land: save
-            // the current search text to restore on the way out, then clear the
-            // query so the freshly shown channel list isn't pre-filtered by the
-            // contact name the user typed to find this contact. Swapping only on
-            // resolve avoids a flash of the (cleared-query) app list first.
+            val reResolving = _uiState.value.contactActions?.contact?.contactId == contact.contactId
             _uiState.update {
-                it.copy(
-                    contactActions = ContactActions(contact, channels),
-                    contactActionsChannelId = null,
-                    contactActionsReturnQuery = it.query,
-                    query = "",
-                )
+                if (reResolving) {
+                    // In-place re-resolve of the already-open contact (e.g. after a
+                    // default write, via reResolveOpenContact): keep the user where
+                    // they are — same step, same filter query, same saved return
+                    // query — and only swap in the freshly resolved channels.
+                    it.copy(contactActions = ContactActions(contact, channels))
+                } else {
+                    // Fresh open: swap into the in-list mode atomically when the
+                    // channels land — save the current search text to restore on the
+                    // way out, then clear the query so the channel list isn't
+                    // pre-filtered by the contact name the user typed to find this
+                    // contact. Swapping only on resolve avoids a flash of the
+                    // (cleared-query) app list first.
+                    it.copy(
+                        contactActions = ContactActions(contact, channels),
+                        contactActionsChannelId = null,
+                        contactActionsReturnQuery = it.query,
+                        query = "",
+                    )
+                }
             }
             refreshFilteredApps()
+            if (!reResolving) {
+                // Entering the mode from the keyboard's Enter (Search action)
+                // clears the text-field focus, collapsing the IME just as the user
+                // arrives at the filterable channel list. Re-show the keyboard so
+                // the mode stays type-to-filter without a tap. (A tap open re-shows
+                // an already-visible keyboard — harmless.)
+                requestShowKeyboard()
+            }
         }
     }
 
@@ -1215,6 +1242,10 @@ internal class LauncherViewModel(
                 } else {
                     _uiState.update { it.copy(contactActionsChannelId = row.channel.id, query = "") }
                     refreshFilteredApps()
+                    // Drilling in from Enter clears the field focus (see
+                    // openContactResult); re-show the keyboard so step two stays
+                    // type-to-filter.
+                    requestShowKeyboard()
                 }
             }
             is ContactActionRow.Action -> onContactActionSelected(row.action)
@@ -1258,8 +1289,17 @@ internal class LauncherViewModel(
     }
 
     /** Closes the quick-actions sheet without acting, leaving the search as-is. */
-    /** Leaves the contact-actions mode entirely, restoring the saved search query. */
+    /**
+     * Leaves the contact-actions mode entirely, restoring the saved search query.
+     * A no-op (beyond cancelling any in-flight resolve) when the mode isn't open —
+     * a contact-result long-press routes here to cancel a pending resolve while it
+     * opens the favorite menu, and must not clear the search the user has typed.
+     */
     fun dismissContactActions() {
+        if (_uiState.value.contactActions == null) {
+            contactResolveToken++
+            return
+        }
         exitContactActions()
     }
 
