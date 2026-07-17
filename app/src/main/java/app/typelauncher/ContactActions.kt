@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Email
@@ -106,9 +107,19 @@ private val NON_ACTION_MIME_TYPES: Set<String> = setOf(
 internal fun resolveContactChannels(context: Context, contact: ContactResult): List<ContactChannel> {
     val phones = mutableListOf<PhoneRow>()
     val emails = mutableListOf<EmailRow>()
-    // Third-party rows keyed by resolved package, preserving first-seen order.
+    // Third-party rows keyed by their owning app's package, preserving first-seen
+    // order.
     val appRows = LinkedHashMap<String, MutableList<AppRow>>()
     val appLabels = HashMap<String, String>()
+
+    // Maps a contact account type to the package of the app that registered its
+    // authenticator. An account type is usually the app's own package, but when
+    // it's an account *namespace* instead this recovers the real owning package
+    // so the action still resolves. Built once; a failure degrades to empty.
+    val authenticatorPackages: Map<String, String> = runCatching {
+        android.accounts.AccountManager.get(context).authenticatorTypes
+            .associate { it.type to it.packageName }
+    }.getOrDefault(emptyMap())
 
     val projection = arrayOf(
         ContactsContract.Data._ID,
@@ -118,11 +129,12 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
         ContactsContract.Data.DATA3,
         ContactsContract.Data.IS_SUPER_PRIMARY,
         ContactsContract.Data.IS_PRIMARY,
-        // Diagnostic-only for now: the account each row belongs to, so a
-        // bug-report log shows which sync adapter contributed a mimetype (real
-        // messaging integration vs. a noise app that merely syncs contacts).
+        // The account type is the app that contributed the row — `com.whatsapp`,
+        // `org.thoughtcrime.securesms`, `com.google.android.apps.tachyon` — and
+        // (for the messaging integrations) equals that app's package. It's how a
+        // custom action row is attributed to the right app instead of guessing
+        // from a package-less resolveActivity, which returns the system chooser.
         ContactsContract.RawContacts.ACCOUNT_TYPE,
-        ContactsContract.RawContacts.ACCOUNT_NAME,
     )
     try {
         context.contentResolver.query(
@@ -140,13 +152,11 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
             val superPrimaryIndex = cursor.getColumnIndexOrThrow(ContactsContract.Data.IS_SUPER_PRIMARY)
             val primaryIndex = cursor.getColumnIndexOrThrow(ContactsContract.Data.IS_PRIMARY)
             val accountTypeIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
-            LauncherDebugLog.bufferOnly("resolveContactChannels contactId=${contact.contactId} rows=${cursor.count}")
             while (cursor.moveToNext()) {
                 val mimeType = cursor.getString(mimeIndex) ?: continue
                 val superPrimary = cursor.getInt(superPrimaryIndex) != 0
                 val primary = cursor.getInt(primaryIndex) != 0
                 val accountType = cursor.getString(accountTypeIndex)
-                LauncherDebugLog.bufferOnly("  contactRow mime=$mimeType account=$accountType")
                 when {
                     mimeType == Phone.CONTENT_ITEM_TYPE -> {
                         val number = cursor.getString(data1Index)?.takeIf { it.isNotBlank() } ?: continue
@@ -170,27 +180,42 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
                     }
                     mimeType in NON_ACTION_MIME_TYPES -> Unit
                     else -> {
+                        // Attribute the row to the app that contributed it and
+                        // target the action intent at that package. The candidate
+                        // is the account type (== the package for a real
+                        // integration), falling back to the authenticator's
+                        // package when the type is a namespace. Two things fall
+                        // out: WhatsApp / Signal / Meet resolve to the real app (a
+                        // package-less resolveActivity returns the system chooser
+                        // instead, collapsing them into one "android" channel);
+                        // and generic data kinds an unrelated app merely declares
+                        // a handler for — a `calling_card` / `bestie` row on a
+                        // plain `com.google` account — drop out, because that
+                        // account isn't an app that owns the mimetype.
+                        if (accountType.isNullOrBlank()) continue
                         val dataId = cursor.getLong(idIndex)
                         val dataUri = ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, dataId)
-                        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(dataUri, mimeType)
-                        val resolved = context.packageManager.resolveActivity(intent, 0)
-                        LauncherDebugLog.bufferOnly(
-                            "  contactRow custom mime=$mimeType account=$accountType " +
-                                "resolved=${resolved?.activityInfo?.packageName ?: "NONE"}",
-                        )
-                        if (resolved == null) continue
-                        val packageName = resolved.activityInfo?.packageName ?: continue
-                        appLabels.getOrPut(packageName) {
-                            resolved.loadLabel(context.packageManager)?.toString()
-                                ?: resolved.activityInfo?.applicationInfo
-                                    ?.let { context.packageManager.getApplicationLabel(it).toString() }
-                                ?: packageName
+                        val candidates = buildList {
+                            add(accountType)
+                            authenticatorPackages[accountType]?.let { if (it != accountType) add(it) }
                         }
-                        appRows.getOrPut(packageName) { mutableListOf() } += AppRow(
+                        val owner = resolveContactActionOwner(
+                            context.packageManager, dataUri, mimeType, candidates,
+                        ) ?: continue
+                        appLabels.getOrPut(owner.packageName) {
+                            runCatching {
+                                context.packageManager.getApplicationLabel(
+                                    context.packageManager.getApplicationInfo(owner.packageName, 0),
+                                ).toString()
+                            }.getOrNull()
+                                ?: owner.resolveInfo.loadLabel(context.packageManager)?.toString()
+                                ?: owner.packageName
+                        }
+                        appRows.getOrPut(owner.packageName) { mutableListOf() } += AppRow(
                             // The summary column (DATA3) is the app's own action
                             // label — "Message", "Voice call", "Video call".
                             label = cursor.getString(data3Index)?.takeIf { it.isNotBlank() },
-                            intent = intent,
+                            intent = owner.intent,
                             superPrimary = superPrimary,
                             primary = primary,
                         )
@@ -209,7 +234,14 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
     val resources = context.resources
     val channels = mutableListOf<ContactChannel>()
 
-    val orderedPhones = phones.sortedWith(defaultFirst { it.superPrimary to it.primary })
+    // The same number is often synced under several accounts (Google + WhatsApp
+    // + Signal + Meet each carry a phone row), so dedupe by digits before
+    // building the Call / Message channels — otherwise the number picker lists
+    // the same line four times. Sort default-first so the retained copy is the
+    // primary one.
+    val orderedPhones = phones
+        .sortedWith(defaultFirst { it.superPrimary to it.primary })
+        .distinctBy { phone -> phone.number.dedupeKey() }
     if (orderedPhones.isNotEmpty()) {
         channels += ContactChannel(
             id = "call",
@@ -290,6 +322,44 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
  * with the content resolver's own order preserved as the stable tie-break so
  * equal rows keep their natural sequence.
  */
+private class ResolvedContactAction(
+    val packageName: String,
+    val intent: Intent,
+    val resolveInfo: android.content.pm.ResolveInfo,
+)
+
+/**
+ * Resolves the first [candidatePackages] entry whose app declares an activity
+ * for the contact action ([mimeType] on [dataUri]); the intent is targeted at
+ * that package so it launches the app directly rather than the system chooser.
+ * Returns the owning package, the ready-to-fire intent, and the resolve info
+ * (for a label fallback), or null when none of the candidates own the action.
+ */
+private fun resolveContactActionOwner(
+    packageManager: PackageManager,
+    dataUri: Uri,
+    mimeType: String,
+    candidatePackages: List<String>,
+): ResolvedContactAction? {
+    for (pkg in candidatePackages) {
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(dataUri, mimeType).setPackage(pkg)
+        val resolved = packageManager.resolveActivity(intent, 0)
+        if (resolved?.activityInfo?.packageName == pkg) {
+            return ResolvedContactAction(pkg, intent, resolved)
+        }
+    }
+    return null
+}
+
+// Visual phone-number separators, stripped to compare two numbers for the
+// cross-account dedupe. Dialing-significant characters (`+`, `#`, `*`, and the
+// pause / wait `,` `;`) are deliberately kept, so a number with an extension or
+// USSD suffix is not merged with its bare-digits sibling.
+private val PHONE_SEPARATOR_CHARS = "\u0020\u00A0-().\u2013\u2014/".toSet()
+
+/** Dedupe key that ignores formatting but preserves dialing syntax; falls back to the raw number if it's all separators. */
+private fun String.dedupeKey(): String = filterNot { it in PHONE_SEPARATOR_CHARS }.ifBlank { this }
+
 private inline fun <T> defaultFirst(crossinline rank: (T) -> Pair<Boolean, Boolean>): Comparator<T> =
     compareByDescending<T> { rank(it).first }.thenByDescending { rank(it).second }
 
