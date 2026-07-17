@@ -58,6 +58,15 @@ transmitted off your device by the app.
   photo thumbnails — in home screen search. Contact data is read from
   `ContactsContract` and is never stored beyond the in-memory state of the
   current session; turning the setting off releases it immediately.
+- **Modify contacts** (`WRITE_CONTACTS`): requested only the first time you use
+  a contact's long-press menu to favorite or unfavorite it, and used solely to
+  set that contact's starred flag (`ContactsContract.Contacts.STARRED`) in your
+  contacts app. No other contact fields are read or changed by it, nothing is
+  sent off the device, and a denial simply leaves the contact unchanged.
+- **Place calls** (`CALL_PHONE`): requested only the first time you tap Call on
+  a contact's quick actions, and used solely to dial the number you chose with
+  `ACTION_CALL`. A denial falls back to opening your dialer with the number
+  pre-filled; the app places no calls on its own and dials nothing you didn't tap.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
   shade when you pull down on the home screen.
 

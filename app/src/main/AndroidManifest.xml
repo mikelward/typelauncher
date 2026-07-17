@@ -6,6 +6,10 @@
     <!-- Requested only from the Settings "Search contacts" toggle; backs the
          typed-search contacts section. Never requested at first run. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Requested the first time the user favorites a contact or sets one of
+         their numbers as the default from the long-press menu; a denial simply
+         drops that one action. Never requested at first run. -->
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <!-- Requested the first time the user taps Call on a contact's quick-action
          card; a denial falls back to opening the dialer. Never requested at
          first run. -->

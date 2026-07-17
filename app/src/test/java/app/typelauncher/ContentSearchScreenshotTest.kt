@@ -12,11 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -149,6 +153,29 @@ class ContentSearchScreenshotTest {
         ).assertDoesNotExist()
 
         capture("compose_content_search_contact_starred_robolectric.png")
+    }
+
+    @Test
+    fun contactRow_longPressShowsFavoriteMenu() {
+        // Long-pressing a contact opens the favorite toggle — "Favorite" on a
+        // non-starred contact. The menu is a DropdownMenu Compose hosts in a
+        // separate popup window, so this captures with captureScreenRoboImage
+        // (composites every window) rather than the decorView-only capture the
+        // other cases use.
+        composeContent(reverseLayout = false, apps = apps)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(
+            "$CONTACT_RESULT_ROW_TAG:Maria Lopez",
+            useUnmergedTree = true,
+        ).performTouchInput { longClick() }
+        composeRule.onNodeWithTag(
+            "$CONTACT_RESULT_FAVORITE_ACTION_TAG:Maria Lopez",
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        captureScreen("compose_content_search_contact_favorite_menu_robolectric.png")
     }
 
     @Test
@@ -346,6 +373,17 @@ class ContentSearchScreenshotTest {
             android.graphics.Color.rgb(0xFB, 0xBC, 0x05),
             android.graphics.Color.rgb(0x34, 0xA8, 0x53),
         )
+    }
+
+    // Composites every window (the DropdownMenu popup rides in its own), unlike
+    // [capture], which draws only the activity decorView — see the app-actions
+    // menu screenshot in MainActivityRobolectricScreenshotTest.
+    private fun captureScreen(name: String) {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+        composeRule.awaitAppIconsResolved()
+        captureScreenRoboImage(filePath = "src/test/snapshots/images/$name")
     }
 
     private fun capture(name: String, widthPx: Int = 840, heightPx: Int = 1260) {

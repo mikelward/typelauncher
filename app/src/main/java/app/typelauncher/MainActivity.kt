@@ -141,6 +141,13 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("requestCallPermission result granted=$granted")
             viewModel.onCallPermissionResult(granted)
         }
+    // The first favorite/set-default action on a contact requests WRITE_CONTACTS;
+    // the ViewModel parked the write and replays it on the result.
+    private val requestWriteContactsPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            LauncherDebugLog.event("requestWriteContactsPermission result granted=$granted")
+            viewModel.onWriteContactsPermissionResult(granted)
+        }
     private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val resultWidgetId = result.data?.getIntExtra(
@@ -299,6 +306,15 @@ class MainActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.requestCallPermission.collect {
                     requestCallPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+                }
+            }
+        }
+        // Same bridge for the WRITE_CONTACTS ask the favorite / set-default
+        // actions raise.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.requestWriteContactsPermission.collect {
+                    requestWriteContactsPermissionLauncher.launch(Manifest.permission.WRITE_CONTACTS)
                 }
             }
         }

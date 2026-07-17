@@ -17,6 +17,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -612,6 +613,308 @@ class LauncherViewModelContentSearchTest {
         assertEquals(listOf("Marathon training"), viewModel.uiState.value.eventResults.map { it.title })
     }
 
+    @Test
+    fun favoriteWritesStarredAndFlipsTheRowOptimistically() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val starredWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                starredWrites.add(values?.getAsInteger(ContactsContract.Contacts.STARRED))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+        assertFalse("Starts non-starred", contact.starred)
+
+        viewModel.toggleContactStarred(contact)
+        idle()
+
+        assertEquals("Toggling on writes STARRED = 1", listOf(1), starredWrites)
+        assertTrue(
+            "The visible row stars immediately, without re-querying the provider",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun favoriteWithoutPermissionWaitsThenWritesOnGrant() {
+        grantPermissions() // READ only — WRITE_CONTACTS is not granted.
+        enableBothSources()
+        val starredWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                starredWrites.add(values?.getAsInteger(ContactsContract.Contacts.STARRED))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        idle()
+        assertTrue("Nothing is written until the permission is resolved", starredWrites.isEmpty())
+
+        viewModel.onWriteContactsPermissionResult(granted = true)
+        idle()
+        assertEquals("The parked write replays on grant", listOf(1), starredWrites)
+        assertTrue(viewModel.uiState.value.contactResults.single().starred)
+    }
+
+    @Test
+    fun favoriteFlipsBeforeTheProviderWriteReturns() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")), onUpdate = { 1 })
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+
+        viewModel.toggleContactStarred(contact)
+        idle()
+
+        // The provider update is still parked on the io queue, yet the star has
+        // already flipped — the optimistic flip doesn't wait on I/O.
+        assertTrue(
+            "The star flips before the provider write returns",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+        settle(io)
+        assertTrue(
+            "It stays starred once the write succeeds",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun favoriteRevertsTheFlipWhenTheWriteFails() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        // The provider reports zero rows updated — the write did not take.
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")), onUpdate = { 0 })
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        assertFalse(
+            "A failed write reverts the optimistic flip",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun rapidTogglesThatAllFailLeaveTheRowOnTheConfirmedState() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        // Every write is rejected, and the contact starts (and stays) unstarred.
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")), onUpdate = { 0 })
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+
+        // Favorite then unfavorite while both writes are parked; both fail.
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        settle(io)
+
+        // The failure re-reads the provider (unstarred) rather than inverting the
+        // second failed request, so the row doesn't flip back to starred.
+        assertFalse(
+            "Both writes failed, so the row stays on the confirmed unstarred state",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun rapidFavoriteTogglesSerializeSoTheLatestWins() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val starredWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                starredWrites.add(values?.getAsInteger(ContactsContract.Contacts.STARRED))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+
+        // Favorite, then immediately unfavorite the same row while both writes
+        // are still parked on the io queue.
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        settle(io)
+
+        assertEquals("The two writes land in toggle order, so the latest wins", listOf(1, 0), starredWrites)
+        assertFalse(
+            "Final state is the latest toggle (unstarred)",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun favoriteSurvivesAnIndexReloadThatRacesTheWrite() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        // A provider that reflects the committed STARRED: its query re-reads the
+        // current value, and its update commits the new one.
+        var providerStarred = false
+        val provider = FakeQueryProvider(
+            buildCursor = { projection ->
+                MatrixCursor(projection).apply {
+                    addRow(
+                        projection.map { column ->
+                            when (column) {
+                                ContactsContract.Contacts._ID -> 7L
+                                ContactsContract.Contacts.LOOKUP_KEY -> "lookup-7"
+                                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> "Zoe Quinn"
+                                ContactsContract.Contacts.STARRED -> if (providerStarred) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+            },
+            onUpdate = { values ->
+                providerStarred = (values?.getAsInteger(ContactsContract.Contacts.STARRED) ?: 0) == 1
+                1
+            },
+        )
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+
+        // A resume-driven contact reload is queued first, so its query re-reads
+        // the still-false STARRED and clobbers the optimistic flip mid-write.
+        viewModel.refreshPermissionDrivenUi()
+        viewModel.toggleContactStarred(contact)
+        settle(io)
+
+        // The successful write re-asserts the star, so the row survives the
+        // racing reload rather than being left on the stale value.
+        assertTrue(
+            "Row ends starred despite the mid-write reload",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+        assertTrue("The provider committed the star", providerStarred)
+    }
+
+    @Test
+    fun externalFavoriteChangeAfterCommitIsNotMaskedByThePendingOverride() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        var providerStarred = false
+        val provider = FakeQueryProvider(
+            buildCursor = { projection ->
+                MatrixCursor(projection).apply {
+                    addRow(
+                        projection.map { column ->
+                            when (column) {
+                                ContactsContract.Contacts._ID -> 7L
+                                ContactsContract.Contacts.LOOKUP_KEY -> "lookup-7"
+                                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> "Zoe Quinn"
+                                ContactsContract.Contacts.STARRED -> if (providerStarred) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+            },
+            onUpdate = { values ->
+                providerStarred = (values?.getAsInteger(ContactsContract.Contacts.STARRED) ?: 0) == 1
+                1
+            },
+        )
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        // Favorite in Type Launcher: the write commits.
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        idle()
+        assertTrue(viewModel.uiState.value.contactResults.single().starred)
+
+        // The user then unfavorites the same contact in the Contacts app, and
+        // Type Launcher reloads on resume — reading the fresh (unstarred) value.
+        providerStarred = false
+        viewModel.refreshPermissionDrivenUi()
+        idle()
+
+        // The reload is authoritative (its read is after the write committed), so
+        // the external change shows through rather than being masked by the stale
+        // optimistic override.
+        assertFalse(
+            "An external unfavorite after commit is not masked by the pending override",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
@@ -669,25 +972,31 @@ class LauncherViewModelContentSearchTest {
     }
 
     /** Registers the fake contacts provider; the returned provider exposes [FakeQueryProvider.queryCount]. */
-    private fun registerContactsProvider(contacts: List<FakeContact>): FakeQueryProvider {
-        val provider = FakeQueryProvider { projection ->
-            val cursor = MatrixCursor(projection)
-            contacts.forEach { contact ->
-                cursor.addRow(
-                    projection.map { column ->
-                        when (column) {
-                            ContactsContract.Contacts._ID -> contact.id
-                            ContactsContract.Contacts.LOOKUP_KEY -> "lookup-${contact.id}"
-                            ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> contact.name
-                            ContactsContract.Contacts.PHOTO_THUMBNAIL_URI -> contact.photoUri
-                            ContactsContract.Contacts.STARRED -> if (contact.starred) 1 else 0
-                            else -> null
-                        }
-                    },
-                )
-            }
-            cursor
-        }
+    private fun registerContactsProvider(
+        contacts: List<FakeContact>,
+        onUpdate: (ContentValues?) -> Int = { 0 },
+    ): FakeQueryProvider {
+        val provider = FakeQueryProvider(
+            buildCursor = { projection ->
+                val cursor = MatrixCursor(projection)
+                contacts.forEach { contact ->
+                    cursor.addRow(
+                        projection.map { column ->
+                            when (column) {
+                                ContactsContract.Contacts._ID -> contact.id
+                                ContactsContract.Contacts.LOOKUP_KEY -> "lookup-${contact.id}"
+                                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> contact.name
+                                ContactsContract.Contacts.PHOTO_THUMBNAIL_URI -> contact.photoUri
+                                ContactsContract.Contacts.STARRED -> if (contact.starred) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+                cursor
+            },
+            onUpdate = onUpdate,
+        )
         ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
         return provider
     }
@@ -696,7 +1005,7 @@ class LauncherViewModelContentSearchTest {
         // Default begin: one hour from now, so the organizer keeps the event
         // (it drops instances that already ended).
         val defaultBegin = System.currentTimeMillis() + 60 * 60 * 1000
-        val provider = FakeQueryProvider { projection ->
+        val provider = FakeQueryProvider(buildCursor = { projection ->
                 val cursor = MatrixCursor(projection)
                 events.forEach { event ->
                     val begin = event.beginMillis ?: defaultBegin
@@ -715,7 +1024,7 @@ class LauncherViewModelContentSearchTest {
                     )
                 }
                 cursor
-            }
+            })
         ShadowContentResolver.registerProviderInternal(CalendarContract.AUTHORITY, provider)
         return provider
     }
@@ -768,9 +1077,10 @@ class LauncherViewModelContentSearchTest {
         val durationMillis: Long? = null,
     )
 
-    /** Minimal read-only provider: answers every query from [buildCursor], counting calls. */
+    /** Minimal provider: answers every query from [buildCursor] (counting calls) and delegates writes to [onUpdate]. */
     private class FakeQueryProvider(
         private val buildCursor: (projection: Array<String>) -> Cursor,
+        private val onUpdate: (ContentValues?) -> Int = { 0 },
     ) : ContentProvider() {
         var queryCount = 0
             private set
@@ -795,6 +1105,6 @@ class LauncherViewModelContentSearchTest {
             values: ContentValues?,
             selection: String?,
             selectionArgs: Array<String>?,
-        ): Int = 0
+        ): Int = onUpdate(values)
     }
 }

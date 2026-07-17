@@ -255,6 +255,8 @@ internal fun HomeScreen(
     // tapped result in its owning app. Defaults keep direct callers (previews,
     // tests that compose Home alone) compiling.
     onOpenContact: (ContactResult) -> Unit = {},
+    onToggleStarred: (ContactResult) -> Unit = {},
+    onContactLongPress: () -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
     onAppListBoundsChanged: (Rect?) -> Unit = {},
     onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
@@ -1052,6 +1054,8 @@ internal fun HomeScreen(
                     contactResults = state.contactResults,
                     eventResults = state.eventResults,
                     onOpenContact = onOpenContact,
+                    onToggleStarred = onToggleStarred,
+                    onContactLongPress = onContactLongPress,
                     onOpenEvent = onOpenEvent,
                     scrollResetKey = state.query,
                     onLaunchApp = onLaunchApp,
@@ -3866,6 +3870,8 @@ internal fun AppsCard(
     contactResults: List<ContactResult> = emptyList(),
     eventResults: List<AgendaEvent> = emptyList(),
     onOpenContact: (ContactResult) -> Unit = {},
+    onToggleStarred: (ContactResult) -> Unit = {},
+    onContactLongPress: () -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
     // Anything that should yank the list back to the natural top (item 0). The
     // search query is the canonical caller: `rememberLazyListState` /
@@ -3995,6 +4001,8 @@ internal fun AppsCard(
                         contactResults = contactResults,
                         eventResults = eventResults,
                         onOpenContact = onOpenContact,
+                        onToggleStarred = onToggleStarred,
+                        onContactLongPress = onContactLongPress,
                         onOpenEvent = onOpenEvent,
                         state = gridState,
                         onBoundsChanged = { bounds ->
@@ -4078,6 +4086,8 @@ internal fun AppsCard(
                             appsEmpty = apps.isEmpty(),
                             highlightFirst = highlightFirst,
                             onOpenContact = onOpenContact,
+                            onToggleStarred = onToggleStarred,
+                            onContactLongPress = onContactLongPress,
                             onOpenEvent = onOpenEvent,
                         )
                     }
@@ -4128,6 +4138,8 @@ internal fun IconOnlyAppGrid(
     contactResults: List<ContactResult> = emptyList(),
     eventResults: List<AgendaEvent> = emptyList(),
     onOpenContact: (ContactResult) -> Unit = {},
+    onToggleStarred: (ContactResult) -> Unit = {},
+    onContactLongPress: () -> Unit = {},
     onOpenEvent: (AgendaEvent) -> Unit = {},
     onBoundsChanged: (Rect?) -> Unit = {},
     onLaunchApp: (InstalledApp) -> Unit,
@@ -4189,6 +4201,8 @@ internal fun IconOnlyAppGrid(
             appsEmpty = apps.isEmpty(),
             highlightFirst = highlightFirst,
             onOpenContact = onOpenContact,
+            onToggleStarred = onToggleStarred,
+            onContactLongPress = onContactLongPress,
             onOpenEvent = onOpenEvent,
         )
     }
@@ -4210,6 +4224,8 @@ private fun LazyListScope.contentSearchSectionItems(
     appsEmpty: Boolean,
     highlightFirst: Boolean,
     onOpenContact: (ContactResult) -> Unit,
+    onToggleStarred: (ContactResult) -> Unit,
+    onContactLongPress: () -> Unit,
     onOpenEvent: (AgendaEvent) -> Unit,
 ) {
     if (contactResults.isNotEmpty()) {
@@ -4223,6 +4239,8 @@ private fun LazyListScope.contentSearchSectionItems(
                 // target) when zero apps match — see `launchActiveApp`.
                 isActive = highlightFirst && appsEmpty && index == 0,
                 onOpenContact = onOpenContact,
+                onToggleStarred = onToggleStarred,
+                onContactLongPress = onContactLongPress,
             )
         }
     }
@@ -4252,6 +4270,8 @@ private fun LazyGridScope.contentSearchSectionItems(
     appsEmpty: Boolean,
     highlightFirst: Boolean,
     onOpenContact: (ContactResult) -> Unit,
+    onToggleStarred: (ContactResult) -> Unit,
+    onContactLongPress: () -> Unit,
     onOpenEvent: (AgendaEvent) -> Unit,
 ) {
     if (contactResults.isNotEmpty()) {
@@ -4269,6 +4289,8 @@ private fun LazyGridScope.contentSearchSectionItems(
                 contact = contact,
                 isActive = highlightFirst && appsEmpty && index == 0,
                 onOpenContact = onOpenContact,
+                onToggleStarred = onToggleStarred,
+                onContactLongPress = onContactLongPress,
             )
         }
     }
@@ -4324,16 +4346,31 @@ private fun ContactResultRow(
     contact: ContactResult,
     isActive: Boolean,
     onOpenContact: (ContactResult) -> Unit,
+    onToggleStarred: (ContactResult) -> Unit,
+    onContactLongPress: () -> Unit,
 ) {
     val highlightColor = selectionHighlightColor()
     val highlightOnColor = selectionHighlightOnColor()
     val rowColor = if (isActive) highlightColor else Color.Transparent
     val textColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(rowColor, RoundedCornerShape(8.dp))
-            .clickable { onOpenContact(contact) }
+            // Long-press mirrors the app rows' menu affordance: tap opens the
+            // quick actions, long-press offers the favorite toggle. Opening the
+            // menu also cancels any in-flight tap-resolve (the same token bump
+            // dismiss and second-tap do), so a slow resolve for a contact tapped
+            // a moment ago can't pop its quick-actions sheet over this menu.
+            .combinedClickable(
+                onClick = { onOpenContact(contact) },
+                onLongClick = {
+                    onContactLongPress()
+                    menuExpanded = true
+                },
+            )
             .padding(horizontal = 4.dp, vertical = 8.dp)
             .testTag("$CONTACT_RESULT_ROW_TAG:${contact.displayName}")
             .semantics { selected = isActive },
@@ -4391,6 +4428,34 @@ private fun ContactResultRow(
                 modifier = Modifier
                     .size(20.dp)
                     .testTag("$CONTACT_RESULT_STARRED_TAG:${contact.displayName}"),
+            )
+        }
+    }
+        LauncherDropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            // Non-focusable like the app-row menus: a focusable popup steals
+            // focus from the search field and collapses the IME, which would
+            // jump the layout the moment you long-press a contact while typing.
+            properties = AppActionsMenuPopupProperties,
+        ) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (contact.starred) {
+                                R.string.contact_action_unfavorite
+                            } else {
+                                R.string.contact_action_favorite
+                            },
+                        ),
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onToggleStarred(contact)
+                },
+                modifier = Modifier.testTag("$CONTACT_RESULT_FAVORITE_ACTION_TAG:${contact.displayName}"),
             )
         }
     }
