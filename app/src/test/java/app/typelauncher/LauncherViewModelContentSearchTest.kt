@@ -15,7 +15,10 @@ import android.os.Looper
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import androidx.test.core.app.ApplicationProvider
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -1306,6 +1309,130 @@ class LauncherViewModelContentSearchTest {
         assertEquals(Intent.ACTION_SENDTO, started.action)
         assertEquals("smsto", started.data?.scheme)
         assertNull("Firing an action exits the mode", viewModel.uiState.value.contactActions)
+    }
+
+    @Test
+    fun settingADefaultKeepsTheNumberPickerOpenAndPreservesTheReturnQuery() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        // Enter drills into the multi-number Call channel (step two).
+        viewModel.launchActiveApp()
+        idle()
+        assertEquals("call", viewModel.uiState.value.contactActionsChannelId)
+
+        // Setting a default re-resolves the open contact in place; the user must
+        // stay on the number picker and Back must still restore the search.
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "Still on the number picker after setting a default",
+            "call",
+            viewModel.uiState.value.contactActionsChannelId,
+        )
+        assertEquals(
+            "The saved search query survives the in-place re-resolve",
+            "zoe",
+            viewModel.uiState.value.contactActionsReturnQuery,
+        )
+        assertNotNull("Still in the contact-actions mode", viewModel.uiState.value.contactActions)
+    }
+
+    @Test
+    fun enteringAndDrillingContactActionsReShowsTheKeyboard() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        val keyboardRequests = AtomicInteger(0)
+        val job = CoroutineScope(Dispatchers.Unconfined).launch {
+            viewModel.keyboardShowRequests.collect { keyboardRequests.incrementAndGet() }
+        }
+        idle()
+
+        // Entering the mode (Enter from search clears the field focus) re-shows the
+        // keyboard so the channel list stays type-to-filter.
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        assertTrue("Entering the mode re-shows the keyboard", keyboardRequests.get() >= 1)
+
+        val afterOpen = keyboardRequests.get()
+        // Enter drills into the multi-number Call channel — also re-shows it.
+        viewModel.launchActiveApp()
+        idle()
+        assertEquals("call", viewModel.uiState.value.contactActionsChannelId)
+        assertTrue("Drilling into a channel re-shows the keyboard", keyboardRequests.get() > afterOpen)
+        job.cancel()
+    }
+
+    @Test
+    fun returningToLauncherHomeClearsTheContactActionsMode() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        viewModel.launchActiveApp() // drill into Call so step-two state is set too
+        idle()
+        assertEquals("call", viewModel.uiState.value.contactActionsChannelId)
+
+        // A HOME press / relaunch is a fresh start — the mode must not linger.
+        viewModel.returnToLauncherHome()
+        idle()
+
+        assertNull("HOME press clears the contact-actions mode", viewModel.uiState.value.contactActions)
+        assertNull("...and its step", viewModel.uiState.value.contactActionsChannelId)
+        assertEquals(
+            "...and the saved return query, so Back can't restore a stale search",
+            "",
+            viewModel.uiState.value.contactActionsReturnQuery,
+        )
+        assertEquals("...leaving a clean empty search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun dismissContactActionsWhenNotOpenLeavesTheSearchIntact() {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        // A contact-result long-press routes here to cancel any in-flight resolve
+        // while opening the favorite menu; with no mode open it must leave the
+        // typed search (and the contact result) untouched.
+        viewModel.dismissContactActions()
+
+        assertNull("No contact-actions mode was open", viewModel.uiState.value.contactActions)
+        assertEquals("The typed search is preserved", "zoe", viewModel.uiState.value.query)
+        assertEquals(
+            "The contact result is still there",
+            "Zoe Quinn",
+            viewModel.uiState.value.contactResults.singleOrNull()?.displayName,
+        )
     }
 
     private fun registerPhoneDataProvider(vararg dataRows: Map<String, Any?>) {

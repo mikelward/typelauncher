@@ -142,6 +142,36 @@ class ContactActionsTest {
     }
 
     @Test
+    fun drilledInChannelFiltersOnTheNumberNotJustTheTypeLabel() {
+        // Step two: the rows are numbers whose visible/selectable value is the
+        // detail (+1 555-0199); the label is just the type ("Home"). Typing part
+        // of the number must filter to it, or a digit query would hide every row.
+        val actions = ContactActions(
+            contact = ContactResult(contactId = 1, lookupKey = "l1", displayName = "Jess Ward"),
+            channels = listOf(
+                ContactChannel(
+                    id = "call",
+                    label = "Call",
+                    iconPackageName = null,
+                    glyph = ContactChannelGlyph.Call,
+                    actions = listOf(
+                        ContactAction("Mobile", "+1 555-0100", isDefault = true, kind = ContactActionKind.Call("+1 555-0100")),
+                        ContactAction("Home", "+1 555-0199", isDefault = false, kind = ContactActionKind.Call("+1 555-0199")),
+                    ),
+                ),
+            ),
+        )
+
+        val rows = actions.visibleRows(selectedChannelId = "call", query = "0199", openContactLabel = "Open contact")
+
+        assertEquals(
+            "Typing part of the number filters to that number (matches detail, not just the type label)",
+            listOf("Home"),
+            rows.map { (it as ContactActionRow.Action).action.label },
+        )
+    }
+
+    @Test
     fun callChannelUsesTheDefaultDialerIconWhenOneIsSet() {
         installApp("com.android.dialer", "Phone")
         shadowOf(context.getSystemService(TelecomManager::class.java))
