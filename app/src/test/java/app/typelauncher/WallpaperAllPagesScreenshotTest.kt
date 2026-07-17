@@ -27,14 +27,13 @@ import java.time.ZoneId
 
 /**
  * Renders the Widgets and Agenda pages with the wallpaper backdrop active
- * (the "Show wallpaper on all screens" option) over a bright gradient —
- * standing in for the wallpaper Robolectric can't composite, the same
- * stand-in [CardOpacityScreenshotTest] uses — so the PR
- * `roborazzi-screenshots` artifact shows the treatment: the page background
- * is transparent (the gradient shows through the margins and gaps), and the
- * agenda's cards fade to the user's "Card opacity" while their text stays
- * opaque. The opaque-page default (option off) is pinned alongside so the
- * pair documents the toggle's visual delta.
+ * (the "Show wallpaper" setting, which backs every carousel page) over a
+ * bright gradient — standing in for the wallpaper Robolectric can't
+ * composite — so the PR `roborazzi-screenshots` artifact shows the
+ * treatment: the page background is transparent, so the gradient shows
+ * through the margins and the gaps around the opaque cards. The opaque-page
+ * default (setting off) is pinned alongside so the pair documents the
+ * setting's visual delta.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -44,7 +43,7 @@ class WallpaperAllPagesScreenshotTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun agendaScreen_overWallpaper_fadesCardsAndRevealsBackdrop() {
+    fun agendaScreen_overWallpaper_revealsBackdropAroundCards() {
         composeRule.setContent {
             TypeLauncherTheme {
                 GradientWallpaperStandIn {
@@ -52,7 +51,6 @@ class WallpaperAllPagesScreenshotTest {
                         agenda = AgendaUiState.Events(sampleEvents()),
                         innerPadding = PaddingValues(0.dp),
                         wallpaperActive = true,
-                        cardAlpha = 0.6f,
                         onRequestCalendarPermission = {},
                         onOpenAgendaEvent = {},
                     )

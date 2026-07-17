@@ -129,9 +129,6 @@
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
     <string name="settings_show_wallpaper_title">Show wallpaper</string>
-    <!-- TODO: translate -->
-    <string name="settings_show_wallpaper_all_pages_title" tools:ignore="MissingTranslation">Show wallpaper on all screens</string>
-    <string name="settings_card_opacity_label">Card opacity: %1$d%%</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <!-- TODO: translate -->
     <string name="settings_search_contacts_title" tools:ignore="MissingTranslation">Search contacts</string>

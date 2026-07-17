@@ -160,5 +160,4 @@
     <string name="app_label_with_work_prefix">ការងារ %1$s</string>
     <string name="widgets_restore_action">ប៉ះដើម្បីស្តារធាតុវិដជិត %1$s</string>
     <string name="settings_show_wallpaper_title">បង្ហាញផ្ទាំងខាងក្រោយ</string>
-    <string name="settings_card_opacity_label">ភាពស្រអាប់នៃកាត៖ %1$d%%</string>
 </resources>

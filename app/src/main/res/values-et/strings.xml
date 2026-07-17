@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">Töö %1$s</string>
     <string name="widgets_restore_action">Puudutage vidina %1$s taastamiseks</string>
     <string name="settings_show_wallpaper_title">Kuva taustapilt</string>
-    <string name="settings_card_opacity_label">Kaardi läbipaistmatus: %1$d%%</string>
 </resources>

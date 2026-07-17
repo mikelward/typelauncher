@@ -214,76 +214,15 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun cardOpacitySlider_isDisabledUntilShowWallpaperIsOn() {
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        // The slider only affects the wallpaper backdrop, so it's disabled until
-        // Show wallpaper is turned on.
-        composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).performScrollTo().assertIsNotEnabled()
-    }
-
-    @Test
-    fun cardOpacitySlider_enabledWhenShowWallpaperIsOn() {
+    fun wallpaper_backsWidgetsAndAgendaPages() {
         // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule):
         // toggling it at runtime restarts the activity, which the compose rule's
-        // scenario can't follow, so the enabled state is asserted on a launch
-        // that already has the setting on — the same state the restarted
-        // instance lands in after a real toggle.
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(CARD_OPACITY_SLIDER_TAG).performScrollTo().assertIsEnabled()
-    }
-
-    @Test
-    fun wallpaperAllPagesSwitch_isDisabledUntilShowWallpaperIsOn() {
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        // The option only extends the wallpaper backdrop, so like Card opacity
-        // it's disabled until Show wallpaper is turned on.
-        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG)
-            .performScrollTo()
-            .assertIsNotEnabled()
-    }
-
-    @Test
-    fun wallpaperAllPagesSwitch_toggleExtendsBackdropWithoutRestart() {
-        // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule)
-        // because toggling IT restarts the activity. The all-screens option is
-        // different: it only flips Compose page backgrounds — the window's
-        // FLAG_SHOW_WALLPAPER / surface format are already in place — so its
-        // own toggle must apply live, with no restart.
+        // scenario can't follow. With the setting on, the Widgets and Agenda
+        // pages render with the wallpaper backdrop (transparent page
+        // background — the visual is covered by WallpaperAllPagesScreenshotTest;
+        // Robolectric can't composite the real wallpaper here, so this asserts
+        // the pages still stand up over it).
         val activity = composeRule.activity
-        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG)
-            .performScrollTo()
-            .assertIsEnabled()
-            .assertIsOff()
-        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG).performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(WALLPAPER_ALL_PAGES_SWITCH_TAG).assertIsOn()
-        assertTrue(
-            "the option should land in launcher state",
-            activity.viewModel.uiState.value.isWallpaperShownOnAllPages,
-        )
-        assertTrue(
-            "the option should persist",
-            DockSettingsStore(activity).isWallpaperShownOnAllPages,
-        )
-        assertFalse("an all-screens toggle must not restart the launcher", activity.isFinishing)
-
-        // With the option on, the Widgets and Agenda pages render with the
-        // wallpaper backdrop (transparent page background — the visual is
-        // covered by WallpaperAllPagesScreenshotTest; Robolectric can't
-        // composite the real wallpaper here, so this asserts the pages still
-        // stand up over it).
-        composeRule.onNodeWithTag(SETTINGS_DONE_BUTTON_TAG).performClick()
-        composeRule.waitForIdle()
         activity.viewModel.showWidgets()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertIsDisplayed()
@@ -1745,20 +1684,16 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun settingsPreview_reflectsCardOpacityLive() {
-        // "Show wallpaper" (on) and "Card opacity" (50%) are seeded before
-        // launch by SeedLauncherStateRule — toggling the wallpaper setting at
-        // runtime restarts the activity through a fresh start, which the
-        // compose rule's scenario can't follow. The preview mirrors Home's
-        // "Card opacity" only while Show wallpaper is on — the same gate that
-        // enables the slider. The preview cards' fill should fade in the
-        // snapshot while their icons and text stay fully opaque, so a drag of
-        // the slider is visible without leaving Settings. With the setting on,
-        // the Settings page background is transparent — Home's exact backdrop
-        // model — so the real wallpaper shows behind the page and through the
-        // preview's wallpaper slot. (Robolectric can't composite the live
-        // wallpaper, so in the snapshot the transparent regions show the empty
-        // window rather than a wallpaper.)
+    fun settingsPreview_showsWallpaperSlotWhileWallpaperOn() {
+        // "Show wallpaper" is seeded on before launch by SeedLauncherStateRule —
+        // toggling the wallpaper setting at runtime restarts the activity
+        // through a fresh start, which the compose rule's scenario can't
+        // follow. With the setting on, the Settings page background is
+        // transparent — Home's exact backdrop model — so the real wallpaper
+        // shows behind the page and through the preview's wallpaper slot.
+        // (Robolectric can't composite the live wallpaper, so in the snapshot
+        // the transparent regions show the empty window rather than a
+        // wallpaper.)
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }
         viewModel.toggleDock(calculator, maxDockedApps = 6)
@@ -1788,7 +1723,7 @@ class MainActivityRobolectricScreenshotTest {
             (dockCardBounds.left - previewBounds.left) < 1.dp,
         )
 
-        saveScreenshot("compose_settings_preview_card_opacity_robolectric.png")
+        saveScreenshot("compose_settings_preview_wallpaper_robolectric.png")
     }
 
     @Test
@@ -3849,8 +3784,8 @@ class MainActivityRobolectricScreenshotTest {
                     if (description.methodName in listOf(
                             "wallpaper_replacesAppListOnEmptyHomeUntilTyping",
                             "wallpaper_notShownWhenSearchBoxHidden",
-                            "cardOpacitySlider_enabledWhenShowWallpaperIsOn",
-                            "wallpaperAllPagesSwitch_toggleExtendsBackdropWithoutRestart",
+                            "wallpaper_backsWidgetsAndAgendaPages",
+                            "settingsPreview_showsWallpaperSlotWhileWallpaperOn",
                         )
                     ) {
                         // "Show wallpaper" must be on before the activity
@@ -3860,14 +3795,6 @@ class MainActivityRobolectricScreenshotTest {
                         // the ActivityScenario behind the compose rule cannot
                         // follow.
                         DockSettingsStore(application).isWallpaperShown = true
-                    }
-                    if (description.methodName == "settingsPreview_reflectsCardOpacityLive") {
-                        // Same pre-launch seeding constraint as above, plus the
-                        // 50% card opacity the snapshot demonstrates.
-                        DockSettingsStore(application).apply {
-                            isWallpaperShown = true
-                            cardOpacity = 0.5f
-                        }
                     }
                     if (description.methodName == "screenshot_landscape_cachedKeyboard_doesNotReserveWithKeyboardDown") {
                         // A keyboard height already cached for this landscape size

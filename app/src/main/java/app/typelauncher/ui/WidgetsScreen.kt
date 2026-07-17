@@ -105,11 +105,11 @@ internal fun WidgetsScreen(
     // therefore render as re-bindable placeholders rather than plain unavailable.
     strandedWidgetIds: Set<Int> = emptySet(),
     isCurrentPage: Boolean = true,
-    // Whether the wallpaper backdrop is behind this page (the "Show wallpaper
-    // on all screens" option, resolved per page in TypeLauncherApp): the page
-    // background is left transparent so the composited FLAG_SHOW_WALLPAPER
-    // wallpaper shows through around the widget cards, exactly as Home's
-    // backdrop works. Opaque otherwise.
+    // Whether the wallpaper backdrop is behind this page (the "Show wallpaper"
+    // setting, resolved per page in TypeLauncherApp): the page background is
+    // left transparent so the composited FLAG_SHOW_WALLPAPER wallpaper shows
+    // through around the widget cards, exactly as Home's backdrop works.
+    // Opaque otherwise.
     wallpaperActive: Boolean = false,
     onAddWidget: (isCurrentPageScrollable: Boolean) -> Unit,
     onDismissWidgetPicker: () -> Unit,

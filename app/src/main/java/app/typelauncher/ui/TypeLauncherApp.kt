@@ -301,8 +301,6 @@ internal fun TypeLauncherApp(
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onWallpaperShownChanged = viewModel::setWallpaperShown,
-        onWallpaperShownOnAllPagesChanged = viewModel::setWallpaperShownOnAllPages,
-        onCardOpacityChanged = viewModel::setCardOpacity,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
@@ -393,8 +391,6 @@ internal fun TypeLauncherApp(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
-    onWallpaperShownOnAllPagesChanged: (Boolean) -> Unit = {},
-    onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
@@ -859,8 +855,6 @@ internal fun TypeLauncherApp(
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onWallpaperShownChanged = onWallpaperShownChanged,
-                        onWallpaperShownOnAllPagesChanged = onWallpaperShownOnAllPagesChanged,
-                        onCardOpacityChanged = onCardOpacityChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
                         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
@@ -960,12 +954,12 @@ internal fun TypeLauncherApp(
                         // Whether THIS page composition is revealing the
                         // wallpaper backdrop: Home per its search-box gate
                         // (the shared predicate keeps this in lockstep with
-                        // HomeScreen's own `wallpaperActive`), Widgets and
-                        // Agenda when the "on all screens" option extends the
-                        // backdrop to them. Uses current-or-incoming so the
-                        // backdrop is already in place as a page slides into
-                        // view. Reported into the carousel-level contrast
-                        // owner above via a keyed DisposableEffect so a page
+                        // HomeScreen's own `wallpaperActive`); Widgets and
+                        // Agenda always join the backdrop while the setting
+                        // is on. Uses current-or-incoming so the backdrop is
+                        // already in place as a page slides into view.
+                        // Reported into the carousel-level contrast owner
+                        // above via a keyed DisposableEffect so a page
                         // flipping active, reverting mid-transition, or
                         // leaving composition always keeps the count balanced.
                         val pageRevealsWallpaper = state.isWallpaperShown && isCurrentOrIncoming &&
@@ -978,7 +972,7 @@ internal fun TypeLauncherApp(
                                 )
                                 LauncherScreen.Widgets,
                                 LauncherScreen.Agenda,
-                                -> state.isWallpaperShownOnAllPages
+                                -> true
                             }
                         DisposableEffect(pageRevealsWallpaper) {
                             if (pageRevealsWallpaper) wallpaperBackdropPages++
@@ -1112,7 +1106,6 @@ internal fun TypeLauncherApp(
                                 agenda = state.agenda,
                                 innerPadding = innerPadding,
                                 wallpaperActive = pageRevealsWallpaper,
-                                cardAlpha = if (pageRevealsWallpaper) state.cardOpacity else 1f,
                                 onRequestCalendarPermission = onRequestCalendarPermission,
                                 onOpenAgendaEvent = onOpenAgendaEvent,
                             )

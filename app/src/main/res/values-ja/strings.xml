@@ -160,5 +160,4 @@
     <string name="app_label_with_work_prefix">仕事用 %1$s</string>
     <string name="widgets_restore_action">タップして%1$sウィジェットを復元します</string>
     <string name="settings_show_wallpaper_title">壁紙を表示</string>
-    <string name="settings_card_opacity_label">カードの不透明度: %1$d%%</string>
 </resources>

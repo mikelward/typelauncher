@@ -315,17 +315,11 @@ jobs:
         # two lines.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.NameBelowGridScreenshotTest" -Proborazzi.test.record=true
 
-      - name: Run card opacity screenshot tests
-        # Renders SectionCard at a few "Card opacity" levels over a bright
-        # gradient so the PR `roborazzi-screenshots` artifact shows the fill
-        # fading while the card text stays fully opaque.
-        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.CardOpacityScreenshotTest" -Proborazzi.test.record=true
-
       - name: Run wallpaper-on-all-screens screenshot tests
         # Renders the Widgets and Agenda pages with the wallpaper backdrop
         # active (transparent page background over a bright gradient standing
         # in for the wallpaper) so the PR `roborazzi-screenshots` artifact
-        # shows the "Show wallpaper on all screens" treatment.
+        # shows the all-pages treatment "Show wallpaper" now implies.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.WallpaperAllPagesScreenshotTest" -Proborazzi.test.record=true
 
       - name: Run dock folder screenshot tests

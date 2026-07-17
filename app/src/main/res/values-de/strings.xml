@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">Arbeit %1$s</string>
     <string name="widgets_restore_action">Tippen, um das Widget %1$s wiederherzustellen</string>
     <string name="settings_show_wallpaper_title">Hintergrundbild anzeigen</string>
-    <string name="settings_card_opacity_label">Kartenopazität: %1$d%%</string>
 </resources>

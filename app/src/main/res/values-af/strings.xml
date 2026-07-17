@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">Werk %1$s</string>
     <string name="widgets_restore_action">Tik om %1$s-legstuk te herstel</string>
     <string name="settings_show_wallpaper_title">Wys muurpapier</string>
-    <string name="settings_card_opacity_label">Kaart-opasiteit: %1$d%%</string>
 </resources>

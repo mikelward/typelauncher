@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">कार्य %1$s</string>
     <string name="widgets_restore_action">%1$s विजेट पुनर्स्थापना गर्न ट्याप गर्नुहोस्</string>
     <string name="settings_show_wallpaper_title">वालपेपर देखाउनुहोस्</string>
-    <string name="settings_card_opacity_label">कार्ड अपारदर्शिता: %1$d%%</string>
 </resources>

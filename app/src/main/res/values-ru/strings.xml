@@ -163,5 +163,4 @@
     <string name="app_label_with_work_prefix">Рабочее %1$s</string>
     <string name="widgets_restore_action">Нажмите, чтобы восстановить виджет %1$s</string>
     <string name="settings_show_wallpaper_title">Показывать обои</string>
-    <string name="settings_card_opacity_label">Непрозрачность карточки: %1$d%%</string>
 </resources>

@@ -161,5 +161,4 @@
     <string name="app_label_with_work_prefix">کام %1$s</string>
     <string name="widgets_restore_action">%1$s ویجٹ بحال کرنے کے لیے تھپتھپائیں</string>
     <string name="settings_show_wallpaper_title">وال پیپر دکھائیں</string>
-    <string name="settings_card_opacity_label">کارڈ کی غیر شفافیت: %1$d%%</string>
 </resources>

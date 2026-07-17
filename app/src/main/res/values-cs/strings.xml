@@ -163,5 +163,4 @@
     <string name="app_label_with_work_prefix">Pracovní %1$s</string>
     <string name="widgets_restore_action">Klepnutím obnovte widget %1$s</string>
     <string name="settings_show_wallpaper_title">Zobrazit tapetu</string>
-    <string name="settings_card_opacity_label">Krytí karty: %1$d%%</string>
 </resources>
