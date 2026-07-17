@@ -5680,9 +5680,6 @@ internal fun SettingsScreen(
     // switch) only flips on once the permission is granted.
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
-    // "Use default dialer". No permission gate at toggle time — CALL_PHONE
-    // is requested on the first Call tap after turning it off.
-    onUseDefaultDialerChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
@@ -5991,23 +5988,6 @@ internal fun SettingsScreen(
                     checked = state.isCalendarSearchEnabled,
                     onCheckedChange = onCalendarSearchEnabledChanged,
                     modifier = Modifier.testTag(CALENDAR_SEARCH_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_use_default_dialer_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.useDefaultDialer,
-                    onCheckedChange = onUseDefaultDialerChanged,
-                    modifier = Modifier.testTag(USE_DEFAULT_DIALER_SWITCH_TAG),
                 )
             }
             Row(

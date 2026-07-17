@@ -725,11 +725,6 @@ internal data class LauncherUiState(
     // source. They gate the content sections below.
     val isContactSearchEnabled: Boolean = false,
     val isCalendarSearchEnabled: Boolean = false,
-    // Settings → "Use default dialer". On by default: a contact's Call action
-    // opens the user's default dialer with the number pre-filled (ACTION_DIAL,
-    // no permission). Turning it off makes the launcher place the call itself
-    // (ACTION_CALL, requesting CALL_PHONE on first use).
-    val useDefaultDialer: Boolean = true,
     // The contacts / calendar-events sections of Home's typed search, appended
     // after `filteredApps` in data order so `reverseLayout` naturally keeps
     // them beyond the apps in the scroll direction under both sort directions.

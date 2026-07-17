@@ -63,13 +63,13 @@ transmitted off your device by the app.
   set that contact's starred flag (`ContactsContract.Contacts.STARRED`) in your
   contacts app. No other contact fields are read or changed by it, nothing is
   sent off the device, and a denial simply leaves the contact unchanged.
-- **Place calls** (`CALL_PHONE`): requested only if you turn off "Use default
-  dialer" in Settings and then tap Call on a contact's quick actions, and used
-  solely to dial the number you chose with `ACTION_CALL`. With the setting on
-  (the default) this permission is never requested — tapping Call opens your
-  default dialer with the number pre-filled instead, and a denial falls back
-  to that same dialer hand-off. The app places no calls on its own and dials
-  nothing you didn't tap.
+- **Place calls** (`CALL_PHONE`): requested the first time you tap Call on a
+  contact's quick actions, and used solely to dial the number you chose with
+  `ACTION_CALL` — the call itself is routed by Android's phone subsystem and
+  your phone app, exactly as if you had dialed it there. If you deny the
+  permission, tapping Call opens your default phone app with the number
+  pre-filled instead, so nothing is ever dialed without the permission. The
+  app places no calls on its own and dials nothing you didn't tap.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
   shade when you pull down on the home screen.
 
