@@ -6565,6 +6565,7 @@ private fun SettingsOverflowMenu(onOpenLauncherAppInfo: () -> Unit) {
             Icon(
                 Icons.Filled.MoreVert,
                 contentDescription = stringResource(R.string.settings_overflow_button_description),
+                tint = MaterialTheme.colorScheme.onBackground,
             )
         }
         LauncherDropdownMenu(
