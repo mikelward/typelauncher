@@ -1680,6 +1680,23 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun useDefaultDialerToggle_inSettingsIsOnByDefaultAndPersists() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(USE_DEFAULT_DIALER_SWITCH_TAG).performScrollTo().assertIsOn()
+        saveScreenshot("compose_settings_use_default_dialer_robolectric.png")
+
+        composeRule.onNodeWithTag(USE_DEFAULT_DIALER_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(USE_DEFAULT_DIALER_SWITCH_TAG).performScrollTo().assertIsOff()
+        assertFalse(viewModel.uiState.value.useDefaultDialer)
+        assertFalse(DockSettingsStore(composeRule.activity).useDefaultDialer)
+    }
+
+    @Test
     fun increasingDockVisibleIconCountShrinksLiveSettingsPreview() {
         val viewModel = composeRule.activity.viewModel
         val calculator = viewModel.uiState.value.filteredApps.first { it.name == "Calculator" }

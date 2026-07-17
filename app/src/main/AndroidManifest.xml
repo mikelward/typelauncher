@@ -10,9 +10,11 @@
          their numbers as the default from the long-press menu; a denial simply
          drops that one action. Never requested at first run. -->
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
-    <!-- Requested the first time the user taps Call on a contact's quick-action
-         card; a denial falls back to opening the dialer. Never requested at
-         first run. -->
+    <!-- Requested only with Settings "Use default dialer" turned off (on by
+         default), the first time the user taps Call on a contact's quick-action
+         card; a denial — and the default setting — falls back to opening the
+         default dialer with the number pre-filled. Never requested at first
+         run. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <!-- CALL_PHONE implies telephony hardware; declare it optional so the
          launcher still installs on tablets / ChromeOS with no phone radio (the

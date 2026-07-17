@@ -14,6 +14,7 @@ import android.net.Uri
 import android.os.Looper
 import android.provider.CalendarContract
 import android.provider.ContactsContract
+import android.telecom.TelecomManager
 import androidx.test.core.app.ApplicationProvider
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
@@ -376,9 +377,50 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
-    fun grantedCallPlacesCallDirectly() {
+    fun callHandsOffToDialerByDefault() {
+        // "Use default dialer" is on by default, so a Call tap opens the
+        // user's dialer with the number pre-filled — even with CALL_PHONE
+        // already granted, the launcher never places the call itself. The
+        // intent is targeted at the default dialer package so Android can't
+        // raise its "which app" disambiguation sheet over the hand-off.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The default Call opens the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("The hand-off targets the default dialer, not an app picker", "com.android.dialer", started.`package`)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertNull("The hand-off closes the sheet", viewModel.uiState.value.contactActionsMode)
+        assertEquals("The hand-off clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun callWithoutPermissionHandsOffToDialerWithoutPrompting() {
+        // On the default hand-off path there is nothing to grant: no
+        // CALL_PHONE prompt is raised, the dialer simply opens. With no
+        // default dialer to name (a device without telephony), the intent
+        // stays untargeted.
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("No permission prompt gates the hand-off", Intent.ACTION_DIAL, started.action)
+        assertNull("No default dialer known, so the intent is untargeted", started.`package`)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun grantedCallPlacesCallDirectlyWithDialerHandOffOff() {
         shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
         val viewModel = viewModelWithOpenSheet()
+        viewModel.setUseDefaultDialer(false)
 
         viewModel.onContactActionSelected(callAction("+15550100"))
         idle()
@@ -389,12 +431,32 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
+    fun persistedDialerSettingSurvivesRelaunch() {
+        // The flag seeds LauncherUiState from the settings store at
+        // construction, so turning "Use default dialer" off survives a
+        // process restart.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        context.getSharedPreferences("dock_settings", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("use_default_dialer", false)
+            .commit()
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The persisted opt-out still places the call", Intent.ACTION_CALL, started.action)
+    }
+
+    @Test
     fun callNumberWithHashIsNotTruncated() {
         // Regression: a '#' in a service / extension / USSD number must reach
         // the dialer intact. Building "tel:$number" as a string would parse the
         // '#' as a URI fragment and truncate the dial string.
         shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
         val viewModel = viewModelWithOpenSheet()
+        viewModel.setUseDefaultDialer(false)
 
         viewModel.onContactActionSelected(callAction("+1800555#123"))
         idle()
@@ -410,9 +472,11 @@ class LauncherViewModelContentSearchTest {
 
     @Test
     fun callWithoutPermissionWaitsThenPlacesOnGrant() {
-        // CALL_PHONE is not granted, so the tap parks the number and asks the
-        // Activity to prompt rather than dialing anything yet.
+        // With "Use default dialer" off but CALL_PHONE not granted, the tap
+        // parks the number and asks the Activity to prompt rather than
+        // dialing anything yet.
         val viewModel = viewModelWithOpenSheet()
+        viewModel.setUseDefaultDialer(false)
 
         viewModel.onContactActionSelected(callAction("+15550100"))
         idle()
@@ -430,7 +494,10 @@ class LauncherViewModelContentSearchTest {
 
     @Test
     fun deniedCallFallsBackToDialer() {
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
         val viewModel = viewModelWithOpenSheet()
+        viewModel.setUseDefaultDialer(false)
 
         viewModel.onContactActionSelected(callAction("+15550100"))
         idle()
@@ -439,6 +506,7 @@ class LauncherViewModelContentSearchTest {
 
         val started = shadowOf(context as android.app.Application).nextStartedActivity
         assertEquals("A refused Call falls back to the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("The fallback targets the default dialer too", "com.android.dialer", started.`package`)
         assertEquals("+15550100", started.data?.schemeSpecificPart)
         assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActionsMode)
     }

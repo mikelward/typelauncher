@@ -180,12 +180,14 @@ private fun ContactActionRow.matchTier(query: String): LauncherMatchTier? {
 }
 
 /**
- * How an action is dispatched. [Call] is special: it is placed with
- * `ACTION_CALL` after a one-time `CALL_PHONE` grant (falling back to the dialer
- * when the permission is refused), so it carries the raw [number] rather than a
- * pre-built intent — the permission decision lives at dispatch time, not here.
- * Everything else — SMS, email, and every third-party contact row — is already
- * a fully-formed [Launch] intent.
+ * How an action is dispatched. [Call] is special: it carries the raw [number]
+ * rather than a pre-built intent because the dispatch policy lives at dispatch
+ * time, not here — by default the number is handed to the user's default
+ * dialer with `ACTION_DIAL` (the launcher doesn't place calls itself), and
+ * only with Settings → "Use default dialer" turned off is it placed with
+ * `ACTION_CALL` after a one-time `CALL_PHONE` grant (falling back to the
+ * dialer when the permission is refused). Everything else — SMS, email, and every third-party contact
+ * row — is already a fully-formed [Launch] intent.
  */
 internal sealed interface ContactActionKind {
     data class Call(val number: String) : ContactActionKind

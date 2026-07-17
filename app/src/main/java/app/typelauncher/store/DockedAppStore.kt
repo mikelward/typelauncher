@@ -720,6 +720,21 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Settings → "Use default dialer". On by default: a contact's Call action
+     * hands the number to the user's default dialer (`ACTION_DIAL`, no
+     * permission) so the launcher never manages how a call is placed. Turning
+     * it off is what makes Call place the call itself with `ACTION_CALL`,
+     * requesting `CALL_PHONE` on first use.
+     */
+    var useDefaultDialer: Boolean
+        get() = sharedPreferences.getBoolean(KEY_USE_DEFAULT_DIALER, true)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_USE_DEFAULT_DIALER, value)
+                .apply()
+        }
+
+    /**
      * Settings → "Theme" mode. Defaults to [ThemeMode.System] so the launcher
      * follows the device's night-mode configuration; users can pin to
      * [ThemeMode.Light] or [ThemeMode.Dark] to override the system.
@@ -784,6 +799,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_AGENDA_ENABLED = "agenda_enabled"
         const val KEY_CONTACT_SEARCH_ENABLED = "contact_search_enabled"
         const val KEY_CALENDAR_SEARCH_ENABLED = "calendar_search_enabled"
+        const val KEY_USE_DEFAULT_DIALER = "use_default_dialer"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ICON_SHAPE = "icon_shape"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"
