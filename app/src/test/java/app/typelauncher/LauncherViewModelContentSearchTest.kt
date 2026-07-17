@@ -297,6 +297,38 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
+    fun staleContactResolveIsDiscardedAfterResumeToHome() {
+        // Regression: opening a contact and then backgrounding to Home before the
+        // resolve publishes left `contactActionsMode` null at resume, so the old
+        // guard returned without bumping the request token — and the parked resolve
+        // then popped stale actions onto the clean home. The resume must cancel the
+        // in-flight resolve even when the mode has not been published yet.
+        val io = QueueDispatcher()
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        // Resume to Home before the parked resolve runs.
+        viewModel.closeSecondaryTrayOnResume()
+        settle(io)
+
+        assertNull(
+            "A resolve that returns after a resume must not pop actions onto the home",
+            viewModel.uiState.value.contactActionsMode,
+        )
+    }
+
+    @Test
     fun laterContactOpenSupersedesEarlierResolve() {
         val io = QueueDispatcher()
         grantPermissions()
@@ -1403,6 +1435,64 @@ class LauncherViewModelContentSearchTest {
         // so Back can't restore the pre-contact search Home was meant to clear.
         assertNull("HOME press clears the contact-actions mode", viewModel.uiState.value.contactActionsMode)
         assertEquals("...leaving a clean empty search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun resumingToHomeClearsTheContactActionsMode() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        // Type a channel filter inside the mode — this lives in `query`, so the
+        // resume reset must clear it too, not just the mode.
+        viewModel.setQuery("mess")
+        assertNotNull("The mode is open", viewModel.uiState.value.contactActionsMode)
+
+        // Backgrounding and resuming to Home is a fresh start, like a HOME press —
+        // the contact's actions must not linger, and the app list must not be left
+        // filtered to the stale channel-filter text.
+        viewModel.closeSecondaryTrayOnResume()
+        idle()
+
+        assertNull("Resuming to Home clears the contact-actions mode", viewModel.uiState.value.contactActionsMode)
+        assertEquals("...leaving a clean empty search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun aPermissionPromptResumeKeepsTheContactActionsMode() {
+        // WRITE_CONTACTS is deliberately NOT granted (grantPermissions() covers only
+        // the read permissions), so the set-default write parks and requests it.
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        // Long-press "Default" on a number with WRITE_CONTACTS ungranted: the write
+        // is parked and the system permission prompt is requested.
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+
+        // Dismissing that prompt resumes the launcher through the same onResume, but
+        // the user hasn't left the contact flow — the parked write still needs the
+        // open contact to re-resolve, so the mode must survive this resume.
+        viewModel.closeSecondaryTrayOnResume()
+        idle()
+
+        assertNotNull(
+            "A permission-prompt resume keeps the contact-actions mode",
+            viewModel.uiState.value.contactActionsMode,
+        )
     }
 
 
