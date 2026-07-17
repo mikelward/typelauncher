@@ -17,6 +17,7 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Email
 import android.provider.ContactsContract.CommonDataKinds.Phone
+import android.telecom.TelecomManager
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -68,6 +69,44 @@ class ContactActionsTest {
         // schemeSpecificPart, not toString: Uri.fromParts percent-encodes the
         // number in the string form but keeps it intact when decoded.
         assertEquals("+1-555-0100", firstSms.intent.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun callChannelUsesTheDefaultDialerIconWhenOneIsSet() {
+        installApp("com.android.dialer", "Phone")
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
+        registerDataProvider(phone("+1-555-0100", Phone.TYPE_MOBILE))
+
+        val call = resolveContactChannels(context, contact).first { it.id == "call" }
+
+        assertEquals("com.android.dialer", call.iconPackageName)
+        // The glyph is retained as the render-time fallback, not dropped.
+        assertEquals(ContactChannelGlyph.Call, call.glyph)
+    }
+
+    @Test
+    fun emailChannelUsesTheDefaultMailHandlerIcon() {
+        installApp("com.example.mail", "Mail")
+        registerHandler(Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", "", null)), "com.example.mail")
+        registerDataProvider(email("jess@example.com", Email.TYPE_HOME))
+
+        val emailChannel = resolveContactChannels(context, contact).first { it.id == "email" }
+
+        assertEquals("com.example.mail", emailChannel.iconPackageName)
+    }
+
+    @Test
+    fun emailChannelFallsBackToGlyphWhenTheHandlerIsTheSystemChooser() {
+        // No user default: a package-less mailto resolves to the chooser
+        // (package `android`), which is no single app — so the glyph shows.
+        registerHandler(Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", "", null)), "android")
+        registerDataProvider(email("jess@example.com", Email.TYPE_HOME))
+
+        val emailChannel = resolveContactChannels(context, contact).first { it.id == "email" }
+
+        assertNull(emailChannel.iconPackageName)
+        assertEquals(ContactChannelGlyph.Email, emailChannel.glyph)
     }
 
     @Test
@@ -357,6 +396,17 @@ class ContactActionsTest {
 
     private fun custom(dataId: Long, mimeType: String, account: String, summary: String? = null): Map<String, Any?> =
         row(id = dataId, mimeType = mimeType, data3 = summary, account = account)
+
+    /** Registers [packageName] as the resolver for [intent] — the default-handler lookup the built-in channels use. */
+    private fun registerHandler(intent: Intent, packageName: String) {
+        val resolveInfo = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                this.packageName = packageName
+                name = "$packageName.HandlerActivity"
+            }
+        }
+        shadowOf(context.packageManager).addResolveInfoForIntent(intent, resolveInfo)
+    }
 
     /** Installs a package so its application label resolves (device apps have one; Robolectric's don't by default). */
     private fun installApp(packageName: String, label: String) {

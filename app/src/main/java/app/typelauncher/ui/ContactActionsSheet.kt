@@ -132,7 +132,7 @@ internal fun ContactActionsSheetContent(
                 )
             }
             ContactSheetRow(
-                icon = Icons.Filled.Person,
+                glyph = null,
                 iconPackageName = null,
                 title = stringResource(R.string.contact_actions_open_contact),
                 subtitle = null,
@@ -143,7 +143,7 @@ internal fun ContactActionsSheetContent(
         } else {
             selectedChannel.actions.forEach { action ->
                 ContactSheetRow(
-                    icon = selectedChannel.glyph.toIcon(),
+                    glyph = selectedChannel.glyph,
                     iconPackageName = selectedChannel.iconPackageName,
                     title = action.label,
                     subtitle = action.detail,
@@ -215,7 +215,7 @@ private fun ContactActionsHeader(
 @Composable
 private fun ContactChannelRow(channel: ContactChannel, onClick: () -> Unit) {
     ContactSheetRow(
-        icon = channel.glyph.toIcon(),
+        glyph = channel.glyph,
         iconPackageName = channel.iconPackageName,
         title = channel.label,
         subtitle = channel.actions.singleOrNull()?.detail,
@@ -234,7 +234,7 @@ private fun ContactChannelRow(channel: ContactChannel, onClick: () -> Unit) {
  */
 @Composable
 private fun ContactSheetRow(
-    icon: ImageVector,
+    glyph: ContactChannelGlyph?,
     iconPackageName: String?,
     title: String,
     subtitle: String?,
@@ -250,7 +250,7 @@ private fun ContactSheetRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AppOrGlyphIcon(icon = icon, iconPackageName = iconPackageName)
+        AppOrGlyphIcon(iconPackageName = iconPackageName, glyph = glyph)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -280,19 +280,24 @@ private fun ContactSheetRow(
 }
 
 @Composable
-private fun AppOrGlyphIcon(icon: ImageVector, iconPackageName: String?) {
+private fun AppOrGlyphIcon(iconPackageName: String?, glyph: ContactChannelGlyph?) {
+    // The built-in channels (Phone / Message / Email) carry a glyph; app channels
+    // don't. The glyph is what shows whenever no real app icon is available — the
+    // fallback plate below resolves to Person only for the "Open contact" row,
+    // which has neither an app icon nor a channel glyph.
+    val glyphIcon = glyph?.toIcon()
     if (iconPackageName == null) {
-        // Built-in channel (Phone / Message / Email): the glyph is the real
-        // icon, drawn synchronously on its tinted plate.
-        GlyphPlate(icon)
+        GlyphPlate(glyphIcon ?: Icons.Filled.Person)
         return
     }
-    // App channel: load the app's launcher icon off the main thread — the
+    // A channel with an app icon (a real integration, or a built-in channel's
+    // default handler): load the launcher icon off the main thread — the
     // PackageManager lookup crosses IPC/disk and decodes a bitmap, which would
     // jank the sheet's first frame if done inline during composition. Until it
-    // lands, show a subtle empty plate (no glyph, so nothing misleading flashes
-    // before the real icon swaps in). A package uninstalled between resolve and
-    // render simply leaves the empty plate rather than throwing.
+    // lands (or if it fails — an uninstall racing the resolve), fall back to the
+    // channel's glyph so a built-in row like Call never shows a blank plate; an
+    // app channel has no glyph, so it keeps the subtle empty plate rather than
+    // flashing a misleading icon before its real one swaps in.
     val context = LocalContext.current
     var appIcon by remember(iconPackageName) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(iconPackageName) {
@@ -302,8 +307,8 @@ private fun AppOrGlyphIcon(icon: ImageVector, iconPackageName: String?) {
         }
     }
     val loaded = appIcon
-    if (loaded != null) {
-        Image(
+    when {
+        loaded != null -> Image(
             bitmap = loaded,
             contentDescription = null,
             modifier = Modifier
@@ -311,8 +316,8 @@ private fun AppOrGlyphIcon(icon: ImageVector, iconPackageName: String?) {
                 .clip(CircleShape),
             contentScale = ContentScale.Crop,
         )
-    } else {
-        Box(
+        glyphIcon != null -> GlyphPlate(glyphIcon)
+        else -> Box(
             modifier = Modifier
                 .size(40.dp)
                 .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),

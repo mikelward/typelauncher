@@ -44,10 +44,16 @@ class ContactActionsSheetScreenshotTest {
     private val actions = ContactActions(
         contact = ContactResult(contactId = 1, lookupKey = "l1", displayName = "Jess Ward"),
         channels = listOf(
+            // Call carries a default-handler package (the dialer) as well as its
+            // glyph — the real shape after default-handler resolution. Its icon
+            // can't load under Robolectric, so this exercises the glyph fallback
+            // path (a built-in channel with a package must still show the glyph,
+            // never a blank plate), which is what the sheet renders on the first
+            // frame on-device too, before the real dialer icon swaps in.
             ContactChannel(
                 id = "call",
                 label = "Call",
-                iconPackageName = null,
+                iconPackageName = "com.example.dialer",
                 glyph = ContactChannelGlyph.Call,
                 actions = listOf(
                     call("Mobile", "+1 555-0100", isDefault = true),
