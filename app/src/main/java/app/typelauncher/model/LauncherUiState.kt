@@ -735,21 +735,13 @@ internal data class LauncherUiState(
     // as the Settings toggles).
     val contactResults: List<ContactResult> = emptyList(),
     val eventResults: List<AgendaEvent> = emptyList(),
-    // The contact whose quick-actions are open in the app list, with its
-    // resolved channels, or null when the launcher is in normal search. Set when
-    // a contacts-section result is tapped or picked with Enter; while it is
-    // non-null the app list renders the contact's channels/actions in place of
-    // the apps, filterable and Enter-launchable exactly like the app list.
-    val contactActions: ContactActions? = null,
-    // While [contactActions] is open, the channel the user drilled into (step
-    // two — its numbers/actions are shown), or null on the channel list (step
-    // one). Back pops step two → step one → out of the mode.
-    val contactActionsChannelId: String? = null,
-    // The search query to restore when the contact-actions mode exits back to
-    // search. Opening the mode clears the query so the user can immediately type
-    // to filter the channels; backing all the way out restores what they had
-    // typed. Blank when not in the mode.
-    val contactActionsReturnQuery: String = "",
+    // The in-list contact-actions mode, or null in normal search. Set when a
+    // contacts-section result is tapped or picked with Enter; while it is non-null
+    // the app list renders the contact's channels/actions in place of the apps,
+    // filterable and Enter-launchable exactly like the app list. Grouped into one
+    // holder ([ContactActionsMode]) so opening/exiting/clearing the mode is a
+    // single assignment — see that type for the step and return-query pieces.
+    val contactActionsMode: ContactActionsMode? = null,
     // User-selected appearance mode. `System` (default) follows the device's
     // night-mode setting; `Light` and `Dark` force the corresponding scheme
     // regardless of the system. Applied by `TypeLauncherTheme`.

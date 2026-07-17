@@ -946,9 +946,7 @@ internal class LauncherViewModel(
                 isLoadingAvailableWidgets = false,
                 isRecentsOpen = false,
                 query = "",
-                contactActions = null,
-                contactActionsChannelId = null,
-                contactActionsReturnQuery = "",
+                contactActionsMode = null,
                 homeReturnToken = it.homeReturnToken + 1,
             )
         }
@@ -1106,7 +1104,7 @@ internal class LauncherViewModel(
         // (the closest label match, or the top channel/action when the query is
         // blank) — the same "Enter launches the top match" contract the app list
         // has, applied to the contact's channels.
-        if (state.contactActions != null) {
+        if (state.contactActionsMode != null) {
             currentContactRows(state).firstOrNull()?.let(::onContactRowSelected)
             return
         }
@@ -1178,14 +1176,15 @@ internal class LauncherViewModel(
                 return@launch
             }
             LauncherDebugLog.event("openContactResult resolved channels=${channels.size}")
-            val reResolving = _uiState.value.contactActions?.contact?.contactId == contact.contactId
+            val reResolving = _uiState.value.contactActionsMode?.actions?.contact?.contactId == contact.contactId
             _uiState.update {
+                val resolved = ContactActions(contact, channels)
                 if (reResolving) {
                     // In-place re-resolve of the already-open contact (e.g. after a
                     // default write, via reResolveOpenContact): keep the user where
                     // they are — same step, same filter query, same saved return
                     // query — and only swap in the freshly resolved channels.
-                    it.copy(contactActions = ContactActions(contact, channels))
+                    it.copy(contactActionsMode = it.contactActionsMode?.copy(actions = resolved))
                 } else {
                     // Fresh open: swap into the in-list mode atomically when the
                     // channels land — save the current search text to restore on the
@@ -1194,9 +1193,7 @@ internal class LauncherViewModel(
                     // contact. Swapping only on resolve avoids a flash of the
                     // (cleared-query) app list first.
                     it.copy(
-                        contactActions = ContactActions(contact, channels),
-                        contactActionsChannelId = null,
-                        contactActionsReturnQuery = it.query,
+                        contactActionsMode = ContactActionsMode(actions = resolved, returnQuery = it.query),
                         query = "",
                     )
                 }
@@ -1219,9 +1216,9 @@ internal class LauncherViewModel(
      * step two, filtered by the live query. Empty when the mode isn't open.
      */
     private fun currentContactRows(state: LauncherUiState): List<ContactActionRow> {
-        val actions = state.contactActions ?: return emptyList()
-        return actions.visibleRows(
-            selectedChannelId = state.contactActionsChannelId,
+        val mode = state.contactActionsMode ?: return emptyList()
+        return mode.actions.visibleRows(
+            selectedChannelId = mode.selectedChannelId,
             query = state.query,
             openContactLabel = app.getString(R.string.contact_actions_open_contact),
         )
@@ -1240,7 +1237,12 @@ internal class LauncherViewModel(
                 if (single != null) {
                     onContactActionSelected(single)
                 } else {
-                    _uiState.update { it.copy(contactActionsChannelId = row.channel.id, query = "") }
+                    _uiState.update {
+                        it.copy(
+                            contactActionsMode = it.contactActionsMode?.copy(selectedChannelId = row.channel.id),
+                            query = "",
+                        )
+                    }
                     refreshFilteredApps()
                     // Drilling in from Enter clears the field focus (see
                     // openContactResult); re-show the keyboard so step two stays
@@ -1250,7 +1252,7 @@ internal class LauncherViewModel(
             }
             is ContactActionRow.Action -> onContactActionSelected(row.action)
             is ContactActionRow.OpenContact -> {
-                val contact = _uiState.value.contactActions?.contact ?: return
+                val contact = _uiState.value.contactActionsMode?.actions?.contact ?: return
                 openContactCard(contact)
             }
         }
@@ -1262,10 +1264,14 @@ internal class LauncherViewModel(
      * (restoring the saved search query). Returns whether it consumed the Back.
      */
     fun onContactActionsBack(): Boolean {
-        val state = _uiState.value
-        if (state.contactActions == null) return false
-        if (state.contactActionsChannelId != null) {
-            _uiState.update { it.copy(contactActionsChannelId = null, query = "") }
+        val mode = _uiState.value.contactActionsMode ?: return false
+        if (mode.selectedChannelId != null) {
+            _uiState.update {
+                it.copy(
+                    contactActionsMode = it.contactActionsMode?.copy(selectedChannelId = null),
+                    query = "",
+                )
+            }
             refreshFilteredApps()
             return true
         }
@@ -1279,16 +1285,13 @@ internal class LauncherViewModel(
         contactResolveToken++
         _uiState.update {
             it.copy(
-                contactActions = null,
-                contactActionsChannelId = null,
-                contactActionsReturnQuery = "",
-                query = it.contactActionsReturnQuery,
+                query = it.contactActionsMode?.returnQuery ?: it.query,
+                contactActionsMode = null,
             )
         }
         refreshFilteredApps()
     }
 
-    /** Closes the quick-actions sheet without acting, leaving the search as-is. */
     /**
      * Leaves the contact-actions mode entirely, restoring the saved search query.
      * A no-op (beyond cancelling any in-flight resolve) when the mode isn't open —
@@ -1296,7 +1299,7 @@ internal class LauncherViewModel(
      * opens the favorite menu, and must not clear the search the user has typed.
      */
     fun dismissContactActions() {
-        if (_uiState.value.contactActions == null) {
+        if (_uiState.value.contactActionsMode == null) {
             contactResolveToken++
             return
         }
@@ -1326,7 +1329,7 @@ internal class LauncherViewModel(
         // pre-dedup) rather than the deduped actions, so a hidden duplicate of
         // the same number synced under another raw contact is demoted too — taken
         // from the already-resolved sheet, so no extra query on the write path.
-        val siblingDataIds = _uiState.value.contactActions
+        val siblingDataIds = _uiState.value.contactActionsMode?.actions
             ?.channels.orEmpty()
             .flatMap { channel -> channel.dataIds }
             .filter { it != dataId }
@@ -1388,7 +1391,7 @@ internal class LauncherViewModel(
 
     /** Re-reads the open contact's channels so a just-changed default number re-sorts to the top. */
     private fun reResolveOpenContact() {
-        val contact = _uiState.value.contactActions?.contact ?: return
+        val contact = _uiState.value.contactActionsMode?.actions?.contact ?: return
         openContactResult(contact)
     }
 
@@ -1594,9 +1597,7 @@ internal class LauncherViewModel(
         contactResolveToken++
         _uiState.update {
             it.copy(
-                contactActions = null,
-                contactActionsChannelId = null,
-                contactActionsReturnQuery = "",
+                contactActionsMode = null,
                 isRecentsOpen = false,
             )
         }

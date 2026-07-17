@@ -446,7 +446,7 @@ internal fun TypeLauncherApp(
     // handling is gated to the Home page — otherwise swiping the carousel to
     // Widgets/Agenda (which leaves the mode set but off-screen) would let this
     // handler swallow Back on those pages instead of their own back behavior.
-    val contactActionsOnHome = state.contactActions != null &&
+    val contactActionsOnHome = state.contactActionsMode != null &&
         state.destination is LauncherDestination.Home
     BackHandler(
         enabled = state.isSettingsOpen || state.isAddingWidget || state.isRecentsOpen ||

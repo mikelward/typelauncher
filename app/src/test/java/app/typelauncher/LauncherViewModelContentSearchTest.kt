@@ -189,7 +189,7 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             "Enter with only a contact match opens that contact's quick-actions sheet",
             7L,
-            viewModel.uiState.value.contactActions?.contact?.contactId,
+            viewModel.uiState.value.contactActionsMode?.actions?.contact?.contactId,
         )
         assertNull(
             "Opening the sheet launches nothing yet — an action does that",
@@ -198,7 +198,7 @@ class LauncherViewModelContentSearchTest {
         // Opening the mode clears the query so the channel list isn't pre-filtered
         // by the contact name; the typed text is saved to restore on the way out.
         assertEquals("Opening the mode clears the query so channels aren't pre-filtered", "", viewModel.uiState.value.query)
-        assertEquals("The typed query is saved to restore on exit", "zoe", viewModel.uiState.value.contactActionsReturnQuery)
+        assertEquals("The typed query is saved to restore on exit", "zoe", viewModel.uiState.value.contactActionsMode?.returnQuery)
     }
 
     @Test
@@ -220,7 +220,7 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             "Tapping a contact opens its quick-actions sheet",
             7L,
-            viewModel.uiState.value.contactActions?.contact?.contactId,
+            viewModel.uiState.value.contactActionsMode?.actions?.contact?.contactId,
         )
         assertNull(
             "Opening the mode launches nothing",
@@ -229,7 +229,7 @@ class LauncherViewModelContentSearchTest {
         assertEquals("Opening the mode clears the query", "", viewModel.uiState.value.query)
 
         viewModel.dismissContactActions()
-        assertNull("Dismissing leaves the mode", viewModel.uiState.value.contactActions)
+        assertNull("Dismissing leaves the mode", viewModel.uiState.value.contactActionsMode)
         assertEquals("Dismissing restores the saved search query", "zoe", viewModel.uiState.value.query)
     }
 
@@ -260,7 +260,7 @@ class LauncherViewModelContentSearchTest {
             "The card launches as its own document task so Back returns to the launcher",
             started.flags and Intent.FLAG_ACTIVITY_NEW_DOCUMENT != 0,
         )
-        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActions)
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
         assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
     }
 
@@ -292,7 +292,7 @@ class LauncherViewModelContentSearchTest {
 
         assertNull(
             "A resolve that returns after dismiss must not re-open the sheet",
-            viewModel.uiState.value.contactActions,
+            viewModel.uiState.value.contactActionsMode,
         )
     }
 
@@ -319,7 +319,7 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             "The latest opened contact wins regardless of resolve order",
             8L,
-            viewModel.uiState.value.contactActions?.contact?.contactId,
+            viewModel.uiState.value.contactActionsMode?.actions?.contact?.contactId,
         )
     }
 
@@ -339,7 +339,7 @@ class LauncherViewModelContentSearchTest {
         val started = shadowOf(context as android.app.Application).nextStartedActivity
         assertEquals(Intent.ACTION_SENDTO, started.action)
         assertEquals("smsto:+15550100", started.data.toString())
-        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActions)
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
         assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
     }
 
@@ -408,7 +408,7 @@ class LauncherViewModelContentSearchTest {
         val started = shadowOf(context as android.app.Application).nextStartedActivity
         assertEquals("A refused Call falls back to the dialer", Intent.ACTION_DIAL, started.action)
         assertEquals("+15550100", started.data?.schemeSpecificPart)
-        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActions)
+        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActionsMode)
     }
 
     @Test
@@ -1063,7 +1063,7 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             "Both numbers resolved into the call channel",
             listOf(11L, 12L),
-            viewModel.uiState.value.contactActions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
+            viewModel.uiState.value.contactActionsMode?.actions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
         )
 
         viewModel.setNumberDefault(dataId = 12, makeDefault = true)
@@ -1180,7 +1180,7 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             "The duplicate number is collapsed to one visible action",
             listOf(11L, 12L),
-            viewModel.uiState.value.contactActions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
+            viewModel.uiState.value.contactActionsMode?.actions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
         )
 
         viewModel.setNumberDefault(dataId = 12, makeDefault = true)
@@ -1268,7 +1268,7 @@ class LauncherViewModelContentSearchTest {
         // channel — which drills into step two rather than acting immediately.
         viewModel.launchActiveApp()
         idle()
-        assertEquals("Enter drills into the multi-number Call channel", "call", viewModel.uiState.value.contactActionsChannelId)
+        assertEquals("Enter drills into the multi-number Call channel", "call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
         assertNull(
             "Drilling in launches nothing",
             shadowOf(context as android.app.Application).nextStartedActivity,
@@ -1276,11 +1276,11 @@ class LauncherViewModelContentSearchTest {
 
         // Back pops step two → step one, then step one → out of the mode.
         assertTrue("Back is consumed at step two", viewModel.onContactActionsBack())
-        assertNull("Back from step two returns to the channel list", viewModel.uiState.value.contactActionsChannelId)
-        assertNotNull("Still in the mode at step one", viewModel.uiState.value.contactActions)
+        assertNull("Back from step two returns to the channel list", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
+        assertNotNull("Still in the mode at step one", viewModel.uiState.value.contactActionsMode)
 
         assertTrue("Back is consumed at step one", viewModel.onContactActionsBack())
-        assertNull("Back from step one exits the mode", viewModel.uiState.value.contactActions)
+        assertNull("Back from step one exits the mode", viewModel.uiState.value.contactActionsMode)
         assertEquals("Exiting restores the saved query", "zoe", viewModel.uiState.value.query)
         assertFalse("Back is not consumed once out of the mode", viewModel.onContactActionsBack())
     }
@@ -1308,7 +1308,7 @@ class LauncherViewModelContentSearchTest {
         assertNotNull("Enter fires the filtered Message channel", started)
         assertEquals(Intent.ACTION_SENDTO, started.action)
         assertEquals("smsto", started.data?.scheme)
-        assertNull("Firing an action exits the mode", viewModel.uiState.value.contactActions)
+        assertNull("Firing an action exits the mode", viewModel.uiState.value.contactActionsMode)
     }
 
     @Test
@@ -1328,7 +1328,7 @@ class LauncherViewModelContentSearchTest {
         // Enter drills into the multi-number Call channel (step two).
         viewModel.launchActiveApp()
         idle()
-        assertEquals("call", viewModel.uiState.value.contactActionsChannelId)
+        assertEquals("call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
 
         // Setting a default re-resolves the open contact in place; the user must
         // stay on the number picker and Back must still restore the search.
@@ -1338,14 +1338,14 @@ class LauncherViewModelContentSearchTest {
         assertEquals(
             "Still on the number picker after setting a default",
             "call",
-            viewModel.uiState.value.contactActionsChannelId,
+            viewModel.uiState.value.contactActionsMode?.selectedChannelId,
         )
         assertEquals(
             "The saved search query survives the in-place re-resolve",
             "zoe",
-            viewModel.uiState.value.contactActionsReturnQuery,
+            viewModel.uiState.value.contactActionsMode?.returnQuery,
         )
-        assertNotNull("Still in the contact-actions mode", viewModel.uiState.value.contactActions)
+        assertNotNull("Still in the contact-actions mode", viewModel.uiState.value.contactActionsMode)
     }
 
     @Test
@@ -1373,7 +1373,7 @@ class LauncherViewModelContentSearchTest {
         // Enter drills into the multi-number Call channel — also re-shows it.
         viewModel.launchActiveApp()
         idle()
-        assertEquals("call", viewModel.uiState.value.contactActionsChannelId)
+        assertEquals("call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
         assertTrue("Drilling into a channel re-shows the keyboard", keyboardRequests.get() > afterOpen)
         job.cancel()
     }
@@ -1393,21 +1393,18 @@ class LauncherViewModelContentSearchTest {
         idle()
         viewModel.launchActiveApp() // drill into Call so step-two state is set too
         idle()
-        assertEquals("call", viewModel.uiState.value.contactActionsChannelId)
+        assertEquals("call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
 
         // A HOME press / relaunch is a fresh start — the mode must not linger.
         viewModel.returnToLauncherHome()
         idle()
 
-        assertNull("HOME press clears the contact-actions mode", viewModel.uiState.value.contactActions)
-        assertNull("...and its step", viewModel.uiState.value.contactActionsChannelId)
-        assertEquals(
-            "...and the saved return query, so Back can't restore a stale search",
-            "",
-            viewModel.uiState.value.contactActionsReturnQuery,
-        )
+        // Clearing the single holder drops the step and saved return query with it,
+        // so Back can't restore the pre-contact search Home was meant to clear.
+        assertNull("HOME press clears the contact-actions mode", viewModel.uiState.value.contactActionsMode)
         assertEquals("...leaving a clean empty search", "", viewModel.uiState.value.query)
     }
+
 
     @Test
     fun dismissContactActionsWhenNotOpenLeavesTheSearchIntact() {
@@ -1426,7 +1423,7 @@ class LauncherViewModelContentSearchTest {
         // typed search (and the contact result) untouched.
         viewModel.dismissContactActions()
 
-        assertNull("No contact-actions mode was open", viewModel.uiState.value.contactActions)
+        assertNull("No contact-actions mode was open", viewModel.uiState.value.contactActionsMode)
         assertEquals("The typed search is preserved", "zoe", viewModel.uiState.value.query)
         assertEquals(
             "The contact result is still there",
