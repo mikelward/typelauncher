@@ -20,7 +20,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -35,26 +37,41 @@ import java.time.ZoneId
 internal fun AgendaScreen(
     agenda: AgendaUiState,
     innerPadding: PaddingValues,
+    // Whether the wallpaper backdrop is behind this page (the "Show wallpaper
+    // on all screens" option, resolved per page in TypeLauncherApp): the page
+    // background is left transparent so the composited FLAG_SHOW_WALLPAPER
+    // wallpaper shows through around the cards, exactly as Home's backdrop
+    // works. Opaque otherwise.
+    wallpaperActive: Boolean = false,
+    // The user's "Card opacity" while the wallpaper is behind this page
+    // (1f otherwise) — the agenda's SectionCards get the same fade Home's and
+    // Settings' cards do, so the whole launcher follows one
+    // wallpaper/transparency/opacity model.
+    cardAlpha: Float = 1f,
     onRequestCalendarPermission: () -> Unit,
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(innerPadding)
-            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
-            .testTag(AGENDA_SCREEN_TAG),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        when (agenda) {
-            AgendaUiState.PermissionRequired -> PermissionCard(onRequestCalendarPermission)
-            AgendaUiState.Empty -> EmptyAgendaCard()
-            is AgendaUiState.Events -> AgendaEventsCard(
-                events = agenda.events,
-                onOpenAgendaEvent = onOpenAgendaEvent,
-                modifier = Modifier.weight(1f),
-            )
+    CompositionLocalProvider(LocalCardAlpha provides cardAlpha) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    if (wallpaperActive) Color.Transparent else MaterialTheme.colorScheme.background,
+                )
+                .padding(innerPadding)
+                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+                .testTag(AGENDA_SCREEN_TAG),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            when (agenda) {
+                AgendaUiState.PermissionRequired -> PermissionCard(onRequestCalendarPermission)
+                AgendaUiState.Empty -> EmptyAgendaCard()
+                is AgendaUiState.Events -> AgendaEventsCard(
+                    events = agenda.events,
+                    onOpenAgendaEvent = onOpenAgendaEvent,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

@@ -688,6 +688,11 @@ internal data class LauncherUiState(
     // and only where the search box is visible. Defaults off. See the
     // `showWallpaper` gate in `HomeScreen`.
     val isWallpaperShown: Boolean = false,
+    // When true, the Widgets and Agenda carousel pages also drop their opaque
+    // page backgrounds so the wallpaper shows behind them, matching Home's
+    // treatment. Only applied when [isWallpaperShown] is on; defaults off so
+    // the wallpaper backdrop stays Home-only unless the user opts in.
+    val isWallpaperShownOnAllPages: Boolean = false,
     // Opacity of Home's cards while the wallpaper is showing (search box, dock,
     // app list, recents), so the wallpaper can show through them. Only applied
     // when [isWallpaperShown] is on; 1f = fully opaque (default).

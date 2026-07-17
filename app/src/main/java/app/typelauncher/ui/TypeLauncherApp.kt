@@ -38,6 +38,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -300,6 +301,7 @@ internal fun TypeLauncherApp(
         onAppListSortOrderChanged = viewModel::setAppListSortOrder,
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onWallpaperShownChanged = viewModel::setWallpaperShown,
+        onWallpaperShownOnAllPagesChanged = viewModel::setWallpaperShownOnAllPages,
         onCardOpacityChanged = viewModel::setCardOpacity,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
@@ -390,6 +392,7 @@ internal fun TypeLauncherApp(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
+    onWallpaperShownOnAllPagesChanged: (Boolean) -> Unit = {},
     onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
@@ -854,6 +857,7 @@ internal fun TypeLauncherApp(
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onWallpaperShownChanged = onWallpaperShownChanged,
+                        onWallpaperShownOnAllPagesChanged = onWallpaperShownOnAllPagesChanged,
                         onCardOpacityChanged = onCardOpacityChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
@@ -896,6 +900,19 @@ internal fun TypeLauncherApp(
                     // claim a vertical drag inside a widget as a page swipe or
                     // pull-to-notification-shade gesture.
                     val isWidgetScrollingState = remember { mutableStateOf(false) }
+                    // Single owner of the status/navigation-bar icon contrast
+                    // for the carousel: each composed page reports whether it
+                    // is revealing the wallpaper backdrop (see the
+                    // DisposableEffect at the top of the page lambda below),
+                    // and the shared effect keys on the aggregate. Owned here
+                    // rather than per page because a carousel transition
+                    // composes two visible pages at once (and a canceled drag
+                    // reverts one of them) — per-page effects fought over the
+                    // bars during exactly those windows. Settings replaces the
+                    // carousel wholesale, unmounting this owner, so its own
+                    // bar effect never overlaps it.
+                    var wallpaperBackdropPages by remember { mutableIntStateOf(0) }
+                    WallpaperBarContrast(wallpaperVisible = wallpaperBackdropPages > 0)
                     DisposableEffect(appWidgetHost) {
                         val host = appWidgetHost as? LauncherAppWidgetHost
                         if (host == null) {
@@ -937,6 +954,33 @@ internal fun TypeLauncherApp(
                         isDockDraggingState = isDockDraggingState,
                         isWidgetScrollingState = isWidgetScrollingState,
                     ) { page, isCurrentPage, isCurrentOrIncoming ->
+                        // Whether THIS page composition is revealing the
+                        // wallpaper backdrop: Home per its search-box gate
+                        // (the shared predicate keeps this in lockstep with
+                        // HomeScreen's own `wallpaperActive`), Widgets and
+                        // Agenda when the "on all screens" option extends the
+                        // backdrop to them. Uses current-or-incoming so the
+                        // backdrop is already in place as a page slides into
+                        // view. Reported into the carousel-level contrast
+                        // owner above via a keyed DisposableEffect so a page
+                        // flipping active, reverting mid-transition, or
+                        // leaving composition always keeps the count balanced.
+                        val pageRevealsWallpaper = state.isWallpaperShown && isCurrentOrIncoming &&
+                            when (page.screen) {
+                                LauncherScreen.Home -> homeShowsSearchCard(
+                                    state = state,
+                                    landscapeTier = homeLandscapeTier,
+                                    searchBoxFitsWithKeyboard = searchBoxFitsOrMidKeyboardSession,
+                                    searchRevealed = searchRevealedInTightLandscape,
+                                )
+                                LauncherScreen.Widgets,
+                                LauncherScreen.Agenda,
+                                -> state.isWallpaperShownOnAllPages
+                            }
+                        DisposableEffect(pageRevealsWallpaper) {
+                            if (pageRevealsWallpaper) wallpaperBackdropPages++
+                            onDispose { if (pageRevealsWallpaper) wallpaperBackdropPages-- }
+                        }
                         when (page.screen) {
                             LauncherScreen.Home -> Box(modifier = Modifier.fillMaxSize()) {
                             HomeScreen(
@@ -1044,6 +1088,7 @@ internal fun TypeLauncherApp(
                             widgetProviderLabels = state.widgetProviderLabels,
                             strandedWidgetIds = state.strandedWidgetIds,
                             isCurrentPage = isCurrentPage,
+                            wallpaperActive = pageRevealsWallpaper,
                             onAddWidget = { isCurrentPageScrollable ->
                                 onAddWidget(
                                     WidgetAddRequest(
@@ -1063,6 +1108,8 @@ internal fun TypeLauncherApp(
                             LauncherScreen.Agenda -> AgendaScreen(
                                 agenda = state.agenda,
                                 innerPadding = innerPadding,
+                                wallpaperActive = pageRevealsWallpaper,
+                                cardAlpha = if (pageRevealsWallpaper) state.cardOpacity else 1f,
                                 onRequestCalendarPermission = onRequestCalendarPermission,
                                 onOpenAgendaEvent = onOpenAgendaEvent,
                             )
@@ -2142,10 +2189,16 @@ private fun SwipeNavigationBox(
                     val offscreenComposeAllowed = if (isWidgetPage) widgetsWarmed else offscreenPagesReady
                     if (page == currentPage || launcherPage == statePage || offscreenComposeAllowed) {
                         // A page is "current or incoming" if it is the settled
-                        // page or the one a transition is animating toward, so it
-                        // can render its visible state as it slides in (Home's
-                        // wallpaper) instead of at settle-end.
-                        val isCurrentOrIncoming = page == currentPage || page == transitionTargetPage
+                        // page, the one a transition is animating toward, or the
+                        // neighbor the live drag is revealing, so it can render
+                        // its visible state (the wallpaper backdrop) while the
+                        // user can see it — during the drag itself, not popping
+                        // in at release. `revealDirection` is a derived -1/0/+1
+                        // sign, so the drag term recomposes only when the
+                        // direction of travel changes, never per dragged frame.
+                        val isCurrentOrIncoming = page == currentPage ||
+                            page == transitionTargetPage ||
+                            (revealDirection != 0 && page == preferredNeighbor)
                         content(launcherPage, page == currentPage, isCurrentOrIncoming)
                     }
                 }

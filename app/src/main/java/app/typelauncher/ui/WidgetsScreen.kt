@@ -62,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -104,6 +105,12 @@ internal fun WidgetsScreen(
     // therefore render as re-bindable placeholders rather than plain unavailable.
     strandedWidgetIds: Set<Int> = emptySet(),
     isCurrentPage: Boolean = true,
+    // Whether the wallpaper backdrop is behind this page (the "Show wallpaper
+    // on all screens" option, resolved per page in TypeLauncherApp): the page
+    // background is left transparent so the composited FLAG_SHOW_WALLPAPER
+    // wallpaper shows through around the widget cards, exactly as Home's
+    // backdrop works. Opaque otherwise.
+    wallpaperActive: Boolean = false,
     onAddWidget: (isCurrentPageScrollable: Boolean) -> Unit,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
@@ -143,7 +150,9 @@ internal fun WidgetsScreen(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(
+                if (wallpaperActive) Color.Transparent else MaterialTheme.colorScheme.background,
+            )
             .padding(innerPadding)
             .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
             .testTag(widgetScreenTag),

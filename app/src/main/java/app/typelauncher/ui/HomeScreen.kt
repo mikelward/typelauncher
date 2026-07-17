@@ -1,7 +1,5 @@
 package app.typelauncher
 
-import android.app.WallpaperColors
-import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -691,13 +689,12 @@ internal fun HomeScreen(
     // hiding the box would otherwise leave the list filtered with no way to
     // see or clear the query (e.g. after a rotation / resume resets the reveal
     // while the query is still retained).
-    val showSearchCard = (landscapeTier != HomeLandscapeTier.Compact && searchBoxFitsWithKeyboard) ||
-        searchRevealed ||
-        state.query.isNotBlank() ||
-        // The contact-actions mode clears the query but is type-to-filter, so the
-        // search box must stay to take that input. (Unreachable in Compact, which
-        // has no content search to open a contact from.)
-        state.contactActionsMode != null
+    val showSearchCard = homeShowsSearchCard(
+        state = state,
+        landscapeTier = landscapeTier,
+        searchBoxFitsWithKeyboard = searchBoxFitsWithKeyboard,
+        searchRevealed = searchRevealed,
+    )
     // `wallpaperActive` keeps the wallpaper as Home's backdrop for the whole
     // Home experience while the setting is on — empty query *and* while typing
     // — so the search box, dock, and app list render as opaque cards on top of
@@ -740,52 +737,16 @@ internal fun HomeScreen(
         }
     }
     val context = LocalContext.current
-    val view = LocalView.current
-    val homeBackgroundColor = MaterialTheme.colorScheme.background
-    // Whether Home's solid background is light — used to restore the system-bar
-    // icon contrast (dark icons over a light surface) when the wallpaper is off.
-    val surfaceIsLight = homeBackgroundColor.luminance() > 0.5f
     // The window *background* is owned by `TypeLauncherApp` (transparent
     // whenever "Show wallpaper" is on, opaque otherwise) — it is deliberately
     // NOT flipped per screen. Per-screen DisposableEffects that handed the
     // background back and forth between Home and Settings left Settings sitting
     // on an opaque background on-device, so the launcher keeps a single owner
-    // keyed on the persisted setting instead. Here we only manage the
-    // status/navigation-bar icon contrast: surface-based while the wallpaper is
-    // off, refined from the wallpaper's own color hints while it shows.
-    DisposableEffect(wallpaperActive, surfaceIsLight) {
-        val window = context.findActivity()?.window
-        if (window != null) {
-            val bars = WindowInsetsControllerCompat(window, view)
-            // Start from the surface-based icon contrast (no IPC). While the
-            // wallpaper shows, the effect below refines it from the wallpaper's
-            // own colors once that lookup resolves off the main thread.
-            bars.isAppearanceLightStatusBars = surfaceIsLight
-            bars.isAppearanceLightNavigationBars = surfaceIsLight
-        }
-        onDispose {
-            context.findActivity()?.window?.let { window ->
-                val bars = WindowInsetsControllerCompat(window, view)
-                bars.isAppearanceLightStatusBars = surfaceIsLight
-                bars.isAppearanceLightNavigationBars = surfaceIsLight
-            }
-        }
-    }
-    // Refine the status/navigation-bar icon contrast from the wallpaper's own
-    // colors while it shows. `getWallpaperColors` is a system-service Binder
-    // IPC, so it runs off the main thread and applies only once resolved —
-    // never blocking Home's first frame; until then the surface-based contrast
-    // set above stands.
-    LaunchedEffect(wallpaperActive, surfaceIsLight) {
-        if (!wallpaperActive) return@LaunchedEffect
-        val darkIcons = withContext(Dispatchers.IO) { wallpaperSupportsDarkText(context) }
-            ?: return@LaunchedEffect
-        context.findActivity()?.window?.let { window ->
-            val bars = WindowInsetsControllerCompat(window, view)
-            bars.isAppearanceLightStatusBars = darkIcons
-            bars.isAppearanceLightNavigationBars = darkIcons
-        }
-    }
+    // keyed on the persisted setting instead. The status/navigation-bar icon
+    // contrast likewise has a single carousel-level owner
+    // ([WallpaperBarContrast] in `TypeLauncherApp`), fed by the per-page
+    // wallpaper-reveal reports there — Home only computes `wallpaperActive`
+    // for its own backdrop and card treatment.
     // Auto-show the keyboard only when it fits (Full), or when the user explicitly
     // revealed the box in a landscape state that keeps the keyboard down
     // (Compact or DockNoKeyboard) — a pull-up is an explicit request, so it
@@ -1270,22 +1231,26 @@ internal fun searchDockRevealTopPx(
 ).coerceAtLeast(0)
 
 /**
- * Whether dark status/navigation bar icons are legible over the system
- * wallpaper — read from the wallpaper's own `HINT_SUPPORTS_DARK_TEXT` color
- * hint, which the system computes for exactly this (legibility of a dark
- * foreground over the whole wallpaper, not just its dominant color). Exposed
- * for Material You with no permission, unlike the wallpaper *image*. Null when
- * the colors can't be read, so the caller falls back to the launcher surface's
- * own luminance.
+ * Whether Home's search box renders in the current window state — the gate the
+ * wallpaper backdrop and the keyboard/search affordances share. Extracted so
+ * `TypeLauncherApp`'s carousel-level wallpaper-reveal computation and
+ * [HomeScreen]'s own copy can never drift: in the cramped-landscape Compact
+ * state (and any landscape without typing headroom) the box is hidden, unless
+ * the user explicitly revealed it, retains a non-blank query, or the
+ * type-to-filter contact-actions mode needs it to take input.
  */
-private fun wallpaperSupportsDarkText(context: Context): Boolean? =
-    try {
-        WallpaperManager.getInstance(context)
-            .getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
-            ?.let { (it.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0 }
-    } catch (_: Exception) {
-        null
-    }
+internal fun homeShowsSearchCard(
+    state: LauncherUiState,
+    landscapeTier: HomeLandscapeTier,
+    searchBoxFitsWithKeyboard: Boolean,
+    searchRevealed: Boolean,
+): Boolean = (landscapeTier != HomeLandscapeTier.Compact && searchBoxFitsWithKeyboard) ||
+    searchRevealed ||
+    state.query.isNotBlank() ||
+    // The contact-actions mode clears the query but is type-to-filter, so the
+    // search box must stay to take that input. (Unreachable in Compact, which
+    // has no content search to open a contact from.)
+    state.contactActionsMode != null
 
 /**
  * The app-list slot when "Show wallpaper" is on and the query is empty (see
@@ -5718,6 +5683,7 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
+    onWallpaperShownOnAllPagesChanged: (Boolean) -> Unit = {},
     onCardOpacityChanged: (Float) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     // "Search contacts" / "Search calendar events". Enabling routes through
@@ -5988,6 +5954,31 @@ internal fun SettingsScreen(
                     checked = state.isWallpaperShown,
                     onCheckedChange = onWallpaperShownChanged,
                     modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
+                )
+            }
+            // Wallpaper on all screens — extends the wallpaper backdrop to the
+            // Widgets and Agenda carousel pages. Meaningless without a
+            // wallpaper behind the window, so like Card opacity it's disabled
+            // (and dimmed) unless Show wallpaper is on.
+            val wallpaperAllPagesEnabled = state.isWallpaperShown
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_show_wallpaper_all_pages_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                            .copy(alpha = if (wallpaperAllPagesEnabled) 1f else 0.38f),
+                    )
+                }
+                Switch(
+                    checked = state.isWallpaperShownOnAllPages,
+                    onCheckedChange = onWallpaperShownOnAllPagesChanged,
+                    enabled = wallpaperAllPagesEnabled,
+                    modifier = Modifier.testTag(WALLPAPER_ALL_PAGES_SWITCH_TAG),
                 )
             }
             // Card opacity — how much the wallpaper shows through Home's cards.

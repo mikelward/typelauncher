@@ -267,6 +267,22 @@ class DockedAppStoreTest {
     }
 
     @Test
+    fun wallpaperShownOnAllPagesDefaultsToFalse() {
+        val store = DockSettingsStore(context)
+
+        assertEquals(false, store.isWallpaperShownOnAllPages)
+    }
+
+    @Test
+    fun wallpaperShownOnAllPagesPersistsExplicitSelection() {
+        DockSettingsStore(context).isWallpaperShownOnAllPages = true
+
+        val reloaded = DockSettingsStore(context)
+
+        assertEquals(true, reloaded.isWallpaperShownOnAllPages)
+    }
+
+    @Test
     fun cardOpacityDefaultsToFullyOpaque() {
         assertEquals(1f, DockSettingsStore(context).cardOpacity)
     }
