@@ -8,6 +8,8 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Email
 import android.provider.ContactsContract.CommonDataKinds.Phone
+import android.provider.Telephony
+import android.telecom.TelecomManager
 import androidx.compose.runtime.Immutable
 
 /**
@@ -29,12 +31,14 @@ internal data class ContactActions(
 )
 
 /**
- * One row of the sheet's first step: a way to reach the contact, grouping the
- * concrete [actions] it offers. A channel backed by an installed app carries
- * that app's [iconPackageName] so the Compose layer can load its launcher icon;
- * the built-in Phone / Message / Email channels carry a [glyph] instead, since
- * they are synthesized from the contact's phone and email rows rather than owned
- * by a single resolvable app. Exactly one of [iconPackageName] / [glyph] is set.
+ * One row of the first step: a way to reach the contact, grouping the concrete
+ * [actions] it offers. [iconPackageName], when set, is the app whose launcher
+ * icon represents the channel — the app that owns a third-party integration
+ * (WhatsApp, Signal, Meet), or the phone's default handler for a built-in
+ * channel (the dialer for Phone, the messaging app for Message, the mail app for
+ * Email) so those read as the real apps too instead of generic glyphs. [glyph]
+ * is the fallback the Compose layer paints when [iconPackageName] is null or its
+ * icon can't be loaded, so a built-in channel always has something to show.
  */
 @Immutable
 internal data class ContactChannel(
@@ -45,7 +49,7 @@ internal data class ContactChannel(
     val actions: List<ContactAction>,
 )
 
-/** The built-in channels that don't map to a single installed app's icon. */
+/** The built-in channels' fallback glyphs, painted when no real app icon resolves. */
 internal enum class ContactChannelGlyph { Call, Message, Email }
 
 /**
@@ -253,7 +257,7 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
         channels += ContactChannel(
             id = "call",
             label = context.getString(R.string.contact_action_call),
-            iconPackageName = null,
+            iconPackageName = defaultDialerPackage(context),
             glyph = ContactChannelGlyph.Call,
             actions = orderedPhones.map { phone ->
                 ContactAction(
@@ -267,7 +271,7 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
         channels += ContactChannel(
             id = "message",
             label = context.getString(R.string.contact_action_message),
-            iconPackageName = null,
+            iconPackageName = defaultSmsPackage(context),
             glyph = ContactChannelGlyph.Message,
             actions = orderedPhones.map { phone ->
                 ContactAction(
@@ -315,7 +319,7 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
         channels += ContactChannel(
             id = "email",
             label = context.getString(R.string.contact_action_email),
-            iconPackageName = null,
+            iconPackageName = defaultMailPackage(context),
             glyph = ContactChannelGlyph.Email,
             actions = orderedEmails.map { email ->
                 ContactAction(
@@ -366,6 +370,40 @@ private fun resolveContactActionOwner(
     }
     return null
 }
+
+/**
+ * The phone's default dialer package, so the Call channel shows the real dialer
+ * icon. Null (→ the [ContactChannelGlyph.Call] fallback) on a device with no
+ * telephony or when the package isn't visible/loadable. `getDefaultDialerPackage`
+ * carries no permission requirement.
+ */
+private fun defaultDialerPackage(context: Context): String? =
+    runCatching { context.getSystemService(TelecomManager::class.java)?.defaultDialerPackage }
+        .getOrNull()
+        ?.takeIf { it.hasLoadableIcon(context.packageManager) }
+
+/** The phone's default SMS package for the Message channel icon; null → the glyph fallback. */
+private fun defaultSmsPackage(context: Context): String? =
+    runCatching { Telephony.Sms.getDefaultSmsPackage(context) }
+        .getOrNull()
+        ?.takeIf { it.hasLoadableIcon(context.packageManager) }
+
+/**
+ * The app that would handle a fresh email for the Email channel icon. A
+ * package-less `mailto` resolve returns the system chooser (package `android`)
+ * when the user hasn't picked a default — there's no single app to represent
+ * then, so that resolves to null and the glyph shows instead.
+ */
+private fun defaultMailPackage(context: Context): String? {
+    val intent = Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto", "", null))
+    val resolved = context.packageManager.resolveActivity(intent, 0) ?: return null
+    val pkg = resolved.activityInfo?.packageName ?: return null
+    return pkg.takeIf { it != "android" && it.hasLoadableIcon(context.packageManager) }
+}
+
+/** True when [this] package is installed and its icon can be loaded — the gate before naming it as a channel's icon source. */
+private fun String.hasLoadableIcon(packageManager: PackageManager): Boolean =
+    runCatching { packageManager.getApplicationInfo(this, 0) }.isSuccess
 
 // Visual phone-number separators, stripped to compare two numbers for the
 // cross-account dedupe. Dialing-significant characters (`+`, `#`, `*`, and the
