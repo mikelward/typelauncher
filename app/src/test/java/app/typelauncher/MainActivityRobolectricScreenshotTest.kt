@@ -1194,6 +1194,53 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun settingsOverflowButtonIcon_visibleAgainstDarkBackground() {
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(THEME_MODE_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(THEME_MODE_OPTION_DARK_TAG).performClick()
+        composeRule.waitForIdle()
+
+        // The overflow icon previously had no explicit tint, so it fell back to
+        // IconButton's ambient LocalContentColor — which defaults to opaque
+        // black because Settings paints its own backdrop instead of nesting in
+        // a Surface. Sample the icon's own bounds and require a bright pixel
+        // (the glyph, tinted onBackground) rather than only near-black
+        // (background showing through the button's transparent container).
+        // The Theme dropdown lives further down the scrolled list, so scroll
+        // the header row's button back into the viewport before reading its
+        // on-screen bounds.
+        val bounds = composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG)
+            .performScrollTo()
+            .getBoundsInRoot()
+        val density = composeRule.density
+        val left = with(density) { bounds.left.toPx() }.toInt().coerceAtLeast(0)
+        val top = with(density) { bounds.top.toPx() }.toInt().coerceAtLeast(0)
+        val right = with(density) { bounds.right.toPx() }.toInt()
+        val bottom = with(density) { bounds.bottom.toPx() }.toInt()
+
+        val root = composeRule.activity.window.decorView.rootView
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        root.draw(Canvas(bitmap))
+
+        var maxBrightness = 0
+        for (x in left until right.coerceAtMost(bitmap.width)) {
+            for (y in top until bottom.coerceAtMost(bitmap.height)) {
+                val pixel = bitmap.getPixel(x, y)
+                val brightness = maxOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel))
+                if (brightness > maxBrightness) maxBrightness = brightness
+            }
+        }
+        assertTrue(
+            "settings overflow icon should render a visible (non-black) glyph against the dark " +
+                "backdrop, but the brightest pixel sampled within its bounds was only " +
+                "$maxBrightness/255",
+            maxBrightness > 120,
+        )
+    }
+
+    @Test
     fun reportBugAction_showsConsentDialogBeforeSharing() {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.onNodeWithTag(SETTINGS_OVERFLOW_BUTTON_TAG).performClick()
