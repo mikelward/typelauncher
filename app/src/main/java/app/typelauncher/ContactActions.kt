@@ -118,6 +118,11 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
         ContactsContract.Data.DATA3,
         ContactsContract.Data.IS_SUPER_PRIMARY,
         ContactsContract.Data.IS_PRIMARY,
+        // Diagnostic-only for now: the account each row belongs to, so a
+        // bug-report log shows which sync adapter contributed a mimetype (real
+        // messaging integration vs. a noise app that merely syncs contacts).
+        ContactsContract.RawContacts.ACCOUNT_TYPE,
+        ContactsContract.RawContacts.ACCOUNT_NAME,
     )
     try {
         context.contentResolver.query(
@@ -134,10 +139,14 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
             val data3Index = cursor.getColumnIndexOrThrow(ContactsContract.Data.DATA3)
             val superPrimaryIndex = cursor.getColumnIndexOrThrow(ContactsContract.Data.IS_SUPER_PRIMARY)
             val primaryIndex = cursor.getColumnIndexOrThrow(ContactsContract.Data.IS_PRIMARY)
+            val accountTypeIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
+            LauncherDebugLog.bufferOnly("resolveContactChannels contactId=${contact.contactId} rows=${cursor.count}")
             while (cursor.moveToNext()) {
                 val mimeType = cursor.getString(mimeIndex) ?: continue
                 val superPrimary = cursor.getInt(superPrimaryIndex) != 0
                 val primary = cursor.getInt(primaryIndex) != 0
+                val accountType = cursor.getString(accountTypeIndex)
+                LauncherDebugLog.bufferOnly("  contactRow mime=$mimeType account=$accountType")
                 when {
                     mimeType == Phone.CONTENT_ITEM_TYPE -> {
                         val number = cursor.getString(data1Index)?.takeIf { it.isNotBlank() } ?: continue
@@ -164,7 +173,12 @@ internal fun resolveContactChannels(context: Context, contact: ContactResult): L
                         val dataId = cursor.getLong(idIndex)
                         val dataUri = ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, dataId)
                         val intent = Intent(Intent.ACTION_VIEW).setDataAndType(dataUri, mimeType)
-                        val resolved = context.packageManager.resolveActivity(intent, 0) ?: continue
+                        val resolved = context.packageManager.resolveActivity(intent, 0)
+                        LauncherDebugLog.bufferOnly(
+                            "  contactRow custom mime=$mimeType account=$accountType " +
+                                "resolved=${resolved?.activityInfo?.packageName ?: "NONE"}",
+                        )
+                        if (resolved == null) continue
                         val packageName = resolved.activityInfo?.packageName ?: continue
                         appLabels.getOrPut(packageName) {
                             resolved.loadLabel(context.packageManager)?.toString()
