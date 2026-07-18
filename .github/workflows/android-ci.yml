@@ -1110,7 +1110,7 @@ jobs:
           env.RELEASE_KEYSTORE_FILE != '' &&
           env.HAS_PLAY_SA == 'true' &&
           env.RELEASE_NOTES_SKIP != 'true'
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5  # v1.1.5
+        uses: r0adkll/upload-google-play@a80b0bcdcfdfcc2d026f2bc73f726760b2cbc967  # post-v1.1.5: fixes DEP0040/DEP0169 Node.js deprecation warnings
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.typelauncher
