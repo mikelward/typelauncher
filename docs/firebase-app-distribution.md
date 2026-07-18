@@ -37,6 +37,7 @@ The upload step is gated so it only runs when all of the following are true:
 - The triggering event is a `push` to `refs/heads/main`. PRs and feature pushes don't ship to testers.
 - `FIREBASE_APP_ID` is non-empty.
 - `FIREBASE_SERVICE_ACCOUNT_JSON` is non-empty.
+- `DEBUG_KEYSTORE_BASE64` is non-empty — an APK signed with the runner's throwaway debug key would force testers to uninstall before installing (signature mismatch), so distribution skips rather than ship one.
 
 Forks and fresh clones without Firebase secrets configured still get a green CI run — the step is silently skipped.
 
