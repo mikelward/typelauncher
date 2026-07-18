@@ -862,9 +862,16 @@ jobs:
         # RELEASE_NOTES_SKIP (see "Build release notes"), so this step
         # runs normally for a dispatch too — the point of dispatching is
         # to reach testers' phones on demand.
+        #
+        # Also requires the stable debug keystore: an APK signed with the
+        # runner's throwaway debug key can't install as an update over a
+        # previous Firebase build (signature mismatch forces an uninstall),
+        # so distributing without it does more harm than skipping. Flagged
+        # by Codex on Simmo's port of this workflow (mikelward/simmo#45).
         if: |
           success() &&
           env.HAS_FIREBASE == 'true' &&
+          env.HAS_DEBUG_KEYSTORE == 'true' &&
           env.RELEASE_NOTES_SKIP != 'true'
         uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6  # v1.7.1
         with:
