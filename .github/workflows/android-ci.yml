@@ -119,8 +119,27 @@ jobs:
         if: env.HAS_DEBUG_KEYSTORE == 'true'
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
         run: |
+          # If the keystore secret is set, its companions must be too, and
+          # the decoded bytes must actually open with the configured
+          # password — otherwise the failure surfaces later as an opaque
+          # signing error. Validate here so wrong base64, a wrong password,
+          # or a missing companion secret fails with a clear message.
+          # (Ported from clothescast's ci.yml.)
+          missing=""
+          [ -z "$DEBUG_KEYSTORE_PASSWORD" ] && missing="$missing DEBUG_KEYSTORE_PASSWORD"
+          [ -z "$DEBUG_KEY_PASSWORD" ]      && missing="$missing DEBUG_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::DEBUG_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
           printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/debug.keystore" -storepass "$DEBUG_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded debug keystore is not a valid keystore or DEBUG_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
           echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
 
       - name: Materialize google-services.json
@@ -621,8 +640,27 @@ jobs:
         if: env.HAS_DEBUG_KEYSTORE == 'true'
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
         run: |
+          # If the keystore secret is set, its companions must be too, and
+          # the decoded bytes must actually open with the configured
+          # password — otherwise the failure surfaces later as an opaque
+          # signing error. Validate here so wrong base64, a wrong password,
+          # or a missing companion secret fails with a clear message.
+          # (Ported from clothescast's ci.yml.)
+          missing=""
+          [ -z "$DEBUG_KEYSTORE_PASSWORD" ] && missing="$missing DEBUG_KEYSTORE_PASSWORD"
+          [ -z "$DEBUG_KEY_PASSWORD" ]      && missing="$missing DEBUG_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::DEBUG_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
           printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/debug.keystore" -storepass "$DEBUG_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded debug keystore is not a valid keystore or DEBUG_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
           echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
 
       - name: Materialize google-services.json
@@ -904,8 +942,26 @@ jobs:
         if: env.HAS_RELEASE_KEYSTORE_SECRET == 'true'
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
+          # Same early validation as the debug keystore above: fail with a
+          # clear message on missing companion secrets, wrong base64, or a
+          # wrong password rather than at bundleRelease signing time.
+          missing=""
+          [ -z "$RELEASE_KEYSTORE_PASSWORD" ] && missing="$missing RELEASE_KEYSTORE_PASSWORD"
+          [ -z "$RELEASE_KEY_PASSWORD" ]      && missing="$missing RELEASE_KEY_PASSWORD"
+          [ -z "$RELEASE_KEY_ALIAS" ]         && missing="$missing RELEASE_KEY_ALIAS"
+          if [ -n "$missing" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
           printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/release.keystore" -storepass "$RELEASE_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded release keystore is not a valid keystore or RELEASE_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
           echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
 
       - name: Build release AAB
