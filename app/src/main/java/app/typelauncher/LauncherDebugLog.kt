@@ -92,6 +92,10 @@ internal fun Intent?.debugSummary(): String {
     }
 }
 
+// Dumps each extra as `key=ValueClassName` for debug logs. The type-safe
+// Bundle getters can't stand in here — the value type is unknown, which is
+// exactly what the untyped `get` reports — so the deprecation is suppressed.
+@Suppress("DEPRECATION")
 internal fun Bundle?.debugSummary(): String =
     try {
         this?.keySet()

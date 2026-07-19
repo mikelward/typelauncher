@@ -136,6 +136,11 @@ internal class LauncherAppWidgetHost(
         val incoming = IntPairDp(widthDp, heightDp)
         val previous = cachedSizes[widgetId]
         if (previous == incoming) return
+        // The min/max-int overload is deprecated in favor of the List<SizeF>
+        // form it delegates to, but it stays the stable path the widget test
+        // suite intercepts as its size-hint seam, so the deprecation is
+        // suppressed rather than switched.
+        @Suppress("DEPRECATION")
         view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
         cachedSizes[widgetId] = incoming
         sizePrefs.edit().putString(sizeKey(widgetId), incoming.serialize()).apply()

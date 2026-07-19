@@ -914,8 +914,6 @@ internal fun HostedWidgetCard(
                     // block with the settled measurement.
                     if (!isResizing) {
                         widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
-                            // Use the public min/max overload — the SizeF list
-                            // variant is @hide in AOSP and not part of the SDK.
                             // Routes through `applyAppWidgetSizeIfChanged` so a
                             // layout pass that produces the same dimensions as
                             // last time (the typical case — same device, same
@@ -928,6 +926,10 @@ internal fun HostedWidgetCard(
                             if (launcherHost != null) {
                                 launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
                             } else {
+                                // Deprecated in favor of the List<SizeF> overload it
+                                // delegates to, but kept as the size-hint seam the
+                                // widget tests intercept; suppressed rather than switched.
+                                @Suppress("DEPRECATION")
                                 view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
                             }
                         }
