@@ -155,7 +155,7 @@ internal object BugReport {
         try {
             request { ok ->
                 if (ok) {
-                    cont.resume(bitmap) { bitmap.recycle() }
+                    cont.resume(bitmap) { _, _, _ -> bitmap.recycle() }
                 } else {
                     bitmap.recycle()
                     cont.resume(null)

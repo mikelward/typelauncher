@@ -834,6 +834,11 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("applyEdgeToEdgeForThemeMode mode=$mode isDark=$isDark")
     }
 
+    // SOFT_INPUT_ADJUST_RESIZE is deprecated in favor of a WindowInsets/IME
+    // migration, but that reworks the keyboard-reservation state machine and
+    // can't be device-verified here, so it stays suppressed for now. The
+    // STATE_ALWAYS_* flags it's combined with are not deprecated.
+    @Suppress("DEPRECATION")
     private fun applyKeyboardAutoShownPreference(autoShown: Boolean) {
         // Keep the window resize/show contract aligned with the Home keyboard
         // preference while Compose controls which field owns focus. When the
@@ -1026,6 +1031,7 @@ class MainActivity : ComponentActivity() {
     // reports back through the classic onActivityResult path — the
     // ActivityResultRegistry never sees the request.
     @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == CONFIGURE_WIDGET_REQUEST_CODE) {
@@ -1259,6 +1265,10 @@ private fun Intent.isLauncherEntryIntent(): Boolean =
     action == Intent.ACTION_MAIN &&
         (hasCategory(Intent.CATEGORY_HOME) || hasCategory(Intent.CATEGORY_LAUNCHER))
 
+// The RUNNING_* / MODERATE / COMPLETE levels are deprecated as of API 35, but
+// onTrimMemory still delivers them on the pre-35 devices we support (minSdk 34),
+// so they stay in the description map for log fidelity.
+@Suppress("DEPRECATION")
 private fun Int.trimMemoryDescription(): String =
     when (this) {
         ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> "UI_HIDDEN"
