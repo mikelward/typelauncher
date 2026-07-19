@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Process
 import android.view.ViewConfiguration
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import org.junit.Assert.assertEquals
