@@ -44,13 +44,31 @@ internal object BugReport {
      * (or a capture failure) shares text only.
      */
     suspend fun share(activity: Activity, includeScreenshot: Boolean = true) {
-        val text = collectPayload(activity)
-        val screenshotUri: Uri? = if (includeScreenshot) captureAndPersistScreenshot(activity) else null
-        copyToClipboard(activity, text)
-        startShare(activity, text, screenshotUri)
+        val fileSink = (activity.applicationContext as? TypeLauncherApp)?.debugFileSink
+        // Build the payload off the main thread: it reads persisted settings and
+        // up to a few prior-run log files, and share() normally runs in a
+        // main-thread UI scope (Codex on PR #592).
+        val text = withContext(Dispatchers.IO) { collectPayload(activity, fileSink) }
+        // The screenshot capture draws the live Compose window via PixelCopy, and
+        // the clipboard/chooser handoff touches the Activity — all must run on the
+        // main thread. Pin them there explicitly: the payload build above hops to
+        // IO, and its continuation must not leave this on a worker thread (that
+        // raced Compose's single-threaded draw and flaked CI).
+        val (clipboardOk, shareOk) = withContext(Dispatchers.Main) {
+            val screenshotUri: Uri? = if (includeScreenshot) captureAndPersistScreenshot(activity) else null
+            copyToClipboard(activity, text) to startShare(activity, text, screenshotUri)
+        }
+        // Clear the prior run only once the report has actually reached the user —
+        // the chooser launched, or the clipboard copy landed as a fallback. If the
+        // scope is canceled earlier (a config change while the screenshot capture
+        // is suspended) or BOTH handoffs fail, the files survive for the next
+        // attempt instead of being lost (Codex on PR #592).
+        if (clipboardOk || shareOk) {
+            withContext(Dispatchers.IO) { fileSink?.clearPreviousRun() }
+        }
     }
 
-    private fun collectPayload(context: Context): String {
+    private fun collectPayload(context: Context, fileSink: DebugFileSink?): String {
         val dockSettings = DockSettingsStore(context)
         val dockedApps = DockedAppStore(context).dockedAppIds
         val widgetStore = WidgetStore(context)
@@ -74,6 +92,10 @@ internal object BugReport {
             dockedAppIds = dockedApps,
             widgetPages = widgetStore.widgetPages,
             recentLog = LauncherDebugLog.snapshot(),
+            // The previous run's log if it ended without a clean exit (a crash or
+            // a silent kill). Read here (on Dispatchers.IO via share()); cleared by
+            // share() only after the handoff so a cancellation can't lose it.
+            previousRun = fileSink?.readPreviousRun(),
         )
     }
 
@@ -180,7 +202,7 @@ internal object BugReport {
         }, handler)
     }
 
-    private fun startShare(activity: Activity, text: String, screenshotUri: Uri?) {
+    private fun startShare(activity: Activity, text: String, screenshotUri: Uri?): Boolean {
         val send = Intent(Intent.ACTION_SEND).apply {
             putExtra(Intent.EXTRA_SUBJECT, "Type Launcher bug report — ${BuildConfig.VERSION_NAME}")
             putExtra(Intent.EXTRA_TEXT, text)
@@ -197,16 +219,21 @@ internal object BugReport {
         if (screenshotUri != null) {
             chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        runCatching { activity.startActivity(chooser) }
+        // Returns whether the chooser actually launched: the caller clears the
+        // prior-run diagnostics only once the report has reached the user somehow.
+        return runCatching { activity.startActivity(chooser); true }
             .onFailure { LauncherDebugLog.warning("BugReport.share intent failed", it) }
+            .getOrDefault(false)
     }
 
-    private fun copyToClipboard(context: Context, text: String) {
+    /** Returns whether the copy landed; the caller uses it to decide whether to clear. */
+    private fun copyToClipboard(context: Context, text: String): Boolean =
         runCatching {
-            val cm = context.getSystemService(ClipboardManager::class.java) ?: return
+            val cm = context.getSystemService(ClipboardManager::class.java) ?: return@runCatching false
             cm.setPrimaryClip(ClipData.newPlainText("Type Launcher bug report", text))
+            true
         }.onFailure { LauncherDebugLog.warning("BugReport.clipboard copy failed", it) }
-    }
+            .getOrDefault(false)
 
     /**
      * Deletes all but the [keepNewest] most recent `screenshot-*.png` captures
@@ -265,6 +292,7 @@ internal fun buildBugReportPayload(
     dockedAppIds: List<String>,
     widgetPages: List<List<Int>>,
     recentLog: List<String>,
+    previousRun: String? = null,
 ): String {
     val widgetIds = widgetPages.flatten()
     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))
@@ -299,6 +327,18 @@ internal fun buildBugReportPayload(
         widgetPages.forEachIndexed { index, pageIds ->
             appendLine("  Page ${index + 1}: ${if (pageIds.isEmpty()) "(empty)" else pageIds.joinToString()}")
         }
+        // The previous run's log if it didn't exit cleanly — its own bounded
+        // section between the settings and the current run's log, so the crash or
+        // kill that ended the last run is right there. Keep the NEWEST lines: the
+        // file is oldest-first, so the crash entry and last events are at the end.
+        if (!previousRun.isNullOrBlank()) {
+            appendLine()
+            appendLine("--- Previous run (ended without a clean exit) ---")
+            appendLine(
+                boundedLogTail(previousRun.trimEnd().split("\n"), MAX_CRASH_PAYLOAD_CHARS)
+                    .joinToString("\n"),
+            )
+        }
         appendLine()
         appendLine("--- Recent log (newest last, ${recentLog.size} of max $LOG_BUFFER_MAX_ENTRIES) ---")
         if (recentLog.isEmpty()) {
@@ -308,3 +348,9 @@ internal fun buildBugReportPayload(
         }
     }
 }
+
+/**
+ * Ceiling for the previous-run section (it is already capped when written to
+ * disk); bounded again here so the report stays inside the ~1 MB Binder limit.
+ */
+private const val MAX_CRASH_PAYLOAD_CHARS = 100_000
