@@ -54,16 +54,27 @@ internal object BugReport {
         // main thread. Pin them there explicitly: the payload build above hops to
         // IO, and its continuation must not leave this on a worker thread (that
         // raced Compose's single-threaded draw and flaked CI).
-        val (clipboardOk, shareOk) = withContext(Dispatchers.Main) {
+        val clipboardOk = withContext(Dispatchers.Main) {
             val screenshotUri: Uri? = if (includeScreenshot) captureAndPersistScreenshot(activity) else null
-            copyToClipboard(activity, text) to startShare(activity, text, screenshotUri)
+            val copied = copyToClipboard(activity, text)
+            // Fire the chooser for its side effect; its launch is not proof of
+            // delivery (no ACTION_SEND completion callback), so it doesn't gate the
+            // clear below — only the retained clipboard copy does.
+            startShare(activity, text, screenshotUri)
+            copied
         }
-        // Clear the prior run only once the report has actually reached the user —
-        // the chooser launched, or the clipboard copy landed as a fallback. If the
-        // scope is canceled earlier (a config change while the screenshot capture
-        // is suspended) or BOTH handoffs fail, the files survive for the next
-        // attempt instead of being lost (Codex on PR #592).
-        if (clipboardOk || shareOk) {
+        // Clear the prior run only once the report is *retained* somewhere the
+        // user can still get it — i.e. the clipboard copy landed. `ACTION_SEND`
+        // gives no delivery/selection callback, so a launched chooser is not
+        // proof the report was sent (the user can back out of the sheet); the
+        // clipboard copy is the durable fallback that survives that. Gating on it
+        // (not "chooser launched") means a failed clipboard copy paired with a
+        // canceled sheet keeps the crash log for the next attempt instead of
+        // losing it, and keeps this in step with what the post-crash banner
+        // promises (Codex on PR #592 / #593). If the scope is canceled earlier (a
+        // config change while the screenshot capture is suspended) or the copy
+        // fails, the files survive.
+        if (clipboardOk) {
             withContext(Dispatchers.IO) { fileSink?.clearPreviousRun() }
         }
     }

@@ -377,6 +377,13 @@ jobs:
         # `roborazzi-screenshots` artifact shows both steps.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContactActionsSheetScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run crash banner screenshot tests
+        # Renders the post-crash banner (the Home push-down that offers to send a
+        # bug report after a crash) in light and dark, so the PR
+        # `roborazzi-screenshots` artifact shows the error-container treatment and
+        # the [Dismiss] [Share] actions.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.CrashBannerScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
