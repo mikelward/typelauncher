@@ -59,6 +59,14 @@ internal class LauncherViewModel(
     private val app: Application,
     private val workPackages: Set<String>,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    // The on-device debug-log sink, resolved from the Application by default.
+    // Injectable so a test can drive the post-crash banner with its own sink —
+    // the Application skips wiring the real one under Robolectric (a per-test
+    // Application would grow the global crash-handler chain), so without this
+    // seam the banner glue would be untestable.
+    private val debugFileSinkProvider: () -> DebugFileSink? = {
+        (app as? TypeLauncherApp)?.debugFileSink
+    },
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -499,6 +507,55 @@ internal class LauncherViewModel(
         registerLauncherAppsCallback()
         registerManagedProfileReceiver()
         registerDateChangedReceiver()
+        seedCrashBanner()
+    }
+
+    /** The on-device debug-log sink, or null before the Application wires it (previews, tests, no-Firebase builds). */
+    private val debugFileSink: DebugFileSink?
+        get() = debugFileSinkProvider()
+
+    /**
+     * Raises the post-crash banner if the previous run crashed. The
+     * [DebugFileSink.hasUnacknowledgedCrash] check is a directory listing, so it
+     * runs on [ioDispatcher] off the cold-start main thread; the banner only
+     * flips on (never off) here, so a slow check can't hide an already-shown
+     * banner, and the first frame renders without it.
+     */
+    private fun seedCrashBanner() {
+        val sink = debugFileSink ?: return
+        viewModelScope.launch {
+            val hasCrash = withContext(ioDispatcher) { sink.hasUnacknowledgedCrash() }
+            if (hasCrash) _uiState.update { it.copy(isCrashBannerVisible = true) }
+        }
+    }
+
+    /**
+     * Dismiss: hide the banner now (optimistic, so the tap feels instant) and
+     * rename the crash log off the crash suffix off the main thread so a later
+     * cold start doesn't re-raise it. A future crash raises it again.
+     */
+    fun dismissCrashBanner() {
+        if (!_uiState.value.isCrashBannerVisible) return
+        _uiState.update { it.copy(isCrashBannerVisible = false) }
+        val sink = debugFileSink ?: return
+        viewModelScope.launch { withContext(ioDispatcher) { sink.acknowledgeCrashBanner() } }
+    }
+
+    /**
+     * Re-evaluates the banner after a share attempt. A successful share consumes
+     * the prior run ([DebugFileSink.clearPreviousRun] inside [BugReport.share]),
+     * so the banner hides; if the share was canceled or both handoffs failed the
+     * crash file survives and the banner stays up for a retry.
+     */
+    fun refreshCrashBanner() {
+        val sink = debugFileSink ?: run {
+            _uiState.update { it.copy(isCrashBannerVisible = false) }
+            return
+        }
+        viewModelScope.launch {
+            val hasCrash = withContext(ioDispatcher) { sink.hasUnacknowledgedCrash() }
+            _uiState.update { it.copy(isCrashBannerVisible = hasCrash) }
+        }
     }
 
     /**

@@ -760,6 +760,12 @@ internal data class LauncherUiState(
     // and `AppWidgetHost.startListening` would otherwise contend with.
     val isHomeReady: Boolean = false,
     val isDefaultLauncher: Boolean = false,
+    // True when the previous run ended in an uncaught exception the user has
+    // neither shared nor dismissed, so Home shows the post-crash banner (see
+    // `CrashBannerCard`). Seeded off the main thread from
+    // `DebugFileSink.hasUnacknowledgedCrash` at startup; a routine process death
+    // never sets it. Defaults off (previews, tests, no-sink builds).
+    val isCrashBannerVisible: Boolean = false,
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
 )
 

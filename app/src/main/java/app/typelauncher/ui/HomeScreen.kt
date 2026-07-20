@@ -1965,8 +1965,10 @@ private const val DOCK_FOLDER_EMPHASIS_BORDER_DP = 2
 private const val DOCK_FOLDER_MINI_GAP_DP = 2
 private const val DOCK_FOLDER_TILE_PADDING_DP = 4
 // Horizontal (and vertical) inset around the Home content column, so the dock and
-// app-list cards sit as islands rather than edge-to-edge.
-private const val HOME_CONTENT_HORIZONTAL_INSET_DP = 8
+// app-list cards sit as islands rather than edge-to-edge. Internal so the
+// post-crash banner (laid out just above HomeScreen) can share the same gutter
+// and line its edges up with the search card.
+internal const val HOME_CONTENT_HORIZONTAL_INSET_DP = 8
 
 /**
  * A folder occupying one dock slot. Renders a 2×2 mini-icon (the first four
@@ -6543,6 +6545,52 @@ private fun IconTheme.optionTag(): String =
         IconTheme.Monochrome -> ICON_THEME_OPTION_MONOCHROME_TAG
     }
 
+/**
+ * A reusable "start a bug report" trigger that gates on the one-time consent
+ * dialog. Returns a lambda to invoke — from the Settings overflow menu or the
+ * post-crash banner — that shares immediately when consent was previously
+ * suppressed, else shows [BugReportConsentDialog] first. [onShared] runs after
+ * the share hand-off returns, so the caller can react (the crash banner
+ * re-checks whether the share consumed the crash and hides itself).
+ *
+ * Hosts the consent dialog itself, so each caller only holds the returned
+ * trigger. Keeping the consent gate in one place means the overflow menu and the
+ * banner can never drift apart on what the user is told before a report is sent.
+ */
+@Composable
+internal fun rememberBugReportTrigger(onShared: () -> Unit = {}): () -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val dockSettings = remember(context) { DockSettingsStore(context) }
+    var consentVisible by remember { mutableStateOf(false) }
+    fun startBugReport() {
+        val activity = context.findActivity() ?: return
+        scope.launch {
+            BugReport.share(activity)
+            onShared()
+        }
+    }
+    if (consentVisible) {
+        BugReportConsentDialog(
+            onDismiss = { consentVisible = false },
+            onConfirm = { suppressFuture ->
+                consentVisible = false
+                if (suppressFuture) {
+                    dockSettings.isBugReportConsentSuppressed = true
+                }
+                startBugReport()
+            },
+        )
+    }
+    return {
+        if (dockSettings.isBugReportConsentSuppressed) {
+            startBugReport()
+        } else {
+            consentVisible = true
+        }
+    }
+}
+
 @Composable
 private fun SettingsOverflowMenu(
     onOpenLauncherAppInfo: () -> Unit,
@@ -6553,14 +6601,7 @@ private fun SettingsOverflowMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var aboutVisible by remember { mutableStateOf(false) }
-    var consentVisible by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val dockSettings = remember(context) { DockSettingsStore(context) }
-    fun startBugReport() {
-        val activity = context.findActivity() ?: return
-        scope.launch { BugReport.share(activity) }
-    }
+    val startBugReport = rememberBugReportTrigger()
     Box {
         IconButton(
             onClick = { expanded = true },
@@ -6598,29 +6639,13 @@ private fun SettingsOverflowMenu(
                 modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
                 onClick = {
                     expanded = false
-                    if (dockSettings.isBugReportConsentSuppressed) {
-                        startBugReport()
-                    } else {
-                        consentVisible = true
-                    }
+                    startBugReport()
                 },
             )
         }
     }
     if (aboutVisible) {
         AboutDialog(onDismiss = { aboutVisible = false })
-    }
-    if (consentVisible) {
-        BugReportConsentDialog(
-            onDismiss = { consentVisible = false },
-            onConfirm = { suppressFuture ->
-                consentVisible = false
-                if (suppressFuture) {
-                    dockSettings.isBugReportConsentSuppressed = true
-                }
-                startBugReport()
-            },
-        )
     }
 }
 

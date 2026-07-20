@@ -336,6 +336,8 @@ internal fun TypeLauncherApp(
         onRequestCalendarPermission = onRequestCalendarPermission,
         onOpenAgendaEvent = viewModel::openAgendaEvent,
         onSwipeDown = onSwipeDown,
+        onDismissCrashBanner = viewModel::dismissCrashBanner,
+        onCrashReportShared = viewModel::refreshCrashBanner,
         searchPlaceholderSuffix = searchPlaceholderSuffix,
     )
 }
@@ -425,6 +427,8 @@ internal fun TypeLauncherApp(
     onRequestCalendarPermission: () -> Unit,
     onOpenAgendaEvent: (AgendaEvent) -> Unit,
     onSwipeDown: () -> Unit = {},
+    onDismissCrashBanner: () -> Unit = {},
+    onCrashReportShared: () -> Unit = {},
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     LaunchedEffect(state.destination, state.isSettingsOpen, state.appListLayout) {
@@ -459,6 +463,10 @@ internal fun TypeLauncherApp(
             else -> onSetRecentsOpen(false)
         }
     }
+    // Shared with the Settings overflow menu: gates the post-crash banner's
+    // Share through the same one-time consent dialog before building the report,
+    // then re-checks the banner (a successful share consumes the crash).
+    val startCrashReport = rememberBugReportTrigger(onShared = onCrashReportShared)
     // Resolve how much of Home the current viewport can fit (keyboard, search
     // box, both, or — in cramped landscape — neither). Computed here, where the
     // configuration and the persisted keyboard reservation are both in scope,
@@ -976,10 +984,24 @@ internal fun TypeLauncherApp(
                             onDispose { if (pageRevealsWallpaper) wallpaperBackdropPages-- }
                         }
                         when (page.screen) {
-                            LauncherScreen.Home -> Box(modifier = Modifier.fillMaxSize()) {
+                            // Post-crash push-down: the banner takes a strip at the
+                            // top and Home shifts down beneath it (never occluded),
+                            // owning the top status-bar inset so HomeScreen's inset
+                            // isn't applied twice. Driven by state (not `isCurrentPage`)
+                            // so it stays put as the carousel slides rather than
+                            // reflowing mid-swipe. See HomeContentWithCrashBanner.
+                            LauncherScreen.Home -> HomeContentWithCrashBanner(
+                                innerPadding = innerPadding,
+                                showCrashBanner = state.isCrashBannerVisible,
+                                // Same value HomeScreen renders under, so the banner's
+                                // margins make the same wallpaper/opaque choice it does.
+                                wallpaperActive = pageRevealsWallpaper,
+                                onShareCrash = startCrashReport,
+                                onDismissCrash = onDismissCrashBanner,
+                            ) { homeInnerPadding ->
                             HomeScreen(
                                 state = state,
-                                innerPadding = innerPadding,
+                                innerPadding = homeInnerPadding,
                                 bodyReady = homeBodyReady,
                                 isVisibleHomePage = isCurrentOrIncoming,
                                 landscapeTier = homeLandscapeTier,

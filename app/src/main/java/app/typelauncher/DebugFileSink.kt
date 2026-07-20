@@ -12,6 +12,26 @@ private const val CURRENT_FILE = "debug.log"
 /** Prefix for prior runs' logs, one file per run, surfaced then deleted by the report. */
 private const val PREVIOUS_PREFIX = "debug-prev-"
 
+/** Suffix for a prior run that ended gracefully or by a silent kill (no crash). */
+private const val PREVIOUS_PLAIN_SUFFIX = ".log"
+
+/**
+ * Suffix marking a prior run that ended in an *uncaught exception* — a real
+ * crash, as opposed to a routine kill (OS reclaim, force-stop, app update). Only
+ * these raise the post-crash banner, so it is never shown for an ordinary
+ * process death. Both kinds of prior run are still readable/shareable
+ * ([readPreviousRun]); the suffix only gates the *banner*.
+ */
+private const val PREVIOUS_CRASH_SUFFIX = ".crash.log"
+
+/**
+ * Companion to [CURRENT_FILE], written by the uncaught-exception handler and
+ * consumed at the next start. Its presence there is the one reliable in-process
+ * signal that this run crashed rather than exited or was killed; a graceful run
+ * never creates it. Kept out of [previousFiles] by not matching [PREVIOUS_PREFIX].
+ */
+private const val CRASH_MARKER_FILE = "$CURRENT_FILE.crash"
+
 /** How many unshared prior runs to keep — older ones are dropped at startup. */
 private const val MAX_PREVIOUS_RUNS = 5
 
@@ -50,6 +70,11 @@ private const val WRITE_DEBOUNCE_MS = 500L
  * starts can happen before the user shares) and none is lost to a later boring
  * run. The bug report ([BugReport]) reads and clears them.
  *
+ * A run that ended in an *uncaught exception* is marked (via [CRASH_MARKER_FILE])
+ * and rotated to a distinct crash-suffixed name, so the next start can tell a
+ * real crash apart from a routine kill and raise the post-crash banner only for
+ * the former ([hasUnacknowledgedCrash]); [acknowledgeCrashBanner] dismisses it.
+ *
  * **Everything touching the filesystem runs on a single daemon worker** — the
  * startup rotation, the continuous mirroring, and the crash flush — so nothing
  * blocks the main thread on disk (the launcher cold-start path is sacred). The
@@ -79,11 +104,16 @@ internal class DebugFileSink internal constructor(
 
     private val current get() = File(dir, CURRENT_FILE)
     private val temp get() = File(dir, "$CURRENT_FILE.tmp")
+    private val crashMarker get() = File(dir, CRASH_MARKER_FILE)
 
     /** Prior runs' files, oldest first (by last-modified time). */
     private fun previousFiles(): List<File> =
         (dir.listFiles { file -> file.name.startsWith(PREVIOUS_PREFIX) } ?: emptyArray())
             .sortedBy { it.lastModified() }
+
+    /** Prior runs that crashed (crash-suffixed) — the files that raise the banner. */
+    private fun crashedFiles(): List<File> =
+        previousFiles().filter { it.name.endsWith(PREVIOUS_CRASH_SUFFIX) }
 
     // Single worker, prestarted so the first call never pays thread creation.
     // Daemon, so it never keeps the process alive. Single-threaded, so every file
@@ -113,13 +143,22 @@ internal class DebugFileSink internal constructor(
             worker.execute {
                 runCatching {
                     if (current.exists()) {
-                        current.renameTo(File(dir, "$PREVIOUS_PREFIX${System.nanoTime()}.log"))
+                        // Was the just-ended run a crash? The uncaught-exception
+                        // handler leaves [crashMarker] behind; a graceful exit or a
+                        // routine/silent kill does not. Only a crashed run gets the
+                        // [PREVIOUS_CRASH_SUFFIX] that raises the banner, so an
+                        // ordinary process death never shows it. A cheap metadata
+                        // existence check.
+                        val suffix = if (crashMarker.exists()) PREVIOUS_CRASH_SUFFIX else PREVIOUS_PLAIN_SUFFIX
+                        current.renameTo(File(dir, "$PREVIOUS_PREFIX${System.nanoTime()}$suffix"))
                         // Bound how many unshared runs pile up; drop the oldest.
                         val prior = previousFiles()
                         if (prior.size > MAX_PREVIOUS_RUNS) {
                             prior.take(prior.size - MAX_PREVIOUS_RUNS).forEach { it.delete() }
                         }
                     }
+                    // Consume the just-read crash marker so it can't mislabel this run.
+                    crashMarker.delete()
                     // Discard any leftover temp from a write interrupted mid-flight:
                     // never renamed into place, so by the atomic-write contract it
                     // is uncommitted and possibly partial.
@@ -216,6 +255,44 @@ internal class DebugFileSink internal constructor(
         }
     }
 
+    /**
+     * Whether a prior run *crashed* (ended in an uncaught exception) and the user
+     * has neither shared nor dismissed it — the signal the post-crash banner
+     * shows on. A routine kill, force-stop, app update, or silent kill leaves a
+     * prior-run file too, but not a crash-suffixed one, so this stays false for
+     * them and the banner never mislabels an ordinary exit. Runs on the worker
+     * (like [readPreviousRun]) so FIFO ordering places it after the startup
+     * rotation [start] queued there — otherwise a check racing a slow rotation
+     * could scan before `debug.log` is renamed to its crash-suffixed name and
+     * miss the just-ended crash. Metadata only (a directory listing; never the
+     * log itself), so it is cheap; call it off the main thread as it blocks on
+     * the worker. Sharing a report clears the runs ([clearPreviousRun]) and
+     * dismissing renames them off the crash suffix ([acknowledgeCrashBanner]);
+     * either way this then returns false until a later run crashes.
+     */
+    fun hasUnacknowledgedCrash(): Boolean =
+        runCatching { worker.submit<Boolean> { crashedFiles().isNotEmpty() }.get() }.getOrElse { false }
+
+    /**
+     * Dismiss: rename every crashed prior-run file off the crash suffix so it no
+     * longer raises the banner, keeping its log (still shareable in a bug report).
+     * Renaming in place — rather than recording a separate ack marker in this
+     * evictable cache dir — so cache eviction can't resurrect the prompt by
+     * dropping the marker while keeping the crash file. A later crash writes a
+     * fresh crash-suffixed file and raises the banner again. On the worker too, so
+     * it can't race the rotation or the mirror's reads/writes.
+     */
+    fun acknowledgeCrashBanner() {
+        runCatching {
+            worker.submit {
+                crashedFiles().forEach { file ->
+                    val plain = File(dir, file.name.removeSuffix(PREVIOUS_CRASH_SUFFIX) + PREVIOUS_PLAIN_SUFFIX)
+                    runCatching { file.renameTo(plain) }
+                }
+            }.get()
+        }
+    }
+
     private fun installCrashHandler() {
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -236,7 +313,14 @@ internal class DebugFileSink internal constructor(
                 // double-count it as a non-fatal too (Codex on PR #592). This still
                 // buffers + fans out to disk so the crash line is persisted.
                 LauncherDebugLog.recordUncaught("Uncaught exception in thread ${thread.name}", throwable)
-                val flush = worker.submit { writeSnapshot() }
+                // The crash marker rides with the snapshot on the worker (bounded
+                // by the same deadline), so the next start rotates this run's log to
+                // a banner-raising crash-suffixed name. A graceful run never writes
+                // it, so an ordinary process death never raises the banner.
+                val flush = worker.submit {
+                    runCatching { crashMarker.writeText("1") }
+                    writeSnapshot()
+                }
                 runCatching { flush.get(CRASH_WRITE_TIMEOUT_MS, TimeUnit.MILLISECONDS) }
             }
             previousHandler?.uncaughtException(thread, throwable)
