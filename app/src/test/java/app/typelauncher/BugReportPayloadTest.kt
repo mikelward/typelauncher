@@ -78,4 +78,55 @@ class BugReportPayloadTest {
         assertTrue("notes none widgets", payload.contains("Widgets (0): (none)"))
         assertTrue("notes empty log", payload.contains("(no captured log lines)"))
     }
+
+    @Test
+    fun payloadIncludesPreviousRunOnlyWhenPresent() {
+        assertTrue(
+            "no previous-run section without a prior run",
+            !basePayload(previousRun = null).contains("Previous run"),
+        )
+        val withPrevious = basePayload(
+            previousRun = "11-04 08:59:59.000 D TypeLauncherDebug: home ready\n" +
+                "11-04 09:00:00.000 W TypeLauncherDebug: Uncaught exception in thread main",
+        )
+        assertTrue(withPrevious.contains("--- Previous run (ended without a clean exit) ---"))
+        assertTrue(withPrevious.contains("Uncaught exception in thread main"))
+        // The current run's log still follows the previous-run section.
+        assertTrue(withPrevious.contains("--- Recent log"))
+        assertTrue(withPrevious.contains("current hello"))
+    }
+
+    @Test
+    fun oversizedPreviousRunKeepsItsNewestLines() {
+        // The file is oldest-first and the crash entry is last; an over-cap
+        // previous run must keep the tail, not the head.
+        val big = (0 until 400).joinToString("\n") { "line-$it " + "x".repeat(600) } +
+            "\n11-04 09:00:00.000 W TypeLauncherDebug: Uncaught exception in thread main"
+        val payload = basePayload(previousRun = big)
+        assertTrue("the crash entry at the end survives", payload.contains("Uncaught exception in thread main"))
+        assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
+    }
+
+    private fun basePayload(previousRun: String?): String = buildBugReportPayload(
+        nowMillis = 1_700_000_000_000L,
+        versionName = "1.0",
+        versionCode = 1L,
+        buildType = "debug",
+        applicationId = "app.typelauncher",
+        isDebuggable = true,
+        deviceManufacturer = "Generic",
+        deviceModel = "Robolectric",
+        androidRelease = "14",
+        androidSdkInt = 34,
+        locale = Locale.US,
+        isDockEnabled = false,
+        appListLayout = AppListLayout.IconOnly,
+        dockIconSizeDp = 4,
+        appListSortOrder = AppListSortOrder.Alphabetical,
+        isAgendaEnabled = false,
+        dockedAppIds = emptyList(),
+        widgetPages = listOf(emptyList()),
+        recentLog = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
+        previousRun = previousRun,
+    )
 }

@@ -10,6 +10,7 @@ import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.CopyOnWriteArrayList
 
 private const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
 internal const val LOG_BUFFER_MAX_ENTRIES = 300
@@ -18,6 +19,33 @@ internal object LauncherDebugLog {
     private val buffer = ArrayDeque<String>(LOG_BUFFER_MAX_ENTRIES)
     private val timestampFormat = ThreadLocal.withInitial {
         SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
+    }
+
+    /**
+     * A downstream consumer of every recorded line, in addition to the in-memory
+     * buffer — e.g. [DebugFileSink], which mirrors the buffer to disk so it
+     * survives the process ending. Registered by the [Application] at startup.
+     */
+    fun interface Sink {
+        fun log(line: String)
+    }
+
+    // Copy-on-write so [record] can fan out without holding a lock across the
+    // sink call (a sink must never be able to deadlock the buffer). Sinks are
+    // added once at startup and effectively never removed, so writes are rare.
+    private val sinks = CopyOnWriteArrayList<Sink>()
+
+    fun addSink(sink: Sink) {
+        sinks.addIfAbsent(sink)
+    }
+
+    fun removeSink(sink: Sink) {
+        sinks.remove(sink)
+    }
+
+    /** Test-only: drops every registered sink so tests don't leak into each other. */
+    internal fun clearSinksForTest() {
+        sinks.clear()
     }
 
     fun event(message: String) {
@@ -49,6 +77,19 @@ internal object LauncherDebugLog {
         if (throwable != null) LauncherTelemetry.recordException(throwable)
     }
 
+    /**
+     * Records an uncaught exception to the buffer (and logcat) for the crash
+     * handler, **without** the Crashlytics non-fatal path. Crashlytics' own
+     * chained uncaught handler reports the same throwable as a fatal, so routing
+     * it through [warning]'s `recordException` too would double-count it as both
+     * a non-fatal and a fatal event (Codex on PR #592). The buffer record still
+     * fans out to the file sink, so the crash line is persisted for the report.
+     */
+    internal fun recordUncaught(message: String, throwable: Throwable) {
+        record('W', message, throwable)
+        Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
+    }
+
     fun activityCallback(activity: Activity, callback: String, intent: Intent? = activity.intent) {
         event(
             "$callback taskId=${activity.taskId} finishing=${activity.isFinishing} " +
@@ -75,6 +116,10 @@ internal object LauncherDebugLog {
             if (buffer.size >= LOG_BUFFER_MAX_ENTRIES) buffer.removeFirst()
             buffer.addLast(entry)
         }
+        // Fan out to disk (and any other) sinks outside the buffer lock. Each is
+        // best-effort: a sink that throws must never lose the log line for the
+        // others or crash the caller (this runs on the app's own threads).
+        sinks.forEach { runCatching { it.log(entry) } }
     }
 }
 
