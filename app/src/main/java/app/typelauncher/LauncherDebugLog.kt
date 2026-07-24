@@ -15,6 +15,25 @@ import java.util.concurrent.CopyOnWriteArrayList
 private const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
 internal const val LOG_BUFFER_MAX_ENTRIES = 300
 
+/**
+ * Cap for a single buffer entry, so one pathological stack trace can't dominate
+ * the 300-entry buffer — and, with it, the shareable report. The report's own
+ * budget is enforced separately by total characters in [BugReport] (strings
+ * parcel as UTF-16, so the Binder limit is about total bytes, not entry count);
+ * this is what keeps the count-based buffer bound meaningful.
+ */
+internal const val LOG_BUFFER_MAX_ENTRY_CHARS = 2_000
+
+/**
+ * How many `at …` frames per Throwable in the cause chain an entry keeps. The
+ * deep tail of a stack trace is platform plumbing (Looper / Choreographer /
+ * ActivityThread, Compose recomposition internals) that tells you nothing, and
+ * in a release build every frame is obfuscated anyway — while a single 80-frame
+ * dump used to evict a quarter of the buffer the report exists to carry. Keep
+ * the throw site and its immediate callers, and say how many were dropped.
+ */
+private const val COMPACT_STACK_FRAMES = 8
+
 internal object LauncherDebugLog {
     private val buffer = ArrayDeque<String>(LOG_BUFFER_MAX_ENTRIES)
     private val timestampFormat = ThreadLocal.withInitial {
@@ -110,17 +129,68 @@ internal object LauncherDebugLog {
         val entry = if (throwable == null) {
             "$timestamp $level $LAUNCHER_DEBUG_TAG: $message"
         } else {
-            "$timestamp $level $LAUNCHER_DEBUG_TAG: $message\n${Log.getStackTraceString(throwable).trimEnd()}"
+            "$timestamp $level $LAUNCHER_DEBUG_TAG: $message\n${compactStackTrace(throwable).trimEnd()}"
+        }
+        val bounded = if (entry.length > LOG_BUFFER_MAX_ENTRY_CHARS) {
+            entry.take(LOG_BUFFER_MAX_ENTRY_CHARS) + "…(truncated)"
+        } else {
+            entry
         }
         synchronized(buffer) {
             if (buffer.size >= LOG_BUFFER_MAX_ENTRIES) buffer.removeFirst()
-            buffer.addLast(entry)
+            buffer.addLast(bounded)
         }
         // Fan out to disk (and any other) sinks outside the buffer lock. Each is
         // best-effort: a sink that throws must never lose the log line for the
         // others or crash the caller (this runs on the app's own threads).
-        sinks.forEach { runCatching { it.log(entry) } }
+        sinks.forEach { runCatching { it.log(bounded) } }
     }
+
+    /**
+     * Formats [t] like [Throwable.printStackTrace] but keeps only the top
+     * [maxFrames] frames per Throwable in the cause chain, summarising the rest
+     * as `... N more` so a reader can tell frames were elided rather than
+     * absent. Replaces `Log.getStackTraceString`, which dumps every frame — the
+     * deep tail is platform plumbing, and one such entry used to crowd real
+     * events out of the buffer.
+     *
+     * Cyclic cause chains (`a.cause = b; b.cause = a`) are guarded via an
+     * identity set, as `printStackTrace` does, so a pathological Throwable can't
+     * spin the calling thread. Suppressed exceptions surface as a one-line
+     * summary per parent so `use { … }` close failures aren't silently lost;
+     * their frames are dropped to keep the entry tight. Not backed by
+     * `android.util.Log`, so it also works in plain JUnit tests. Visible for
+     * tests.
+     */
+    internal fun compactStackTrace(t: Throwable, maxFrames: Int = COMPACT_STACK_FRAMES): String =
+        buildString {
+            val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
+            var current: Throwable? = t
+            var depth = 0
+            while (current != null) {
+                val cur = current
+                if (!seen.add(cur)) {
+                    append("\n\t[CIRCULAR REFERENCE: ").append(cur.javaClass.name).append(']')
+                    break
+                }
+                if (depth > 0) append("\nCaused by: ")
+                append(cur.javaClass.name)
+                // A getMessage() override can throw, and this trace is rendered
+                // while already logging a failure — keep the type and frames
+                // rather than let a second throwable escape the logger.
+                runCatching { cur.message }.getOrNull()?.let { append(": ").append(it) }
+                val frames = cur.stackTrace
+                val keep = minOf(maxFrames, frames.size)
+                for (i in 0 until keep) append("\n\tat ").append(frames[i])
+                if (frames.size > keep) append("\n\t... ").append(frames.size - keep).append(" more")
+                for (suppressed in cur.suppressed) {
+                    append("\n\tSuppressed: ").append(suppressed.javaClass.name)
+                    runCatching { suppressed.message }.getOrNull()?.let { append(": ").append(it) }
+                }
+                current = cur.cause
+                depth++
+            }
+        }
 }
 
 internal fun Intent?.debugSummary(): String {

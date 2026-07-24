@@ -63,4 +63,38 @@ class LauncherDebugLogTest {
             snapshot.last().endsWith("event ${LOG_BUFFER_MAX_ENTRIES + 49}"),
         )
     }
+
+    @Test
+    fun oneHugeEntryCannotDominateTheBuffer() {
+        LauncherDebugLog.warning("a warning " + "x".repeat(50_000))
+
+        val entry = LauncherDebugLog.snapshot().single()
+        assertTrue(
+            "entry is capped",
+            entry.length <= LOG_BUFFER_MAX_ENTRY_CHARS + "…(truncated)".length,
+        )
+        assertTrue("and says it was cut", entry.endsWith("…(truncated)"))
+    }
+
+    @Test
+    fun stackTracesKeepTheirCauseChainAndDropTheDeepTail() {
+        val cause = IllegalArgumentException("the root cause")
+        LauncherDebugLog.warning("a warning", IllegalStateException("boom", cause))
+
+        val entry = LauncherDebugLog.snapshot().single()
+        assertTrue("keeps the thrown type", entry.contains("IllegalStateException: boom"))
+        assertTrue("keeps the cause chain", entry.contains("Caused by: java.lang.IllegalArgumentException: the root cause"))
+        assertTrue("keeps the throw site", entry.contains("\tat "))
+        assertTrue("says frames were elided", entry.contains(" more"))
+    }
+
+    @Test
+    fun aCyclicCauseChainTerminates() {
+        val first = IllegalStateException("first")
+        val second = IllegalStateException("second", first)
+        first.initCause(second)
+
+        val trace = LauncherDebugLog.compactStackTrace(second)
+        assertTrue("stops at the cycle", trace.contains("CIRCULAR REFERENCE"))
+    }
 }
