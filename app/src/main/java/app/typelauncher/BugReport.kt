@@ -16,8 +16,10 @@ import android.os.Looper
 import android.view.PixelCopy
 import android.view.View
 import android.view.Window
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -42,25 +44,74 @@ internal object BugReport {
      * Captures the screen, builds the text payload, copies the text to the
      * clipboard, and fires the share-sheet chooser. [includeScreenshot] = false
      * (or a capture failure) shares text only.
+     *
+     * [mainDispatcher], [payloadCollect], [screenshotCapture], [clipboardWrite],
+     * and [chooserLaunch] are injectable test seams (production uses the
+     * defaults): each delivery route can fail on its own, and the conditional
+     * clear and the failure notice below are behavior a test must be able to
+     * drive every way — clipboard lands vs. fails, chooser opens vs. doesn't —
+     * without a real window, `ClipboardManager`, or share target
+     * (`BugReportShareTest`).
      */
-    suspend fun share(activity: Activity, includeScreenshot: Boolean = true) {
+    suspend fun share(
+        activity: Activity,
+        includeScreenshot: Boolean = true,
+        mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
+        payloadCollect: (Context, DebugFileSink?) -> String = ::collectPayload,
+        screenshotCapture: suspend (Activity) -> Uri? = ::captureAndPersistScreenshot,
+        clipboardWrite: (Context, String) -> Boolean = ::copyToClipboard,
+        chooserLaunch: (Activity, String, Uri?) -> Boolean = ::startShare,
+    ) {
         val fileSink = (activity.applicationContext as? TypeLauncherApp)?.debugFileSink
+        // Whether the report below actually carries what the collection read —
+        // including the prior run's log, which the sink has already handed over
+        // and will delete on [DebugFileSink.clearPreviousRun]. False on the
+        // fallback path, and that is what gates the clear.
+        var carriesPriorRun = true
         // Build the payload off the main thread: it reads persisted settings and
         // up to a few prior-run log files, and share() normally runs in a
         // main-thread UI scope (Codex on PR #592).
-        val text = withContext(Dispatchers.IO) { collectPayload(activity, fileSink) }
+        val text = try {
+            withContext(Dispatchers.IO) { payloadCollect(activity, fileSink) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            // A report is most useful after something has already gone wrong.
+            // Never turn a failure while inspecting that state into another app
+            // crash — this runs from a UI tap, where an escaping throwable takes
+            // the launcher down. Retain a small shareable diagnostic instead.
+            carriesPriorRun = false
+            LauncherDebugLog.warning("BugReport payload collection failed", t)
+            buildFallbackPayload(t)
+        }
         // The screenshot capture draws the live Compose window via PixelCopy, and
         // the clipboard/chooser handoff touches the Activity — all must run on the
         // main thread. Pin them there explicitly: the payload build above hops to
         // IO, and its continuation must not leave this on a worker thread (that
         // raced Compose's single-threaded draw and flaked CI).
-        val clipboardOk = withContext(Dispatchers.Main) {
-            val screenshotUri: Uri? = if (includeScreenshot) captureAndPersistScreenshot(activity) else null
-            val copied = copyToClipboard(activity, text)
+        val clipboardOk = withContext(mainDispatcher) {
+            val screenshotUri: Uri? = if (includeScreenshot) screenshotCapture(activity) else null
+            // Guarded like the chooser below: both are injectable seams, and
+            // share() runs in a caller's coroutine scope where an escaping
+            // throwable would take the app down with it — the one thing a
+            // bug-report path must never do.
+            // Each logs what it caught: these guards also cover the work *around*
+            // the inner logged ones (building the chooser intent, resolving the
+            // clipboard service), so without this the user could see only the
+            // generic toast while the log said nothing about why.
+            val copied = runCatching { clipboardWrite(activity, text) }
+                .onFailure { LauncherDebugLog.warning("BugReport clipboard hand-off threw", it) }
+                .getOrDefault(false)
             // Fire the chooser for its side effect; its launch is not proof of
             // delivery (no ACTION_SEND completion callback), so it doesn't gate the
             // clear below — only the retained clipboard copy does.
-            startShare(activity, text, screenshotUri)
+            val launched = runCatching { chooserLaunch(activity, text, screenshotUri) }
+                .onFailure { LauncherDebugLog.warning("BugReport chooser hand-off threw", it) }
+                .getOrDefault(false)
+            // Neither route landed: the tap would otherwise do nothing visible at
+            // all — no chooser, nothing on the clipboard — and the user would
+            // retry into the same silence. Say so instead.
+            if (!copied && !launched) notifyShareFailed(activity)
             copied
         }
         // Clear the prior run only once the report is *retained* somewhere the
@@ -73,10 +124,46 @@ internal object BugReport {
         // losing it, and keeps this in step with what the post-crash banner
         // promises (Codex on PR #592 / #593). If the scope is canceled earlier (a
         // config change while the screenshot capture is suspended) or the copy
-        // fails, the files survive.
-        if (clipboardOk) {
+        // fails, the files survive. The fallback payload carries no prior run at
+        // all, so it must never consume one: deleting the crash log the user
+        // tapped Share for, in favor of a report that doesn't contain it, would
+        // destroy the only copy.
+        if (carriesPriorRun && clipboardOk) {
             withContext(Dispatchers.IO) { fileSink?.clearPreviousRun() }
         }
+    }
+
+    /**
+     * The report to fall back on when collecting the real one threw. Deliberately
+     * tiny and dependency-free — it reads nothing off disk, because a disk read is
+     * what most plausibly just failed.
+     */
+    private fun buildFallbackPayload(failure: Throwable): String = buildString {
+        appendLine("Type Launcher bug report")
+        appendLine("Version: ${BuildConfig.VERSION_NAME}")
+        appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+        // The message is clipped: an exception can carry a whole serialized value
+        // or file dump, and an unbounded fallback would blow the very ceiling
+        // this path exists to stay under — on the one path that runs when the
+        // normal report couldn't even be built.
+        val why = failure.message?.take(MAX_FAILURE_MESSAGE_CHARS)
+        appendLine("Report collection failed: ${failure.javaClass.name}" + (why?.let { ": $it" } ?: ""))
+        // The recent log is the diagnostic the report exists for, it is already
+        // in memory, and share() recorded the failure into it just above. Without
+        // it the fallback is a four-line report that says nothing about what went
+        // wrong — and this path only runs when something already has.
+        val recent = runCatching { LauncherDebugLog.snapshot() }.getOrDefault(emptyList())
+        append(renderRecentLog(recent, MAX_LOG_PAYLOAD_CHARS))
+    }
+
+    /** Tells the user a share reached neither the chooser nor the clipboard. */
+    private fun notifyShareFailed(context: Context) {
+        // Logged, not swallowed: this is the last user-visible fallback after
+        // both delivery routes already failed, so if it throws too the tap does
+        // nothing at all — and the log is then the only place that can say why.
+        runCatching {
+            Toast.makeText(context, R.string.bug_report_share_failed, Toast.LENGTH_LONG).show()
+        }.onFailure { LauncherDebugLog.warning("BugReport share-failed notice could not be shown", it) }
     }
 
     private fun collectPayload(context: Context, fileSink: DebugFileSink?): String {
@@ -413,6 +500,9 @@ private const val MAX_LOG_PAYLOAD_CHARS = 60_000
  * crash, current log — stay inside [MAX_SHARE_PAYLOAD_CHARS].
  */
 private const val MAX_CRASH_PAYLOAD_CHARS = 50_000
+
+/** Cap for an exception message quoted into the collection-failure fallback. */
+private const val MAX_FAILURE_MESSAGE_CHARS = 300
 
 /**
  * Ceiling for the structured section (build/device/settings/docked apps/widgets),
