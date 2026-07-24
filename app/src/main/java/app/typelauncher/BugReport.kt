@@ -198,6 +198,13 @@ internal object BugReport {
     }
 
     private suspend fun captureAndPersistScreenshot(activity: Activity): Uri? {
+        // The share runs on the application scope, so it can outlive the screen
+        // that started it (a rotation, or the activity being torn down while the
+        // payload is still building). A destroyed window has nothing worth
+        // capturing and PixelCopy against its stale token fails anyway — go
+        // straight to a text-only report instead of spending a 10-30 MB buffer
+        // finding that out.
+        if (activity.isFinishing || activity.isDestroyed) return null
         val bitmap = try {
             captureWindow(activity)
         } catch (e: CancellationException) {
@@ -317,9 +324,20 @@ internal object BugReport {
         if (screenshotUri != null) {
             chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        // The share can outlive the Activity that started it (see the capture
+        // above). Starting an activity from a torn-down one targets a dead
+        // token, so launch from the application context with NEW_TASK instead —
+        // the chooser still opens, which is the whole point of not tying the
+        // share to the screen.
+        val launchContext: Context = if (activity.isFinishing || activity.isDestroyed) {
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.applicationContext
+        } else {
+            activity
+        }
         // Returns whether the chooser actually launched: the caller clears the
         // prior-run diagnostics only once the report has reached the user somehow.
-        return runCatching { activity.startActivity(chooser); true }
+        return runCatching { launchContext.startActivity(chooser); true }
             .onFailure { LauncherDebugLog.warning("BugReport.share intent failed", it) }
             .getOrDefault(false)
     }

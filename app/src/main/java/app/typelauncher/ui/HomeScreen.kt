@@ -6560,10 +6560,22 @@ private fun IconTheme.optionTag(): String =
 @Composable
 internal fun rememberBugReportTrigger(onShared: () -> Unit = {}): () -> Unit {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val compositionScope = rememberCoroutineScope()
+    // The share runs on the application scope, not the composition's: the
+    // hand-off suspends (payload build, screenshot capture) and the menu or
+    // banner that started it leaves composition as soon as it's tapped, which on
+    // a composition-bound scope cancels the share partway through — the report
+    // never reaches the sheet or the clipboard, and the crash log it would have
+    // carried is silently left behind. Falls back to the composition scope only
+    // where there is no TypeLauncherApp (tests).
+    val scope = remember(context) {
+        (context.applicationContext as? TypeLauncherApp)?.appScope ?: compositionScope
+    }
     val dockSettings = remember(context) { DockSettingsStore(context) }
     var consentVisible by remember { mutableStateOf(false) }
     fun startBugReport() {
+        // Held only for the duration of the hand-off (a screenshot capture plus
+        // the chooser launch, both of which need the live window), then dropped.
         val activity = context.findActivity() ?: return
         scope.launch {
             BugReport.share(activity)
