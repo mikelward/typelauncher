@@ -2,6 +2,9 @@ package app.typelauncher
 
 import android.app.Application
 import android.os.Build
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * The launcher's [Application]. Its job today is to install on-device debug-log
@@ -20,6 +23,20 @@ class TypeLauncherApp : Application() {
      */
     internal var debugFileSink: DebugFileSink? = null
         private set
+
+    /**
+     * A process-lifetime scope for work that must finish even though the screen
+     * that started it is gone. Sharing a bug report is the case that needs it:
+     * the hand-off suspends (payload build, screenshot capture) and then opens
+     * the share sheet, and opening the sheet *is* leaving the screen — on a
+     * composition-bound scope the launcher would cancel its own share partway
+     * through, so a report the user asked for silently never arrived and the
+     * post-crash banner stayed up.
+     *
+     * `SupervisorJob` so one failed job can't cancel the next; `Dispatchers.Default`
+     * because the callers hop to IO / Main themselves for the parts that need it.
+     */
+    internal val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
