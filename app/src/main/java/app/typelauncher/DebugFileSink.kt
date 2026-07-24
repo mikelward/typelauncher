@@ -335,18 +335,32 @@ internal class DebugFileSink internal constructor(
 
 /**
  * The newest lines of [lines] (oldest-first) whose combined length fits
- * [budgetChars], returned oldest-first; at least the single newest line is kept
- * even if it alone exceeds the budget. Shared by [DebugFileSink] and the bug
+ * [budgetChars], returned oldest-first. Shared by [DebugFileSink] and the bug
  * report so both keep the freshest context inside the ~1 MB Binder limit.
+ *
+ * A single newest line that alone exceeds the budget is kept **clamped to it**
+ * rather than whole: returning nothing would drop the freshest context
+ * entirely, but returning it whole would blow the very ceiling this exists to
+ * enforce. Live entries are capped at [LOG_BUFFER_MAX_ENTRY_CHARS] so they
+ * can't reach that size, but `cacheDir` survives app upgrades — a prior-run
+ * file written by a build from before that cap can hold an arbitrarily long
+ * line, and it is read back into the report unchanged.
  */
 internal fun boundedLogTail(lines: List<String>, budgetChars: Int): List<String> {
     val kept = ArrayDeque<String>()
     var used = 0
     for (line in lines.asReversed()) {
         val cost = line.length + 1 // + the newline appendLine adds
-        if (used + cost > budgetChars && kept.isNotEmpty()) break
+        if (used + cost > budgetChars) {
+            if (kept.isNotEmpty()) break
+            kept.addFirst(line.take((budgetChars - LOG_TRUNCATION_MARKER.length).coerceAtLeast(0)) + LOG_TRUNCATION_MARKER)
+            break
+        }
         kept.addFirst(line)
         used += cost
     }
     return kept
 }
+
+/** Marks a log line cut short so a reader can tell it was clamped, not written that way. */
+private const val LOG_TRUNCATION_MARKER = "…(truncated)"

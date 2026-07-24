@@ -107,6 +107,109 @@ class BugReportPayloadTest {
         assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
     }
 
+    @Test
+    fun oversizedSettingsSectionStillLeavesRoomForTheLog() {
+        // A long docked-app list used to push the whole report past the Binder
+        // limit, and prefix-truncating it would drop the log that is appended
+        // last — exactly the diagnostic the report exists for.
+        val payload = buildBugReportPayload(
+            nowMillis = 1_700_000_000_000L,
+            versionName = "1.0",
+            versionCode = 1L,
+            buildType = "debug",
+            applicationId = "app.typelauncher",
+            isDebuggable = true,
+            deviceManufacturer = "Generic",
+            deviceModel = "Robolectric",
+            androidRelease = "14",
+            androidSdkInt = 34,
+            locale = Locale.US,
+            isDockEnabled = false,
+            appListLayout = AppListLayout.IconOnly,
+            dockIconSizeDp = 4,
+            appListSortOrder = AppListSortOrder.Alphabetical,
+            isAgendaEnabled = false,
+            dockedAppIds = (0 until 2_000).map { "0:com.example.package$it/.LaunchActivity" },
+            widgetPages = listOf(emptyList()),
+            recentLog = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
+        )
+
+        assertTrue("the settings section is truncated", payload.contains("details truncated"))
+        assertTrue("the recent log survives", payload.contains("current hello"))
+        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+    }
+
+    @Test
+    fun oversizedRecentLogKeepsItsNewestLines() {
+        val log = (0 until 300).map { "line-$it " + "x".repeat(600) } + "the newest event"
+        val payload = buildBugReportPayload(
+            nowMillis = 1_700_000_000_000L,
+            versionName = "1.0",
+            versionCode = 1L,
+            buildType = "debug",
+            applicationId = "app.typelauncher",
+            isDebuggable = true,
+            deviceManufacturer = "Generic",
+            deviceModel = "Robolectric",
+            androidRelease = "14",
+            androidSdkInt = 34,
+            locale = Locale.US,
+            isDockEnabled = false,
+            appListLayout = AppListLayout.IconOnly,
+            dockIconSizeDp = 4,
+            appListSortOrder = AppListSortOrder.Alphabetical,
+            isAgendaEnabled = false,
+            dockedAppIds = emptyList(),
+            widgetPages = listOf(emptyList()),
+            recentLog = log,
+        )
+
+        assertTrue("the newest line survives", payload.contains("the newest event"))
+        assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
+        assertTrue("and says so", payload.contains("older line(s) omitted"))
+        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+    }
+
+    @Test
+    fun aSingleOversizedPreviousRunLineIsClampedNotPassedThrough() {
+        // `cacheDir` survives app upgrades, so a prior-run file written before
+        // the per-entry cap existed can hold one arbitrarily long line. Keeping
+        // it whole (the old "always keep the newest line" rule) would blow the
+        // ceiling this bounding exists to enforce.
+        val payload = basePayload(previousRun = "x".repeat(500_000))
+
+        assertTrue("the line is clamped", payload.contains("…(truncated)"))
+        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+    }
+
+    @Test
+    fun everySectionAtItsLargestStaysUnderTheShareCeiling() {
+        val payload = buildBugReportPayload(
+            nowMillis = 1_700_000_000_000L,
+            versionName = "1.0",
+            versionCode = 1L,
+            buildType = "debug",
+            applicationId = "app.typelauncher",
+            isDebuggable = true,
+            deviceManufacturer = "Generic",
+            deviceModel = "Robolectric",
+            androidRelease = "14",
+            androidSdkInt = 34,
+            locale = Locale.US,
+            isDockEnabled = false,
+            appListLayout = AppListLayout.IconOnly,
+            dockIconSizeDp = 4,
+            appListSortOrder = AppListSortOrder.Alphabetical,
+            isAgendaEnabled = false,
+            dockedAppIds = (0 until 2_000).map { "0:com.example.package$it/.LaunchActivity" },
+            widgetPages = listOf(emptyList()),
+            recentLog = (0 until 300).map { "line-$it " + "x".repeat(600) },
+            previousRun = (0 until 400).joinToString("\n") { "prev-$it " + "x".repeat(600) },
+        )
+
+        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+    }
+
     private fun basePayload(previousRun: String?): String = buildBugReportPayload(
         nowMillis = 1_700_000_000_000L,
         versionName = "1.0",

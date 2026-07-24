@@ -307,7 +307,7 @@ internal fun buildBugReportPayload(
 ): String {
     val widgetIds = widgetPages.flatten()
     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))
-    return buildString {
+    val head = buildString {
         appendLine("Type Launcher bug report")
         appendLine("Captured: $timestamp")
         appendLine()
@@ -338,11 +338,27 @@ internal fun buildBugReportPayload(
         widgetPages.forEachIndexed { index, pageIds ->
             appendLine("  Page ${index + 1}: ${if (pageIds.isEmpty()) "(empty)" else pageIds.joinToString()}")
         }
-        // The previous run's log if it didn't exit cleanly — its own bounded
-        // section between the settings and the current run's log, so the crash or
-        // kill that ended the last run is right there. Keep the NEWEST lines: the
-        // file is oldest-first, so the crash entry and last events are at the end.
-        if (!previousRun.isNullOrBlank()) {
+    }
+    // Cap the structured section on its own, then always append the (already
+    // bounded) newest log after it. Prefix-truncating the whole report would drop
+    // the recent log — appended last — exactly when a long docked-app or widget
+    // list is what pushed it over the limit, losing the diagnostic the report
+    // exists for. Both parts are bounded, so the concatenation is too: strings
+    // parcel as UTF-16, so this keeps the clipboard / ACTION_SEND payload well
+    // under the ~1 MB Binder limit instead of failing silently.
+    val boundedHead = if (head.length > MAX_STRUCTURED_CHARS) {
+        head.take(MAX_STRUCTURED_CHARS) + "\n…(details truncated to keep the report shareable)\n"
+    } else {
+        head
+    }
+    // The previous run's log if it didn't exit cleanly — its own bounded
+    // section between the settings and the current run's log, so the crash or
+    // kill that ended the last run is right there. Keep the NEWEST lines: the
+    // file is oldest-first, so the crash entry and last events are at the end.
+    val crash = if (previousRun.isNullOrBlank()) {
+        ""
+    } else {
+        buildString {
             appendLine()
             appendLine("--- Previous run (ended without a clean exit) ---")
             appendLine(
@@ -350,18 +366,58 @@ internal fun buildBugReportPayload(
                     .joinToString("\n"),
             )
         }
-        appendLine()
-        appendLine("--- Recent log (newest last, ${recentLog.size} of max $LOG_BUFFER_MAX_ENTRIES) ---")
-        if (recentLog.isEmpty()) {
-            appendLine("(no captured log lines)")
-        } else {
-            recentLog.forEach { appendLine(it) }
-        }
+    }
+    return boundedHead + crash + renderRecentLog(recentLog, MAX_LOG_PAYLOAD_CHARS)
+}
+
+/**
+ * The "Recent log" section — the in-memory ring buffer, newest last, bounded to
+ * [budgetChars]. Shared with the collection-failure fallback ([BugReport]),
+ * which needs it most: a fallback report with no log says nothing at all.
+ */
+private fun renderRecentLog(recentLog: List<String>, budgetChars: Int): String = buildString {
+    appendLine()
+    val kept = boundedLogTail(recentLog, budgetChars)
+    val dropped = recentLog.size - kept.size
+    appendLine("--- Recent log (newest last, ${kept.size} of ${recentLog.size} shown, max $LOG_BUFFER_MAX_ENTRIES) ---")
+    if (recentLog.isEmpty()) {
+        appendLine("(no captured log lines)")
+    } else {
+        if (dropped > 0) appendLine("($dropped older line(s) omitted to keep the report shareable)")
+        kept.forEach { appendLine(it) }
     }
 }
 
 /**
- * Ceiling for the previous-run section (it is already capped when written to
- * disk); bounded again here so the report stays inside the ~1 MB Binder limit.
+ * The ceiling a whole shared report stays under.
+ *
+ * Strings parcel as UTF-16, so N characters cost 2N bytes on the wire, and the
+ * payload crosses Binder twice — into the clipboard, then again in the chooser's
+ * `ACTION_SEND` extra. The per-process Binder buffer is ~1 MB **shared** across
+ * every in-flight transaction, so an unbounded report threw
+ * `TransactionTooLargeException` at both ends, and since both are best-effort the
+ * tap did nothing whatsoever — no chooser, nothing on the clipboard.
+ *
+ * The three section budgets below add up to 148,000; the slack covers the section
+ * headers and the one over-budget line each log section may keep (a single line
+ * is itself capped, see [LOG_BUFFER_MAX_ENTRY_CHARS]).
  */
-private const val MAX_CRASH_PAYLOAD_CHARS = 100_000
+internal const val MAX_SHARE_PAYLOAD_CHARS = 160_000
+
+/** Ceiling for the current run's log — ~120 KB of UTF-16 on the wire. */
+private const val MAX_LOG_PAYLOAD_CHARS = 60_000
+
+/**
+ * Ceiling for the previous-run section (it is already capped when written to
+ * disk); bounded again here so the three sections together — structured head,
+ * crash, current log — stay inside [MAX_SHARE_PAYLOAD_CHARS].
+ */
+private const val MAX_CRASH_PAYLOAD_CHARS = 50_000
+
+/**
+ * Ceiling for the structured section (build/device/settings/docked apps/widgets),
+ * bounded separately from the log so a huge docked-app list can't crowd the log
+ * out. The smallest of the three: it is the section that degrades most gracefully
+ * — a settings dump reads fine truncated, a truncated log tail loses events.
+ */
+private const val MAX_STRUCTURED_CHARS = 38_000
