@@ -200,7 +200,7 @@ jobs:
         # failure means re-running locally — and "fix it blindly" loops
         # waste an iteration each time.
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: unit-test-reports
           path: |
@@ -565,7 +565,7 @@ jobs:
 
       - name: Upload Roborazzi screenshots
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: roborazzi-screenshots
           path: app/src/test/snapshots/images/
@@ -575,7 +575,7 @@ jobs:
         # even on failure so a CI-only crash leaves diagnostic output
         # behind. Pairs with the same step in the build job.
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: screenshot-test-reports
           path: |
@@ -1076,7 +1076,7 @@ jobs:
         # manual seed upload to Play Console. Useful indefinitely afterwards
         # too if a release ever needs to be inspected or re-uploaded by hand.
         if: env.RELEASE_KEYSTORE_FILE != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: app-release-aab
           path: app/build/outputs/bundle/release/app-release.aab
