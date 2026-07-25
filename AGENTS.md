@@ -47,6 +47,11 @@ Android home screen launcher app (Kotlin, single `:app` module).
   - **Engineering detail goes in the body.** The full mechanism, the bug it fixes, the file:line of the regression — all of that belongs after the blank line, where reviewers and future bisecters will find it. The body is not size-constrained.
   - **Rebase-merging a PR**: the repo rebase-merges, so each commit's own subject lands on `main` and ships to "What's new" — the PR title is *not* used as a commit subject. So title **every** commit on the branch for end users by the rules above, not just the PR title, and keep each commit's engineering detail in its own body.
 
+## Asking questions
+
+- **Ask in chat, never with `AskUserQuestion`.** That's Claude Code's multiple-choice question prompt, and it's broken in the Claude mobile app — a question asked through it may be unanswerable. Plain chat also keeps the question, its context, and the answer in one readable thread.
+- **After asking, stop and wait for the answer.** Don't proceed on an assumed answer, pick a "recommended" option yourself, or keep working on the part the question affects.
+
 ## Working with PRs
 
 - Use the `mcp__github__*` MCP tools for all GitHub operations. The `gh` CLI is not available in this sandbox.
