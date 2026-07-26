@@ -19,6 +19,15 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
 ) {
     private var updateInfo: AppUpdateInfo? = null
     private var installListenerRegistered = false
+
+    /**
+     * Latched by [unregisterInstallListener] — i.e. by the activity's
+     * `onDestroy`. Play's check is asynchronous, so a rotation while it is in
+     * flight can run the cleanup *before* the answer arrives; registering a
+     * listener after that point would leave one behind that nothing ever
+     * unregisters, once per recreation.
+     */
+    private var destroyed = false
     private var onInstallStatus: ((Int) -> Unit)? = null
     private val installListener = InstallStateUpdatedListener { state ->
         onInstallStatus?.invoke(state.installStatus())
@@ -107,10 +116,19 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
     fun completeFlexibleUpdate() {
         LauncherDebugLog.event("Play update: completing flexible update on user request")
         appUpdateManager.completeUpdate()
+            // On success Play restarts the app, so only the failure path returns
+            // here — and it is a real one (busy installer, transient Play
+            // error), where the tap visibly does nothing. Log it rather than
+            // discarding the task; the banner is left alone, so it keeps
+            // offering Restart and the tap is simply retryable.
+            .addOnFailureListener { exception ->
+                LauncherDebugLog.warning("Play update install failed to start", exception)
+            }
     }
 
-    private fun registerInstallListener() {
-        if (installListenerRegistered) return
+    @VisibleForTesting
+    internal fun registerInstallListener() {
+        if (destroyed || installListenerRegistered) return
         appUpdateManager.registerListener(installListener)
         installListenerRegistered = true
     }
@@ -122,8 +140,13 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
      * without this the manager would accumulate a dead listener — capturing the
      * old activity's callback — on every recreation. Call from `onDestroy`.
      * Idempotent: a no-op if the listener was never registered.
+     *
+     * Also closes the checker for good: a check still in flight can land after
+     * this runs, and registering then would slip a listener past the only
+     * cleanup this checker gets.
      */
     fun unregisterInstallListener() {
+        destroyed = true
         if (!installListenerRegistered) return
         appUpdateManager.unregisterListener(installListener)
         installListenerRegistered = false
