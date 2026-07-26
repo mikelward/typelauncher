@@ -170,10 +170,14 @@ class AppIconDisambiguatorScreenshotTest {
                 }
             }
 
-        /** Forces this component to label as the unbadged shipping name. */
-        private fun android.content.pm.PackageItemInfo.pinLabel() {
+        /**
+         * Forces this component to present as the shipping build — unbadged name
+         * and unbadged icon — rather than whichever variant recorded the snapshot.
+         */
+        private fun android.content.pm.PackageItemInfo.pinToShippingBuild() {
             labelRes = 0
             nonLocalizedLabel = "Type Launcher"
+            icon = R.mipmap.ic_launcher
         }
 
         private fun seedAmbiguousApps() {
@@ -181,7 +185,7 @@ class AppIconDisambiguatorScreenshotTest {
             val context = ApplicationProvider.getApplicationContext<android.content.Context>()
             val pm = shadowOf(context.packageManager)
             // MainActivity matches this intent, so the launcher lists itself and
-            // its android:label lands in these snapshots. That label is badged
+            // its android:label and android:icon land in these snapshots. That label is badged
             // outside a CI release ("Type Launcher Dev" locally, "Type Launcher
             // Debug" on CI), which would make the recorded images depend on where
             // they were recorded — local verification failing against CI-recorded
@@ -190,8 +194,8 @@ class AppIconDisambiguatorScreenshotTest {
             // does; that test also carries the one case that renders a badged
             // label on purpose.
             pm.getInternalMutablePackageInfo(context.packageName).let { self ->
-                self.applicationInfo?.pinLabel()
-                self.activities?.forEach { it.pinLabel() }
+                self.applicationInfo?.pinToShippingBuild()
+                self.activities?.forEach { it.pinToShippingBuild() }
             }
             // Chase entries deliberately share the same display name so the
             // dedup change is exercised. The Amex entries have different names
