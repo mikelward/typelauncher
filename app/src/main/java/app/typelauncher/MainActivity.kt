@@ -60,7 +60,6 @@ internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.T
 // APP_WIDGET_HOST_ID lives in WidgetRestore.kt — it is shared with the
 // restore-broadcast receiver, which must construct/filter against the same
 // host ID.
-private const val PLAY_UPDATE_REQUEST_CODE = 42
 // Safe alongside ActivityResultRegistry codes, which start at 0x00010000.
 private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
 // Persists WidgetAddFlow.pendingWidgetId across activity recreation so a
@@ -163,6 +162,36 @@ class MainActivity : ComponentActivity() {
             )
             widgetAddFlow.onBindResult(result.resultCode == RESULT_OK, resultWidgetId)
         }
+
+    // Play's flexible-update confirmation sheet. Backing out of it fires no
+    // install event, and the next resume's check reports the same update with
+    // an UNKNOWN status that deliberately preserves "Starting" — so without
+    // this result the banner would keep spinning with neither Update nor the
+    // dismiss X reachable.
+    //
+    // Declared *last* among the launchers on purpose: registerForActivityResult
+    // derives its key from registration order (`activity_rq#N`), and the
+    // registry restores pending results by that key. Inserting a launcher ahead
+    // of the existing ones would shift every later key, so a result saved by the
+    // previous build and restored by this one could be handed to the wrong
+    // callback (Codex on PR #598). New launchers go on the end.
+    private val playUpdateLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            onPlayUpdateFlowResult(result.resultCode)
+        }
+
+    /**
+     * The body of [playUpdateLauncher]'s callback, split out so a test can
+     * deliver a result without going through the activity-result registry
+     * (whose generated request codes aren't reachable from a test).
+     */
+    @VisibleForTesting
+    internal fun onPlayUpdateFlowResult(resultCode: Int) {
+        LauncherDebugLog.event("playUpdateFlow resultCode=$resultCode")
+        if (resultCode != RESULT_OK) {
+            viewModel.setPlayUpdateProgress(UpdateProgress.Idle)
+        }
+    }
 
     // Owns pendingWidgetId and the bind → configure → add transitions; see
     // WidgetAddFlow's KDoc for why the pending ID must survive across the
@@ -504,7 +533,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startPlayUpdate() {
         viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
-        if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(this, PLAY_UPDATE_REQUEST_CODE)) {
+        if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(playUpdateLauncher)) {
             // The in-app update flow could not be opened — fall back to the
             // Play Store listing and clear the in-flight state so the banner
             // can recover on next resume.

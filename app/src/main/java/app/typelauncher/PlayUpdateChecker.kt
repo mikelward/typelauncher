@@ -1,8 +1,8 @@
 package app.typelauncher
 
-import android.app.Activity
 import android.app.Application
-import android.content.IntentSender
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.annotation.VisibleForTesting
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -69,7 +69,14 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
             }
     }
 
-    fun startUpdate(activity: Activity, requestCode: Int): Boolean {
+    /**
+     * Takes an [ActivityResultLauncher] rather than an activity + request code
+     * so a *canceled* sheet is visible to the caller: backing out of it fires
+     * no install event, and the next resume's check reports the same update
+     * with an UNKNOWN status that deliberately preserves "Starting" — so
+     * without that result the banner spins with no action reachable.
+     */
+    fun startUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>): Boolean {
         val info = updateInfo?.takeIf { it.isFlexibleUpdateAvailable() } ?: return false
         return try {
             registerInstallListener()
@@ -79,9 +86,8 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
             // on "Updating…" with no listener event coming to recover.
             val launched = appUpdateManager.startUpdateFlowForResult(
                 info,
-                activity,
+                launcher,
                 AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
-                requestCode,
             )
             if (launched) {
                 // An AppUpdateInfo is single-use: once handed to
@@ -92,9 +98,6 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
                 updateInfo = null
             }
             launched
-        } catch (exception: IntentSender.SendIntentException) {
-            LauncherDebugLog.warning("Play update flow failed to start", exception)
-            false
         } catch (exception: RuntimeException) {
             LauncherDebugLog.warning("Play update flow failed to start", exception)
             false

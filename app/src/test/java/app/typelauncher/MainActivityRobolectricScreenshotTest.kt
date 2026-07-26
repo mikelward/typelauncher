@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.app.Activity
 import android.content.Intent
 import android.content.ComponentName
 import android.content.pm.ActivityInfo
@@ -1079,6 +1080,48 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithText("Downloading from Google Play.").assertIsDisplayed()
         composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_PROGRESS_TAG).assertIsDisplayed()
         saveScreenshot("compose_settings_play_update_banner_downloading_robolectric.png")
+    }
+
+    @Test
+    fun playUpdateBannerReturnsToItsOfferWhenThePlaySheetIsCanceled() {
+        // Backing out of Play's confirmation sheet fires no install event, and
+        // the next check reports the same update with an UNKNOWN status that
+        // deliberately preserves "Starting" — so this result is the only thing
+        // standing between the user and a banner that spins forever with
+        // neither Update nor the dismiss X reachable.
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setPlayUpdateAvailable(123)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_PROGRESS_TAG).assertIsDisplayed()
+
+        composeRule.activity.onPlayUpdateFlowResult(Activity.RESULT_CANCELED)
+        composeRule.waitForIdle()
+
+        val state = composeRule.activity.viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Idle, state.progress)
+        // The actions are reachable again: no spinner, Update is back.
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_PROGRESS_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_UPDATE_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_DISMISS_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun playUpdateBannerStaysInFlightWhenThePlaySheetIsAccepted() {
+        // The control for the reset above: accepting the sheet must leave the
+        // in-flight state alone so the install listener can drive it onward.
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setPlayUpdateAvailable(123)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
+        composeRule.waitForIdle()
+
+        composeRule.activity.onPlayUpdateFlowResult(Activity.RESULT_OK)
+        composeRule.waitForIdle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertEquals(UpdateProgress.Starting, state.progress)
     }
 
     @Test
