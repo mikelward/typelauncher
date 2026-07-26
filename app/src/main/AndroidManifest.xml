@@ -10,9 +10,9 @@
          their numbers as the default from the long-press menu; a denial simply
          drops that one action. Never requested at first run. -->
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
-    <!-- Requested only with Settings "Use default dialer" turned off (on by
-         default), the first time the user taps Call on a contact's quick-action
-         card; a denial — and the default setting — falls back to opening the
+    <!-- Requested the first time the user taps Call on a contact's quick-action
+         card, on both of the routes Settings "Call using" offers (Telecom, or
+         ACTION_CALL for the app chooser); a denial falls back to opening the
          default dialer with the number pre-filled. Never requested at first
          run. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />

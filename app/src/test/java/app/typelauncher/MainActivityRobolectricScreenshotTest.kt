@@ -2665,6 +2665,40 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun callUsingDropdown_inSettings_persistsSelectionAndFollowsContactSearch() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        // The row is a sub-setting of "Search contacts" — a contact's Call
+        // action is the only calling surface, so with contact search off there
+        // is nothing for the preference to apply to.
+        composeRule.onNodeWithTag(CALL_METHOD_DROPDOWN_TAG).assertDoesNotExist()
+
+        viewModel.setContactSearchEnabled(true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Call using").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(CALL_METHOD_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
+        assertEquals(CallMethod.PhoneApp, viewModel.uiState.value.callMethod)
+
+        saveScreenshot("compose_settings_call_using_robolectric.png")
+
+        composeRule.onNodeWithTag(CALL_METHOD_DROPDOWN_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(CALL_METHOD_OPTION_ASK_TAG).performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(CallMethod.AskWhichApp, viewModel.uiState.value.callMethod)
+        assertEquals(
+            "The choice survives a process restart",
+            CallMethod.AskWhichApp,
+            DockSettingsStore(composeRule.activity).callMethod,
+        )
+    }
+
+    @Test
     fun iconShapeDropdown_inSettings_persistsSelection() {
         val viewModel = composeRule.activity.viewModel
         composeRule.waitForIdle()

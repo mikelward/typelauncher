@@ -377,30 +377,271 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
-    fun grantedCallPlacesCallDirectly() {
-        // A granted Call places the call itself rather than opening the
-        // dialer with the number pre-filled.
+    fun grantedCallPlacesCallThroughTelecom() {
+        // The default "Call using: Phone app" hands the number to Telecom, so
+        // the call starts in the phone's own calling app with no activity
+        // launch — and therefore no "which app do you want to use" step —
+        // between the tap and the call.
         shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
         val viewModel = viewModelWithOpenSheet()
 
         viewModel.onContactActionSelected(callAction("+15550100"))
         idle()
 
-        val started = shadowOf(context as android.app.Application).nextStartedActivity
-        assertEquals("A Call is placed with ACTION_CALL", Intent.ACTION_CALL, started.action)
-        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals("+15550100", placed.address?.schemeSpecificPart)
+        assertNull(
+            "Telecom takes the call, so nothing is dispatched as an activity",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
         assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
         assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
     }
 
     @Test
-    fun failedDirectCallFallsBackToDialer() {
-        // A granted ACTION_CALL start can still fail — CALL_PHONE revoked
-        // between the check and the start, or a device profile with no
-        // call-capable activity — and must fall back to the dialer hand-off
-        // rather than dead-ending the tap.
+    fun telecomPlacementIsDispatchedToIoDispatcher() {
+        // TelecomManager.placeCall is a synchronous Binder round-trip, so it
+        // must not run on the frame the tap landed on. Parking the io queue
+        // proves the dispatch: nothing reaches Telecom until the queue drains.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val telecom = shadowOf(context.getSystemService(TelecomManager::class.java))
+        assertTrue(
+            "The Binder call must be parked on the io dispatcher, not run inline",
+            telecom.allOutgoingCalls.isEmpty(),
+        )
+        assertNotNull(
+            "The mode stays up until the placement resolves",
+            viewModel.uiState.value.contactActionsMode,
+        )
+
+        settle(io)
+
+        assertEquals("+15550100", telecom.onlyOutgoingCall.address?.schemeSpecificPart)
+        assertNull("The resolved placement closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun repeatTapIsIgnoredWhileTelecomPlacementIsPending() {
+        // The rows stay interactive across the placement's Binder round-trip,
+        // so a wedged Telecom service must not let a second tap become a
+        // second call — here on a different number, which is the damaging
+        // version of the race.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        viewModel.onContactActionSelected(callAction("+15550199"))
+        idle()
+        settle(io)
+
+        val telecom = shadowOf(context.getSystemService(TelecomManager::class.java))
+        assertEquals(
+            "Only the first tap places a call",
+            listOf("+15550100"),
+            telecom.allOutgoingCalls.map { it.address?.schemeSpecificPart },
+        )
+    }
+
+    @Test
+    fun placementResolvingAfterBackLeavesTheNewQueryAlone() {
+        // Regression: the placement runs off the main thread, so the user can
+        // back out and type something new before it returns. Its completion
+        // must not then clear the query and mode they have moved on to.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        // Back out of the mode and start a fresh search while Telecom thinks.
+        viewModel.onContactActionsBack()
+        viewModel.setQuery("map")
+        idle()
+        settle(io)
+
+        assertEquals(
+            "A superseded placement must not clear the query typed after it",
+            "map",
+            viewModel.uiState.value.query,
+        )
+        assertNull(
+            "It must not reopen or re-clear the contact mode either",
+            viewModel.uiState.value.contactActionsMode,
+        )
+    }
+
+    @Test
+    fun grantedCallSurvivesThePermissionResume() {
+        // The permission result is dispatched before onResume, and it clears
+        // the parked number before starting the placement — so the resume that
+        // follows the grant must not be read as the user navigating away and
+        // supersede the placement in flight. If it did, a Telecom rejection
+        // would lose its promised dialer fallback and the tap would dead-end.
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        settle(io)
+
+        // Grant, then have Telecom refuse the call it just gained permission for.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        shadowOf(context.getSystemService(TelecomManager::class.java)).setCallPhonePermission(false)
+        viewModel.onCallPermissionResult(granted = true)
+        idle()
+        // onResume lands while the placement is still parked.
+        viewModel.closeSecondaryTrayOnResume()
+        settle(io)
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The refused placement still reaches the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun callWithoutATelecomDialerHandsOffRatherThanReportingSuccess() {
+        // TelecomManager.placeCall returns void and fails silently when no
+        // Telecom service is bound, so a normal return proves nothing. With no
+        // dialer coming back from Telecom the route isn't taken at all — the
+        // tap must reach the dialer instead of being reported as placed and
+        // swallowing the fallback.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        assertTrue(
+            "A Telecom service that can't name a dialer is not asked to place the call",
+            shadowOf(context.getSystemService(TelecomManager::class.java)).allOutgoingCalls.isEmpty(),
+        )
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The tap still reaches the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun ordinaryResumeSupersedesAnInFlightPlacement() {
+        // The counterpart to grantedCallSurvivesThePermissionResume: a resume
+        // that isn't the permission dialog coming back — Overview, a
+        // notification — is the user genuinely leaving, so a placement still
+        // pending from an already-granted tap is superseded like any other
+        // navigation. Without that distinction a later Telecom rejection would
+        // pull the dialer into the foreground after they had moved on.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+        // Telecom will refuse, so an unsuperseded completion would hand off.
+        shadowOf(context.getSystemService(TelecomManager::class.java)).setCallPhonePermission(false)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        viewModel.closeSecondaryTrayOnResume()
+        settle(io)
+
+        assertNull(
+            "A genuine resume drops the contact mode rather than holding it for the placement",
+            viewModel.uiState.value.contactActionsMode,
+        )
+        assertNull(
+            "And the superseded completion must not launch the dialer behind them",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+    }
+
+    @Test
+    fun askWhichAppCallStartsActionCall() {
+        // "Call using: Ask which app" dispatches an untargeted ACTION_CALL
+        // instead, which is what lets Android offer its app chooser when more
+        // than one installed app can place the call.
         shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
         val viewModel = viewModelWithOpenSheet()
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The chooser route is placed with ACTION_CALL", Intent.ACTION_CALL, started.action)
+        assertNull("An untargeted intent is what raises the chooser", started.`package`)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertTrue(
+            "Nothing goes to Telecom directly on this route",
+            shadowOf(context.getSystemService(TelecomManager::class.java)).allOutgoingCalls.isEmpty(),
+        )
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun callMethodPersistsAcrossProcessRestart() {
+        val viewModel = viewModelWithOpenSheet()
+        assertEquals(
+            "Calls start in the phone app unless the user opts into the chooser",
+            CallMethod.PhoneApp,
+            viewModel.uiState.value.callMethod,
+        )
+
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
+        idle()
+
+        assertEquals(CallMethod.AskWhichApp, newViewModel().uiState.value.callMethod)
+    }
+
+    @Test
+    fun failedTelecomCallFallsBackToDialer() {
+        // Telecom can refuse a call the permission check just passed —
+        // CALL_PHONE revoked in between, or a number it won't dial — and that
+        // must fall back to the dialer hand-off rather than dead-ending the
+        // tap. Revoking the shadow's own permission is how placeCall is made
+        // to throw.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+        shadowOf(context.getSystemService(TelecomManager::class.java)).setCallPhonePermission(false)
+        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", "+15550100", null))
+        val dialerResolveInfo = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                packageName = "com.android.dialer"
+                name = "com.android.dialer.DialActivity"
+            }
+        }
+        @Suppress("DEPRECATION")
+        shadowOf(context.packageManager).addResolveInfoForIntent(dialIntent, dialerResolveInfo)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The refused call falls back to the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun failedActionCallFallsBackToDialer() {
+        // Same contract on the chooser route: no call-capable activity to
+        // resolve ACTION_CALL against must not dead-end the tap.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
         // Only ACTION_DIAL resolves; the ACTION_CALL start throws.
         shadowOf(context as android.app.Application).checkActivities(true)
         val dialIntent = Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", "+15550100", null))
@@ -436,8 +677,13 @@ class LauncherViewModelContentSearchTest {
         viewModel.onContactActionSelected(callAction("+15550100"))
         idle()
 
-        val started = shadowOf(context as android.app.Application).nextStartedActivity
-        assertEquals("The stale flag no longer opens the dialer", Intent.ACTION_CALL, started.action)
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals("The stale flag no longer opens the dialer", "+15550100", placed.address?.schemeSpecificPart)
+        assertEquals(
+            "The stale flag does not preselect a call method either",
+            CallMethod.PhoneApp,
+            viewModel.uiState.value.callMethod,
+        )
     }
 
     @Test
@@ -451,12 +697,11 @@ class LauncherViewModelContentSearchTest {
         viewModel.onContactActionSelected(callAction("+1800555#123"))
         idle()
 
-        val started = shadowOf(context as android.app.Application).nextStartedActivity
-        assertEquals(Intent.ACTION_CALL, started.action)
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
         assertEquals(
             "The '#' must survive into the dial string, not be dropped as a URI fragment",
             "+1800555#123",
-            started.data?.schemeSpecificPart,
+            placed.address?.schemeSpecificPart,
         )
     }
 
@@ -475,9 +720,8 @@ class LauncherViewModelContentSearchTest {
 
         viewModel.onCallPermissionResult(granted = true)
         idle()
-        val started = shadowOf(context as android.app.Application).nextStartedActivity
-        assertEquals("A granted prompt places the parked call", Intent.ACTION_CALL, started.action)
-        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals("A granted prompt places the parked call", "+15550100", placed.address?.schemeSpecificPart)
     }
 
     @Test
@@ -1619,20 +1863,44 @@ class LauncherViewModelContentSearchTest {
         ioDispatcher = Dispatchers.Unconfined,
     )
 
-    /** A view model showing a searched contact's (empty-channel) quick-actions sheet, query "zoe". */
-    private fun viewModelWithOpenSheet(): LauncherViewModel {
+    /**
+     * A view model showing a searched contact's (empty-channel) quick-actions
+     * sheet, query "zoe". Pass a [QueueDispatcher] as [io] to park the view
+     * model's off-main-thread work — the sheet is still fully opened before
+     * returning, so only work started after the call stays queued.
+     */
+    private fun viewModelWithOpenSheet(io: QueueDispatcher? = null): LauncherViewModel {
         grantPermissions()
+        // Every device with a working Telecom service names a default dialer,
+        // and the Telecom route requires one (see placeCallThroughTelecom), so
+        // the realistic device state is the helper's default; the tests that
+        // care about its absence build their own view model without it.
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
         enableBothSources()
         registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
         registerCalendarProvider(emptyList())
-        val viewModel = newViewModel()
-        idle()
+        val viewModel = if (io == null) {
+            newViewModel()
+        } else {
+            LauncherViewModel(
+                app = ApplicationProvider.getApplicationContext(),
+                workPackages = emptySet(),
+                ioDispatcher = io,
+            )
+        }
+        drain(io)
         viewModel.onHomeReady()
-        idle()
+        drain(io)
         viewModel.setQuery("zoe")
         viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
-        idle()
+        drain(io)
         return viewModel
+    }
+
+    /** Settles [io] when the test parked one, otherwise just the main looper. */
+    private fun drain(io: QueueDispatcher?) {
+        if (io == null) idle() else settle(io)
     }
 
     private fun callAction(number: String) = ContactAction(

@@ -5684,6 +5684,7 @@ internal fun SettingsScreen(
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
+    onCallMethodChanged: (CallMethod) -> Unit = {},
     onIconThemeChanged: (IconTheme) -> Unit = {},
     onUnhideApp: (InstalledApp) -> Unit,
     onOpenLauncherAppInfo: () -> Unit,
@@ -5974,6 +5975,29 @@ internal fun SettingsScreen(
                     onCheckedChange = onContactSearchEnabledChanged,
                     modifier = Modifier.testTag(CONTACT_SEARCH_SWITCH_TAG),
                 )
+            }
+            // Only meaningful once contacts are searchable, since a contact's
+            // Call action is the launcher's only calling surface — shown as a
+            // sub-setting of the switch above rather than as a permanent row
+            // every user scrolls past, the same conditional treatment the work
+            // dock row gets.
+            if (state.isContactSearchEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_call_using_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    CallMethodDropdown(
+                        selected = state.callMethod,
+                        onCallMethodChanged = onCallMethodChanged,
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -6431,6 +6455,54 @@ private fun ThemeModeDropdown(
         }
     }
 }
+
+@Composable
+private fun CallMethodDropdown(
+    selected: CallMethod,
+    onCallMethodChanged: (CallMethod) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(CALL_METHOD_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(CALL_METHOD_DROPDOWN_MENU_TAG),
+        ) {
+            CallMethod.entries.forEach { method ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(method.labelRes())) },
+                    modifier = Modifier.testTag(method.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onCallMethodChanged(method)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun CallMethod.labelRes(): Int =
+    when (this) {
+        CallMethod.PhoneApp -> R.string.settings_call_using_option_phone_app
+        CallMethod.AskWhichApp -> R.string.settings_call_using_option_ask
+    }
+
+private fun CallMethod.optionTag(): String =
+    when (this) {
+        CallMethod.PhoneApp -> CALL_METHOD_OPTION_PHONE_APP_TAG
+        CallMethod.AskWhichApp -> CALL_METHOD_OPTION_ASK_TAG
+    }
 
 private fun ThemeMode.labelRes(): Int =
     when (this) {

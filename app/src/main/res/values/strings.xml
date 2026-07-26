@@ -135,6 +135,12 @@
     <!-- TODO: translate -->
     <string name="settings_search_calendar_title" tools:ignore="MissingTranslation">Search calendar events</string>
     <!-- TODO: translate -->
+    <string name="settings_call_using_title" tools:ignore="MissingTranslation">Call using</string>
+    <!-- TODO: translate -->
+    <string name="settings_call_using_option_phone_app" tools:ignore="MissingTranslation">Phone app</string>
+    <!-- TODO: translate -->
+    <string name="settings_call_using_option_ask" tools:ignore="MissingTranslation">Ask which app</string>
+    <!-- TODO: translate -->
     <string name="contact_result_starred_description" tools:ignore="MissingTranslation">Starred contact</string>
     <!-- TODO: translate -->
     <string name="contact_action_call" tools:ignore="MissingTranslation">Call</string>
