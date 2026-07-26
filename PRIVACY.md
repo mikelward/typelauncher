@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-26_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -64,12 +64,14 @@ transmitted off your device by the app.
   contacts app. No other contact fields are read or changed by it, nothing is
   sent off the device, and a denial simply leaves the contact unchanged.
 - **Place calls** (`CALL_PHONE`): requested the first time you tap Call on a
-  contact's quick actions, and used solely to dial the number you chose with
-  `ACTION_CALL` — the call itself is routed by Android's phone subsystem and
-  your phone app, exactly as if you had dialed it there. If you deny the
-  permission, tapping Call opens your default phone app with the number
-  pre-filled instead, so nothing is ever dialed without the permission. The
-  app places no calls on its own and dials nothing you didn't tap.
+  contact's quick actions, and used solely to dial the number you chose —
+  either by handing it to Android's telephony service or, if you set Settings →
+  "Call using" to "Ask which app", by asking Android which of your apps should
+  place it. Either way the call is routed by Android's phone subsystem and your
+  phone app, exactly as if you had dialed it there. If you deny the permission,
+  tapping Call opens your default phone app with the number pre-filled instead,
+  so nothing is ever dialed without the permission. The app places no calls on
+  its own and dials nothing you didn't tap.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
   shade when you pull down on the home screen.
 

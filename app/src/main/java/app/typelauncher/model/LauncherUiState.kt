@@ -411,6 +411,22 @@ internal enum class ThemeMode {
 }
 
 /**
+ * Settings → "Call using": how choosing a number in a contact's Call channel
+ * places the call. `PhoneApp` (default) hands the number to the Telecom
+ * framework, which starts it in the phone's own calling app straight away —
+ * tapping a number rings, with no intermediate step. `AskWhichApp` starts an
+ * activity instead, so Android raises its "which app do you want to use" sheet
+ * whenever more than one installed app can place the call, letting a user who
+ * calls through a VoIP app pick it (and pin it with "Always"). Both paths need
+ * `CALL_PHONE` and both fall back to the dialer, pre-filled, when the call
+ * can't be placed.
+ */
+internal enum class CallMethod {
+    PhoneApp,
+    AskWhichApp,
+}
+
+/**
  * Shape the launcher clips every app icon to. `System` (default) follows the
  * device's adaptive-icon mask (a circle on Pixel, a squircle on Samsung, etc.),
  * `Circle` and `Squircle` force that shape regardless of the device. Resolved
@@ -747,6 +763,9 @@ internal data class LauncherUiState(
     // Shape every app icon is clipped to. `System` (default) follows the
     // device's adaptive-icon mask. Applied by `AppIcon` via `LocalAppIconShape`.
     val iconShape: IconShape = IconShape.System,
+    // How a contact's Call action places the call. `PhoneApp` (default) routes
+    // through Telecom so the call starts immediately in the phone's calling app.
+    val callMethod: CallMethod = CallMethod.PhoneApp,
     val isLoadingApps: Boolean = false,
     // Distinct from `isLoadingApps`, which only gates the loading spinner: on a
     // warm start `isLoadingApps` is `false` from process start because cached

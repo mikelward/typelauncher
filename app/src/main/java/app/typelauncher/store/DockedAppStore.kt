@@ -712,6 +712,20 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Settings → "Call using". Defaults to [CallMethod.PhoneApp] so choosing a
+     * contact's number starts the call in the phone's calling app with nothing
+     * in between; [CallMethod.AskWhichApp] restores Android's app-chooser step
+     * for users who place calls through something other than their dialer.
+     */
+    var callMethod: CallMethod
+        get() = sharedPreferences.enumOrDefault(KEY_CALL_METHOD, CallMethod.PhoneApp)
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_CALL_METHOD, value.name)
+                .apply()
+        }
+
+    /**
      * When true, the bug-report consent dialog is suppressed and Settings →
      * "Report bug" shares immediately. Set by the "Don't show this again"
      * checkbox on the consent dialog itself.
@@ -753,7 +767,11 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_CONTACT_SEARCH_ENABLED = "contact_search_enabled"
         const val KEY_CALENDAR_SEARCH_ENABLED = "calendar_search_enabled"
         // Legacy "use_default_dialer" may remain on disk after upgrade but is
-        // no longer read: a contact's Call action always places the call.
+        // no longer read: a contact's Call action always places the call, and
+        // KEY_CALL_METHOD now decides how. Deliberately not migrated — the old
+        // key chose between placing the call and handing off to the dialer,
+        // which is no longer a choice (the hand-off is only ever a fallback).
+        const val KEY_CALL_METHOD = "call_method"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ICON_SHAPE = "icon_shape"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"

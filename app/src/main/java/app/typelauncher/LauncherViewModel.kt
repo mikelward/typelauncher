@@ -236,6 +236,7 @@ internal class LauncherViewModel(
             isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
+            callMethod = dockSettingsStore.callMethod,
             iconTheme = dockSettingsStore.iconTheme,
             isLoadingApps = cachedMetadata.isEmpty(),
             playUpdate = PlayUpdateState.NotAvailable,
@@ -314,6 +315,15 @@ internal class LauncherViewModel(
     // stale resolve (superseded tap, dismiss, or fired action) is discarded.
     // Only touched on the main thread.
     private var contactResolveToken = 0L
+
+    // True while a Telecom placement is in flight, gating repeat Call taps, and
+    // — the narrower flag — true only when that placement was started by the
+    // CALL_PHONE grant rather than by an ordinary tap, which is what
+    // closeSecondaryTrayOnResume needs to tell a permission-dialog resume from
+    // the user genuinely leaving. Set and cleared on the main thread only, like
+    // contactResolveToken above.
+    private var isPlacingCall = false
+    private var isPlacingPermissionGrantedCall = false
 
     init {
         LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
@@ -945,7 +955,18 @@ internal class LauncherViewModel(
         // (e.g. a first-use default-number write that keeps the picker open with
         // the new default on top). Leave the mode and any in-flight resolve alone;
         // only close a stale open tray, as this method always did.
-        if (pendingWriteContactsAction != null || pendingCallNumber != null) {
+        //
+        // The third flag covers the gap the parked-number checks leave on the
+        // granted path: the permission result is dispatched before onResume, and
+        // it clears pendingCallNumber before starting the placement, so by the
+        // time this runs the only trace of the still-unfinished Call tap is the
+        // placement itself. Superseding its token here would discard its result
+        // — and with it the dialer fallback owed when Telecom won't take the
+        // call. It is deliberately not "any placement in flight": all three of
+        // these mean "the user never actually left", and a resume from Overview
+        // or a notification while an ordinary tap's placement is pending is the
+        // user leaving, which should supersede it like any other navigation.
+        if (pendingWriteContactsAction != null || pendingCallNumber != null || isPlacingPermissionGrantedCall) {
             if (state.isRecentsOpen) {
                 _uiState.update { it.copy(isRecentsOpen = false) }
                 LauncherDebugLog.event("closeSecondaryTrayOnResume tray-only (permission pending)")
@@ -1655,7 +1676,7 @@ internal class LauncherViewModel(
         pendingCallNumber = null
         LauncherDebugLog.event("onCallPermissionResult granted=$granted")
         if (granted) {
-            placeCall(number)
+            placeCall(number, fromPermissionGrant = true)
         } else {
             if (!handOffToDialer(number)) return
             finishContactAction()
@@ -1663,17 +1684,140 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Places [number] with `ACTION_CALL`, falling back to the dialer hand-off
-     * when the start fails even though the permission check passed —
-     * `CALL_PHONE` revoked between the check and the start, or a device
-     * profile with no call-capable activity — so the granted path is never a
-     * dead end either.
+     * Places [number] by the route Settings → "Call using" selects, falling
+     * back to the dialer hand-off when that route doesn't take the call —
+     * `CALL_PHONE` revoked between the check and the start, no call-capable
+     * activity on this device profile, no Telecom service — so neither route
+     * is ever a dead end.
+     *
+     * [CallMethod.PhoneApp] hands the number to `TelecomManager.placeCall`,
+     * which is not an activity launch at all: Telecom routes it to the phone's
+     * own calling app, so the call starts on the tap with no disambiguation
+     * step in between. [CallMethod.AskWhichApp] starts `ACTION_CALL`
+     * untargeted instead, which resolves against every app declaring a `tel:`
+     * call filter — Android then raises its "which app do you want to use"
+     * sheet whenever more than one qualifies (and goes straight through when
+     * only one does). Both are subject to the same Telecom routing beyond that
+     * point: the default outgoing SIM, Telecom's SIM picker, or an installed
+     * call-redirection app.
      */
-    private fun placeCall(number: String) {
-        if (!tryStartContactAction(Intent(Intent.ACTION_CALL, telUri(number)))) {
-            if (!handOffToDialer(number)) return
+    private fun placeCall(number: String, fromPermissionGrant: Boolean = false) {
+        when (uiState.value.callMethod) {
+            // `placeCall` is a synchronous Binder round-trip into the system
+            // Telecom service, so it runs on ioDispatcher rather than on the
+            // frame the tap landed on — a contended or wedged Telecom service
+            // must not be able to stall the launcher. The fallback and the
+            // state update resume on Main, the same shape every other IO hop
+            // in this class uses.
+            CallMethod.PhoneApp -> {
+                // Dropping the placement off the tap's frame leaves the rows
+                // interactive across the Binder round-trip, so a wedged Telecom
+                // service would let a double tap become two calls — two
+                // *different* calls when the second tap lands on another
+                // number. One placement at a time; the second tap is dropped
+                // rather than queued, since by the time it resolves the first
+                // call is already up. Read and written on Main only (the
+                // coroutine resumes there), so the flag races nothing.
+                if (isPlacingCall) {
+                    LauncherDebugLog.event("placeCall ignored, placement already in flight")
+                    return
+                }
+                isPlacingCall = true
+                isPlacingPermissionGrantedCall = fromPermissionGrant
+                // Everything that leaves the contact-actions mode bumps this
+                // token, so it is also the test for "did the user move on while
+                // Telecom was thinking" — the same guard openContactResult uses
+                // against a slow resolve.
+                val token = contactResolveToken
+                viewModelScope.launch {
+                    val placed = try {
+                        withContext(ioDispatcher) { placeCallThroughTelecom(number) }
+                    } finally {
+                        isPlacingCall = false
+                        isPlacingPermissionGrantedCall = false
+                    }
+                    if (token != contactResolveToken) {
+                        // The user backed out, went Home, or acted again while
+                        // this was in flight. Telecom already has the call if it
+                        // took one — that can't be recalled — but the mode and
+                        // query they have since moved on to are not ours to
+                        // reset, and a dialer fallback would yank a fresh app
+                        // into the foreground under them.
+                        LauncherDebugLog.event("placeCall superseded token=$token latest=$contactResolveToken")
+                        return@launch
+                    }
+                    finishPlacedCall(placed, number)
+                }
+            }
+            // The chooser route stays on the caller's thread: it is the same
+            // startActivity hop an app launch and every other quick action
+            // already make straight from the click handler.
+            CallMethod.AskWhichApp -> finishPlacedCall(
+                tryStartContactAction(Intent(Intent.ACTION_CALL, telUri(number))),
+                number,
+            )
         }
+    }
+
+    /**
+     * Closes out a Call tap: a [placed] call clears the mode like any acted-on
+     * action, and one that didn't take falls back to the dialer hand-off
+     * first — leaving the mode and query untouched only when nothing at all
+     * could be dispatched.
+     */
+    private fun finishPlacedCall(placed: Boolean, number: String) {
+        if (!placed && !handOffToDialer(number)) return
         finishContactAction()
+    }
+
+    /**
+     * Asks Telecom to place [number], returning whether it took the call. Call
+     * from [ioDispatcher] — the underlying Binder transaction is synchronous.
+     * Every
+     * failure mode lands on false so the caller can fall back to the dialer: no
+     * Telecom service (a device profile without one — detected up front, since
+     * `placeCall` fails that case silently), `CALL_PHONE` revoked
+     * between the check and this call (`SecurityException`), a number Telecom
+     * won't dial such as an emergency number from a non-privileged app
+     * (`IllegalArgumentException` / `UnsupportedOperationException`), and the
+     * `IllegalStateException` a Telecom service in a bad state raises.
+     */
+    private fun placeCallThroughTelecom(number: String): Boolean {
+        val telecomManager = app.getSystemService(TelecomManager::class.java)
+        if (telecomManager == null) {
+            LauncherDebugLog.warning("placeCall no TelecomManager")
+            return false
+        }
+        // `placeCall` returns void and swallows its own failures: with no
+        // `ITelecomService` bound it logs and returns, and a `RemoteException`
+        // reaching it is caught rather than thrown. A normal return is
+        // therefore not evidence that a call was placed, and treating it as
+        // such would skip the dialer fallback and clear the mode on a tap that
+        // did nothing. The evidence we do have is the cached default dialer:
+        // it came back from this same Telecom service when the contact's
+        // actions resolved, so a non-null value means the binder was reachable
+        // — and a device with no dialer for Telecom to route to has nothing to
+        // place the call with anyway. Null hands off instead of guessing.
+        if (cachedDefaultDialerPackage == null) {
+            LauncherDebugLog.warning("placeCall no Telecom dialer, handing off")
+            return false
+        }
+        return try {
+            telecomManager.placeCall(telUri(number), null)
+            true
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.warning("placeCall denied", exception)
+            false
+        } catch (exception: IllegalArgumentException) {
+            LauncherDebugLog.warning("placeCall rejected", exception)
+            false
+        } catch (exception: IllegalStateException) {
+            LauncherDebugLog.warning("placeCall failed", exception)
+            false
+        } catch (exception: UnsupportedOperationException) {
+            LauncherDebugLog.warning("placeCall unsupported", exception)
+            false
+        }
     }
 
     /**
@@ -2986,6 +3130,12 @@ internal class LauncherViewModel(
         dockSettingsStore.iconShape = shape
         _uiState.update { it.copy(iconShape = shape) }
         logState("setIconShape=$shape")
+    }
+
+    fun setCallMethod(method: CallMethod) {
+        dockSettingsStore.callMethod = method
+        _uiState.update { it.copy(callMethod = method) }
+        logState("setCallMethod=$method")
     }
 
     fun setIconTheme(theme: IconTheme) {
