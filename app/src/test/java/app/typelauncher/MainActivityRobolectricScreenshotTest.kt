@@ -3822,10 +3822,20 @@ class MainActivityRobolectricScreenshotTest {
                 }
             }
 
-        /** Forces this component to label as [label], ignoring `android:label`. */
-        private fun android.content.pm.PackageItemInfo.pinLabel(label: String) {
+        /**
+         * Forces this component to present as the shipping build, ignoring the
+         * `android:label` / `android:icon` the variant under test resolved.
+         *
+         * Both are badged outside a CI release, and the launcher lists itself, so
+         * without this its own row would render whichever build recorded the
+         * snapshot — "Dev" with a DEV icon locally, "Debug" with a DEBUG icon on
+         * CI. The badged icon has its own coverage in LauncherIconScreenshotTest,
+         * which renders the mipmaps directly and so doesn't depend on the variant.
+         */
+        private fun android.content.pm.PackageItemInfo.pinToShippingBuild(label: String) {
             labelRes = 0
             nonLocalizedLabel = label
+            icon = R.mipmap.ic_launcher
         }
 
         private fun seedFakeLauncherApps(selfLabel: String = UNBADGED_APP_NAME) {
@@ -3841,8 +3851,8 @@ class MainActivityRobolectricScreenshotTest {
             // (removeResolveInfosForIntent only clears explicitly added ones), so
             // pin the label back to the unbadged name instead.
             packageManager.getInternalMutablePackageInfo(context.packageName).let { self ->
-                self.applicationInfo?.pinLabel(selfLabel)
-                self.activities?.forEach { it.pinLabel(selfLabel) }
+                self.applicationInfo?.pinToShippingBuild(selfLabel)
+                self.activities?.forEach { it.pinToShippingBuild(selfLabel) }
             }
             ALL_FAKE_APP_NAMES.forEachIndexed { index, label ->
                 // The real Type Launcher activity above already surfaces with
@@ -3950,7 +3960,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     private companion object {
-        /** The app's own name with no build badge — see `pinLabel`. */
+        /** The app's own name with no build badge — see `pinToShippingBuild`. */
         const val UNBADGED_APP_NAME = "Type Launcher"
 
         /**
