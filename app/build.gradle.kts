@@ -92,6 +92,18 @@ val isCiBuild: Boolean = providers.environmentVariable("CI")
     .getOrElse(false)
 val launcherIconResource = if (isCiBuild) "@mipmap/ic_launcher" else "@mipmap/ic_launcher_local"
 val launcherRoundIconResource = if (isCiBuild) "@mipmap/ic_launcher_round" else "@mipmap/ic_launcher_round_local"
+
+// The DEV badge on the local icon, said again in the name beside it — the badge
+// is easy to miss at icon size, and the home-role picker and app list are text.
+// Three builds can co-exist on one phone: the Play build (app.typelauncher), the
+// CI-built tester Firebase ships (app.typelauncher.debug), and a local APK. Only
+// the Play build keeps the localized @string/app_name; the tester build is "Type
+// Launcher Debug", and anything built outside CI — either build type — is "Type
+// Launcher Dev". The two badged labels are manifest literals on purpose: they
+// mark a build, never reach a store listing, and are not translated.
+val devAppLabel = "Type Launcher Dev"
+val releaseAppLabel = if (isCiBuild) "@string/app_name" else devAppLabel
+val debugAppLabel = if (isCiBuild) "Type Launcher Debug" else devAppLabel
 val buildConfiguredAtMillis = System.currentTimeMillis()
 val localBuildBranch = if (isCiBuild) "" else gitBranchName
 val localBuildSha = if (isCiBuild) "" else gitShortSha
@@ -212,6 +224,7 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = debugAppLabel
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
             // CI runs R8 in shrink-only mode (see proguard-rules.pro) so tester APKs
@@ -231,6 +244,7 @@ android {
         release {
             isMinifyEnabled = isCiBuild
             isShrinkResources = isCiBuild
+            manifestPlaceholders["appLabel"] = releaseAppLabel
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(""))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "true")
             proguardFiles(

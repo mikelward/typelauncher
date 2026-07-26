@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
@@ -24,6 +25,7 @@ class ManifestUnitTest {
 
         assertEquals("\${launcherIcon}", applicationAttrs.getNamedItem("android:icon").nodeValue)
         assertEquals("\${launcherRoundIcon}", applicationAttrs.getNamedItem("android:roundIcon").nodeValue)
+        assertEquals("\${appLabel}", applicationAttrs.getNamedItem("android:label").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:clearTaskOnLaunch").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:excludeFromRecents").nodeValue)
         assertEquals("singleTask", attrs.getNamedItem("android:launchMode").nodeValue)
@@ -56,6 +58,39 @@ class ManifestUnitTest {
         assertTrue(buildFile.contains("launcherRoundIconResource = if (isCiBuild) \"@mipmap/ic_launcher_round\" else \"@mipmap/ic_launcher_round_local\""))
         assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = launcherIconResource"))
         assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = launcherRoundIconResource"))
+    }
+
+    @Test
+    fun `appLabel names the build outside a CI release`() {
+        val buildFile = File("build.gradle.kts").readText()
+
+        // Only the Play build keeps the localized name; the Firebase tester and
+        // any local APK say which build they are, so three co-installed copies
+        // are distinguishable in the app list and the home-role picker.
+        assertTrue(buildFile.contains("val devAppLabel = \"Type Launcher Dev\""))
+        assertTrue(
+            buildFile.contains(
+                "val releaseAppLabel = if (isCiBuild) \"@string/app_name\" else devAppLabel",
+            ),
+        )
+        assertTrue(
+            buildFile.contains(
+                "val debugAppLabel = if (isCiBuild) \"Type Launcher Debug\" else devAppLabel",
+            ),
+        )
+        assertTrue(buildFile.contains("manifestPlaceholders[\"appLabel\"] = releaseAppLabel"))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"appLabel\"] = debugAppLabel"))
+    }
+
+    @Test
+    fun `the badged labels stay out of the translation pipeline`() {
+        // They are manifest literals, never string resources, so no locale ever
+        // has to carry "Dev" / "Debug" and no MissingTranslation lint applies.
+        val baseStrings = File("src/main/res/values/strings.xml").readText()
+
+        assertTrue(baseStrings.contains("<string name=\"app_name\">Type Launcher</string>"))
+        assertFalse(baseStrings.contains("Type Launcher Dev"))
+        assertFalse(baseStrings.contains("Type Launcher Debug"))
     }
 
     @Test

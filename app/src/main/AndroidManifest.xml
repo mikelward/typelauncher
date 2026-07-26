@@ -36,7 +36,7 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="${launcherIcon}"
-        android:label="@string/app_name"
+        android:label="${appLabel}"
         android:roundIcon="${launcherRoundIcon}"
         android:supportsRtl="true"
         android:theme="@style/Theme.TypeLauncher">

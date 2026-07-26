@@ -3794,16 +3794,32 @@ class MainActivityRobolectricScreenshotTest {
                 }
             }
 
+        /** Forces this component to label as [UNBADGED_APP_NAME], ignoring `android:label`. */
+        private fun android.content.pm.PackageItemInfo.pinLabel() {
+            labelRes = 0
+            nonLocalizedLabel = UNBADGED_APP_NAME
+        }
+
         private fun seedFakeLauncherApps() {
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val packageManager = shadowOf(ApplicationProvider.getApplicationContext<android.content.Context>().packageManager)
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val packageManager = shadowOf(context.packageManager)
+            // MainActivity matches this intent, so the app under test supplies a
+            // row of its own, labeled from the manifest — and android:label is
+            // badged outside a CI release ("Type Launcher Dev" locally, "Type
+            // Launcher Debug" on CI). Left alone, both these assertions and the
+            // recorded snapshots would depend on where they ran. Robolectric
+            // can't drop a manifest-declared activity from queryIntentActivities
+            // (removeResolveInfosForIntent only clears explicitly added ones), so
+            // pin the label back to the unbadged name instead.
+            packageManager.getInternalMutablePackageInfo(context.packageName).let { self ->
+                self.applicationInfo?.pinLabel()
+                self.activities?.forEach { it.pinLabel() }
+            }
             ALL_FAKE_APP_NAMES.forEachIndexed { index, label ->
-                // The real Type Launcher activity from the manifest already
-                // surfaces with this label via `queryIntentActivities`, so a
-                // fake "Type Launcher" entry would now show up alongside it
-                // (dedup keys on `InstalledApp.id`, not on lowercased name).
-                // Skip the fake seed and let the real activity stand in for
-                // it — keeps the expected-result list unchanged.
+                // The real Type Launcher activity above already surfaces with
+                // this label, so a fake entry would show up alongside it (dedup
+                // keys on `InstalledApp.id`, not on lowercased name).
                 if (label == "Type Launcher") return@forEachIndexed
                 val packageName = "app.typelauncher.fake$index"
                 val componentName = ComponentName(packageName, "$packageName.LaunchActivity")
@@ -3906,6 +3922,9 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     private companion object {
+        /** The app's own name with no build badge — see `pinLabel`. */
+        const val UNBADGED_APP_NAME = "Type Launcher"
+
         val ALL_FAKE_APP_NAMES = listOf(
             "Browser",
             "Calculator",
