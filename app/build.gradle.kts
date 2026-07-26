@@ -2,6 +2,8 @@ import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
@@ -22,6 +24,19 @@ composeCompiler {
     metricsDestination = layout.buildDirectory.dir("compose_compiler")
 }
 
+val isCiBuild: Boolean = providers.environmentVariable("CI")
+    .map { value -> value.equals("true", ignoreCase = true) }
+    .getOrElse(false)
+
+// A debug build made outside CI is `.dev`, not `.debug`, so it co-installs
+// beside the tester build Firebase distributes instead of fighting it for one
+// package name. The two are signed by different keys — CI's stable debug
+// keystore vs. the developer's own — so sharing an ID isn't an upgrade, it's an
+// INSTALL_FAILED_UPDATE_INCOMPATIBLE that forces an uninstall to switch between
+// them. CI keeps `.debug`, leaving Firebase App Distribution untouched.
+val debugApplicationIdSuffix = if (isCiBuild) ".debug" else ".dev"
+val debugApplicationId = "app.typelauncher$debugApplicationIdSuffix"
+
 // Firebase Crashlytics + Performance Monitoring need google-services.json to be
 // present at app/google-services.json. The file isn't checked in (it identifies
 // the Firebase project; the SDK still relies on the APK signature for trust),
@@ -33,10 +48,58 @@ val hasFirebaseConfig = firebaseConfigFile.exists()
 if (hasFirebaseConfig) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
+    val firebaseConfig = firebaseConfigFile.readText()
+    // The Google Services plugin hard-fails any build whose application ID has no
+    // matching client ("No matching client found for package name ..."), so the
+    // debug variant needs the same treatment the release variant already gets
+    // below. app.typelauncher.dev deliberately has no client: a build from a
+    // developer's machine should not file crashes into the shared project beside
+    // real tester data, and nobody should have to register an extra Firebase app
+    // just to build. Telemetry stays dormant in local builds exactly as it does
+    // in a checkout with no config. Register app.typelauncher.dev and this stops
+    // applying, wiring Firebase up for local builds too.
+    //
+    // The !isCiBuild clause matters: in CI a missing debug client means the
+    // GOOGLE_SERVICES_JSON secret is stale, and the plugin's hard failure is the
+    // signal the setup docs promise. Without it CI would take this bypass as well
+    // and quietly distribute a tester APK with no Crashlytics.
+    if (!isCiBuild && !firebaseConfig.contains("\"$debugApplicationId\"")) {
+        // Disabling the task stops it regenerating, but Gradle does not delete a
+        // disabled task's earlier output. Any checkout that has ever built the
+        // tester variant — a local `CI=true` run, or any build from before the
+        // `.dev` suffix existed — still holds the tester project's google_app_id
+        // under build/generated/res/, and the resource merge will happily package
+        // it into the `.dev` APK. Firebase would then initialize in a local build
+        // and report to the shared tester project: precisely what this guard is
+        // for. So purge that directory ahead of the merge, not just skip the
+        // regeneration. (Two paths: AGP names the directory after the task;
+        // older versions used google-services/<variant>.)
+        val purgeForeignFirebaseResources = tasks.register<Delete>("purgeDebugGoogleServicesResources") {
+            description = "Deletes Firebase resources generated for a different application ID."
+            delete(
+                layout.buildDirectory.dir("generated/res/processDebugGoogleServices"),
+                layout.buildDirectory.dir("generated/res/google-services/debug"),
+            )
+        }
+        afterEvaluate {
+            tasks.matching {
+                it.name in setOf(
+                    "processDebugGoogleServices",
+                    "injectCrashlyticsMappingFileIdDebug",
+                    "uploadCrashlyticsMappingFileDebug",
+                )
+            }.configureEach {
+                enabled = false
+            }
+            tasks.matching { it.name == "mergeDebugResources" }.configureEach {
+                dependsOn(purgeForeignFirebaseResources)
+            }
+        }
+    }
     // If google-services.json has no release client (app.typelauncher), disable the
     // release processing task so bundleRelease doesn't fail. When a release client is
     // present the task runs normally and Firebase/Crashlytics are wired up for production.
-    val hasReleaseClient = firebaseConfigFile.readText().contains("\"app.typelauncher\"")
+    val hasReleaseClient = firebaseConfig.contains("\"app.typelauncher\"")
     if (!hasReleaseClient) {
         afterEvaluate {
             // processReleaseGoogleServices generates gmpAppId/release.txt; disabling
@@ -87,9 +150,6 @@ val isGitWorkingTreeDirty: Boolean =
         true
     }
 val baseVersionName = "1.0"
-val isCiBuild: Boolean = providers.environmentVariable("CI")
-    .map { value -> value.equals("true", ignoreCase = true) }
-    .getOrElse(false)
 val launcherIconResource = if (isCiBuild) "@mipmap/ic_launcher" else "@mipmap/ic_launcher_local"
 val launcherRoundIconResource = if (isCiBuild) "@mipmap/ic_launcher_round" else "@mipmap/ic_launcher_round_local"
 
@@ -127,6 +187,14 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
     @get:InputFile
     abstract val apkFile: RegularFileProperty
 
+    /**
+     * The debug APK's application ID, which depends on the environment — `.dev`
+     * for a local build, `.debug` in CI — so it can't be a compile-time constant.
+     * Wrong value here and the task uninstalls (or launches) the wrong package.
+     */
+    @get:Input
+    abstract val applicationId: Property<String>
+
     @TaskAction
     fun installAndRun() {
         uninstallFromNonPersonalUsers()
@@ -134,7 +202,10 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
             commandLine("adb", "install", "--user", PERSONAL_USER_ID, "-r", apkFile.get().asFile.absolutePath)
         }
         execOperations.exec {
-            commandLine("adb", "shell", "am", "start", "--user", PERSONAL_USER_ID, "-n", LAUNCH_COMPONENT)
+            commandLine(
+                "adb", "shell", "am", "start", "--user", PERSONAL_USER_ID,
+                "-n", "${applicationId.get()}/app.typelauncher.MainActivity",
+            )
         }
     }
 
@@ -150,7 +221,7 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
             .filter { userId -> userId != PERSONAL_USER_ID }
             .forEach { userId ->
                 execOperations.exec {
-                    commandLine("adb", "shell", "pm", "uninstall", "--user", userId, DEBUG_APPLICATION_ID)
+                    commandLine("adb", "shell", "pm", "uninstall", "--user", userId, applicationId.get())
                     isIgnoreExitValue = true
                 }
             }
@@ -158,8 +229,6 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
 
     private companion object {
         const val PERSONAL_USER_ID = "0"
-        const val DEBUG_APPLICATION_ID = "app.typelauncher.debug"
-        const val LAUNCH_COMPONENT = "$DEBUG_APPLICATION_ID/app.typelauncher.MainActivity"
         val USER_INFO_REGEX = Regex("""UserInfo\{(\d+):""")
     }
 }
@@ -223,7 +292,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = debugApplicationIdSuffix
             manifestPlaceholders["appLabel"] = debugAppLabel
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
@@ -279,6 +348,7 @@ tasks.register<InstallAndRunPersonalDebugTask>("installAndRun") {
     description = "Installs the debug APK for the personal profile (user 0) only, then launches it."
     dependsOn("assembleDebug")
     apkFile.set(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
+    applicationId.set(debugApplicationId)
 }
 
 tasks.withType<Test>().configureEach {

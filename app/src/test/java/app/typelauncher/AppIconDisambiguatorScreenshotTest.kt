@@ -170,11 +170,29 @@ class AppIconDisambiguatorScreenshotTest {
                 }
             }
 
+        /** Forces this component to label as the unbadged shipping name. */
+        private fun android.content.pm.PackageItemInfo.pinLabel() {
+            labelRes = 0
+            nonLocalizedLabel = "Type Launcher"
+        }
+
         private fun seedAmbiguousApps() {
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val pm = shadowOf(
-                ApplicationProvider.getApplicationContext<android.content.Context>().packageManager,
-            )
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val pm = shadowOf(context.packageManager)
+            // MainActivity matches this intent, so the launcher lists itself and
+            // its android:label lands in these snapshots. That label is badged
+            // outside a CI release ("Type Launcher Dev" locally, "Type Launcher
+            // Debug" on CI), which would make the recorded images depend on where
+            // they were recorded — local verification failing against CI-recorded
+            // PNGs, and every local recording producing drift CI then rewrites.
+            // Pin it to the shipping name, as MainActivityRobolectricScreenshotTest
+            // does; that test also carries the one case that renders a badged
+            // label on purpose.
+            pm.getInternalMutablePackageInfo(context.packageName).let { self ->
+                self.applicationInfo?.pinLabel()
+                self.activities?.forEach { it.pinLabel() }
+            }
             // Chase entries deliberately share the same display name so the
             // dedup change is exercised. The Amex entries have different names
             // but identical brand and first word so the disambiguator pass

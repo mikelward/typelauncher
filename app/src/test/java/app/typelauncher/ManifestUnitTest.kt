@@ -83,6 +83,35 @@ class ManifestUnitTest {
     }
 
     @Test
+    fun `a local debug build gets its own application ID`() {
+        val buildFile = File("build.gradle.kts").readText()
+
+        // Without this a local debug build and the Firebase tester build are both
+        // app.typelauncher.debug, and since they carry different signatures the
+        // collision is an install failure rather than an upgrade. CI must keep
+        // ".debug" so Firebase App Distribution's app ID still matches.
+        assertTrue(buildFile.contains("val debugApplicationIdSuffix = if (isCiBuild) \".debug\" else \".dev\""))
+        assertTrue(buildFile.contains("applicationIdSuffix = debugApplicationIdSuffix"))
+        // app.typelauncher.dev has no google-services.json client on purpose, so
+        // the plugin's "No matching client" failure is sidestepped for that
+        // variant instead of breaking every local build that has a config.
+        assertTrue(buildFile.contains("\"processDebugGoogleServices\","))
+        assertTrue(buildFile.contains("val debugApplicationId = \"app.typelauncher\$debugApplicationIdSuffix\""))
+        // Scoped to non-CI: in CI a missing debug client means a stale
+        // GOOGLE_SERVICES_JSON secret, and the plugin's hard failure is the only
+        // thing that surfaces it before a tester build ships without Crashlytics.
+        assertTrue(buildFile.contains("if (!isCiBuild && !firebaseConfig.contains("))
+        // Disabling the task leaves its earlier output in place, which the resource
+        // merge would package into the .dev APK — so the stale directory is purged.
+        assertTrue(buildFile.contains("purgeDebugGoogleServicesResources"))
+        assertTrue(buildFile.contains("dependsOn(purgeForeignFirebaseResources)"))
+        // installAndRun uninstalls and launches by package name, so it has to
+        // follow the suffix rather than hardcode one.
+        assertTrue(buildFile.contains("applicationId.set(debugApplicationId)"))
+        assertFalse(buildFile.contains("DEBUG_APPLICATION_ID"))
+    }
+
+    @Test
     fun `the badged labels stay out of the translation pipeline`() {
         // They are manifest literals, never string resources, so no locale ever
         // has to carry "Dev" / "Debug" and no MissingTranslation lint applies.
