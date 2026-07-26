@@ -29,12 +29,22 @@ tests, forks, and de-Googled devices.
 
 ## Build wiring
 
-Firebase is gated on the presence of `app/google-services.json`:
+Firebase is gated on **two** things: `app/google-services.json` being present,
+*and* that file carrying a client for the application ID being built.
 
-- **File present** → `app/build.gradle.kts` applies the
+- **File present, client matches** → `app/build.gradle.kts` applies the
   `com.google.gms.google-services` and
   `com.google.firebase.crashlytics` plugins, the SDKs auto-initialize via the
-  manifest-merged `FirebaseInitProvider`, and telemetry flows.
+  manifest-merged `FirebaseInitProvider`, and telemetry flows. This is CI's debug
+  and release builds, and a local *release* build (still unsuffixed
+  `app.typelauncher`, so it matches the production client).
+- **File present, no matching client** → the debug-variant Google Services tasks
+  are skipped and any Firebase resources an earlier build generated are purged, so
+  the SDKs find no `FirebaseApp` and `LauncherTelemetry` stays in its no-op path.
+  This is the local *debug* build: it is `app.typelauncher.dev`, which the shared
+  project deliberately does not register. Only outside CI — in CI a missing client
+  means a stale `GOOGLE_SERVICES_JSON` secret, and the plugin's hard failure is
+  left in place to surface it. See "Local development" below.
 - **File absent** → the plugins are skipped, the SDKs find no
   `FirebaseApp` at runtime, and `LauncherTelemetry` stays in its no-op path.
   Forks, the Cursor Cloud sandbox, and Robolectric tests build cleanly.
@@ -72,9 +82,25 @@ APK without Firebase telemetry.
 
 ## Local development
 
-To enable telemetry locally, drop the same `google-services.json` into `app/`.
-Day-to-day work does not need it; the build skips the Firebase plugins and the
-launcher runs identically minus the trace/crash reports.
+Day-to-day work does not need telemetry: with no `google-services.json` in
+`app/`, the build skips the Firebase plugins and the launcher runs identically
+minus the trace/crash reports.
+
+Dropping the same `google-services.json` into `app/` is **not** enough to enable
+it locally, and that is deliberate. A debug build made outside CI has the
+application ID `app.typelauncher.dev` (see `DEVELOPMENT.md`), and the shared
+Firebase project does not register that ID — so `app/build.gradle.kts` skips the
+Google Services tasks for it and purges any Firebase resources a previous tester
+build left behind. A local *debug* build therefore stays dormant even with
+the config present, which is what keeps a developer's day-to-day crashes and
+traces out of the shared project alongside real tester data. (A local *release*
+build keeps the unsuffixed `app.typelauncher` and does match the production
+client, so telemetry is live there — rare, and deliberate when you do it.)
+
+To genuinely enable local telemetry — normally only worth it when debugging the
+telemetry wiring itself — register an `app.typelauncher.dev` Android app in the
+Firebase project and re-download `google-services.json`. The client check then
+matches and Firebase wires up for local builds with no further changes.
 
 ## Crashlytics symbol upload
 
