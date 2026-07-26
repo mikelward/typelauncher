@@ -114,6 +114,23 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_home_showsBadgedBuildLabel() {
+        // Type Launcher's own activity matches ACTION_MAIN/CATEGORY_LAUNCHER, so
+        // the launcher lists itself and its android:label is part of its own UI.
+        // Outside a CI release that label is badged, and "Type Launcher Debug" is
+        // the longest form — this is where truncation or a row-height change
+        // would show up. SeedLauncherStateRule pins it for this method only, so
+        // the row's icon is still whichever the build under test resolved (the
+        // DEV-badged local one) — only the label is pinned to the tester form.
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText(LONGEST_BADGED_APP_NAME).assertIsDisplayed()
+        composeRule.onNodeWithText(UNBADGED_APP_NAME).assertDoesNotExist()
+
+        saveScreenshot("compose_home_badged_build_label_robolectric.png")
+    }
+
+    @Test
     fun wallpaper_replacesAppListOnEmptyHomeUntilTyping() {
         // "Show wallpaper" is seeded on before launch (see SeedLauncherStateRule):
         // a runtime toggle restarts the activity through a fresh start — the fix
@@ -3720,7 +3737,18 @@ class MainActivityRobolectricScreenshotTest {
                             .clear()
                             .commit()
                     }
-                    seedFakeLauncherApps()
+                    // Every other test pins the shipping name, so the recorded
+                    // snapshots show what Play users see. This one pins the
+                    // longest badged label instead, so the app list's handling of
+                    // it — truncation, row height, sort position — is covered
+                    // rather than hidden behind the pin.
+                    seedFakeLauncherApps(
+                        selfLabel = if (description.methodName == "screenshot_home_showsBadgedBuildLabel") {
+                            LONGEST_BADGED_APP_NAME
+                        } else {
+                            UNBADGED_APP_NAME
+                        },
+                    )
                     if (description.methodName in listOf(
                             "screenshot_appListIconOnly_overflowingGrid",
                             "screenshot_appListIconOnly_overflowingGrid_pixel9ProWidth",
@@ -3794,13 +3822,13 @@ class MainActivityRobolectricScreenshotTest {
                 }
             }
 
-        /** Forces this component to label as [UNBADGED_APP_NAME], ignoring `android:label`. */
-        private fun android.content.pm.PackageItemInfo.pinLabel() {
+        /** Forces this component to label as [label], ignoring `android:label`. */
+        private fun android.content.pm.PackageItemInfo.pinLabel(label: String) {
             labelRes = 0
-            nonLocalizedLabel = UNBADGED_APP_NAME
+            nonLocalizedLabel = label
         }
 
-        private fun seedFakeLauncherApps() {
+        private fun seedFakeLauncherApps(selfLabel: String = UNBADGED_APP_NAME) {
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             val context = ApplicationProvider.getApplicationContext<android.content.Context>()
             val packageManager = shadowOf(context.packageManager)
@@ -3813,8 +3841,8 @@ class MainActivityRobolectricScreenshotTest {
             // (removeResolveInfosForIntent only clears explicitly added ones), so
             // pin the label back to the unbadged name instead.
             packageManager.getInternalMutablePackageInfo(context.packageName).let { self ->
-                self.applicationInfo?.pinLabel()
-                self.activities?.forEach { it.pinLabel() }
+                self.applicationInfo?.pinLabel(selfLabel)
+                self.activities?.forEach { it.pinLabel(selfLabel) }
             }
             ALL_FAKE_APP_NAMES.forEachIndexed { index, label ->
                 // The real Type Launcher activity above already surfaces with
@@ -3924,6 +3952,15 @@ class MainActivityRobolectricScreenshotTest {
     private companion object {
         /** The app's own name with no build badge — see `pinLabel`. */
         const val UNBADGED_APP_NAME = "Type Launcher"
+
+        /**
+         * The longest label any build wears: the CI debug build Firebase
+         * distributes. `android:label` resolves per build type, so the launcher's
+         * own row in its own app list is "Type Launcher" on Play, this on the
+         * tester build, and "Type Launcher Dev" outside CI — this is the one that
+         * stresses the layout.
+         */
+        const val LONGEST_BADGED_APP_NAME = "Type Launcher Debug"
 
         val ALL_FAKE_APP_NAMES = listOf(
             "Browser",
