@@ -150,8 +150,18 @@ val isGitWorkingTreeDirty: Boolean =
         true
     }
 val baseVersionName = "1.0"
-val launcherIconResource = if (isCiBuild) "@mipmap/ic_launcher" else "@mipmap/ic_launcher_local"
-val launcherRoundIconResource = if (isCiBuild) "@mipmap/ic_launcher_round" else "@mipmap/ic_launcher_round_local"
+// One badged icon per build, resolved at manifest-merge time. The Play build is
+// plain; the CI debug build Firebase distributes wears a "DEBUG" bar; any build
+// outside CI wears the "DEV" bar. Both bars use the same yellow plate and dark
+// lettering — only the word differs. Previously the tester build was plain too,
+// so it was indistinguishable from Play on the home screen, which is the one
+// pairing most likely to be installed together since testers get both.
+val devLauncherIcon = "@mipmap/ic_launcher_local"
+val devLauncherRoundIcon = "@mipmap/ic_launcher_round_local"
+val releaseLauncherIcon = if (isCiBuild) "@mipmap/ic_launcher" else devLauncherIcon
+val releaseLauncherRoundIcon = if (isCiBuild) "@mipmap/ic_launcher_round" else devLauncherRoundIcon
+val debugLauncherIcon = if (isCiBuild) "@mipmap/ic_launcher_debug" else devLauncherIcon
+val debugLauncherRoundIcon = if (isCiBuild) "@mipmap/ic_launcher_round_debug" else devLauncherRoundIcon
 
 // The DEV badge on the local icon, said again in the name beside it — the badge
 // is easy to miss at icon size, and the home-role picker and app list are text.
@@ -247,8 +257,6 @@ android {
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
-        manifestPlaceholders["launcherIcon"] = launcherIconResource
-        manifestPlaceholders["launcherRoundIcon"] = launcherRoundIconResource
         buildConfigField("String", "LOCAL_BUILD_BRANCH", buildConfigString(localBuildBranch))
         buildConfigField("String", "LOCAL_BUILD_SHA", buildConfigString(localBuildSha))
         buildConfigField("boolean", "LOCAL_BUILD_DIRTY", localBuildDirty.toString())
@@ -294,6 +302,8 @@ android {
         debug {
             applicationIdSuffix = debugApplicationIdSuffix
             manifestPlaceholders["appLabel"] = debugAppLabel
+            manifestPlaceholders["launcherIcon"] = debugLauncherIcon
+            manifestPlaceholders["launcherRoundIcon"] = debugLauncherRoundIcon
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
             // CI runs R8 in shrink-only mode (see proguard-rules.pro) so tester APKs
@@ -314,6 +324,8 @@ android {
             isMinifyEnabled = isCiBuild
             isShrinkResources = isCiBuild
             manifestPlaceholders["appLabel"] = releaseAppLabel
+            manifestPlaceholders["launcherIcon"] = releaseLauncherIcon
+            manifestPlaceholders["launcherRoundIcon"] = releaseLauncherRoundIcon
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(""))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "true")
             proguardFiles(

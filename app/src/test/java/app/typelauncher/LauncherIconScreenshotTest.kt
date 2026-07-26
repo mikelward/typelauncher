@@ -28,6 +28,14 @@ class LauncherIconScreenshotTest {
         captureIcon(R.mipmap.ic_launcher_local, "ic_launcher_local_robolectric.png")
     }
 
+    @Test
+    fun debugIcon() {
+        // The tester build's icon. It shares the DEV badge's bar and colors and
+        // differs only in the word, and "DEBUG" is the longer word in the same
+        // bar — so this is where unreadable or clipped lettering would show.
+        captureIcon(R.mipmap.ic_launcher_debug, "ic_launcher_debug_robolectric.png")
+    }
+
     private fun captureIcon(resId: Int, filename: String) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

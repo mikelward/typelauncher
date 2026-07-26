@@ -29,7 +29,7 @@
                 android:fillColor="#FF000000"
                 android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
         </group>
-    <!-- Local-build badge: a yellow bar reading "DEV". The two badges are one
+    <!-- Tester-build badge: a yellow bar reading "DEBUG". The two badges are one
          scheme — same bar, same baseline, same typeface (DejaVu Sans Mono) and the
          same cap height — differing only in the word. That cap is 6.0 rather than
          the 7 the DEV bar once used because five letters at 7 span 41.5 viewport
@@ -42,7 +42,7 @@
     <group
         android:scaleX="1.5"
         android:scaleY="1.5"
-        android:translateX="42.610"
+        android:translateX="35.394"
         android:translateY="68.5">
         <path
             android:fillColor="#1A1A1A"
@@ -55,6 +55,14 @@
         <path
             android:fillColor="#1A1A1A"
             android:fillType="evenOdd"
-            android:pathData="M12.39 7.82 13.80 2.50H14.64L12.88 8.50H11.90L10.14 2.50H10.98Z" />
+            android:pathData="M11.39 5.63V7.83H12.35Q13.06 7.83 13.36 7.59Q13.66 7.34 13.66 6.77Q13.66 6.19 13.35 5.91Q13.03 5.63 12.35 5.63ZM11.39 3.17V4.98H12.34Q12.92 4.98 13.19 4.75Q13.45 4.53 13.45 4.02Q13.45 3.57 13.19 3.37Q12.93 3.17 12.34 3.17ZM10.58 2.50H12.35Q13.27 2.50 13.77 2.90Q14.27 3.30 14.27 4.02Q14.27 4.57 14.01 4.89Q13.74 5.21 13.22 5.29Q13.81 5.38 14.14 5.79Q14.48 6.21 14.48 6.85Q14.48 7.67 13.95 8.08Q13.41 8.50 12.35 8.50H10.58Z" />
+        <path
+            android:fillColor="#1A1A1A"
+            android:fillType="evenOdd"
+            android:pathData="M15.46 6.20V2.50H16.27V6.57Q16.27 7.01 16.30 7.19Q16.32 7.38 16.38 7.48Q16.51 7.72 16.75 7.84Q17.00 7.96 17.34 7.96Q17.69 7.96 17.93 7.84Q18.17 7.72 18.31 7.48Q18.37 7.38 18.39 7.19Q18.41 7.01 18.41 6.58V2.50H19.23V6.20Q19.23 7.12 19.11 7.51Q19.00 7.89 18.72 8.15Q18.45 8.38 18.11 8.50Q17.77 8.62 17.34 8.62Q16.92 8.62 16.58 8.50Q16.24 8.38 15.97 8.15Q15.69 7.90 15.57 7.50Q15.46 7.11 15.46 6.20Z" />
+        <path
+            android:fillColor="#1A1A1A"
+            android:fillType="evenOdd"
+            android:pathData="M24.26 8.01Q23.93 8.31 23.52 8.46Q23.12 8.62 22.64 8.62Q21.50 8.62 20.87 7.80Q20.23 6.98 20.23 5.51Q20.23 4.04 20.87 3.21Q21.52 2.39 22.66 2.39Q23.04 2.39 23.39 2.50Q23.73 2.60 24.05 2.82V3.65Q23.73 3.34 23.39 3.20Q23.04 3.05 22.66 3.05Q21.87 3.05 21.47 3.66Q21.08 4.28 21.08 5.51Q21.08 6.76 21.46 7.36Q21.85 7.96 22.64 7.96Q22.91 7.96 23.11 7.90Q23.32 7.83 23.48 7.70V6.09H22.61V5.42H24.26Z" />
     </group>
 </vector>
