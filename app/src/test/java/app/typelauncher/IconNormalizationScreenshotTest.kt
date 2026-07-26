@@ -124,6 +124,38 @@ class IconNormalizationScreenshotTest {
         strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_local_badge_themed_robolectric.png")
     }
 
+    @Test
+    fun debugBadgeThemed() {
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
+
+        // The tester build's icon under the same themed path. The DEV golden
+        // above cannot stand in for it: the two monochrome layers are separately
+        // authored files, and "DEBUG" is the longer word in the same bar, so it
+        // is the one whose cut-outs are most likely to close up or clip. This
+        // layer is also where the T's stem has to stop at the bar — the tint
+        // makes any ink behind the bar bleed through the cut-outs and fill the
+        // letters back in, which is exactly what a golden catches and a reading
+        // of the XML does not.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val tile = 144
+        val gap = 24
+        val themedColors = IconNormalizer.ThemedIconColors(
+            plate = Color.rgb(0xE8, 0xEA, 0xED),
+            glyph = Color.rgb(0x3C, 0x40, 0x43),
+        )
+        val drawable = context.getDrawable(R.mipmap.ic_launcher_debug)!!
+        val normalized = IconNormalizer.normalizeToTile(drawable, tile, themedColors = themedColors)
+
+        val strip = Bitmap.createBitmap(tile + gap * 2, tile + gap * 2, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(strip)
+        canvas.drawColor(Color.rgb(0x9E, 0x9E, 0x9E))
+        drawCircleTile(canvas, normalized, gap.toFloat(), gap.toFloat(), tile.toFloat())
+
+        strip.captureRoboImage(filePath = "src/test/snapshots/images/compose_debug_badge_themed_robolectric.png")
+    }
+
     private fun normalizationCases(): List<Drawable> = listOf(
         // Full-bleed adaptive icon: blue background, white circle foreground.
         AdaptiveIconDrawable(ColorDrawable(Color.rgb(0x1A, 0x73, 0xE8)), whiteCircleForeground()),

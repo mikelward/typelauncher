@@ -8,6 +8,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.math.hypot
 
 class ManifestUnitTest {
     @Test
@@ -54,10 +55,16 @@ class ManifestUnitTest {
         val buildFile = File("build.gradle.kts").readText()
 
         assertTrue(buildFile.contains("providers.environmentVariable(\"CI\")"))
-        assertTrue(buildFile.contains("launcherIconResource = if (isCiBuild) \"@mipmap/ic_launcher\" else \"@mipmap/ic_launcher_local\""))
-        assertTrue(buildFile.contains("launcherRoundIconResource = if (isCiBuild) \"@mipmap/ic_launcher_round\" else \"@mipmap/ic_launcher_round_local\""))
-        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = launcherIconResource"))
-        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = launcherRoundIconResource"))
+        // Three icons, one per build. Only the CI release build is unbadged: the
+        // tester build used to share that plain icon, which made it
+        // indistinguishable from the Play build on a device carrying both.
+        assertTrue(buildFile.contains("val devLauncherIcon = \"@mipmap/ic_launcher_local\""))
+        assertTrue(buildFile.contains("releaseLauncherIcon = if (isCiBuild) \"@mipmap/ic_launcher\" else devLauncherIcon"))
+        assertTrue(buildFile.contains("debugLauncherIcon = if (isCiBuild) \"@mipmap/ic_launcher_debug\" else devLauncherIcon"))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = releaseLauncherIcon"))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = debugLauncherIcon"))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = releaseLauncherRoundIcon"))
+        assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = debugLauncherRoundIcon"))
     }
 
     @Test
@@ -123,33 +130,68 @@ class ManifestUnitTest {
     }
 
     @Test
-    fun launcherIcon_localResourcesIncludeDevBar() {
-        val localIcon = File("src/main/res/mipmap-anydpi/ic_launcher_local.xml").readText()
-        val localRoundIcon = File("src/main/res/mipmap-anydpi/ic_launcher_round_local.xml").readText()
-        val localForeground = File("src/main/res/drawable/ic_launcher_foreground_local.xml").readText()
-        val localMonochrome = File("src/main/res/drawable/ic_launcher_monochrome_local.xml").readText()
+    fun launcherIcon_badgedResourcesShareOneScheme() {
+        // The DEV and DEBUG badges are one scheme: same mark scale and lift, same
+        // bar, same lettering group and baseline, same colors, same typeface and
+        // cap height — only the word differs.
+        listOf("local" to "DEV", "debug" to "DEBUG").forEach { (slug, word) ->
+            val icon = File("src/main/res/mipmap-anydpi/ic_launcher_$slug.xml").readText()
+            val roundIcon = File("src/main/res/mipmap-anydpi/ic_launcher_round_$slug.xml").readText()
+            val foreground = File("src/main/res/drawable/ic_launcher_foreground_$slug.xml").readText()
+            val monochrome = File("src/main/res/drawable/ic_launcher_monochrome_$slug.xml").readText()
 
-        assertTrue(localIcon.contains("@drawable/ic_launcher_background"))
-        assertTrue(localIcon.contains("@drawable/ic_launcher_foreground_local"))
-        assertTrue(localIcon.contains("@drawable/ic_launcher_monochrome_local"))
-        assertTrue(localRoundIcon.contains("@drawable/ic_launcher_background"))
-        assertTrue(localRoundIcon.contains("@drawable/ic_launcher_foreground_local"))
-        assertTrue(localRoundIcon.contains("@drawable/ic_launcher_monochrome_local"))
-        assertTrue(localForeground.contains("DEV bar"))
-        // The badge bar sits inside the safe zone (top at y64) instead of the
-        // cropped bottom ring (the old y92 band that never reached the screen).
-        assertTrue(localForeground.contains("M0,64 H108 V108 H0 Z"))
-        assertTrue(localForeground.contains("android:scaleX=\"1.5\""))
-        assertTrue(localForeground.contains("android:translateY=\"68.5\""))
-        assertTrue(localForeground.contains("#FFC107"))
-        assertTrue(localForeground.contains("M37.01,8.5"))
-        assertTrue(localMonochrome.contains("DEV bar"))
-        // The monochrome badge punches the letters out of the bar as even-odd
-        // cut-outs so the themed-icon tint can't flatten it into a solid block.
-        assertTrue(localMonochrome.contains("android:fillType=\"evenOdd\""))
-        assertTrue(localMonochrome.contains("android:scaleX=\"1.5\""))
-        assertTrue(localMonochrome.contains("android:translateY=\"68.5\""))
-        assertTrue(localMonochrome.contains("M37.01,8.5"))
+            listOf(icon, roundIcon).forEach { adaptive ->
+                assertTrue(adaptive.contains("@drawable/ic_launcher_background"))
+                assertTrue(adaptive.contains("@drawable/ic_launcher_foreground_$slug"))
+                assertTrue(adaptive.contains("@drawable/ic_launcher_monochrome_$slug"))
+            }
+            assertTrue(foreground.contains("reading \"$word\""))
+            listOf(foreground, monochrome).forEach { drawable ->
+                assertTrue(drawable.contains("android:scaleX=\"0.7\""))
+                assertTrue(drawable.contains("android:translateY=\"-12\""))
+                assertTrue(drawable.contains("android:scaleX=\"1.5\""))
+                assertTrue(drawable.contains("android:translateY=\"68.5\""))
+            }
+            // The bar sits inside the safe zone (top at y64) rather than the
+            // cropped bottom ring.
+            assertTrue(foreground.contains("M0,64 H108 V108 H0 Z"))
+            assertTrue(foreground.contains("#FFC107"))
+            assertTrue(foreground.contains("#1A1A1A"))
+            // The themed-icon tint would flatten a second opaque color, so the
+            // monochrome badge punches the letters out of the bar instead.
+            assertTrue(monochrome.contains("android:fillType=\"evenOdd\""))
+        }
+    }
+
+    @Test
+    fun launcherIcon_badgeLetteringStaysInsideTheSafeCircle() {
+        // A badge the launcher crops is worse than no badge — the icon then just
+        // looks like the real one — and the crop only shows on a device with a
+        // circular mask, which no test here can render. So the geometry is
+        // checked against the 66dp safe circle directly, in the resource where it
+        // is authored. "DEBUG" is five letters in the bar that holds three, so
+        // this is what bounds its cap height.
+        val safeRadius = 33.0
+        listOf(
+            "ic_launcher_foreground_local.xml",
+            "ic_launcher_foreground_debug.xml",
+        ).forEach { file ->
+            val lettering = letteringPaths(File("src/main/res/drawable/$file"), "#1A1A1A")
+
+            assertTrue("no lettering found in $file", lettering.isNotEmpty())
+            lettering.forEach { (transform, data) ->
+                pathPoints(data).forEach { (localX, localY) ->
+                    val x = transform.scaleX * localX + transform.translateX
+                    val y = transform.scaleY * localY + transform.translateY
+                    val reach = hypot(x - 54.0, y - 54.0)
+                    assertTrue(
+                        "$file lettering reaches ${reach.toInt()} of the " +
+                            "${safeRadius.toInt()}-unit safe circle — a launcher mask will crop it",
+                        reach <= safeRadius,
+                    )
+                }
+            }
+        }
     }
 
     @Test
@@ -179,6 +221,69 @@ class ManifestUnitTest {
         assertTrue(typeLauncherAppSource.contains("LauncherDebugLog.event"))
         assertTrue(viewModelSource.contains("loadInstalledApps complete"))
     }
+
+    /**
+     * The lettering paths of a badge foreground, each paired with the transform
+     * of the group holding it — both badges author their glyphs inside a
+     * 1.5x-scaled group, so that has to be applied before measuring reach.
+     */
+    private fun letteringPaths(source: File, letterColor: String): List<Pair<GroupTransform, String>> {
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(source)
+        val paths = document.getElementsByTagName("path")
+        return (0 until paths.length)
+            .map { paths.item(it) as Element }
+            .filter { it.getAttribute("android:fillColor") == letterColor }
+            .map { path ->
+                val parent = path.parentNode as Element
+                val transform = if (parent.tagName == "group") {
+                    GroupTransform(
+                        parent.getAttribute("android:scaleX").toDoubleOrNull() ?: 1.0,
+                        parent.getAttribute("android:scaleY").toDoubleOrNull() ?: 1.0,
+                        parent.getAttribute("android:translateX").toDoubleOrNull() ?: 0.0,
+                        parent.getAttribute("android:translateY").toDoubleOrNull() ?: 0.0,
+                    )
+                } else {
+                    GroupTransform(1.0, 1.0, 0.0, 0.0)
+                }
+                transform to path.getAttribute("android:pathData")
+            }
+    }
+
+    /**
+     * Every on- and off-curve coordinate in [data]. For a quadratic or cubic
+     * segment the control points bound the drawn curve from outside, so a point
+     * set inside the safe circle proves the ink is too.
+     */
+    private fun pathPoints(data: String): List<Pair<Double, Double>> {
+        val points = mutableListOf<Pair<Double, Double>>()
+        var x = 0.0
+        var y = 0.0
+        Regex("[A-Za-z][^A-Za-z]*").findAll(data).forEach { segment ->
+            val command = segment.value.first()
+            val numbers = Regex("-?\\d+(?:\\.\\d+)?").findAll(segment.value)
+                .map { it.value.toDouble() }
+                .toList()
+            require(command.isUpperCase()) { "relative command '$command' is not handled" }
+            when (command) {
+                'Z' -> Unit
+                'H' -> numbers.forEach { x = it; points += x to y }
+                'V' -> numbers.forEach { y = it; points += x to y }
+                else -> numbers.chunked(2).forEach { pair ->
+                    x = pair[0]
+                    y = pair[1]
+                    points += x to y
+                }
+            }
+        }
+        return points
+    }
+
+    private data class GroupTransform(
+        val scaleX: Double,
+        val scaleY: Double,
+        val translateX: Double,
+        val translateY: Double,
+    )
 
     private fun parseManifest() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
