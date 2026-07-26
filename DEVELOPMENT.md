@@ -55,7 +55,7 @@ Instrumented tests require an emulator or physical device, so they are not expec
 1. Start an emulator or connect a physical Android device.
 2. Select the `app` configuration.
 3. Click Run.
-4. When Android asks for a default home app, choose Type Launcher if you want to test launcher behavior.
+4. When Android asks for a default home app, choose **Type Launcher Dev** if you want to test launcher behavior — a build made outside CI is labeled that way, so it is distinguishable from a co-installed Play build (plain "Type Launcher") or Firebase tester build ("Type Launcher Debug").
 
 ### Command line
 
@@ -91,7 +91,7 @@ You can list connected devices with:
 adb devices
 ```
 
-After installation, press the device Home button and select Type Launcher when Android prompts for the default launcher.
+After installation, press the device Home button and select **Type Launcher Dev** when Android prompts for the default launcher — that is the label a build made outside CI carries, as distinct from a co-installed Play or tester build.
 
 ## Testing
 
@@ -167,7 +167,7 @@ Recommended manual checks:
 
 - Install the debug build.
 - Launch the app from the app drawer.
-- Press Home and select Type Launcher as the default home app.
+- Press Home and select **Type Launcher Dev** as the default home app (the label a local build carries).
 - Reboot or rotate the emulator if testing launcher persistence or configuration changes.
 
 If an emulator is already running, command-line install and tests can use:
@@ -193,7 +193,7 @@ adb devices
 ./gradlew installDebug
 ```
 
-5. Press Home and select Type Launcher to test it as a launcher.
+5. Press Home and select **Type Launcher Dev** to test it as a launcher (the label a local build carries).
 
 Use a physical device for launcher behavior that may differ from emulators, including gesture navigation, default-home prompts, OEM launchers, and battery or background restrictions.
 
