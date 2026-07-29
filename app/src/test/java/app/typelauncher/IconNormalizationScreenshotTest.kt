@@ -186,6 +186,10 @@ class IconNormalizationScreenshotTest {
         // the field must come from the densest window of bins or the logo would
         // invert.
         whiteLogoOnGradient(),
+        // Multicolor logo on an empty adaptive background (the Google Cloud
+        // case): the plate must be white, not the mark's largest hue painted
+        // behind the whole logo.
+        AdaptiveIconDrawable(ColorDrawable(Color.TRANSPARENT), multicolorLogoForeground()),
         // Hue-only mark: a red ring on an equal-brightness teal field. There is
         // no brightness contrast, so a luminance-only metric flattens it to a
         // solid disc; the color-distance metric keeps the ring.
@@ -214,6 +218,31 @@ class IconNormalizationScreenshotTest {
         val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
         Canvas(bitmap).drawCircle(72f, 72f, 144 * 0.30f / 2f, paint)
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+
+    // A four-color ring on transparency, blue-dominant (blue sweeps the right
+    // half, the other three share the left) — a real logo's shape rather than a
+    // block of color, shipped the way an app ships a mark with an empty adaptive
+    // background layer. The ring's hole exercises the plate on an interior gap as
+    // well as at the corners.
+    private fun multicolorLogoForeground(): Drawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        val oval = RectF(72f - 25f, 72f - 25f, 72f + 25f, 72f + 25f)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 18f
+        }
+        Canvas(bitmap).apply {
+            // Angles run clockwise from 3 o'clock.
+            drawArc(oval, -90f, 180f, false, paint.apply { color = Color.rgb(0x42, 0x85, 0xF4) })
+            drawArc(oval, 90f, 60f, false, paint.apply { color = Color.rgb(0xEA, 0x43, 0x35) })
+            drawArc(oval, 150f, 60f, false, paint.apply { color = Color.rgb(0xFB, 0xBC, 0x05) })
+            drawArc(oval, 210f, 60f, false, paint.apply { color = Color.rgb(0x34, 0xA8, 0x53) })
+        }
         return BitmapDrawable(
             ApplicationProvider.getApplicationContext<android.content.Context>().resources,
             bitmap,

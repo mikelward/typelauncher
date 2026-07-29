@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
@@ -116,6 +117,33 @@ class IconNormalizerTest {
         val tile = IconNormalizer.normalizeToTile(drawable, 100)
 
         assertColorClose(green, tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun adaptiveTransparentBackgroundPlatesWhiteNotTheLogosColor() {
+        // The Google Cloud case: an empty background layer with a multicolor logo
+        // floating on it. The plate must be white — taking the foreground's
+        // dominant color painted the mark's largest hue behind the whole logo and
+        // turned the tile solid blue.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val drawable = AdaptiveIconDrawable(
+            ColorDrawable(Color.TRANSPARENT),
+            BitmapDrawable(resources, fourColorRing(100)),
+        )
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        // The corner is opaque white, not the mark's dominant blue.
+        assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
+        assertColorClose(Color.WHITE, tile.getPixel(2, 2))
+        // The ring's hole is plate too — the backstop fills interior holes, and
+        // this is where a foreground-colored plate was most obviously wrong.
+        assertColorClose(Color.WHITE, tile.getPixel(50, 50))
+        // The mark itself is untouched: its arcs still carry their own colors.
+        // The ring spans radius 16.5..36 about the center after the safe-zone
+        // zoom, so each sample sits mid-band on its own arc.
+        assertColorClose(RING_BLUE, tile.getPixel(76, 50))
+        assertColorClose(RING_YELLOW, tile.getPixel(24, 50))
     }
 
     @Test
@@ -479,6 +507,35 @@ class IconNormalizerTest {
         return bitmap
     }
 
+    /**
+     * A four-color ring on transparency, blue-dominant: blue sweeps the right
+     * half and the other three share the left. Stands in for a real multicolor
+     * logo shipped with an empty adaptive background layer — the shape is a ring
+     * so the plate has an interior hole to fill as well as the corners, and the
+     * blue majority is what a foreground-derived plate used to pick up.
+     *
+     * Geometry (in layer coordinates, before the safe-zone zoom): centered, with
+     * the stroke spanning radius `0.11 * size` to `0.24 * size`.
+     */
+    private fun fourColorRing(size: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val center = size / 2f
+        val radius = size * 0.175f
+        val oval = RectF(center - radius, center - radius, center + radius, center + radius)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = size * 0.13f
+        }
+        val canvas = Canvas(bitmap)
+        // Angles are clockwise from 3 o'clock, so blue covers 12→6 (the right
+        // half) and the remaining three arcs fill 6→12 counter-clockwise.
+        canvas.drawArc(oval, -90f, 180f, false, paint.apply { color = RING_BLUE })
+        canvas.drawArc(oval, 90f, 60f, false, paint.apply { color = RING_RED })
+        canvas.drawArc(oval, 150f, 60f, false, paint.apply { color = RING_YELLOW })
+        canvas.drawArc(oval, 210f, 60f, false, paint.apply { color = RING_GREEN })
+        return bitmap
+    }
+
     private fun squareOnTransparent(size: Int, rect: Rect, color: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val paint = Paint().apply { this.color = color }
@@ -509,5 +566,13 @@ class IconNormalizerTest {
                 kotlin.math.abs(Color.green(expected) - Color.green(actual)) <= tolerance &&
                 kotlin.math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance,
         )
+    }
+
+    private companion object {
+        // The four arcs of [fourColorRing], shared with its call sites' assertions.
+        val RING_BLUE = Color.rgb(0x42, 0x85, 0xF4)
+        val RING_RED = Color.rgb(0xEA, 0x43, 0x35)
+        val RING_YELLOW = Color.rgb(0xFB, 0xBC, 0x05)
+        val RING_GREEN = Color.rgb(0x34, 0xA8, 0x53)
     }
 }

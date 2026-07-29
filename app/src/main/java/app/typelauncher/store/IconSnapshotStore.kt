@@ -235,8 +235,11 @@ internal class IconSnapshotStore(context: Context) {
         // distance rather than brightness alone, so a mark set apart from its
         // background only by hue (same brightness) is kept instead of flattening;
         // _v16 adds an ink deadzone so a multicolor/gradient background stays on
-        // the plate instead of being washed with a faint glyph-color sheen.
-        private const val DIRECTORY_NAME = "icon_snapshots_v16"
+        // the plate instead of being washed with a faint glyph-color sheen;
+        // _v17 plates an adaptive icon with an empty background layer white
+        // rather than the foreground's dominant color, so a multicolor logo on
+        // transparency no longer sits on its own largest hue.
+        private const val DIRECTORY_NAME = "icon_snapshots_v17"
         private const val DIRECTORY_PREFIX = "icon_snapshots"
         private const val RENDERER_STATE_FILE_NAME = "renderer_state"
         private const val EXTENSION = ".bin"

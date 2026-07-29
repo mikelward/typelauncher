@@ -50,8 +50,9 @@ internal object IconNormalizer {
     private val SAFE_ZONE_SCALE = 1f + 2f * AdaptiveIconDrawable.getExtraInsetFraction()
 
     // An adaptive background covering at least this much of the tile is treated
-    // as the fill; a sparser/transparent background falls back to a
-    // dominant-color plate so the tile is still opaque under the logo.
+    // as the fill; a sparser background still plates in its own dominant color,
+    // and an entirely empty one plates white, so the tile is always opaque under
+    // the logo.
     internal const val BACKGROUND_FILL_COVERAGE = 0.65f
 
     // Alpha at/above which a pixel counts as opaque for the coverage test and
@@ -405,8 +406,9 @@ internal object IconNormalizer {
 
     /**
      * Normalizes an adaptive icon exactly as the platform composes it: an
-     * opaque dominant-color plate (a backstop for transparent/sparse
-     * background layers), then the background and foreground layers drawn with
+     * opaque plate (a backstop for transparent/sparse background layers — the
+     * background's own dominant color, or white when the background layer is
+     * empty), then the background and foreground layers drawn with
      * the safe-zone zoom about the tile center — including its crop, since a
      * full-bleed layer (the Play Store foreground) deliberately puts filler in
      * the outer bleed and relies on the zoom to crop it. No layer is ever
@@ -427,18 +429,24 @@ internal object IconNormalizer {
         // transparent area of the background — e.g. a circular background on
         // transparency whose corners fall inside a squircle/system clip — is
         // filled instead of exposing the surface plate. A fully opaque
-        // background simply covers it. The plate takes the background's own
-        // dominant color when the background is the fill, and the foreground's
-        // (the logo's) color when the background is transparent/sparse.
+        // background simply covers it. The plate takes the background layer's
+        // own dominant color whenever that layer has art to extend (a full fill,
+        // or a sparse shape whose color should reach the corners); a layer with
+        // nothing in it at all is white, the backdrop a logo authored to float
+        // on transparency expects.
         val backgroundFills = backgroundAnalysis != null &&
             backgroundAnalysis.coverage >= BACKGROUND_FILL_COVERAGE
         val plate = when {
             backgroundFills -> backgroundAnalysis!!.dominantColor
-            // Only use the foreground's color when it actually has opaque art —
-            // an empty/transparent foreground's dominant color is a meaningless
-            // white fallback, so prefer the (sparse) background's color instead.
-            foregroundAnalysis != null && foregroundAnalysis.coverage > 0f -> foregroundAnalysis.dominantColor
-            backgroundAnalysis != null && backgroundAnalysis.coverage > 0f -> backgroundAnalysis.dominantColor
+            // A sparse-but-present background (a circle or blob on transparency)
+            // is still the tile's own backdrop, so its color fills the corners.
+            backgroundAnalysis != null && backgroundAnalysis.hasVisibleContent ->
+                backgroundAnalysis.dominantColor
+            // A genuinely empty background layer: the app drew its logo on
+            // transparency and the launcher supplies the backdrop. White — never
+            // the foreground's dominant color, which paints a multicolor mark's
+            // largest hue behind the whole logo (Google Cloud's four-color mark
+            // turning the tile solid blue) and washes out every other hue in it.
             else -> Color.WHITE
         }
         canvas.drawColor(plate)
