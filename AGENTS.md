@@ -27,6 +27,7 @@ Android home screen launcher app (Kotlin, single `:app` module).
 ## Git workflow
 
 - Always start work from the latest `origin/main`. Before the first commit on any feature branch, run `git fetch origin main` and rebase the working branch onto `origin/main` (`git rebase origin/main`). This applies even when the branch already exists — a stale branch must be brought current before new work is added.
+- **Remote-less sandbox exception:** if the environment does not provide remote Git support (for example, Codex cloud has no configured `origin` or cannot fetch it), continue from the checked-out commit without fetching or rebasing. Do not block the task or invent a remote; note the limitation in the final update. This exception ends as soon as a working remote is available.
 - **Use `git worktree` when it's available.** Give each branch its own worktree instead of switching branches in place, so work in progress on one branch isn't disturbed by work on another.
 - If the rebase produces conflicts, resolve them rather than abandoning the rebase or branching from an older base.
 - Never push commits authored on top of an out-of-date base when a fast-forward rebase onto `origin/main` was possible.
