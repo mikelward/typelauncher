@@ -508,6 +508,33 @@ internal object IconNormalizer {
         // or a sparse shape whose color should reach the corners); a layer with
         // nothing in it at all is white, the backdrop a logo authored to float
         // on transparency expects.
+        //
+        // TODO(icon plates, follow-up to PR #603): this path and [normalizeFlat]
+        // decide the plate by different rules, and this one is the weaker of the
+        // two. Here the question is "does the background layer have any art at
+        // all"; there it is [PLATE_BACKDROP_FRACTION] — "does the plate end up
+        // covering more than half the drawn tile", which is the better question
+        // because it asks what the user will actually see rather than what the
+        // asset happens to contain. Applying it here too would be a genuine
+        // simplification (one rule, one constant) and is the direction to take
+        // when this needs revisiting.
+        //
+        // It is deliberately not done yet because no icon is known to be hurt by
+        // it, and changing this path churns every adaptive icon's plate plus a
+        // renderer-version bump for a change nobody has seen. The gap is narrow:
+        // it bites only an adaptive icon whose background layer is *sparse but
+        // not empty* — coverage above zero but below BACKGROUND_FILL_COVERAGE —
+        // where that layer's dominant color then floods the whole tile. A small
+        // colored blob or a partial wash behind a logo is the shape of asset that
+        // would do it.
+        //
+        // What to look for: an `iconTile … adaptive bg=…(cov=0.xx …)` line whose
+        // bg coverage sits in (0, BACKGROUND_FILL_COVERAGE) while the rendered
+        // tile reads as a flat field of one color. That is the same complaint
+        // that produced PR #602 (which fixed only the empty-background case and
+        // missed the reported icon entirely) and then #603 — so if a third report
+        // of "this icon is just one color now" arrives and the diagnostic says
+        // `adaptive`, unify the two paths rather than adding a third branch here.
         val backgroundFills = backgroundAnalysis != null &&
             backgroundAnalysis.coverage >= BACKGROUND_FILL_COVERAGE
         val plate = when {
