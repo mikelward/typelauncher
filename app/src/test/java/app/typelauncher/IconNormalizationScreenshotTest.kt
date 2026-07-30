@@ -186,10 +186,14 @@ class IconNormalizationScreenshotTest {
         // the field must come from the densest window of bins or the logo would
         // invert.
         whiteLogoOnGradient(),
-        // Multicolor logo on an empty adaptive background (the Google Cloud
-        // case): the plate must be white, not the mark's largest hue painted
-        // behind the whole logo.
+        // Multicolor logo on an empty adaptive background: the plate must be
+        // white, not the mark's largest hue painted behind the whole logo.
         AdaptiveIconDrawable(ColorDrawable(Color.TRANSPARENT), multicolorLogoForeground()),
+        // The same mark shipped as a plain non-adaptive icon — the real Google
+        // Cloud case (cov 0.38, bounds spanning 0.98 of the tile, so it is drawn
+        // at its authored size and the plate covers 62% of the tile). White plate,
+        // not the mark's blue flooding the tile and its gaps.
+        flatMulticolorMark(),
         // Hue-only mark: a red ring on an equal-brightness teal field. There is
         // no brightness contrast, so a luminance-only metric flattens it to a
         // solid disc; the color-distance metric keeps the ring.
@@ -238,6 +242,29 @@ class IconNormalizationScreenshotTest {
         }
         Canvas(bitmap).apply {
             // Angles run clockwise from 3 o'clock.
+            drawArc(oval, -90f, 180f, false, paint.apply { color = Color.rgb(0x42, 0x85, 0xF4) })
+            drawArc(oval, 90f, 60f, false, paint.apply { color = Color.rgb(0xEA, 0x43, 0x35) })
+            drawArc(oval, 150f, 60f, false, paint.apply { color = Color.rgb(0xFB, 0xBC, 0x05) })
+            drawArc(oval, 210f, 60f, false, paint.apply { color = Color.rgb(0x34, 0xA8, 0x53) })
+        }
+        return BitmapDrawable(
+            ApplicationProvider.getApplicationContext<android.content.Context>().resources,
+            bitmap,
+        )
+    }
+
+    // The same four-color ring as a legacy (non-adaptive) icon, sized to the real
+    // Google Cloud icon's measured geometry: the ring spans radius 0.345..0.49 of
+    // the tile, giving 38% opaque coverage inside bounds that span 98% of the tile.
+    private fun flatMulticolorMark(): Drawable {
+        val bitmap = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+        val radius = 144 * 0.4176f
+        val oval = RectF(72f - radius, 72f - radius, 72f + radius, 72f + radius)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 144 * 0.1448f
+        }
+        Canvas(bitmap).apply {
             drawArc(oval, -90f, 180f, false, paint.apply { color = Color.rgb(0x42, 0x85, 0xF4) })
             drawArc(oval, 90f, 60f, false, paint.apply { color = Color.rgb(0xEA, 0x43, 0x35) })
             drawArc(oval, 150f, 60f, false, paint.apply { color = Color.rgb(0xFB, 0xBC, 0x05) })
