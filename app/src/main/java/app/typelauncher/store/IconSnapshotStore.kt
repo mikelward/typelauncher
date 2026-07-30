@@ -238,8 +238,11 @@ internal class IconSnapshotStore(context: Context) {
         // the plate instead of being washed with a faint glyph-color sheen;
         // _v17 plates an adaptive icon with an empty background layer white
         // rather than the foreground's dominant color, so a multicolor logo on
-        // transparency no longer sits on its own largest hue.
-        private const val DIRECTORY_NAME = "icon_snapshots_v17"
+        // transparency no longer sits on its own largest hue; _v18 extends that to
+        // legacy (non-adaptive) icons — the plate keeps the icon's color only while
+        // it is a backstop for the art's corners and gaps, and is white once it
+        // covers more than half the drawn tile.
+        private const val DIRECTORY_NAME = "icon_snapshots_v18"
         private const val DIRECTORY_PREFIX = "icon_snapshots"
         private const val RENDERER_STATE_FILE_NAME = "renderer_state"
         private const val EXTENSION = ".bin"

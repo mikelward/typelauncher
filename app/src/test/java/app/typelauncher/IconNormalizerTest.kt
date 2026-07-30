@@ -147,6 +147,149 @@ class IconNormalizerTest {
     }
 
     @Test
+    fun flatSparseMarkOnTransparencyPlatesWhiteNotItsOwnColor() {
+        // The real Google Cloud icon: a *non-adaptive* BitmapDrawable whose
+        // four-color mark spans almost the whole tile but leaves most of it
+        // transparent. Its own diagnostic line on a device reads
+        //   flat BitmapDrawable cov=0.38 boundsFraction=0.98 dom=#FF4284F3
+        // and this fixture reproduces those numbers, so the plate used to flood
+        // the tile with the mark's blue. Because the bounds already span the tile
+        // the art is drawn at its authored size, leaving the plate covering 62% of
+        // the tile — a backdrop, so it must be white.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val drawable = BitmapDrawable(resources, fourColorRing(100, arcRadius = 0.4176f, stroke = 0.1448f))
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        assertEquals(255, Color.alpha(tile.getPixel(2, 2)))
+        assertColorClose(Color.WHITE, tile.getPixel(2, 2))
+        // The mark's own gaps are plate as well — the ring's hole is where the
+        // blue flood was most visible.
+        assertColorClose(Color.WHITE, tile.getPixel(50, 50))
+        // The arcs keep their colors: the band spans radius 34.5..49 and is drawn
+        // unscaled, so a sample 42 out sits mid-band.
+        assertColorClose(RING_BLUE, tile.getPixel(92, 50))
+        assertColorClose(RING_YELLOW, tile.getPixel(8, 50))
+    }
+
+    @Test
+    fun flatPaddedShapeKeepsItsOwnColorAsPlate() {
+        // The counterpart that must NOT flip: a solid shape with transparent
+        // padding is enlarged to CONTENT_FRACTION, so the plate is left filling
+        // only the ~15% the shape's rounded corners leave — a backstop, where the
+        // shape's own color is what makes the tile read as one deliberate shape
+        // rather than a logo floating on white.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val coral = Color.rgb(0xFF, 0x6A, 0x4D)
+        val drawable = BitmapDrawable(resources, squareOnTransparent(100, Rect(30, 30, 70, 70), coral))
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        assertColorClose(coral, tile.getPixel(2, 2))
+        assertColorClose(coral, tile.getPixel(50, 50))
+    }
+
+    @Test
+    fun flatPaddedShapeWithFaintShadowKeepsItsOwnColorAsPlate() {
+        // The old-style legacy icon: a colored body over a soft drop shadow that
+        // reaches the canvas edges. The shadow inflates the *bounds* to the whole
+        // tile, so no enlargement happens, while contributing nothing to *opaque*
+        // coverage — a plate estimate built on opaque coverage therefore reported a
+        // mostly-plate tile and whitened a shape that should stay a seamless colored
+        // one. Weighted by alpha the shadow counts for 40/255 of each pixel it
+        // covers, putting the plate at 0.43 of the tile: still a backstop.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val teal = Color.rgb(0x00, 0x89, 0x7B)
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            // A faint shadow over the whole canvas (alpha above VISIBLE_ALPHA but
+            // far below OPAQUE_ALPHA), then an opaque body over 70% of it.
+            drawColor(Color.argb(40, 0, 0, 0))
+            drawRect(15f, 15f, 85f, 85f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = teal })
+        }
+        val drawable = BitmapDrawable(resources, bitmap)
+
+        val tile = IconNormalizer.normalizeToTile(drawable, 100)
+
+        // Inside the body the tile is the icon's own color.
+        assertColorClose(teal, tile.getPixel(50, 50))
+        // Outside it the plate is that same teal — but the icon's shadow is drawn
+        // *over* the plate, so the corner reads as teal multiplied by the shadow's
+        // alpha: 1 - 40/255 = 0.843, taking 0x89 -> 0x73 and 0x7B -> 0x67. The
+        // point is that the corner is still the icon's color at all; the bug being
+        // guarded against made this a white plate (green channel 0xFF, not 0x73).
+        assertColorClose(Color.rgb(0x00, 0x73, 0x67), tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun flatSparseMarkUnderAFaintMatteStillPlatesWhite() {
+        // The counterpart to the shadowed *body* above, and the case a yes/no
+        // visibility test gets wrong: the same sparse mark, but with a faint matte
+        // over the whole bitmap. Counting every faintly-visible pixel as fully
+        // covered would report no exposed plate and flood the tile with the mark's
+        // blue — the exact bug this change exists to remove. Weighted by alpha the
+        // matte adds only 0.157 per uncovered pixel, leaving the plate at 0.52 of
+        // the tile, so the mark still gets a neutral backdrop.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val ring = fourColorRing(100, arcRadius = 0.4176f, stroke = 0.1448f)
+        val matted = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(matted).apply {
+            drawColor(Color.argb(40, 0, 0, 0))
+            drawBitmap(ring, 0f, 0f, null)
+        }
+
+        val tile = IconNormalizer.normalizeToTile(BitmapDrawable(resources, matted), 100)
+
+        // White plate seen through the icon's own matte: 255 * (1 - 40/255) = 215.
+        // Blue here would mean the mark is sitting on its own dominant color again.
+        assertColorClose(Color.rgb(215, 215, 215), tile.getPixel(50, 50))
+        assertColorClose(Color.rgb(215, 215, 215), tile.getPixel(2, 2))
+    }
+
+    @Test
+    fun alphaCoverageWeightsTranslucentPixelsRatherThanCountingThemWhole() {
+        // A faint full-canvas shadow is invisible to `analyze`'s opaque coverage and
+        // would be the whole image under a yes/no visibility test. Alpha weighting
+        // puts it between: the shadow contributes 40/255 per pixel it covers.
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(Color.argb(40, 0, 0, 0))
+            drawRect(30f, 30f, 70f, 70f, Paint().apply { color = Color.RED })
+        }
+
+        assertEquals(0.16f, IconNormalizer.analyze(bitmap).coverage, 0.02f)
+        // 0.16 opaque body + 0.84 of the canvas at 40/255.
+        assertEquals(0.16f + 0.84f * (40f / 255f), IconNormalizer.alphaCoverage(bitmap), 0.02f)
+    }
+
+    @Test
+    fun flatCompactMarkUnderASubVisibleMatteStillPlatesWhite() {
+        // A compact sparse mark over a matte fainter than VISIBLE_ALPHA, so the matte
+        // is excluded from the content bounds but is still most of the source
+        // bitmap's alpha. Estimating the plate's share from the source raster and
+        // scaling it by the enlargement factor amplifies matte alpha that the tile
+        // simply clips away: it reported 0.24 plated (dominant blue) where the tile
+        // actually produced is 0.67 plated. Measuring the composed tile is what makes
+        // this exact, so the mark keeps a neutral backdrop.
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val ring = fourColorRing(100, arcRadius = 0.14f, stroke = 0.04f)
+        val matted = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        Canvas(matted).apply {
+            drawColor(Color.argb(15, 0, 0, 0))
+            drawBitmap(ring, 0f, 0f, null)
+        }
+
+        val tile = IconNormalizer.normalizeToTile(BitmapDrawable(resources, matted), 100)
+
+        // White plate seen through the matte: 255 * (1 - 15/255) = 240. Blue here
+        // would mean the mark is back on its own dominant color.
+        assertColorClose(Color.rgb(240, 240, 240), tile.getPixel(50, 50))
+        assertColorClose(Color.rgb(240, 240, 240), tile.getPixel(2, 2))
+        // The mark itself is enlarged to span radius 34.5..46, so 40 out is mid-band.
+        assertColorClose(RING_BLUE, tile.getPixel(90, 50))
+    }
+
+    @Test
     fun adaptivePartiallyTransparentBackgroundIsPlated() {
         // A circular background on transparency (~78% coverage) takes the
         // "background fills" path; its transparent corners must still be plated
@@ -515,16 +658,16 @@ class IconNormalizerTest {
      * blue majority is what a foreground-derived plate used to pick up.
      *
      * Geometry (in layer coordinates, before the safe-zone zoom): centered, with
-     * the stroke spanning radius `0.11 * size` to `0.24 * size`.
+     * the stroke centered on `arcRadius * size` with width `stroke * size`.
      */
-    private fun fourColorRing(size: Int): Bitmap {
+    private fun fourColorRing(size: Int, arcRadius: Float = 0.175f, stroke: Float = 0.13f): Bitmap {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val center = size / 2f
-        val radius = size * 0.175f
+        val radius = size * arcRadius
         val oval = RectF(center - radius, center - radius, center + radius, center + radius)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = size * 0.13f
+            strokeWidth = size * stroke
         }
         val canvas = Canvas(bitmap)
         // Angles are clockwise from 3 o'clock, so blue covers 12→6 (the right

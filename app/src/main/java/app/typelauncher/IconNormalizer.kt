@@ -3,6 +3,7 @@ package app.typelauncher
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
@@ -43,6 +44,29 @@ internal object IconNormalizer {
     // icon the plate matches the shape so the margin is seamless, and it keeps
     // a genuinely sparse logo from butting against the tile edge.
     internal const val CONTENT_FRACTION = 0.92f
+
+    // Share of the finished tile above which the plate stops being a *backstop*
+    // for the art and becomes the *backdrop* the art sits on — the line that
+    // decides whether a non-adaptive icon's plate takes the icon's own dominant
+    // color or plain white.
+    //
+    // A backstop only fills what the art leaves behind: the corners a rounded
+    // square rounds off tighter than the launcher's clip, and the gaps inside a
+    // shape. There the icon's own color is right — it makes the tile read as one
+    // deliberate shape instead of a logo floating on gray, which is the whole
+    // reason the plate exists. A backdrop is the opposite situation: the art is a
+    // mark sitting *on* the tile, and painting the mark's own largest hue behind
+    // it floods the tile with one of its colors — Google Cloud's four-color mark
+    // on a solid blue field, its other three hues washed out against it, with the
+    // blue showing through the mark's own gaps.
+    //
+    // Half the tile is the natural dividing line and needs no tuning: below it
+    // the art is the tile and the plate fills its gaps; above it the plate is the
+    // tile. What is compared against it is measured on the *composed* tile, after
+    // scaling and clipping (see [alphaCoverage] and [normalizeFlat]) — so a small
+    // padded shape enlarged to CONTENT_FRACTION reads as the tile it becomes, and
+    // art already spanning the tile reads as the mark it stays.
+    internal const val PLATE_BACKDROP_FRACTION = 0.5f
 
     // Adaptive icons are framed with the platform's safe-zone zoom — the 72/108
     // safe-zone viewport fills the tile — exactly as a stock launcher renders
@@ -379,29 +403,79 @@ internal object IconNormalizer {
     }
 
     /**
-     * Composes a non-adaptive [drawable] onto a dominant-color plate: a
-     * full-bleed icon is drawn edge-to-edge (no mismatched ring), a padded or
-     * sparse icon is enlarged to [CONTENT_FRACTION] and centered, and the plate
-     * fills any transparent corners or interior holes with the icon's own
-     * color. The drawable is re-drawn under a scale matrix rather than
-     * upscaling its bitmap, so a vector icon stays crisp when enlarged.
+     * Composes a non-adaptive [drawable] onto a plate: a full-bleed icon is drawn
+     * edge-to-edge (no mismatched ring), a padded or sparse icon is enlarged to
+     * [CONTENT_FRACTION] and centered, and the plate fills any transparent
+     * corners or interior holes. The drawable is re-drawn under a scale matrix
+     * rather than upscaling its bitmap, so a vector icon stays crisp when
+     * enlarged.
+     *
+     * The plate is the icon's own dominant color while it stays a *backstop* —
+     * filling the corners a rounded shape leaves and the gaps inside it, so the
+     * tile reads as one shape — and white once it becomes the *backdrop* the art
+     * merely sits on (see [PLATE_BACKDROP_FRACTION]).
      */
     private fun normalizeFlat(drawable: Drawable, sizePx: Int, debugLabel: String = ""): Bitmap {
         val raw = rasterizeFullBleed(drawable, sizePx)
         val analysis = analyze(raw)
         raw.recycle()
         val fillFraction = if (analysis.coverage >= FULL_BLEED_COVERAGE) 1f else CONTENT_FRACTION
+
+        // Draw the art onto transparency *first*, then measure the tile it actually
+        // produced. That makes the plate's share an exact quantity rather than an
+        // estimate: no assumption about how the scale, the framing, or the tile's own
+        // clip redistribute the art. Estimating it from the source raster cannot be
+        // made correct — scaling a whole-canvas mean alpha by scale² amplifies alpha
+        // that lies outside the scaled bounds and is really just clipped away, which
+        // reads a compact sparse mark over a faint matte as a full tile and hands it
+        // back its own dominant color.
+        //
+        // [alphaCoverage] weights each pixel by how much of it the art paints, which
+        // is precisely the complement of what the plate supplies. Neither
+        // all-or-nothing measure works: opaque coverage ignores a soft shadow that
+        // does obscure the plate, while counting every faintly-visible pixel whole
+        // overshoots just as far, since an alpha-16 pixel takes 94% of its color from
+        // the plate. Weighted by alpha, a full-canvas alpha-40 shadow rescues a solid
+        // body's seamless tile (0.43 plated) but does not rescue a sparse mark from
+        // getting a neutral backdrop (0.52).
+        val content = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(content)
+        drawDrawableScaled(canvas, drawable, analysis.bounds, sizePx, fillFraction)
+        val platedFraction = 1f - alphaCoverage(content)
+        val plate = if (platedFraction > PLATE_BACKDROP_FRACTION) Color.WHITE else analysis.dominantColor
+        // Fill the plate in behind what is already drawn, rather than laying it down
+        // first and redrawing the art over it.
+        canvas.drawColor(plate, PorterDuff.Mode.DST_OVER)
+
         if (debugLabel.isNotEmpty()) {
             LauncherDebugLog.trace(
                 "iconTile $debugLabel sizePx=$sizePx flat ${drawable.javaClass.simpleName} " +
-                    "${analysis.describe(sizePx)} fillFraction=$fillFraction",
+                    "${analysis.describe(sizePx)} fillFraction=$fillFraction " +
+                    "plated=${"%.2f".format(platedFraction)} plate=${hexColor(plate)}",
             )
         }
-        val content = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(content)
-        canvas.drawColor(analysis.dominantColor)
-        drawDrawableScaled(canvas, drawable, analysis.bounds, sizePx, fillFraction)
         return content
+    }
+
+    /**
+     * Mean alpha of [bitmap], 0..1 — the fraction of the image's color that its own
+     * art supplies, so `1 - alphaCoverage` is the share left to whatever sits
+     * behind it. Weighting by alpha rather than testing against a threshold is what
+     * makes a soft shadow count in proportion to its opacity instead of as all or
+     * nothing.
+     *
+     * Deliberately narrower than [analyze]: no bounds, no color histogram, so the
+     * extra pass this adds to the legacy-icon path is a sum over the pixel buffer
+     * rather than a per-pixel map insert. Visible for unit tests.
+     */
+    internal fun alphaCoverage(bitmap: Bitmap): Float {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        var alphaSum = 0L
+        for (pixel in pixels) alphaSum += (pixel ushr 24) and 0xFF
+        return alphaSum.toFloat() / ((width * height).coerceAtLeast(1) * 255f)
     }
 
     /**
@@ -614,13 +688,6 @@ internal object IconNormalizer {
     }
 
     /**
-     * Fills a fresh `sizePx` tile with [IconAnalysis.dominantColor] and draws
-     * the visible content of [raw] (its [IconAnalysis.bounds] region) scaled so
-     * its larger side spans [fillFraction] of the tile and centered, so a
-     * full-bleed icon (`fillFraction == 1`) covers the tile while a padded
-     * colored icon or sparse logo sits on an intentional dominant-color backdrop.
-     */
-    /**
      * Draws [drawable] so the visible content currently at [contentBounds] (in a
      * full-bounds `sizePx` rasterization) is scaled to span [fillFraction] of the
      * tile and centered. The drawable is rendered under a `Canvas` scale matrix
@@ -637,8 +704,8 @@ internal object IconNormalizer {
     ) {
         val contentMax = maxOf(contentBounds.width(), contentBounds.height()).coerceAtLeast(1)
         // Enlarge undersized content up to the target, but never shrink content
-        // that already fills its bounds — shrinking would expose a background
-        // border around foreground art that was meant to be full-size.
+        // that already fills its bounds — shrinking would expose a plate border
+        // around art that was meant to be full-size.
         val scale = ((sizePx * fillFraction) / contentMax).coerceAtLeast(1f)
         val centerX = contentBounds.exactCenterX()
         val centerY = contentBounds.exactCenterY()
