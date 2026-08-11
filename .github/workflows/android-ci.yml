@@ -187,11 +187,26 @@ jobs:
           done
           if [ -n "$PR_NUMBER" ] && [ -n "$summary" ]; then
             body=$'<!-- ci-failure -->'$'\n'"**${JOB_NAME} failed.** Failing test reports:"$'\n'"$summary"
-            curl -sS -X POST \
+            # GitHub rejects comments over 65536 characters, and a wide failure
+            # can produce more XML than that. Trim to fit rather than losing the
+            # whole comment; the artifact still has everything.
+            if [ "${#body}" -gt 60000 ]; then
+              body="${body:0:60000}"$'\n```\n\n_Truncated — the full reports are in the `unit-test-reports` artifact._'
+            fi
+            # --fail-with-body, not a bare `curl -sS`: a 4xx/5xx (missing write
+            # permission, an over-long body) otherwise exits 0 and the comment
+            # silently never appears. That matters more here than usual, because
+            # AGENTS.md reads "no PR comment" as evidence the failure happened
+            # *before* the tests ran — so a dropped comment doesn't just lose
+            # data, it points the next reader at the wrong stage.
+            if ! curl -sS --fail-with-body -o /tmp/pr-comment-response.json -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              -d "$(jq -n --arg body "$body" '{body:$body}')" > /dev/null
+              -d "$(jq -n --arg body "$body" '{body:$body}')"; then
+              echo "::warning::Could not post the failing-test comment; the reports are in the job log above and in the unit-test-reports artifact."
+              cat /tmp/pr-comment-response.json
+            fi
           fi
 
       - name: Upload unit test reports
