@@ -31,6 +31,10 @@
 
      The right answer probably combines (4) for known-unreachable cases with (1) or (2) as the safety net for genuinely unexpected races.
 
+## CI
+
+- Stop the screenshot-diff comment from failing silently, the same way the failing-test comment just was. The `Post screenshot diffs` step uses a bare `curl -sS` for all three calls — the lookup for an existing comment, the PATCH that updates it, and the POST that creates it — so an HTTP 4xx/5xx exits 0 and the diff comment simply never appears, with nothing in the job log to say why. The PATCH and POST take the same `--fail-with-body` treatment as the failing-test comment. The **lookup** is the one that needs care and is why this wasn't folded into that fix: it feeds `existing=$(curl … | jq …)`, so failing it open yields an empty id and the step posts a *duplicate* comment instead of updating the old one — it needs an explicit HTTP-status check (`-w '%{http_code}'` or `--fail-with-body` plus a separate empty-vs-error distinction), not a straight swap. Same follow-up is queued in `mikelward/simmo`, and noted in `mikelward/snoozemo` for whenever its screenshot job lands.
+
 ## Layout, caching, rendering, and recomposition follow-ups
 
 - Split `LauncherUiState` consumption into smaller screen/subtree projections so typing, widget, and settings updates do not invalidate broad composition scopes. Candidate slices: theme, home/search/results, keyboard tray, carousel, widgets, and settings.
