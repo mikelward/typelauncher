@@ -33,8 +33,7 @@
 
 ## CI
 
-- Fan the screenshot-diff comment's error handling out to the sibling repos. The `Post screenshot diffs` step here now checks every API call — the lookup gets an explicit `-w '%{http_code}'` status test plus a jq-parse test and skips (rather than posting a duplicate) when it can't tell what's already on the PR; the PATCH and POST use `--fail-with-body` and raise a `::warning::`. The same follow-up is still queued in `mikelward/simmo`, and noted in `mikelward/snoozemo` for whenever its screenshot job lands.
-- Follow pagination in the screenshot-diff comment lookup, or drop the need for it. The lookup reads only `?per_page=100` and never follows the `Link` header, so once a PR passes 100 issue comments the existing screenshot-diff comment falls off page one and the step posts a *duplicate* instead of updating it — the same symptom the HTTP-status check just closed, from a different cause. Options: walk the `Link` header until the marker is found; ask for `&sort=updated&direction=desc` so the comment (re-touched every run) stays near the head; or stop searching altogether by stashing the comment id somewhere stable. Not urgent — no PR here has come close to 100 general comments — but it fails the same silent way when it does.
+- Stop searching for the screenshot-diff comment altogether. The lookup now paginates (`gh api --paginate`), which is correct at any comment count but is still a search costing O(comments) API calls per run on a long PR. Stashing the comment id somewhere stable — a workflow-run output, a branch note, the check-run summary — would make the upsert a direct PATCH. Not urgent; this is about cost and simplicity, not correctness.
 
 ## Layout, caching, rendering, and recomposition follow-ups
 
