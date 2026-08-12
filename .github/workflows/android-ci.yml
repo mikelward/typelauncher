@@ -566,11 +566,19 @@ jobs:
           # id indistinguishable from a genuine no-match and so needed the
           # status and the parse checked by hand. Either way the answer is
           # skip, not guess.
-          if ! existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
-            --jq '[.[] | select((.body // "") | startswith("<!-- screenshot-diff -->"))][0].id // empty'); then
+          #
+          # --paginate for the same reason: reading only the first page meant
+          # that past 100 issue comments the marker fell off it and the step
+          # posted a duplicate — the same symptom as a swallowed error, from a
+          # different cause. With --paginate the jq filter runs once per page,
+          # so it emits matching ids as lines and this takes the first rather
+          # than indexing into a single page's array.
+          if ! ids=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '.[] | select((.body // "") | startswith("<!-- screenshot-diff -->")) | .id'); then
             echo "::warning::Could not list PR comments; skipping the screenshot-diff comment rather than risking a duplicate. The snapshots are in the roborazzi-screenshots artifact."
             exit 0
           fi
+          existing="${ids%%$'\n'*}"
           # A failed PATCH/POST can fail open — nothing is duplicated, the
           # comment just doesn't appear — but it must still say why. `gh api`
           # exits non-zero and prints the response on a 4xx/5xx (a missing
