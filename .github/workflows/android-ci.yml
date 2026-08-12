@@ -193,19 +193,18 @@ jobs:
             if [ "${#body}" -gt 60000 ]; then
               body="${body:0:60000}"$'\n```\n\n_Truncated — the full reports are in the `unit-test-reports` artifact._'
             fi
-            # --fail-with-body, not a bare `curl -sS`: a 4xx/5xx (missing write
-            # permission, an over-long body) otherwise exits 0 and the comment
-            # silently never appears. That matters more here than usual, because
-            # AGENTS.md reads "no PR comment" as evidence the failure happened
-            # *before* the tests ran — so a dropped comment doesn't just lose
-            # data, it points the next reader at the wrong stage.
-            if ! curl -sS --fail-with-body -o /tmp/pr-comment-response.json -X POST \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              -d "$(jq -n --arg body "$body" '{body:$body}')"; then
+            # `gh api`, not `curl`: it exits non-zero on a 4xx/5xx and prints
+            # the response itself, where a bare `curl -sS` exits 0 and the
+            # comment silently never appears. That matters more here than
+            # usual, because AGENTS.md reads "no PR comment" as evidence the
+            # failure happened *before* the tests ran — so a dropped comment
+            # doesn't just lose data, it points the next reader at the wrong
+            # stage. Raising the warning is still ours to do: the step runs
+            # under `if: failure()`, so the job is already red and what a
+            # reader needs is a line saying where the reports went.
+            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$body" > /dev/null; then
               echo "::warning::Could not post the failing-test comment; the reports are in the job log above and in the unit-test-reports artifact."
-              cat /tmp/pr-comment-response.json
             fi
           fi
 
@@ -518,7 +517,7 @@ jobs:
         #
         # continue-on-error: this is a convenience comment, not a gate. A
         # transient GitHub API hiccup (a non-JSON response breaking the
-        # `curl | jq` comment lookup has been seen here) must not turn the
+        # comment lookup has been seen here) must not turn the
         # whole screenshot job red — the snapshots are already committed and
         # in the roborazzi-screenshots artifact regardless. Every API call
         # below still checks its own status and raises a ::warning::, so
@@ -558,55 +557,38 @@ jobs:
               body+=$'\n'"**Changed — \`${name}\`**"$'\n\n'"| Before | After |"$'\n'"| --- | --- |"$'\n'"| <img src=\"${raw}/${BASE_SHA}/${path}\" width=\"320\"> | <img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\"> |"$'\n'
             fi
           done
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
-          payload=$(jq -n --arg body "$body" '{body:$body}')
           # The lookup can't fail open the way the PATCH/POST below can. Its
           # result picks update-vs-create, so an error swallowed into an empty
           # id doesn't lose the comment — it posts a *duplicate* one, and every
-          # later run duplicates again. `curl -sS` alone can't tell those apart
-          # (a 4xx/5xx exits 0, and jq turns the error body into `empty` just
-          # like a genuine no-match would), so check the status explicitly and
-          # treat anything but a parsable 200 as "don't know" — which means
-          # skip, not post.
-          lookup_code=$(curl -sS -o /tmp/screenshot-diff-comments.json -w '%{http_code}' \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "${api}/issues/${PR_NUMBER}/comments?per_page=100") || lookup_code="000"
-          if [ "$lookup_code" != "200" ]; then
-            echo "::warning::Could not list PR comments (HTTP ${lookup_code}); skipping the screenshot-diff comment rather than risking a duplicate. The snapshots are in the roborazzi-screenshots artifact."
-            cat /tmp/screenshot-diff-comments.json || true
+          # later run duplicates again. `gh api` collapses what that needed
+          # into one check: it exits non-zero on an HTTP error *and* on a body
+          # jq can't parse, where `curl -sS | jq` turned either into an empty
+          # id indistinguishable from a genuine no-match and so needed the
+          # status and the parse checked by hand. Either way the answer is
+          # skip, not guess.
+          if ! existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '[.[] | select((.body // "") | startswith("<!-- screenshot-diff -->"))][0].id // empty'); then
+            echo "::warning::Could not list PR comments; skipping the screenshot-diff comment rather than risking a duplicate. The snapshots are in the roborazzi-screenshots artifact."
             exit 0
           fi
-          if ! existing=$(jq -r '[.[] | select(.body | startswith("<!-- screenshot-diff -->"))][0].id // empty' /tmp/screenshot-diff-comments.json); then
-            echo "::warning::PR comment list was not parsable JSON; skipping the screenshot-diff comment rather than risking a duplicate. The snapshots are in the roborazzi-screenshots artifact."
-            head -c 2000 /tmp/screenshot-diff-comments.json
-            exit 0
-          fi
-          # --fail-with-body, not a bare `curl -sS`: a 4xx/5xx (a missing
-          # `pull-requests: write`, a deleted comment id, an over-long body)
-          # otherwise exits 0 and the comment silently never appears, with
-          # nothing in the log to say why.
+          # A failed PATCH/POST can fail open — nothing is duplicated, the
+          # comment just doesn't appear — but it must still say why. `gh api`
+          # exits non-zero and prints the response on a 4xx/5xx (a missing
+          # `pull-requests: write`, a deleted comment id, an over-long body),
+          # so the warning is all this has left to add.
           if [ -n "$existing" ]; then
-            if curl -sS --fail-with-body -o /tmp/screenshot-diff-response.json -X PATCH \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "${api}/issues/comments/${existing}" \
-              -d "$payload"; then
+            if gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+              -f body="$body" > /dev/null; then
               echo "Updated screenshot-diff comment ${existing}."
             else
               echo "::warning::Could not update screenshot-diff comment ${existing}; the snapshots are in the roborazzi-screenshots artifact."
-              cat /tmp/screenshot-diff-response.json
             fi
           else
-            if curl -sS --fail-with-body -o /tmp/screenshot-diff-response.json -X POST \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "${api}/issues/${PR_NUMBER}/comments" \
-              -d "$payload"; then
+            if gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$body" > /dev/null; then
               echo "Posted new screenshot-diff comment."
             else
               echo "::warning::Could not post the screenshot-diff comment; the snapshots are in the roborazzi-screenshots artifact."
-              cat /tmp/screenshot-diff-response.json
             fi
           fi
 
