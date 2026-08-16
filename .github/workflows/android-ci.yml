@@ -1,36 +1,13 @@
 name: Android CI
 
 on:
+  # No paths filter on pull_request, deliberately: the main ruleset requires
+  # the `gate` check, and a required check that never reports blocks the PR
+  # forever — which is exactly what a path-filtered-out workflow produces.
+  # Housekeeping-only PRs skip the heavy jobs via `classify` instead, and
+  # `gate` verifies the skip was justified (scripts/docs-lane.sh has the
+  # full design rationale).
   pull_request:
-    # Skip CI for pushes whose every changed path is housekeeping that
-    # has no effect on the app build:
-    #   - documentation (CLAUDE.md, SPEC.md, docs/*), with PRIVACY.md
-    #     negated back in because it backs the hosted privacy policy
-    #     linked from the About dialog — a PRIVACY.md-only push still
-    #     needs to build and (on main) ship a Play release;
-    #   - any dotfile at the repo root (`.gitignore`, `.editorconfig`,
-    #     `.gitattributes`, …) or anything under any dotdir at the repo
-    #     root (`.claude/`, `.idea/`, `.vscode/`, `.cursor/`,
-    #     `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml`, …), with
-    #     `.github/workflows/**` re-included so workflow edits
-    #     re-trigger CI and validate themselves.
-    # This uses `paths` (an allow-list), NOT `paths-ignore`: `!` negation
-    # only re-includes files under `paths`. Under `paths-ignore` every
-    # entry is a pure exclusion and the `!` re-includes are silently
-    # ignored, so a PRIVACY.md-only or workflow-only change was being
-    # skipped exactly where the comment above says it must run. Patterns
-    # are applied in order and the last match wins per file: match
-    # everything, exclude docs + root dotfiles/dotdirs, then re-include
-    # PRIVACY.md and the workflows. A push runs when at least one changed
-    # file survives as included; a housekeeping-only push matches nothing
-    # and is skipped.
-    paths:
-      - '**'
-      - '!**/*.md'
-      - '!.*'
-      - '!.*/**'
-      - 'PRIVACY.md'
-      - '.github/workflows/**'
   push:
     branches:
       - main
@@ -49,9 +26,21 @@ on:
   # their device anyway — e.g. to read diagnostic logging that hasn't
   # shipped because every commit since the last release was `internal:`
   # (or `ci:` / `docs:` / `refactor:` / `test:` / `tests:`) prefixed.
-  # No inputs: dispatching always targets the selected ref (main by
-  # default in the UI) and the `deploy` job's `if:` below re-checks that.
+  # Two callers now: the deploy-force above (no inputs, main only), and the
+  # screenshot job's refresh step, whose GITHUB_TOKEN push starts no
+  # workflow run and so dispatches this workflow onto the head it just
+  # pushed, naming its PR — or the required `gate` check would exist only on
+  # the refreshed commit's parent. A dispatch that names a PR is bound to it
+  # (head SHA verified, sole open PR verified, merge-ref build); one that
+  # doesn't is allowed only on main, where it runs the full code lane.
+  # scripts/docs-lane.sh enforces all of that.
   workflow_dispatch:
+    inputs:
+      pr:
+        description: >-
+          Pull request number this run reports for (the screenshot-refresh
+          dispatch sets it; leave empty only for a deploy-force on main).
+        required: false
 
 # No workflow-level permissions — each job declares the least-privilege
 # scope it needs. Workflow-level `pull-requests: write` would also leak
@@ -59,9 +48,41 @@ on:
 # back to the PR.
 
 jobs:
+  # Decides whether the heavy jobs may skip: true only when every changed
+  # file in the PR is housekeeping (see scripts/docs-lane.sh for the rule).
+  # Pushes to main and PR-less deploy-force dispatches are always classified
+  # as code, so they run everything; a dispatch that names a PR classifies
+  # that PR's real diff, exactly as the PR run would.
+  classify:
+    name: Classify the diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.run.outputs.docs_only }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - name: Self-test the lane rules
+        # A broken rule fails here, the heavy jobs skip on the failed
+        # dependency, and the gate goes red — fail closed, never green.
+        run: bash scripts/docs-lane.test.sh
+      - name: Classify
+        id: run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+        run: scripts/docs-lane.sh classify >> "$GITHUB_OUTPUT"
+
   build:
     name: Build and unit test
     runs-on: ubuntu-latest
+    needs: classify
+    if: needs.classify.outputs.docs_only != 'true'
     # Without this the job inherits GitHub's 6-hour default, so a unit test
     # that deadlocks (a latch that never releases, an await with no timeout)
     # burns hours before the runner is reclaimed instead of failing fast. The
@@ -91,6 +112,11 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
+          # A dispatch that names a PR builds that PR's merge ref, not the
+          # bare branch — otherwise a dispatch could green the gate without
+          # compiling the PR-merged tree. A PR-less (deploy-force) dispatch
+          # keeps the dispatched ref.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.pr != '' && format('refs/pull/{0}/merge', inputs.pr) || '' }}
 
       - name: Set up JDK
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
@@ -107,7 +133,7 @@ jobs:
           # on that branch (or a rebase / force-push retry by the
           # reviewer) will silently consume. Lock PRs to read-only;
           # only main pushes write the shared cache.
-          cache-read-only: ${{ github.event_name == 'pull_request' }}
+          cache-read-only: ${{ github.event_name != 'push' }}
 
       - name: Materialize debug keystore
         # Decode the checked-in-only-as-a-secret debug keystore so CI-built APKs
@@ -172,7 +198,7 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           JOB_NAME: ${{ github.job }}
         run: |
           shopt -s nullglob globstar
@@ -229,8 +255,16 @@ jobs:
   connected-tests:
     name: Keyboard screenshot unit tests
     runs-on: ubuntu-latest
+    needs: classify
+    if: needs.classify.outputs.docs_only != 'true'
     timeout-minutes: 30
     permissions:
+      # So the refresh step can dispatch this workflow onto the head it just
+      # pushed — a GITHUB_TOKEN push starts no run by itself, and without one
+      # the required `gate` check never reports on the refreshed commit. The
+      # refresh path only runs on same-repo PRs, whose author already has
+      # push access, so this grant widens nothing for that attacker.
+      actions: write
       # Write so "Commit refreshed screenshots" below can push regenerated
       # snapshot PNGs back to a same-repo PR branch, and so "Post screenshot
       # diffs" can upsert its PR comment. Every other step only reads the
@@ -270,7 +304,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
         with:
-          cache-read-only: ${{ github.event_name == 'pull_request' }}
+          cache-read-only: ${{ github.event_name != 'push' }}
 
       - name: Clear committed snapshots before recording
         # Recording only overwrites files the suites still produce: a PNG
@@ -433,11 +467,12 @@ jobs:
         #     recursion prevention — not the fork-contributor approval flow),
         #     and the marker-subject check below is belt-and-braces for
         #     setups that swap in a PAT. Corollary: the refreshed head
-        #     carries no fresh check runs. That is an accepted trade — the
-        #     commit only contains PNGs produced by the suites that just
-        #     passed on the same tree, and this repo does not gate merges on
-        #     required status checks. A PAT would re-trigger CI but also
-        #     re-open the flaky-snapshot commit loop the no-retrigger
+        #     would carry no fresh check runs on its own — which the
+        #     required `gate` check cannot tolerate — so this step
+        #     explicitly dispatches the workflow onto the new head below
+        #     (workflow_dispatch is the documented exception to the
+        #     no-retrigger rule). A PAT would re-trigger CI too but would
+        #     also re-open the flaky-snapshot commit loop the no-retrigger
         #     property closes for free.
         #   - A concurrent human push between checkout and here makes the
         #     push fail; that's surfaced as a warning, not a red job — the
@@ -501,6 +536,16 @@ jobs:
               exit 0
             fi
             echo "::error::Screenshot refresh push to ${GITHUB_HEAD_REF} failed for a non-race reason; the snapshot sync automation is broken."
+            exit 1
+          fi
+          # The push above starts no workflow run — GITHUB_TOKEN pushes never
+          # do — so without this dispatch the refreshed head carries no checks
+          # and the required `gate` blocks the PR forever, silently. Dispatch
+          # is the documented exception; fail loudly if it doesn't take,
+          # because "CI never started" and "CI passed quietly" look identical
+          # from the PR.
+          if ! gh workflow run android-ci.yml --ref "$GITHUB_HEAD_REF" -f pr="${{ github.event.pull_request.number }}"; then
+            echo "::error::Pushed a refresh commit but could not start CI on it (is workflow_dispatch with the pr input on main yet?). Dispatch this workflow on the branch by hand from the Actions tab."
             exit 1
           fi
 
@@ -620,6 +665,38 @@ jobs:
             app/build/test-results/
           if-no-files-found: ignore
           retention-days: 1
+
+  # The one check the main ruleset requires. Always runs, always reports —
+  # green only when every heavy job succeeded, or when they were skipped and
+  # the skip is INDEPENDENTLY verified as justified: the diff re-derived as
+  # housekeeping-only and every commit subject carrying a housekeeping
+  # prefix. Any other combination is an explicit red, never a silent pass.
+  # `deploy` is not in the needs list on purpose: it only runs on main
+  # pushes and deploy-force dispatches, never on a PR, so including it
+  # would read as a permanent skip and wedge every code-lane verdict.
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [classify, build, connected-tests]
+    if: always()
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - name: Verdict
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+          CLASSIFY: ${{ needs.classify.result }}
+          RESULTS: >-
+            build=${{ needs.build.result }}
+            screenshots=${{ needs.connected-tests.result }}
+        run: scripts/docs-lane.sh gate
 
   deploy:
     name: Distribute and release
