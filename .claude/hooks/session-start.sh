@@ -4,8 +4,8 @@
 # Remote (web) sessions start from a fresh container where ANDROID_HOME points
 # at an SDK that is not yet installed, so Gradle builds, unit tests, lint, and
 # Roborazzi screenshot tests cannot run until the SDK is seeded. This installs
-# the command-line tools and the base platform; AGP 9.2.0 auto-installs the
-# compileSdk minor platform (android-36.1) and a matching build-tools on the
+# the command-line tools and the base platform; AGP 9.3.1 auto-installs the
+# compileSdk minor platform (android-37.1) and a matching build-tools on the
 # first build. Local and desktop environments manage their own SDK, so this is
 # a no-op outside the remote environment.
 set -euo pipefail
@@ -17,7 +17,7 @@ fi
 
 ANDROID_SDK_ROOT="${ANDROID_HOME:-/opt/android-sdk}"
 CMDLINE_TOOLS_BUILD="${CMDLINE_TOOLS_BUILD:-13114758}"
-PLATFORM="platforms;android-36"
+PLATFORM="platforms;android-37.0"
 
 export ANDROID_HOME="$ANDROID_SDK_ROOT"
 export ANDROID_SDK_ROOT

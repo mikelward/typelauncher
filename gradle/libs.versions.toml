@@ -1,5 +1,6 @@
 [versions]
-agp = "9.2.0"
+agp = "9.3.1"
+kotlin = "2.4.10"
 activity = "1.13.0"
 composeBom = "2026.05.01"
 coreKtx = "1.18.0"
@@ -47,6 +48,7 @@ play-app-update = { group = "com.google.android.play", name = "app-update", vers
 androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
 
 [plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradle" }
