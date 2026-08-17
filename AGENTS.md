@@ -179,12 +179,12 @@ difference; do not assume "Cursor Cloud only."
 
 ### Environment
 
-- **JDK 21** is pre-installed on the VM. AGP 9.2.0 requires JDK 17+.
+- **JDK 21** is pre-installed on the VM. AGP 9.3.1 requires JDK 17+.
 - **Android SDK location** is `/opt/android-sdk` (`ANDROID_HOME` / `ANDROID_SDK_ROOT`). How it gets there differs by environment:
   - **Cursor Cloud**: the SDK is pre-installed at `/opt/android-sdk`, with `ANDROID_HOME`, `JAVA_HOME`, and `PATH` set via `~/.bashrc`. In non-login/non-interactive shells (e.g. plain `Shell` tool calls), you may need to `source ~/.bashrc` or export these variables explicitly before running Gradle commands.
-  - **Claude Code on the web**: the container starts with `ANDROID_HOME` set but the SDK *not yet installed*. The `SessionStart` hook at `.claude/hooks/session-start.sh` provisions it (command-line tools + `platforms;android-36` + `platform-tools`, licenses accepted) at the start of every web session, so by the time the agent loop runs, `./gradlew` builds, tests, and lint work. If you ever find `/opt/android-sdk` empty mid-session, run that hook manually (`CLAUDE_CODE_REMOTE=true .claude/hooks/session-start.sh`) rather than hand-installing.
-- The Gradle wrapper (`./gradlew`) auto-downloads Gradle 9.4.1 on first run.
-- AGP auto-installs `Android SDK Platform 36.1` (compileSdk minor API level 1) on the first build if only `platforms;android-36` is present — which is exactly what the hook seeds.
+  - **Claude Code on the web**: the container starts with `ANDROID_HOME` set but the SDK *not yet installed*. The `SessionStart` hook at `.claude/hooks/session-start.sh` provisions it (command-line tools + `platforms;android-37.0` + `platform-tools`, licenses accepted) at the start of every web session, so by the time the agent loop runs, `./gradlew` builds, tests, and lint work. If you ever find `/opt/android-sdk` empty mid-session, run that hook manually (`CLAUDE_CODE_REMOTE=true .claude/hooks/session-start.sh`) rather than hand-installing.
+- The Gradle wrapper (`./gradlew`) auto-downloads Gradle 9.7.0 on first run.
+- AGP auto-installs `Android SDK Platform 37.1` (compileSdk minor API level 1) on the first build if only `platforms;android-37.0` is present — which is exactly what the hook seeds.
 
 ### Key commands
 

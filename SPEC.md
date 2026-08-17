@@ -6,7 +6,7 @@ This document records the current product and technical design decisions for Typ
 
 - Type Launcher is a minimal Android home screen launcher focused on fast typed app launching.
 - The app is a single Android application module, `:app`, implemented in Kotlin.
-- The launcher supports Android 14/API 34 and newer, targets SDK 36, and compiles against Android SDK Platform 36.1.
+- The launcher supports Android 14/API 34 and newer, targets SDK 36, and compiles against Android SDK Platform 37.1.
 - `MainActivity` is both a normal launcher entry point and a selectable home screen. It is exported, uses `singleTask`, is excluded from recents, clears task state on launch, and asks the Home search field to show the soft keyboard for search-first interaction.
 - Launcher behavior has been treated as the app's primary identity since the initial implementation, rather than as a secondary feature inside a conventional app shell.
 

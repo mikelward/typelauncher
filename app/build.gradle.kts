@@ -10,7 +10,7 @@ import org.gradle.process.ExecOperations
 
 plugins {
     alias(libs.plugins.android.application)
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 // Emit Compose Compiler stability and metrics reports under
@@ -246,7 +246,7 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
 android {
     namespace = "app.typelauncher"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }

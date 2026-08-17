@@ -4,12 +4,12 @@ Type Launcher is a Kotlin Android home screen launcher app. The repository conta
 
 ## Prerequisites
 
-- Android Studio, with the Android SDK and Android SDK Platform 36 installed.
+- Android Studio, with the Android SDK and Android SDK Platform 37 installed.
 - JDK 17 or newer. Cursor Cloud uses JDK 21.
-- Android Gradle Plugin 9.2.0 and Gradle 9.4.1, both resolved through the checked-in Gradle wrapper and version catalog.
+- Android Gradle Plugin 9.3.1 and Gradle 9.7.0, both resolved through the checked-in Gradle wrapper and version catalog.
 - For command-line work, set `ANDROID_HOME` to your Android SDK path and make sure `adb` is on `PATH`.
 
-The app currently targets SDK 36, compiles against Android SDK Platform 36.1, and supports Android 14/API 34 and newer.
+The app currently targets SDK 36, compiles against Android SDK Platform 37.1, and supports Android 14/API 34 and newer.
 
 ## Install dependencies
 
@@ -19,7 +19,7 @@ Most dependencies are resolved automatically by Gradle.
 
 1. Open the repository root in Android Studio.
 2. Let Android Studio sync the Gradle project.
-3. If prompted, install the Android SDK Platform 36 package, SDK build tools, and any missing Android Gradle Plugin components.
+3. If prompted, install the Android SDK Platform 37 package, SDK build tools, and any missing Android Gradle Plugin components.
 4. Select the `app` run configuration.
 
 ### Command line
@@ -30,7 +30,7 @@ From the repository root:
 ./gradlew tasks
 ```
 
-The first Gradle invocation downloads Gradle 9.4.1 and project dependencies. If the Android SDK platform is missing, AGP can install it when SDK licenses have been accepted:
+The first Gradle invocation downloads Gradle 9.7.0 and project dependencies. If the Android SDK platform is missing, AGP can install it when SDK licenses have been accepted:
 
 ```sh
 sdkmanager --licenses
@@ -138,7 +138,7 @@ There is no GitHub Actions workflow checked in yet. When CI is added, it should 
 A minimal unit-test workflow should:
 
 1. Check out the repository.
-2. Set up JDK 21, or any JDK 17+ compatible with AGP 9.2.0.
+2. Set up JDK 21, or any JDK 17+ compatible with AGP 9.3.1.
 3. Set up the Android SDK.
 4. Run `./gradlew test`.
 5. Optionally run `./gradlew lint` and `./gradlew assembleDebug`.
