@@ -46,6 +46,11 @@
 - Decide whether to persist more than priority icons only after telemetry shows first-scroll icon misses are hurting startup or scroll performance. If needed, persist a bounded first screenful for the active empty-query sort order and icon size.
 - Add lightweight debug-only recomposition/performance instrumentation around hot composables and interactions: search, app list rows/grid buttons, keyboard tray, widgets, first query keystroke, backspace, Home ↔ Widgets swipe, and widget-picker expansion.
 
+## Dependency updates
+
+- [ ] **Adopt `mikelward/gradle-update`** — the weekly Gradle catalog updater.
+      Consumers get wired up one repo at a time; this batch was done by hand.
+
 ## Not planned
 
 - **Showing work-profile calendar events on the agenda.** Investigated 2026-07: not feasible in practice, because access is gated by MDM admin policy that neither the user nor the app can grant. Findings, in case the policy landscape changes:
