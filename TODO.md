@@ -59,3 +59,13 @@
   - If it ever becomes worth doing, the shape is small: issue the same instances query a second time against `Instances.ENTERPRISE_CONTENT_URI` in `loadAgendaEvents` and merge before organizing (the search index inherits it via the same function); tag rows with an `isWorkEvent` flag so the tap path uses `CalendarContract.startViewCalendarEventInManagedProfile()` instead of the personal `ACTION_VIEW` intent (which cannot open a work event). Constraints: the cross-profile provider only permits an allowlisted projection (our current columns appear to be on it — verify against a real managed profile) and returns an empty cursor rather than throwing when access is disallowed or no work profile exists, so the query can run unconditionally. `minSdk = 34` means no API-level guard is needed.
   - The `INTERACT_ACROSS_PROFILES` / connected-apps route does not help — it grants no cross-profile content-provider access, and full cross-user provider queries need system-only permissions a launcher cannot hold.
   - **User workarounds (no code needed):** (1) add the work calendar app's widget to a widget page — the launcher already hosts work-profile widgets, so this works today and is the recommendation to give users; (2) share the work calendar with the personal account server-side so it syncs into the personal provider — but many orgs block sharing work calendars with non-work accounts, so this one often isn't available either.
+
+## Review and merge gates
+
+- [ ] Add `codex-review-check.yml` (mikelward/codex-review's consumer
+      check): Codex reviews run here, but nothing verifies the workflow
+      pin the ruleset should require.
+- [ ] Verify the settings half of the fleet's bar: a ruleset on the
+      default branch requiring `android-ci.yml`'s always-reporting `gate`
+      job and the `codex` status, plus conversation resolution and
+      up-to-date branches, with the auto-merge setting enabled.
