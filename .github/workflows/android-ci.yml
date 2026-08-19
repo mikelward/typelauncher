@@ -42,10 +42,13 @@ on:
           dispatch sets it; leave empty only for a deploy-force on main).
         required: false
 
-# No workflow-level permissions — each job declares the least-privilege
-# scope it needs. Workflow-level `pull-requests: write` would also leak
-# into the screenshot job and the deploy job, neither of which posts
-# back to the PR.
+# Explicitly empty, not omitted — each job below declares the least-privilege
+# scope it needs; a workflow-level `pull-requests: write` would also leak
+# into the screenshot job and the deploy job, neither of which posts back to
+# the PR. The empty block still matters: it's what a future job that forgets
+# its own block falls back to, instead of the repository's default
+# GITHUB_TOKEN permission.
+permissions: {}
 
 jobs:
   # Decides whether the heavy jobs may skip: true only when every changed
