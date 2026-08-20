@@ -51,6 +51,29 @@ on:
 permissions: {}
 
 jobs:
+  # First in the graph, no `needs:` — posts a `pending` `lanes` status via a
+  # dedicated App before anything else runs, so the status exists (and is
+  # attributed to the right commit) for the whole run's duration rather than
+  # only appearing once `finalize` completes. Not yet required by the
+  # ruleset: `gate` below still is, and stays so until `lanes` has reported
+  # successfully across real PR and dispatch traffic (see the "Renaming an
+  # existing consumer's check" section of mikelward/lanes's README). Errors
+  # here (a revoked App, a missing secret) fail this job's own Actions
+  # check-run but leave `gate` untouched, so they can't block a merge yet.
+  init:
+    name: Initialize lanes status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: lanes
+    permissions:
+      statuses: write
+    steps:
+      - uses: mikelward/lanes@main
+        with:
+          mode: init
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
+
   # Decides whether the heavy jobs may skip: true only when every changed
   # file in the PR is housekeeping (see scripts/docs-lane.sh for the rule).
   # Pushes to main and PR-less deploy-force dispatches are always classified
@@ -65,6 +88,10 @@ jobs:
       pull-requests: read
     outputs:
       docs_only: ${{ steps.run.outputs.docs_only }}
+      # Only consumed by `finalize`'s dispatch-binding check below — the
+      # heavy jobs' own skip decision still comes from `docs_only` above,
+      # untouched. See the "Classify (lanes)" step for why this runs at all.
+      base_sha_lanes: ${{ steps.lanes.outputs.base_sha }}
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
@@ -80,6 +107,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number || inputs.pr }}
         run: scripts/docs-lane.sh classify >> "$GITHUB_OUTPUT"
+      - name: Classify (lanes)
+        # Runs the mikelward/lanes engine side by side with the step above,
+        # reporting nothing that the heavy jobs' skip decision or the
+        # required `gate` job reads. This is purely so `finalize` below has
+        # a `base_sha` to bind a dispatched run's gate to (see its "gate"
+        # step) — the migration this job lands with is onboarding the
+        # App-published `lanes` status alongside the existing `gate`, not
+        # yet switching what governs whether the heavy jobs run.
+        id: lanes
+        uses: mikelward/lanes@main
+        with:
+          mode: classify
+          pr: ${{ github.event.pull_request.number || inputs.pr }}
 
   build:
     name: Build and unit test
@@ -722,6 +762,46 @@ jobs:
             build=${{ needs.build.result }}
             screenshots=${{ needs.connected-tests.result }}
         run: scripts/docs-lane.sh gate
+
+  # Renders the same verdict as `gate` above, independently, and publishes it
+  # as the `lanes` commit status via the same dedicated App `init` used —
+  # never trusting this job's own ambient Actions check-run, which a pull
+  # request touching this very workflow file could still forge under the
+  # `pull_request` trigger this repo runs today. `gate` stays the one the
+  # ruleset actually requires until `lanes` has reported successfully across
+  # real PR and dispatch traffic; see mikelward/lanes's README for the
+  # sequencing and why requiring `finalize` by name instead would be wrong.
+  # `!cancelled()` rather than `always()`: a run cancelled mid-flight (e.g. a
+  # superseding push) should not still post a terminal verdict for a diff
+  # that never finished being checked.
+  finalize:
+    name: Publish the lanes status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [init, classify, build, connected-tests]
+    if: ${{ !cancelled() }}
+    environment: lanes
+    permissions:
+      statuses: write
+      pull-requests: read
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          persist-credentials: false
+      - name: gate
+        uses: mikelward/lanes@main
+        with:
+          mode: gate
+          pr: ${{ github.event.pull_request.number || inputs.pr }}
+          classify-result: ${{ needs.classify.result }}
+          results: >-
+            build=${{ needs.build.result }}
+            connected-tests=${{ needs.connected-tests.result }}
+          base-sha: ${{ needs.classify.outputs.base_sha_lanes }}
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
 
   deploy:
     name: Distribute and release
