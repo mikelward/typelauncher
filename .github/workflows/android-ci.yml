@@ -675,195 +675,112 @@ jobs:
           retention-days: 1
 
   # Pushes any drift in `connected-tests`' regenerated screenshots back to a
-  # same-repo PR branch, and posts the visual diff as a PR comment. Split
-  # out of `connected-tests` into its own job, on its own runner, for one
-  # reason: this is the only place a write-scoped push credential is held,
-  # and it must never share a runner with a step that executes PR-supplied
-  # Gradle/build code. Scoping the credential to the *last step* of a
-  # shared job (the previous design) closes off the credential being read
-  # by a co-running process, but not a poisoned $GITHUB_PATH/$GITHUB_ENV —
-  # any earlier step running PR-controlled code can write to either and
-  # have a later step in the *same* job execute or source the planted
-  # value when it runs. A genuinely separate job, on a runner that never
-  # executes anything from the PR at all, is what actually closes that.
-  # This job's own steps are all fixed commands from this trusted
-  # (pull_request_target-loaded) workflow file — nothing here interprets
-  # PR-supplied code, so `github.token` is safe to use for the PR comment.
+  # same-repo PR branch. Delegated to mikelward/ci-commit-artifact's reusable
+  # workflow rather than an inline job here (TODO.md tracked this as blocked
+  # until that workflow grew graceful handling for branch-ref vanishing
+  # mid-run — merged/closed while this job was still going — which its own
+  # `checkout-guard` step now does, the same shape this job's own inline
+  # version used to carry). A reusable-workflow job can only ever be a bare
+  # `uses:` — it can't mix in extra steps of its own — so the visual
+  # before/after PR comment moved to its own downstream job below rather
+  # than staying inline here.
+  #
+  # The @main reference is deliberate, not an unpinned third-party action —
+  # same reasoning as gradle-update.yml's own call: this is this account's
+  # own repo, gated behind its own CI and Codex review rather than direct
+  # pushes to main, and the whole point of a shared reusable workflow is
+  # that a fix there reaches every consumer's next run without a per-repo
+  # bump PR.
   sync-screenshots:
     name: Sync recorded screenshots
-    runs-on: ubuntu-latest
     needs: [classify, connected-tests]
     # Same-repo PRs only — fork branches aren't pushable with this token,
     # and pushing to main directly from CI is not this job's purpose. Runs
     # only when connected-tests actually succeeded (not skipped, not
     # failed): a docs-only PR has nothing to sync, and a failing suite must
-    # not commit bogus images — reproduced explicitly here since the old
-    # single-job design got this for free from step ordering (a failed
-    # step stops the job before a later one runs).
+    # not commit bogus images.
     if: |
       needs.connected-tests.result == 'success' &&
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 10
+    uses: mikelward/ci-commit-artifact/.github/workflows/commit-artifact.yml@main
     permissions:
       contents: write
+      pull-requests: write
+      actions: write
+    with:
+      artifact-name: roborazzi-screenshots
+      dest-path: app/src/test/snapshots/images
+      commit-message: 'ci: refresh recorded screenshots'
+      # The tested SHA, not the branch name: the artifact was rendered
+      # against github.event.pull_request.head.sha specifically, at event
+      # time, and expected-head-sha is what lets the hub workflow tell a
+      # genuine lost race (branch-ref advanced past this since) apart from
+      # an ordinary no-op — see that workflow's own README.
+      branch-ref: ${{ github.event.pull_request.head.ref }}
+      expected-head-sha: ${{ github.event.pull_request.head.sha }}
+      # comment-marker and dispatch-workflow are both left unset ('', the
+      # default) on purpose:
+      # - comment-marker: this repo posts its own richer visual diff
+      #   comment instead (post-screenshot-diff below), not the hub's plain
+      #   status line.
+      # - dispatch-workflow: unnecessary here specifically because
+      #   push-token (below) authenticates as a real user, and GitHub's own
+      #   pull_request_target trigger fires again on an authenticated push
+      #   the same way it would on any other push to the PR branch — no
+      #   manual re-dispatch needed. dispatch-workflow exists for callers
+      #   that push with the job's own GITHUB_TOKEN instead, which starts no
+      #   workflow run on its own.
+    secrets:
+      # CI_COMMIT_ARTIFACT_TOKEN, not github.token: GitHub's documented
+      # recursion prevention means a GITHUB_TOKEN-authored push starts no
+      # workflow run at all, so the refreshed head would carry no check of
+      # its own and the required `lanes` status would never report on it. A
+      # fine-grained PAT (contents: write, this repository only) pushes as
+      # an ordinary authenticated push instead, which DOES fire a fresh
+      # pull_request_target run on the new commit through the normal
+      # pipeline. Named for the shared PAT/naming convention this token
+      # backs across every caller of mikelward/ci-commit-artifact, not
+      # something typelauncher- or screenshot-specific — see that repo's
+      # README.
+      push-token: ${{ secrets.CI_COMMIT_ARTIFACT_TOKEN }}
+
+  # Embeds every snapshot this PR adds or changes, pinned to commit SHAs,
+  # into a single auto-updated PR comment (marker: <!-- screenshot-diff -->)
+  # so reviewers see the visual delta inline without downloading the
+  # artifact. Split out of sync-screenshots into its own job because a
+  # reusable-workflow job can't carry extra steps of its own (see the
+  # comment on that job above) — this job's only input from it is
+  # commit-sha, the resulting head of branch-ref after that job ran
+  # (documented on the hub workflow's own `commit-sha` output: the new
+  # commit if one was pushed, its unchanged current head if there was
+  # nothing to commit, or the last head actually observed if branch-ref
+  # vanished mid-run). Checking out that SHA directly, rather than the local
+  # commit this job made itself the way the old inline version did, means
+  # this never diffs against content that was never actually pushed — the
+  # inline version's own comment used to warn the pinned images could
+  # briefly 404 after a lost race; using the hub's own authoritative output
+  # instead removes that gap entirely.
+  post-screenshot-diff:
+    name: Post screenshot diffs as a PR comment
+    runs-on: ubuntu-latest
+    needs: [sync-screenshots]
+    if: needs.sync-screenshots.result == 'success'
+    timeout-minutes: 5
+    permissions:
+      contents: read
       pull-requests: write
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
-          # The tested SHA, not the branch name (Codex review): the
-          # artifact below was rendered against github.event.pull_request.
-          # head.sha specifically, at event time. A branch-name ref instead
-          # resolves to whatever the branch's tip is AT CHECKOUT TIME — if
-          # the PR advanced in between (a real window: sync-screenshots only
-          # starts once connected-tests, the job before it, has fully
-          # finished), the checkout would silently pick up the new tip while
-          # the downloaded PNGs stay the old rendering, and the resulting
-          # commit is a plain fast-forward on the new tip -- exactly the
-          # shape the push-race handler below can't see, since it only
-          # fires when the push itself is REJECTED. Pinning to the tested
-          # SHA makes that same handler fire correctly instead: a commit
-          # built on the old SHA can't fast-forward onto an advanced
-          # remote tip, git rejects the push, and the existing
-          # HEAD^-vs-ls-remote comparison recognizes it as the lost race it
-          # is.
-          ref: ${{ github.event.pull_request.head.sha }}
-          # The push below goes out over an explicit URL carrying its own
-          # token, not a persisted credential — this job never runs
-          # PR-controlled code, but there is no reason to leave a
-          # contents:write token on disk any longer than the one step that
-          # needs it either way.
+          ref: ${{ needs.sync-screenshots.outputs.commit-sha }}
           persist-credentials: false
 
-      - name: Clear committed snapshots before downloading
-        # Same reasoning as connected-tests' own "Clear committed snapshots
-        # before recording" (Codex review): that step keeps a removed or
-        # renamed test's PNG out of the ARTIFACT, but this job runs on a
-        # separate runner with its own fresh checkout of the full committed
-        # tree -- the obsolete PNG survives there untouched regardless,
-        # since download-artifact only adds/overwrites files, it never
-        # deletes ones absent from the artifact. Splitting connected-tests
-        # into two jobs (gap 2 above) lost this protection for exactly that
-        # reason: it used to be one job, one checkout, so clearing once
-        # before recording covered the later commit step too. Starting this
-        # checkout's own copy from empty makes the drift check below see a
-        # removed screenshot as a deletion to stage, not silence.
-        run: |
-          rm -rf app/src/test/snapshots/images
-          mkdir -p app/src/test/snapshots/images
-
-      - name: Download rendered screenshots
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
-        with:
-          name: roborazzi-screenshots
-          path: app/src/test/snapshots/images/
-
-      - name: Commit refreshed screenshots
-        # `connected-tests` rendered app/src/test/snapshots/images/ against
-        # the PR's own head and uploaded it as an artifact; the download
-        # above overwrites this checkout's copy with that rendering.
-        # Historically those regenerations only ever left the runner inside
-        # the artifact, so the *committed* snapshots silently drifted from
-        # CI's rendering (22 files deep at one point) and every review diff
-        # against them was misleading. This step commits any drift back to
-        # the PR branch (subject prefixed `ci:`, so release notes skip it)
-        # — the committed set now always matches the last green recording.
-        #
-        # CI_COMMIT_ARTIFACT_TOKEN, not github.token: GitHub's documented
-        # recursion prevention means a GITHUB_TOKEN-authored push starts no
-        # workflow run at all, so the refreshed head would carry no check
-        # of its own and the required `lanes` status would never report on
-        # it. A fine-grained PAT (contents: write, this repository only)
-        # pushes as an ordinary authenticated push instead, which DOES
-        # fire a fresh pull_request_target run on the new commit through
-        # the normal pipeline — no manual re-dispatch needed, and none of
-        # the "which ref do you dispatch against" trust problems a
-        # PR-bound workflow_dispatch has no safe answer to (dispatching
-        # against the PR's own branch runs that branch's own, possibly-
-        # tampered workflow copy; dispatching against a trusted ref instead
-        # can never bind back to the PR's head — mikelward/lanes's own
-        # verifyDispatchBinding requires GITHUB_SHA to equal the PR's head
-        # SHA, which a trusted-ref dispatch structurally cannot satisfy).
-        # The marker-subject check below stops this from looping regardless
-        # of which credential pushes it.
-        #
-        # Named CI_COMMIT_ARTIFACT_TOKEN (not a typelauncher- or
-        # screenshot-specific name) so the same PAT and naming convention
-        # can back mikelward/ci-commit-artifact's push-token input for any
-        # future caller of that pattern — see that repo's README. This repo
-        # doesn't call the reusable workflow itself yet: it needs graceful
-        # handling of the PR branch being deleted mid-run (merged/closed
-        # while this job was still going), which this inline step already
-        # has and the hub workflow doesn't yet.
-        env:
-          PUSH_TOKEN: ${{ secrets.CI_COMMIT_ARTIFACT_TOKEN }}
-        run: |
-          if [ "$(git log -1 --pretty=%s)" = "ci: refresh recorded screenshots" ]; then
-            echo "Head commit is already a screenshot refresh; skipping."
-            exit 0
-          fi
-          if [ -z "$(git status --porcelain -- app/src/test/snapshots/images)" ]; then
-            echo "Recorded screenshots match the committed ones; nothing to do."
-            exit 0
-          fi
-          git status --porcelain -- app/src/test/snapshots/images
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/test/snapshots/images
-          git commit -m "ci: refresh recorded screenshots"
-          push_url="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if ! git push "$push_url" "HEAD:${GITHUB_HEAD_REF}"; then
-            # The branch can vanish mid-run: the PR merged (or closed) while
-            # this job was still recording and GitHub auto-deleted the head
-            # ref, so there is nowhere left to sync the drift to. That is not
-            # broken automation — the tree the drift was recorded against is
-            # already merged or moot — so it downgrades to a warning like the
-            # lost race below. Only that specific case is benign: ls-remote
-            # --exit-code exits 2 exactly when the remote answered and the
-            # ref does not exist, while auth/transport failures exit
-            # differently and must still fail the job, or drift would hide
-            # under a green check. (The step runs under bash -e, so the
-            # probe's exit code is captured with the guard toggled off.)
-            set +e
-            remote_ref=$(git ls-remote --exit-code "$push_url" "refs/heads/${GITHUB_HEAD_REF}")
-            ref_status=$?
-            set -e
-            if [ "$ref_status" -eq 2 ]; then
-              echo "::warning::Branch ${GITHUB_HEAD_REF} no longer exists (PR merged or closed while this job ran); skipping the screenshot refresh push."
-              exit 0
-            fi
-            if [ "$ref_status" -ne 0 ]; then
-              echo "::error::Could not query refs/heads/${GITHUB_HEAD_REF} on the remote (ls-remote exit ${ref_status}); the snapshot sync automation is broken."
-              exit 1
-            fi
-            # Only a genuine lost race — someone pushed to the branch while
-            # this job ran, so the remote head no longer matches the commit we
-            # built on (HEAD^) — is downgraded to a warning; the next run
-            # re-records and retries. The comparison uses the SHA the probe
-            # above just returned (ls-remote output is "<sha>\t<ref>"; no
-            # fetch runs in this handler, so FETCH_HEAD would be stale).
-            # Any other failure (auth, branch protection, network) means the
-            # sync automation itself is broken and must fail the job rather
-            # than leave drift uncommitted under a green check.
-            if [ "${remote_ref%%[[:space:]]*}" != "$(git rev-parse HEAD^)" ]; then
-              echo "::warning::Screenshot refresh push lost a race with another push to ${GITHUB_HEAD_REF}; the next run will retry."
-              exit 0
-            fi
-            echo "::error::Screenshot refresh push to ${GITHUB_HEAD_REF} failed for a non-race reason; the snapshot sync automation is broken."
-            exit 1
-          fi
-
       - name: Post screenshot diffs as a PR comment
-        # Embeds every snapshot this PR adds or changes, pinned to commit
-        # SHAs, into a single auto-updated PR comment (marker:
-        # <!-- screenshot-diff -->) so reviewers see the visual delta inline
-        # without downloading the artifact. Posted from CI's own token
-        # because agent-side tooling can't post working image embeds. Runs
-        # after "Commit refreshed screenshots" so HEAD includes the refreshed
-        # PNGs; if that push lost its race (warning path above), the pinned
-        # HEAD SHA may briefly 404 until the next run re-records.
+        # Posted from CI's own token because agent-side tooling can't post
+        # working image embeds.
         #
         # continue-on-error: this is a convenience comment, not a gate. A
         # transient GitHub API hiccup (a non-JSON response breaking the
