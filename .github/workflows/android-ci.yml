@@ -771,7 +771,7 @@ jobs:
         # the PR branch (subject prefixed `ci:`, so release notes skip it)
         # — the committed set now always matches the last green recording.
         #
-        # SCREENSHOT_SYNC_TOKEN, not github.token: GitHub's documented
+        # CI_COMMIT_ARTIFACT_TOKEN, not github.token: GitHub's documented
         # recursion prevention means a GITHUB_TOKEN-authored push starts no
         # workflow run at all, so the refreshed head would carry no check
         # of its own and the required `lanes` status would never report on
@@ -788,8 +788,17 @@ jobs:
         # SHA, which a trusted-ref dispatch structurally cannot satisfy).
         # The marker-subject check below stops this from looping regardless
         # of which credential pushes it.
+        #
+        # Named CI_COMMIT_ARTIFACT_TOKEN (not a typelauncher- or
+        # screenshot-specific name) so the same PAT and naming convention
+        # can back mikelward/ci-commit-artifact's push-token input for any
+        # future caller of that pattern — see that repo's README. This repo
+        # doesn't call the reusable workflow itself yet: it needs graceful
+        # handling of the PR branch being deleted mid-run (merged/closed
+        # while this job was still going), which this inline step already
+        # has and the hub workflow doesn't yet.
         env:
-          PUSH_TOKEN: ${{ secrets.SCREENSHOT_SYNC_TOKEN }}
+          PUSH_TOKEN: ${{ secrets.CI_COMMIT_ARTIFACT_TOKEN }}
         run: |
           if [ "$(git log -1 --pretty=%s)" = "ci: refresh recorded screenshots" ]; then
             echo "Head commit is already a screenshot refresh; skipping."
