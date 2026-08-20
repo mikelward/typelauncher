@@ -73,6 +73,9 @@
       check): Codex reviews run here, but nothing verifies the workflow
       pin the ruleset should require.
 - [ ] Verify the settings half of the fleet's bar: a ruleset on the
-      default branch requiring `android-ci.yml`'s always-reporting `gate`
-      job and the `codex` status, plus conversation resolution and
-      up-to-date branches, with the auto-merge setting enabled.
+      default branch requiring the `lanes` commit status (App-published
+      by `init`/`finalize`, `mikelward/lanes` migration stage 2 — `gate`
+      is retired, it could never work as a required check under
+      `pull_request_target`) and the `codex` status, plus conversation
+      resolution and up-to-date branches, with the auto-merge setting
+      enabled.

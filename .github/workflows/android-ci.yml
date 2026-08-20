@@ -1,13 +1,40 @@
 name: Android CI
 
 on:
-  # No paths filter on pull_request, deliberately: the main ruleset requires
-  # the `gate` check, and a required check that never reports blocks the PR
-  # forever — which is exactly what a path-filtered-out workflow produces.
-  # Housekeeping-only PRs skip the heavy jobs via `classify` instead, and
-  # `gate` verifies the skip was justified (scripts/docs-lane.sh has the
-  # full design rationale).
-  pull_request:
+  # pull_request_target, not pull_request: this trigger loads the job
+  # DEFINITION from the base branch (main) regardless of what the pull
+  # request itself contains, so a PR touching this very file can no longer
+  # rewrite classify/build/connected-tests/finalize to forge a green
+  # required check — the exact self-modifying-workflow hole
+  # mikelward/lanes's design exists to close. No paths filter, deliberately:
+  # a required check that never reports blocks the PR forever, which is
+  # exactly what a path-filtered-out workflow produces. Housekeeping-only
+  # PRs skip the heavy jobs via `classify` instead.
+  #
+  # Every job below that reads PR content (classify, build,
+  # connected-tests, finalize) explicitly checks out the synthetic merge
+  # (refs/pull/<pr>/merge), never the default resolution — under this
+  # trigger the default is the BASE branch's tip, not the pull request's.
+  # And no job that executes PR-supplied code (build, connected-tests) may
+  # reference `secrets.*` anywhere: the fork-only secret withholding
+  # `pull_request` relies on does not apply here, so a same-repo-only
+  # assumption is not a safety net this design leans on.
+  #
+  # types: explicit, not the bare default (Codex review) -- the bare
+  # default is opened/synchronize/reopened only, and retargeting a PR's
+  # base fires `edited` instead (confirmed against the pull_request webhook
+  # payload schema: an edited event's `changes.base` records the previous
+  # ref/sha), which that default never listens for. `lanes` is a commit
+  # status on the unchanged head SHA, so without this a PR could be
+  # validated docs-only against a crafted base, retargeted to main where
+  # the real diff is not, and merge on a green status nothing ever
+  # re-derived against the base that now matters. `edited` also fires on a
+  # plain title/body edit -- a full re-verification then is unnecessary
+  # cost, not an unsound one, and correctness on the security-relevant path
+  # comes first; narrowing it to base-only edits is a possible follow-up,
+  # not a blocking one.
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
   push:
     branches:
       - main
@@ -25,22 +52,56 @@ on:
   # notes" in the `deploy` job) but a tester needs the current tip on
   # their device anyway — e.g. to read diagnostic logging that hasn't
   # shipped because every commit since the last release was `internal:`
-  # (or `ci:` / `docs:` / `refactor:` / `test:` / `tests:`) prefixed.
-  # Two callers now: the deploy-force above (no inputs, main only), and the
-  # screenshot job's refresh step, whose GITHUB_TOKEN push starts no
-  # workflow run and so dispatches this workflow onto the head it just
-  # pushed, naming its PR — or the required `gate` check would exist only on
-  # the refreshed commit's parent. A dispatch that names a PR is bound to it
-  # (head SHA verified, sole open PR verified, merge-ref build); one that
-  # doesn't is allowed only on main, where it runs the full code lane.
-  # scripts/docs-lane.sh enforces all of that.
+  # (or `ci:` / `docs:` / `refactor:` / `test:` / `tests:`) prefixed. Also
+  # the escape hatch for a PR-bound dispatch: `dispatch-without-pr
+  # allow-on-default-branch` in `.github/lanes.conf` allows a PR-less
+  # dispatch only here, verified live against the repository's own default
+  # branch, never against anything a dispatched branch's own content could
+  # claim.
   workflow_dispatch:
     inputs:
       pr:
         description: >-
-          Pull request number this run reports for (the screenshot-refresh
-          dispatch sets it; leave empty only for a deploy-force on main).
+          Pull request number this run reports for. Leave empty only for a
+          deploy-force on main — a PR-bound dispatch cannot safely validate
+          a same-repository PR (dispatching against the PR's own branch
+          runs that branch's own, possibly-tampered workflow copy;
+          dispatching against a trusted ref instead can never bind back to
+          the PR's head). `sync-screenshots` below no longer uses this path
+          — it pushes with a token that starts a fresh pull_request_target
+          run on its own instead.
         required: false
+
+# Cancels a superseded run before its terminal write can land after a newer
+# run's and stand as the latest verdict for a commit nobody re-validated —
+# the retarget/title-edit race mikelward/lanes's design flags as needing a
+# concurrency group. Not for a run that can reach `deploy`: canceling one
+# mid-flight could interrupt a Firebase/Play upload, a worse outcome than
+# the staleness this guards.
+#
+# Every run that can reach `deploy` shares ONE non-cancelling group,
+# `main-deploy` — not just `push`, and not each other's own ref (Codex
+# review, twice over). First pass gave `push` its own group so a PR-less
+# "deploy-force" dispatch against main (documented above as a supported,
+# ordinary maintainer action) couldn't cancel an in-progress push deploy —
+# true, but it also put the two in DIFFERENT groups, so nothing serializes
+# them against EACH OTHER any more: both could now run `deploy` at once,
+# and an older push's Play upload landing after a newer dispatch's would
+# get rejected (Play requires each upload to raise the versionCode) or the
+# reverse. `workflow_dispatch` only reaches `deploy` when dispatched
+# against main itself (deploy's own `if:` requires github.ref ==
+# 'refs/heads/main'), which is also the one shape `dispatch-without-pr
+# allow-on-default-branch` in .github/lanes.conf treats as a real
+# deploy-force regardless of any `inputs.pr` a caller sets alongside it
+# (mikelward/lanes's own dispatch-binding check refuses a PR-bound
+# verification against a trusted ref either way) — so grouping every
+# workflow_dispatch against main with every push introduces no new
+# behavior for a case that was already non-functional as PR validation.
+# Everything else (a PR's own pull_request_target runs, a PR-bound
+# dispatch against its own branch) keeps the per-PR cancelable group.
+concurrency:
+  group: android-ci-${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'main-deploy' || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
 
 # Explicitly empty, not omitted — each job below declares the least-privilege
 # scope it needs; a workflow-level `pull-requests: write` would also leak
@@ -54,12 +115,14 @@ jobs:
   # First in the graph, no `needs:` — posts a `pending` `lanes` status via a
   # dedicated App before anything else runs, so the status exists (and is
   # attributed to the right commit) for the whole run's duration rather than
-  # only appearing once `finalize` completes. Not yet required by the
-  # ruleset: `gate` below still is, and stays so until `lanes` has reported
-  # successfully across real PR and dispatch traffic (see the "Renaming an
-  # existing consumer's check" section of mikelward/lanes's README). Errors
-  # here (a revoked App, a missing secret) fail this job's own Actions
-  # check-run but leave `gate` untouched, so they can't block a merge yet.
+  # only appearing once `finalize` completes. `lanes` is the ruleset's one
+  # required check now that `gate`/scripts/docs-lane.sh are retired — see
+  # the "Renaming an existing consumer's check" section of
+  # mikelward/lanes's README for the sequencing that got here. Errors here
+  # (a revoked App, a missing secret) fail this job's own Actions check-run
+  # AND leave the PR's head with no fresh `lanes` status, which blocks the
+  # merge rather than waving it through — the safe direction for a
+  # credential failure on the one thing standing between a PR and `main`.
   #
   # No `statuses: write` here even though the job posts a commit status: the
   # write goes out on the App's own installation token (minted from
@@ -84,10 +147,14 @@ jobs:
           app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
 
   # Decides whether the heavy jobs may skip: true only when every changed
-  # file in the PR is housekeeping (see scripts/docs-lane.sh for the rule).
-  # Pushes to main and PR-less deploy-force dispatches are always classified
-  # as code, so they run everything; a dispatch that names a PR classifies
-  # that PR's real diff, exactly as the PR run would.
+  # file in the diff is housekeeping under .github/lanes.conf. Pushes to
+  # main and PR-less deploy-force dispatches are always classified as code,
+  # so they run everything; a dispatch that names a PR classifies that PR's
+  # real diff, exactly as the PR run would. mikelward/lanes now the sole
+  # authority: `gate`/scripts/docs-lane.sh are retired (this stage's PR
+  # removed both), so nothing independently re-derives this classification
+  # any more — a translation bug in .github/lanes.conf is no longer
+  # safety-netted the way it was during the shadow period.
   classify:
     name: Classify the diff
     runs-on: ubuntu-latest
@@ -96,42 +163,28 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      docs_only: ${{ steps.run.outputs.docs_only }}
-      # Only consumed by `finalize`'s dispatch-binding check below — the
-      # heavy jobs' own skip decision still comes from `docs_only` above,
-      # untouched. See the "Classify (lanes)" step for why this runs at all.
-      base_sha_lanes: ${{ steps.lanes.outputs.base_sha }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      # Feeds `finalize`'s dispatch-binding check below — a PR-bound
+      # dispatch's gate needs the base as it stood before the heavy jobs
+      # ran, and this is the only place that moment is ever observed.
+      base_sha: ${{ steps.classify.outputs.base_sha }}
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
+          # The synthetic merge, not the default pull_request_target
+          # resolution (the base branch's tip) and not the head alone:
+          # .github/lanes.conf is read from this checkout, while the diff
+          # itself is computed against the base independently via the API,
+          # and only the merge snapshot keeps the two from disagreeing
+          # about what "the base" is. Also what a normal PR run already
+          # tests against, and empty for push / a PR-less dispatch, where
+          # the default resolution (the pushed or dispatched commit) is
+          # already correct.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
           persist-credentials: false
-      - name: Self-test the lane rules
-        # A broken rule fails here, the heavy jobs skip on the failed
-        # dependency, and the gate goes red — fail closed, never green.
-        run: bash scripts/docs-lane.test.sh
       - name: Classify
-        id: run
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number || inputs.pr }}
-        run: scripts/docs-lane.sh classify >> "$GITHUB_OUTPUT"
-      - name: Classify (lanes)
-        # Runs the mikelward/lanes engine side by side with the step above,
-        # purely so `finalize` below has a `base_sha` to bind a dispatched
-        # run's gate to (see its "gate" step) — the migration this job lands
-        # with is onboarding the App-published `lanes` status alongside the
-        # existing `gate`, not yet switching what governs whether the heavy
-        # jobs run. `continue-on-error: true` is load-bearing, not
-        # decoration: this step's *output* already feeds nothing the heavy
-        # jobs' skip decision or `gate` reads, but without this its own
-        # *failure* would still fail the `classify` job overall — which
-        # `build`/`connected-tests` (via `needs: classify`) and `gate` (via
-        # `needs.classify.result`) both very much read. A bug in this new,
-        # unproven step must cost `finalize` alone during this shadow
-        # period, never `gate`.
-        id: lanes
-        continue-on-error: true
+        id: classify
         uses: mikelward/lanes@main
         with:
           mode: classify
@@ -163,32 +216,48 @@ jobs:
       # nothing in that code can influence. Neither secret is needed for a
       # PR's own validation -- they exist so a build a TESTER installs
       # (main-branch pushes, the only source `deploy` promotes from) shares
-      # a signing identity with earlier ones and ships telemetry. Requiring
-      # `push` keeps a same-repo PR from ever seeing the real value even
-      # though same-repo `pull_request` runs already receive secrets today
-      # (unlike a fork PR, which GitHub withholds them from regardless) --
-      # this repo takes no fork PRs now, but nothing here should depend on
-      # that staying true.
+      # a signing identity with earlier ones and ships telemetry. Short-circuit
+      # evaluation means the right-hand secrets.* comparison never runs at all
+      # when the event isn't push, so the boolean is the only thing that ever
+      # reaches this job either way -- the step below that would materialize
+      # the real value stays additionally gated on it. This used to be a
+      # defensive margin ("this repo takes no fork PRs now, but nothing here
+      # should depend on that staying true"); under pull_request_target it is
+      # the ONLY thing standing between any pull request -- fork or same-repo
+      # -- and these secrets, since that trigger hands every job the full
+      # `secrets` context regardless of fork status, unlike plain
+      # `pull_request`'s fork withholding.
       HAS_DEBUG_KEYSTORE: ${{ github.event_name == 'push' && secrets.DEBUG_KEYSTORE_BASE64 != '' }}
       HAS_GOOGLE_SERVICES: ${{ github.event_name == 'push' && secrets.GOOGLE_SERVICES_JSON != '' }}
+    # contents: read only — this job checks out and executes the PR's own
+    # Gradle code (assembleDebug, test, lint all run PR-controlled build
+    # scripts and plugins). A `pull-requests: write` token in this job would
+    # be reachable by that code even with persist-credentials: false below:
+    # an earlier step can poison $GITHUB_PATH/$GITHUB_ENV for the later
+    # "Print failing test details" step to pick up, the same class of gap
+    # already closed for connected-tests by splitting off sync-screenshots.
+    # The PR-comment write moves to report-build-failure, a job that runs no
+    # PR-controlled code at all.
     permissions:
       contents: read
-      # Used by "Print failing test details" to post a comment on the
-      # originating PR when `./gradlew test` fails. The comments API
-      # path (/repos/{r}/issues/{n}/comments) is satisfied by
-      # `pull-requests: write` when the target is a PR — no separate
-      # `issues: write` needed.
-      pull-requests: write
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
-          # A dispatch that names a PR builds that PR's merge ref, not the
-          # bare branch — otherwise a dispatch could green the gate without
-          # compiling the PR-merged tree. A PR-less (deploy-force) dispatch
-          # keeps the dispatched ref.
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.pr != '' && format('refs/pull/{0}/merge', inputs.pr) || '' }}
+          # The synthetic merge, not the default pull_request_target
+          # resolution — under that trigger the default is the BASE
+          # branch's tip, not the pull request's, which would build and
+          # test the wrong tree entirely. A PR-bound dispatch builds the
+          # same merge ref, for the same reason (a dispatch could
+          # otherwise green the check without compiling the PR-merged
+          # tree); a PR-less (deploy-force) dispatch and a push keep the
+          # default resolution, which is already correct for both.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
+          # This job's own token has no pull-requests: write to leak, but
+          # the checkout itself still runs before any PR-controlled code —
+          # no reason to leave any token on disk longer than nothing needs.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
@@ -199,12 +268,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
         with:
-          # PRs run in `pull_request` (not `pull_request_target`), so a
-          # malicious commit can't write to main's cache directly — but
-          # it CAN poison its own branch's cache, which a follow-up run
-          # on that branch (or a rebase / force-push retry by the
-          # reviewer) will silently consume. Lock PRs to read-only;
-          # only main pushes write the shared cache.
+          # Every PR now runs under pull_request_target, which protects the
+          # job DEFINITION but not the cache: PR-controlled Gradle code
+          # still executes here and could try to write a poisoned cache
+          # entry that a later main-branch run (holding real secrets) might
+          # restore and execute. cache-read-only unconditionally forbids any
+          # write outside a push, independent of whatever branch-scoping
+          # GitHub's own cache restore/save rules would otherwise allow —
+          # the read-only flag is what actually closes this, not the
+          # trigger.
           cache-read-only: ${{ github.event_name != 'push' }}
 
       - name: Materialize debug keystore
@@ -272,48 +344,22 @@ jobs:
 
       - name: Print failing test details
         # When `gradlew test` fails the JUnit XML still contains the failure
-        # messages and stack traces. Dump them to the job log AND, on a PR
-        # build, post them as a PR comment so the same data is reachable
-        # without needing to sign in to view the job log or unzip the
-        # artifact.
+        # messages and stack traces. Dump them to the job log so they're
+        # visible without unzipping the artifact — no credential involved,
+        # so this can stay in the job that runs the PR's own Gradle code.
+        # The PR-comment version of this (needing pull-requests: write)
+        # moved to report-build-failure below, which runs no PR-controlled
+        # code and reads the uploaded artifact instead of the live tree.
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-          JOB_NAME: ${{ github.job }}
         run: |
           shopt -s nullglob globstar
-          summary=""
           for xml in app/build/test-results/**/TEST-*.xml; do
             if grep -q "<\(failure\|error\)" "$xml"; then
               echo "::group::$xml"
               cat "$xml"
               echo "::endgroup::"
-              summary+=$'\n\n'"### \`$xml\`"$'\n```xml\n'"$(cat "$xml")"$'\n```'
             fi
           done
-          if [ -n "$PR_NUMBER" ] && [ -n "$summary" ]; then
-            body=$'<!-- ci-failure -->'$'\n'"**${JOB_NAME} failed.** Failing test reports:"$'\n'"$summary"
-            # GitHub rejects comments over 65536 characters, and a wide failure
-            # can produce more XML than that. Trim to fit rather than losing the
-            # whole comment; the artifact still has everything.
-            if [ "${#body}" -gt 60000 ]; then
-              body="${body:0:60000}"$'\n```\n\n_Truncated — the full reports are in the `unit-test-reports` artifact._'
-            fi
-            # `gh api`, not `curl`: it exits non-zero on a 4xx/5xx and prints
-            # the response itself, where a bare `curl -sS` exits 0 and the
-            # comment silently never appears. That matters more here than
-            # usual, because AGENTS.md reads "no PR comment" as evidence the
-            # failure happened *before* the tests ran — so a dropped comment
-            # doesn't just lose data, it points the next reader at the wrong
-            # stage. Raising the warning is still ours to do: the step runs
-            # under `if: failure()`, so the job is already red and what a
-            # reader needs is a line saying where the reports went.
-            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              -f body="$body" > /dev/null; then
-              echo "::warning::Could not post the failing-test comment; the reports are in the job log above and in the unit-test-reports artifact."
-            fi
-          fi
 
       - name: Upload unit test reports
         # Always upload so a failed test run leaves the JUnit XMLs and HTML
@@ -333,47 +379,129 @@ jobs:
       - name: Run lint
         run: ./gradlew lint
 
+  # Holds the PR-comment write token `build` used to have; runs no
+  # PR-controlled code at all — only `gh api`, over an artifact `build`
+  # already produced. See the read-only comment on `build`'s own
+  # `permissions:` above for why that token can't live in the same job as
+  # the Gradle execution it would otherwise sit beside.
+  report-build-failure:
+    name: Report build failure
+    runs-on: ubuntu-latest
+    needs: build
+    # !cancelled() is load-bearing, not decoration (Codex review): GitHub
+    # implicitly ANDs a bare `success()` onto a job's `if:` unless the
+    # expression itself calls one of success()/failure()/cancelled()/
+    # always() -- a plain `needs.build.result == 'failure'` comparison
+    # doesn't count as calling one (GitHub's own docs: "you must still
+    # include failure() to override the default status check of success()
+    # that is automatically applied to if conditions that don't contain a
+    # status check function"), so without this the implicit check already
+    # evaluates false the moment `build` fails and the job never runs at
+    # all -- the exact opposite of its purpose. `!cancelled()`, not
+    # `always()`, for the same reason `finalize` below uses it: `always()`
+    # also starts a brand-new job during a user-cancelled run, which
+    # GitHub's own docs warn can hang a job that touches sources until it
+    # times out; `!cancelled()` skips that case while still covering
+    # `build` genuinely failing on its own (a single job failing is not
+    # the same event as the run being cancelled).
+    if: ${{ !cancelled() && needs.build.result == 'failure' }}
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download unit test reports
+        id: download
+        # A compile/lint failure in `build` never reaches `./gradlew test`,
+        # so there may be no JUnit XML to upload at all -- `upload-artifact`
+        # already tolerates that (if-no-files-found: ignore) by never
+        # creating the artifact, and `download-artifact` has no matching
+        # tolerate-missing input, so it fails outright here instead.
+        # continue-on-error, plus the next step's `if:`, is what makes a
+        # missing artifact a no-op rather than failing this job pointlessly
+        # for every non-test build failure.
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: unit-test-reports
+          path: test-results/
+
+      - name: Post failing test comment
+        if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+        run: |
+          shopt -s nullglob globstar
+          summary=""
+          for xml in test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              summary+=$'\n\n'"### \`$xml\`"$'\n```xml\n'"$(cat "$xml")"$'\n```'
+            fi
+          done
+          if [ -n "$PR_NUMBER" ] && [ -n "$summary" ]; then
+            body=$'<!-- ci-failure -->'$'\n'"**build failed.** Failing test reports:"$'\n'"$summary"
+            # GitHub rejects comments over 65536 characters, and a wide failure
+            # can produce more XML than that. Trim to fit rather than losing the
+            # whole comment; the artifact still has everything.
+            if [ "${#body}" -gt 60000 ]; then
+              body="${body:0:60000}"$'\n```\n\n_Truncated — the full reports are in the `unit-test-reports` artifact._'
+            fi
+            # `gh api`, not `curl`: it exits non-zero on a 4xx/5xx and prints
+            # the response itself, where a bare `curl -sS` exits 0 and the
+            # comment silently never appears. That matters more here than
+            # usual, because AGENTS.md reads "no PR comment" as evidence the
+            # failure happened *before* the tests ran — so a dropped comment
+            # doesn't just lose data, it points the next reader at the wrong
+            # stage.
+            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$body" > /dev/null; then
+              echo "::warning::Could not post the failing-test comment; the reports are in build's job log and in the unit-test-reports artifact."
+            fi
+          fi
+
   connected-tests:
     name: Keyboard screenshot unit tests
     runs-on: ubuntu-latest
     needs: classify
     if: needs.classify.outputs.docs_only != 'true'
     timeout-minutes: 30
+    # Read-only, deliberately: this job executes the PR's own Gradle build
+    # and test code end to end, and under pull_request_target that code
+    # gets the full `secrets` context regardless of fork status. No secret,
+    # no write scope, and no push credential belongs anywhere in a job that
+    # runs PR-supplied code — see `sync-screenshots` below, which holds the
+    # write token instead and runs no PR code at all. A step-scoped `env:`
+    # in the *same* job was the old mitigation (the write token was never
+    # exposed until every suite had already passed) but that only closes
+    # off one channel: a step *earlier* in this same job, running arbitrary
+    # PR-controlled Gradle/plugin code, can still write to $GITHUB_PATH or
+    # $GITHUB_ENV and have a *later* step in the same job execute or read
+    # through the planted value — the runner's environment is shared across
+    # steps within one job, poisoned or not. Only a genuinely separate job,
+    # on its own fresh runner, closes that.
     permissions:
-      # So the refresh step can dispatch this workflow onto the head it just
-      # pushed — a GITHUB_TOKEN push starts no run by itself, and without one
-      # the required `gate` check never reports on the refreshed commit. The
-      # refresh path only runs on same-repo PRs, whose author already has
-      # push access, so this grant widens nothing for that attacker.
-      actions: write
-      # Write so "Commit refreshed screenshots" below can push regenerated
-      # snapshot PNGs back to a same-repo PR branch, and so "Post screenshot
-      # diffs" can upsert its PR comment. Every other step only reads the
-      # checkout.
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
-          # Same-repo PRs check out the head *branch* (not the read-only
-          # refs/pull/N/merge ref) so "Commit refreshed screenshots" below can
-          # push to it. Fork PRs and main pushes keep the default checkout —
-          # the empty string means "whatever the event would check out anyway".
-          # Merge-interaction breakage is still caught on the merge ref: the
-          # build job's `gradlew test` runs these same *ScreenshotTest classes'
-          # assertions there (capture is gated on -Proborazzi.test.record, the
-          # tests themselves are ordinary unit tests). Only the *recording*
-          # moves to the head — deliberately, since a merge-ref recording
-          # would bake main's unmerged UI into PNGs committed to this branch.
-          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
-          # Don't leave the (write-scoped, see the job's `permissions`) token
-          # in .git/config while the Gradle suites run PR-controlled build and
-          # test code — a compromised plugin or dependency could read it from
-          # disk and push as the workflow. The one step that needs to push
-          # ("Commit refreshed screenshots") receives the token via its own
-          # env instead, after every suite has already passed.
+          # A same-repo PR checks out the head *branch* (not the merge
+          # ref) so the recorded PNGs reflect the PR's own UI, not a
+          # preview of merging with main's latest — a merge-ref recording
+          # would bake main's unmerged UI into images `sync-screenshots`
+          # below might commit back to this branch. Merge-interaction
+          # breakage is still caught on the merge ref: the build job's
+          # `gradlew test` runs these same *ScreenshotTest classes'
+          # assertions there (capture is gated on -Proborazzi.test.record,
+          # the tests themselves are ordinary unit tests). A non-same-repo
+          # PR (fork) falls back to the merge snapshot instead of the
+          # (now wrong, under pull_request_target) default resolution, so
+          # its own code is still what gets rendered and tested here —
+          # this repo takes none today, but nothing here should depend on
+          # that staying true. Read-only regardless of which branch this
+          # resolves to: this job holds no write credential at all.
+          ref: ${{ (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref) || (github.event.pull_request.number && format('refs/pull/{0}/merge', github.event.pull_request.number)) || '' }}
           persist-credentials: false
 
       - name: Set up JDK
@@ -525,45 +653,143 @@ jobs:
             fi
           done
 
+      - name: Upload Roborazzi screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: roborazzi-screenshots
+          path: app/src/test/snapshots/images/
+
+      - name: Upload screenshot test reports
+        # JUnit XMLs and HTML reports for the screenshot suite — uploaded
+        # even on failure so a CI-only crash leaves diagnostic output
+        # behind. Pairs with the same step in the build job.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: screenshot-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Pushes any drift in `connected-tests`' regenerated screenshots back to a
+  # same-repo PR branch, and posts the visual diff as a PR comment. Split
+  # out of `connected-tests` into its own job, on its own runner, for one
+  # reason: this is the only place a write-scoped push credential is held,
+  # and it must never share a runner with a step that executes PR-supplied
+  # Gradle/build code. Scoping the credential to the *last step* of a
+  # shared job (the previous design) closes off the credential being read
+  # by a co-running process, but not a poisoned $GITHUB_PATH/$GITHUB_ENV —
+  # any earlier step running PR-controlled code can write to either and
+  # have a later step in the *same* job execute or source the planted
+  # value when it runs. A genuinely separate job, on a runner that never
+  # executes anything from the PR at all, is what actually closes that.
+  # This job's own steps are all fixed commands from this trusted
+  # (pull_request_target-loaded) workflow file — nothing here interprets
+  # PR-supplied code, so `github.token` is safe to use for the PR comment.
+  sync-screenshots:
+    name: Sync recorded screenshots
+    runs-on: ubuntu-latest
+    needs: [classify, connected-tests]
+    # Same-repo PRs only — fork branches aren't pushable with this token,
+    # and pushing to main directly from CI is not this job's purpose. Runs
+    # only when connected-tests actually succeeded (not skipped, not
+    # failed): a docs-only PR has nothing to sync, and a failing suite must
+    # not commit bogus images — reproduced explicitly here since the old
+    # single-job design got this for free from step ordering (a failed
+    # step stops the job before a later one runs).
+    if: |
+      needs.connected-tests.result == 'success' &&
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # The tested SHA, not the branch name (Codex review): the
+          # artifact below was rendered against github.event.pull_request.
+          # head.sha specifically, at event time. A branch-name ref instead
+          # resolves to whatever the branch's tip is AT CHECKOUT TIME — if
+          # the PR advanced in between (a real window: sync-screenshots only
+          # starts once connected-tests, the job before it, has fully
+          # finished), the checkout would silently pick up the new tip while
+          # the downloaded PNGs stay the old rendering, and the resulting
+          # commit is a plain fast-forward on the new tip -- exactly the
+          # shape the push-race handler below can't see, since it only
+          # fires when the push itself is REJECTED. Pinning to the tested
+          # SHA makes that same handler fire correctly instead: a commit
+          # built on the old SHA can't fast-forward onto an advanced
+          # remote tip, git rejects the push, and the existing
+          # HEAD^-vs-ls-remote comparison recognizes it as the lost race it
+          # is.
+          ref: ${{ github.event.pull_request.head.sha }}
+          # The push below goes out over an explicit URL carrying its own
+          # token, not a persisted credential — this job never runs
+          # PR-controlled code, but there is no reason to leave a
+          # contents:write token on disk any longer than the one step that
+          # needs it either way.
+          persist-credentials: false
+
+      - name: Clear committed snapshots before downloading
+        # Same reasoning as connected-tests' own "Clear committed snapshots
+        # before recording" (Codex review): that step keeps a removed or
+        # renamed test's PNG out of the ARTIFACT, but this job runs on a
+        # separate runner with its own fresh checkout of the full committed
+        # tree -- the obsolete PNG survives there untouched regardless,
+        # since download-artifact only adds/overwrites files, it never
+        # deletes ones absent from the artifact. Splitting connected-tests
+        # into two jobs (gap 2 above) lost this protection for exactly that
+        # reason: it used to be one job, one checkout, so clearing once
+        # before recording covered the later commit step too. Starting this
+        # checkout's own copy from empty makes the drift check below see a
+        # removed screenshot as a deletion to stage, not silence.
+        run: |
+          rm -rf app/src/test/snapshots/images
+          mkdir -p app/src/test/snapshots/images
+
+      - name: Download rendered screenshots
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: roborazzi-screenshots
+          path: app/src/test/snapshots/images/
+
       - name: Commit refreshed screenshots
-        # The record steps above overwrite app/src/test/snapshots/images/ with
-        # what this runner actually renders. Historically those regenerations
-        # only ever left the runner inside the artifact, so the *committed*
-        # snapshots silently drifted from CI's rendering (22 files deep at one
-        # point) and every review diff against them was misleading. This step
-        # commits any drift back to the PR branch (subject prefixed `ci:`, so
-        # release notes skip it) — the committed set now always matches the
-        # last green recording.
+        # `connected-tests` rendered app/src/test/snapshots/images/ against
+        # the PR's own head and uploaded it as an artifact; the download
+        # above overwrites this checkout's copy with that rendering.
+        # Historically those regenerations only ever left the runner inside
+        # the artifact, so the *committed* snapshots silently drifted from
+        # CI's rendering (22 files deep at one point) and every review diff
+        # against them was misleading. This step commits any drift back to
+        # the PR branch (subject prefixed `ci:`, so release notes skip it)
+        # — the committed set now always matches the last green recording.
         #
-        # Scope and safety:
-        #   - Same-repo PRs only: fork branches aren't pushable with the
-        #     workflow token, and pushing to main directly from CI is not this
-        #     step's job — PRs that keep their snapshots current mean main
-        #     never drifts.
-        #   - Runs only when every screenshot suite above passed (a failing
-        #     suite fails the job before this step), so a broken run can't
-        #     commit bogus images.
-        #   - No recursion: pushes made with the workflow's GITHUB_TOKEN do
-        #     not trigger new workflow runs at all (GitHub's documented
-        #     recursion prevention — not the fork-contributor approval flow),
-        #     and the marker-subject check below is belt-and-braces for
-        #     setups that swap in a PAT. Corollary: the refreshed head
-        #     would carry no fresh check runs on its own — which the
-        #     required `gate` check cannot tolerate — so this step
-        #     explicitly dispatches the workflow onto the new head below
-        #     (workflow_dispatch is the documented exception to the
-        #     no-retrigger rule). A PAT would re-trigger CI too but would
-        #     also re-open the flaky-snapshot commit loop the no-retrigger
-        #     property closes for free.
-        #   - A concurrent human push between checkout and here makes the
-        #     push fail; that's surfaced as a warning, not a red job — the
-        #     next run of this workflow re-records and retries.
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        # SCREENSHOT_SYNC_TOKEN, not github.token: GitHub's documented
+        # recursion prevention means a GITHUB_TOKEN-authored push starts no
+        # workflow run at all, so the refreshed head would carry no check
+        # of its own and the required `lanes` status would never report on
+        # it. A fine-grained PAT (contents: write, this repository only)
+        # pushes as an ordinary authenticated push instead, which DOES
+        # fire a fresh pull_request_target run on the new commit through
+        # the normal pipeline — no manual re-dispatch needed, and none of
+        # the "which ref do you dispatch against" trust problems a
+        # PR-bound workflow_dispatch has no safe answer to (dispatching
+        # against the PR's own branch runs that branch's own, possibly-
+        # tampered workflow copy; dispatching against a trusted ref instead
+        # can never bind back to the PR's head — mikelward/lanes's own
+        # verifyDispatchBinding requires GITHUB_SHA to equal the PR's head
+        # SHA, which a trusted-ref dispatch structurally cannot satisfy).
+        # The marker-subject check below stops this from looping regardless
+        # of which credential pushes it.
         env:
-          # Scoped to this step only (checkout runs with
-          # persist-credentials: false), so the write token never sits on
-          # disk while Gradle executes PR-controlled build/test code.
-          GH_TOKEN: ${{ github.token }}
+          PUSH_TOKEN: ${{ secrets.SCREENSHOT_SYNC_TOKEN }}
         run: |
           if [ "$(git log -1 --pretty=%s)" = "ci: refresh recorded screenshots" ]; then
             echo "Head commit is already a screenshot refresh; skipping."
@@ -578,7 +804,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/test/snapshots/images
           git commit -m "ci: refresh recorded screenshots"
-          push_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          push_url="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           if ! git push "$push_url" "HEAD:${GITHUB_HEAD_REF}"; then
             # The branch can vanish mid-run: the PR merged (or closed) while
             # this job was still recording and GitHub auto-deleted the head
@@ -619,16 +845,6 @@ jobs:
             echo "::error::Screenshot refresh push to ${GITHUB_HEAD_REF} failed for a non-race reason; the snapshot sync automation is broken."
             exit 1
           fi
-          # The push above starts no workflow run — GITHUB_TOKEN pushes never
-          # do — so without this dispatch the refreshed head carries no checks
-          # and the required `gate` blocks the PR forever, silently. Dispatch
-          # is the documented exception; fail loudly if it doesn't take,
-          # because "CI never started" and "CI passed quietly" look identical
-          # from the PR.
-          if ! gh workflow run android-ci.yml --ref "$GITHUB_HEAD_REF" -f pr="${{ github.event.pull_request.number }}"; then
-            echo "::error::Pushed a refresh commit but could not start CI on it (is workflow_dispatch with the pr input on main yet?). Dispatch this workflow on the branch by hand from the Actions tab."
-            exit 1
-          fi
 
       - name: Post screenshot diffs as a PR comment
         # Embeds every snapshot this PR adds or changes, pinned to commit
@@ -638,19 +854,17 @@ jobs:
         # because agent-side tooling can't post working image embeds. Runs
         # after "Commit refreshed screenshots" so HEAD includes the refreshed
         # PNGs; if that push lost its race (warning path above), the pinned
-        # HEAD SHA may briefly 404 until the next run re-records. Same-repo
-        # PRs only — the fork-PR token can't write comments.
+        # HEAD SHA may briefly 404 until the next run re-records.
         #
         # continue-on-error: this is a convenience comment, not a gate. A
         # transient GitHub API hiccup (a non-JSON response breaking the
-        # comment lookup has been seen here) must not turn the
-        # whole screenshot job red — the snapshots are already committed and
-        # in the roborazzi-screenshots artifact regardless. Every API call
-        # below still checks its own status and raises a ::warning::, so
-        # "no comment appeared" always has a reason in the job log rather
-        # than being swallowed by continue-on-error.
+        # comment lookup has been seen here) must not turn the whole job
+        # red — the snapshots are already committed and in the
+        # roborazzi-screenshots artifact regardless. Every API call below
+        # still checks its own status and raises a ::warning::, so "no
+        # comment appeared" always has a reason in the job log rather than
+        # being swallowed by continue-on-error.
         continue-on-error: true
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -726,75 +940,31 @@ jobs:
             fi
           fi
 
-      - name: Upload Roborazzi screenshots
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: roborazzi-screenshots
-          path: app/src/test/snapshots/images/
-
-      - name: Upload screenshot test reports
-        # JUnit XMLs and HTML reports for the screenshot suite — uploaded
-        # even on failure so a CI-only crash leaves diagnostic output
-        # behind. Pairs with the same step in the build job.
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: screenshot-test-reports
-          path: |
-            app/build/reports/tests/
-            app/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 1
-
-  # The one check the main ruleset requires. Always runs, always reports —
+  # The one check the main ruleset requires. Renders the verdict —
   # green only when every heavy job succeeded, or when they were skipped and
-  # the skip is INDEPENDENTLY verified as justified: the diff re-derived as
-  # housekeeping-only and every commit subject carrying a housekeeping
-  # prefix. Any other combination is an explicit red, never a silent pass.
+  # the skip is INDEPENDENTLY re-derived as justified — and publishes it as
+  # the `lanes` commit status via the dedicated App `init` also uses, never
+  # trusting this job's own ambient Actions check-run: under
+  # pull_request_target that check-run always attributes to the BASE
+  # branch's tip, never the pull request's head, so it could never satisfy
+  # a PR's required check even if the ruleset asked for it (see
+  # mikelward/lanes's README on why requiring `finalize` by name would be
+  # wrong). The App-published status is what a PR's head actually sees, and
+  # `docs-lane.sh`/`gate`'s independent-re-derivation safety net is gone —
+  # retired in the same change that removed `gate`, now that this is the
+  # sole authority.
   # `deploy` is not in the needs list on purpose: it only runs on main
   # pushes and deploy-force dispatches, never on a PR, so including it
   # would read as a permanent skip and wedge every code-lane verdict.
-  gate:
-    name: gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [classify, build, connected-tests]
-    if: always()
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
-        with:
-          persist-credentials: false
-      - name: Verdict
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number || inputs.pr }}
-          CLASSIFY: ${{ needs.classify.result }}
-          RESULTS: >-
-            build=${{ needs.build.result }}
-            screenshots=${{ needs.connected-tests.result }}
-        run: scripts/docs-lane.sh gate
-
-  # Renders the same verdict as `gate` above, independently, and publishes it
-  # as the `lanes` commit status via the same dedicated App `init` used —
-  # never trusting this job's own ambient Actions check-run, which a pull
-  # request touching this very workflow file could still forge under the
-  # `pull_request` trigger this repo runs today. `gate` stays the one the
-  # ruleset actually requires until `lanes` has reported successfully across
-  # real PR and dispatch traffic; see mikelward/lanes's README for the
-  # sequencing and why requiring `finalize` by name instead would be wrong.
   # `!cancelled()` rather than `always()`: a run cancelled mid-flight (e.g. a
-  # superseding push) should not still post a terminal verdict for a diff
-  # that never finished being checked.
+  # superseding push, see the workflow-level `concurrency` group) should not
+  # still post a terminal verdict for a diff that never finished being
+  # checked.
   finalize:
     name: Publish the lanes status
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [init, classify, build, connected-tests]
+    needs: [init, classify, build, connected-tests, sync-screenshots]
     if: ${{ !cancelled() }}
     environment: lanes
     # No `statuses: write` — see the comment on `init` above; this job's
@@ -810,6 +980,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
+          # Same reasoning as `classify`'s checkout: the synthetic merge is
+          # what keeps this re-derivation reading the same .github/lanes.conf
+          # `classify` read, rather than the base branch's copy the default
+          # pull_request_target resolution would otherwise silently swap in.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
           persist-credentials: false
       - name: gate
         uses: mikelward/lanes@main
@@ -817,10 +992,23 @@ jobs:
           mode: gate
           pr: ${{ github.event.pull_request.number || inputs.pr }}
           classify-result: ${{ needs.classify.result }}
+          # sync-screenshots has a skip reason build/connected-tests don't:
+          # it also sits out a fork PR, a push/dispatch run, or a docs-only
+          # diff's own connected-tests skip. `gate` only tolerates a
+          # uniform all-success or all-skipped `results`, so its 'skipped'
+          # has to read as whichever of those this run actually is. On the
+          # docs lane build/connected-tests are 'skipped' too, so passing
+          # sync-screenshots' result through unchanged keeps them uniform.
+          # On the code lane build/connected-tests are 'success', so an
+          # intentional sync-screenshots skip is translated to 'success' —
+          # every skip reason it has there is non-blocking (see its own
+          # `if:`) — while a real 'failure' or 'cancelled' passes through
+          # untouched and correctly withholds the green status.
           results: >-
             build=${{ needs.build.result }}
             connected-tests=${{ needs.connected-tests.result }}
-          base-sha: ${{ needs.classify.outputs.base_sha_lanes }}
+            sync-screenshots=${{ needs.classify.outputs.docs_only == 'true' && needs.sync-screenshots.result || (needs.sync-screenshots.result == 'skipped' && 'success' || needs.sync-screenshots.result) }}
+          base-sha: ${{ needs.classify.outputs.base_sha }}
           app-id: ${{ secrets.LANES_APP_ID }}
           app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
 
