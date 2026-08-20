@@ -100,8 +100,21 @@ jobs:
       # when the secret was configured. Job-level env IS visible to a step's
       # `if:`, and exposing only a boolean keeps the secret value scoped to
       # the step that actually uses it instead of widening it to every step.
-      HAS_DEBUG_KEYSTORE: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
-      HAS_GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+      #
+      # `github.event_name == 'push' &&` is load-bearing, not redundant with
+      # the secret-presence check: this job builds and tests the PR's own
+      # code on every run, and `github.event_name` is the one condition
+      # nothing in that code can influence. Neither secret is needed for a
+      # PR's own validation -- they exist so a build a TESTER installs
+      # (main-branch pushes, the only source `deploy` promotes from) shares
+      # a signing identity with earlier ones and ships telemetry. Requiring
+      # `push` keeps a same-repo PR from ever seeing the real value even
+      # though same-repo `pull_request` runs already receive secrets today
+      # (unlike a fork PR, which GitHub withholds them from regardless) --
+      # this repo takes no fork PRs now, but nothing here should depend on
+      # that staying true.
+      HAS_DEBUG_KEYSTORE: ${{ github.event_name == 'push' && secrets.DEBUG_KEYSTORE_BASE64 != '' }}
+      HAS_GOOGLE_SERVICES: ${{ github.event_name == 'push' && secrets.GOOGLE_SERVICES_JSON != '' }}
     permissions:
       contents: read
       # Used by "Print failing test details" to post a comment on the
@@ -183,10 +196,19 @@ jobs:
         run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
 
       - name: Build debug APK
+        # This step has no `if:` -- assembleDebug has to run on every heavy
+        # lane, PR or push -- so unlike the two steps above, gating on
+        # HAS_DEBUG_KEYSTORE isn't available here; the same `github.event_name
+        # == 'push'` condition is inlined per secret instead. Before this,
+        # these three env vars carried the real secret values on EVERY run
+        # unconditionally, regardless of push vs. PR -- reachable by anything
+        # this step's own Gradle invocation executes, PR-authored code
+        # included, whether or not DEBUG_KEYSTORE_FILE (set only when
+        # HAS_DEBUG_KEYSTORE is true) was ever consumed.
         env:
-          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
-          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
-          DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
+          DEBUG_KEYSTORE_PASSWORD: ${{ github.event_name == 'push' && secrets.DEBUG_KEYSTORE_PASSWORD || '' }}
+          DEBUG_KEY_PASSWORD: ${{ github.event_name == 'push' && secrets.DEBUG_KEY_PASSWORD || '' }}
+          DEBUG_KEY_ALIAS: ${{ github.event_name == 'push' && secrets.DEBUG_KEY_ALIAS || '' }}
         run: ./gradlew assembleDebug
 
       - name: Run unit tests
