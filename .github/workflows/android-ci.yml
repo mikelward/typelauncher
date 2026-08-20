@@ -60,13 +60,22 @@ jobs:
   # existing consumer's check" section of mikelward/lanes's README). Errors
   # here (a revoked App, a missing secret) fail this job's own Actions
   # check-run but leave `gate` untouched, so they can't block a merge yet.
+  #
+  # No `statuses: write` here even though the job posts a commit status: the
+  # write goes out on the App's own installation token (minted from
+  # app-id/app-private-key), never on this job's ambient GITHUB_TOKEN, so the
+  # permission would be dead weight -- and this repository's
+  # codex-review-check refuses any *other* workflow declaring it, since a
+  # second writer racing the codex-review sweep's own status writes is
+  # exactly the hazard that check exists to catch. This job's writes go to
+  # a different context (`lanes`, not `codex`) over a different credential,
+  # so nothing here can race that sweep either way.
   init:
     name: Initialize lanes status
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: lanes
-    permissions:
-      statuses: write
+    permissions: {}
     steps:
       - uses: mikelward/lanes@main
         with:
@@ -109,13 +118,20 @@ jobs:
         run: scripts/docs-lane.sh classify >> "$GITHUB_OUTPUT"
       - name: Classify (lanes)
         # Runs the mikelward/lanes engine side by side with the step above,
-        # reporting nothing that the heavy jobs' skip decision or the
-        # required `gate` job reads. This is purely so `finalize` below has
-        # a `base_sha` to bind a dispatched run's gate to (see its "gate"
-        # step) — the migration this job lands with is onboarding the
-        # App-published `lanes` status alongside the existing `gate`, not
-        # yet switching what governs whether the heavy jobs run.
+        # purely so `finalize` below has a `base_sha` to bind a dispatched
+        # run's gate to (see its "gate" step) — the migration this job lands
+        # with is onboarding the App-published `lanes` status alongside the
+        # existing `gate`, not yet switching what governs whether the heavy
+        # jobs run. `continue-on-error: true` is load-bearing, not
+        # decoration: this step's *output* already feeds nothing the heavy
+        # jobs' skip decision or `gate` reads, but without this its own
+        # *failure* would still fail the `classify` job overall — which
+        # `build`/`connected-tests` (via `needs: classify`) and `gate` (via
+        # `needs.classify.result`) both very much read. A bug in this new,
+        # unproven step must cost `finalize` alone during this shadow
+        # period, never `gate`.
         id: lanes
+        continue-on-error: true
         uses: mikelward/lanes@main
         with:
           mode: classify
@@ -781,8 +797,13 @@ jobs:
     needs: [init, classify, build, connected-tests]
     if: ${{ !cancelled() }}
     environment: lanes
+    # No `statuses: write` — see the comment on `init` above; this job's
+    # `lanes` status write also goes out on the App's installation token,
+    # never this job's own GITHUB_TOKEN. `contents: read` is for the
+    # checkout below (`mode: gate` reads `.github/lanes.conf` from disk);
+    # `pull-requests: read` is for the diff `mode: gate` re-derives the
+    # verdict from.
     permissions:
-      statuses: write
       pull-requests: read
       contents: read
     steps:
