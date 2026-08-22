@@ -341,6 +341,12 @@ jobs:
       - name: Run unit tests
         run: ./gradlew test
 
+      # Regression coverage for the release-notes generator's classifier
+      # (see scripts/release-worthiness.mjs) — dependency-free, under
+      # node --test, nothing to install.
+      - name: Test the release-worthiness classifier
+        run: node --test scripts/release-worthiness.test.js
+
       - name: Print failing test details
         # When `gradlew test` fails the JUnit XML still contains the failure
         # messages and stack traces. Dump them to the job log so they're
@@ -1217,25 +1223,35 @@ jobs:
               break
             fi
             s=$(git log -1 --format=%s "$sha")
-            case "$s" in
-              ci:*)       continue ;;
-              docs:*)     continue ;;
-              internal:*) continue ;;
-              refactor:*) continue ;;
-              test:*)     continue ;;
-              tests:*)    continue ;;
+            # Shared with scripts/release-worthiness.test.js — see that
+            # file's header for why: two independently-editable copies of
+            # this classifier is the exact failure mode it exists to catch.
+            # Exit status is captured explicitly rather than tested inline
+            # (`if ! node ...`) because bash's `!` only distinguishes zero
+            # from non-zero — a crash or bad invocation (status 2) would
+            # otherwise be indistinguishable from "release-worthy" (status
+            # 1) and silently mark a housekeeping commit release-worthy
+            # instead of failing the job.
+            set +e
+            node scripts/release-worthiness.mjs subject "$s"
+            subject_status=$?
+            set -e
+            case "$subject_status" in
+              0) continue ;;
+              1) ;;
+              *) echo "::error::release-worthiness.mjs subject check exited $subject_status for commit $sha — treating as fatal, not release-worthy." >&2; exit 1 ;;
             esac
             relevant=false
             while IFS= read -r f; do
               [ -z "$f" ] && continue
-              # `case` patterns match `*` against `/` too, so `.*` skips
-              # any path whose first component starts with `.` — covers
-              # `.github/`, `.claude/`, `.gitignore`, `.editorconfig` etc.
-              # in one pattern.
-              case "$f" in
-                .*)   ;;
-                *.md) ;;
-                *)    relevant=true; break ;;
+              set +e
+              node scripts/release-worthiness.mjs path "$f"
+              path_status=$?
+              set -e
+              case "$path_status" in
+                0) ;;
+                1) relevant=true; break ;;
+                *) echo "::error::release-worthiness.mjs path check exited $path_status for '$f' in commit $sha — treating as fatal." >&2; exit 1 ;;
               esac
             done < <(git diff-tree --no-commit-id --name-only -r "$sha")
             if [ "$relevant" = "false" ]; then

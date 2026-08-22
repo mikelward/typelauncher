@@ -88,13 +88,13 @@ rules:
       # `deploy` job, "Materialize debug keystore": same value, same
       # reasoning — this job's own `if:` restricts it to
       # `github.ref == 'refs/heads/main' && (push || workflow_dispatch)`.
-      - android-ci.yml:1022
+      - android-ci.yml:1028
       # `deploy` job, "Materialize release keystore": writes
       # `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`, same job,
       # same gate.
-      - android-ci.yml:1410
+      - android-ci.yml:1426
       # `deploy` job, "Compose Play Store release notes": writes
       # `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew` — the release-notes
       # text itself goes to a file, never through $GITHUB_ENV, and the env
       # write is only the fixed directory path.
-      - android-ci.yml:1467
+      - android-ci.yml:1483
