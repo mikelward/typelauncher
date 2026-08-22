@@ -84,11 +84,11 @@ rules:
       # `DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore`, reachable only
       # when `HAS_DEBUG_KEYSTORE` (itself gated on `github.event_name ==
       # 'push'`) is true.
-      - android-ci.yml:294
+      - android-ci.yml:293
       # `deploy` job, "Materialize debug keystore": same value, same
       # reasoning — this job's own `if:` restricts it to
       # `github.ref == 'refs/heads/main' && (push || workflow_dispatch)`.
-      - android-ci.yml:1023
+      - android-ci.yml:1022
       # `deploy` job, "Materialize release keystore": writes
       # `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`, same job,
       # same gate.

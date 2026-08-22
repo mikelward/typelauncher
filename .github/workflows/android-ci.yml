@@ -43,7 +43,6 @@ on:
       - '!**/*.md'
       - '!.*'
       - '!.*/**'
-      - 'PRIVACY.md'
       - '.github/workflows/**'
   # Manual override for the `deploy` job: lets a maintainer force an
   # internal-track release from the GitHub web UI (works from a phone
@@ -1067,13 +1066,15 @@ jobs:
         #     (test-only changes). None describe a user-visible change
         #     worth announcing;
         #   - skip commits whose every changed path is repo housekeeping —
-        #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or any dotfile /
-        #     dotdir at the repo root (`.github/` workflows + templates +
-        #     dependabot config, `.claude/` Claude Code workspace state,
-        #     `.gitignore`, `.editorconfig`, etc.). `PRIVACY.md` is the
-        #     explicit exception: it backs the hosted privacy policy
-        #     linked from the About dialog, so a change there is
-        #     genuinely user-facing and counts as a real commit.
+        #     a `.md` file (CLAUDE.md / SPEC.md / PRIVACY.md / docs/*) or
+        #     any dotfile / dotdir at the repo root (`.github/` workflows
+        #     + templates + dependabot config, `.claude/` Claude Code
+        #     workspace state, `.gitignore`, `.editorconfig`, etc.).
+        #     PRIVACY.md is not special-cased: the hosted privacy policy
+        #     it backs is prose like any other doc, and Play "What's new"
+        #     is a store-listing field a user never sees at update time
+        #     anyway, so surfacing a policy wording change there bought
+        #     nothing.
         # The qualifying subjects are emitted as a "• "-bulleted list,
         # oldest-first — always bulleted, even when there's only one
         # qualifying commit, so the Play "What's new" card and Firebase
@@ -1232,10 +1233,9 @@ jobs:
               # `.github/`, `.claude/`, `.gitignore`, `.editorconfig` etc.
               # in one pattern.
               case "$f" in
-                PRIVACY.md) relevant=true; break ;;
-                .*)         ;;
-                *.md)       ;;
-                *)          relevant=true; break ;;
+                .*)   ;;
+                *.md) ;;
+                *)    relevant=true; break ;;
               esac
             done < <(git diff-tree --no-commit-id --name-only -r "$sha")
             if [ "$relevant" = "false" ]; then
