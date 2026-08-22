@@ -4,21 +4,14 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
@@ -31,11 +24,13 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the post-crash banner ([CrashBannerCard]) at the top of a home-like
- * surface, so the `roborazzi-screenshots` artifact documents the push-down
- * treatment: the banner takes a strip at the top with the [Dismiss] [Share]
- * actions, and the launcher content would sit below it. Pinned in light and dark
- * so the error-container colors are reviewable in both themes.
+ * Renders the crash prompt ([CrashBannerCard]) in isolation on a plain
+ * background, so the `roborazzi-screenshots` artifact documents the
+ * error-container treatment and the [Dismiss] [Share] actions in both themes,
+ * plus [crashBanner_atTopOfSettings] rendering the card in place at the top
+ * of the real [SettingsScreen] layout, so spacing against the title row and
+ * the Play-update banner slot below it is covered too (`SettingsScreenTest`
+ * covers the same placement's content, not its pixels).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -54,7 +49,7 @@ class CrashBannerScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Type Launcher crashed").assertExists()
+        composeRule.onNodeWithText("Did Type Launcher crash?").assertExists()
 
         capture("compose_crash_banner_light_robolectric.png")
     }
@@ -67,105 +62,39 @@ class CrashBannerScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Type Launcher crashed").assertExists()
+        composeRule.onNodeWithText("Did Type Launcher crash?").assertExists()
 
         capture("compose_crash_banner_dark_robolectric.png")
     }
 
     @Test
-    fun crashBanner_pushesHomeContentDown() {
-        // Exercises the real push-down layout — the banner strip, the top-inset
-        // remap, and the weighted shrink of the content below it — over a Home-like
-        // stub, so a regression that overlays or clips Home is caught here rather
-        // than only the isolated card (Codex on PR #593).
+    fun crashBanner_atTopOfSettings() {
         composeRule.setContent {
             TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
-                HomeContentWithCrashBanner(
-                    innerPadding = PaddingValues(top = 24.dp),
+                SettingsScreen(
+                    state = LauncherUiState(),
+                    innerPadding = PaddingValues(),
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onUnhideApp = {},
+                    onOpenLauncherAppInfo = {},
+                    onOpenPlayUpdate = {},
+                    onCompletePlayUpdate = {},
+                    onDismissPlayUpdate = {},
                     showCrashBanner = true,
-                    // Wallpaper off: the wrapper (and the banner's margins) are
-                    // opaque, matching Home below.
-                    wallpaperActive = false,
                     onShareCrash = {},
                     onDismissCrash = {},
-                ) { homeInnerPadding ->
-                    HomeContentStub(homeInnerPadding)
-                }
+                )
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Type Launcher crashed").assertExists()
-        composeRule.onNodeWithText("Search apps").assertExists()
+        composeRule.onNodeWithText("Did Type Launcher crash?").assertExists()
 
-        capture("compose_crash_banner_pushdown_robolectric.png", heightPx = 900)
-    }
-
-    @Test
-    fun crashBanner_pushdownOverWallpaper() {
-        // Wallpaper active: the banner's strip and side gutters must be transparent
-        // so the wallpaper shows through them just as it does around Home's cards —
-        // the wrapper must not paint an opaque background over it (Codex on PR #593).
-        composeRule.setContent {
-            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
-                // A bright gradient stands in for the window wallpaper Robolectric
-                // can't composite (as in WallpaperAllPagesScreenshotTest).
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(listOf(Color(0xFF3A7BD5), Color(0xFF00D2FF))),
-                        ),
-                ) {
-                    HomeContentWithCrashBanner(
-                        innerPadding = PaddingValues(top = 24.dp),
-                        showCrashBanner = true,
-                        wallpaperActive = true,
-                        onShareCrash = {},
-                        onDismissCrash = {},
-                    ) { homeInnerPadding ->
-                        // Transparent stub so the gradient shows around the cards too.
-                        Box(modifier = Modifier.fillMaxSize().padding(homeInnerPadding))
-                    }
-                }
-            }
-        }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText("Type Launcher crashed").assertExists()
-
-        capture("compose_crash_banner_pushdown_wallpaper_robolectric.png", heightPx = 900)
-    }
-
-    /** A minimal Home-like body (search field + app rows) so the push-down reads as Home. */
-    @Composable
-    private fun HomeContentStub(innerPadding: PaddingValues) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Text("Search apps", modifier = Modifier.padding(horizontal = 16.dp))
-            }
-            repeat(4) { index ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .background(MaterialTheme.colorScheme.surface),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    Text("App ${index + 1}", modifier = Modifier.padding(horizontal = 16.dp))
-                }
-            }
-        }
+        capture("compose_crash_banner_settings_placement_robolectric.png", heightPx = 1280)
     }
 
     @Composable
@@ -184,7 +113,15 @@ class CrashBannerScreenshotTest {
         }
     }
 
-    private fun capture(name: String, widthPx: Int = 720, heightPx: Int = 460) {
+    // 560, not the previously-fitting 460: this forces the decor view into a
+    // much smaller layout than the one Compose already settled at the real
+    // (qualifiers-driven) window size, and when the card's content is tall
+    // enough to sit right at that shrunk canvas's bottom edge, the button
+    // row's own background draws but its text glyphs silently don't — found
+    // by bisecting heights after the body text grew from one line to two and
+    // "Dismiss"/"Share" started rendering blank. Keep some margin below the
+    // card here rather than cutting it exactly to fit.
+    private fun capture(name: String, widthPx: Int = 720, heightPx: Int = 560) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return

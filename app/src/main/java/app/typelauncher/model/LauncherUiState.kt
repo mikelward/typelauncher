@@ -780,7 +780,8 @@ internal data class LauncherUiState(
     val isHomeReady: Boolean = false,
     val isDefaultLauncher: Boolean = false,
     // True when the previous run ended in an uncaught exception the user has
-    // neither shared nor dismissed, so Home shows the post-crash banner (see
+    // neither shared nor dismissed, so the Settings gear picks up a warning
+    // badge and Settings shows the post-crash card at its top (see
     // `CrashBannerCard`). Seeded off the main thread from
     // `DebugFileSink.hasUnacknowledgedCrash` at startup; a routine process death
     // never sets it. Defaults off (previews, tests, no-sink builds).
