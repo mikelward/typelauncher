@@ -33,6 +33,28 @@
 
 ## CI
 
+- **Reconcile the docs-lane classifier with the release-notes-skip classifier
+  for `PRIVACY.md`, and reconsider forcing it onto the code lane at all.**
+  `.github/lanes.conf`'s `code PRIVACY.md` rule means a PRIVACY.md-only
+  change always runs the full build/test/lint pipeline, even a pure wording
+  fix that changes nothing about the app — but PRIVACY.md isn't actually
+  code, so that's a heavier CI cost than the change needs; being release-
+  worthy and needing heavy CI are two separate questions the lane rule
+  currently conflates. Separately, the deploy job's release-notes generator
+  has two *independent* skip conditions — a non-user-facing subject prefix
+  skips a commit regardless of what it touched, and a housekeeping-path
+  check (which PRIVACY.md is carved out of) skips a commit whose diff is
+  all `.md`/dotfiles. A commit like `docs: clarify data retention wording`
+  touching only PRIVACY.md would still be dropped by the prefix check, even
+  though the lane rule's whole point is that PRIVACY.md is never "just
+  docs." The two classifiers can silently diverge on this one case.
+- **Require a PRIVACY.md update in the same commit as the practice change it
+  documents** (mirroring how the sibling repos keep SPEC.md in sync), and
+  stop treating every PRIVACY.md touch as automatically release-worthy — a
+  pure wording/typo fix with no actual change in practice shouldn't force a
+  release the way a genuine new disclosure should. Needs a real distinction
+  between "the policy text changed" and "what the policy describes
+  changed," which the current mechanism can't make on its own.
 - Add an AGPL license gate to `android-ci.yml`: fail if a dependency declares
   an AGPL license, catching one added by hand in a normal PR, not just ones
   the weekly bot bumps. Likely the `com.github.jk1.dependency-license-report`
