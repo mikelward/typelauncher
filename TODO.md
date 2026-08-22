@@ -79,3 +79,11 @@
       `pull_request_target`) and the `codex` status, plus conversation
       resolution and up-to-date branches, with the auto-merge setting
       enabled.
+- [ ] **Add `zizmor` to the ruleset's required set** once it has reported
+      on a pull request: the new `.github/workflows/zizmor.yml` runs
+      unfiltered on every PR precisely so it can be required (a
+      paths-filtered workflow creates no check run at all on a
+      non-matching PR, which a ruleset waits on forever) — the posture
+      piloted in mikelward/lanes and mikelward/ci-commit-artifact and
+      rolled out fleet-wide. Add it alongside `lanes` and `codex` in the
+      same ruleset update as the item above.

@@ -1,0 +1,100 @@
+# Policy for zizmor; the workflow beside this file runs it.
+#
+# The defaults demand hash pins everywhere and refuse pull_request_target
+# outright. Both collide with decisions this repository made deliberately,
+# so the exceptions live here, scoped as narrowly as the tool allows — a
+# NEW workflow reaching for pull_request_target is still flagged, because
+# only the named files are excused, and a NEW github-env write is still
+# flagged, because only the named lines are excused.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # `@main` IS the release for these sibling actions/workflows: this
+        # repo tracks them deliberately, there is no release step on their
+        # side, and a pin would be a thing to bump here on every one of
+        # their merges. Enumerated by name, not `mikelward/*` — owner-wide
+        # would also excuse a future workflow pulling any sibling at a
+        # mutable ref, and each exemption should be a decision somebody
+        # made. Adding one is one line here.
+        "mikelward/lanes": ref-pin
+        "mikelward/codex-review": ref-pin
+        # Same repository as the entry above, but the key is matched whole
+        # against the `uses:` value including the workflow path, so the
+        # reusable workflow the consumer-side check calls needs its own
+        # entry — the action reference above does not cover it.
+        "mikelward/codex-review/.github/workflows/check-consumer.yml": ref-pin
+        # Same reasoning: mikelward/gradle-update is the shared home of the
+        # weekly Gradle catalog batch, and it tracks consumers the same
+        # way — no release step, `@main` is the release.
+        "mikelward/gradle-update/.github/workflows/gradle-update.yml": ref-pin
+        # Same reasoning again for the reusable workflow android-ci.yml's
+        # screenshot job calls to push a refreshed-snapshot commit back to
+        # the PR branch.
+        "mikelward/ci-commit-artifact/.github/workflows/commit-artifact.yml": ref-pin
+        # No `actions/*` (or `gradle/actions/*`) carve-out here, unlike some
+        # sibling repos' policies: android-ci.yml already hash-pins every
+        # official action (with a trailing `# vX.Y.Z` comment), so the
+        # default `hash-pin` policy below is already what this repo does —
+        # adding a laxer carve-out would only lower the bar for a future PR.
+        #
+        # Everything else must pin to a hash, as every workflow here
+        # already does.
+        "*": hash-pin
+  dangerous-triggers:
+    ignore:
+      # The sweep: never checks out or executes pull request code at all.
+      # Load-bearing and reasoned through in mikelward/codex-review's
+      # docs/CONSUMER.md.
+      - codex-review.yml
+      # The consumer-side check: pull_request_target so the JOB DEFINITION
+      # always loads from the default branch (a bare pull_request would let
+      # a PR editing this file replace the call with one that always
+      # succeeds), and it does check out the PR head — but only to hand it
+      # to check_consumer.py, which parses it as text and executes nothing
+      # from it. See check-consumer.yml in mikelward/codex-review for the
+      # full reasoning.
+      - codex-review-check.yml
+      # android-ci.yml's `lanes`/`codex` status jobs (classify, build,
+      # connected-tests, finalize): pull_request_target for the same
+      # job-definition reason as codex-review-check.yml above — a PR
+      # touching this very file must not be able to rewrite its own
+      # required checks into an automatic pass, which mikelward/lanes's
+      # design exists to close. The `on:` block's own header comment
+      # (android-ci.yml lines 3-73) is the full reasoning: every job that
+      # reads PR content checks out the synthetic merge ref explicitly
+      # rather than trusting the trigger's default resolution, and no job
+      # that executes PR-supplied Gradle/plugin code references `secrets.*`
+      # anywhere (the fork-only secret withholding plain `pull_request`
+      # relies on does not apply under `pull_request_target`, so that
+      # withholding is not a safety net this design leans on).
+      - android-ci.yml
+  github-env:
+    # Each of these four writes to $GITHUB_ENV is gated on a job that never
+    # runs against PR-controlled content (the `build` job's keystore step
+    # only fires when `github.event_name == 'push'`; the `deploy` job runs
+    # only on `push`/`workflow_dispatch` against `main`), and every value
+    # written is a fixed `${RUNNER_TEMP}`-derived path or boolean the
+    # workflow itself constructs — never PR-supplied text, a secret value,
+    # or anything a fork could influence. Line-scoped rather than a
+    # blanket file ignore so a github-env finding on a genuinely
+    # PR-reachable step in this large file still surfaces.
+    ignore:
+      # `build` job, "Materialize debug keystore": writes
+      # `DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore`, reachable only
+      # when `HAS_DEBUG_KEYSTORE` (itself gated on `github.event_name ==
+      # 'push'`) is true.
+      - android-ci.yml:294
+      # `deploy` job, "Materialize debug keystore": same value, same
+      # reasoning — this job's own `if:` restricts it to
+      # `github.ref == 'refs/heads/main' && (push || workflow_dispatch)`.
+      - android-ci.yml:1015
+      # `deploy` job, "Materialize release keystore": writes
+      # `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`, same job,
+      # same gate.
+      - android-ci.yml:1402
+      # `deploy` job, "Compose Play Store release notes": writes
+      # `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew` — the release-notes
+      # text itself goes to a file, never through $GITHUB_ENV, and the env
+      # write is only the fixed directory path.
+      - android-ci.yml:1459
