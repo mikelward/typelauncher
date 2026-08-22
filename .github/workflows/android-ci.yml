@@ -985,6 +985,12 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
+          # No later step in this job needs to push, and nothing here
+          # checks out PR-controlled content either (deploy only runs on
+          # push/workflow_dispatch against main) — but the token has no
+          # reason to sit in .git/config for the run's duration regardless,
+          # matching every other checkout in this workflow.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
