@@ -635,11 +635,19 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContactActionsSheetScreenshotTest" -Proborazzi.test.record=true
 
       - name: Run crash banner screenshot tests
-        # Renders the post-crash banner (the Home push-down that offers to send a
-        # bug report after a crash) in light and dark, so the PR
-        # `roborazzi-screenshots` artifact shows the error-container treatment and
-        # the [Dismiss] [Share] actions.
+        # Renders the post-crash card (the prompt that offers to send a bug
+        # report after a crash) in isolation, in light and dark, and again in
+        # place at the top of Settings, so the PR `roborazzi-screenshots`
+        # artifact shows the error-container treatment, the [Dismiss] [Share]
+        # actions, and the Settings placement's spacing.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.CrashBannerScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run Home gear badge screenshot tests
+        # Renders HomeScreen directly with no/Play-update/crash pending, so the
+        # PR `roborazzi-screenshots` artifact shows the gear's single badge
+        # slot: nothing, the Play-update dot, and the crash warning triangle
+        # (which takes the slot over the dot when both are pending).
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.HomeGearBadgeScreenshotTest" -Proborazzi.test.record=true
 
       - name: Print failing test details
         if: failure()

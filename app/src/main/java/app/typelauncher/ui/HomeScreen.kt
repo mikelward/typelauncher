@@ -80,6 +80,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -926,6 +927,7 @@ internal fun HomeScreen(
                     query = state.query,
                     autoShowKeyboard = autoShowKeyboard,
                     showPlayUpdateBadge = state.playUpdate.showBadge,
+                    showCrashBanner = state.isCrashBannerVisible,
                     placeholderSuffix = searchPlaceholderSuffix,
                     // The inline preview must name whatever Enter fires. In the
                     // contact-actions mode Enter fires the first visible channel/
@@ -1324,6 +1326,7 @@ private fun SearchCard(
     query: String,
     autoShowKeyboard: Boolean,
     showPlayUpdateBadge: Boolean,
+    showCrashBanner: Boolean,
     placeholderSuffix: String,
     suggestion: InlineSearchSuggestion?,
     keyboardShowRequests: SharedFlow<Unit>,
@@ -1414,7 +1417,25 @@ private fun SearchCard(
                                     Icons.Filled.Settings,
                                     contentDescription = stringResource(R.string.settings_open_button_description),
                                 )
-                                if (showPlayUpdateBadge) {
+                                // One badge slot: a possible crash always outranks a
+                                // pending Play update, so the triangle takes the
+                                // corner and the update dot waits its turn.
+                                if (showCrashBanner) {
+                                    val badgeDescription = stringResource(R.string.crash_pending_badge_description)
+                                    Icon(
+                                        Icons.Filled.Warning,
+                                        contentDescription = badgeDescription,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            // Same off-grid 2dp nudge as the update dot
+                                            // below, so either badge seats identically
+                                            // into the gear's top-right corner.
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                            .testTag(CRASH_PENDING_BADGE_TAG),
+                                    )
+                                } else if (showPlayUpdateBadge) {
                                     val badgeDescription = stringResource(R.string.play_update_badge_description)
                                     Box(
                                         modifier = Modifier
@@ -1965,10 +1986,8 @@ private const val DOCK_FOLDER_EMPHASIS_BORDER_DP = 2
 private const val DOCK_FOLDER_MINI_GAP_DP = 2
 private const val DOCK_FOLDER_TILE_PADDING_DP = 4
 // Horizontal (and vertical) inset around the Home content column, so the dock and
-// app-list cards sit as islands rather than edge-to-edge. Internal so the
-// post-crash banner (laid out just above HomeScreen) can share the same gutter
-// and line its edges up with the search card.
-internal const val HOME_CONTENT_HORIZONTAL_INSET_DP = 8
+// app-list cards sit as islands rather than edge-to-edge.
+private const val HOME_CONTENT_HORIZONTAL_INSET_DP = 8
 
 /**
  * A folder occupying one dock slot. Renders a 2×2 mini-icon (the first four
@@ -5691,6 +5710,9 @@ internal fun SettingsScreen(
     onOpenPlayUpdate: () -> Unit,
     onCompletePlayUpdate: () -> Unit,
     onDismissPlayUpdate: () -> Unit,
+    showCrashBanner: Boolean = false,
+    onShareCrash: () -> Unit = {},
+    onDismissCrash: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     // Derive the slider's range, value, and the preview's icon size from the
@@ -5792,6 +5814,13 @@ internal fun SettingsScreen(
             ) {
                 Text(stringResource(R.string.settings_done_button))
             }
+        }
+        if (showCrashBanner) {
+            CrashBannerCard(
+                onShare = onShareCrash,
+                onDismiss = onDismissCrash,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
         SettingsBuildBannerSlot(
             playUpdate = state.playUpdate,

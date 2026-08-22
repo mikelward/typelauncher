@@ -875,6 +875,9 @@ internal fun TypeLauncherApp(
                         onOpenPlayUpdate = onOpenPlayUpdate,
                         onCompletePlayUpdate = onCompletePlayUpdate,
                         onDismissPlayUpdate = onDismissPlayUpdate,
+                        showCrashBanner = state.isCrashBannerVisible,
+                        onShareCrash = startCrashReport,
+                        onDismissCrash = onDismissCrashBanner,
                     )
                 } else {
                     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
@@ -987,24 +990,10 @@ internal fun TypeLauncherApp(
                             onDispose { if (pageRevealsWallpaper) wallpaperBackdropPages-- }
                         }
                         when (page.screen) {
-                            // Post-crash push-down: the banner takes a strip at the
-                            // top and Home shifts down beneath it (never occluded),
-                            // owning the top status-bar inset so HomeScreen's inset
-                            // isn't applied twice. Driven by state (not `isCurrentPage`)
-                            // so it stays put as the carousel slides rather than
-                            // reflowing mid-swipe. See HomeContentWithCrashBanner.
-                            LauncherScreen.Home -> HomeContentWithCrashBanner(
-                                innerPadding = innerPadding,
-                                showCrashBanner = state.isCrashBannerVisible,
-                                // Same value HomeScreen renders under, so the banner's
-                                // margins make the same wallpaper/opaque choice it does.
-                                wallpaperActive = pageRevealsWallpaper,
-                                onShareCrash = startCrashReport,
-                                onDismissCrash = onDismissCrashBanner,
-                            ) { homeInnerPadding ->
+                            LauncherScreen.Home -> {
                             HomeScreen(
                                 state = state,
-                                innerPadding = homeInnerPadding,
+                                innerPadding = innerPadding,
                                 bodyReady = homeBodyReady,
                                 isVisibleHomePage = isCurrentOrIncoming,
                                 landscapeTier = homeLandscapeTier,

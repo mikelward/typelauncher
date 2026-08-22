@@ -199,11 +199,13 @@
     <string name="bug_report_consent_dialog_confirm">Continue</string>
     <string name="bug_report_consent_dialog_cancel">Cancel</string>
     <!-- TODO: translate -->
-    <string name="crash_banner_title" tools:ignore="MissingTranslation">Type Launcher crashed</string>
+    <string name="crash_banner_title" tools:ignore="MissingTranslation">Did Type Launcher crash?</string>
     <!-- TODO: translate -->
-    <string name="crash_banner_body" tools:ignore="MissingTranslation">Send a bug report to help us fix it</string>
+    <string name="crash_banner_body" tools:ignore="MissingTranslation">If it did, share a bug report to help us fix it</string>
     <!-- TODO: translate -->
     <string name="crash_banner_share" tools:ignore="MissingTranslation">Share</string>
     <!-- TODO: translate -->
     <string name="crash_banner_dismiss" tools:ignore="MissingTranslation">Dismiss</string>
+    <!-- TODO: translate -->
+    <string name="crash_pending_badge_description" tools:ignore="MissingTranslation">Possible crash detected</string>
 </resources>

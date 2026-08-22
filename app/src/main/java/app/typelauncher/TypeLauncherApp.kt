@@ -10,7 +10,7 @@ import kotlinx.coroutines.SupervisorJob
  * The launcher's [Application]. Its job today is to install on-device debug-log
  * persistence early — before the first activity — so the log survives the
  * process ending (a crash *or* a silent kill) and can be shared in a bug report
- * or surfaced by the post-crash banner on the next launch. Crashlytics
+ * or surfaced by the post-crash prompt on the next launch. Crashlytics
  * ([LauncherTelemetry]) still installs its own uncaught handler; the crash
  * handler here chains to it.
  */
@@ -19,7 +19,7 @@ class TypeLauncherApp : Application() {
     /**
      * On-device persistence of the debug log, so it survives a crash or a silent
      * kill and can be shared next launch (read by [BugReport]) or surfaced by the
-     * post-crash banner. Set in [onCreate]; null only before it runs.
+     * post-crash prompt. Set in [onCreate]; null only before it runs.
      */
     internal var debugFileSink: DebugFileSink? = null
         private set
@@ -31,7 +31,7 @@ class TypeLauncherApp : Application() {
      * the share sheet, and opening the sheet *is* leaving the screen — on a
      * composition-bound scope the launcher would cancel its own share partway
      * through, so a report the user asked for silently never arrived and the
-     * post-crash banner stayed up.
+     * post-crash prompt stayed up.
      *
      * `SupervisorJob` so one failed job can't cancel the next; `Dispatchers.Default`
      * because the callers hop to IO / Main themselves for the parts that need it.
