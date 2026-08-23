@@ -1,8 +1,8 @@
 package app.typelauncher
 
-import android.app.Activity
 import android.app.Application
-import android.content.IntentSender
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.annotation.VisibleForTesting
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -16,9 +16,22 @@ import com.google.android.play.core.install.model.UpdateAvailability
 internal class PlayUpdateChecker @VisibleForTesting constructor(
     app: Application,
     private val appUpdateManager: AppUpdateManager = AppUpdateManagerFactory.create(app),
+    // Debug builds hard-code this false, so a test that wants to exercise
+    // checkForUpdate's real branch (with a fake AppUpdateManager) needs a way
+    // past the gate. The default preserves production behavior exactly.
+    private val checksEnabled: Boolean = BuildConfig.PLAY_UPDATE_CHECKS_ENABLED,
 ) {
     private var updateInfo: AppUpdateInfo? = null
     private var installListenerRegistered = false
+
+    /**
+     * Latched by [unregisterInstallListener] — i.e. by the owning activity's
+     * `onDestroy`. Play's check is asynchronous, so a rotation while it is in
+     * flight can run the cleanup *before* the answer arrives; registering a
+     * listener after that point would leave one behind that nothing ever
+     * unregisters, once per recreation.
+     */
+    private var destroyed = false
     private var onInstallStatus: ((Int) -> Unit)? = null
     private val installListener = InstallStateUpdatedListener { state ->
         onInstallStatus?.invoke(state.installStatus())
@@ -33,7 +46,7 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
         onUnavailable: () -> Unit,
         onCheckFailed: () -> Unit = onUnavailable,
     ) {
-        if (!BuildConfig.PLAY_UPDATE_CHECKS_ENABLED) {
+        if (!checksEnabled) {
             updateInfo = null
             onUnavailable()
             return
@@ -69,45 +82,64 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
             }
     }
 
-    fun startUpdate(activity: Activity, requestCode: Int): Boolean {
+    /**
+     * Launches Play's confirmation sheet. Returns false when it could not be
+     * opened at all, so the caller can fall back to the store listing rather
+     * than leaving the banner stuck on "Updating…" with no listener event
+     * coming to recover it.
+     *
+     * Takes an [ActivityResultLauncher] rather than an activity + request code
+     * because that overload is deprecated; the modern one needs a registered
+     * launcher regardless of whether the caller reacts to the eventual
+     * result. A canceled sheet fires no install event, but MainActivity's
+     * `onResume` — which always runs right after the launched sheet returns
+     * — unconditionally rechecks anyway, so the launcher's own result
+     * callback deliberately does nothing rather than triggering a second,
+     * racing check of its own.
+     */
+    fun startUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>): Boolean {
         val info = updateInfo?.takeIf { it.isFlexibleUpdateAvailable() } ?: return false
         return try {
             registerInstallListener()
-            // The boolean return signals whether Play actually launched the
-            // confirmation flow — propagate it so MainActivity can clear the
-            // in-flight banner state on failure instead of leaving it stuck
-            // on "Updating…" with no listener event coming to recover.
             val launched = appUpdateManager.startUpdateFlowForResult(
                 info,
-                activity,
+                launcher,
                 AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
-                requestCode,
             )
             if (launched) {
                 // An AppUpdateInfo is single-use: once handed to
-                // startUpdateFlowForResult it can't drive a second flow. If the
-                // user cancels the Play sheet and taps Update again, reusing the
-                // consumed token throws — so drop it here and let onResume's
-                // checkForUpdate re-fetch a fresh one before the next attempt.
+                // startUpdateFlowForResult it can't drive a second flow, so a
+                // canceled sheet followed by another Update tap would throw on
+                // the consumed token. Drop it and let the next resume's
+                // checkForUpdate fetch a fresh one.
                 updateInfo = null
             }
             launched
-        } catch (exception: IntentSender.SendIntentException) {
-            LauncherDebugLog.warning("Play update flow failed to start", exception)
-            false
         } catch (exception: RuntimeException) {
             LauncherDebugLog.warning("Play update flow failed to start", exception)
             false
         }
     }
 
+    /**
+     * The banner's Restart: install the downloaded update now. On success the
+     * app is restarted by Play, so only the failure path returns here — and it
+     * is a real one (the installer is busy, Play errors transiently), where the
+     * tap visibly does nothing. Log it rather than discarding the task; the
+     * banner is left untouched, so it keeps offering Restart and the tap is
+     * simply retryable.
+     */
     fun completeFlexibleUpdate() {
         LauncherDebugLog.event("Play update: completing flexible update on user request")
         appUpdateManager.completeUpdate()
+            .addOnFailureListener { exception ->
+                LauncherDebugLog.warning("Play update install failed to start", exception)
+            }
     }
 
-    private fun registerInstallListener() {
-        if (installListenerRegistered) return
+    @VisibleForTesting
+    internal fun registerInstallListener() {
+        if (destroyed || installListenerRegistered) return
         appUpdateManager.registerListener(installListener)
         installListenerRegistered = true
     }
@@ -119,8 +151,13 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
      * without this the manager would accumulate a dead listener — capturing the
      * old activity's callback — on every recreation. Call from `onDestroy`.
      * Idempotent: a no-op if the listener was never registered.
+     *
+     * Also closes the checker for good: a check still in flight can land after
+     * this runs, and registering then would slip a listener past the only
+     * cleanup this checker gets.
      */
     fun unregisterInstallListener() {
+        destroyed = true
         if (!installListenerRegistered) return
         appUpdateManager.unregisterListener(installListener)
         installListenerRegistered = false

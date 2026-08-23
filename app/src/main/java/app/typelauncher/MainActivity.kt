@@ -9,6 +9,7 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
 import android.content.ComponentName
 import android.content.Intent
+import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.PixelFormat
@@ -26,6 +27,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.CompositionLocalProvider
@@ -60,7 +62,6 @@ internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.T
 // APP_WIDGET_HOST_ID lives in WidgetRestore.kt — it is shared with the
 // restore-broadcast receiver, which must construct/filter against the same
 // host ID.
-private const val PLAY_UPDATE_REQUEST_CODE = 42
 // Safe alongside ActivityResultRegistry codes, which start at 0x00010000.
 private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
 // Persists WidgetAddFlow.pendingWidgetId across activity recreation so a
@@ -72,6 +73,21 @@ private const val KEY_PENDING_WIDGET_ID = "app.typelauncher.PENDING_WIDGET_ID"
 // an in-place swap survives a configuration change during the provider's
 // configure activity (mirrors KEY_PENDING_WIDGET_ID).
 private const val KEY_RESTORE_TARGET_WIDGET_ID = "app.typelauncher.RESTORE_TARGET_WIDGET_ID"
+
+/**
+ * The `SendIntentException` AndroidX redelivers through an activity result when an
+ * `IntentSender` (here, Play's update-confirmation sheet) could not be launched at
+ * all, or null for any ordinary result. A failed launch opens no external activity,
+ * so `onResume` never runs to recover from it — unlike a cancel of a sheet that did
+ * open. Returning the exception rather than a bare boolean keeps its message and
+ * stack trace available for the log, which is the only diagnostic this failure
+ * leaves behind in the field.
+ */
+internal fun intentSenderLaunchException(result: ActivityResult): IntentSender.SendIntentException? =
+    result.data?.getSerializableExtra(
+        ActivityResultContracts.StartIntentSenderForResult.EXTRA_SEND_INTENT_EXCEPTION,
+        IntentSender.SendIntentException::class.java,
+    )
 
 class MainActivity : ComponentActivity() {
     internal lateinit var viewModel: LauncherViewModel
@@ -151,6 +167,38 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("requestWriteContactsPermission result granted=$granted")
             viewModel.onWriteContactsPermissionResult(granted)
         }
+    // Ordinarily does nothing with the result. `onResume` (which always runs
+    // right after this, since returning from an actually-opened sheet is a
+    // resume) already calls `checkPlayUpdate` unconditionally, and that
+    // recheck is what flips the banner off "Updating…" and repopulates
+    // `updateInfo` together atomically — a canceled sheet doesn't need this
+    // callback to also flip the banner to `Idle` (Type Launcher's
+    // UNKNOWN-with-Starting-fallback already reverts it) or to also trigger a
+    // second, concurrent `checkPlayUpdate`. A second call here raced the
+    // resume's: whichever check's response landed second could clobber a
+    // progress state the other had already moved past — e.g. overwriting a
+    // just-started second update attempt back to `Idle` (Codex on PR #647).
+    //
+    // The one case this callback does handle: the sheet's IntentSender can
+    // fail to launch at all (a stale/invalid sender, Play Store transiently
+    // unavailable). AndroidX catches that `SendIntentException` internally
+    // and redelivers it here instead of throwing synchronously from
+    // `startUpdate` — as a non-OK result carrying `EXTRA_SEND_INTENT_
+    // EXCEPTION` — so no external activity ever opens and `onResume` never
+    // runs to recover it (Codex on PR #647). Recover the same way a
+    // synchronous launch failure already does in `startPlayUpdate`.
+    //
+    // Registered as a method reference rather than a forwarding lambda on
+    // purpose: a lambda body would be a line of untested indirection between
+    // the registry and the tested handler, and the only way to cover it would
+    // be dispatching through the registry by request code, which AndroidX
+    // assigns by registration order. Referencing the handler directly means
+    // there is no forwarding step left to break (Codex on PR #647).
+    private val playUpdateLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult(),
+            ::onPlayUpdateLaunchResult,
+        )
     private val bindWidgetLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val resultWidgetId = result.data?.getIntExtra(
@@ -504,13 +552,36 @@ class MainActivity : ComponentActivity() {
 
     private fun startPlayUpdate() {
         viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
-        if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(this, PLAY_UPDATE_REQUEST_CODE)) {
-            // The in-app update flow could not be opened — fall back to the
-            // Play Store listing and clear the in-flight state so the banner
-            // can recover on next resume.
-            viewModel.setPlayUpdateProgress(UpdateProgress.Idle)
-            viewModel.openPlayStoreListing()
+        if (!::playUpdateChecker.isInitialized || !playUpdateChecker.startUpdate(playUpdateLauncher)) {
+            recoverFromFailedPlayUpdateLaunch()
         }
+    }
+
+    /**
+     * The result half of [playUpdateLauncher]. Ordinary outcomes are ignored on
+     * purpose — returning from a sheet that actually opened is always a resume,
+     * and `onResume`'s unconditional [checkPlayUpdate] already reverts the banner
+     * and repopulates the update handle together; doing it here too raced that
+     * check. The exception is a sheet that never opened, which produces no resume
+     * to recover from and would otherwise strand the banner on "Updating…".
+     */
+    @VisibleForTesting
+    internal fun onPlayUpdateLaunchResult(result: ActivityResult) {
+        val launchException = intentSenderLaunchException(result) ?: return
+        LauncherDebugLog.warning("Play update sheet failed to launch", launchException)
+        recoverFromFailedPlayUpdateLaunch()
+    }
+
+    // The in-app update flow could not be opened — fall back to the Play
+    // Store listing and clear the in-flight state so the banner recovers
+    // immediately rather than being stuck showing "Updating…" with nothing
+    // to tap. Shared by both ways a launch can fail to open anything: the
+    // synchronous `false` from `startUpdate` above, and the asynchronous
+    // `SendIntentException` `playUpdateLauncher` can report after `startUpdate`
+    // already returned `true`.
+    private fun recoverFromFailedPlayUpdateLaunch() {
+        viewModel.setPlayUpdateProgress(UpdateProgress.Idle)
+        viewModel.openPlayStoreListing()
     }
 
     private fun completePlayUpdate() {
