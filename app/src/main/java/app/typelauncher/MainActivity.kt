@@ -401,13 +401,15 @@ class MainActivity : ComponentActivity() {
         // ambient check then also fails (network hiccup), nothing would ever
         // register one, stranding the banner on the busy Starting placeholder
         // (Codex on PR #648, round 11). Registering here removes the gap
-        // entirely instead of patching around this one narrow timing. Posted
+        // entirely instead of patching around this one narrow timing. Deferred
         // rather than called inline: first-listener registration can do
         // platform receiver-registration IPC, and cold start / configuration
         // recreation are sacred first-frame paths this repo never blocks on
-        // Play Core work — the post runs right after the first frame is
-        // scheduled instead (Codex on PR #648, round 12).
-        window.decorView.post { playUpdateChecker.registerInstallListener() }
+        // Play Core work. `doOnPreDraw` + `post` is what actually gets it
+        // *after* the first frame — a bare `View.post` from `onCreate` runs
+        // when the decor attaches, which is inside the first traversal and so
+        // still ahead of the first draw (Codex on PR #648, rounds 12 and 15).
+        window.decorView.doOnPreDraw { it.post { playUpdateChecker.registerInstallListener() } }
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         androidTrace("launcher.viewmodel_init") {
             viewModel = ViewModelProvider(
