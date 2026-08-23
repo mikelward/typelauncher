@@ -29,6 +29,18 @@ internal sealed interface UpdateProgress {
 }
 
 /**
+ * The key a dismissal is remembered under, so dismissing one update doesn't
+ * silence the next one. Play normally reports the waiting build's version code;
+ * when it doesn't, fall back to one past the running build — that suppresses
+ * the banner for this install but not after the launcher itself has updated,
+ * which is the same "until there's a genuinely newer build" promise. Both the
+ * store and the read side must apply this same fallback, or a dismissal on an
+ * unreported version code never matches the update it was meant to silence.
+ */
+internal fun playUpdateDismissalKey(versionCode: Int?, currentVersionCode: Int): Int =
+    versionCode ?: (currentVersionCode + 1)
+
+/**
  * Play's raw install status → the banner's state. [fallback] carries what we
  * were already showing: Play reports `UNKNOWN` both before anything starts and
  * in the gap after the user accepts the sheet but before the download is

@@ -191,6 +191,27 @@ class LauncherViewModelPlayUpdateTest {
     }
 
     @Test
+    fun dismissPlayUpdateWithNoReportedVersionSticksOnRecheck() {
+        // Play doesn't always report a version code. The dismissal is then
+        // keyed one past the running build (playUpdateDismissalKey), and the
+        // read side must apply the exact same fallback — otherwise a resume
+        // recheck that again sees a null version code would never match the
+        // stored key and the banner would silently reappear.
+        val viewModel = newViewModel()
+        viewModel.setPlayUpdateAvailable(availableVersionCode = null)
+        idle()
+
+        viewModel.dismissPlayUpdate()
+        idle()
+        viewModel.setPlayUpdateAvailable(availableVersionCode = null)
+        idle()
+
+        val state = viewModel.uiState.value.playUpdate as PlayUpdateState.Available
+        assertTrue("a re-dismissed unreported-version update must stay dismissed", state.isDismissed)
+        assertFalse(state.shouldPrompt)
+    }
+
+    @Test
     fun checkFailedPreservesDownloadedBanner() {
         val viewModel = newViewModel()
         viewModel.setPlayUpdateAvailable(101, InstallStatus.DOWNLOADED)

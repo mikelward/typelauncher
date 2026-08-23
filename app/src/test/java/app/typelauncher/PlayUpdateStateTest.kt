@@ -8,7 +8,7 @@ import org.junit.Test
 
 /**
  * The update banner's pure state mapping: what Play's raw install status means
- * for the banner's copy.
+ * for the banner's copy, and what a dismissal is remembered under.
  */
 class PlayUpdateStateTest {
 
@@ -72,6 +72,19 @@ class PlayUpdateStateTest {
             UpdateProgress.Downloaded,
             progressForInstallStatus(InstallStatus.INSTALLING, fallback = UpdateProgress.Downloaded),
         )
+    }
+
+    @Test
+    fun `a dismissal is remembered against the waiting build`() {
+        assertEquals(101, playUpdateDismissalKey(versionCode = 101, currentVersionCode = 100))
+    }
+
+    @Test
+    fun `a dismissal with no reported version lasts until the launcher itself updates`() {
+        // Play doesn't always report a version code. Keying the dismissal one
+        // past the running build silences this install without silencing the
+        // banner on the build that follows it.
+        assertEquals(101, playUpdateDismissalKey(versionCode = null, currentVersionCode = 100))
     }
 
     @Test
