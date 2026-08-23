@@ -5824,6 +5824,7 @@ internal fun SettingsScreen(
         }
         SettingsBuildBannerSlot(
             playUpdate = state.playUpdate,
+            playUpdateRestartFailed = state.playUpdateRestartFailed,
             buildSourceInfo = rememberBuildSourceInfo(),
             onOpenPlayUpdate = onOpenPlayUpdate,
             onCompletePlayUpdate = onCompletePlayUpdate,
@@ -6125,6 +6126,7 @@ internal fun SettingsScreen(
 @Composable
 private fun SettingsBuildBannerSlot(
     playUpdate: PlayUpdateState,
+    playUpdateRestartFailed: Boolean,
     buildSourceInfo: BuildSourceInfo?,
     onOpenPlayUpdate: () -> Unit,
     onCompletePlayUpdate: () -> Unit,
@@ -6134,6 +6136,7 @@ private fun SettingsBuildBannerSlot(
     if (update?.shouldPrompt == true) {
         PlayUpdateBanner(
             progress = update.progress,
+            restartFailed = playUpdateRestartFailed,
             onOpenPlayUpdate = onOpenPlayUpdate,
             onCompletePlayUpdate = onCompletePlayUpdate,
             onDismissPlayUpdate = onDismissPlayUpdate,
@@ -6149,6 +6152,7 @@ private fun PlayUpdateBanner(
     onOpenPlayUpdate: () -> Unit,
     onCompletePlayUpdate: () -> Unit,
     onDismissPlayUpdate: () -> Unit,
+    restartFailed: Boolean = false,
 ) {
     val isInFlight = progress is UpdateProgress.Starting || progress is UpdateProgress.Downloading
     val isDownloaded = progress is UpdateProgress.Downloaded
@@ -6193,6 +6197,16 @@ private fun PlayUpdateBanner(
                     text = stringResource(bodyRes),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                // A failed Restart tap would otherwise look like it did
+                // nothing — the only outcome that comes back from
+                // completeFlexibleUpdate, since a success restarts the app.
+                if (isDownloaded && restartFailed) {
+                    Text(
+                        text = stringResource(R.string.play_update_banner_restart_failed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             when {
                 isInFlight -> {

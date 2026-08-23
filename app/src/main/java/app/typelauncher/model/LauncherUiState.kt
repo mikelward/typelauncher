@@ -787,6 +787,9 @@ internal data class LauncherUiState(
     // never sets it. Defaults off (previews, tests, no-sink builds).
     val isCrashBannerVisible: Boolean = false,
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
+    // Whether the last Restart tap failed to hand off to the installer — the
+    // tap that would otherwise look like it did nothing.
+    val playUpdateRestartFailed: Boolean = false,
 )
 
 /**

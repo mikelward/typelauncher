@@ -84,6 +84,49 @@ internal class LauncherViewModel(
     // banner reflect Play's flexible-update download state (Starting →
     // Downloading → Downloaded) instead of just vanishing on first tap.
     private var currentPlayUpdateProgress: UpdateProgress = UpdateProgress.Idle
+    /**
+     * Set while the banner is parked on the busy `Starting` placeholder
+     * purely to await an answer that can resolve it — a decline or a
+     * failed/canceled download, never a genuine accept in progress (nothing
+     * offers Update to tap while the banner is busy, so nothing can race
+     * this). A *success* resolves it unconditionally, whichever check
+     * delivered it, flagged as "the" recovery or not: a success always
+     * repopulates the checker's `updateInfo`, so exposing the retryable
+     * `Idle` action is safe no matter which overlapping check happened to
+     * land first (Codex on PR #648, round 6 — an earlier version tied
+     * resolution to a specific *call* being flagged as the recovery, which
+     * let an unflagged ambient success strand the placeholder).
+     *
+     * A *failure* is different: it carries no information about whether the
+     * checker's `updateInfo` is populated, so only the recovery's own
+     * originating check's failure may resolve it (see [recoveryToken]) — an
+     * unrelated ambient check's failure must leave the banner exactly as it
+     * is, per `SPEC.md`'s update-banner paragraph, so it can't prematurely
+     * expose a tappable Update while the actual recovery — which might
+     * still succeed a moment later — is still in flight (Codex on PR #648,
+     * round 8; an earlier version generation-gated both success *and*
+     * failure the same way, which fixed a stale-failure case but still let
+     * a *later*, merely-overlapping ambient failure resolve a recovery that
+     * wasn't its own).
+     */
+    private var isAwaitingPlayUpdateRecovery = false
+
+    /**
+     * Identifies the check [beginPlayUpdateRecovery] is currently waiting
+     * on, for [setPlayUpdateCheckFailed] to match against — see
+     * [isAwaitingPlayUpdateRecovery]. Owned and incremented entirely here,
+     * never sourced from `MainActivity`'s own request-generation counter:
+     * that counter is activity-local and resets to zero on configuration
+     * change, while this field lives on this retained `ViewModel` — an
+     * activity-local source would let a rotation permanently strand a
+     * recovery that began before it, since no post-rotation check could
+     * ever produce a number exceeding a value set by the pre-rotation
+     * activity (Codex on PR #648, round 8; the exact bug class already
+     * fixed once for [latestRestartAttempt]).
+     */
+    private var recoveryToken = 0
+    /** See [abandonPendingPlayUpdateRecovery]. */
+    private var isRecoveryAbandoned = false
     private var installedApps: List<InstalledApp> = emptyList()
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the
@@ -2762,9 +2805,22 @@ internal class LauncherViewModel(
         logState("closeSettings")
     }
 
-    fun setPlayUpdateAvailable(availableVersionCode: Int?, installStatus: Int = InstallStatus.UNKNOWN) {
+    /**
+     * If Play's answer is `UNKNOWN` — "available, but nothing in progress" —
+     * [progressForInstallStatus] would otherwise preserve whatever the
+     * banner was already showing, to protect a genuine accept in progress.
+     * While [isAwaitingPlayUpdateRecovery], there is no such accept to
+     * protect, so this falls back to `Idle` instead — exposing the
+     * retryable Update action the fresh handle actually supports rather
+     * than leaving the spinner stuck with no escape (Codex on PR #648).
+     */
+    fun setPlayUpdateAvailable(
+        availableVersionCode: Int?,
+        installStatus: Int = InstallStatus.UNKNOWN,
+    ) {
         val previous = _uiState.value.playUpdate as? PlayUpdateState.Available
-        if (previous != null && previous.versionCode != availableVersionCode) {
+        val versionChanged = previous != null && previous.versionCode != availableVersionCode
+        if (versionChanged) {
             // A different version is being offered (rare — typically a server-side
             // rollout swap). Reset any in-flight progress so the new version is
             // presented from a clean Idle state.
@@ -2777,8 +2833,11 @@ internal class LauncherViewModel(
         // doesn't report one — the dismissal would silently never stick.
         val isPersistDismissed = playUpdateDismissalKey(availableVersionCode, BuildConfig.VERSION_CODE) ==
             playUpdateStore.dismissedVersionCode
-        val progress = progressForInstallStatus(installStatus, fallback = currentPlayUpdateProgress)
+        val fallback = if (isAwaitingPlayUpdateRecovery) UpdateProgress.Idle else currentPlayUpdateProgress
+        isAwaitingPlayUpdateRecovery = false
+        val progress = progressForInstallStatus(installStatus, fallback = fallback)
         currentPlayUpdateProgress = progress
+        if (versionChanged || progress != UpdateProgress.Downloaded) invalidatePendingRestartAttempt()
         _uiState.update { state ->
             state.copy(
                 playUpdate = PlayUpdateState.Available(
@@ -2786,44 +2845,76 @@ internal class LauncherViewModel(
                     isDismissed = isPersistDismissed,
                     progress = progress,
                 ),
+                // A version swap that lands as DOWNLOADED on the very first
+                // report (a staged rollout replacing an already-downloaded
+                // build) must not inherit the old build's failure just
+                // because the resulting progress also happens to be
+                // Downloaded — the version check has to be independent of
+                // the resulting progress, not folded into it (Codex on PR
+                // #648).
+                playUpdateRestartFailed = !versionChanged && state.playUpdateRestartFailed && progress == UpdateProgress.Downloaded,
             )
         }
         logState("setPlayUpdateAvailable=$availableVersionCode progress=$progress")
     }
 
     fun setPlayUpdateUnavailable() {
+        isAwaitingPlayUpdateRecovery = false
         currentPlayUpdateProgress = UpdateProgress.Idle
-        _uiState.update { it.copy(playUpdate = PlayUpdateState.NotAvailable) }
+        invalidatePendingRestartAttempt()
+        _uiState.update { it.copy(playUpdate = PlayUpdateState.NotAvailable, playUpdateRestartFailed = false) }
         logState("setPlayUpdateUnavailable")
     }
 
     /**
      * Called when a Play update *check* fails (flaky network, Play transiently
      * unavailable) — distinct from a check that succeeds and reports no update
-     * ([setPlayUpdateUnavailable]). A failed check carries no information about
-     * an actual download, so it must not wipe a real in-flight or already-
-     * downloaded update: doing so would hide the Restart action and drop the
-     * progress the install listener drives (`setPlayUpdateProgress` early-
-     * returns once the state is no longer `Available`). Those states
-     * (`Downloading` / `Downloaded`) are preserved.
+     * ([setPlayUpdateUnavailable]). An *ambient* check (`onResume`, cold start)
+     * that fails carries no information, so it must leave the banner exactly
+     * as it is, in every progress state including `Starting` — resetting
+     * `Starting` here unconditionally would race `PlayUpdateChecker.startUpdate`'s
+     * own install listener (registered *before* the sheet opens) and could
+     * snap a real, in-progress download's banner back to "Update", exposing
+     * a button whose cached handle was already consumed.
      *
-     * `Starting` is the exception. It means the user tapped Update and the Play
-     * sheet was launched (which consumed the cached `AppUpdateInfo`); a
-     * cancelled sheet delivers no install-listener event, so a preserved
-     * `Starting` would leave the banner stuck on an indefinite "Updating…"
-     * spinner with its click disabled and dismiss hidden. Recover it to `Idle`
-     * — exactly what the `UNKNOWN` success recheck does — so the user can tap
-     * Update again. `Idle` and `NotAvailable` are left untouched.
+     * The one exception: while [isAwaitingPlayUpdateRecovery], a failure
+     * from the recovery's *own* originating check IS itself an answer that
+     * resolves the busy placeholder — leaving it parked would strand the
+     * banner on the spinner indefinitely, with no retry action until some
+     * later success happens to land. [token] must be the exact value
+     * [beginPlayUpdateRecovery] returned for the still-pending recovery — or
+     * the recovery must have been marked [abandonPendingPlayUpdateRecovery];
+     * an ambient check otherwise passes no token at all (the default
+     * `null`), so it can't resolve a recovery through this path — see
+     * [recoveryToken] for why only the originating check's failure may.
      */
-    fun setPlayUpdateCheckFailed() {
-        val update = _uiState.value.playUpdate as? PlayUpdateState.Available
-        if (update != null && update.progress == UpdateProgress.Starting) {
-            currentPlayUpdateProgress = UpdateProgress.Idle
-            _uiState.update { it.copy(playUpdate = update.copy(progress = UpdateProgress.Idle)) }
-            logState("setPlayUpdateCheckFailed reset Starting->Idle")
-        } else {
-            logState("setPlayUpdateCheckFailed preserving=${_uiState.value.playUpdate}")
+    fun setPlayUpdateCheckFailed(token: Int? = null) {
+        if (isAwaitingPlayUpdateRecovery && (isRecoveryAbandoned || (token != null && token == recoveryToken))) {
+            isAwaitingPlayUpdateRecovery = false
+            isRecoveryAbandoned = false
+            setPlayUpdateProgress(UpdateProgress.Idle)
         }
+        logState("setPlayUpdateCheckFailed preserving=${_uiState.value.playUpdate}")
+    }
+
+    /**
+     * Called from `MainActivity.onDestroy()`. If a recovery is still
+     * pending, its own originating check can never resolve it now — the
+     * `PlayUpdateChecker` instance carrying out that check belongs to this
+     * now-destroyed activity, and `MainActivity`'s `isDestroyed` guards
+     * reject its callbacks (see the recovery-fix comments in
+     * `MainActivity.checkPlayUpdate`). Without this, the recreated
+     * activity's own ambient checks carry no token and can resolve the
+     * recovery only on success, stranding the banner on the busy spinner
+     * until a *later* successful check happens to land if the immediate
+     * next one merely fails (Codex on PR #648, round 10). Relaxing to "the
+     * next answer from any check resolves it" is exactly what an ordinary
+     * ambient *success* already does safely — a failure from the abandoned
+     * state degrades the same way the recovery's own failure always has
+     * (exposing a retryable `Idle` even without a confirmed handle).
+     */
+    fun abandonPendingPlayUpdateRecovery() {
+        if (isAwaitingPlayUpdateRecovery) isRecoveryAbandoned = true
     }
 
     fun dismissPlayUpdate() {
@@ -2843,17 +2934,154 @@ internal class LauncherViewModel(
         currentPlayUpdateProgress = progress
         val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
         if (update.progress == progress) return
-        _uiState.update { it.copy(playUpdate = update.copy(progress = progress)) }
+        if (progress != UpdateProgress.Downloaded) invalidatePendingRestartAttempt()
+        _uiState.update {
+            it.copy(
+                playUpdate = update.copy(progress = progress),
+                playUpdateRestartFailed = it.playUpdateRestartFailed && progress == UpdateProgress.Downloaded,
+            )
+        }
         logState("setPlayUpdateProgress=$progress")
     }
 
     /**
-     * Bridge for `PlayUpdateChecker`'s `InstallStateUpdatedListener` — translates
-     * Play's raw [InstallStatus] code into our [UpdateProgress] state machine
-     * and applies it to the banner.
+     * Bridge for `PlayUpdateChecker`'s `InstallStateUpdatedListener` —
+     * translates Play's raw [InstallStatus] code into our [UpdateProgress]
+     * state machine and applies it to the banner. Returns whether the caller
+     * should trigger a fresh `PlayUpdateChecker.checkForUpdate`: the only way
+     * [progressForInstallStatus] lands on `Idle` from something that wasn't
+     * already `Idle` is a genuine `CANCELED`/`FAILED` (its `UNKNOWN` preserves
+     * the fallback, and every other status maps to its own non-Idle
+     * progress) — heard directly, with no resume in between, if the user
+     * never left this screen while the download was live.
+     * `PlayUpdateChecker.startUpdate` already cleared its cached handle the
+     * moment the sheet opened, and nothing else refreshes it, so exposing
+     * `Idle`'s tappable Update action here — before that recheck has run —
+     * would let a repeat tap find no handle and fall back to the external
+     * Play listing instead of retrying the in-app flow (Codex on PR #648).
+     * Show the busy state instead and let the recheck's own
+     * `setPlayUpdateAvailable`/`setPlayUpdateUnavailable` land on the real
+     * `Idle` once the handle (or its absence) is confirmed.
      */
-    fun onPlayUpdateInstallStatus(installStatus: Int) {
-        setPlayUpdateProgress(progressForInstallStatus(installStatus, fallback = currentPlayUpdateProgress))
+    /**
+     * Returns the [recoveryToken] to pass into the recovery check this
+     * transition triggers, or `null` if no recheck is needed — see
+     * [beginPlayUpdateRecovery] and [isAwaitingPlayUpdateRecovery].
+     */
+    fun onPlayUpdateInstallStatus(installStatus: Int): Int? {
+        val previousProgress = currentPlayUpdateProgress
+        val mapped = progressForInstallStatus(installStatus, fallback = previousProgress)
+        val refreshNeeded = mapped == UpdateProgress.Idle && previousProgress != UpdateProgress.Idle
+        return if (refreshNeeded) {
+            beginPlayUpdateRecovery()
+        } else {
+            setPlayUpdateProgress(mapped)
+            null
+        }
+    }
+
+    /**
+     * Parks the banner on the busy `Starting` placeholder while a recovery
+     * check is launched to resolve it — see [isAwaitingPlayUpdateRecovery].
+     * Returns the [recoveryToken] identifying this specific recovery; the
+     * caller must thread it into the `checkForUpdate` call that performs
+     * the actual recovery and pass it to [setPlayUpdateCheckFailed] on that
+     * call's failure. Used by `MainActivity.onPlayUpdateLaunchResult`'s
+     * decline handling; [onPlayUpdateInstallStatus]'s failed/canceled path
+     * calls this directly since it already computes the transition itself.
+     */
+    fun beginPlayUpdateRecovery(): Int {
+        isAwaitingPlayUpdateRecovery = true
+        isRecoveryAbandoned = false
+        setPlayUpdateProgress(UpdateProgress.Starting)
+        return ++recoveryToken
+    }
+
+    /**
+     * Bumped on every Restart tap, so a delayed failure callback from an
+     * earlier tap can't redisplay an error a later tap already superseded.
+     * Lives here rather than on `MainActivity` because `completeUpdate()`'s
+     * failure is asynchronous and carries no Android lifecycle scoping — it
+     * still fires even after the activity that started it is destroyed, so
+     * an activity-local counter resets on every recreation while the
+     * callback it's meant to invalidate survives: two attempts made in two
+     * different activity instances (a rotation between them) could both
+     * land attempt number 1, and the old instance's stale failure would
+     * still pass the check. This `ViewModel` is retained across
+     * configuration changes, so the identity survives exactly as long as
+     * the callback that needs invalidating does (Codex on PR #648, round 6).
+     */
+    private var latestRestartAttempt = 0
+
+    /**
+     * Burns the current [latestRestartAttempt] id so a still-pending
+     * `completeUpdate()` callback for it can no longer pass
+     * [setPlayUpdateRestartFailed]'s check. Called wherever progress leaves
+     * `Downloaded` for a reason *other* than a new Restart tap (which
+     * already invalidates the prior id itself, via
+     * [beginPlayUpdateRestartAttempt]'s own increment): if the same version
+     * leaves and later re-enters `Downloaded` (a failed install recovered
+     * by a fresh download) while that old attempt is still in flight, its
+     * eventual failure would otherwise pass both the version and progress
+     * checks and redisplay against a download it was never about (Codex on
+     * PR #648, round 9).
+     */
+    private fun invalidatePendingRestartAttempt() {
+        latestRestartAttempt++
+    }
+
+    /**
+     * The banner's Restart, tapped again after [_uiState]'s
+     * `playUpdateRestartFailed` was last set. Cleared on the way in, like
+     * every other failure line on these screens — the next tap supersedes
+     * whatever the last one reported, whichever way this one goes.
+     *
+     * [setPlayUpdateAvailable] and [setPlayUpdateProgress] also clear it
+     * whenever progress leaves `Downloaded` for any other reason (a newer
+     * version offered, the update becoming unavailable, progress otherwise
+     * reset) — a stale "Couldn't restart" from the update this replaced must
+     * not appear to describe the one now showing (Codex on PR #648).
+     */
+    fun clearPlayUpdateRestartFailed() {
+        _uiState.update { it.copy(playUpdateRestartFailed = false) }
+    }
+
+    /**
+     * The banner's Restart tap: clears any previous failure and returns the
+     * attempt id to pass back into [setPlayUpdateRestartFailed] alongside
+     * the version code being restarted, so that callback can tell this
+     * attempt apart from both a later retry and one made before an activity
+     * recreation.
+     */
+    fun beginPlayUpdateRestartAttempt(): Int {
+        clearPlayUpdateRestartFailed()
+        return ++latestRestartAttempt
+    }
+
+    /**
+     * `PlayUpdateChecker.completeFlexibleUpdate`'s failure callback.
+     * [attempt] is the id [beginPlayUpdateRestartAttempt] returned when this
+     * failure's tap was made; ignored once a later tap has bumped
+     * [latestRestartAttempt] past it, whether that later tap is still in
+     * flight or has already resolved — the version+progress check below
+     * can't tell two attempts on the *same* build apart on its own (Codex on
+     * Simmo PR #238). [attemptedVersionCode] is the version that tap was
+     * actually restarting, captured by the caller at tap time — the install
+     * is asynchronous, so by the time this lands the banner may already show
+     * a different build (a recheck switched it, or made the update
+     * unavailable), and setting the flag unconditionally would show that
+     * build the *previous* attempt's failure (Codex on Simmo PR #238, the
+     * identical bug). Applied only while the banner is still showing that
+     * same build, still `Downloaded` — a resumed download for the same
+     * version code, still pending, is not the completion this failure was
+     * about either.
+     */
+    fun setPlayUpdateRestartFailed(attempt: Int, attemptedVersionCode: Int?) {
+        if (attempt != latestRestartAttempt) return
+        val current = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
+        if (current.versionCode != attemptedVersionCode || current.progress != UpdateProgress.Downloaded) return
+        _uiState.update { it.copy(playUpdateRestartFailed = true) }
+        logState("setPlayUpdateRestartFailed")
     }
 
     fun openPlayStoreListing() {

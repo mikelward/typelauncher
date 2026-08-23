@@ -43,15 +43,19 @@ class PlayUpdateStateTest {
     }
 
     @Test
-    fun `an unknown status reverts a just-started update but preserves an in-flight download`() {
+    fun `an unknown status preserves whatever the banner was already showing`() {
         // Play reports UNKNOWN both before anything starts and in the gap
         // after the user accepts the sheet but before the download is
-        // registered. A canceled sheet fires no listener event, so a resume
-        // recheck landing on UNKNOWN with a Starting fallback reverts to Idle
-        // so the user can tap Update again; an in-flight download fallback is
-        // left alone rather than snapped back to "Update" under their finger.
+        // registered — indistinguishable from "the sheet was declined" by
+        // this signal alone. An earlier version reverted a Starting fallback
+        // to Idle here to recover a declined sheet, but that could just as
+        // easily snap a real, just-accepted download's banner back to
+        // "Update" if a resume recheck's UNKNOWN answer landed before the
+        // install listener's first PENDING/DOWNLOADING callback.
+        // MainActivity.onPlayUpdateLaunchResult now recovers a declined sheet
+        // directly instead, so UNKNOWN always preserves the fallback.
         assertEquals(
-            UpdateProgress.Idle,
+            UpdateProgress.Starting,
             progressForInstallStatus(InstallStatus.UNKNOWN, fallback = UpdateProgress.Starting),
         )
         assertEquals(
@@ -61,6 +65,10 @@ class PlayUpdateStateTest {
         assertEquals(
             UpdateProgress.Downloading,
             progressForInstallStatus(InstallStatus.UNKNOWN, fallback = UpdateProgress.Downloading),
+        )
+        assertEquals(
+            UpdateProgress.Downloaded,
+            progressForInstallStatus(InstallStatus.UNKNOWN, fallback = UpdateProgress.Downloaded),
         )
     }
 

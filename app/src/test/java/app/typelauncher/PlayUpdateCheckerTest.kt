@@ -77,6 +77,36 @@ class PlayUpdateCheckerTest {
         )
     }
 
+    /**
+     * The banner's own visibility into the same failure — the tap that would
+     * otherwise look like it did nothing.
+     */
+    @Test
+    fun `an install that fails to start also notifies the caller`() {
+        val manager = FakeAppUpdateManager(
+            completeUpdateResult = Tasks.forException(IllegalStateException("installer busy")),
+        )
+        val checker = PlayUpdateChecker(ApplicationProvider.getApplicationContext(), manager)
+        var notified = false
+
+        checker.completeFlexibleUpdate(onFailure = { notified = true })
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue("the caller must hear about a failed install", notified)
+    }
+
+    @Test
+    fun `a successful hand-off does not notify a failure`() {
+        val manager = FakeAppUpdateManager(completeUpdateResult = Tasks.forResult(null))
+        val checker = PlayUpdateChecker(ApplicationProvider.getApplicationContext(), manager)
+        var notified = false
+
+        checker.completeFlexibleUpdate(onFailure = { notified = true })
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue("a successful install must not notify a failure", !notified)
+    }
+
     @Test
     fun `a check landing after the activity is gone registers no listener`() {
         // Play's check is asynchronous: a rotation while it is in flight runs

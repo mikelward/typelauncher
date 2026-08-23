@@ -13,6 +13,8 @@
     <string name="play_update_banner_downloaded_body">Tap to restart and install.</string>
     <string name="play_update_banner_restart_button">Restart</string>
     <string name="play_update_banner_dismiss_description">Dismiss update banner</string>
+    <!-- TODO: translate -->
+    <string name="play_update_banner_restart_failed" tools:ignore="MissingTranslation">Couldn\'t restart to install</string>
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Long press apps to dock</string>

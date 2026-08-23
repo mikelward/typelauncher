@@ -95,6 +95,23 @@ class MainActivity : ComponentActivity() {
     private lateinit var appWidgetHost: LauncherAppWidgetHost
     private lateinit var appWidgetManager: AppWidgetManager
     private lateinit var playUpdateChecker: PlayUpdateChecker
+
+    /**
+     * Bumped on every [checkPlayUpdate] call, so a stale, slower check
+     * can't overwrite state a fresher one already set — the same pattern
+     * applied at [PlayUpdateChecker]'s own generation guard, one layer down.
+     */
+    private var latestPlayUpdateRefresh = 0
+
+    /**
+     * The refresh of the last answer actually applied. Guarding on this
+     * instead of [latestPlayUpdateRefresh] itself matters when a *newer*
+     * check fails: a failure contributes no answer, so it must not suppress
+     * an older check's still-unapplied, genuinely usable one — only a newer
+     * check that itself produced an answer may do that.
+     */
+    private var appliedPlayUpdateRefresh = 0
+
     private var hasSeenInitialWindowFocus = false
 
     // True from the moment `bindWidget` accepts a tap until its allocate/bind
@@ -377,6 +394,20 @@ class MainActivity : ComponentActivity() {
             ?.getInt(KEY_RESTORE_TARGET_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
             ?: AppWidgetManager.INVALID_APPWIDGET_ID
         playUpdateChecker = PlayUpdateChecker(application)
+        // Registered eagerly, not lazily on the first in-progress checkForUpdate
+        // answer: a rotation between accepting the update sheet and Play's first
+        // PENDING/DOWNLOADING report tears down the old checker's listener
+        // (onDestroy) with the new one not yet holding any — if the very next
+        // ambient check then also fails (network hiccup), nothing would ever
+        // register one, stranding the banner on the busy Starting placeholder
+        // (Codex on PR #648, round 11). Registering here removes the gap
+        // entirely instead of patching around this one narrow timing. Posted
+        // rather than called inline: first-listener registration can do
+        // platform receiver-registration IPC, and cold start / configuration
+        // recreation are sacred first-frame paths this repo never blocks on
+        // Play Core work — the post runs right after the first frame is
+        // scheduled instead (Codex on PR #648, round 12).
+        window.decorView.post { playUpdateChecker.registerInstallListener() }
         LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
         androidTrace("launcher.viewmodel_init") {
             viewModel = ViewModelProvider(
@@ -387,7 +418,15 @@ class MainActivity : ComponentActivity() {
                 ),
             )[LauncherViewModel::class.java]
         }
-        playUpdateChecker.setInstallStatusListener(viewModel::onPlayUpdateInstallStatus)
+        // A download that fails or is canceled without the user ever
+        // leaving this screen is heard only through this listener, with no
+        // onResume in between to refresh the checker's cached handle —
+        // startUpdate() already cleared it the moment the sheet opened.
+        // Recheck now instead of waiting on a resume that may not come.
+        playUpdateChecker.setInstallStatusListener { status ->
+            val recoveryToken = viewModel.onPlayUpdateInstallStatus(status)
+            if (recoveryToken != null) checkPlayUpdate(recoveryToken)
+        }
         LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
         // A "Show wallpaper" toggle restarts the launcher through a fresh
         // activity start (see `restartForWallpaperWindowMode`); the restart
@@ -541,12 +580,54 @@ class MainActivity : ComponentActivity() {
         checkPlayUpdate()
     }
 
-    private fun checkPlayUpdate() {
+    /**
+     * [recoveryToken] is `null` for an ordinary ambient check and the id
+     * `LauncherViewModel.beginPlayUpdateRecovery` returned when this call
+     * itself *is* the recovery — threaded through only to the failure path,
+     * since only the recovery's own originating failure may resolve it
+     * (`LauncherViewModel.setPlayUpdateCheckFailed` ignores anything else).
+     * A success resolves unconditionally regardless of which check
+     * delivered it, so it needs no token. An earlier version instead
+     * compared this activity's own request-generation counter against a
+     * value stored on the ViewModel, which broke across activity recreation
+     * (an activity-local counter restarts at zero on rotation while the
+     * ViewModel's retained comparison value doesn't) and still let a later,
+     * merely-overlapping ambient failure resolve a recovery that wasn't its
+     * own (Codex on PR #648, round 8).
+     *
+     * Every callback below also bails out if this activity [isDestroyed]:
+     * `playUpdateChecker` is recreated per activity instance (`onCreate`),
+     * so a callback that lands after this instance is destroyed belongs to
+     * an *orphaned* checker whose `updateInfo` the recreated activity's own
+     * `playUpdateChecker` field no longer refers to. Applying its result
+     * would resolve the retained ViewModel's state (a recovery, a fresh
+     * available/unavailable answer) as if the *current* checker had it,
+     * when only the destroyed one does — the next real Update tap would
+     * find nothing to launch and silently fall back to the external Play
+     * listing (Codex on PR #648, round 9). The recreated activity's own
+     * next check (`onResume`, which fires immediately after recreation)
+     * naturally supersedes whatever the orphaned check would have reported.
+     */
+    private fun checkPlayUpdate(recoveryToken: Int? = null) {
         if (!::playUpdateChecker.isInitialized) return
+        val refresh = ++latestPlayUpdateRefresh
         playUpdateChecker.checkForUpdate(
-            onAvailable = viewModel::setPlayUpdateAvailable,
-            onUnavailable = viewModel::setPlayUpdateUnavailable,
-            onCheckFailed = viewModel::setPlayUpdateCheckFailed,
+            onAvailable = { versionCode, installStatus ->
+                if (isDestroyed) return@checkForUpdate
+                if (refresh < appliedPlayUpdateRefresh) return@checkForUpdate
+                appliedPlayUpdateRefresh = refresh
+                viewModel.setPlayUpdateAvailable(versionCode, installStatus)
+            },
+            onUnavailable = {
+                if (isDestroyed) return@checkForUpdate
+                if (refresh < appliedPlayUpdateRefresh) return@checkForUpdate
+                appliedPlayUpdateRefresh = refresh
+                viewModel.setPlayUpdateUnavailable()
+            },
+            onCheckFailed = {
+                if (isDestroyed) return@checkForUpdate
+                viewModel.setPlayUpdateCheckFailed(recoveryToken)
+            },
         )
     }
 
@@ -558,18 +639,46 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * The result half of [playUpdateLauncher]. Ordinary outcomes are ignored on
-     * purpose — returning from a sheet that actually opened is always a resume,
-     * and `onResume`'s unconditional [checkPlayUpdate] already reverts the banner
-     * and repopulates the update handle together; doing it here too raced that
-     * check. The exception is a sheet that never opened, which produces no resume
-     * to recover from and would otherwise strand the banner on "Updating…".
+     * The result half of [playUpdateLauncher].
+     *
+     * A sheet that never opened at all produces no resume to recover from —
+     * that's the redelivered `SendIntentException` case — and would
+     * otherwise strand the banner on "Updating…"; fall back to the store
+     * listing the same way a synchronous launch failure already does.
+     *
+     * An ordinary decline (the sheet opened and the user backed out) is
+     * known with certainty here — this is the activity result itself, not a
+     * guess from Play's ambiguous `UNKNOWN` install status — but
+     * `startUpdate` already consumed the cached `AppUpdateInfo` the moment
+     * the sheet opened, so a decline leaves this screen with no handle
+     * either way. An earlier version set the banner straight back to `Idle`
+     * on a decline, which exposed a tappable Update before anything had
+     * repopulated that handle: a quick retry would find nothing to launch
+     * and fall back to the external Play listing (Codex on PR #648). Stay
+     * busy and trigger a recovery check instead — safe to do now that a
+     * decline is detected directly rather than inferred from `onResume`'s
+     * `UNKNOWN`, which is what the overlapping-check race in an earlier
+     * version (Codex on PR #647) was actually about: `UNKNOWN` couldn't
+     * tell "declined" from "accepted, but the download hasn't registered
+     * yet", so a resume recheck racing ahead of a genuine accept could snap
+     * that download's banner back to "Update" too. That ambiguity is gone —
+     * [progressForInstallStatus]'s `UNKNOWN` handling always preserves
+     * whatever progress was already showing — and only the recovery
+     * check's own failure, identified by its token, can resolve the busy
+     * placeholder it parks the banner on (see [checkPlayUpdate]).
      */
     @VisibleForTesting
     internal fun onPlayUpdateLaunchResult(result: ActivityResult) {
-        val launchException = intentSenderLaunchException(result) ?: return
-        LauncherDebugLog.warning("Play update sheet failed to launch", launchException)
-        recoverFromFailedPlayUpdateLaunch()
+        val launchException = intentSenderLaunchException(result)
+        if (launchException != null) {
+            LauncherDebugLog.warning("Play update sheet failed to launch", launchException)
+            recoverFromFailedPlayUpdateLaunch()
+            return
+        }
+        if (result.resultCode != RESULT_OK) {
+            val recoveryToken = viewModel.beginPlayUpdateRecovery()
+            checkPlayUpdate(recoveryToken)
+        }
     }
 
     // The in-app update flow could not be opened — fall back to the Play
@@ -586,7 +695,11 @@ class MainActivity : ComponentActivity() {
 
     private fun completePlayUpdate() {
         if (!::playUpdateChecker.isInitialized) return
-        playUpdateChecker.completeFlexibleUpdate()
+        val attempt = viewModel.beginPlayUpdateRestartAttempt()
+        val attemptedVersionCode = (viewModel.uiState.value.playUpdate as? PlayUpdateState.Available)?.versionCode
+        playUpdateChecker.completeFlexibleUpdate(
+            onFailure = { viewModel.setPlayUpdateRestartFailed(attempt, attemptedVersionCode) },
+        )
     }
 
     override fun onPostResume() {
@@ -621,6 +734,11 @@ class MainActivity : ComponentActivity() {
         if (::playUpdateChecker.isInitialized) {
             playUpdateChecker.unregisterInstallListener()
         }
+        // A recovery this instance started can no longer be resolved by its
+        // own check now that this checker's callbacks are being torn down —
+        // see LauncherViewModel.abandonPendingPlayUpdateRecovery (Codex on
+        // PR #648, round 10).
+        viewModel.abandonPendingPlayUpdateRecovery()
         super.onDestroy()
     }
 
