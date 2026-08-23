@@ -25,6 +25,35 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
     private var installListenerRegistered = false
 
     /**
+     * Bumped on every [checkForUpdate] call, so a slower check that finishes
+     * after a newer one started can't overwrite what the newer one already
+     * found. `MainActivity` has its own generation guard around which
+     * callback it *acts on*, but that alone doesn't protect [updateInfo]:
+     * without this, a stale "unavailable" response could still null it out
+     * from underneath a genuinely available update — the banner would keep
+     * showing Update, but [startUpdate] would silently find no handle to
+     * launch.
+     *
+     * Safe to count independently of `MainActivity`'s own
+     * `latestPlayUpdateRefresh` — unlike Simmo's equivalent checker, nothing
+     * asynchronous runs between `MainActivity.checkPlayUpdate` assigning its
+     * refresh number and calling in here, so the two counters can never
+     * observe overlapping calls in a different relative order (Codex flagged
+     * exactly that divergence on Simmo PR #238, where an `await` sits
+     * between the two — this file has no such gap to create it).
+     */
+    private var checkGeneration = 0
+
+    /**
+     * The generation of the last success actually applied. Guarding on this
+     * instead of [checkGeneration] itself matters when a *newer* request
+     * fails: a failure contributes no answer, so it must not suppress an
+     * older request's still-unapplied, genuinely usable success — only a
+     * newer request that itself *succeeded* may do that.
+     */
+    private var appliedGeneration = 0
+
+    /**
      * Latched by [unregisterInstallListener] — i.e. by the owning activity's
      * `onDestroy`. Play's check is asynchronous, so a rotation while it is in
      * flight can run the cleanup *before* the answer arrives; registering a
@@ -51,8 +80,11 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
             onUnavailable()
             return
         }
+        val generation = ++checkGeneration
         appUpdateManager.appUpdateInfo
             .addOnSuccessListener { info ->
+                if (generation < appliedGeneration) return@addOnSuccessListener
+                appliedGeneration = generation
                 if (info.isFlexibleUpdateAvailable() || info.isFlexibleUpdateInProgress()) {
                     updateInfo = info
                     // After process death mid-download, `startUpdate` has not
@@ -91,11 +123,11 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
      * Takes an [ActivityResultLauncher] rather than an activity + request code
      * because that overload is deprecated; the modern one needs a registered
      * launcher regardless of whether the caller reacts to the eventual
-     * result. A canceled sheet fires no install event, but MainActivity's
-     * `onResume` — which always runs right after the launched sheet returns
-     * — unconditionally rechecks anyway, so the launcher's own result
-     * callback deliberately does nothing rather than triggering a second,
-     * racing check of its own.
+     * result. A canceled sheet fires no install event, and `MainActivity`'s
+     * launcher result callback now sets the banner back to `Idle` directly
+     * on an ordinary decline — a synchronous write, not a second concurrent
+     * check, so it doesn't race the resume-time recheck that also always
+     * follows.
      */
     fun startUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>): Boolean {
         val info = updateInfo?.takeIf { it.isFlexibleUpdateAvailable() } ?: return false
@@ -125,15 +157,16 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
      * The banner's Restart: install the downloaded update now. On success the
      * app is restarted by Play, so only the failure path returns here — and it
      * is a real one (the installer is busy, Play errors transiently), where the
-     * tap visibly does nothing. Log it rather than discarding the task; the
-     * banner is left untouched, so it keeps offering Restart and the tap is
-     * simply retryable.
+     * tap visibly does nothing. Logged either way, and [onFailure] is what lets
+     * the banner say so too — the banner is left untouched otherwise, so it
+     * keeps offering Restart and the tap is simply retryable.
      */
-    fun completeFlexibleUpdate() {
+    fun completeFlexibleUpdate(onFailure: () -> Unit = {}) {
         LauncherDebugLog.event("Play update: completing flexible update on user request")
         appUpdateManager.completeUpdate()
             .addOnFailureListener { exception ->
                 LauncherDebugLog.warning("Play update install failed to start", exception)
+                onFailure()
             }
     }
 

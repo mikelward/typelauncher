@@ -20,14 +20,20 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * The update banner's recovery from a Play sheet that never opened.
+ * The update banner's recovery from a Play sheet that never opened, and from
+ * one that opened and was declined.
  *
  * AndroidX catches a `SendIntentException` from the `IntentSender` and redelivers
  * it through the activity result rather than throwing from the launch call, so no
- * external activity opens and the resume-time recheck that handles an ordinary
- * cancel never runs — the banner would sit on "Updating…" with nothing to tap.
- * These drive `MainActivity.onPlayUpdateLaunchResult` itself, not just the
- * predicate, so deleting the recovery from that callback fails the suite.
+ * external activity opens and there is no resume to recover the banner —
+ * it would otherwise sit on "Updating…" with nothing to tap. An ordinary
+ * decline is detected directly in the same callback (not inferred from a
+ * resume-time recheck's ambiguous `UNKNOWN`, which can't tell a decline apart
+ * from a genuine accept still registering), but recovering the *handle* that
+ * decline consumed still needs a fresh check — so this callback stays busy
+ * and triggers one rather than writing `Idle` straight back. These drive
+ * `MainActivity.onPlayUpdateLaunchResult` itself, not just the predicate, so
+ * deleting the recovery from that callback fails the suite.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -104,9 +110,26 @@ class MainActivityPlayUpdateResultTest {
     }
 
     @Test
-    fun ordinaryCancel_isLeftToTheResumeTimeRecheck() {
-        // A sheet that did open and was dismissed produces a plain canceled
-        // result; recovering it here as well would race onResume's own recheck.
+    fun ordinaryCancel_triggersARecoveryCheckInsteadOfExposingAStaleUpdateButton() {
+        // A sheet that did open and was declined fires no install event, and
+        // Play's UNKNOWN install status can't distinguish "declined" from
+        // "accepted, but the download hasn't registered yet" — so
+        // progressForInstallStatus's UNKNOWN handling now always preserves
+        // whatever was already showing (needed so a resume recheck that
+        // lands before the install listener's first real event can't snap a
+        // genuine download back to "Update"). But startUpdate() already
+        // consumed the cached handle the moment the sheet opened, so setting
+        // Idle straight back here — as an earlier version did — would expose
+        // a tappable Update whose retry finds nothing to launch and falls
+        // back to the external Play listing instead of the in-app flow
+        // (Codex on PR #648). This must trigger a recovery check instead of
+        // writing Idle directly.
+        //
+        // Debug builds disable Play update checks entirely, so
+        // PlayUpdateChecker.checkForUpdate resolves synchronously to
+        // "unavailable" here rather than actually contacting Play — which is
+        // exactly what proves a check ran: a direct Idle write would have
+        // left the banner Available(Idle), not cleared it to NotAvailable.
         val controller = Robolectric.buildActivity(MainActivity::class.java).create()
         try {
             val activity = controller.get()
@@ -115,18 +138,52 @@ class MainActivityPlayUpdateResultTest {
             shadowOf(RuntimeEnvironment.getApplication()).clearNextStartedActivities()
 
             activity.onPlayUpdateLaunchResult(ActivityResult(Activity.RESULT_CANCELED, null))
+
+            assertEquals(
+                "a decline must trigger a fresh check rather than writing Idle directly",
+                PlayUpdateState.NotAvailable,
+                activity.viewModel.uiState.value.playUpdate,
+            )
+            assertNull(
+                "an ordinary decline must not launch the store listing",
+                shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity,
+            )
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    @Test
+    fun ordinaryCancelWithAnEmptyIntent_alsoTriggersARecoveryCheck() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java).create()
+        try {
+            val activity = controller.get()
+            activity.viewModel.setPlayUpdateAvailable(101)
+            activity.viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
+
             activity.onPlayUpdateLaunchResult(ActivityResult(Activity.RESULT_CANCELED, Intent()))
+
+            assertEquals(PlayUpdateState.NotAvailable, activity.viewModel.uiState.value.playUpdate)
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    @Test
+    fun anAcceptedSheet_doesNotResetTheBanner() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java).create()
+        try {
+            val activity = controller.get()
+            activity.viewModel.setPlayUpdateAvailable(101)
+            activity.viewModel.setPlayUpdateProgress(UpdateProgress.Starting)
+
             activity.onPlayUpdateLaunchResult(ActivityResult(Activity.RESULT_OK, null))
 
             val state = activity.viewModel.uiState.value.playUpdate as PlayUpdateState.Available
             assertEquals(
-                "an ordinary result must leave the in-flight state for onResume",
+                "an accepted sheet must leave the in-flight state for the install listener",
                 UpdateProgress.Starting,
                 state.progress,
-            )
-            assertNull(
-                "an ordinary result must not launch the store listing",
-                shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity,
             )
         } finally {
             controller.destroy()

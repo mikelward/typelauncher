@@ -1117,6 +1117,27 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_settings_play_update_banner_downloaded_robolectric.png")
     }
 
+    /**
+     * The one outcome that ever comes back from Restart — a success restarts
+     * the app — so without this line the tap would look like it did nothing.
+     */
+    @Test
+    fun playUpdateBannerShowsFailureMessageWhenRestartFails() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setPlayUpdateAvailable(123)
+        viewModel.setPlayUpdateProgress(UpdateProgress.Downloaded)
+        val attempt = viewModel.beginPlayUpdateRestartAttempt()
+        viewModel.setPlayUpdateRestartFailed(attempt, 123)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithText("Couldn't restart to install").assertIsDisplayed()
+        composeRule.onNodeWithTag(PLAY_UPDATE_BANNER_RESTART_TAG).assertIsDisplayed()
+        saveScreenshot("compose_settings_play_update_banner_restart_failed_robolectric.png")
+    }
+
     @Test
     fun screenshot_settingsButton_playUpdateBadge_rendersAsCornerDotWithoutText() {
         composeRule.activity.viewModel.setPlayUpdateAvailable(123)

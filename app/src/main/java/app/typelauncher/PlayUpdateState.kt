@@ -42,13 +42,18 @@ internal fun playUpdateDismissalKey(versionCode: Int?, currentVersionCode: Int):
 
 /**
  * Play's raw install status → the banner's state. [fallback] carries what we
- * were already showing: Play reports `UNKNOWN` both before anything starts and
- * in the gap after the user accepts the sheet but before the download is
- * registered. A resume recheck that lands there while the sheet was actually
- * canceled has no listener event to tell it so, so a `Starting` fallback is
- * reverted to `Idle` so the user can tap Update again; any other in-flight
- * fallback (`Downloading`, `Downloaded`) is preserved rather than snapped
- * back to "Update" under the user's finger.
+ * were already showing, and it is what every uninformative status falls back
+ * to — not just `UNKNOWN`, and not just when the fallback isn't `Starting`.
+ * Play reports `UNKNOWN` before anything starts, in the gap after the user
+ * accepts the sheet but before the download registers, and apparently in
+ * other gaps too around an in-progress or finished download — so resetting
+ * `Starting` on it (an earlier version did, to recover a declined sheet)
+ * could just as easily snap a real, just-accepted download's banner back to
+ * "Update" if a resume recheck's `UNKNOWN` answer landed before the install
+ * listener's first `PENDING`/`DOWNLOADING` callback. `MainActivity`'s launch
+ * result now recovers a declined sheet directly instead, so preserving the
+ * fallback unconditionally is safe: nothing here is information, only its
+ * absence.
  */
 internal fun progressForInstallStatus(installStatus: Int, fallback: UpdateProgress): UpdateProgress =
     when (installStatus) {
@@ -58,6 +63,6 @@ internal fun progressForInstallStatus(installStatus: Int, fallback: UpdateProgre
         // The user canceled the Play sheet, or the download failed: back to the
         // plain offer so they can try again.
         InstallStatus.CANCELED, InstallStatus.FAILED -> UpdateProgress.Idle
-        InstallStatus.UNKNOWN -> if (fallback == UpdateProgress.Starting) UpdateProgress.Idle else fallback
+        // UNKNOWN and anything else Play might report.
         else -> fallback
     }
