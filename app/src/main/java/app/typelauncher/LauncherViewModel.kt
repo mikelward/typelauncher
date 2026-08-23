@@ -2851,23 +2851,6 @@ internal class LauncherViewModel(
         setPlayUpdateProgress(progressForInstallStatus(installStatus, fallback = currentPlayUpdateProgress))
     }
 
-    private fun progressForInstallStatus(installStatus: Int, fallback: UpdateProgress): UpdateProgress =
-        when (installStatus) {
-            InstallStatus.PENDING -> UpdateProgress.Starting
-            InstallStatus.DOWNLOADING -> UpdateProgress.Downloading
-            InstallStatus.DOWNLOADED -> UpdateProgress.Downloaded
-            InstallStatus.CANCELED, InstallStatus.FAILED -> UpdateProgress.Idle
-            InstallStatus.UNKNOWN -> if (fallback == UpdateProgress.Starting) {
-                // The Play sheet was dismissed without accepting — no listener
-                // fires in that case, so onResume's recheck sees UNKNOWN and we
-                // revert to Idle.
-                UpdateProgress.Idle
-            } else {
-                fallback
-            }
-            else -> fallback
-        }
-
     fun openPlayStoreListing() {
         LauncherDebugLog.event("openPlayStoreListing package=${app.packageName}")
         val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${app.packageName}"))
