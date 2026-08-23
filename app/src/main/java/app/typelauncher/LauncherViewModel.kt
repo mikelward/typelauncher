@@ -2770,8 +2770,13 @@ internal class LauncherViewModel(
             // presented from a clean Idle state.
             currentPlayUpdateProgress = UpdateProgress.Idle
         }
-        val isPersistDismissed = availableVersionCode != null &&
-            availableVersionCode == playUpdateStore.dismissedVersionCode
+        // Both sides of this comparison must run the same null-version-code
+        // fallback (playUpdateDismissalKey), or a dismissal recorded against an
+        // unreported version code (BuildConfig.VERSION_CODE + 1) could never
+        // match this read, which also sees a null versionCode when Play
+        // doesn't report one — the dismissal would silently never stick.
+        val isPersistDismissed = playUpdateDismissalKey(availableVersionCode, BuildConfig.VERSION_CODE) ==
+            playUpdateStore.dismissedVersionCode
         val progress = progressForInstallStatus(installStatus, fallback = currentPlayUpdateProgress)
         currentPlayUpdateProgress = progress
         _uiState.update { state ->
@@ -2823,7 +2828,7 @@ internal class LauncherViewModel(
 
     fun dismissPlayUpdate() {
         val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
-        playUpdateStore.dismissedVersionCode = update.versionCode ?: BuildConfig.VERSION_CODE + 1
+        playUpdateStore.dismissedVersionCode = playUpdateDismissalKey(update.versionCode, BuildConfig.VERSION_CODE)
         _uiState.update { it.copy(playUpdate = update.copy(isDismissed = true)) }
         logState("dismissPlayUpdate=${update.versionCode}")
     }
