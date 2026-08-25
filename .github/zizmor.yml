@@ -69,32 +69,15 @@ rules:
       # relies on does not apply under `pull_request_target`, so that
       # withholding is not a safety net this design leans on).
       - android-ci.yml
-  github-env:
-    # Each of these four writes to $GITHUB_ENV is gated on a job that never
-    # runs against PR-controlled content (the `build` job's keystore step
-    # only fires when `github.event_name == 'push'`; the `deploy` job runs
-    # only on `push`/`workflow_dispatch` against `main`), and every value
-    # written is a fixed `${RUNNER_TEMP}`-derived path or boolean the
-    # workflow itself constructs — never PR-supplied text, a secret value,
-    # or anything a fork could influence. Line-scoped rather than a
-    # blanket file ignore so a github-env finding on a genuinely
-    # PR-reachable step in this large file still surfaces.
-    ignore:
-      # `build` job, "Materialize debug keystore": writes
-      # `DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore`, reachable only
-      # when `HAS_DEBUG_KEYSTORE` (itself gated on `github.event_name ==
-      # 'push'`) is true.
-      - android-ci.yml:294
-      # `deploy` job, "Materialize debug keystore": same value, same
-      # reasoning — this job's own `if:` restricts it to
-      # `github.ref == 'refs/heads/main' && (push || workflow_dispatch)`.
-      - android-ci.yml:1023
-      # `deploy` job, "Materialize release keystore": writes
-      # `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`, same job,
-      # same gate.
-      - android-ci.yml:1410
-      # `deploy` job, "Compose Play Store release notes": writes
-      # `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew` — the release-notes
-      # text itself goes to a file, never through $GITHUB_ENV, and the env
-      # write is only the fixed directory path.
-      - android-ci.yml:1467
+  # `github-env` is deliberately NOT configured here. Its four exemptions in
+  # android-ci.yml are inline `# zizmor: ignore[github-env]` comments on the
+  # steps themselves, because a comment travels with the step it excuses.
+  # This file's `ignore:` entries are absolute `file:line` pairs, and any
+  # insertion earlier in that 1500-line workflow silently slid them off the
+  # steps they were written for — re-suppressing whatever now sat on those
+  # lines and turning an unrelated PR red on three findings it never touched.
+  # The inline form is still per-step, so a NEW github-env write anywhere
+  # else in the file is still flagged, which was the whole point of listing
+  # them one by one rather than ignoring the file wholesale. Each one now
+  # carries its reasoning beside the step it excuses, where the next reader
+  # of that step will find it.
