@@ -107,6 +107,15 @@ These services may collect:
 - Anonymous performance traces (for example, how long cold start, agenda
   loading, or icon loading took) and high-level counters (for example, icon
   cache hit rate).
+- A snapshot of your launcher **settings and counts** attached to each crash
+  report, so a crash can be diagnosed without you having to send anything: the
+  values you picked in Settings (app list layout, dock layout, icon size, sort
+  order, theme, icon shape, and whether the dock, agenda, wallpaper, contact
+  search, and calendar search are on), coarse app state (which page was open,
+  whether the launcher was on screen, whether Type Launcher is your default
+  launcher), and *how many* apps, docked apps, hidden apps, dock folders,
+  widgets, and widget pages you have. These are counts and settings only —
+  never which apps, which widgets, or what you searched for.
 - Standard device and app metadata that the analytics service collects
   automatically: device model, OS version, app version, locale, and a
   service-generated installation identifier that is not tied to your Google

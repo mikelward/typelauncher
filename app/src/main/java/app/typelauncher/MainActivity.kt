@@ -577,6 +577,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         LauncherDebugLog.activityCallback(this, "MainActivity.onResume")
+        // Was the launcher actually on screen when it died? A launcher process
+        // lives in the background all day, so plenty of its crashes are never
+        // seen by anyone — this key is what separates those from the ones that
+        // interrupted the user, both for triage and for judging how often the
+        // post-crash prompt is asking about a crash nobody witnessed. An
+        // in-memory SDK map write, so it is safe to do inline here.
+        LauncherTelemetry.setCustomKey(TelemetryKey.FOREGROUND, true.toString())
         // Close any force-opened secondary bar so returning to Home starts with
         // the tray hidden. The keyboard-seen reset that prevents the tray
         // flashing in before the re-shown keyboard is handled inside
@@ -715,6 +722,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onPause")
+        LauncherTelemetry.setCustomKey(TelemetryKey.FOREGROUND, false.toString())
         super.onPause()
     }
 
