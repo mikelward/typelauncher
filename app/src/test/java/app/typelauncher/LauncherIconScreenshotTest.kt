@@ -30,7 +30,7 @@ class LauncherIconScreenshotTest {
 
     @Test
     fun debugIcon() {
-        // The tester build's icon. It shares the DEV badge's bar and colors and
+        // The CI debug build's icon. It shares the DEV badge's bar and colors and
         // differs only in the word, and "DEBUG" is the longer word in the same
         // bar — so this is where unreadable or clipped lettering would show.
         captureIcon(R.mipmap.ic_launcher_debug, "ic_launcher_debug_robolectric.png")
