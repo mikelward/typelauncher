@@ -116,59 +116,107 @@
       still ride along, so a failed launch is still diagnosable.
 
       Still worth doing: nothing enforces that the format string is a literal
-      rather than a built string. A `detekt` rule (or a lint check) asserting
-      that the first argument of these three functions is a constant would make
-      the property structural rather than conventional.
+      rather than a built string. The property is a rule the call sites keep by
+      convention, and one interpolation reintroduces the whole class of leak
+      this design removed.
 
-- [ ] **Rework the Analytics opt-out so its pieces compose.** Shipped in PR #655
-      and correct for the ordinary paths, but eleven review rounds established
-      that the current shape — an in-process gate, two persisted SDK flags, a
-      process-wide lock that re-reads the preference, and an edge-triggered
-      report deletion — does not compose cleanly, and each mechanism added to
-      fix one interaction produced the next finding.
+      **Decided approach** (repo owner): a plain unit test that parses
+      `app/src/main` and asserts the first argument of `LauncherDebugLog.event`
+      / `warning` / `failure` is a string literal with no interpolation. No new
+      tooling — it runs in the `./gradlew test` CI already has. A custom Android
+      Lint detector would be semantic rather than textual but needs its own
+      Gradle module and tracks an API that breaks across AGP versions; `detekt`
+      has friendlier rule authoring but is a whole plugin, config and CI step
+      the repo does not otherwise want. Either remains an upgrade path if the
+      test proves too blunt.
 
-      **Known open when it shipped** (round 11): a rapid off→on toggle can lose
-      the deletion request. Both queued application-scope jobs re-read the final
-      `true` preference inside the lock, so neither reaches
-      `discardUnsentReports()`, and reports pending at the moment of the opt-out
-      survive it. Latest-value convergence (added to fix a rapid-toggle race)
-      and edge-triggered deletion (added to honor the `PRIVACY.md` promise) are
-      individually right and mutually exclusive as written. Narrow — the window
-      is one uncontended lock acquisition and the user ends opted *in* — but
-      real.
+      **Open question to settle while building it**: a textual check can prove
+      the argument is a literal, and can reject an interpolated one (a `"…"`
+      containing `${` or `$name` is detectable). What it *cannot* prove is that
+      a bare identifier is a `const val` we own rather than a `var` or a
+      parameter — `logState`'s forwarded `reason` is exactly that shape, and it
+      is legitimate. So the test needs a position on identifiers: reject them
+      outright and require every format string be spelled at the call site, or
+      allow a named constant and find some way to establish it really is one.
+      Worth deciding deliberately rather than falling out of whatever the parser
+      happens to do.
 
-      A pending-deletion flag would close it and would be the fourth mechanism
-      in a subsystem where the previous three each produced a finding. The
-      rework should instead make the opt-out a single ordered state transition
-      that owns the deletion, rather than a value re-read by racing jobs.
-      Untestable in the sandbox: none of these properties are observable
-      without a device carrying the Firebase config.
+- [x] **Rework the Analytics opt-out so its pieces compose.** Done. The four
+      mechanisms — an in-process gate, two persisted SDK flags, a lock that
+      re-read the preference, and an edge-triggered deletion — are now one
+      ordered transition in `LauncherTelemetry.applyCollectionPreference`,
+      which owns the flags and the deletion together.
 
-      **Also open** (round 12): the two SDK opt-outs each run under their own
-      `try`/`catch`, so a `RuntimeException` from
-      `isPerformanceCollectionEnabled = false` leaves Performance collecting
-      while the switch and the stored preference read off — and `startTrace`
-      no longer consults the in-process gate (ungated so a trace started
-      before the preference is read isn't silently dropped), so nothing
-      downstream stops it. Both obvious patches re-open something an earlier
-      round closed: re-gating traces restores the dropped-trace case, and a
-      retry path adds work behind the lock that already mis-sequences the
-      deletion above. The single ordered transition is what fixes both.
-      Bounded meanwhile: Performance carries durations and counts under
-      hard-coded names, so a failed opt-out here leaks timing, not user data;
-      Crashlytics, which carries the breadcrumbs, opts out on its own `try`.
+      Two changes carry it. The gate became a **tri-state**
+      (`Unknown` / `Enabled` / `Disabled`), so an unread preference is no longer
+      indistinguishable from an opt-out: breadcrumbs and keys are withheld in
+      both, but traces run while unknown and stop once the user has actually
+      said no. And the report deletion became a **sticky debt** recorded when an
+      opt-out happens and cleared only when a delete succeeds, rather than
+      recomputed from the latest preference.
 
-- **The widget picker filter matches app names and widget labels, and stops
-  there — no match against a widget's `android:description`.** The filter item
-  that asked for label matching (now shipped) floated description matching as a
-  "possibly". Left undone deliberately: the picker renders only the app name and
-  the widget label, so a description hit would surface a result with the query
-  visible nowhere on screen, and descriptions are prose — a sentence like "Shows
-  your upcoming events" turns incidental words into matches and dilutes the
-  ranking tiers, which are built for names. *Alternative:* read
-  `AppWidgetProviderInfo.loadDescription` (available at `minSdk 34`) and match it
-  at a tier below the label. *Reversible:* one extra `launcherMatchTier` call in
-  `WidgetPickerCard`'s group fold; nothing persists and no UI moves.
+      That closes both defects recorded here. A rapid off→on can no longer lose
+      the deletion, because the debt is an event rather than a value and the
+      transition discharges it *before* re-enabling upload. And a failed
+      Performance opt-out can no longer leave traces flowing, because
+      `startTrace` now refuses on a known opt-out — the case the old two-state
+      gate could not express without also dropping every cold-start trace on a
+      slow start.
+
+      **Open, and deliberately not closed in that PR: the deletion debt does
+      not survive process death.** Both counters live in memory, so an
+      off→on cycle followed by the process dying before the transition
+      completes forgets the promised deletion — the stored preference reads
+      `true`, the next process starts with the counters at zero, and the
+      startup re-assert deletes nothing, leaving the report captured during
+      the off period uploadable. Found by review on PR #662.
+
+      **Also declined on scope (#662 round 13):** `applySdkFlags` swallows a
+      throw, so a caller that stops the SDKs before discharging proceeds as
+      though they stopped. With a Firebase setter that throws, plus a rapid
+      off→on leaving the flags on, plus a pending report, the delete can run —
+      and clear the debt — while that report is still uploadable. The fix is to
+      return the disable outcome and hold the debt until the stop succeeds.
+      Deferred here because it is the fourth consecutive finding created by the
+      previous round's fix in the same function, and the durable-debt rework
+      expresses it naturally as "the debt stays owed and the next process
+      services it" rather than as another boolean threaded through
+      `applyCollectionPreference`.
+
+      **This is a class, not a list.** Eleven review rounds on #662 kept
+      naming new instances of one shape: the transition reads state that a
+      lock-free main-thread writer (`setCollectionGate`) can change under it,
+      so there is always another gap between a check and its use. The last fix
+      made the final check test the invariant itself — never leave the SDKs
+      enabled with a discharge outstanding — rather than proxies for it, which
+      stops the individual gaps mattering. Two genuinely irreducible ones
+      remain, both declined deliberately: the instructions between a check and
+      the write it guards, and between a trace's `mayReport()` and its `stop()`.
+      Closing either needs mutual exclusion with the main-thread toggle, and
+      that call must stay lock-free so reporting stops instantly without
+      blocking on two Firebase IPCs. Durable debt is what actually retires the
+      class, because it makes the repair survive the crash that is the only
+      reason any of these windows matter.
+
+      It is **not a regression**: the deletion was in-memory and edge-triggered
+      before that PR too, so a process death lost it just the same. What the PR
+      changed is that the in-process races are now closed, which leaves this as
+      the remaining hole in the same promise rather than one of several.
+
+      Closing it means making the debt durable — a flag in `DockSettingsStore`
+      written beside `isTelemetryEnabled` on opt-out and cleared only once a
+      delete succeeds, with `applyCollectionPreference` reading it so the
+      startup re-assert services a debt inherited from a previous process. That
+      needs the preference seam to widen from `() -> Boolean?` to something that
+      can also read and clear the flag, which is a design change rather than a
+      patch, and is why it is here rather than folded into that PR.
+
+      The SDK side effects sit behind a small interface so the transition's
+      ordering and failure semantics are unit-testable without Firebase — every
+      defect this subsystem produced lived in the ordering rather than in the
+      Firebase calls, and none of it was reachable from a JVM test while those
+      calls were inlined. What still needs a device carrying the Firebase
+      config is only whether the real SDKs honor the flags.
 
 ## Review and merge gates
 
