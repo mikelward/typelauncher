@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -5714,6 +5715,17 @@ internal fun SettingsScreen(
     onShareCrash: () -> Unit = {},
     onDismissCrash: () -> Unit = {},
 ) {
+    // Settings → About → Licenses replaces this page rather than stacking over
+    // it: the attribution list is a long scroll of its own, and Settings is
+    // already an overlay, so a third layer would leave two Back affordances
+    // (its own, and Settings' Done) fighting for the same corner. Saved rather
+    // than remembered so a rotation partway down the list doesn't drop the user
+    // back into Settings.
+    var licensesVisible by rememberSaveable { mutableStateOf(false) }
+    if (licensesVisible) {
+        LicensesScreen(innerPadding = innerPadding, onBack = { licensesVisible = false })
+        return
+    }
     val configuration = LocalConfiguration.current
     // Derive the slider's range, value, and the preview's icon size from the
     // short screen edge and the persisted target icon size, so Settings shows
@@ -5807,7 +5819,11 @@ internal fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = bareTextColor,
             )
-            SettingsOverflowMenu(onOpenLauncherAppInfo = onOpenLauncherAppInfo, iconTint = bareTextColor)
+            SettingsOverflowMenu(
+                onOpenLauncherAppInfo = onOpenLauncherAppInfo,
+                onOpenLicenses = { licensesVisible = true },
+                iconTint = bareTextColor,
+            )
             Button(
                 onClick = onCloseSettings,
                 modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
@@ -6721,6 +6737,7 @@ internal fun rememberBugReportTrigger(onShared: () -> Unit = {}): () -> Unit {
 @Composable
 private fun SettingsOverflowMenu(
     onOpenLauncherAppInfo: () -> Unit,
+    onOpenLicenses: () -> Unit,
     // The icon sits in Settings' bare (uncarded) header row, so over the
     // wallpaper it needs the same wallpaper-hint contrast color as the title
     // next to it; the theme color stands when the wallpaper is off.
@@ -6772,7 +6789,7 @@ private fun SettingsOverflowMenu(
         }
     }
     if (aboutVisible) {
-        AboutDialog(onDismiss = { aboutVisible = false })
+        AboutDialog(onDismiss = { aboutVisible = false }, onOpenLicenses = onOpenLicenses)
     }
 }
 
@@ -6900,7 +6917,7 @@ private fun HiddenAppRow(
 }
 
 @Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
+private fun AboutDialog(onDismiss: () -> Unit, onOpenLicenses: () -> Unit) {
     val context = LocalContext.current
     val privacyPolicyUrl = stringResource(R.string.settings_about_privacy_policy_url)
     AlertDialog(
@@ -6934,6 +6951,27 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                                 )
                             }
                         },
+                )
+                // Opens a full page rather than nesting a second dialog: the
+                // list runs to well over a hundred rows.
+                //
+                // A bare `Text` is only clickable within its own glyph box —
+                // about 20dp for bodyMedium — so this is a full-width row with
+                // Android's 48dp minimum height, with the label centered in it.
+                // That min height also supplies the separation from the link
+                // above, which is why there is no `Spacer` here.
+                Text(
+                    text = stringResource(R.string.settings_about_licenses),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .testTag(SETTINGS_ABOUT_LICENSES_TAG)
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onOpenLicenses()
+                        }
+                        .heightIn(min = 48.dp)
+                        .wrapContentHeight(Alignment.CenterVertically),
                 )
             }
         },

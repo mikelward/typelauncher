@@ -58,8 +58,9 @@
 - Add an AGPL license gate to `android-ci.yml`: fail if a dependency declares
   an AGPL license, catching one added by hand in a normal PR, not just ones
   the weekly bot bumps. Likely the `com.github.jk1.dependency-license-report`
-  Gradle plugin. GPL/LGPL undecided. Independent of `gradle-update` — simmo's
-  existing AboutLibraries-based license machinery is unrelated. Work out
+  Gradle plugin. GPL/LGPL undecided. Independent of `gradle-update`, and
+  independent of the AboutLibraries export behind the Licenses page — that one
+  reports what is bundled, it does not gate on what a license says. Work out
   placement, gating, and coverage (release vs. debug classpath, etc.) when
   actually building this.
 - Stop searching for the screenshot-diff comment altogether. The lookup now paginates (`gh api --paginate`), which is correct at any comment count but is still a search costing O(comments) API calls per run on a long PR. Stashing the comment id somewhere stable — a workflow-run output, a branch note, the check-run summary — would make the upsert a direct PATCH. Not urgent; this is about cost and simplicity, not correctness.

@@ -343,6 +343,15 @@ jobs:
           DEBUG_KEY_ALIAS: ${{ github.event_name == 'push' && secrets.DEBUG_KEY_ALIAS || '' }}
         run: ./gradlew assembleDebug
 
+      - name: Check licenses export is up to date
+        # The open-source attribution list is committed to res/raw (AGP 9 can't
+        # auto-generate it into the app -- see app/build.gradle.kts). Regenerate
+        # and fail on drift so a dependency bump can't ship a stale or
+        # inaccurate Licenses page while CI stays green.
+        run: |
+          ./gradlew :app:exportBundledLicenses --rerun
+          git diff --exit-code app/src/main/res/raw/aboutlibraries.json
+
       - name: Run unit tests
         run: ./gradlew test
 
@@ -652,6 +661,13 @@ jobs:
         # slot: nothing, the Play-update dot, and the crash warning triangle
         # (which takes the slot over the dot when both are pending).
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.HomeGearBadgeScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run licenses screenshot tests
+        # Renders the Settings -> About -> Licenses page from the committed
+        # res/raw/aboutlibraries.json, so the PR `roborazzi-screenshots`
+        # artifact shows the name-only list — and moves whenever the bundled
+        # dependency set does.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.LicensesScreenshotTest" -Proborazzi.test.record=true
 
       - name: Print failing test details
         if: failure()

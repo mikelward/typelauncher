@@ -4,4 +4,7 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics) apply false
+    // Exports the dependency graph as JSON for the Licenses page. Applied only
+    // in :app; declared here so the version is shared like every other plugin.
+    alias(libs.plugins.aboutlibraries) apply false
 }

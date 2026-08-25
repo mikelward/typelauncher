@@ -187,6 +187,22 @@
     <string name="settings_about_privacy_policy">Privacy policy</string>
     <string name="settings_about_privacy_policy_url">https://mikelward.github.io/typelauncher/PRIVACY</string>
     <string name="settings_about_dialog_dismiss">OK</string>
+    <!-- Open-source attribution, reached from the About dialog. The row reads
+         "Licenses" because the About dialog it sits in already sets the
+         context; the page it opens spells out which licenses these are. -->
+    <!-- TODO: translate -->
+    <string name="settings_about_licenses" tools:ignore="MissingTranslation">Licenses</string>
+    <!-- TODO: translate -->
+    <string name="settings_licenses_title" tools:ignore="MissingTranslation">Open source licenses</string>
+    <!-- Version of one bundled component, shown in the dialog a component row
+         opens. Separate from settings_about_version_value above, which carries
+         the launcher\'s own version name and build number. -->
+    <!-- TODO: translate -->
+    <string name="settings_licenses_version" tools:ignore="MissingTranslation">Version %1$s</string>
+    <!-- TODO: translate -->
+    <string name="settings_licenses_back_button" tools:ignore="MissingTranslation">Back</string>
+    <!-- TODO: translate -->
+    <string name="settings_licenses_details_dismiss" tools:ignore="MissingTranslation">Done</string>
     <string name="settings_manage_hidden_apps_button">Manage hidden apps</string>
     <string name="settings_hidden_apps_dialog_title">Hidden apps</string>
     <string name="settings_hidden_apps_dialog_empty">No hidden apps. Long-press an app and choose Hide to add one here.</string>

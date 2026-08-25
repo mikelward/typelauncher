@@ -18,6 +18,13 @@ googleServices = "4.5.0"
 firebaseCrashlyticsGradle = "3.0.7"
 playAppUpdate = "2.1.0"
 androidsvg = "1.4"
+# AboutLibraries — the open-source attribution list behind Settings → About →
+# Licenses. The Gradle plugin walks the dependency graph and exports it as JSON;
+# the `-compose-m3` artifact is only the runtime JSON reader
+# (`rememberLibraries`), not its stock list UI, which we don't use. See
+# app/build.gradle.kts for why the export is committed to res/raw instead of
+# generated at build time.
+aboutlibraries = "12.2.4"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
@@ -46,10 +53,12 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 firebase-perf = { group = "com.google.firebase", name = "firebase-perf" }
 play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
+aboutlibraries-compose-m3 = { group = "com.mikepenz", name = "aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradle" }
+aboutlibraries = { id = "com.mikepenz.aboutlibraries.plugin", version.ref = "aboutlibraries" }
 
