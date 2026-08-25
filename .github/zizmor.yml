@@ -28,12 +28,12 @@ rules:
         # weekly Gradle catalog batch, and it tracks consumers the same
         # way — no release step, `@main` is the release.
         "mikelward/gradle-update/.github/workflows/gradle-update.yml": ref-pin
-        # Same reasoning again for the reusable workflow android-ci.yml's
+        # Same reasoning again for the reusable workflow ci.yml's
         # screenshot job calls to push a refreshed-snapshot commit back to
         # the PR branch.
         "mikelward/ci-commit-artifact/.github/workflows/commit-artifact.yml": ref-pin
         # No `actions/*` (or `gradle/actions/*`) carve-out here, unlike some
-        # sibling repos' policies: android-ci.yml already hash-pins every
+        # sibling repos' policies: ci.yml already hash-pins every
         # official action (with a trailing `# vX.Y.Z` comment), so the
         # default `hash-pin` policy below is already what this repo does —
         # adding a laxer carve-out would only lower the bar for a future PR.
@@ -55,22 +55,22 @@ rules:
       # from it. See check-consumer.yml in mikelward/codex-review for the
       # full reasoning.
       - codex-review-check.yml
-      # android-ci.yml's `lanes`/`codex` status jobs (classify, build,
+      # ci.yml's `lanes`/`codex` status jobs (classify, build,
       # connected-tests, finalize): pull_request_target for the same
       # job-definition reason as codex-review-check.yml above — a PR
       # touching this very file must not be able to rewrite its own
       # required checks into an automatic pass, which mikelward/lanes's
       # design exists to close. The `on:` block's own header comment
-      # (android-ci.yml lines 3-73) is the full reasoning: every job that
+      # (ci.yml lines 3-73) is the full reasoning: every job that
       # reads PR content checks out the synthetic merge ref explicitly
       # rather than trusting the trigger's default resolution, and no job
       # that executes PR-supplied Gradle/plugin code references `secrets.*`
       # anywhere (the fork-only secret withholding plain `pull_request`
       # relies on does not apply under `pull_request_target`, so that
       # withholding is not a safety net this design leans on).
-      - android-ci.yml
+      - ci.yml
   # `github-env` is deliberately NOT configured here. Its exemptions in
-  # android-ci.yml are inline `# zizmor: ignore[github-env]` comments on the
+  # ci.yml are inline `# zizmor: ignore[github-env]` comments on the
   # steps themselves, because a comment travels with the step it excuses.
   # This file's `ignore:` entries are absolute `file:line` pairs, and any
   # insertion earlier in that 1500-line workflow silently slid them off the

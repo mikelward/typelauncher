@@ -1,4 +1,4 @@
-name: Android CI
+name: ci
 
 on:
   # pull_request_target, not pull_request: this trigger loads the job
@@ -100,7 +100,22 @@ on:
 # Everything else (a PR's own pull_request_target runs, a PR-bound
 # dispatch against its own branch) keeps the per-PR cancelable group.
 concurrency:
-  group: android-ci-${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'main-deploy' || github.event.pull_request.number || github.ref }}
+  # A concurrency group is a runtime key, not a name, so renaming the prefix
+  # is only safe while NO run of the old `android-ci-` identity is still in
+  # flight — PR runs included, not just main deploys. Two ways it bites:
+  #
+  #   - main: `cancel-in-progress` is false there, so an old-key deploy and
+  #     a new-key one sit in different groups, neither yields, and both
+  #     upload.
+  #   - a PR: `edited` is in this workflow's `types:` and an edit leaves the
+  #     head SHA unchanged, so an old-key run and the new-key run it should
+  #     have cancelled both survive. `finalize` is `if: !cancelled()`, so
+  #     the older one still publishes — and if it lands last it overwrites
+  #     the newer `lanes` verdict on a required check.
+  #
+  # Merging with nothing in flight at all is what makes this safe; the diff
+  # cannot enforce it. See the PR. Raised by Codex on #651.
+  group: ci-${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'main-deploy' || github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ !(github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
 
 # Explicitly empty, not omitted — each job below declares the least-privilege
@@ -1084,6 +1099,10 @@ jobs:
           # a Play upload can only repeat a bullet instead — the trade
           # this pipeline has always preferred.
           prev_sha=""
+          # 269062262 is this workflow's id before the ci.yml rename. Its runs
+          # hold the last published release until one publishes under the
+          # new path; drop it once that has happened.
+          for WORKFLOW_REF in ci.yml 269062262; do
           while IFS=$'\t' read -r run_id run_head; do
             [ -z "$run_id" ] && continue
             [ "$run_head" = "$AFTER_SHA" ] && continue
@@ -1102,9 +1121,13 @@ jobs:
               break
             fi
           done < <(gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/android-ci.yml/runs?branch=main&per_page=100" \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_REF}/runs?branch=main&per_page=100" \
             --jq '.workflow_runs[]? | [.id, .head_sha] | @tsv' \
             2>/dev/null || true)
+            if [ -n "$prev_sha" ]; then
+              break
+            fi
+          done
           # per_page=100 (the API max) keeps this a single call while
           # covering a 100-run red streak; --paginate would fetch the
           # workflow's entire run history on every deploy. If the last

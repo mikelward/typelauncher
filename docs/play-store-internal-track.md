@@ -1,6 +1,6 @@
 # Play Store internal testing track
 
-CI uploads a signed release AAB to the Google Play Store **internal** testing track on every push to `main`. The upload is wired into the `build` job in `.github/workflows/android-ci.yml` using [`r0adkll/upload-google-play@v1`](https://github.com/r0adkll/upload-google-play). It is the only automated distribution channel: Firebase App Distribution was set up first and then retired, since both published on every push to `main` and reached the same testers, and the internal track is also the route to alpha/beta/production.
+CI uploads a signed release AAB to the Google Play Store **internal** testing track on every push to `main`. The upload is wired into the `build` job in `.github/workflows/ci.yml` using [`r0adkll/upload-google-play@v1`](https://github.com/r0adkll/upload-google-play). It is the only automated distribution channel: Firebase App Distribution was set up first and then retired, since both published on every push to `main` and reached the same testers, and the internal track is also the route to alpha/beta/production.
 
 ## What gets uploaded
 
