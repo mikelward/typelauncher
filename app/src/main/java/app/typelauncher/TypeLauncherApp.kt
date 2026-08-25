@@ -5,6 +5,7 @@ import android.os.Build
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * The launcher's [Application]. Its job today is to install on-device debug-log
@@ -57,6 +58,42 @@ class TypeLauncherApp : Application() {
         fileSink.start()
         LauncherDebugLog.addSink(fileSink)
         debugFileSink = fileSink
+        applyTelemetryPreference()
+    }
+
+    /**
+     * Re-asserts the user's "Analytics" choice on both Firebase SDKs.
+     * They persist the flag themselves, so an opt-out already holds from the
+     * moment the process starts and this is belt-and-braces — which is why it
+     * can afford to run off the main thread: reading `SharedPreferences` and
+     * touching Firebase are both disk / IPC work, and `onCreate` is on the
+     * cold-start path ("Fast loading"). It also re-arms [LauncherTelemetry]'s
+     * own in-process gate, which starts permissive so a crash in this very
+     * window is still reported for an opted-in install.
+     */
+    private fun applyTelemetryPreference() {
+        appScope.launch(Dispatchers.IO) {
+            // Narrow catch, not runCatching: a blanket Throwable would swallow
+            // CancellationException and break structured concurrency.
+            // Through the same serialization point the Settings toggle uses,
+            // reading the preference inside its lock: this call and a user
+            // opt-out can otherwise interleave, and a slow startup "enable"
+            // could resume mid-sequence and re-enable an SDK after the opt-out
+            // had already finished.
+            LauncherTelemetry.applyCollectionPreference {
+                try {
+                    DockSettingsStore(this@TypeLauncherApp).isTelemetryEnabled
+                } catch (error: RuntimeException) {
+                    // Preferences unreadable (rare: corrupt XML, direct-boot).
+                    // Change nothing: both SDKs already hold the user's last
+                    // choice in their own persisted flags, and this call only
+                    // re-asserts it. Assuming a value would let an unreadable
+                    // preference overwrite a stored opt-out with an opt-in.
+                    LauncherDebugLog.warning("telemetry preference unreadable, leaving it unchanged", error)
+                    null
+                }
+            }
+        }
     }
 
     private val isRobolectric: Boolean
