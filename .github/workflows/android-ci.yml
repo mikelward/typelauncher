@@ -291,7 +291,11 @@ jobs:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
           DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
           DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
-        run: |
+        # `build` job: writes `DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore`, a
+        # fixed path this workflow constructs, and only when `HAS_DEBUG_KEYSTORE` —
+        # itself gated on `github.event_name == 'push'` — is true. Never PR-supplied
+        # text, never reachable from PR content.
+        run: |  # zizmor: ignore[github-env]
           # If the keystore secret is set, its companions must be too, and
           # the decoded bytes must actually open with the configured
           # password — otherwise the failure surfaces later as an opaque
@@ -1020,7 +1024,10 @@ jobs:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
           DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
           DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
-        run: |
+        # `deploy` job: same value, same fixed path. This job's own `if:` restricts
+        # it to `github.ref == 'refs/heads/main' && (push || workflow_dispatch)`, so
+        # no PR content reaches it.
+        run: |  # zizmor: ignore[github-env]
           # If the keystore secret is set, its companions must be too, and
           # the decoded bytes must actually open with the configured
           # password — otherwise the failure surfaces later as an opaque
@@ -1407,7 +1414,9 @@ jobs:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-        run: |
+        # `deploy` job: writes `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`,
+        # same job, same gate, same fixed-path reasoning as the debug keystore above.
+        run: |  # zizmor: ignore[github-env]
           # Same early validation as the debug keystore above: fail with a
           # clear message on missing companion secrets, wrong base64, or a
           # wrong password rather than at bundleRelease signing time.
@@ -1464,7 +1473,10 @@ jobs:
           env.RELEASE_KEYSTORE_FILE != '' &&
           env.HAS_PLAY_SA == 'true' &&
           env.RELEASE_NOTES_SKIP != 'true'
-        run: |
+        # `deploy` job: writes `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew`. The
+        # release-notes text itself goes to a file, never through $GITHUB_ENV;
+        # the env write is only the fixed directory path.
+        run: |  # zizmor: ignore[github-env]
           set -euo pipefail
           mkdir -p "${RUNNER_TEMP}/whatsnew"
           printf '%s' "${RELEASE_NOTES}" \
