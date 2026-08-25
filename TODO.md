@@ -32,6 +32,18 @@
 
 ## CI
 
+- **`screenshot_appListIconOnly_overflowingGrid` fails intermittently in the
+  screenshot job**, and only there: `assertIsDisplayed()` on the apps-list
+  bottom chevron throws `IllegalArgumentException: performMeasureAndLayout
+  called during measure layout` from Compose's `MeasureAndLayoutDelegate`. Seen
+  once on PR #669 (head `fe0bea50`) and not on the head immediately before it,
+  nor on any local run of the same class under `-Proborazzi.test.record=true`.
+  The assertion re-enters measurement while a pass is already running, so it is
+  an ordering bug in the test rather than anything about the chevron itself —
+  the fix is to make the ordering explicit, not to retry or sleep. Left alone
+  for now because it reproduces nowhere a fix could be verified; if it recurs,
+  that is the signal to stop treating it as noise.
+
 - **Reconcile the docs-lane classifier with the release-notes-skip classifier
   for `PRIVACY.md`, and reconsider forcing it onto the code lane at all.**
   `.github/lanes.conf`'s `code PRIVACY.md` rule means a PRIVACY.md-only
@@ -204,6 +216,15 @@
   (warmest, mirrors the consent card's Allow / Don't allow — rejected as too
   long). Changing it is English-only and needs no re-translation, since the
   locales already say the right thing.
+
+- **The Yoruba SMS label is `SMS`, not a Yoruba word.** `contact_action_message`
+  first shipped as `Iṣẹ́`, which is "work"; the Yoruba for a message is `ìṣẹ́`,
+  differing only by the tone mark on the first vowel. Correcting the mark would
+  have left the label's whole meaning resting on one diacritic, in a font stack
+  that doesn't always render Yoruba tone marks — one mark away from saying
+  "Work" again. `SMS` is accurate (the action launches `smsto:`), unambiguous,
+  and short. Replacing it with a fully Yoruba term needs a native speaker; the
+  alternative is reversible in one string.
 
 - **Analytics is opt-in now, as a trial.** Nothing is collected until the user
   taps **Allow** on the Settings consent card; an unanswered question behaves as
