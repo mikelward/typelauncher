@@ -634,6 +634,13 @@ jobs:
         # (which takes the slot over the dot when both are pending).
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.HomeGearBadgeScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run settings scroll chevron screenshot tests
+        # Renders Settings at the top of its scroll (bottom chevron showing that
+        # more of the page follows) and at the end (only the top chevron left),
+        # so the PR `roborazzi-screenshots` artifact shows the affordance
+        # appearing and retiring.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SettingsScrollChevronScreenshotTest" -Proborazzi.test.record=true
+
       - name: Run licenses screenshot tests
         # Renders the Settings -> About -> Licenses page from the committed
         # res/raw/aboutlibraries.json, so the PR `roborazzi-screenshots`
