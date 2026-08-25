@@ -2719,6 +2719,54 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
+    // The same row in the locale with the longest "Ask which app" of the 63.
+    // `Row` measures its unweighted children first, so a long enough dropdown
+    // label takes the width before the weighted title `Column` is offered any
+    // — which is how a translated label starves a title that fits everywhere
+    // else. Zulu is the case that would do it; the assertion is that the title
+    // is still there to read.
+    @Test
+    @Config(qualifiers = "+zu")
+    fun callUsingDropdown_longestLabel_leavesTheTitleReadable() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+        viewModel.setContactSearchEnabled(true)
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(CALL_METHOD_DROPDOWN_TAG).performScrollTo().assertIsDisplayed()
+
+        val title = composeRule.onNodeWithTag(CALL_METHOD_TITLE_TAG).getBoundsInRoot()
+        val dropdown = composeRule.onNodeWithTag(CALL_METHOD_DROPDOWN_TAG).getBoundsInRoot()
+        val titleWidth = (title.right - title.left).value
+        val dropdownWidth = (dropdown.right - dropdown.left).value
+        assertTrue(
+            "the title keeps a readable share of the row " +
+                "(title=$titleWidth, dropdown=$dropdownWidth)",
+            titleWidth >= dropdownWidth * 0.5f,
+        )
+
+        // The other direction, which the first version of this cap got wrong:
+        // a *short* option label must hand its slack back to the title rather
+        // than sitting on half the row. Zulu's icon shape reads "Isistimu",
+        // so its title should still be the wider of the two.
+        val shapeTitle = composeRule.onNodeWithTag(ICON_SHAPE_TITLE_TAG)
+            .performScrollTo().getBoundsInRoot()
+        val shapeDropdown = composeRule.onNodeWithTag(ICON_SHAPE_DROPDOWN_TAG)
+            .performScrollTo().getBoundsInRoot()
+        val shapeTitleWidth = (shapeTitle.right - shapeTitle.left).value
+        val shapeDropdownWidth = (shapeDropdown.right - shapeDropdown.left).value
+        assertTrue(
+            "a short option label leaves the title the wider half " +
+                "(title=$shapeTitleWidth, dropdown=$shapeDropdownWidth)",
+            shapeTitleWidth > shapeDropdownWidth,
+        )
+
+        saveScreenshot("compose_settings_call_using_longest_label_robolectric.png")
+    }
+
     @Test
     fun iconShapeDropdown_inSettings_persistsSelection() {
         val viewModel = composeRule.activity.viewModel

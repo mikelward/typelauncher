@@ -6293,20 +6293,14 @@ internal fun SettingsScreen(
                 // every user scrolls past, the same conditional treatment the work
                 // dock row gets.
                 if (state.isContactSearchEnabled) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(R.string.settings_call_using_title),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
+                    SettingsDropdownRow(
+                        title = stringResource(R.string.settings_call_using_title),
+                        titleTag = CALL_METHOD_TITLE_TAG,
+                    ) { dropdownModifier ->
                         CallMethodDropdown(
                             selected = state.callMethod,
                             onCallMethodChanged = onCallMethodChanged,
+                            modifier = dropdownModifier,
                         )
                     }
                 }
@@ -6344,53 +6338,35 @@ internal fun SettingsScreen(
                         modifier = Modifier.testTag(ANALYTICS_SWITCH_TAG),
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.settings_theme_title),
-                            style = MaterialTheme.typography.titleMedium,
+                SettingsDropdownRow(
+                    title = stringResource(R.string.settings_theme_title),
+                    titleTag = THEME_MODE_TITLE_TAG,
+                ) { dropdownModifier ->
+                        ThemeModeDropdown(
+                            selected = state.themeMode,
+                            onThemeModeChanged = onThemeModeChanged,
+                            modifier = dropdownModifier,
                         )
-                    }
-                    ThemeModeDropdown(
-                        selected = state.themeMode,
-                        onThemeModeChanged = onThemeModeChanged,
-                    )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.settings_icon_shape_title),
-                            style = MaterialTheme.typography.titleMedium,
+                SettingsDropdownRow(
+                    title = stringResource(R.string.settings_icon_shape_title),
+                    titleTag = ICON_SHAPE_TITLE_TAG,
+                ) { dropdownModifier ->
+                        IconShapeDropdown(
+                            selected = state.iconShape,
+                            onIconShapeChanged = onIconShapeChanged,
+                            modifier = dropdownModifier,
                         )
-                    }
-                    IconShapeDropdown(
-                        selected = state.iconShape,
-                        onIconShapeChanged = onIconShapeChanged,
-                    )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.settings_icon_theme_title),
-                            style = MaterialTheme.typography.titleMedium,
+                SettingsDropdownRow(
+                    title = stringResource(R.string.settings_icon_theme_title),
+                    titleTag = ICON_THEME_TITLE_TAG,
+                ) { dropdownModifier ->
+                        IconThemeDropdown(
+                            selected = state.iconTheme,
+                            onIconThemeChanged = onIconThemeChanged,
+                            modifier = dropdownModifier,
                         )
-                    }
-                    IconThemeDropdown(
-                        selected = state.iconTheme,
-                        onIconThemeChanged = onIconThemeChanged,
-                    )
                 }
             }
             Button(
@@ -6761,14 +6737,59 @@ private fun AppListSortOrderDropdown(
     }
 }
 
+/**
+ * A Settings row whose title sits to the left of a dropdown, with the dropdown
+ * capped at half the row.
+ *
+ * The cap is a **max width, not a weight**, and both halves of that matter.
+ * `Row` measures its unweighted children before dividing what is left among the
+ * weighted ones, so an unconstrained dropdown takes whatever width it wants and
+ * the weighted title makes do — which in the locales with the longest option
+ * labels left the title a couple of glyphs wide. Giving the dropdown an equal
+ * weight fixes that and introduces the opposite bug: `fill = false` lets it
+ * measure smaller than its half, but the slack stays empty instead of returning
+ * to the title, so a short label like "System" would shrink a title that fit
+ * perfectly well before.
+ *
+ * Measuring the dropdown against half the row gets both: it takes only what it
+ * needs, and the title's weight collects everything left over. `BoxWithConstraints`
+ * subcomposes to read that width, which is affordable on Settings and is why this
+ * pattern stays here rather than spreading to the carousel.
+ */
+@Composable
+private fun SettingsDropdownRow(
+    title: String,
+    titleTag: String,
+    dropdown: @Composable (Modifier) -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val dropdownMaxWidth = maxWidth / 2
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.testTag(titleTag),
+                )
+            }
+            dropdown(Modifier.widthIn(max = dropdownMaxWidth))
+        }
+    }
+}
+
 @Composable
 private fun ThemeModeDropdown(
     selected: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedLabelRes = selected.labelRes()
-    Box {
+    Box(modifier) {
         TextButton(
             onClick = { expanded = true },
             modifier = Modifier.testTag(THEME_MODE_DROPDOWN_TAG),
@@ -6802,9 +6823,10 @@ private fun ThemeModeDropdown(
 private fun CallMethodDropdown(
     selected: CallMethod,
     onCallMethodChanged: (CallMethod) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier) {
         TextButton(
             onClick = { expanded = true },
             modifier = Modifier.testTag(CALL_METHOD_DROPDOWN_TAG),
@@ -6865,9 +6887,10 @@ private fun ThemeMode.optionTag(): String =
 private fun IconShapeDropdown(
     selected: IconShape,
     onIconShapeChanged: (IconShape) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier) {
         TextButton(
             onClick = { expanded = true },
             modifier = Modifier.testTag(ICON_SHAPE_DROPDOWN_TAG),
@@ -6915,9 +6938,10 @@ private fun IconShape.optionTag(): String =
 private fun IconThemeDropdown(
     selected: IconTheme,
     onIconThemeChanged: (IconTheme) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier) {
         TextButton(
             onClick = { expanded = true },
             modifier = Modifier.testTag(ICON_THEME_DROPDOWN_TAG),
