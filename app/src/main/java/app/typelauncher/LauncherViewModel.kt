@@ -27,6 +27,7 @@ import android.provider.ContactsContract
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.text.format.DateUtils
+import android.widget.Toast
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
@@ -2025,6 +2026,53 @@ internal class LauncherViewModel(
             .setData(Uri.parse("package:${app.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
         startActivity(intent)
+    }
+
+    /**
+     * Opens the system wallpaper picker, behind Settings -> Wallpaper -> Change.
+     * The launcher can only ever *reveal* the wallpaper, never read or draw it
+     * (its bitmap is off-limits on API 34+, which is why "Show wallpaper" is a
+     * window flag rather than an image), so changing it means handing off to
+     * whichever app owns `ACTION_SET_WALLPAPER` — the system's own wallpaper
+     * screen on most devices, an OEM picker on some.
+     *
+     * Guarded because reaching that activity is not guaranteed, and both ways
+     * of missing it throw rather than no-opping: stripped and OEM builds ship
+     * without a handler at all (`ActivityNotFoundException`), and an OEM
+     * picker can resolve but sit behind a permission this launcher does not
+     * hold (`SecurityException`). Either way the user gets the same toast, so
+     * a tap that goes nowhere still says why instead of crashing — the same
+     * pair `openAppInfo` and the widget bind already catch.
+     */
+    fun openWallpaperPicker() {
+        LauncherDebugLog.event("openWallpaperPicker")
+        try {
+            startActivity(Intent(Intent.ACTION_SET_WALLPAPER))
+        } catch (exception: ActivityNotFoundException) {
+            reportWallpaperPickerUnavailable("no activity for ACTION_SET_WALLPAPER", exception)
+        } catch (exception: SecurityException) {
+            reportWallpaperPickerUnavailable("not permitted to start ACTION_SET_WALLPAPER", exception)
+        }
+    }
+
+    /**
+     * Logs a missed picker launch and tells the user, deliberately *without*
+     * handing the throwable to [LauncherDebugLog.warning].
+     *
+     * That overload forwards the throwable to Crashlytics via
+     * `recordException`, and a `SecurityException` raised by `startActivity`
+     * carries the resolved component in its message ("Permission Denial:
+     * starting Intent { … cmp=… }"), which would put a package name in a
+     * report that leaves the device — `PRIVACY.md` says the breadcrumbs carry
+     * no app names. The exception's type is the whole diagnostic here anyway:
+     * the reason string already says which call failed and how, and there is
+     * exactly one line it can throw from. Neither miss is a defect either —
+     * both are expected outcomes on some builds, handled with a toast — so
+     * neither belongs in the crash reporter as a non-fatal.
+     */
+    private fun reportWallpaperPickerUnavailable(reason: String, exception: Exception) {
+        LauncherDebugLog.warning("openWallpaperPicker $reason (${exception.javaClass.simpleName})")
+        Toast.makeText(app, R.string.settings_wallpaper_picker_unavailable, Toast.LENGTH_SHORT).show()
     }
 
     /**
