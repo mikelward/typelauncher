@@ -102,8 +102,8 @@ These services may collect:
 - A short rolling buffer of non-PII diagnostic breadcrumbs describing
   launcher lifecycle events (for example, "cold start began", "agenda load
   completed", "app icon cache miss"). These breadcrumbs do not include your
-  search queries, app names, contact names or photos, calendar contents, or
-  notification contents.
+  search queries, the names or package names of your installed apps, contact
+  names or photos, calendar contents, or notification contents.
 - Anonymous performance traces (for example, how long cold start, agenda
   loading, or icon loading took) and high-level counters (for example, icon
   cache hit rate).

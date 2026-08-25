@@ -128,7 +128,15 @@ internal class LauncherViewModel(
     private var recoveryToken = 0
     /** See [abandonPendingPlayUpdateRecovery]. */
     private var isRecoveryAbandoned = false
+    // Custom setter rather than a call at each load site: every assignment
+    // republishes the package set that [TelemetryRedaction] matches against, so
+    // the Crashlytics filter can't drift out of step with what is installed —
+    // including at the rename / badge / clone sites that rebuild the list.
     private var installedApps: List<InstalledApp> = emptyList()
+        set(value) {
+            field = value
+            TelemetryRedaction.rememberPackages(value.map { it.packageName })
+        }
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the
     // launcher can be rebuilt from saved-instance after a full process
@@ -175,16 +183,25 @@ internal class LauncherViewModel(
     // predecessor.
     private var pendingReloadJob: Job? = null
     private val launcherAppsCallback = object : LauncherApps.Callback() {
+        // Each of these puts the package name into the reload's reason string,
+        // which is logged immediately — an *added* package is not in
+        // [installedApps] yet, and a *removed* one has dropped out by the time
+        // the matching "scheduleReload complete" line repeats the reason. So
+        // the name is remembered here, before anything logs it, rather than
+        // relying on the installed set to happen to contain it.
         override fun onPackageAdded(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
+            TelemetryRedaction.rememberPackage(packageName)
             scheduleReload("packageAdded:$packageName")
         }
         override fun onPackageRemoved(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
+            TelemetryRedaction.rememberPackage(packageName)
             scheduleReload("packageRemoved:$packageName")
         }
         override fun onPackageChanged(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
+            TelemetryRedaction.rememberPackage(packageName)
             scheduleReload("packageChanged:$packageName")
         }
         override fun onPackagesAvailable(
@@ -2715,6 +2732,7 @@ internal class LauncherViewModel(
             if (appWidgetId !in widgetStore.widgetIds) return@launch
             widgetStore.setProvider(appWidgetId, record)
             _uiState.update { it.copy(widgetProviderLabels = widgetStore.providerLabels) }
+            TelemetryRedaction.rememberPackage(record.component.packageName)
             LauncherDebugLog.event(
                 "rememberWidgetProvider id=$appWidgetId component=${record.component.flattenToShortString()}",
             )

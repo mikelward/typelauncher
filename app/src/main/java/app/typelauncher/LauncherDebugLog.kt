@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
@@ -70,10 +71,11 @@ internal object LauncherDebugLog {
     fun event(message: String) {
         record('D', message, throwable = null)
         Log.d(LAUNCHER_DEBUG_TAG, message)
-        // Mirror into Crashlytics so the most recent ~64 lines ride along on
-        // any future crash report, giving us the same context the bug-report
-        // helper would attach.
-        LauncherTelemetry.log(message)
+        // Mirror into Crashlytics so the most recent lines ride along on any
+        // future crash report, giving us the same context the bug-report helper
+        // would attach — minus the app identifiers, which stay on the device
+        // (see [TelemetryRedaction]).
+        LauncherTelemetry.log(TelemetryRedaction.redact(message))
     }
 
     /**
@@ -92,8 +94,12 @@ internal object LauncherDebugLog {
     fun warning(message: String, throwable: Throwable? = null) {
         record('W', message, throwable)
         Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
-        LauncherTelemetry.log("WARN $message")
-        if (throwable != null) LauncherTelemetry.recordException(throwable)
+        LauncherTelemetry.log("WARN ${TelemetryRedaction.redact(message)}")
+        // The throwable is redacted too, not just the breadcrumb: Crashlytics
+        // uploads an exception's message verbatim, and a platform exception
+        // routinely quotes what failed — `ActivityNotFoundException` carries
+        // the intent, a `LauncherApps` SecurityException the package.
+        if (throwable != null) LauncherTelemetry.recordException(throwable.redactedForTelemetry())
     }
 
     /**
@@ -193,6 +199,47 @@ internal object LauncherDebugLog {
         }
 }
 
+/**
+ * A telemetry-safe stand-in for [this]: the exception types and stack traces of
+ * the whole cause chain, and **no messages at all**.
+ *
+ * Crashlytics uploads an exception's message verbatim, and a platform exception
+ * routinely quotes what failed — `ActivityNotFoundException` embeds the intent,
+ * so a contact's number or address can ride in it; `LauncherApps` failures name
+ * the package. Two rounds of trying to *sanitize* those messages each turned up
+ * another payload the sanitizer didn't know about (URIs after packages), which
+ * is the signal to stop sanitizing and start omitting: the type and the stack
+ * trace are what a non-fatal is read for, and they cannot carry a payload.
+ * The full message stays in the on-device log, which the user reviews before
+ * sharing.
+ *
+ * Iterative and identity-guarded rather than recursive, because a cause chain
+ * can be cyclic (`a.initCause(b); b.initCause(a)`) — the same guard
+ * [compactStackTrace] already keeps. A `StackOverflowError` raised while
+ * *preparing* a log line would take out the caller it was logging for.
+ */
+internal fun Throwable.redactedForTelemetry(): Throwable {
+    val chain = mutableListOf<Throwable>()
+    val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
+    var current: Throwable? = this
+    while (current != null && seen.add(current)) {
+        chain += current
+        current = current.cause
+    }
+    var redacted: Throwable? = null
+    for (link in chain.asReversed()) {
+        redacted = RedactedThrowable(link.javaClass.name, redacted).also { it.stackTrace = link.stackTrace }
+    }
+    return redacted ?: RedactedThrowable(javaClass.name, null).also { it.stackTrace = stackTrace }
+}
+
+/**
+ * Stand-in produced by [redactedForTelemetry]. Its message is the original
+ * exception's class name, so a Crashlytics report still says what was thrown
+ * even though every report of this kind shares one type.
+ */
+internal class RedactedThrowable(message: String, cause: Throwable?) : RuntimeException(message, cause)
+
 internal fun Intent?.debugSummary(): String {
     if (this == null) return "null"
     val categories = categories?.sorted().orEmpty()
@@ -202,9 +249,46 @@ internal fun Intent?.debugSummary(): String {
         append(" flags=0x").append(Integer.toHexString(flags))
         append(" component=").append(component?.flattenToShortString() ?: "null")
         append(" package=").append(`package` ?: "null")
-        append(" data=").append(dataString ?: "null")
+        append(" data=").append(data.redactedSummary())
         append(" extras=").append(extras.debugSummary())
     }
+}
+
+/**
+ * A URI reduced to the one part that cannot name anything of the user's: its
+ * scheme. Everything after that is payload, and for this launcher the payload
+ * is routinely somebody's data — `smsto:` / `mailto:` carry a contact's phone
+ * number or email address verbatim ([ContactActions]), `content://` carries a
+ * contacts or calendar row id, `market://details?id=` carries a package name.
+ *
+ * The stakes are higher here than for the on-device log alone: every
+ * [LauncherDebugLog.event] mirrors into Crashlytics as a breadcrumb, so an
+ * un-redacted `dataString` uploads those values off the device on the next
+ * crash — which both the *Privacy* rule in `AGENTS.md` and the published
+ * `PRIVACY.md` ("these breadcrumbs do not include ... contact names") forbid.
+ * Redacting at the one place that renders a URI for the log fixes every call
+ * site at once, including ones added later.
+ *
+ * The authority goes too, though it reads like pure component identity. A
+ * hierarchical URI's authority carries any userinfo — `https://alice:secret@
+ * example.com/...` — and a `content://` authority names an installed app,
+ * which is the inventory this redaction exists to keep off the device. An
+ * allowlist of known-safe hosts would buy back "contacts or calendar" at the
+ * cost of a list to maintain and get wrong.
+ *
+ * The scheme is the whole diagnostic value anyway: "the SENDTO for smsto:
+ * found no handler" is the failure; which number it was addressed to is not.
+ */
+internal fun Uri?.redactedSummary(): String {
+    if (this == null) return "null"
+    val scheme = scheme ?: return "\u2026"
+    val hasRedactedRemainder = if (isOpaque) {
+        !schemeSpecificPart.isNullOrEmpty()
+    } else {
+        !authority.isNullOrEmpty() || !path.isNullOrEmpty() ||
+            !query.isNullOrEmpty() || !fragment.isNullOrEmpty()
+    }
+    return scheme + ":" + if (hasRedactedRemainder) "\u2026" else ""
 }
 
 // Dumps each extra as `key=ValueClassName` for debug logs. The type-safe
