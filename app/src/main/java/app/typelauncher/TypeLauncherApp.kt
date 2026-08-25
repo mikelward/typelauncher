@@ -89,7 +89,7 @@ class TypeLauncherApp : Application() {
                     // choice in their own persisted flags, and this call only
                     // re-asserts it. Assuming a value would let an unreadable
                     // preference overwrite a stored opt-out with an opt-in.
-                    LauncherDebugLog.warning("telemetry preference unreadable, leaving it unchanged", error)
+                    LauncherDebugLog.failure(error, "telemetry preference unreadable, leaving it unchanged")
                     null
                 }
             }

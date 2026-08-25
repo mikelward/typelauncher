@@ -81,7 +81,7 @@ internal object BugReport {
             // crash — this runs from a UI tap, where an escaping throwable takes
             // the launcher down. Retain a small shareable diagnostic instead.
             carriesPriorRun = false
-            LauncherDebugLog.warning("BugReport payload collection failed", t)
+            LauncherDebugLog.failure(t, "BugReport payload collection failed")
             buildFallbackPayload(t)
         }
         // The screenshot capture draws the live Compose window via PixelCopy, and
@@ -100,13 +100,13 @@ internal object BugReport {
             // clipboard service), so without this the user could see only the
             // generic toast while the log said nothing about why.
             val copied = runCatching { clipboardWrite(activity, text) }
-                .onFailure { LauncherDebugLog.warning("BugReport clipboard hand-off threw", it) }
+                .onFailure { LauncherDebugLog.failure(it, "BugReport clipboard hand-off threw") }
                 .getOrDefault(false)
             // Fire the chooser for its side effect; its launch is not proof of
             // delivery (no ACTION_SEND completion callback), so it doesn't gate the
             // clear below — only the retained clipboard copy does.
             val launched = runCatching { chooserLaunch(activity, text, screenshotUri) }
-                .onFailure { LauncherDebugLog.warning("BugReport chooser hand-off threw", it) }
+                .onFailure { LauncherDebugLog.failure(it, "BugReport chooser hand-off threw") }
                 .getOrDefault(false)
             // Neither route landed: the tap would otherwise do nothing visible at
             // all — no chooser, nothing on the clipboard — and the user would
@@ -163,7 +163,7 @@ internal object BugReport {
         // nothing at all — and the log is then the only place that can say why.
         runCatching {
             Toast.makeText(context, R.string.bug_report_share_failed, Toast.LENGTH_LONG).show()
-        }.onFailure { LauncherDebugLog.warning("BugReport share-failed notice could not be shown", it) }
+        }.onFailure { LauncherDebugLog.failure(it, "BugReport share-failed notice could not be shown") }
     }
 
     private fun collectPayload(context: Context, fileSink: DebugFileSink?): String {
@@ -210,7 +210,7 @@ internal object BugReport {
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
-            LauncherDebugLog.warning("BugReport.captureWindow failed", t)
+            LauncherDebugLog.failure(t, "BugReport.captureWindow failed")
             null
         } ?: return null
         // Compressing a full-window PNG and pruning previous files would block the main
@@ -236,7 +236,7 @@ internal object BugReport {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (t: Throwable) {
-                    LauncherDebugLog.warning("BugReport.persistScreenshot failed", t)
+                    LauncherDebugLog.failure(t, "BugReport.persistScreenshot failed")
                     null
                 }
             }
@@ -289,7 +289,7 @@ internal object BugReport {
                 }
             }
         } catch (t: Throwable) {
-            LauncherDebugLog.warning("BugReport.PixelCopy.request threw", t)
+            LauncherDebugLog.failure(t, "BugReport.PixelCopy.request threw")
             bitmap.recycle()
             cont.resume(null)
         }
@@ -338,7 +338,7 @@ internal object BugReport {
         // Returns whether the chooser actually launched: the caller clears the
         // prior-run diagnostics only once the report has reached the user somehow.
         return runCatching { launchContext.startActivity(chooser); true }
-            .onFailure { LauncherDebugLog.warning("BugReport.share intent failed", it) }
+            .onFailure { LauncherDebugLog.failure(it, "BugReport.share intent failed") }
             .getOrDefault(false)
     }
 
@@ -348,7 +348,7 @@ internal object BugReport {
             val cm = context.getSystemService(ClipboardManager::class.java) ?: return@runCatching false
             cm.setPrimaryClip(ClipData.newPlainText("Type Launcher bug report", text))
             true
-        }.onFailure { LauncherDebugLog.warning("BugReport.clipboard copy failed", it) }
+        }.onFailure { LauncherDebugLog.failure(it, "BugReport.clipboard copy failed") }
             .getOrDefault(false)
 
     /**

@@ -105,7 +105,7 @@ internal fun LicensesScreen(
             } catch (exception: ActivityNotFoundException) {
                 // No browser (or a stripped device). Same guard, and the same
                 // log, as the About dialog's privacy-policy link.
-                LauncherDebugLog.warning("license link: no activity for $url", exception)
+                LauncherDebugLog.failure(exception, "license link: no activity for %s", url)
             }
         },
     )

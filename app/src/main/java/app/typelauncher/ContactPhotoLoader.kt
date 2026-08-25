@@ -129,7 +129,7 @@ internal object ContactPhotoLoader {
         // identify a contact — PRIVACY.md promises breadcrumbs carry no
         // contact data. The exception class is the useful non-identifying
         // signal; the full stack still lands in logcat for local debugging.
-        LauncherDebugLog.warning("ContactPhotoLoader decode failed: ${exception.javaClass.simpleName}")
+        LauncherDebugLog.warning("ContactPhotoLoader decode failed: %s", exception.javaClass.simpleName)
         LauncherDebugLog.trace("ContactPhotoLoader decode failure detail: $exception")
         null
     }

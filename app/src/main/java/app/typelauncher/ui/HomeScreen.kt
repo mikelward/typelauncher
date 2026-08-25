@@ -7077,9 +7077,10 @@ private fun AboutDialog(onDismiss: () -> Unit, onOpenLicenses: () -> Unit) {
                             try {
                                 context.startActivity(intent)
                             } catch (exception: ActivityNotFoundException) {
-                                LauncherDebugLog.warning(
-                                    "privacy policy link: no activity for $privacyPolicyUrl",
+                                LauncherDebugLog.failure(
                                     exception,
+                                    "privacy policy link: no activity for %s",
+                                    privacyPolicyUrl,
                                 )
                             }
                         },

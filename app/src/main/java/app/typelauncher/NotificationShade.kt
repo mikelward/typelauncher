@@ -20,10 +20,10 @@ internal object NotificationShade {
             LauncherDebugLog.event("NotificationShade.expand invoked")
             true
         } catch (exception: ReflectiveOperationException) {
-            LauncherDebugLog.warning("NotificationShade.expand reflective failure", exception)
+            LauncherDebugLog.failure(exception, "NotificationShade.expand reflective failure")
             false
         } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("NotificationShade.expand denied", exception)
+            LauncherDebugLog.failure(exception, "NotificationShade.expand denied")
             false
         }
     }

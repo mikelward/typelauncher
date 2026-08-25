@@ -214,7 +214,7 @@ internal fun TypeLauncherApp(
         state.dockedApps.size,
         state.isAgendaEnabled,
     ) {
-        LauncherDebugLog.event("TypeLauncherApp state ${state.debugSummary()}")
+        LauncherDebugLog.event("TypeLauncherApp state %s", state.debugSummary())
     }
     // ON_RESUME refresh is handled by MainActivity.onResume; we don't add a Compose
     // observer for the same event because it would refresh permission-driven UI twice
@@ -439,7 +439,10 @@ internal fun TypeLauncherApp(
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     LaunchedEffect(state.destination, state.isSettingsOpen, state.appListLayout) {
-        LauncherDebugLog.event("TypeLauncherApp render target=${if (state.isSettingsOpen) "Settings" else state.destination}")
+        LauncherDebugLog.event(
+            "TypeLauncherApp render target=%s",
+            if (state.isSettingsOpen) "Settings" else state.destination,
+        )
     }
     // Back closes the topmost launcher surface — the settings page (which
     // overlays the whole carousel when open), then the widget picker, then
@@ -1553,8 +1556,10 @@ private fun SwipeNavigationBox(
         delay(CAROUSEL_ACK_TIMEOUT_MS)
         if (carouselTransition == transition) {
             LauncherDebugLog.warning(
-                "SwipeNavigationBox ack timeout settled=${transition.settledPage} expected=${transition.expectedPage} " +
-                    "page=$currentLauncherPage",
+                "SwipeNavigationBox ack timeout settled=%s expected=%s page=%s",
+                transition.settledPage,
+                transition.expectedPage,
+                currentLauncherPage,
             )
             allowSwipeWithUnackedScreen = true
             dispatchSettledPage(transition.expectedPage)
@@ -1733,19 +1738,25 @@ private fun SwipeNavigationBox(
                                     // by a Compose-side cancel.
                                     loggedDeferredClaim = true
                                     LauncherDebugLog.event(
-                                        "SwipeNavigationBox claim deferred startTransition=$gestureStartTransition " +
-                                            "startPage=$gestureStartPage startOffsetPx=$gestureStartOffsetPx " +
-                                            "transition=$carouselTransition " +
-                                            "animationActive=${carouselAnimationJob?.isActive} " +
-                                            "carouselOffsetPx=$carouselOffsetPx",
+                                        "SwipeNavigationBox claim deferred startTransition=%s startPage=%s startOffsetPx=%s transition=%s animationActive=%s carouselOffsetPx=%s",
+                                        gestureStartTransition,
+                                        gestureStartPage,
+                                        gestureStartOffsetPx,
+                                        carouselTransition,
+                                        carouselAnimationJob?.isActive,
+                                        carouselOffsetPx,
                                     )
                                 }
                                 if (canStartCarouselGesture) {
                                     carouselClaimed = true
                                     LauncherDebugLog.event(
-                                        "SwipeNavigationBox claimed startTransition=$gestureStartTransition " +
-                                            "startPage=$gestureStartPage startOffsetPx=$gestureStartOffsetPx " +
-                                            "candidatePage=$candidatePage rawDragX=$rawDragX rawDragY=$rawDragY",
+                                        "SwipeNavigationBox claimed startTransition=%s startPage=%s startOffsetPx=%s candidatePage=%s rawDragX=%s rawDragY=%s",
+                                        gestureStartTransition,
+                                        gestureStartPage,
+                                        gestureStartOffsetPx,
+                                        candidatePage,
+                                        rawDragX,
+                                        rawDragY,
                                     )
                                     // Warm widgets and start the
                                     // UI-thread defer-apply window now,
@@ -1858,8 +1869,10 @@ private fun SwipeNavigationBox(
                                     settleTargetPage = settleTargetPage,
                                 )
                                 LauncherDebugLog.event(
-                                    "SwipeNavigationBox queued settle swipe direction=$dragDirection " +
-                                        "targetPage=$settleTargetPage rawDragX=$rawDragX",
+                                    "SwipeNavigationBox queued settle swipe direction=%s targetPage=%s rawDragX=%s",
+                                    dragDirection,
+                                    settleTargetPage,
+                                    rawDragX,
                                 )
                             }
                         }
@@ -1887,11 +1900,15 @@ private fun SwipeNavigationBox(
                         (distanceCommits || flingCommits)
 
                     LauncherDebugLog.event(
-                        "SwipeNavigationBox horizontal release effectiveDragX=$effectiveDragX rawDragY=$rawDragY " +
-                            "velocityX=$releaseVelocity " +
-                            "distanceCommits=$distanceCommits flingCommits=$flingCommits " +
-                            "velocityOpposes=$velocityOpposesDrag " +
-                            "widgetScrolled=$widgetScrolledDuringGesture committed=$committed",
+                        "SwipeNavigationBox horizontal release effectiveDragX=%s rawDragY=%s velocityX=%s distanceCommits=%s flingCommits=%s velocityOpposes=%s widgetScrolled=%s committed=%s",
+                        effectiveDragX,
+                        rawDragY,
+                        releaseVelocity,
+                        distanceCommits,
+                        flingCommits,
+                        velocityOpposesDrag,
+                        widgetScrolledDuringGesture,
+                        committed,
                     )
                     val targetPage = if (committed) {
                         (gestureStartPage + dragDirection)
@@ -2045,13 +2062,17 @@ private fun SwipeNavigationBox(
                     when {
                         committed && rawDragY > 0f -> {
                             LauncherDebugLog.event(
-                                "SwipeNavigationBox swipe down rawDragY=$rawDragY velocityY=$releaseVelocity",
+                                "SwipeNavigationBox swipe down rawDragY=%s velocityY=%s",
+                                rawDragY,
+                                releaseVelocity,
                             )
                             swipeDownDispatch()
                         }
                         committed && rawDragY < 0f -> {
                             LauncherDebugLog.event(
-                                "SwipeNavigationBox swipe up rawDragY=$rawDragY velocityY=$releaseVelocity",
+                                "SwipeNavigationBox swipe up rawDragY=%s velocityY=%s",
+                                rawDragY,
+                                releaseVelocity,
                             )
                             swipeUpDispatch()
                         }
@@ -2106,7 +2127,10 @@ private fun SwipeNavigationBox(
                 isAgendaEnabled = isAgendaEnabled,
             )
             LauncherDebugLog.event(
-                "SwipeNavigationBox external page=$statePage settledPage=$currentPage targetPage=$targetPage",
+                "SwipeNavigationBox external page=%s settledPage=%s targetPage=%s",
+                statePage,
+                currentPage,
+                targetPage,
             )
             if (targetPage != currentPage) {
                 val startPage = currentPage
@@ -2126,8 +2150,9 @@ private fun SwipeNavigationBox(
         }
         LaunchedEffect(currentPage) {
             LauncherDebugLog.event(
-                "SwipeNavigationBox settledPage=$currentPage " +
-                    "page=${LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled)}",
+                "SwipeNavigationBox settledPage=%s page=%s",
+                currentPage,
+                LauncherScreen.fromCarouselPage(currentPage, widgetPageCount, isAgendaEnabled),
             )
         }
         // Sign of the carousel translation as -1 / 0 / +1, behind

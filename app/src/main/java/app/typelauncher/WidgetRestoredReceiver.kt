@@ -32,7 +32,7 @@ internal class WidgetRestoredReceiver : BroadcastReceiver() {
         if (intent.action != AppWidgetManager.ACTION_APPWIDGET_HOST_RESTORED) return
         val hostId = intent.getIntExtra(AppWidgetManager.EXTRA_HOST_ID, -1)
         if (hostId != APP_WIDGET_HOST_ID) {
-            LauncherDebugLog.event("WidgetRestoredReceiver ignoring hostId=$hostId")
+            LauncherDebugLog.event("WidgetRestoredReceiver ignoring hostId=%s", hostId)
             return
         }
         val oldIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_OLD_IDS)
@@ -42,11 +42,14 @@ internal class WidgetRestoredReceiver : BroadcastReceiver() {
         // widgets that can't be re-bound are cleaned up rather than stranded.
         val mapping = restoredWidgetIdMapping(oldIds, newIds)
         if (mapping == null) {
-            LauncherDebugLog.warning("WidgetRestoredReceiver ignoring malformed restore payload hostId=$hostId")
+            LauncherDebugLog.warning("WidgetRestoredReceiver ignoring malformed restore payload hostId=%s", hostId)
             return
         }
         LauncherDebugLog.event(
-            "WidgetRestoredReceiver hostId=$hostId restored ${mapping.size} widget id(s) mapping=$mapping",
+            "WidgetRestoredReceiver hostId=%s restored %s widget id(s) mapping=%s",
+            hostId,
+            mapping.size,
+            mapping,
         )
         // Runs on the main thread; the store's constructor read and single
         // `apply()` are cheap, and the framework flushes pending writes before

@@ -142,14 +142,14 @@ internal class AndroidWallpaperColorsRegistrar(private val context: Context) : W
             } catch (exception: RuntimeException) {
                 // Nothing left to release if the framework already dropped it;
                 // log so a leaked listener is traceable, not silent.
-                LauncherDebugLog.warning("wallpaper colors listener removal failed", exception)
+                LauncherDebugLog.failure(exception, "wallpaper colors listener removal failed")
             }
         }
         return try {
             manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper()))
             unregister
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("wallpaper colors listener unavailable", exception)
+            LauncherDebugLog.failure(exception, "wallpaper colors listener unavailable")
             null
         }
     }

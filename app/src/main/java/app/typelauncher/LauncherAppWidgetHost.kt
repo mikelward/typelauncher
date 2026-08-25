@@ -303,7 +303,7 @@ internal open class LauncherAppWidgetHostView(
             // long-press, not per frame) and captured by the in-app bug
             // report's log ring buffer, so a report from a device without
             // logcat access still carries the timing.
-            LauncherDebugLog.event("LauncherAppWidgetHostView checkLongPress fired widgetId=$appWidgetId")
+            LauncherDebugLog.event("LauncherAppWidgetHostView checkLongPress fired widgetId=%s", appWidgetId)
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             onWidgetLongPress?.invoke()
         }
@@ -361,7 +361,7 @@ internal open class LauncherAppWidgetHostView(
                 postDelayed(checkLongPress, longPressTimeoutMs)
                 longPressTimerArmedForLogging = true
                 // See checkLongPress's doc: diagnostic for #513's follow-up.
-                LauncherDebugLog.event("LauncherAppWidgetHostView longPressTimer armed widgetId=$appWidgetId")
+                LauncherDebugLog.event("LauncherAppWidgetHostView longPressTimer armed widgetId=%s", appWidgetId)
             }
             MotionEvent.ACTION_MOVE -> {
                 if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
@@ -373,7 +373,8 @@ internal open class LauncherAppWidgetHostView(
                     if (longPressTimerArmedForLogging) {
                         longPressTimerArmedForLogging = false
                         LauncherDebugLog.event(
-                            "LauncherAppWidgetHostView longPressTimer cancelled(slop) widgetId=$appWidgetId",
+                            "LauncherAppWidgetHostView longPressTimer cancelled(slop) widgetId=%s",
+                            appWidgetId,
                         )
                     }
                 }
@@ -383,8 +384,9 @@ internal open class LauncherAppWidgetHostView(
                 if (longPressTimerArmedForLogging) {
                     longPressTimerArmedForLogging = false
                     LauncherDebugLog.event(
-                        "LauncherAppWidgetHostView longPressTimer cancelled(intercept " +
-                            "action=${ev.actionMasked}) widgetId=$appWidgetId",
+                        "LauncherAppWidgetHostView longPressTimer cancelled(intercept action=%s) widgetId=%s",
+                        ev.actionMasked,
+                        appWidgetId,
                     )
                 }
             }
@@ -464,7 +466,9 @@ internal open class LauncherAppWidgetHostView(
             longPressTimerArmedForLogging = false
             val source = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) "dispatchCancel" else "dispatchUp"
             LauncherDebugLog.event(
-                "LauncherAppWidgetHostView longPressTimer cancelled($source) widgetId=$appWidgetId",
+                "LauncherAppWidgetHostView longPressTimer cancelled(%s) widgetId=%s",
+                source,
+                appWidgetId,
             )
         }
         // Same post-super gating as the UP/CANCEL backstop above, MOVE
@@ -477,7 +481,8 @@ internal open class LauncherAppWidgetHostView(
         ) {
             longPressTimerArmedForLogging = false
             LauncherDebugLog.event(
-                "LauncherAppWidgetHostView longPressTimer cancelled(dispatchSlop) widgetId=$appWidgetId",
+                "LauncherAppWidgetHostView longPressTimer cancelled(dispatchSlop) widgetId=%s",
+                appWidgetId,
             )
         }
         return handled
@@ -537,7 +542,8 @@ internal open class LauncherAppWidgetHostView(
             if (longPressTimerArmedForLogging) {
                 longPressTimerArmedForLogging = false
                 LauncherDebugLog.event(
-                    "LauncherAppWidgetHostView longPressTimer cancelled(disallowIntercept) widgetId=$appWidgetId",
+                    "LauncherAppWidgetHostView longPressTimer cancelled(disallowIntercept) widgetId=%s",
+                    appWidgetId,
                 )
             }
         }
@@ -557,7 +563,8 @@ internal open class LauncherAppWidgetHostView(
         if (longPressTimerArmedForLogging) {
             longPressTimerArmedForLogging = false
             LauncherDebugLog.event(
-                "LauncherAppWidgetHostView longPressTimer cancelled(cancelLongPress) widgetId=$appWidgetId",
+                "LauncherAppWidgetHostView longPressTimer cancelled(cancelLongPress) widgetId=%s",
+                appWidgetId,
             )
         }
     }
