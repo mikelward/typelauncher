@@ -5837,18 +5837,30 @@ internal fun SettingsScreen(
     // restoring on the way out. The resolved hint is also kept for the page's
     // bare (uncarded) texts below.
     var wallpaperDarkText by remember { mutableStateOf<Boolean?>(null) }
-    LaunchedEffect(state.isWallpaperShown) {
+    // Keyed on the wallpaper's colors as well as the setting: Settings can send
+    // the user to the system picker and back (the Wallpaper row below), so the
+    // hint resolved on the way in can be stale by the time they return — the
+    // page's bare texts and the bars would keep the old wallpaper's contrast
+    // until Settings was closed.
+    val wallpaperColorsGeneration = rememberWallpaperColorsGeneration(state.isWallpaperShown)
+    LaunchedEffect(state.isWallpaperShown, wallpaperColorsGeneration) {
         if (!state.isWallpaperShown) {
             wallpaperDarkText = null
             return@LaunchedEffect
         }
+        // Assigned even when the lookup comes back null, which resets the page
+        // to its theme-derived color: on a refresh, holding the old value
+        // would draw this wallpaper's bare text in the *previous* wallpaper's
+        // contrast, which can be exactly inverted.
         val darkIcons = withContext(Dispatchers.IO) { wallpaperSupportsDarkText(context) }
-            ?: return@LaunchedEffect
         wallpaperDarkText = darkIcons
+        // The bars fall back to the page surface's own luminance for the same
+        // reason, rather than being left on the old wallpaper's value.
+        val barIconsAreDark = darkIcons ?: (settingsBackgroundColor.luminance() > 0.5f)
         context.findActivity()?.window?.let { window ->
             val bars = WindowInsetsControllerCompat(window, view)
-            bars.isAppearanceLightStatusBars = darkIcons
-            bars.isAppearanceLightNavigationBars = darkIcons
+            bars.isAppearanceLightStatusBars = barIconsAreDark
+            bars.isAppearanceLightNavigationBars = barIconsAreDark
         }
     }
     // The page title and the "Preview" label sit directly on the wallpaper
