@@ -54,7 +54,7 @@
   release the way a genuine new disclosure should. Needs a real distinction
   between "the policy text changed" and "what the policy describes
   changed," which the current mechanism can't make on its own.
-- Add an AGPL license gate to `android-ci.yml`: fail if a dependency declares
+- Add an AGPL license gate to `ci.yml`: fail if a dependency declares
   an AGPL license, catching one added by hand in a normal PR, not just ones
   the weekly bot bumps. Likely the `com.github.jk1.dependency-license-report`
   Gradle plugin. GPL/LGPL undecided. Independent of `gradle-update`, and

@@ -30,13 +30,13 @@
 # the head -- and the green `zizmor` check already attached to it -- stays
 # put, so without `edited` the old target's scan would satisfy the new one
 # unexamined. Title and body edits re-run the scan too; redundant but
-# cheap, the same trade android-ci.yml makes for the lane jobs.
+# cheap, the same trade ci.yml makes for the lane jobs.
 #
-# Plain `pull_request`, not `pull_request_target`: unlike android-ci.yml's
+# Plain `pull_request`, not `pull_request_target`: unlike ci.yml's
 # `lanes`/`codex` status jobs, this job never derives a required check from
 # content a PR could otherwise forge -- it only reads and reports on the
 # workflow YAML in front of it, so there is no cross-branch job definition
-# to protect the way android-ci.yml's header explains for itself.
+# to protect the way ci.yml's header explains for itself.
 name: zizmor
 on:
   push:

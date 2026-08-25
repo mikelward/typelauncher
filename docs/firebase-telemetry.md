@@ -75,7 +75,7 @@ from the Firebase console (Project settings → General → Your apps →
 ```
 
 The `Materialize google-services.json` step in
-`.github/workflows/android-ci.yml` writes it to `app/google-services.json`
+`.github/workflows/ci.yml` writes it to `app/google-services.json`
 before `assembleDebug`. The step is gated on the secret being non-empty, so PR
 builds from forks (which can't see secrets) still pass — they just produce an
 APK without Firebase telemetry.
