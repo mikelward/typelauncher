@@ -617,8 +617,19 @@ internal class LauncherViewModel(
         // telemetry, so deferring the gate to the coroutine left a window in
         // which the switch already read "off" while breadcrumbs, custom keys,
         // or a crash could still be recorded and uploaded.
-        LauncherTelemetry.setCollectionGate(isEnabled)
-        dockSettingsStore.isTelemetryEnabled = isEnabled
+        // The preferences go in here, not just to the coroutine below: an
+        // opt-out's promise to discard has to be on disk *before* the
+        // asynchronous gap, or a rapid off→on plus a process death leaves the
+        // next launch reading "enabled, nothing owed".
+        LauncherTelemetry.setCollectionGate(isEnabled, StoredTelemetryPreferences(dockSettingsStore))
+        // Only the opt-in writes the preference here. The opt-out branch above
+        // has already written it — in the same durable transaction as the
+        // discard it owes, since a death between two separate writes leaves the
+        // next launch reading "enabled, owed", which it honors by deleting the
+        // reports and then turning collection back on. An opt-in needs no such
+        // care: losing it just leaves the stored choice off, which is the safe
+        // direction.
+        if (isEnabled) dockSettingsStore.isTelemetryEnabled = true
         _uiState.update { it.copy(isTelemetryEnabled = isEnabled) }
         logState("setTelemetryEnabled=%s", isEnabled)
         // The SDK half is deferred and serialized inside [LauncherTelemetry],
@@ -637,7 +648,7 @@ internal class LauncherViewModel(
         val scope = (app as? TypeLauncherApp)?.appScope ?: viewModelScope
         scope.launch {
             withContext(ioDispatcher) {
-                LauncherTelemetry.applyCollectionPreference { dockSettingsStore.isTelemetryEnabled }
+                LauncherTelemetry.applyCollectionPreference(StoredTelemetryPreferences(dockSettingsStore))
                 // Opting back in needs the key set pushed again: the collector
                 // dropped every map published while the gate was closed, and
                 // `isTelemetryEnabled` is deliberately not one of the keys, so

@@ -80,19 +80,9 @@ class TypeLauncherApp : Application() {
             // opt-out can otherwise interleave, and a slow startup "enable"
             // could resume mid-sequence and re-enable an SDK after the opt-out
             // had already finished.
-            LauncherTelemetry.applyCollectionPreference {
-                try {
-                    DockSettingsStore(this@TypeLauncherApp).isTelemetryEnabled
-                } catch (error: RuntimeException) {
-                    // Preferences unreadable (rare: corrupt XML, direct-boot).
-                    // Change nothing: both SDKs already hold the user's last
-                    // choice in their own persisted flags, and this call only
-                    // re-asserts it. Assuming a value would let an unreadable
-                    // preference overwrite a stored opt-out with an opt-in.
-                    LauncherDebugLog.failure(error, "telemetry preference unreadable, leaving it unchanged")
-                    null
-                }
-            }
+            LauncherTelemetry.applyCollectionPreference(
+                StoredTelemetryPreferences(DockSettingsStore(this@TypeLauncherApp)),
+            )
         }
     }
 
