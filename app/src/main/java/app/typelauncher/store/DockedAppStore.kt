@@ -755,8 +755,58 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Whether an opt-out promised to discard Crashlytics' unsent reports and
+     * that discard has not yet succeeded.
+     *
+     * Persisted rather than kept in memory because the promise has to outlive
+     * the process. An opt-out followed by an opt-in and then a process death —
+     * before the background transition ran — leaves the stored preference
+     * reading `true`, so nothing on the next launch would know a discard was
+     * ever owed, and the reports captured during the off period become
+     * sendable again. That is the one hole `PRIVACY.md`'s promise had left.
+     *
+     * Written with `commit()` rather than `apply()`: the caller is recording a
+     * promise immediately before doing the work that could be interrupted, and
+     * an `apply()` that is still in flight when the process dies loses exactly
+     * the case this exists for.
+     */
+    val isReportDiscardOwed: Boolean
+        get() = sharedPreferences.getBoolean(KEY_REPORT_DISCARD_OWED, false)
+
+    /**
+     * Records or clears that outstanding discard, reporting whether the write
+     * actually reached disk.
+     *
+     * A function rather than a setter because the result is not incidental:
+     * `commit()` returns `false` for a write that never landed, and a caller
+     * that discards it would treat a promise as durable when it is not.
+     */
+    /**
+     * Records an opt-out and the discard it promises in a single durable write.
+     *
+     * One transaction rather than two, because the pair is only meaningful
+     * together: a process death between "a discard is owed" and "the user said
+     * no" leaves the next launch reading *enabled, owed*, which it services by
+     * deleting the reports and then resuming collection — keeping the promise
+     * about the data while losing the choice that produced it.
+     */
+    @Suppress("ApplySharedPref")
+    fun recordTelemetryOptOut(): Boolean =
+        sharedPreferences.edit()
+            .putBoolean(KEY_TELEMETRY_ENABLED, false)
+            .putBoolean(KEY_REPORT_DISCARD_OWED, true)
+            .commit()
+
+    @Suppress("ApplySharedPref")
+    fun setReportDiscardOwed(owed: Boolean): Boolean =
+        sharedPreferences.edit()
+            .putBoolean(KEY_REPORT_DISCARD_OWED, owed)
+            .commit()
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
+        const val KEY_REPORT_DISCARD_OWED = "telemetry_report_discard_owed"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_TARGET_ICON_SIZE_DP = "dock_target_icon_size_dp"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"

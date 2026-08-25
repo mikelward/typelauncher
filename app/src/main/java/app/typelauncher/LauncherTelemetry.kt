@@ -42,6 +42,38 @@ import java.util.concurrent.atomic.AtomicLong
  * reachable from a JVM test while the calls were inlined. The Firebase-backed
  * implementation stays a thin pass-through with no logic of its own.
  */
+/**
+ * The stored Analytics choice, plus the durable record of a discard an opt-out
+ * promised and has not yet made good on.
+ *
+ * An interface rather than the `() -> Boolean?` this replaced, because the
+ * transition needs to *write* as well as read: the debt has to survive the
+ * process, so clearing it is part of servicing it. Reading happens inside the
+ * transition's lock so a burst of taps converges on what is actually stored.
+ */
+internal interface TelemetryPreferences {
+    /** The user's choice, or `null` if it could not be read at all. */
+    fun isEnabled(): Boolean?
+
+    /** Whether an opt-out's discard is still outstanding, across processes. */
+    fun isDiscardOwed(): Boolean
+
+    /**
+     * Stores the opt-out *and* its owed discard in one durable write, returning
+     * whether it reached storage. Two writes could be interrupted between, and
+     * the resulting "enabled, owed" is serviced by discarding the reports and
+     * then resuming collection — the promise kept, the choice lost.
+     */
+    fun recordOptOut(): Boolean
+
+    /**
+     * Records or clears that outstanding discard, returning whether the write
+     * reached storage. A `false` means the promise is held in memory only and
+     * will not survive this process.
+     */
+    fun setDiscardOwed(owed: Boolean): Boolean
+}
+
 internal interface TelemetrySdk {
     fun setCrashlyticsCollectionEnabled(enabled: Boolean)
     fun setPerformanceCollectionEnabled(enabled: Boolean)
@@ -132,7 +164,15 @@ internal object LauncherTelemetry {
     private val optOuts = AtomicLong(0)
     private val servicedOptOuts = AtomicLong(0)
 
-    private fun deletionOwed(): Boolean = servicedOptOuts.get() < optOuts.get()
+    /**
+     * In-process generations order the opt-outs *within* a run; [durableDebt]
+     * is what carries one across a process death. Either can owe a discard,
+     * and both have to be clear before collection may resume.
+     */
+    @Volatile
+    private var durableDebt: Boolean = false
+
+    private fun deletionOwed(): Boolean = servicedOptOuts.get() < optOuts.get() || durableDebt
 
     /** Serializes the transition below across the toggle and startup. */
     private val collectionLock = Any()
@@ -151,10 +191,35 @@ internal object LauncherTelemetry {
      *
      * Turning off also records the deletion debt, so the promise survives even
      * if the user turns Analytics straight back on before the SDK half runs.
+     *
+     * That record is written *here*, durably, and not left to the transition:
+     * on a rapid off→on the stored preference ends up back at `true`, so a
+     * process death before the transition ran would leave the next launch
+     * reading "enabled, nothing owed" with the off period's reports still on
+     * disk. The promise has to be on disk before the asynchronous gap, which
+     * is the one thing only this call — the opt-out event itself — can do.
+     *
+     * It is the single blocking write this class makes from the main thread,
+     * and it is deliberate. The caller is a Settings tap, not a cold start, a
+     * scroll, or a transition; one boolean into an already-loaded
+     * `SharedPreferences` is the cost, and an `apply()` still in flight when
+     * the process dies loses exactly the case the record exists for.
      */
-    fun setCollectionGate(enabled: Boolean) {
+    fun setCollectionGate(enabled: Boolean, preferences: TelemetryPreferences) {
         collectionState = if (enabled) CollectionState.Enabled else CollectionState.Disabled
-        if (!enabled) optOuts.incrementAndGet()
+        if (!enabled) {
+            optOuts.incrementAndGet()
+            durableDebt = true
+            try {
+                if (!preferences.recordOptOut()) {
+                    LauncherDebugLog.warning("opt-out not persisted: the write did not land")
+                }
+            } catch (error: RuntimeException) {
+                // In-memory still holds within this process; what is lost is
+                // only the ability to carry the choice across a restart.
+                LauncherDebugLog.failure(error, "could not persist the opt-out and its owed discard")
+            }
+        }
     }
 
     /**
@@ -178,14 +243,35 @@ internal object LauncherTelemetry {
      *
      * Blocks; both SDK calls are IPC. Call it off the main thread.
      */
-    fun applyCollectionPreference(currentPreference: () -> Boolean?) = synchronized(collectionLock) {
+    fun applyCollectionPreference(preferences: TelemetryPreferences) = synchronized(collectionLock) {
         // A null reading means "don't know" — leave both SDKs' persisted flags
         // and this state exactly as they are. Guessing `true` here would take an
         // unreadable preference and use it to overwrite a stored opt-out with
         // an explicit opt-in, silently revoking a choice the user made.
-        val enabled = currentPreference() ?: return@synchronized
+        val enabled = preferences.isEnabled()
+        if (enabled == null) {
+            // Not knowing the *choice* is not the same as not knowing whether a
+            // promise is outstanding, and the debt is the half that has to be
+            // kept either way. Returning here without looking left an inherited
+            // discard unserviced while the SDKs' own persisted flags stayed
+            // enabled from before — collecting, against a promise to delete.
+            // So service it, and stop first, exactly as the opt-out path does.
+            // Nothing here decides the choice: the flags are only ever written
+            // *off*, which is the direction an unreadable preference may safely
+            // take.
+            if (firebaseAvailable && (readDiscardOwed(preferences) || deletionOwed())) {
+                applySdkFlags(enabled = false)
+                dischargeOwedDeletion(preferences)
+            }
+            return@synchronized
+        }
         collectionState = if (enabled) CollectionState.Enabled else CollectionState.Disabled
         if (!enabled) optOuts.incrementAndGet()
+        // Pick up a discard this process never promised — one recorded by a
+        // previous run that died before it could be serviced. This is the whole
+        // point of persisting it: without this read, the stored preference
+        // reading `true` is all the next launch would see.
+        if (readDiscardOwed(preferences) || !enabled) recordDiscardOwed(preferences)
         if (!firebaseAvailable) return@synchronized
 
         if (enabled) {
@@ -210,7 +296,7 @@ internal object LauncherTelemetry {
             // enabled against a switch that reads off — and they survive the
             // process, so a crash before the queued opt-out transition runs
             // would start the next process collecting.
-            if (dischargeOwedDeletion() && collectionState == CollectionState.Enabled) {
+            if (dischargeOwedDeletion(preferences) && collectionState == CollectionState.Enabled) {
                 val servicing = optOuts.get()
                 applySdkFlags(enabled = true)
                 // The check above cannot cover the write itself: an opt-out can
@@ -233,7 +319,7 @@ internal object LauncherTelemetry {
                     deletionOwed()
                 ) {
                     applySdkFlags(enabled = false)
-                    dischargeOwedDeletion()
+                    dischargeOwedDeletion(preferences)
                     LauncherDebugLog.event("analytics opt-in reversed: an opt-out landed mid-transition")
                 }
             } else {
@@ -252,7 +338,7 @@ internal object LauncherTelemetry {
             }
         } else {
             applySdkFlags(enabled = false)
-            dischargeOwedDeletion()
+            dischargeOwedDeletion(preferences)
         }
     }
 
@@ -306,15 +392,41 @@ internal object LauncherTelemetry {
      * Reviewers have twice read this as an ignored `Task`; it isn't one. Worth
      * revisiting only if a `Task`-returning overload ever appears.
      */
-    private fun dischargeOwedDeletion(): Boolean {
+    private fun dischargeOwedDeletion(preferences: TelemetryPreferences): Boolean {
         val servicing = optOuts.get()
-        if (servicedOptOuts.get() >= servicing) return true
+        // Asks the invariant, not just the in-process generations: a discard
+        // inherited from a previous process has no opt-out in this run's
+        // counters, so a generation comparison alone would call it settled.
+        if (!deletionOwed()) return true
         return try {
             sdk.deleteUnsentReports()
             // Advance only to the generation this call actually serviced. An
             // opt-out that arrived while the delete was in flight bumped
             // [optOuts] past it and keeps its own debt for the next transition.
             servicedOptOuts.updateAndGet { maxOf(it, servicing) }
+            // Clear the durable marker only when this delete settled
+            // everything owed. An opt-out that landed while the delete was in
+            // flight wrote its *own* promise to disk; overwriting it with
+            // `false` here would erase a debt this call never serviced. The
+            // in-process generations would still hold — but they die with the
+            // process, and a crash before that opt-out's own transition ran
+            // would then leave the next launch with nothing owed, which is the
+            // hole the durable record exists to close.
+            if (servicedOptOuts.get() >= optOuts.get()) {
+                clearDiscardOwed(preferences)
+                // Re-check *after* the write, not only before it.
+                // [setCollectionGate] is lock-free by design, so an opt-out can
+                // land between the comparison above and this clear and have its
+                // just-written marker overwritten — leaving the next process
+                // with nothing owed. Restoring it here is the same compensating
+                // write the enable path makes for the SDK flags, and for the
+                // same reason: closing the window in place beats leaving it to
+                // a transition a crash can beat. Ordering makes it total — this
+                // read happens after the clear's write, so an opt-out whose own
+                // write lands later wins on its own, and one whose write landed
+                // earlier is restored here. Re-recording is idempotent.
+                if (servicedOptOuts.get() < optOuts.get()) recordDiscardOwed(preferences)
+            }
             // ...and report success only if nothing is *still* owed. Returning
             // `true` for "the delete I started did not throw" was wrong: an
             // off→on pair landing while the call was blocked leaves a newer
@@ -345,6 +457,53 @@ internal object LauncherTelemetry {
     internal val optOutGeneration: Long
         get() = optOuts.get()
 
+    /**
+     * The durable half of the debt, kept in [durableDebt] once read so the rest
+     * of the transition need not touch storage, and mirrored back on change.
+     *
+     * A storage failure is treated as "owed": refusing to resume collection is
+     * the safe reading of "we cannot tell whether we kept our promise".
+     */
+    private fun readDiscardOwed(preferences: TelemetryPreferences): Boolean =
+        try {
+            preferences.isDiscardOwed()
+        } catch (error: RuntimeException) {
+            LauncherDebugLog.failure(error, "could not read whether a report discard is owed")
+            true
+        }.also { durableDebt = durableDebt || it }
+
+    private fun recordDiscardOwed(preferences: TelemetryPreferences) {
+        durableDebt = true
+        try {
+            // A `false` return is the same loss as a throw: the promise holds
+            // in memory, so this process still refuses to resume collection,
+            // but it will not survive a restart. Nothing here can repair
+            // that — a failed write cannot record that it failed — so the
+            // handling is to say so rather than to treat it as durable.
+            if (!preferences.setDiscardOwed(true)) {
+                LauncherDebugLog.warning("owed report discard not persisted: the write did not land")
+            }
+        } catch (error: RuntimeException) {
+            // In-memory still holds within this process; what is lost is only
+            // the ability to carry the promise across a restart.
+            LauncherDebugLog.failure(error, "could not persist that a report discard is owed")
+        }
+    }
+
+    private fun clearDiscardOwed(preferences: TelemetryPreferences) {
+        durableDebt = false
+        try {
+            if (!preferences.setDiscardOwed(false)) {
+                LauncherDebugLog.warning("owed report discard not cleared: the write did not land")
+            }
+        } catch (error: RuntimeException) {
+            // Leaving it set costs one redundant discard next launch, which is
+            // harmless; clearing it when it did not stick would be the unsafe
+            // direction, so this failure is only logged.
+            LauncherDebugLog.failure(error, "could not clear the owed report discard")
+        }
+    }
+
     /** Test-only: returns this process's view of the user's choice. */
     internal fun collectionStateForTest(): CollectionState = collectionState
 
@@ -356,6 +515,7 @@ internal object LauncherTelemetry {
         collectionState = CollectionState.Unknown
         optOuts.set(0)
         servicedOptOuts.set(0)
+        durableDebt = false
         sdk = FirebaseTelemetrySdk
         sdkAvailableOverride = null
     }
@@ -545,4 +705,32 @@ internal inline fun <T> androidTrace(label: String, block: () -> T): T {
     } finally {
         android.os.Trace.endSection()
     }
+}
+
+/**
+ * [TelemetryPreferences] backed by the real settings store.
+ *
+ * Each accessor is guarded on its own. An unreadable *choice* means "change
+ * nothing", because assuming a value would let a corrupt preferences file
+ * overwrite a stored opt-out with an opt-in the user never made. An unreadable
+ * *discard record* means "owed", because not knowing whether a promise was
+ * kept is not a reason to resume collection.
+ */
+internal class StoredTelemetryPreferences(
+    private val store: DockSettingsStore,
+) : TelemetryPreferences {
+    override fun isEnabled(): Boolean? = try {
+        store.isTelemetryEnabled
+    } catch (error: RuntimeException) {
+        // Rare: corrupt XML, direct-boot. Both SDKs already hold the user's
+        // last choice in their own persisted flags and this only re-asserts it.
+        LauncherDebugLog.failure(error, "telemetry preference unreadable, leaving it unchanged")
+        null
+    }
+
+    override fun isDiscardOwed(): Boolean = store.isReportDiscardOwed
+
+    override fun recordOptOut(): Boolean = store.recordTelemetryOptOut()
+
+    override fun setDiscardOwed(owed: Boolean): Boolean = store.setReportDiscardOwed(owed)
 }
