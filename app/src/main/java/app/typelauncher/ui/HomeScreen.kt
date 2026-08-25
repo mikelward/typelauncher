@@ -110,7 +110,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -2363,7 +2365,8 @@ internal fun DockFolderInPlace(
         canScrollUp = { canScrollUp.value },
         canScrollDown = { canScrollDown.value },
         chevronsReady = true,
-        chevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
+        topChevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
+        bottomChevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
         onScrollPageUp = {
             scope.launch { scrollState.animateScrollBy(-scrollState.viewportSize.toFloat()) }
         },
@@ -3626,7 +3629,8 @@ private fun ScrollableIconRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             content = content,
         )
-        if (showStartChevron) {
+        val chevronsEnabled = LocalScrollChevronsEnabled.current
+        if (chevronsEnabled && showStartChevron) {
             OverflowScrollChevron(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = chevronContentDescription,
@@ -3639,7 +3643,7 @@ private fun ScrollableIconRow(
                 onClick = pageBack,
             )
         }
-        if (showEndChevron) {
+        if (chevronsEnabled && showEndChevron) {
             OverflowScrollChevron(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = chevronContentDescription,
@@ -3677,10 +3681,26 @@ private fun AppListOverflowChevronBox(
     canScrollUp: () -> Boolean,
     canScrollDown: () -> Boolean,
     chevronsReady: Boolean,
-    chevronContentDescription: String,
-    onScrollPageUp: () -> Unit,
-    onScrollPageDown: () -> Unit,
+    // One description per direction: the two chevrons are separate buttons to a
+    // screen reader, so a single shared string leaves a user partway down the
+    // list unable to tell which one pages back and which pages on. The apps
+    // list and the open folder still pass their existing per-surface hint for
+    // both — swapping them to directional copy retires a string translated into
+    // every locale the launcher ships, which belongs in its own change.
+    topChevronContentDescription: String,
+    bottomChevronContentDescription: String,
+    // Null on both makes the pair indicators rather than controls — see
+    // [AppListOverflowChevron].
+    onScrollPageUp: (() -> Unit)?,
+    onScrollPageDown: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    // How far outside the scrolling area the chevrons hang. The default suits a
+    // list inside a card, where that band is page background. A caller whose
+    // scrolling area reaches the window edge passes 0 instead, putting the
+    // icons and their tap bands just inside it: beyond such an edge lie only
+    // the system bars, which eat the touch and clip the icon away wherever the
+    // inset is shorter than the overhang.
+    chevronEdgeOffset: Dp = VerticalScrollChevronEdgeOffset,
     topChevronTestTag: String = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
     bottomChevronTestTag: String = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
     content: @Composable BoxScope.() -> Unit,
@@ -3691,7 +3711,9 @@ private fun AppListOverflowChevronBox(
             canScrollUp = canScrollUp,
             canScrollDown = canScrollDown,
             chevronsReady = chevronsReady,
-            chevronContentDescription = chevronContentDescription,
+            topChevronContentDescription = topChevronContentDescription,
+            bottomChevronContentDescription = bottomChevronContentDescription,
+            chevronEdgeOffset = chevronEdgeOffset,
             onScrollPageUp = onScrollPageUp,
             onScrollPageDown = onScrollPageDown,
             topChevronTestTag = topChevronTestTag,
@@ -3711,18 +3733,21 @@ private fun BoxScope.AppListOverflowChevrons(
     canScrollUp: () -> Boolean,
     canScrollDown: () -> Boolean,
     chevronsReady: Boolean,
-    chevronContentDescription: String,
-    onScrollPageUp: () -> Unit,
-    onScrollPageDown: () -> Unit,
+    topChevronContentDescription: String,
+    bottomChevronContentDescription: String,
+    onScrollPageUp: (() -> Unit)?,
+    onScrollPageDown: (() -> Unit)?,
+    chevronEdgeOffset: Dp,
     topChevronTestTag: String,
     bottomChevronTestTag: String,
 ) {
+    if (!LocalScrollChevronsEnabled.current) return
     if (chevronsReady && canScrollUp()) {
         AppListOverflowChevron(
             icon = Icons.Filled.KeyboardArrowUp,
-            contentDescription = chevronContentDescription,
+            contentDescription = topChevronContentDescription,
             alignment = Alignment.TopCenter,
-            edgeOffset = -VerticalScrollChevronEdgeOffset,
+            edgeOffset = -chevronEdgeOffset,
             testTag = topChevronTestTag,
             onClick = onScrollPageUp,
         )
@@ -3730,9 +3755,9 @@ private fun BoxScope.AppListOverflowChevrons(
     if (chevronsReady && canScrollDown()) {
         AppListOverflowChevron(
             icon = Icons.Filled.KeyboardArrowDown,
-            contentDescription = chevronContentDescription,
+            contentDescription = bottomChevronContentDescription,
             alignment = Alignment.BottomCenter,
-            edgeOffset = VerticalScrollChevronEdgeOffset,
+            edgeOffset = chevronEdgeOffset,
             testTag = bottomChevronTestTag,
             onClick = onScrollPageDown,
         )
@@ -3746,7 +3771,13 @@ private fun BoxScope.AppListOverflowChevron(
     alignment: Alignment,
     edgeOffset: Dp,
     testTag: String,
-    onClick: () -> Unit,
+    // Null makes this chevron an indicator rather than a control: no tap band at
+    // all, and the description rides the icon instead. That is the only honest
+    // option for a caller with no free band outside its scrolling area — a
+    // pointer-input box placed *over* the content would swallow presses meant
+    // for whatever sits under it, and Settings has full-width buttons whose
+    // horizontal center is exactly where the chevron sits.
+    onClick: (() -> Unit)?,
 ) {
     // The visible icon straddles the list edge but must not intercept touches:
     // this Box carries no pointer-input modifier, so presses on the in-list half
@@ -3765,9 +3796,16 @@ private fun BoxScope.AppListOverflowChevron(
     ) {
         ChevronIcon(
             icon = icon,
-            contentDescription = contentDescription,
+            // As an indicator the icon is the whole affordance, so it carries
+            // the tag as well as the description — one node, one focus stop.
+            modifier = if (onClick == null) Modifier.testTag(testTag) else Modifier,
+            // Decorative wherever the tap band below carries the description
+            // and the button role: two nodes with the same description are two
+            // TalkBack focus stops for one affordance.
+            contentDescription = if (onClick == null) contentDescription else null,
         )
     }
+    if (onClick == null) return
     // The tap target covers only the icon's overhang band outside the list edge
     // (VerticalScrollChevronTapTargetSize wide × VerticalScrollChevronEdgeOffset
     // tall), so paging taps still work while every pixel inside the list belongs
@@ -3778,7 +3816,10 @@ private fun BoxScope.AppListOverflowChevron(
             .offset(y = edgeOffset)
             .size(
                 width = VerticalScrollChevronTapTargetSize,
-                height = VerticalScrollChevronEdgeOffset,
+                // Magnitude, not the signed offset: the top chevron's is
+                // negative (it hangs above the edge), and a negative height
+                // collapses the band to nothing.
+                height = if (edgeOffset < 0.dp) -edgeOffset else edgeOffset,
             )
             .pointerInput(onClick) {
                 detectTapGestures(onTap = { onClick() })
@@ -3865,7 +3906,7 @@ private fun BoxScope.OverflowScrollChevron(
 @Composable
 private fun ChevronIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
+    contentDescription: String?,
     modifier: Modifier = Modifier,
 ) {
     Icon(
@@ -3884,6 +3925,15 @@ private fun ChevronIcon(
             .padding(2.dp),
     )
 }
+
+/**
+ * Whether scroll-overflow chevrons may draw at all.
+ *
+ * False inside Settings' dock preview, which renders the real cards purely to
+ * show what Home will look like: nothing in it scrolls or responds, so an
+ * affordance offering to page it is a promise the preview cannot keep.
+ */
+internal val LocalScrollChevronsEnabled = staticCompositionLocalOf { true }
 
 private val HorizontalScrollChevronEdgeOffset = 18.dp
 private val HorizontalScrollChevronTapTargetSize = 32.dp
@@ -4028,7 +4078,8 @@ internal fun AppsCard(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
                     chevronsReady = chevronsReady,
-                    chevronContentDescription = chevronDescription,
+                    topChevronContentDescription = chevronDescription,
+                    bottomChevronContentDescription = chevronDescription,
                     onScrollPageUp = {
                         scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
                     },
@@ -4086,7 +4137,8 @@ internal fun AppsCard(
                     canScrollUp = canScrollUp,
                     canScrollDown = canScrollDown,
                     chevronsReady = chevronsReady,
-                    chevronContentDescription = chevronDescription,
+                    topChevronContentDescription = chevronDescription,
+                    bottomChevronContentDescription = chevronDescription,
                     onScrollPageUp = {
                         scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
                     },
@@ -5917,232 +5969,156 @@ internal fun SettingsScreen(
         true -> Color.Black
         false -> Color.White
     }
-    Column(
+    // Settings is a long page on every device, and its last visible row used to
+    // sit flush against the bottom edge with nothing to say more followed. Same
+    // top/bottom chevrons the apps list, the open dock folder, and the recents
+    // row use: shown only while there is more to scroll to in that direction,
+    // and a tap pages by one viewport.
+    //
+    // derivedStateOf: `ScrollState`'s two properties are plain comparisons
+    // against `value`, so reading either subscribes to the scroll offset itself
+    // and invalidates on every frame of a drag or fling. Deriving them collapses
+    // that to the one flip the chevrons actually care about — and the lambdas
+    // keep even that read inside the two icons rather than in the scope holding
+    // the whole page.
+    val settingsScrollState = rememberScrollState()
+    val canScrollUp = remember(settingsScrollState) {
+        derivedStateOf { settingsScrollState.canScrollBackward }
+    }
+    val canScrollDown = remember(settingsScrollState) {
+        derivedStateOf { settingsScrollState.canScrollForward }
+    }
+    AppListOverflowChevronBox(
+        canScrollUp = { canScrollUp.value },
+        canScrollDown = { canScrollDown.value },
+        // No fresh-load gate here: unlike the apps list, Settings' content is
+        // present from the first composition, so the chevrons are correct as
+        // soon as the page measures.
+        chevronsReady = true,
+        topChevronContentDescription = stringResource(R.string.scroll_up_for_more_hint),
+        bottomChevronContentDescription = stringResource(R.string.scroll_down_for_more_hint),
+        // Indicators, not controls. The apps list can page on tap because its
+        // band sits outside the list, on page background; Settings has no such
+        // band — see `chevronEdgeOffset` below — so a tap target here would
+        // overlay the page's own content and swallow presses meant for it,
+        // including the full-width buttons whose center is exactly where the
+        // chevron sits. Signalling that the page scrolls is the job; paging is
+        // the apps list's bonus, not this one's.
+        onScrollPageUp = null,
+        onScrollPageDown = null,
+        topChevronTestTag = SETTINGS_SCROLL_TOP_CHEVRON_TAG,
+        bottomChevronTestTag = SETTINGS_SCROLL_BOTTOM_CHEVRON_TAG,
         modifier = Modifier
             .fillMaxSize()
             .background(
                 if (state.isWallpaperShown) Color.Transparent else settingsBackgroundColor,
             )
-            .padding(innerPadding)
-            .verticalScroll(rememberScrollState())
-            // Asymmetric top (8) vs bottom (16): the header row below leads with
-            // a Material Button whose own content padding already adds optical
-            // top space, so a full 16dp here would sit the header too low; the
-            // bottom keeps the standard 16dp before the scroll ends.
-            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
-            .testTag(SETTINGS_SCREEN_TAG),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(innerPadding),
+        // Chevrons inside the viewport's edges rather than hanging outside them.
+        // The apps list can overhang because its band is page background around
+        // a card; Settings scrolls to the window edge, where the only thing
+        // beyond is the system bars — which eat the tap and clip the icon away
+        // wherever the inset is shorter than the overhang. Reserving a band by
+        // padding the page instead would cost 36dp of a page that is already
+        // long enough to need this affordance in the first place, so the icons
+        // ride just inside the edge. They overlap the page's own content there,
+        // which is safe on this page and not in the apps list: a Settings row
+        // puts its control on the right and nothing in the horizontal center,
+        // where the chevron sits, whereas every apps-list row is a launch
+        // target across its full width.
+        chevronEdgeOffset = 0.dp,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(settingsScrollState)
+                // Asymmetric top (8) vs bottom (16): the header row below leads with
+                // a Material Button whose own content padding already adds optical
+                // top space, so a full 16dp here would sit the header too low; the
+                // bottom keeps the standard 16dp before the scroll ends.
+                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+                .testTag(SETTINGS_SCREEN_TAG),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.settings_title),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag(SETTINGS_TITLE_TAG),
-                style = MaterialTheme.typography.headlineSmall,
-                color = bareTextColor,
-            )
-            SettingsOverflowMenu(
-                onOpenLauncherAppInfo = onOpenLauncherAppInfo,
-                onOpenLicenses = { licensesVisible = true },
-                iconTint = bareTextColor,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_title),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag(SETTINGS_TITLE_TAG),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = bareTextColor,
+                )
+                SettingsOverflowMenu(
+                    onOpenLauncherAppInfo = onOpenLauncherAppInfo,
+                    onOpenLicenses = { licensesVisible = true },
+                    iconTint = bareTextColor,
+                )
+                Button(
+                    onClick = onCloseSettings,
+                    modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
+                ) {
+                    Text(stringResource(R.string.settings_done_button))
+                }
+            }
+            if (showCrashBanner) {
+                CrashBannerCard(
+                    onShare = onShareCrash,
+                    onDismiss = onDismissCrash,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            SettingsBuildBannerSlot(
+                playUpdate = state.playUpdate,
+                playUpdateRestartFailed = state.playUpdateRestartFailed,
+                buildSourceInfo = rememberBuildSourceInfo(),
+                onOpenPlayUpdate = onOpenPlayUpdate,
+                onCompletePlayUpdate = onCompletePlayUpdate,
+                onDismissPlayUpdate = onDismissPlayUpdate,
             )
             Button(
-                onClick = onCloseSettings,
-                modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
-            ) {
-                Text(stringResource(R.string.settings_done_button))
-            }
-        }
-        if (showCrashBanner) {
-            CrashBannerCard(
-                onShare = onShareCrash,
-                onDismiss = onDismissCrash,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        SettingsBuildBannerSlot(
-            playUpdate = state.playUpdate,
-            playUpdateRestartFailed = state.playUpdateRestartFailed,
-            buildSourceInfo = rememberBuildSourceInfo(),
-            onOpenPlayUpdate = onOpenPlayUpdate,
-            onCompletePlayUpdate = onCompletePlayUpdate,
-            onDismissPlayUpdate = onDismissPlayUpdate,
-        )
-        Button(
-            onClick = onRequestDefaultLauncher,
-            enabled = !state.isDefaultLauncher,
-            // Material's default disabled colors are translucent (12% fill /
-            // 38% text over the page surface), which reads fine on an opaque
-            // page but all but vanishes over the wallpaper backdrop. Give the
-            // disabled "Already default launcher" state an opaque surface so
-            // it stays readable on any wallpaper — consistent with the opaque
-            // cards around it, and unchanged in meaning (still visibly muted
-            // next to the filled enabled buttons).
-            colors = ButtonDefaults.buttonColors(
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(DEFAULT_LAUNCHER_BUTTON_TAG),
-        ) {
-            Text(
-                stringResource(
-                    if (state.isDefaultLauncher) R.string.settings_already_default_launcher_button
-                    else R.string.settings_default_launcher_button,
+                onClick = onRequestDefaultLauncher,
+                enabled = !state.isDefaultLauncher,
+                // Material's default disabled colors are translucent (12% fill /
+                // 38% text over the page surface), which reads fine on an opaque
+                // page but all but vanishes over the wallpaper backdrop. Give the
+                // disabled "Already default launcher" state an opaque surface so
+                // it stays readable on any wallpaper — consistent with the opaque
+                // cards around it, and unchanged in meaning (still visibly muted
+                // next to the filled enabled buttons).
+                colors = ButtonDefaults.buttonColors(
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
-            )
-        }
-        SectionCard {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(DEFAULT_LAUNCHER_BUTTON_TAG),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_app_list_layout_title), style = MaterialTheme.typography.titleMedium)
-                }
-                AppListLayoutDropdown(
-                    selected = state.appListLayout,
-                    onLayoutChanged = onAppListLayoutChanged,
+                Text(
+                    stringResource(
+                        if (state.isDefaultLauncher) R.string.settings_already_default_launcher_button
+                        else R.string.settings_default_launcher_button,
+                    ),
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_app_list_sort_title),
-                        style = MaterialTheme.typography.titleMedium,
+            SectionCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_app_list_layout_title), style = MaterialTheme.typography.titleMedium)
+                    }
+                    AppListLayoutDropdown(
+                        selected = state.appListLayout,
+                        onLayoutChanged = onAppListLayoutChanged,
                     )
                 }
-                AppListSortOrderDropdown(
-                    selected = state.appListSortOrder,
-                    onSortOrderChanged = onAppListSortOrderChanged,
-                )
-            }
-            Text(
-                text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Slider(
-                value = dockIconCount.toFloat(),
-                onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
-                valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
-                steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),
-                modifier = Modifier.testTag(DOCK_ICON_COUNT_SLIDER_TAG),
-            )
-            Text(
-                text = stringResource(R.string.settings_dock_icon_size_value, dockIconSizeDp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_dock_layout_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                DockLayoutDropdown(
-                    selected = state.dockLayout,
-                    onLayoutChanged = onDockLayoutChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_dock_enabled_title), style = MaterialTheme.typography.titleMedium)
-                }
-                Switch(
-                    checked = state.isDockEnabled,
-                    onCheckedChange = onDockEnabledChanged,
-                    modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
-                )
-            }
-            if (state.isWorkProfileConfigured) {
-                WorkDockSettingsRow(
-                    isWorkDockEnabled = state.isWorkDockEnabled,
-                    isWorkProfileActive = state.isWorkProfileActive,
-                    onWorkDockEnabledChanged = onWorkDockEnabledChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_keyboard_auto_show_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isKeyboardAutoShown,
-                    onCheckedChange = onKeyboardAutoShownChanged,
-                    modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
-                )
-            }
-            WallpaperSettingsRows(
-                isWallpaperShown = state.isWallpaperShown,
-                onWallpaperShownChanged = onWallpaperShownChanged,
-                onChangeWallpaper = onChangeWallpaper,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_show_agenda_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isAgendaEnabled,
-                    onCheckedChange = onAgendaEnabledChanged,
-                    modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_search_contacts_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isContactSearchEnabled,
-                    onCheckedChange = onContactSearchEnabledChanged,
-                    modifier = Modifier.testTag(CONTACT_SEARCH_SWITCH_TAG),
-                )
-            }
-            // Only meaningful once contacts are searchable, since a contact's
-            // Call action is the launcher's only calling surface — shown as a
-            // sub-setting of the switch above rather than as a permanent row
-            // every user scrolls past, the same conditional treatment the work
-            // dock row gets.
-            if (state.isContactSearchEnabled) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -6150,117 +6126,249 @@ internal fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            stringResource(R.string.settings_call_using_title),
+                            stringResource(R.string.settings_app_list_sort_title),
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
-                    CallMethodDropdown(
-                        selected = state.callMethod,
-                        onCallMethodChanged = onCallMethodChanged,
+                    AppListSortOrderDropdown(
+                        selected = state.appListSortOrder,
+                        onSortOrderChanged = onAppListSortOrderChanged,
                     )
                 }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_search_calendar_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isCalendarSearchEnabled,
-                    onCheckedChange = onCalendarSearchEnabledChanged,
-                    modifier = Modifier.testTag(CALENDAR_SEARCH_SWITCH_TAG),
+                Text(
+                    text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
+                    style = MaterialTheme.typography.titleMedium,
                 )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_analytics_title),
-                        style = MaterialTheme.typography.titleMedium,
+                Slider(
+                    value = dockIconCount.toFloat(),
+                    onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
+                    valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
+                    steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),
+                    modifier = Modifier.testTag(DOCK_ICON_COUNT_SLIDER_TAG),
+                )
+                Text(
+                    text = stringResource(R.string.settings_dock_icon_size_value, dockIconSizeDp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_dock_layout_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    DockLayoutDropdown(
+                        selected = state.dockLayout,
+                        onLayoutChanged = onDockLayoutChanged,
                     )
                 }
-                Switch(
-                    checked = state.isTelemetryEnabled,
-                    onCheckedChange = onTelemetryEnabledChanged,
-                    modifier = Modifier.testTag(ANALYTICS_SWITCH_TAG),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_theme_title),
-                        style = MaterialTheme.typography.titleMedium,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_dock_enabled_title), style = MaterialTheme.typography.titleMedium)
+                    }
+                    Switch(
+                        checked = state.isDockEnabled,
+                        onCheckedChange = onDockEnabledChanged,
+                        modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
                     )
                 }
-                ThemeModeDropdown(
-                    selected = state.themeMode,
-                    onThemeModeChanged = onThemeModeChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_icon_shape_title),
-                        style = MaterialTheme.typography.titleMedium,
+                if (state.isWorkProfileConfigured) {
+                    WorkDockSettingsRow(
+                        isWorkDockEnabled = state.isWorkDockEnabled,
+                        isWorkProfileActive = state.isWorkProfileActive,
+                        onWorkDockEnabledChanged = onWorkDockEnabledChanged,
                     )
                 }
-                IconShapeDropdown(
-                    selected = state.iconShape,
-                    onIconShapeChanged = onIconShapeChanged,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_icon_theme_title),
-                        style = MaterialTheme.typography.titleMedium,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_keyboard_auto_show_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isKeyboardAutoShown,
+                        onCheckedChange = onKeyboardAutoShownChanged,
+                        modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
                     )
                 }
-                IconThemeDropdown(
-                    selected = state.iconTheme,
-                    onIconThemeChanged = onIconThemeChanged,
+                WallpaperSettingsRows(
+                    isWallpaperShown = state.isWallpaperShown,
+                    onWallpaperShownChanged = onWallpaperShownChanged,
+                    onChangeWallpaper = onChangeWallpaper,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_show_agenda_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isAgendaEnabled,
+                        onCheckedChange = onAgendaEnabledChanged,
+                        modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_search_contacts_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isContactSearchEnabled,
+                        onCheckedChange = onContactSearchEnabledChanged,
+                        modifier = Modifier.testTag(CONTACT_SEARCH_SWITCH_TAG),
+                    )
+                }
+                // Only meaningful once contacts are searchable, since a contact's
+                // Call action is the launcher's only calling surface — shown as a
+                // sub-setting of the switch above rather than as a permanent row
+                // every user scrolls past, the same conditional treatment the work
+                // dock row gets.
+                if (state.isContactSearchEnabled) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.settings_call_using_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                        CallMethodDropdown(
+                            selected = state.callMethod,
+                            onCallMethodChanged = onCallMethodChanged,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_search_calendar_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isCalendarSearchEnabled,
+                        onCheckedChange = onCalendarSearchEnabledChanged,
+                        modifier = Modifier.testTag(CALENDAR_SEARCH_SWITCH_TAG),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_analytics_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isTelemetryEnabled,
+                        onCheckedChange = onTelemetryEnabledChanged,
+                        modifier = Modifier.testTag(ANALYTICS_SWITCH_TAG),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_theme_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    ThemeModeDropdown(
+                        selected = state.themeMode,
+                        onThemeModeChanged = onThemeModeChanged,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_icon_shape_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    IconShapeDropdown(
+                        selected = state.iconShape,
+                        onIconShapeChanged = onIconShapeChanged,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_icon_theme_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    IconThemeDropdown(
+                        selected = state.iconTheme,
+                        onIconThemeChanged = onIconThemeChanged,
+                    )
+                }
             }
+            Button(
+                onClick = { hiddenAppsDialogVisible = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG),
+            ) {
+                Text(stringResource(R.string.settings_manage_hidden_apps_button))
+            }
+            Text(
+                text = stringResource(R.string.settings_dock_preview_label),
+                style = MaterialTheme.typography.titleMedium,
+                color = bareTextColor,
+            )
+            SettingsPreview(
+                state = state,
+                dockIconSizeDp = dockIconSizeDp,
+                dockIconCount = dockIconCount,
+            )
         }
-        Button(
-            onClick = { hiddenAppsDialogVisible = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG),
-        ) {
-            Text(stringResource(R.string.settings_manage_hidden_apps_button))
-        }
-        Text(
-            text = stringResource(R.string.settings_dock_preview_label),
-            style = MaterialTheme.typography.titleMedium,
-            color = bareTextColor,
-        )
-        SettingsPreview(
-            state = state,
-            dockIconSizeDp = dockIconSizeDp,
-            dockIconCount = dockIconCount,
-        )
     }
     if (hiddenAppsDialogVisible) {
         HiddenAppsDialog(
@@ -7183,6 +7291,11 @@ private fun SettingsPreview(
             // through it while the cards' descendant semantics stay stripped.
             .clearAndSetSemantics { testTag = SETTINGS_PREVIEW_TAG },
     ) {
+        // No overflow chevrons anywhere inside the preview: it renders the real
+        // cards, but nothing in it scrolls or responds, so a chevron there
+        // offers to page a list that will not move — and on the recents row it
+        // is the horizontal pair, on the app list and dock the vertical one.
+        CompositionLocalProvider(LocalScrollChevronsEnabled provides false) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
@@ -7256,6 +7369,7 @@ private fun SettingsPreview(
                 onToggleDock = { _, _ -> },
                 onDismissRecent = {},
             )
+        }
         }
         Box(
             modifier = Modifier
