@@ -741,6 +741,11 @@ internal data class LauncherUiState(
     // source. They gate the content sections below.
     val isContactSearchEnabled: Boolean = false,
     val isCalendarSearchEnabled: Boolean = false,
+    // Settings → "Analytics". Defaults true, matching the stored
+    // preference's default and PRIVACY.md's long-standing declaration; drives
+    // the Settings switch and, through the ViewModel, whether Crashlytics and
+    // Performance Monitoring collect at all.
+    val isTelemetryEnabled: Boolean = true,
     // The contacts / calendar-events sections of Home's typed search, appended
     // after `filteredApps` in data order so `reverseLayout` naturally keeps
     // them beyond the apps in the scroll direction under both sort directions.

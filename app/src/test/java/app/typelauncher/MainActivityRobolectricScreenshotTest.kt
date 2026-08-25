@@ -2740,6 +2740,33 @@ class MainActivityRobolectricScreenshotTest {
         assertEquals(IconShape.Squircle, viewModel.uiState.value.iconShape)
     }
 
+    // The analytics opt-out, end to end: the switch reads the stored default
+    // (on — PRIVACY.md has always declared crash reporting), and a tap has to
+    // reach the preference, since that is what the next process start reads
+    // back to gate the Firebase SDKs.
+    @Test
+    fun analyticsSwitch_inSettings_persistsOptOut() {
+        val viewModel = composeRule.activity.viewModel
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Analytics").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().assertIsOn()
+
+        saveScreenshot("compose_settings_analytics_robolectric.png")
+
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        assertFalse(viewModel.uiState.value.isTelemetryEnabled)
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().assertIsOff()
+        assertFalse(
+            "The opt-out survives a process restart",
+            DockSettingsStore(composeRule.activity).isTelemetryEnabled,
+        )
+    }
+
     // The dock wraps to additional rows so every docked app stays visible
     // without horizontal scrolling. At 4 icons per row this means 8 docked
     // apps render as a 2-row grid; all eight icons must be present in the

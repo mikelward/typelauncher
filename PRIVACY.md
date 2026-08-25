@@ -118,6 +118,21 @@ processed by Google as a sub-processor; see Google's
 [Firebase privacy and security](https://firebase.google.com/support/privacy)
 documentation for details on its handling.
 
+### Turning it off
+
+Settings → **Analytics** turns crash reporting and performance
+analytics off. Everything in this section stops being collected or sent while
+that switch is off, and the choice persists across restarts and updates. The
+switch is on by default.
+
+Turning the switch off also discards any crash report that has been recorded
+but not yet sent, so a crash that happened while it was off is not uploaded
+later if you turn it back on.
+
+Turning it off does not affect the on-device debug log or the **Report bug**
+action — that report is assembled on your device, and nothing is sent until
+you choose an app to send it to and can review what it contains first.
+
 ## Children
 
 Type Launcher is a general-purpose launcher utility and is not directed at

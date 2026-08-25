@@ -5774,6 +5774,7 @@ internal fun SettingsScreen(
     // switch) only flips on once the permission is granted.
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
+    onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onCallMethodChanged: (CallMethod) -> Unit = {},
@@ -6132,6 +6133,23 @@ internal fun SettingsScreen(
                     checked = state.isCalendarSearchEnabled,
                     onCheckedChange = onCalendarSearchEnabledChanged,
                     modifier = Modifier.testTag(CALENDAR_SEARCH_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_analytics_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = state.isTelemetryEnabled,
+                    onCheckedChange = onTelemetryEnabledChanged,
+                    modifier = Modifier.testTag(ANALYTICS_SWITCH_TAG),
                 )
             }
             Row(

@@ -1,6 +1,8 @@
 package app.typelauncher
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -121,4 +123,68 @@ class SettingsScreenTest {
 
         assertEquals("Tapping Change opens the system wallpaper picker", 1, changeWallpaperTaps)
     }
+
+    // The analytics opt-out. Defaults on (PRIVACY.md has always declared crash
+    // reporting), so the switch must render on for a default state and hand the
+    // *new* value to the callback when tapped.
+    @Test
+    fun analyticsSwitchReflectsStateAndReportsChanges() {
+        var reported: Boolean? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                SettingsScreen(
+                    state = LauncherUiState(),
+                    innerPadding = PaddingValues(),
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onUnhideApp = {},
+                    onOpenLauncherAppInfo = {},
+                    onOpenPlayUpdate = {},
+                    onCompletePlayUpdate = {},
+                    onDismissPlayUpdate = {},
+                    onTelemetryEnabledChanged = { reported = it },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Settings is one long scrolling column and this row sits well below
+        // the fold, so the tap needs the row on screen first — a click aimed at
+        // an off-viewport center silently reaches nothing.
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().assertIsOn()
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performClick()
+
+        assertEquals(false, reported)
+    }
+
+    @Test
+    fun analyticsSwitchRendersOffWhenOptedOut() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                SettingsScreen(
+                    state = LauncherUiState(isTelemetryEnabled = false),
+                    innerPadding = PaddingValues(),
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onUnhideApp = {},
+                    onOpenLauncherAppInfo = {},
+                    onOpenPlayUpdate = {},
+                    onCompletePlayUpdate = {},
+                    onDismissPlayUpdate = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().assertIsOff()
+    }
+
 }

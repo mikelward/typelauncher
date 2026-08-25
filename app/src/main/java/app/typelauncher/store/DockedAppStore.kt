@@ -738,6 +738,23 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Settings → "Analytics". Gates Firebase Crashlytics and
+     * Performance Monitoring at runtime ([LauncherTelemetry.applyCollectionPreference]).
+     * Defaults to true because `PRIVACY.md` has always declared anonymous crash
+     * reporting as part of the app; the toggle exists so a user can decline it,
+     * not to introduce collection that was previously off. The Firebase SDKs
+     * persist their own copy of the flag, so this is the launcher-side record of
+     * the user's choice, re-asserted once per start.
+     */
+    var isTelemetryEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_TELEMETRY_ENABLED, true)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_TELEMETRY_ENABLED, value)
+                .apply()
+        }
+
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_DOCK_ENABLED = "dock_enabled"
@@ -775,6 +792,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_ICON_SHAPE = "icon_shape"
         const val KEY_BUG_REPORT_CONSENT_SUPPRESSED = "bug_report_consent_suppressed"
+        const val KEY_TELEMETRY_ENABLED = "telemetry_enabled"
     }
 }
 

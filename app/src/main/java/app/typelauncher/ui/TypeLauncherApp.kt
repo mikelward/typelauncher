@@ -201,6 +201,7 @@ internal fun TypeLauncherApp(
     // (previews, tests).
     onContactSearchEnabledChanged: (Boolean) -> Unit = viewModel::setContactSearchEnabled,
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = viewModel::setCalendarSearchEnabled,
+    onTelemetryEnabledChanged: (Boolean) -> Unit = viewModel::setTelemetryEnabled,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -305,6 +306,7 @@ internal fun TypeLauncherApp(
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
+        onTelemetryEnabledChanged = onTelemetryEnabledChanged,
         onThemeModeChanged = viewModel::setThemeMode,
         onIconShapeChanged = viewModel::setIconShape,
         onCallMethodChanged = viewModel::setCallMethod,
@@ -398,6 +400,7 @@ internal fun TypeLauncherApp(
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
+    onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
     onCallMethodChanged: (CallMethod) -> Unit = {},
@@ -869,6 +872,7 @@ internal fun TypeLauncherApp(
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
                         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
+                        onTelemetryEnabledChanged = onTelemetryEnabledChanged,
                         onThemeModeChanged = onThemeModeChanged,
                         onIconShapeChanged = onIconShapeChanged,
                         onCallMethodChanged = onCallMethodChanged,

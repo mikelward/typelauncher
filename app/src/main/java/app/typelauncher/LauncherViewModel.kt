@@ -294,6 +294,7 @@ internal class LauncherViewModel(
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
+            isTelemetryEnabled = dockSettingsStore.isTelemetryEnabled,
             isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
@@ -584,6 +585,45 @@ internal class LauncherViewModel(
     /** The on-device debug-log sink, or null before the Application wires it (previews, tests, no-Firebase builds). */
     private val debugFileSink: DebugFileSink?
         get() = debugFileSinkProvider()
+
+
+    /**
+     * Settings → "Analytics". Persists the choice, reflects it in the
+     * UI at once (the switch must feel instant), and applies it to the Firebase
+     * SDKs off the main thread — [LauncherTelemetry.applyCollectionPreference] both
+     * flips the wrapper's own gate, so nothing further is even assembled, and
+     * writes the SDKs' persisted flags so the choice survives the next start.
+     */
+    fun setTelemetryEnabled(isEnabled: Boolean) {
+        // Gate first, synchronously, before the preference write, the state
+        // update, or logState's breadcrumb: everything below can itself produce
+        // telemetry, so deferring the gate to the coroutine left a window in
+        // which the switch already read "off" while breadcrumbs, custom keys,
+        // or a crash could still be recorded and uploaded.
+        LauncherTelemetry.setCollectionGate(isEnabled)
+        dockSettingsStore.isTelemetryEnabled = isEnabled
+        _uiState.update { it.copy(isTelemetryEnabled = isEnabled) }
+        logState("setTelemetryEnabled=$isEnabled")
+        // The SDK half is deferred and serialized inside [LauncherTelemetry],
+        // which is where the lock has to live: `TypeLauncherApp`'s startup
+        // re-assert is the other caller and isn't on this ViewModel. It re-reads
+        // the stored preference inside that lock, so a burst of taps converges
+        // on the last one rather than letting a stale value win.
+        // On the *application* scope, not `viewModelScope`. Turning Analytics
+        // off and immediately changing a setting that restarts the activity —
+        // "Show wallpaper" does — clears this ViewModel and would cancel the
+        // job mid-flight, leaving the preference and the switch off while
+        // Firebase's own persisted flags stayed on. The replacement activity
+        // runs in the same process, so `TypeLauncherApp`'s startup re-assert
+        // does not run again to repair it. An opt-out has to outlive the screen
+        // that requested it.
+        val scope = (app as? TypeLauncherApp)?.appScope ?: viewModelScope
+        scope.launch {
+            withContext(ioDispatcher) {
+                LauncherTelemetry.applyCollectionPreference { dockSettingsStore.isTelemetryEnabled }
+            }
+        }
+    }
 
     /**
      * Raises the post-crash banner if the previous run crashed. The
