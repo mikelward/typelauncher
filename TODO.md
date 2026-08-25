@@ -71,7 +71,6 @@
 - Revisit offscreen carousel composition so non-current widget and agenda pages stay lightweight. Prefer composing the current page plus the active drag/animation target, and avoid creating hosted widget `AndroidView`s for pages that are only preloaded for swipe readiness.
 - Move widget picker preview and app-icon bitmap generation out of composition. Add async loaders/caches keyed by provider and requested preview/icon size, render placeholders first, and rasterize drawables away from the UI thread.
 - Use lazy or otherwise bounded rendering inside the widget picker list. The picker currently materializes matching app groups in a regular `Column`; flattening into the outer lazy list or using a bounded nested lazy list would scale better on devices with many widget providers.
-- Narrow app-list scroll-state reads to the overflow chevrons. Wrap `canScrollBackward` / `canScrollForward` in `derivedStateOf` near the chevron UI so scroll-driven invalidation stays localized.
 - Decide whether to persist more than priority icons only after telemetry shows first-scroll icon misses are hurting startup or scroll performance. If needed, persist a bounded first screenful for the active empty-query sort order and icon size.
 - Add lightweight debug-only recomposition/performance instrumentation around hot composables and interactions: search, app list rows/grid buttons, keyboard tray, widgets, first query keystroke, backspace, Home ↔ Widgets swipe, and widget-picker expansion.
 
