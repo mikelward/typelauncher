@@ -142,6 +142,44 @@
   a host allowlist if that distinction turns out to matter; the alternative was
   keeping the authority and accepting the leak, which it isn't.
 
+- [ ] **Rework the Analytics opt-out so its pieces compose.** Shipped in PR #655
+      and correct for the ordinary paths, but eleven review rounds established
+      that the current shape — an in-process gate, two persisted SDK flags, a
+      process-wide lock that re-reads the preference, and an edge-triggered
+      report deletion — does not compose cleanly, and each mechanism added to
+      fix one interaction produced the next finding.
+
+      **Known open when it shipped** (round 11): a rapid off→on toggle can lose
+      the deletion request. Both queued application-scope jobs re-read the final
+      `true` preference inside the lock, so neither reaches
+      `discardUnsentReports()`, and reports pending at the moment of the opt-out
+      survive it. Latest-value convergence (added to fix a rapid-toggle race)
+      and edge-triggered deletion (added to honor the `PRIVACY.md` promise) are
+      individually right and mutually exclusive as written. Narrow — the window
+      is one uncontended lock acquisition and the user ends opted *in* — but
+      real.
+
+      A pending-deletion flag would close it and would be the fourth mechanism
+      in a subsystem where the previous three each produced a finding. The
+      rework should instead make the opt-out a single ordered state transition
+      that owns the deletion, rather than a value re-read by racing jobs.
+      Untestable in the sandbox: none of these properties are observable
+      without a device carrying the Firebase config.
+
+      **Also open** (round 12): the two SDK opt-outs each run under their own
+      `try`/`catch`, so a `RuntimeException` from
+      `isPerformanceCollectionEnabled = false` leaves Performance collecting
+      while the switch and the stored preference read off — and `startTrace`
+      no longer consults the in-process gate (ungated so a trace started
+      before the preference is read isn't silently dropped), so nothing
+      downstream stops it. Both obvious patches re-open something an earlier
+      round closed: re-gating traces restores the dropped-trace case, and a
+      retry path adds work behind the lock that already mis-sequences the
+      deletion above. The single ordered transition is what fixes both.
+      Bounded meanwhile: Performance carries durations and counts under
+      hard-coded names, so a failed opt-out here leaks timing, not user data;
+      Crashlytics, which carries the breadcrumbs, opts out on its own `try`.
+
 ## Review and merge gates
 
 - [x] Add `codex-review-check.yml` (mikelward/codex-review's consumer
