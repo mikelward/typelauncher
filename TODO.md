@@ -93,54 +93,35 @@
 
 ## Privacy
 
-- [ ] **Make the debug log default-safe, so a new call site can't send user data
-      off device.** `TelemetryRedaction` closes today's leak by matching each
-      log token against the packages the launcher has seen, which is exact and
-      covers call sites added later — but it is still a *filter*, so it fails
-      open: it knows only about package names, and only ones already seen. A
-      contact id, a calendar row id, or a package the launcher has never loaded
-      passes straight through.
+- [x] **Make the debug log default-safe, so a new call site can't send user
+      data off device.** Done. A log call is now a hard-coded format string
+      plus arguments (`LauncherDebugLog.event` / `warning` / `failure`), and an
+      argument reaches the Crashlytics mirror only if its type cannot name
+      anything of the user's — numbers, booleans, chars, enums. Every `String`
+      is withheld by default, which is what closes the categories nobody
+      anticipates: the on-device log is unchanged and still renders everything
+      in full. `TelemetryRedaction` and the three call sites that had to seed
+      it are deleted.
 
-      **Known still-open when the filter shipped** (PR #655, review round 8):
-      nine call sites carry stable provider row ids into breadcrumbs —
-      `openAgendaEvent eventId=`, `openContactResult contactId=`,
-      `toggleContactStarred contactId=`, `openContactCard contactId=`,
-      `setNumberDefault dataId=`, and the matching failure paths in
-      `ContactActions` and `writeStarred` / `writeNumberDefault`.
-      `TelemetryRedaction` matches installed package names only, so none are
-      touched. Deliberately not patched with a list of key names to blank:
-      that is the same fail-open shape this item exists to replace, and it
-      would say nothing about the next site added under a name nobody
-      anticipated. The design below closes them without a rule per site.
+      **Correction to what this entry used to claim.** It said a `contactId`
+      "is a `String` argument, so it would be redacted with no rule written for
+      it". That was wrong — `contactId`, `eventId` and `dataId` are all `Long`,
+      so the type rule would have *carried* them. They are tagged
+      `sensitive(...)` at their nine call sites instead. The lesson is the one
+      the repo owner had already drawn: the type is the default, not the
+      verdict, and each value still gets a judgment.
 
-      **Decided shape** (repo owner, over the PR that added the filter): invert
-      the default. A log call becomes a hard-coded format string plus
-      arguments; the format string and every **non-string** argument (ints,
-      enums, booleans) are safe by default and go off device as they are.
-      **`String` arguments are sensitive by default** and render in full on
-      device but as a placeholder in the Crashlytics mirror, unless the call
-      site tags them non-sensitive. A tag the other way marks a non-string
-      argument sensitive where one turns out to be identifying.
+      Two things the conversion turned up that were leaking and are now fixed:
+      `KeyEvent.debugSummary()` mirrored `keyCode`, which on a type-to-search
+      launcher reconstructs what the user typed; and `Intent.debugSummary()`
+      mirrored the component and package. Both now split their fields — the
+      identifying ones stay on device, the action, flags, timing and URI scheme
+      still ride along, so a failed launch is still diagnosable.
 
-      That fails safe by construction and covers every category rather than
-      just packages: the leak that started this — a phone number reaching a
-      breadcrumb through `Intent.dataString` — is a `String` argument and would
-      have been redacted with no rule written for it. The cost is converting
-      the existing call sites to the format form, which is mechanical.
-
-      `TelemetryRedaction` retires once this lands — it exists only because the
-      filter had to close the leak before the structural fix was built.
-
-## Decisions needing review
-
-- **Dropped the authority from logged URIs, not just the path.** Review flagged
-  that a hierarchical URI's authority carries any userinfo
-  (`https://alice:secret@host/…`) and that a `content://` authority names an
-  installed app. Taken the safe way — scheme only — rather than keeping an
-  allowlist of hosts. The cost is on-device diagnostics: the log no longer says
-  whether a failing `content://` was contacts or calendar. Reversible by adding
-  a host allowlist if that distinction turns out to matter; the alternative was
-  keeping the authority and accepting the leak, which it isn't.
+      Still worth doing: nothing enforces that the format string is a literal
+      rather than a built string. A `detekt` rule (or a lint check) asserting
+      that the first argument of these three functions is a constant would make
+      the property structural rather than conventional.
 
 - [ ] **Rework the Analytics opt-out so its pieces compose.** Shipped in PR #655
       and correct for the ordinary paths, but eleven review rounds established
