@@ -130,15 +130,7 @@ internal class LauncherViewModel(
     private var recoveryToken = 0
     /** See [abandonPendingPlayUpdateRecovery]. */
     private var isRecoveryAbandoned = false
-    // Custom setter rather than a call at each load site: every assignment
-    // republishes the package set that [TelemetryRedaction] matches against, so
-    // the Crashlytics filter can't drift out of step with what is installed —
-    // including at the rename / badge / clone sites that rebuild the list.
     private var installedApps: List<InstalledApp> = emptyList()
-        set(value) {
-            field = value
-            TelemetryRedaction.rememberPackages(value.map { it.packageName })
-        }
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the
     // launcher can be rebuilt from saved-instance after a full process
@@ -187,24 +179,17 @@ internal class LauncherViewModel(
     private val launcherAppsCallback = object : LauncherApps.Callback() {
         // Each of these puts the package name into the reload's reason string,
         // which is logged immediately — an *added* package is not in
-        // [installedApps] yet, and a *removed* one has dropped out by the time
-        // the matching "scheduleReload complete" line repeats the reason. So
-        // the name is remembered here, before anything logs it, rather than
-        // relying on the installed set to happen to contain it.
         override fun onPackageAdded(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
-            TelemetryRedaction.rememberPackage(packageName)
-            scheduleReload("packageAdded:$packageName")
+            scheduleReload("packageAdded", packageName)
         }
         override fun onPackageRemoved(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
-            TelemetryRedaction.rememberPackage(packageName)
-            scheduleReload("packageRemoved:$packageName")
+            scheduleReload("packageRemoved", packageName)
         }
         override fun onPackageChanged(packageName: String, user: UserHandle) {
             AppIconLoader.evict(packageName, user)
-            TelemetryRedaction.rememberPackage(packageName)
-            scheduleReload("packageChanged:$packageName")
+            scheduleReload("packageChanged", packageName)
         }
         override fun onPackagesAvailable(
             packageNames: Array<out String>,
@@ -212,7 +197,7 @@ internal class LauncherViewModel(
             replacing: Boolean,
         ) {
             packageNames.forEach { AppIconLoader.evict(it, user) }
-            scheduleReload("packagesAvailable:${packageNames.size}")
+            scheduleReload("packagesAvailable", packageNames.size)
         }
         override fun onPackagesUnavailable(
             packageNames: Array<out String>,
@@ -220,7 +205,7 @@ internal class LauncherViewModel(
             replacing: Boolean,
         ) {
             packageNames.forEach { AppIconLoader.evict(it, user) }
-            scheduleReload("packagesUnavailable:${packageNames.size}")
+            scheduleReload("packagesUnavailable", packageNames.size)
         }
     }
     private var launcherAppsCallbackRegistered = false
@@ -231,7 +216,7 @@ internal class LauncherViewModel(
     private val managedProfileReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action ?: return
-            scheduleReload("managedProfile:$action")
+            scheduleReload("managedProfile", safe(action))
             // When the profile becomes available again — resumed from quiet mode
             // (AVAILABLE) or unlocked with its credential (UNLOCKED) — the
             // platform stops painting its "Couldn't add widget" placeholder
@@ -261,13 +246,13 @@ internal class LauncherViewModel(
     private val dateChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action ?: return
-            scheduleReload("dateChanged:$action")
+            scheduleReload("dateChanged", safe(action))
             // Refresh the typed-search event *set* on a day/clock/zone change so
             // a foreground launcher rolls the 14-day window forward and drops
             // events that ended overnight, rather than waiting for the next
             // resume (the now-relative labels themselves are formatted per query
             // in eventResultsFor, so they never go stale on their own).
-            refreshContentSearchIndices("dateChanged:$action")
+            refreshContentSearchIndices("dateChanged")
         }
     }
     private var dateChangedReceiverRegistered = false
@@ -390,7 +375,7 @@ internal class LauncherViewModel(
     private var isPlacingPermissionGrantedCall = false
 
     init {
-        LauncherDebugLog.event("LauncherViewModel initialized ${_uiState.value.debugSummary()}")
+        LauncherDebugLog.event("LauncherViewModel initialized %s", _uiState.value.debugSummary())
         // A backup restore or permission auto-reset can leave a content-search
         // toggle persisted on without its permission; coerce before anything
         // can render or load from the stale flag.
@@ -436,9 +421,7 @@ internal class LauncherViewModel(
                         }
                         trace.incrementMetric("snapshot_count", snapshots.size.toLong())
                         if (snapshots.isNotEmpty()) {
-                            LauncherDebugLog.event(
-                                "LauncherViewModel restored icon snapshot count=${snapshots.size}",
-                            )
+                            LauncherDebugLog.event("LauncherViewModel restored icon snapshot count=%s", snapshots.size)
                         }
                     }
                 }
@@ -483,7 +466,7 @@ internal class LauncherViewModel(
                     )
                 }
             }
-            LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=${cachedMetadata.size}")
+            LauncherDebugLog.event("LauncherViewModel rendered cached metadata count=%s", cachedMetadata.size)
         }
         viewModelScope.launch {
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
@@ -572,7 +555,7 @@ internal class LauncherViewModel(
             if (!reloadPendingDuringColdStart) {
                 drainPendingIconOverrideRequest()
             }
-            LauncherDebugLog.event("LauncherViewModel initial load complete ${_uiState.value.debugSummary()}")
+            LauncherDebugLog.event("LauncherViewModel initial load complete %s", _uiState.value.debugSummary())
             if (reloadPendingDuringColdStart) {
                 reloadPendingDuringColdStart = false
                 scheduleReload("coldStartCompletedWithPendingEvent")
@@ -637,7 +620,7 @@ internal class LauncherViewModel(
         LauncherTelemetry.setCollectionGate(isEnabled)
         dockSettingsStore.isTelemetryEnabled = isEnabled
         _uiState.update { it.copy(isTelemetryEnabled = isEnabled) }
-        logState("setTelemetryEnabled=$isEnabled")
+        logState("setTelemetryEnabled=%s", isEnabled)
         // The SDK half is deferred and serialized inside [LauncherTelemetry],
         // which is where the lock has to live: `TypeLauncherApp`'s startup
         // re-assert is the other caller and isn't on this ViewModel. It re-reads
@@ -731,7 +714,7 @@ internal class LauncherViewModel(
             launcherAppsCallbackRegistered = true
             LauncherDebugLog.event("LauncherApps.registerCallback")
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("LauncherApps.registerCallback failed", exception)
+            LauncherDebugLog.failure(exception, "LauncherApps.registerCallback failed")
         }
     }
 
@@ -759,7 +742,7 @@ internal class LauncherViewModel(
             managedProfileReceiverRegistered = true
             LauncherDebugLog.event("managedProfileReceiver registered")
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("managedProfileReceiver register failed", exception)
+            LauncherDebugLog.failure(exception, "managedProfileReceiver register failed")
         }
     }
 
@@ -787,7 +770,7 @@ internal class LauncherViewModel(
             dateChangedReceiverRegistered = true
             LauncherDebugLog.event("dateChangedReceiver registered")
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("dateChangedReceiver register failed", exception)
+            LauncherDebugLog.failure(exception, "dateChangedReceiver register failed")
         }
     }
 
@@ -802,13 +785,22 @@ internal class LauncherViewModel(
      * `reloadPendingDuringColdStart`) and replayed once cold-start publishes,
      * so the reload's state update can't lose a race with cold-start's.
      */
-    private fun scheduleReload(reason: String) {
+    private fun scheduleReload(reason: String, detail: Any? = null) {
+        // `reason` is a literal at every call site — fixed vocabulary naming
+        // which broadcast triggered the reload, which is the whole diagnostic
+        // value of these lines. Anything that *varies* is passed as [detail]
+        // and carried or withheld on its own: a package name is a String and
+        // is withheld, a count is a number and is not.
         if (!_uiState.value.isFreshAppLoadComplete) {
             reloadPendingDuringColdStart = true
-            LauncherDebugLog.event("scheduleReload deferred until cold-start completes reason=$reason")
+            LauncherDebugLog.event(
+                "scheduleReload deferred until cold-start completes reason=%s detail=%s",
+                safe(reason),
+                detail,
+            )
             return
         }
-        LauncherDebugLog.event("scheduleReload reason=$reason")
+        LauncherDebugLog.event("scheduleReload reason=%s detail=%s", safe(reason), detail)
         pendingReloadJob?.cancel()
         pendingReloadJob = viewModelScope.launch {
             val loadedApps = withContext(ioDispatcher) {
@@ -835,7 +827,12 @@ internal class LauncherViewModel(
             // package the reload would have dropped.
             drainPendingIconOverrideRequest()
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
-            LauncherDebugLog.event("scheduleReload complete reason=$reason apps=${loadedApps.size}")
+            LauncherDebugLog.event(
+                "scheduleReload complete reason=%s detail=%s apps=%s",
+                safe(reason),
+                detail,
+                loadedApps.size,
+            )
         }
     }
 
@@ -845,7 +842,7 @@ internal class LauncherViewModel(
                 launcherAppsService?.unregisterCallback(launcherAppsCallback)
                 LauncherDebugLog.event("LauncherApps.unregisterCallback")
             } catch (exception: RuntimeException) {
-                LauncherDebugLog.warning("LauncherApps.unregisterCallback failed", exception)
+                LauncherDebugLog.failure(exception, "LauncherApps.unregisterCallback failed")
             }
             launcherAppsCallbackRegistered = false
         }
@@ -854,7 +851,7 @@ internal class LauncherViewModel(
                 app.unregisterReceiver(managedProfileReceiver)
                 LauncherDebugLog.event("managedProfileReceiver unregistered")
             } catch (exception: RuntimeException) {
-                LauncherDebugLog.warning("managedProfileReceiver unregister failed", exception)
+                LauncherDebugLog.failure(exception, "managedProfileReceiver unregister failed")
             }
             managedProfileReceiverRegistered = false
         }
@@ -863,7 +860,7 @@ internal class LauncherViewModel(
                 app.unregisterReceiver(dateChangedReceiver)
                 LauncherDebugLog.event("dateChangedReceiver unregistered")
             } catch (exception: RuntimeException) {
-                LauncherDebugLog.warning("dateChangedReceiver unregister failed", exception)
+                LauncherDebugLog.failure(exception, "dateChangedReceiver unregister failed")
             }
             dateChangedReceiverRegistered = false
         }
@@ -962,7 +959,7 @@ internal class LauncherViewModel(
         val state = _uiState.value
         if (initialAgendaTriggered || !state.isHomeReady || !state.isAgendaEnabled) return
         initialAgendaTriggered = true
-        LauncherDebugLog.event("$reason starting deferred agenda load")
+        LauncherDebugLog.event("%s starting deferred agenda load", safe(reason))
         loadAgendaAsync(reason = reason, traceName = "agenda_initial_load")
     }
 
@@ -1010,7 +1007,7 @@ internal class LauncherViewModel(
     fun setRecentsOpen(isOpen: Boolean) {
         if (_uiState.value.isRecentsOpen == isOpen) return
         _uiState.update { it.copy(isRecentsOpen = isOpen) }
-        logState("setRecentsOpen=$isOpen")
+        logState("setRecentsOpen=%s", isOpen)
     }
 
     fun requestShowKeyboard() {
@@ -1021,7 +1018,7 @@ internal class LauncherViewModel(
         // keyboard straight from an open tray.
         _uiState.update { it.copy(isRecentsOpen = false) }
         val emitted = _keyboardShowRequests.tryEmit(Unit)
-        LauncherDebugLog.event("requestShowKeyboard emitted=$emitted")
+        LauncherDebugLog.event("requestShowKeyboard emitted=%s", emitted)
     }
 
     fun setHomeLandscapeTier(tier: HomeLandscapeTier) {
@@ -1036,7 +1033,7 @@ internal class LauncherViewModel(
         // data ordering changes when entering/leaving Compact under a non-usage
         // sort.
         refreshFilteredApps()
-        LauncherDebugLog.event("setHomeLandscapeTier tier=$tier")
+        LauncherDebugLog.event("setHomeLandscapeTier tier=%s", tier)
     }
 
     /**
@@ -1051,7 +1048,7 @@ internal class LauncherViewModel(
         if (_uiState.value.dockSuppressedByKeyboard == suppressed) return
         _uiState.update { it.copy(dockSuppressedByKeyboard = suppressed) }
         refreshFilteredApps()
-        LauncherDebugLog.event("setDockSuppressedByKeyboard=$suppressed")
+        LauncherDebugLog.event("setDockSuppressedByKeyboard=%s", suppressed)
     }
 
     fun setKeyboardReservation(reservation: KeyboardReservation) {
@@ -1061,8 +1058,10 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(keyboardReservation = coerced) }
         refreshFilteredApps()
         LauncherDebugLog.event(
-            "setKeyboardReservation bottomPx=${coerced.bottomPx} source=${coerced.source} " +
-                "config=${coerced.configFingerprint}",
+            "setKeyboardReservation bottomPx=%s source=%s config=%s",
+            coerced.bottomPx,
+            coerced.source,
+            coerced.configFingerprint,
         )
     }
 
@@ -1078,9 +1077,12 @@ internal class LauncherViewModel(
             requestShowKeyboard()
         } else {
             LauncherDebugLog.event(
-                "requestShowKeyboardOnHomeResume skipped destination=${state.destination} " +
-                    "settings=${state.isSettingsOpen} addingWidget=${state.isAddingWidget} " +
-                    "autoShown=${state.isKeyboardAutoShown} tier=${state.homeLandscapeTier}",
+                "requestShowKeyboardOnHomeResume skipped destination=%s settings=%s addingWidget=%s autoShown=%s tier=%s",
+                state.destination,
+                state.isSettingsOpen,
+                state.isAddingWidget,
+                state.isKeyboardAutoShown,
+                state.homeLandscapeTier,
             )
         }
     }
@@ -1137,7 +1139,7 @@ internal class LauncherViewModel(
             )
         }
         if (clearFilter) refreshFilteredApps()
-        LauncherDebugLog.event("closeSecondaryTrayOnResume hadMode=$hadMode")
+        LauncherDebugLog.event("closeSecondaryTrayOnResume hadMode=%s", hadMode)
     }
 
     fun showWidgetPicker(
@@ -1216,7 +1218,7 @@ internal class LauncherViewModel(
     }
 
     fun refreshPermissionDrivenUi() {
-        LauncherDebugLog.event("refreshPermissionDrivenUi destination=${_uiState.value.destination}")
+        LauncherDebugLog.event("refreshPermissionDrivenUi destination=%s", _uiState.value.destination)
         val isDefaultLauncher = app.getSystemService<RoleManager>()?.isRoleHeld(RoleManager.ROLE_HOME) ?: false
         _uiState.update { it.copy(isDefaultLauncher = isDefaultLauncher) }
         if (_uiState.value.destination is LauncherDestination.Agenda) {
@@ -1263,9 +1265,7 @@ internal class LauncherViewModel(
             .map { (key, bitmap) ->
                 IconSnapshotStore.Snapshot(id = key.id, sizePx = key.sizePx, bitmap = bitmap)
             }
-        LauncherDebugLog.event(
-            "persistIconSnapshot priority=${priorityIds.size} snapshots=${snapshots.size}",
-        )
+        LauncherDebugLog.event("persistIconSnapshot priority=%s snapshots=%s", priorityIds.size, snapshots.size)
         // An empty snapshots list still goes through to IconSnapshotStore.save so its
         // prune contract runs and orphan files left behind by undocking + resetting
         // launch counts get cleaned up. The renderer state is captured here, alongside
@@ -1329,7 +1329,7 @@ internal class LauncherViewModel(
             if (agendaVersion == requestVersion) {
                 _uiState.update { it.copy(agenda = newAgenda) }
             }
-            logState("$reason agenda load complete")
+            logState("%s agenda load complete", safe(reason))
         }
     }
 
@@ -1341,7 +1341,7 @@ internal class LauncherViewModel(
      * no follow-up state to guard.
      */
     fun openAgendaEvent(event: AgendaEvent): Boolean {
-        LauncherDebugLog.event("openAgendaEvent eventId=${event.eventId} begin=${event.beginMillis}")
+        LauncherDebugLog.event("openAgendaEvent eventId=%s begin=%s", sensitive(event.eventId), sensitive(event.beginMillis))
         val eventUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
         val intent = Intent(Intent.ACTION_VIEW, eventUri)
             .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.beginMillis)
@@ -1350,7 +1350,7 @@ internal class LauncherViewModel(
             startActivity(intent)
             true
         } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("openAgendaEvent no activity for event uri", exception)
+            LauncherDebugLog.failure(exception, "openAgendaEvent no activity for event uri")
             false
         }
     }
@@ -1366,7 +1366,11 @@ internal class LauncherViewModel(
             return
         }
         val query = state.query
-        LauncherDebugLog.event("launchActiveApp queryLength=${query.length} filtered=${_uiState.value.filteredApps.size}")
+        LauncherDebugLog.event(
+            "launchActiveApp queryLength=%s filtered=%s",
+            query.length,
+            _uiState.value.filteredApps.size,
+        )
         val trimmedQuery = query.trim()
         if (trimmedQuery.isEmpty()) {
             LauncherDebugLog.event("launchActiveApp opening launcher settings")
@@ -1419,7 +1423,7 @@ internal class LauncherViewModel(
      */
     fun openContactResult(contact: ContactResult) {
         val token = ++contactResolveToken
-        LauncherDebugLog.event("openContactResult contactId=${contact.contactId} token=$token")
+        LauncherDebugLog.event("openContactResult contactId=%s token=%s", sensitive(contact.contactId), token)
         viewModelScope.launch {
             val channels = withContext(ioDispatcher) {
                 // Refresh the default-dialer cache on the same off-main-thread
@@ -1437,10 +1441,10 @@ internal class LauncherViewModel(
             // The token is only touched on the main thread, so this check races
             // nothing.
             if (token != contactResolveToken) {
-                LauncherDebugLog.event("openContactResult superseded token=$token latest=$contactResolveToken")
+                LauncherDebugLog.event("openContactResult superseded token=%s latest=%s", token, contactResolveToken)
                 return@launch
             }
-            LauncherDebugLog.event("openContactResult resolved channels=${channels.size}")
+            LauncherDebugLog.event("openContactResult resolved channels=%s", channels.size)
             val reResolving = _uiState.value.contactActionsMode?.actions?.contact?.contactId == contact.contactId
             _uiState.update {
                 val resolved = ContactActions(contact, channels)
@@ -1579,7 +1583,7 @@ internal class LauncherViewModel(
      * success the open sheet is re-resolved so the new default sorts to the top.
      */
     fun setNumberDefault(dataId: Long, makeDefault: Boolean) {
-        LauncherDebugLog.event("setNumberDefault dataId=$dataId makeDefault=$makeDefault")
+        LauncherDebugLog.event("setNumberDefault dataId=%s makeDefault=%s", sensitive(dataId), makeDefault)
         runWithWriteContacts { writeNumberDefault(dataId, makeDefault) }
     }
 
@@ -1645,7 +1649,7 @@ internal class LauncherViewModel(
                         val results = app.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
                         (results.lastOrNull()?.count ?: 0) > 0
                     }.getOrElse { exception ->
-                        LauncherDebugLog.warning("writeNumberDefault failed dataId=$dataId", exception)
+                        LauncherDebugLog.failure(exception, "writeNumberDefault failed dataId=%s", sensitive(dataId))
                         false
                     }
                 }
@@ -1667,7 +1671,7 @@ internal class LauncherViewModel(
      * Activity is asked to request the permission (see [onWriteContactsPermissionResult]).
      */
     fun toggleContactStarred(contact: ContactResult) {
-        LauncherDebugLog.event("toggleContactStarred contactId=${contact.contactId} to=${!contact.starred}")
+        LauncherDebugLog.event("toggleContactStarred contactId=%s to=%s", sensitive(contact.contactId), !contact.starred)
         runWithWriteContacts { writeStarred(contact, !contact.starred) }
     }
 
@@ -1690,7 +1694,7 @@ internal class LauncherViewModel(
     fun onWriteContactsPermissionResult(granted: Boolean) {
         val action = pendingWriteContactsAction ?: return
         pendingWriteContactsAction = null
-        LauncherDebugLog.event("onWriteContactsPermissionResult granted=$granted")
+        LauncherDebugLog.event("onWriteContactsPermissionResult granted=%s", granted)
         if (granted) action()
     }
 
@@ -1763,7 +1767,7 @@ internal class LauncherViewModel(
                     arrayOf(contactId.toString()),
                 ) > 0
             }.getOrElse { exception ->
-                LauncherDebugLog.warning("writeStarred failed contactId=$contactId", exception)
+                LauncherDebugLog.failure(exception, "writeStarred failed contactId=%s", sensitive(contactId))
                 false
             }
         }
@@ -1795,7 +1799,7 @@ internal class LauncherViewModel(
     fun onContactActionSelected(action: ContactAction) {
         when (val kind = action.kind) {
             is ContactActionKind.Launch -> {
-                LauncherDebugLog.event("onContactActionSelected launch=${kind.intent.debugSummary()}")
+                LauncherDebugLog.event("onContactActionSelected launch=%s", kind.intent.debugSummary())
                 if (!tryStartContactAction(kind.intent)) return
                 finishContactAction()
             }
@@ -1819,7 +1823,7 @@ internal class LauncherViewModel(
     fun onCallPermissionResult(granted: Boolean) {
         val number = pendingCallNumber ?: return
         pendingCallNumber = null
-        LauncherDebugLog.event("onCallPermissionResult granted=$granted")
+        LauncherDebugLog.event("onCallPermissionResult granted=%s", granted)
         if (granted) {
             placeCall(number, fromPermissionGrant = true)
         } else {
@@ -1888,7 +1892,7 @@ internal class LauncherViewModel(
                         // query they have since moved on to are not ours to
                         // reset, and a dialer fallback would yank a fresh app
                         // into the foreground under them.
-                        LauncherDebugLog.event("placeCall superseded token=$token latest=$contactResolveToken")
+                        LauncherDebugLog.event("placeCall superseded token=%s latest=%s", token, contactResolveToken)
                         return@launch
                     }
                     finishPlacedCall(placed, number)
@@ -1951,16 +1955,16 @@ internal class LauncherViewModel(
             telecomManager.placeCall(telUri(number), null)
             true
         } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("placeCall denied", exception)
+            LauncherDebugLog.failure(exception, "placeCall denied")
             false
         } catch (exception: IllegalArgumentException) {
-            LauncherDebugLog.warning("placeCall rejected", exception)
+            LauncherDebugLog.failure(exception, "placeCall rejected")
             false
         } catch (exception: IllegalStateException) {
-            LauncherDebugLog.warning("placeCall failed", exception)
+            LauncherDebugLog.failure(exception, "placeCall failed")
             false
         } catch (exception: UnsupportedOperationException) {
-            LauncherDebugLog.warning("placeCall unsupported", exception)
+            LauncherDebugLog.failure(exception, "placeCall unsupported")
             false
         }
     }
@@ -2004,10 +2008,10 @@ internal class LauncherViewModel(
             startActivity(intent)
             true
         } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("contact action no handler", exception)
+            LauncherDebugLog.failure(exception, "contact action no handler")
             false
         } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("contact action denied", exception)
+            LauncherDebugLog.failure(exception, "contact action denied")
             false
         }
 
@@ -2035,7 +2039,7 @@ internal class LauncherViewModel(
      * to the launcher, not a Contacts task left in recents.
      */
     fun openContactCard(contact: ContactResult) {
-        LauncherDebugLog.event("openContactCard contactId=${contact.contactId}")
+        LauncherDebugLog.event("openContactCard contactId=%s", sensitive(contact.contactId))
         val lookupUri = ContactsContract.Contacts.getLookupUri(contact.contactId, contact.lookupKey)
         val intent = Intent(ContactsContract.QuickContact.ACTION_QUICK_CONTACT).apply {
             data = lookupUri
@@ -2062,8 +2066,11 @@ internal class LauncherViewModel(
     fun launchApp(app: InstalledApp) {
         val component = app.launchIntent.component
         LauncherDebugLog.event(
-            "launchApp package=${app.packageName} component=${component?.flattenToShortString()} " +
-                "work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
+            "launchApp package=%s component=%s work=%s launcherApps=%s",
+            app.packageName,
+            component?.flattenToShortString(),
+            app.isWorkApp,
+            app.launchWithLauncherApps,
         )
         try {
             if (app.launchWithLauncherApps && component != null) {
@@ -2072,10 +2079,10 @@ internal class LauncherViewModel(
                 startActivity(app.launchIntent.asLauncherTaskIntent())
             }
         } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("launchApp activity not found package=${app.packageName}", exception)
+            LauncherDebugLog.failure(exception, "launchApp activity not found package=%s", app.packageName)
             return
         } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("launchApp security exception package=${app.packageName}", exception)
+            LauncherDebugLog.failure(exception, "launchApp security exception package=%s", app.packageName)
             return
         }
         appLaunchStatsStore.recordLaunch(app.id)
@@ -2092,7 +2099,10 @@ internal class LauncherViewModel(
 
     fun openAppInfo(app: InstalledApp) {
         LauncherDebugLog.event(
-            "openAppInfo package=${app.packageName} work=${app.isWorkApp} launcherApps=${app.launchWithLauncherApps}",
+            "openAppInfo package=%s work=%s launcherApps=%s",
+            app.packageName,
+            app.isWorkApp,
+            app.launchWithLauncherApps,
         )
         // ACTION_APPLICATION_DETAILS_SETTINGS resolves the package against the
         // current user only, so a work-profile app routed through it lands on the
@@ -2106,9 +2116,9 @@ internal class LauncherViewModel(
                 launcherApps.startAppDetailsActivity(component, app.user, null, null)
                 return
             } catch (exception: ActivityNotFoundException) {
-                LauncherDebugLog.warning("openAppInfo activity not found package=${app.packageName}", exception)
+                LauncherDebugLog.failure(exception, "openAppInfo activity not found package=%s", app.packageName)
             } catch (exception: SecurityException) {
-                LauncherDebugLog.warning("openAppInfo security exception package=${app.packageName}", exception)
+                LauncherDebugLog.failure(exception, "openAppInfo security exception package=%s", app.packageName)
             }
         }
         startActivity(app.appInfoIntent)
@@ -2122,7 +2132,7 @@ internal class LauncherViewModel(
      * process too, so the next launch is a true cold start.
      */
     fun openLauncherAppInfo() {
-        LauncherDebugLog.event("openLauncherAppInfo package=${app.packageName}")
+        LauncherDebugLog.event("openLauncherAppInfo package=%s", app.packageName)
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             .setData(Uri.parse("package:${app.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -2172,7 +2182,7 @@ internal class LauncherViewModel(
      * neither belongs in the crash reporter as a non-fatal.
      */
     private fun reportWallpaperPickerUnavailable(reason: String, exception: Exception) {
-        LauncherDebugLog.warning("openWallpaperPicker $reason (${exception.javaClass.simpleName})")
+        LauncherDebugLog.warning("openWallpaperPicker %s (%s)", safe(reason), safe(exception.javaClass.simpleName))
         Toast.makeText(app, R.string.settings_wallpaper_picker_unavailable, Toast.LENGTH_SHORT).show()
     }
 
@@ -2190,9 +2200,12 @@ internal class LauncherViewModel(
     fun toggleDock(app: InstalledApp, maxDockedApps: Int) {
         val state = _uiState.value
         LauncherDebugLog.event(
-            "toggleDock package=${app.packageName} docked=${app.isDocked} " +
-                "workDocked=${app.isWorkDocked} workDockEnabled=${state.isWorkDockEnabled} " +
-                "max=$maxDockedApps",
+            "toggleDock package=%s docked=%s workDocked=%s workDockEnabled=%s max=%s",
+            app.packageName,
+            app.isDocked,
+            app.isWorkDocked,
+            state.isWorkDockEnabled,
+            maxDockedApps,
         )
         val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
         when {
@@ -2209,7 +2222,7 @@ internal class LauncherViewModel(
 
     fun reorderDockedApps(appId: String, row: Int, column: Int) {
         val state = _uiState.value
-        LauncherDebugLog.event("reorderDockedApps appId=$appId row=$row column=$column")
+        LauncherDebugLog.event("reorderDockedApps appId=%s row=%s column=%s", appId, row, column)
         dockedAppStore.move(
             appId = appId,
             row = row,
@@ -2245,7 +2258,7 @@ internal class LauncherViewModel(
         tag: String,
     ) {
         val state = _uiState.value
-        LauncherDebugLog.event("$tag appId=$appId row=$row column=$column")
+        LauncherDebugLog.event("%s appId=%s row=%s column=%s", tag, appId, row, column)
         val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
         store.dock(appId, columns)
         store.move(appId, row, column, columns, state.appListSortOrder)
@@ -2277,7 +2290,7 @@ internal class LauncherViewModel(
         tag: String,
     ) {
         val state = _uiState.value
-        LauncherDebugLog.event("$tag appId=$appId target=$targetId")
+        LauncherDebugLog.event("%s appId=%s target=%s", tag, appId, targetId)
         val targetFolder = store.dockFolders.firstOrNull { it.id == targetId }
         if (targetFolder != null && targetFolder.memberAppIds.size >= MAX_DOCK_FOLDER_MEMBERS) {
             return
@@ -2301,8 +2314,10 @@ internal class LauncherViewModel(
     fun toggleWorkDock(app: InstalledApp, maxDockedApps: Int) {
         val state = _uiState.value
         LauncherDebugLog.event(
-            "toggleWorkDock package=${app.packageName} workDocked=${app.isWorkDocked} " +
-                "max=$maxDockedApps",
+            "toggleWorkDock package=%s workDocked=%s max=%s",
+            app.packageName,
+            app.isWorkDocked,
+            maxDockedApps,
         )
         if (app.isWorkDocked) {
             workDockedAppStore.undock(app.id)
@@ -2315,7 +2330,7 @@ internal class LauncherViewModel(
 
     fun reorderWorkDockedApps(appId: String, row: Int, column: Int) {
         val state = _uiState.value
-        LauncherDebugLog.event("reorderWorkDockedApps appId=$appId row=$row column=$column")
+        LauncherDebugLog.event("reorderWorkDockedApps appId=%s row=%s column=%s", appId, row, column)
         workDockedAppStore.move(
             appId = appId,
             row = row,
@@ -2341,7 +2356,7 @@ internal class LauncherViewModel(
         mergeDockItems(sourceId, targetId, workDockedAppStore, "mergeWorkDockItems")
 
     private fun mergeDockItems(sourceId: String, targetId: String, store: DockedAppStore, tag: String) {
-        LauncherDebugLog.event("$tag source=$sourceId target=$targetId")
+        LauncherDebugLog.event("%s source=%s target=%s", tag, sourceId, targetId)
         store.mergeIntoFolder(sourceId, targetId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
         refreshLists()
         logState(tag)
@@ -2354,7 +2369,7 @@ internal class LauncherViewModel(
         addAppToFolder(folderId, appId, workDockedAppStore, "addAppToWorkDockFolder")
 
     private fun addAppToFolder(folderId: String, appId: String, store: DockedAppStore, tag: String) {
-        LauncherDebugLog.event("$tag folder=$folderId app=$appId")
+        LauncherDebugLog.event("%s folder=%s app=%s", tag, folderId, appId)
         store.addToFolder(folderId, appId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
         refreshLists()
         logState(tag)
@@ -2367,7 +2382,7 @@ internal class LauncherViewModel(
         removeAppFromFolder(folderId, appId, workDockedAppStore, "removeAppFromWorkDockFolder")
 
     private fun removeAppFromFolder(folderId: String, appId: String, store: DockedAppStore, tag: String) {
-        LauncherDebugLog.event("$tag folder=$folderId app=$appId")
+        LauncherDebugLog.event("%s folder=%s app=%s", tag, folderId, appId)
         store.removeFromFolder(folderId, appId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
         refreshLists()
         logState(tag)
@@ -2386,7 +2401,7 @@ internal class LauncherViewModel(
      * then immediately undocked so it leaves the dock altogether.
      */
     private fun undockAppFromFolder(folderId: String, appId: String, store: DockedAppStore, tag: String) {
-        LauncherDebugLog.event("$tag folder=$folderId app=$appId")
+        LauncherDebugLog.event("%s folder=%s app=%s", tag, folderId, appId)
         val columns = deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp)
         store.removeFromFolder(folderId, appId, columns)
         store.undock(appId)
@@ -2395,14 +2410,14 @@ internal class LauncherViewModel(
     }
 
     fun renameDockFolder(folderId: String, name: String?) {
-        LauncherDebugLog.event("renameDockFolder folder=$folderId")
+        LauncherDebugLog.event("renameDockFolder folder=%s", folderId)
         (folderStoreFor(folderId)).renameFolder(folderId, name)
         refreshLists()
         logState("renameDockFolder")
     }
 
     fun explodeDockFolder(folderId: String) {
-        LauncherDebugLog.event("explodeDockFolder folder=$folderId")
+        LauncherDebugLog.event("explodeDockFolder folder=%s", folderId)
         folderStoreFor(folderId).explodeFolder(folderId, deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp))
         refreshLists()
         logState("explodeDockFolder")
@@ -2411,7 +2426,7 @@ internal class LauncherViewModel(
     // Reorder a member within its folder (Overlay-style drag). Folder ids are
     // unique across both stores, so route to whichever dock owns it.
     fun reorderDockFolderMember(folderId: String, appId: String, targetMemberId: String) {
-        LauncherDebugLog.event("reorderDockFolderMember folder=$folderId app=$appId target=$targetMemberId")
+        LauncherDebugLog.event("reorderDockFolderMember folder=%s app=%s target=%s", folderId, appId, targetMemberId)
         folderStoreFor(folderId).reorderFolderMember(folderId, appId, targetMemberId)
         refreshLists()
         logState("reorderDockFolderMember")
@@ -2424,7 +2439,13 @@ internal class LauncherViewModel(
      * where it was dropped, swapping any occupant aside exactly like a dock drag.
      */
     fun moveDockFolderMemberToDock(folderId: String, appId: String, row: Int, column: Int) {
-        LauncherDebugLog.event("moveDockFolderMemberToDock folder=$folderId app=$appId row=$row column=$column")
+        LauncherDebugLog.event(
+            "moveDockFolderMemberToDock folder=%s app=%s row=%s column=%s",
+            folderId,
+            appId,
+            row,
+            column,
+        )
         val state = _uiState.value
         val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
         val store = folderStoreFor(folderId)
@@ -2441,7 +2462,7 @@ internal class LauncherViewModel(
      * sees it as a top-level occupant.
      */
     fun mergeDockFolderMemberInto(folderId: String, appId: String, targetId: String) {
-        LauncherDebugLog.event("mergeDockFolderMemberInto folder=$folderId app=$appId target=$targetId")
+        LauncherDebugLog.event("mergeDockFolderMemberInto folder=%s app=%s target=%s", folderId, appId, targetId)
         val state = _uiState.value
         val columns = deviceRenderableDockIconCount(state.dockIconSizeDp)
         val store = folderStoreFor(folderId)
@@ -2490,7 +2511,7 @@ internal class LauncherViewModel(
     // endregion
 
     fun resetRank(app: InstalledApp) {
-        LauncherDebugLog.event("resetRank package=${app.packageName}")
+        LauncherDebugLog.event("resetRank package=%s", app.packageName)
         appLaunchStatsStore.resetLaunchCount(app.id)
         refreshLists()
         logState("resetRank")
@@ -2502,21 +2523,21 @@ internal class LauncherViewModel(
      * resetting the app's rank in the main list.
      */
     fun removeRecent(app: InstalledApp) {
-        LauncherDebugLog.event("removeRecent package=${app.packageName}")
+        LauncherDebugLog.event("removeRecent package=%s", app.packageName)
         appLaunchStatsStore.removeRecent(app.id)
         refreshLists()
         logState("removeRecent")
     }
 
     fun hideApp(app: InstalledApp) {
-        LauncherDebugLog.event("hideApp package=${app.packageName} docked=${app.isDocked}")
+        LauncherDebugLog.event("hideApp package=%s docked=%s", app.packageName, app.isDocked)
         hiddenAppStore.hide(app.id)
         refreshLists()
         logState("hideApp")
     }
 
     fun unhideApp(app: InstalledApp) {
-        LauncherDebugLog.event("unhideApp package=${app.packageName}")
+        LauncherDebugLog.event("unhideApp package=%s", app.packageName)
         hiddenAppStore.unhide(app.id)
         refreshLists()
         logState("unhideApp")
@@ -2541,11 +2562,11 @@ internal class LauncherViewModel(
     fun renameApp(app: InstalledApp, newName: String) {
         val trimmed = newName.trim()
         val effective: String? = if (trimmed.isEmpty() || trimmed == app.displayBase) {
-            LauncherDebugLog.event("renameApp clear package=${app.packageName}")
+            LauncherDebugLog.event("renameApp clear package=%s", app.packageName)
             renamedAppStore.clear(app.id)
             null
         } else {
-            LauncherDebugLog.event("renameApp package=${app.packageName} length=${trimmed.length}")
+            LauncherDebugLog.event("renameApp package=%s length=%s", app.packageName, trimmed.length)
             renamedAppStore.rename(app.id, trimmed)
             trimmed
         }
@@ -2578,11 +2599,11 @@ internal class LauncherViewModel(
     fun setAppBadge(app: InstalledApp, glyph: String?) {
         val trimmed = glyph?.trim().orEmpty()
         val effective: String? = if (trimmed.isEmpty()) {
-            LauncherDebugLog.event("setAppBadge clear package=${app.packageName}")
+            LauncherDebugLog.event("setAppBadge clear package=%s", app.packageName)
             customBadgeStore.clear(app.id)
             null
         } else {
-            LauncherDebugLog.event("setAppBadge package=${app.packageName} length=${trimmed.length}")
+            LauncherDebugLog.event("setAppBadge package=%s length=%s", app.packageName, trimmed.length)
             customBadgeStore.setBadge(app.id, trimmed)
             trimmed
         }
@@ -2643,13 +2664,13 @@ internal class LauncherViewModel(
         // resolves against the post-load list and either applies cleanly
         // or logs a "dropped" event.
         if (!_uiState.value.isFreshAppLoadComplete) {
-            LauncherDebugLog.event("setAppIconOverride deferred: id=$appId pending fresh load")
+            LauncherDebugLog.event("setAppIconOverride deferred: id=%s pending fresh load", appId)
             pendingIconOverrideRequest = appId to sourceUri
             return
         }
         val app = installedApps.firstOrNull { it.id == appId }
         if (app == null) {
-            LauncherDebugLog.event("setAppIconOverride dropped: id=$appId not found")
+            LauncherDebugLog.event("setAppIconOverride dropped: id=%s not found", appId)
             return
         }
         setAppIconOverrideInternal(app, sourceUri)
@@ -2661,14 +2682,14 @@ internal class LauncherViewModel(
         val (appId, uri) = request
         val app = installedApps.firstOrNull { it.id == appId }
         if (app == null) {
-            LauncherDebugLog.event("setAppIconOverride drained dropped: id=$appId not found in fresh load")
+            LauncherDebugLog.event("setAppIconOverride drained dropped: id=%s not found in fresh load", appId)
             return
         }
         setAppIconOverrideInternal(app, uri)
     }
 
     private fun setAppIconOverrideInternal(app: InstalledApp, sourceUri: Uri) {
-        LauncherDebugLog.event("setAppIconOverride package=${app.packageName} scheme=${sourceUri.scheme}")
+        LauncherDebugLog.event("setAppIconOverride package=%s scheme=%s", app.packageName, sourceUri.scheme)
         viewModelScope.launch {
             val savedFile = withContext(ioDispatcher) {
                 runCatching {
@@ -2681,7 +2702,9 @@ internal class LauncherViewModel(
                     input.use { stream -> iconOverrideStore.setIcon(app.id, stream, extension) }
                 }.onFailure { error ->
                     LauncherDebugLog.event(
-                        "setAppIconOverride failed package=${app.packageName} err=${error.javaClass.simpleName}",
+                        "setAppIconOverride failed package=%s err=%s",
+                        app.packageName,
+                        error.javaClass.simpleName,
                     )
                 }.getOrNull()
             } ?: return@launch
@@ -2716,7 +2739,7 @@ internal class LauncherViewModel(
      * patch and `refreshLists` call.
      */
     fun clearAppIconOverride(app: InstalledApp) {
-        LauncherDebugLog.event("clearAppIconOverride package=${app.packageName}")
+        LauncherDebugLog.event("clearAppIconOverride package=%s", app.packageName)
         iconOverrideStore.clear(app.id)
         AppIconLoader.evict(app.packageName, app.user)
         installedApps = installedApps.map { existing ->
@@ -2759,8 +2782,10 @@ internal class LauncherViewModel(
             placement.pageIndex.coerceInWidgetPages(widgetStore.widgetPages)
         }
         LauncherDebugLog.event(
-            "addWidget appWidgetId=$appWidgetId page=${placement.pageIndex} " +
-                "newPage=${placement.addToNewPageAfterSelection}",
+            "addWidget appWidgetId=%s page=%s newPage=%s",
+            appWidgetId,
+            placement.pageIndex,
+            placement.addToNewPageAfterSelection,
         )
         widgetStore.add(
             appWidgetId = appWidgetId,
@@ -2816,15 +2841,16 @@ internal class LauncherViewModel(
             if (appWidgetId !in widgetStore.widgetIds) return@launch
             widgetStore.setProvider(appWidgetId, record)
             _uiState.update { it.copy(widgetProviderLabels = widgetStore.providerLabels) }
-            TelemetryRedaction.rememberPackage(record.component.packageName)
             LauncherDebugLog.event(
-                "rememberWidgetProvider id=$appWidgetId component=${record.component.flattenToShortString()}",
+                "rememberWidgetProvider id=%s component=%s",
+                appWidgetId,
+                record.component.flattenToShortString(),
             )
         }
     }
 
     fun moveWidget(appWidgetId: Int, direction: WidgetMoveDirection) {
-        LauncherDebugLog.event("moveWidget appWidgetId=$appWidgetId direction=$direction")
+        LauncherDebugLog.event("moveWidget appWidgetId=%s direction=%s", appWidgetId, direction)
         widgetStore.move(appWidgetId, direction)
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
@@ -2843,7 +2869,7 @@ internal class LauncherViewModel(
     }
 
     fun resizeWidget(appWidgetId: Int, heightDp: Int) {
-        LauncherDebugLog.event("resizeWidget appWidgetId=$appWidgetId heightDp=$heightDp")
+        LauncherDebugLog.event("resizeWidget appWidgetId=%s heightDp=%s", appWidgetId, heightDp)
         widgetStore.setCustomHeight(appWidgetId, heightDp)
         _uiState.update { it.copy(widgetHeights = widgetStore.customHeights) }
         logState("resizeWidget")
@@ -2859,9 +2885,7 @@ internal class LauncherViewModel(
         _uiState.update {
             it.copy(workProfileWidgetRefreshToken = it.workProfileWidgetRefreshToken + 1)
         }
-        LauncherDebugLog.event(
-            "refreshWorkProfileWidgets token=${_uiState.value.workProfileWidgetRefreshToken}",
-        )
+        LauncherDebugLog.event("refreshWorkProfileWidgets token=%s", _uiState.value.workProfileWidgetRefreshToken)
     }
 
     internal fun refreshWorkProfileWidgetsForTest() = refreshWorkProfileWidgets()
@@ -2889,7 +2913,7 @@ internal class LauncherViewModel(
     }
 
     fun removeWidget(appWidgetId: Int) {
-        LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
+        LauncherDebugLog.event("removeWidget appWidgetId=%s", appWidgetId)
         widgetStore.remove(appWidgetId)
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
@@ -2919,7 +2943,7 @@ internal class LauncherViewModel(
      * being stranded and renders normally.
      */
     fun replaceWidget(oldWidgetId: Int, newWidgetId: Int) {
-        LauncherDebugLog.event("replaceWidget old=$oldWidgetId new=$newWidgetId")
+        LauncherDebugLog.event("replaceWidget old=%s new=%s", oldWidgetId, newWidgetId)
         widgetStore.replaceId(oldWidgetId, newWidgetId)
         rememberWidgetProvider(newWidgetId)
         _uiState.update {
@@ -2941,7 +2965,7 @@ internal class LauncherViewModel(
      * nothing is deleted on this signal.
      */
     fun setStrandedWidgetIds(ids: Set<Int>) {
-        LauncherDebugLog.event("setStrandedWidgetIds ${ids.size} ids=$ids")
+        LauncherDebugLog.event("setStrandedWidgetIds %s ids=%s", ids.size, ids)
         _uiState.update { it.copy(strandedWidgetIds = ids) }
     }
 
@@ -3005,7 +3029,7 @@ internal class LauncherViewModel(
                 playUpdateRestartFailed = !versionChanged && state.playUpdateRestartFailed && progress == UpdateProgress.Downloaded,
             )
         }
-        logState("setPlayUpdateAvailable=$availableVersionCode progress=$progress")
+        logState("setPlayUpdateAvailable=%s progress=%s", availableVersionCode, progress)
     }
 
     fun setPlayUpdateUnavailable() {
@@ -3044,7 +3068,7 @@ internal class LauncherViewModel(
             isRecoveryAbandoned = false
             setPlayUpdateProgress(UpdateProgress.Idle)
         }
-        logState("setPlayUpdateCheckFailed preserving=${_uiState.value.playUpdate}")
+        logState("setPlayUpdateCheckFailed preserving=%s", _uiState.value.playUpdate)
     }
 
     /**
@@ -3071,7 +3095,7 @@ internal class LauncherViewModel(
         val update = _uiState.value.playUpdate as? PlayUpdateState.Available ?: return
         playUpdateStore.dismissedVersionCode = playUpdateDismissalKey(update.versionCode, BuildConfig.VERSION_CODE)
         _uiState.update { it.copy(playUpdate = update.copy(isDismissed = true)) }
-        logState("dismissPlayUpdate=${update.versionCode}")
+        logState("dismissPlayUpdate=%s", update.versionCode)
     }
 
     /**
@@ -3091,7 +3115,7 @@ internal class LauncherViewModel(
                 playUpdateRestartFailed = it.playUpdateRestartFailed && progress == UpdateProgress.Downloaded,
             )
         }
-        logState("setPlayUpdateProgress=$progress")
+        logState("setPlayUpdateProgress=%s", progress)
     }
 
     /**
@@ -3235,12 +3259,12 @@ internal class LauncherViewModel(
     }
 
     fun openPlayStoreListing() {
-        LauncherDebugLog.event("openPlayStoreListing package=${app.packageName}")
+        LauncherDebugLog.event("openPlayStoreListing package=%s", app.packageName)
         val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${app.packageName}"))
         try {
             startActivity(marketIntent)
         } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.warning("openPlayStoreListing market intent unavailable", exception)
+            LauncherDebugLog.failure(exception, "openPlayStoreListing market intent unavailable")
             try {
                 startActivity(
                     Intent(
@@ -3252,7 +3276,7 @@ internal class LauncherViewModel(
                 // No Play Store *and* no browser (stripped-down OEM / kiosk
                 // builds) — launching the web fallback unguarded crashed the
                 // launcher. Nothing more to fall back to, so just log it.
-                LauncherDebugLog.warning("openPlayStoreListing web fallback unavailable", browserException)
+                LauncherDebugLog.failure(browserException, "openPlayStoreListing web fallback unavailable")
             }
         }
     }
@@ -3286,13 +3310,13 @@ internal class LauncherViewModel(
     fun setKeyboardAutoShown(isAutoShown: Boolean) {
         dockSettingsStore.isKeyboardAutoShown = isAutoShown
         _uiState.update { it.copy(isKeyboardAutoShown = isAutoShown) }
-        logState("setKeyboardAutoShown=$isAutoShown")
+        logState("setKeyboardAutoShown=%s", isAutoShown)
     }
 
     fun setWallpaperShown(isShown: Boolean) {
         dockSettingsStore.isWallpaperShown = isShown
         _uiState.update { it.copy(isWallpaperShown = isShown) }
-        logState("setWallpaperShown=$isShown")
+        logState("setWallpaperShown=%s", isShown)
     }
 
     fun setAgendaEnabled(isEnabled: Boolean) {
@@ -3305,7 +3329,7 @@ internal class LauncherViewModel(
                 isRecentsOpen = state.isRecentsOpen && !onAgenda,
             )
         }
-        logState("setAgendaEnabled=$isEnabled")
+        logState("setAgendaEnabled=%s", isEnabled)
         if (isEnabled) {
             triggerInitialAgendaLoadIfEnabled(reason = "agendaEnabled")
         }
@@ -3320,7 +3344,7 @@ internal class LauncherViewModel(
     fun setContactSearchEnabled(isEnabled: Boolean) {
         dockSettingsStore.isContactSearchEnabled = isEnabled
         _uiState.update { it.copy(isContactSearchEnabled = isEnabled) }
-        logState("setContactSearchEnabled=$isEnabled")
+        logState("setContactSearchEnabled=%s", isEnabled)
         if (isEnabled) {
             refreshContentSearchIndices(reason = "contactSearchEnabled")
         } else {
@@ -3350,7 +3374,7 @@ internal class LauncherViewModel(
     fun setCalendarSearchEnabled(isEnabled: Boolean) {
         dockSettingsStore.isCalendarSearchEnabled = isEnabled
         _uiState.update { it.copy(isCalendarSearchEnabled = isEnabled) }
-        logState("setCalendarSearchEnabled=$isEnabled")
+        logState("setCalendarSearchEnabled=%s", isEnabled)
         if (isEnabled) {
             refreshContentSearchIndices(reason = "calendarSearchEnabled")
         } else {
@@ -3449,7 +3473,10 @@ internal class LauncherViewModel(
             // keystroke, off the main thread.
             if (wantContacts) ContactPhotoLoader.evictAll()
             LauncherDebugLog.event(
-                "$reason content search indices loaded contacts=${contacts.size} events=${events.size}",
+                "%s content search indices loaded contacts=%s events=%s",
+                reason,
+                contacts.size,
+                events.size,
             )
             if (_uiState.value.query.isNotBlank()) refreshFilteredApps()
         }
@@ -3473,7 +3500,7 @@ internal class LauncherViewModel(
         // on-screen icons re-rasterize with the new palette).
         AppIconLoader.setThemedIconPalette(app, isLauncherThemeDark(mode))
         _uiState.update { it.copy(themeMode = mode) }
-        logState("setThemeMode=$mode")
+        logState("setThemeMode=%s", mode)
     }
 
     /**
@@ -3495,13 +3522,13 @@ internal class LauncherViewModel(
     fun setIconShape(shape: IconShape) {
         dockSettingsStore.iconShape = shape
         _uiState.update { it.copy(iconShape = shape) }
-        logState("setIconShape=$shape")
+        logState("setIconShape=%s", shape)
     }
 
     fun setCallMethod(method: CallMethod) {
         dockSettingsStore.callMethod = method
         _uiState.update { it.copy(callMethod = method) }
-        logState("setCallMethod=$method")
+        logState("setCallMethod=%s", method)
     }
 
     fun setIconTheme(theme: IconTheme) {
@@ -3514,7 +3541,7 @@ internal class LauncherViewModel(
         // the re-rendered cache, so the on-disk snapshot follows along.
         AppIconLoader.evictAll()
         _uiState.update { it.copy(iconTheme = theme) }
-        logState("setIconTheme=$theme")
+        logState("setIconTheme=%s", theme)
     }
 
     // The Settings slider still picks a per-row *count*; store the icon *size*
@@ -3528,7 +3555,7 @@ internal class LauncherViewModel(
         val targetIconSizeDp = dockIconSizeForSlotCount(shortEdgeDp, clampedCount)
         dockSettingsStore.dockIconSizeDp = targetIconSizeDp
         _uiState.update { it.copy(dockIconSizeDp = targetIconSizeDp) }
-        logState("setDockVisibleIconCount requested=$count")
+        logState("setDockVisibleIconCount requested=%s", count)
     }
 
     /**
@@ -3550,7 +3577,7 @@ internal class LauncherViewModel(
             maybePrefillWorkDock(installedApps)
         }
         refreshLists()
-        logState("setWorkDockEnabled=$isEnabled")
+        logState("setWorkDockEnabled=%s", isEnabled)
     }
 
     private fun refreshLists() {
@@ -3838,18 +3865,18 @@ internal class LauncherViewModel(
     }
 
     private fun startActivity(intent: Intent) {
-        LauncherDebugLog.event("startActivity intent=${intent.debugSummary()}")
+        LauncherDebugLog.event("startActivity intent=%s", intent.debugSummary())
         app.startActivity(intent.asLauncherTaskIntent())
     }
 
     private fun loadAgendaState(): AgendaUiState {
         val hasPermission = hasCalendarPermission()
-        LauncherDebugLog.event("loadAgendaState hasPermission=$hasPermission")
+        LauncherDebugLog.event("loadAgendaState hasPermission=%s", hasPermission)
         if (!hasPermission) {
             return AgendaUiState.PermissionRequired
         }
         val events = loadAgendaEvents()
-        LauncherDebugLog.event("loadAgendaState events=${events.size}")
+        LauncherDebugLog.event("loadAgendaState events=%s", events.size)
         return if (events.isEmpty()) AgendaUiState.Empty else AgendaUiState.Events(events)
     }
 
@@ -3906,14 +3933,14 @@ internal class LauncherViewModel(
                 }
             }
         } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("loadContactIndex security exception", exception)
+            LauncherDebugLog.failure(exception, "loadContactIndex security exception")
             return emptyList()
         } catch (exception: RuntimeException) {
             // A provider-side failure (disabled/corrupt OEM contacts provider,
             // transient database error) surfaces here as a RuntimeException.
             // An optional search source must degrade to no results, never
             // crash the launcher's index-load coroutine.
-            LauncherDebugLog.warning("loadContactIndex provider failure", exception)
+            LauncherDebugLog.failure(exception, "loadContactIndex provider failure")
             return emptyList()
         }
         // Sort here, once per load, rather than per keystroke: the filter's
@@ -3953,7 +3980,7 @@ internal class LauncherViewModel(
             // page's long-standing behavior), but the search index also loads
             // on every resume, so a flaky provider must degrade to an empty
             // section rather than crash the launcher.
-            LauncherDebugLog.warning("loadSearchEventIndex provider failure", exception)
+            LauncherDebugLog.failure(exception, "loadSearchEventIndex provider failure")
             emptyList()
         }
     }
@@ -4012,7 +4039,7 @@ internal class LauncherViewModel(
                 }
             }
         } catch (exception: SecurityException) {
-            LauncherDebugLog.warning("loadAgendaEvents security exception", exception)
+            LauncherDebugLog.failure(exception, "loadAgendaEvents security exception")
             return emptyList()
         }
 
@@ -4076,7 +4103,7 @@ internal class LauncherViewModel(
         val launcherApps = app.getSystemService<LauncherApps>()
         val userManager = app.getSystemService<UserManager>()
         val profiles = launcherApps?.profiles.orEmpty()
-            .also { profiles -> LauncherDebugLog.event("loadInstalledApps profiles=${profiles.size}") }
+            .also { profiles -> LauncherDebugLog.event("loadInstalledApps profiles=%s", profiles.size) }
         // Resolve quiet mode once per profile rather than per activity. The
         // personal profile is never in quiet mode, so skip the binder call for
         // it. `isQuietModeEnabled` is documented since API 24 and requires no
@@ -4106,15 +4133,14 @@ internal class LauncherViewModel(
                     // the exception crash the launcher out of the load
                     // coroutine. The removal's own callback triggers a
                     // fresh reload that no longer lists this profile.
-                    LauncherDebugLog.warning(
-                        "loadInstalledApps profile rejected user=${user.hashCode()}",
-                        exception,
-                    )
+                    LauncherDebugLog.failure(exception, "loadInstalledApps profile rejected user=%s", user.hashCode())
                     emptyList()
                 }
                 LauncherDebugLog.event(
-                    "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} " +
-                        "quiet=${quietByUser[user] == true}",
+                    "loadInstalledApps profile=%s activities=%s quiet=%s",
+                    user.hashCode(),
+                    activities.size,
+                    quietByUser[user] == true,
                 )
                 activities
                     .map { activity ->
@@ -4138,7 +4164,7 @@ internal class LauncherViewModel(
         val collected = profileApps
             .ifEmpty {
                 val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
-                LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=${resolveInfos.size}")
+                LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=%s", resolveInfos.size)
                 resolveInfos
                     .map { resolveInfo ->
                         val activityInfo = resolveInfo.activityInfo
@@ -4171,7 +4197,7 @@ internal class LauncherViewModel(
             .applyCustomBadges()
             .applyIconOverrides()
             .applyDynamicCalendarToken()
-            .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=${apps.size}") }
+            .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=%s", apps.size) }
     }
 
     /**
@@ -4274,10 +4300,7 @@ internal class LauncherViewModel(
             profile != personalUser && try {
                 userManager?.isQuietModeEnabled(profile) == true
             } catch (exception: SecurityException) {
-                LauncherDebugLog.warning(
-                    "loadAvailableWidgets profile rejected user=${profile.hashCode()}",
-                    exception,
-                )
+                LauncherDebugLog.failure(exception, "loadAvailableWidgets profile rejected user=%s", profile.hashCode())
                 true
             }
         }
@@ -4285,7 +4308,9 @@ internal class LauncherViewModel(
             .flatMap { profile ->
                 val providers = widgetManager.getInstalledProvidersForProfile(profile)
                 LauncherDebugLog.event(
-                    "loadAvailableWidgets profile=${profile.hashCode()} providers=${providers.size}",
+                    "loadAvailableWidgets profile=%s providers=%s",
+                    profile.hashCode(),
+                    providers.size,
                 )
                 providers
                     .filter { info ->
@@ -4300,7 +4325,7 @@ internal class LauncherViewModel(
                         .thenBy(displayNameOrder) { provider -> provider.label }
                 },
             )
-            .also { providers -> LauncherDebugLog.event("loadAvailableWidgets providers=${providers.size}") }
+            .also { providers -> LauncherDebugLog.event("loadAvailableWidgets providers=%s", providers.size) }
     }
 
     // Cross-profile ApplicationInfo lookup for widget-picker sections whose
@@ -4387,8 +4412,17 @@ internal class LauncherViewModel(
             }
     }
 
-    private fun logState(reason: String) {
-        LauncherDebugLog.event("$reason ${_uiState.value.debugSummary()}")
+    /**
+     * [reason] is the caller's hard-coded format string — the same contract as
+     * [LauncherDebugLog.event], forwarded one level — and [args] are its values,
+     * each classified on its own. Assembling the reason at the call site and
+     * passing the finished string would have made it one opaque `String`: either
+     * withheld whole, losing the transition name that explains the snapshot
+     * beneath it, or trusted whole, which would carry whatever a future caller
+     * interpolated into it.
+     */
+    private fun logState(reason: String, vararg args: Any?) {
+        LauncherDebugLog.event("$reason %s", *args, _uiState.value.debugSummary())
     }
 }
 

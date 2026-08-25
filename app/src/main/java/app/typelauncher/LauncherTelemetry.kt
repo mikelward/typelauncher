@@ -104,12 +104,12 @@ internal object LauncherTelemetry {
         try {
             FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = enabled
         } catch (error: RuntimeException) {
-            LauncherDebugLog.warning("crash reporting opt-in/out not applied", error)
+            LauncherDebugLog.failure(error, "crash reporting opt-in/out not applied")
         }
         try {
             FirebasePerformance.getInstance().isPerformanceCollectionEnabled = enabled
         } catch (error: RuntimeException) {
-            LauncherDebugLog.warning("performance opt-in/out not applied", error)
+            LauncherDebugLog.failure(error, "performance opt-in/out not applied")
         }
         if (!enabled) discardUnsentReports()
     }
@@ -129,7 +129,7 @@ internal object LauncherTelemetry {
         try {
             FirebaseCrashlytics.getInstance().deleteUnsentReports()
         } catch (error: RuntimeException) {
-            LauncherDebugLog.warning("pending crash reports not discarded on opt-out", error)
+            LauncherDebugLog.failure(error, "pending crash reports not discarded on opt-out")
         }
     }
 
@@ -164,7 +164,7 @@ internal object LauncherTelemetry {
             // what matters, and losing it entirely would let the crash-context
             // feature disappear in production with nothing to show for it.
             if (customKeyFailureReported.compareAndSet(false, true)) {
-                LauncherDebugLog.warning("crash-report custom keys not being recorded", error)
+                LauncherDebugLog.failure(error, "crash-report custom keys not being recorded")
             }
         }
     }

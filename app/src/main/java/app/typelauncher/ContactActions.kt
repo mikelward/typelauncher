@@ -361,10 +361,10 @@ internal fun resolveContactChannels(
             }
         }
     } catch (exception: SecurityException) {
-        LauncherDebugLog.warning("resolveContactChannels denied contactId=${contact.contactId}", exception)
+        LauncherDebugLog.failure(exception, "resolveContactChannels denied contactId=%s", sensitive(contact.contactId))
         return emptyList()
     } catch (exception: RuntimeException) {
-        LauncherDebugLog.warning("resolveContactChannels failed contactId=${contact.contactId}", exception)
+        LauncherDebugLog.failure(exception, "resolveContactChannels failed contactId=%s", sensitive(contact.contactId))
         return emptyList()
     }
 

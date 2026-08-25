@@ -317,7 +317,7 @@ internal object AppIconLoader {
     ): ImageBitmap? = try {
         IconNormalizer.normalizeToTile(drawable, sizePx, packageName, themedColors).asImageBitmap()
     } catch (exception: Exception) {
-        LauncherDebugLog.warning("normalizeToTile failed for $packageName", exception)
+        LauncherDebugLog.failure(exception, "normalizeToTile failed for %s", packageName)
         null
     }
 
@@ -377,7 +377,7 @@ internal object AppIconLoader {
             // this producer re-throws inside every awaiting composition and
             // crashes the launcher; returning null keeps the failure out of the
             // cache so a later load retries.
-            LauncherDebugLog.warning("performWorkBadgeLoad: badge unavailable for user=$user", exception)
+            LauncherDebugLog.failure(exception, "performWorkBadgeLoad: badge unavailable for user=%s", user)
             return null
         }
         // No badge composited (personal user, or a shadow PackageManager under
@@ -400,9 +400,7 @@ internal object AppIconLoader {
             decodeRasterToSquareBitmap(file, sizePx)
         }
     } catch (t: Throwable) {
-        LauncherDebugLog.event(
-            "AppIconLoader override decode failed path=${file.name} err=${t.javaClass.simpleName}",
-        )
+        LauncherDebugLog.event("AppIconLoader override decode failed path=%s err=%s", file.name, t.javaClass.simpleName)
         null
     }
 
@@ -556,7 +554,7 @@ internal object AppIconLoader {
         }
         val total = hits + misses
         if (total % CACHE_STATS_LOG_INTERVAL == 0) {
-            LauncherDebugLog.event("AppIconLoader cache hits=$hits misses=$misses total=$total")
+            LauncherDebugLog.event("AppIconLoader cache hits=%s misses=%s total=%s", hits, misses, total)
         }
     }
 
@@ -632,16 +630,15 @@ internal object AppIconLoader {
                     ?.firstOrNull { activity -> activity.componentName == component }
                     ?.getIcon(0)
             } catch (exception: SecurityException) {
-                LauncherDebugLog.warning(
-                    "resolve: LauncherApps rejected ${app.packageName} user=${app.user}",
+                LauncherDebugLog.failure(
                     exception,
+                    "resolve: LauncherApps rejected %s user=%s",
+                    app.packageName,
+                    app.user,
                 )
                 null
             } catch (exception: Resources.NotFoundException) {
-                LauncherDebugLog.warning(
-                    "resolve: icon unavailable for ${app.packageName}",
-                    exception,
-                )
+                LauncherDebugLog.failure(exception, "resolve: icon unavailable for %s", app.packageName)
                 null
             }
         } else {

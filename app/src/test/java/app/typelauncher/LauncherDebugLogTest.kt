@@ -2,6 +2,7 @@ package app.typelauncher
 
 import android.content.Intent
 import android.net.Uri
+import android.view.KeyEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -140,10 +141,111 @@ class LauncherDebugLogTest {
 
         val summary = intent.debugSummary()
 
-        assertTrue(summary.contains("data=smsto:\u2026"))
-        assertTrue("the dialed number must never reach the log", !summary.contains("5550100"))
+        assertTrue(summary.full.contains("data=smsto:\u2026"))
+        assertTrue("the dialed number must never reach the log", !summary.full.contains("5550100"))
+        assertTrue("nor the mirrored copy", !summary.mirrored.contains("5550100"))
     }
 
+
+    // The component and package name the user's installed apps, so they stay on
+    // the device; the action, flags and the data URI's scheme are what a failed
+    // launch is diagnosed from and ride along.
+    @Test
+    fun intentSummaryWithholdsAppIdentityFromTheMirrorButKeepsTheAction() {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", "+15550100", null)).apply {
+            `package` = "com.example.messages"
+        }
+
+        val summary = intent.debugSummary()
+
+        assertTrue(summary.full.contains("package=com.example.messages"))
+        assertTrue("app identity must not reach Crashlytics", !summary.mirrored.contains("com.example.messages"))
+        assertTrue("the action is the diagnostic value", summary.mirrored.contains("action=android.intent.action.SENDTO"))
+        assertTrue(summary.mirrored.contains("data=smsto:\u2026"))
+    }
+
+    // MainActivity is exported, so a third-party app picks the action,
+    // categories, extra keys and scheme on any intent it sends. Those are fixed
+    // vocabulary only on intents the launcher builds itself.
+    @Test
+    fun aCallerChosenActionIsWithheldWhileAFrameworkOneIsKept() {
+        val hostile = Intent("com.example.mail.ACTION_SECRET").apply {
+            addCategory("com.example.mail.CATEGORY_SECRET")
+            putExtra("com.example.mail.EXTRA_SECRET", 1)
+        }
+
+        val summary = hostile.debugSummary()
+
+        assertTrue("the on-device log keeps it", summary.full.contains("com.example.mail.ACTION_SECRET"))
+        assertTrue("a caller-chosen action can name a package", !summary.mirrored.contains("com.example.mail"))
+        // The shape survives even though the names do not.
+        assertTrue(summary.mirrored.contains("<redacted>=Integer"))
+
+        val framework = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+
+        assertTrue(framework.debugSummary().mirrored.contains("android.intent.action.MAIN"))
+        assertTrue(framework.debugSummary().mirrored.contains("android.intent.category.HOME"))
+    }
+
+    // A namespace-prefix test would wave this through: nothing stops a caller
+    // naming its action under `android.`, so membership has to be exact.
+    @Test
+    fun aSpoofedFrameworkNamespaceIsStillWithheld() {
+        val spoofed = Intent("android.alice@example.com").apply {
+            addCategory("androidx.bob@example.com")
+            putExtra("app.typelauncher.carol@example.com", 1)
+        }
+
+        val mirrored = spoofed.debugSummary().mirrored
+
+        assertTrue("a prefix is not a namespace claim", !mirrored.contains("alice@example.com"))
+        assertTrue(!mirrored.contains("bob@example.com"))
+        assertTrue(!mirrored.contains("carol@example.com"))
+    }
+
+    @Test
+    fun aCustomSchemeIsWithheldWhileAStandardOneIsKept() {
+        val custom = Intent(Intent.ACTION_VIEW, Uri.parse("com-example-mail://open"))
+        assertTrue(!custom.debugSummary().mirrored.contains("com-example-mail"))
+
+        val standard = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/x"))
+        assertTrue(standard.debugSummary().mirrored.contains("data=https:"))
+    }
+
+    // This is a type-to-search launcher: keys pressed on the home screen are
+    // the query, so a run of key codes in a crash report reconstructs what
+    // someone typed.
+    @Test
+    fun keyEventSummaryWithholdsWhichKeyFromTheMirror() {
+        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_A)
+
+        val summary = event.debugSummary()
+
+        assertTrue(summary.full.contains("keyCode=${KeyEvent.KEYCODE_A}"))
+        assertTrue("keystrokes are search history", !summary.mirrored.contains("keyCode=${KeyEvent.KEYCODE_A}"))
+        assertTrue("timing still rides along", summary.mirrored.contains("repeat=0"))
+    }
+
+    // The trap this exists for: the key handlers log the key code *twice* —
+    // once as a top-level argument and once inside the summary. Redacting only
+    // the summary leaves the Int argument to sail through on the type rule, so
+    // the breadcrumb sequence still reconstructs the query. Both have to be
+    // withheld, and a future edit that unwraps either fails here.
+    @Test
+    fun theKeyCodeIsWithheldFromEveryArgumentNotJustTheSummary() {
+        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_A)
+
+        val line = formatLogMessage(
+            "MainActivity.onKeyDown keyCode=%s event=%s",
+            arrayOf(sensitive(KeyEvent.KEYCODE_A), event.debugSummary()),
+            redactSensitive = true,
+        )
+
+        assertTrue(
+            "a run of key codes reconstructs the user's query",
+            !line.contains(KeyEvent.KEYCODE_A.toString()),
+        )
+    }
 
     // Crashlytics uploads an exception's message verbatim, and a platform
     // exception routinely quotes the intent or package that failed — so the

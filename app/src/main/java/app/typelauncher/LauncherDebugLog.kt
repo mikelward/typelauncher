@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.app.Activity
+import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -68,14 +69,25 @@ internal object LauncherDebugLog {
         sinks.clear()
     }
 
-    fun event(message: String) {
+    /**
+     * Records one line, and mirrors it into Crashlytics as a breadcrumb so the
+     * most recent lines ride along on any future crash report.
+     *
+     * [format] is a hard-coded format string — a source literal, never a value
+     * — with one `%s` per argument. That split is what keeps the mirror safe:
+     * the literal cannot name anything of the user's, and each argument is
+     * carried or withheld on its own by [logArgumentMayLeaveDevice]. The
+     * on-device copy always renders every argument in full.
+     *
+     * Passing a *built* string as [format] would defeat this. There is no way
+     * to enforce that in the type system, so it is a rule rather than a
+     * guarantee: interpolate nothing, pass values as arguments.
+     */
+    fun event(format: String, vararg args: Any?) {
+        val message = formatLogMessage(format, args, redactSensitive = false)
         record('D', message, throwable = null)
         Log.d(LAUNCHER_DEBUG_TAG, message)
-        // Mirror into Crashlytics so the most recent lines ride along on any
-        // future crash report, giving us the same context the bug-report helper
-        // would attach — minus the app identifiers, which stay on the device
-        // (see [TelemetryRedaction]).
-        LauncherTelemetry.log(TelemetryRedaction.redact(message))
+        LauncherTelemetry.log(formatLogMessage(format, args, redactSensitive = true))
     }
 
     /**
@@ -91,15 +103,48 @@ internal object LauncherDebugLog {
         Log.d(LAUNCHER_DEBUG_TAG, message)
     }
 
-    fun warning(message: String, throwable: Throwable? = null) {
+    /**
+     * A warning with no exception behind it. Same [format]-plus-arguments
+     * contract as [event]; see there.
+     *
+     * To report a warning that *does* have an exception, call [failure] — the
+     * throwable is a separate parameter on a separately-named function on
+     * purpose. An overload taking it alongside `vararg args` would accept every
+     * existing `warning(message, exception)` call unchanged and silently bind
+     * the exception as a formatting argument, so it would render into the text
+     * and never reach Crashlytics as a non-fatal. A distinct name makes the
+     * compiler find those instead of leaving them to be noticed in production.
+     */
+    fun warning(format: String, vararg args: Any?) {
+        // Belt and braces for the hazard above: nothing stops a future call
+        // site passing a throwable as an argument, and losing a non-fatal that
+        // way would be invisible. Route it properly and say that it happened.
+        val throwable = args.filterIsInstance<Throwable>().firstOrNull()
+        if (throwable != null) {
+            failure(throwable, "$format [throwable passed to warning(); use failure()]", *args)
+            return
+        }
+        val message = formatLogMessage(format, args, redactSensitive = false)
+        record('W', message, throwable = null)
+        Log.w(LAUNCHER_DEBUG_TAG, message)
+        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, redactSensitive = true))
+    }
+
+    /**
+     * A warning with the exception that caused it, reported to Crashlytics as a
+     * non-fatal as well as a breadcrumb.
+     *
+     * The throwable is redacted too, not just the breadcrumb: Crashlytics
+     * uploads an exception's message verbatim, and a platform exception
+     * routinely quotes what failed — `ActivityNotFoundException` carries the
+     * intent, a `LauncherApps` `SecurityException` the package.
+     */
+    fun failure(throwable: Throwable, format: String, vararg args: Any?) {
+        val message = formatLogMessage(format, args, redactSensitive = false)
         record('W', message, throwable)
         Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
-        LauncherTelemetry.log("WARN ${TelemetryRedaction.redact(message)}")
-        // The throwable is redacted too, not just the breadcrumb: Crashlytics
-        // uploads an exception's message verbatim, and a platform exception
-        // routinely quotes what failed — `ActivityNotFoundException` carries
-        // the intent, a `LauncherApps` SecurityException the package.
-        if (throwable != null) LauncherTelemetry.recordException(throwable.redactedForTelemetry())
+        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, redactSensitive = true))
+        LauncherTelemetry.recordException(throwable.redactedForTelemetry())
     }
 
     /**
@@ -117,8 +162,14 @@ internal object LauncherDebugLog {
 
     fun activityCallback(activity: Activity, callback: String, intent: Intent? = activity.intent) {
         event(
-            "$callback taskId=${activity.taskId} finishing=${activity.isFinishing} " +
-                "changingConfig=${activity.isChangingConfigurations} intent=${intent.debugSummary()}",
+            "%s taskId=%s finishing=%s changingConfig=%s intent=%s",
+            // Every caller passes a lifecycle-method name literal, which is
+            // fixed vocabulary rather than anything of the user's.
+            safe(callback),
+            activity.taskId,
+            activity.isFinishing,
+            activity.isChangingConfigurations,
+            intent.debugSummary(),
         )
     }
 
@@ -240,18 +291,128 @@ internal fun Throwable.redactedForTelemetry(): Throwable {
  */
 internal class RedactedThrowable(message: String, cause: Throwable?) : RuntimeException(message, cause)
 
-internal fun Intent?.debugSummary(): String {
-    if (this == null) return "null"
+/**
+ * Summarizes an intent for the log, deciding field by field what the
+ * Crashlytics mirror may carry.
+ *
+ * Off device it keeps the action, the categories, the flags, the data URI's
+ * scheme and the extras' key/type shape — fixed vocabulary that says what was
+ * attempted and is the whole diagnostic value of a failed-launch report. It
+ * withholds the component and the package, which name the user's installed
+ * apps.
+ *
+ * Returning a [LogSummary] rather than a `String` is what makes that split
+ * possible: as a plain string the summary would be withheld whole, and a
+ * launch failure nobody can diagnose is a loss of its own.
+ */
+internal fun Intent?.debugSummary(): LogSummary {
+    if (this == null) return LogSummary("null", "null")
     val categories = categories?.sorted().orEmpty()
-    return buildString {
-        append("action=").append(action ?: "null")
-        append(" categories=").append(categories)
-        append(" flags=0x").append(Integer.toHexString(flags))
-        append(" component=").append(component?.flattenToShortString() ?: "null")
-        append(" package=").append(`package` ?: "null")
-        append(" data=").append(data.redactedSummary())
-        append(" extras=").append(extras.debugSummary())
-    }
+    val flagsText = " flags=0x" + Integer.toHexString(flags)
+    val dataSummary = data.redactedSummary()
+    val extrasSummary = extras.debugSummary()
+
+    fun head(actionText: String, categoriesText: String) =
+        "action=$actionText categories=$categoriesText$flagsText"
+
+    val fullHead = head(action ?: "null", categories.toString())
+    val mirroredHead = head(
+        mirroredVocabulary(action),
+        categories.map { mirroredVocabulary(it) }.toString(),
+    )
+    val fullData = dataSummary
+    val mirroredData = mirroredScheme(data?.scheme, dataSummary)
+
+    return LogSummary(
+        full = "$fullHead component=${component?.flattenToShortString() ?: "null"} " +
+            "package=${`package` ?: "null"} data=$fullData extras=${extrasSummary.full}",
+        mirrored = "$mirroredHead component=$REDACTED_PLACEHOLDER " +
+            "package=$REDACTED_PLACEHOLDER data=$mirroredData extras=${extrasSummary.mirrored}",
+    )
+}
+
+/**
+ * `MainActivity` is exported, so any app can start it — through `onNewIntent`
+ * too — with an action, categories, extra keys and data scheme of its choosing.
+ * Those fields are fixed vocabulary only for the intents the launcher builds
+ * itself; on a received one they are attacker-chosen strings that can carry an
+ * installed package's name, or text of the caller's own.
+ *
+ * So the mirror carries such a field only when it **is** one of the constants
+ * below. A namespace-prefix test is not enough: nothing stops a caller naming
+ * its action `android.alice@example.com`, and a prefix check would wave that
+ * through. Exact membership of a set fixed at compile time cannot be spoofed.
+ *
+ * The constants are referenced through the framework's own symbols rather than
+ * spelled out, so a rename cannot silently turn a carried value into a withheld
+ * one. Anything absent from the set is withheld, which is the safe direction:
+ * an action this launcher never handles is one whose diagnostic value is low
+ * and whose provenance is unknown. Add to the set when a value proves worth
+ * seeing, rather than widening the test.
+ */
+private val KNOWN_INTENT_VOCABULARY: Set<String> = setOf(
+    Intent.ACTION_MAIN,
+    Intent.ACTION_VIEW,
+    Intent.ACTION_SENDTO,
+    Intent.ACTION_SEND,
+    Intent.ACTION_DIAL,
+    Intent.ACTION_CALL,
+    Intent.ACTION_EDIT,
+    Intent.ACTION_INSERT,
+    Intent.ACTION_PICK,
+    Intent.ACTION_CHOOSER,
+    Intent.ACTION_CREATE_DOCUMENT,
+    Intent.ACTION_OPEN_DOCUMENT,
+    Intent.ACTION_GET_CONTENT,
+    Intent.ACTION_SET_WALLPAPER,
+    Intent.ACTION_DATE_CHANGED,
+    Intent.ACTION_TIME_CHANGED,
+    Intent.ACTION_TIMEZONE_CHANGED,
+    Intent.ACTION_LOCALE_CHANGED,
+    Intent.ACTION_MANAGED_PROFILE_ADDED,
+    Intent.ACTION_MANAGED_PROFILE_REMOVED,
+    Intent.ACTION_MANAGED_PROFILE_AVAILABLE,
+    Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE,
+    Intent.CATEGORY_DEFAULT,
+    Intent.CATEGORY_HOME,
+    Intent.CATEGORY_LAUNCHER,
+    Intent.CATEGORY_BROWSABLE,
+    Intent.CATEGORY_OPENABLE,
+    Intent.CATEGORY_APP_CALENDAR,
+    Intent.CATEGORY_APP_CONTACTS,
+    Intent.EXTRA_TEXT,
+    Intent.EXTRA_SUBJECT,
+    Intent.EXTRA_TITLE,
+    Intent.EXTRA_STREAM,
+    Intent.EXTRA_INTENT,
+    Intent.EXTRA_MIME_TYPES,
+    AppWidgetManager.EXTRA_APPWIDGET_ID,
+    AppWidgetManager.EXTRA_APPWIDGET_PROVIDER,
+    AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE,
+    AppWidgetManager.EXTRA_APPWIDGET_OPTIONS,
+)
+
+private fun mirroredVocabulary(value: String?): String = when {
+    value == null -> "null"
+    value in KNOWN_INTENT_VOCABULARY -> value
+    else -> REDACTED_PLACEHOLDER
+}
+
+/**
+ * Schemes the platform defines, which therefore say nothing about who is
+ * holding the phone. A custom scheme is usually an app's own and names it, so
+ * it is withheld — the URI's authority and payload are already gone either way
+ * (see [redactedSummary]). Exact membership for the same reason as above.
+ */
+private val KNOWN_URI_SCHEMES = setOf(
+    "content", "file", "http", "https", "tel", "mailto", "smsto", "sms",
+    "geo", "market", "package", "android_resource", "intent", "voicemail",
+)
+
+private fun mirroredScheme(scheme: String?, fullSummary: String): String = when {
+    scheme == null -> fullSummary
+    scheme.lowercase() in KNOWN_URI_SCHEMES -> fullSummary
+    else -> REDACTED_PLACEHOLDER
 }
 
 /**
@@ -295,30 +456,68 @@ internal fun Uri?.redactedSummary(): String {
 // Bundle getters can't stand in here — the value type is unknown, which is
 // exactly what the untyped `get` reports — so the deprecation is suppressed.
 @Suppress("DEPRECATION")
-internal fun Bundle?.debugSummary(): String =
-    try {
+/**
+ * Extras rendered as `key=ValueTypeName` — never a value.
+ *
+ * The value *types* are safe: they are class names, fixed by whoever compiled
+ * the sender. The **keys** are not, on an intent the launcher received rather
+ * than built: an arbitrary caller picks them, so a key can name a package or
+ * carry text of its own. The mirror therefore keeps a key only when it is
+ * framework, AndroidX or this app's own vocabulary ([isKnownVocabulary]), and
+ * withholds the rest while still showing how many extras there were and of
+ * what types — which is what an extras-shape bug is actually read for.
+ */
+internal fun Bundle?.debugSummary(): LogSummary {
+    fun render(mirror: Boolean) = try {
         this?.keySet()
             ?.sorted()
             ?.joinToString(prefix = "[", postfix = "]") { key ->
-                "$key=${get(key)?.javaClass?.simpleName ?: "null"}"
+                val name = if (mirror) mirroredVocabulary(key) else key
+                "$name=${get(key)?.javaClass?.simpleName ?: "null"}"
             }
             ?: "null"
     } catch (_: RuntimeException) {
         "[unreadable]"
     }
-
-internal fun KeyEvent?.debugSummary(): String {
-    if (this == null) return "null"
-    return "action=$action keyCode=$keyCode repeat=$repeatCount downTime=$downTime eventTime=$eventTime"
+    return LogSummary(full = render(mirror = false), mirrored = render(mirror = true))
 }
 
-internal fun Window.debugSummary(): String =
-    "attributes={type=${attributes.type}, flags=0x${attributes.flags.toString(16)}, " +
+/**
+ * Summarizes a key event, withholding **which key** from the mirror.
+ *
+ * `keyCode` is the one field here that is the user's rather than the device's.
+ * This is a type-to-search launcher: keys pressed on the home screen are the
+ * query, so a run of key codes in a crash report reconstructs what someone
+ * typed — which is search history, and off limits by the *Privacy* rule.
+ * It stays in the on-device log, where the timing and ordering of key events
+ * is what makes an input-handling bug reproducible and where the user reviews
+ * the report before sharing it.
+ *
+ * The rest — the action, the repeat count and the timestamps — is what a stuck
+ * key or a swallowed event is actually diagnosed from, and none of it says
+ * which key it was.
+ */
+internal fun KeyEvent?.debugSummary(): LogSummary {
+    if (this == null) return LogSummary("null", "null")
+    val tail = "repeat=$repeatCount downTime=$downTime eventTime=$eventTime"
+    return LogSummary(
+        full = "action=$action keyCode=$keyCode $tail",
+        mirrored = "action=$action keyCode=$REDACTED_PLACEHOLDER $tail",
+    )
+}
+
+internal fun Window.debugSummary(): LogSummary {
+    val text = "attributes={type=${attributes.type}, flags=0x${attributes.flags.toString(16)}, " +
         "softInputMode=0x${attributes.softInputMode.toString(16)}} " +
         "decor=${decorView.width}x${decorView.height} visibility=${decorView.visibility}"
+    // Window geometry and flags, all of it set by the launcher itself.
+    return LogSummary(text, text)
+}
 
-internal fun LauncherUiState.debugSummary(): String =
-    "destination=$destination lastWidgetPage=$lastWidgetPage " +
+internal fun LauncherUiState.debugSummary(): LogSummary {
+    // Enums, counts and flags only. `queryLength` is deliberately the query's
+    // length and never its text, which is search history.
+    val text = "destination=$destination lastWidgetPage=$lastWidgetPage " +
         "settingsOpen=$isSettingsOpen queryLength=${query.length} " +
         "filtered=${filteredApps.size} docked=${dockedApps.size} widgets=${widgetIds.size} " +
         "widgetPages=${widgetPages.size} " +
@@ -332,3 +531,5 @@ internal fun LauncherUiState.debugSummary(): String =
         "recents=${recentApps.size} recentsOpen=$isRecentsOpen " +
         "hidden=${hiddenApps.size} " +
         "themeMode=$themeMode playUpdate=${playUpdate::class.simpleName}"
+    return LogSummary(text, text)
+}

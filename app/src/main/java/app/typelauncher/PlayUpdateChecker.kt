@@ -109,7 +109,7 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
                 // null `updateInfo`: if a flexible update is already downloaded,
                 // the Restart action and the in-flight install listener must
                 // keep working across a transient recheck failure.
-                LauncherDebugLog.warning("Play update check failed", exception)
+                LauncherDebugLog.failure(exception, "Play update check failed")
                 onCheckFailed()
             }
     }
@@ -148,7 +148,7 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
             }
             launched
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("Play update flow failed to start", exception)
+            LauncherDebugLog.failure(exception, "Play update flow failed to start")
             false
         }
     }
@@ -165,7 +165,7 @@ internal class PlayUpdateChecker @VisibleForTesting constructor(
         LauncherDebugLog.event("Play update: completing flexible update on user request")
         appUpdateManager.completeUpdate()
             .addOnFailureListener { exception ->
-                LauncherDebugLog.warning("Play update install failed to start", exception)
+                LauncherDebugLog.failure(exception, "Play update install failed to start")
                 onFailure()
             }
     }

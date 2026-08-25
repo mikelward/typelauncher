@@ -153,7 +153,7 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
     private val requestCalendarPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            LauncherDebugLog.event("requestCalendarPermission result granted=$it")
+            LauncherDebugLog.event("requestCalendarPermission result granted=%s", it)
             viewModel.refreshAgenda()
         }
     // Settings "Search contacts" / "Search calendar events": the toggle only
@@ -161,12 +161,12 @@ class MainActivity : ComponentActivity() {
     // switch off — no revert bookkeeping.
     private val requestContactSearchPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            LauncherDebugLog.event("requestContactSearchPermission result granted=$granted")
+            LauncherDebugLog.event("requestContactSearchPermission result granted=%s", granted)
             if (granted) viewModel.setContactSearchEnabled(true)
         }
     private val requestCalendarSearchPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            LauncherDebugLog.event("requestCalendarSearchPermission result granted=$granted")
+            LauncherDebugLog.event("requestCalendarSearchPermission result granted=%s", granted)
             if (granted) viewModel.setCalendarSearchEnabled(true)
         }
     // The first Call on a contact's quick-action card requests CALL_PHONE; the
@@ -174,14 +174,14 @@ class MainActivity : ComponentActivity() {
     // call when granted, opening the dialer when refused).
     private val requestCallPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            LauncherDebugLog.event("requestCallPermission result granted=$granted")
+            LauncherDebugLog.event("requestCallPermission result granted=%s", granted)
             viewModel.onCallPermissionResult(granted)
         }
     // The first favorite/set-default action on a contact requests WRITE_CONTACTS;
     // the ViewModel parked the write and replays it on the result.
     private val requestWriteContactsPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            LauncherDebugLog.event("requestWriteContactsPermission result granted=$granted")
+            LauncherDebugLog.event("requestWriteContactsPermission result granted=%s", granted)
             viewModel.onWriteContactsPermissionResult(granted)
         }
     // Ordinarily does nothing with the result. `onResume` (which always runs
@@ -223,8 +223,10 @@ class MainActivity : ComponentActivity() {
                 AppWidgetManager.INVALID_APPWIDGET_ID,
             )
             LauncherDebugLog.event(
-                "bindWidget resultCode=${result.resultCode} resultWidgetId=$resultWidgetId " +
-                    "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+                "bindWidget resultCode=%s resultWidgetId=%s pendingWidgetId=%s",
+                result.resultCode,
+                resultWidgetId,
+                widgetAddFlow.pendingWidgetId,
             )
             widgetAddFlow.onBindResult(result.resultCode == RESULT_OK, resultWidgetId)
         }
@@ -239,13 +241,10 @@ class MainActivity : ComponentActivity() {
             val providerInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
             val configure = providerInfo?.configure
             if (configure != null) {
-                // A widget provider need not have a launcher activity, so its
-                // package can be absent from the installed-app list the
-                // redactor is seeded from. Remember it before it is logged.
-                TelemetryRedaction.rememberPackage(configure.packageName)
                 LauncherDebugLog.event(
-                    "configureOrAddWidget launching configure appWidgetId=$appWidgetId " +
-                        "configure=${configure.flattenToShortString()}",
+                    "configureOrAddWidget launching configure appWidgetId=%s configure=%s",
+                    appWidgetId,
+                    configure.flattenToShortString(),
                 )
                 try {
                     // Host-mediated launch: the system grants the start
@@ -266,17 +265,19 @@ class MainActivity : ComponentActivity() {
                     )
                     WidgetAddFlow.ConfigureLaunch.Launched
                 } catch (exception: ActivityNotFoundException) {
-                    LauncherDebugLog.warning("configure launch failed appWidgetId=$appWidgetId", exception)
+                    LauncherDebugLog.failure(exception, "configure launch failed appWidgetId=%s", appWidgetId)
                     Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
                     WidgetAddFlow.ConfigureLaunch.Failed
                 } catch (exception: SecurityException) {
-                    LauncherDebugLog.warning("configure launch failed appWidgetId=$appWidgetId", exception)
+                    LauncherDebugLog.failure(exception, "configure launch failed appWidgetId=%s", appWidgetId)
                     Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
                     WidgetAddFlow.ConfigureLaunch.Failed
                 }
             } else {
                 LauncherDebugLog.event(
-                    "configureOrAddWidget adding appWidgetId=$appWidgetId hasProvider=${providerInfo != null}",
+                    "configureOrAddWidget adding appWidgetId=%s hasProvider=%s",
+                    appWidgetId,
+                    providerInfo != null,
                 )
                 WidgetAddFlow.ConfigureLaunch.NotNeeded
             }
@@ -297,12 +298,18 @@ class MainActivity : ComponentActivity() {
                     // is gone), so honor the removal: delete the freshly-bound ID
                     // instead of adding it — otherwise it leaks in AppWidgetService.
                     LauncherDebugLog.event(
-                        "restore target $restoreTarget removed mid-flight; deleting fresh id=$appWidgetId",
+                        "restore target %s removed mid-flight; deleting fresh id=%s",
+                        restoreTarget,
+                        appWidgetId,
                     )
                     lifecycleScope.launch(ioDispatcher) {
                         runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
                             .onFailure { exception ->
-                                LauncherDebugLog.warning("failed to delete abandoned restore id=$appWidgetId", exception)
+                                LauncherDebugLog.failure(
+                                    exception,
+                                    "failed to delete abandoned restore id=%s",
+                                    appWidgetId,
+                                )
                             }
                     }
                     appWidgetHost.forgetWidgetSize(appWidgetId)
@@ -312,7 +319,7 @@ class MainActivity : ComponentActivity() {
         deleteWidget = { appWidgetId ->
             // A canceled/failed bind ends any restore attempt too.
             restoreTargetWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
-            LauncherDebugLog.event("deletePendingWidget appWidgetId=$appWidgetId")
+            LauncherDebugLog.event("deletePendingWidget appWidgetId=%s", appWidgetId)
             // The host-binding delete is a Binder IPC — keep it off the main
             // thread (same policy as removeWidget and
             // reconcileOrphanedWidgets). This lambda runs from main-thread
@@ -324,10 +331,7 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch(ioDispatcher) {
                 runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
                     .onFailure { exception ->
-                        LauncherDebugLog.warning(
-                            "deletePendingWidget: failed to delete id=$appWidgetId",
-                            exception,
-                        )
+                        LauncherDebugLog.failure(exception, "deletePendingWidget: failed to delete id=%s", appWidgetId)
                     }
             }
         },
@@ -350,10 +354,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
-        LauncherDebugLog.event("onCreate savedInstanceState=${savedInstanceState.debugSummary()}")
+        LauncherDebugLog.event("onCreate savedInstanceState=%s", savedInstanceState.debugSummary())
         androidTrace("launcher.super_onCreate") { super.onCreate(savedInstanceState) }
         enableEdgeToEdge()
-        LauncherDebugLog.event("onCreate afterSuper window=${window.debugSummary()}")
+        LauncherDebugLog.event("onCreate afterSuper window=%s", window.debugSummary())
         // Wraps onCreate → first pre-draw so Firebase Performance shows the
         // launcher's own cold-start time alongside the SDK's auto-instrumented
         // app_start trace. The auto trace covers Application.onCreate +
@@ -365,7 +369,7 @@ class MainActivity : ComponentActivity() {
             if (savedInstanceState == null) "absent" else "present",
         )
         window.decorView.doOnPreDraw {
-            LauncherDebugLog.event("MainActivity firstPreDraw window=${window.debugSummary()}")
+            LauncherDebugLog.event("MainActivity firstPreDraw window=%s", window.debugSummary())
             coldStartTrace.stop()
         }
         androidTrace("launcher.appwidget_init") {
@@ -414,7 +418,7 @@ class MainActivity : ComponentActivity() {
         // when the decor attaches, which is inside the first traversal and so
         // still ahead of the first draw (Codex on PR #648, rounds 12 and 15).
         window.decorView.doOnPreDraw { it.post { playUpdateChecker.registerInstallListener() } }
-        LauncherDebugLog.event("AppWidgetHost initialized hostId=$APP_WIDGET_HOST_ID")
+        LauncherDebugLog.event("AppWidgetHost initialized hostId=%s", APP_WIDGET_HOST_ID)
         androidTrace("launcher.viewmodel_init") {
             viewModel = ViewModelProvider(
                 this,
@@ -433,7 +437,7 @@ class MainActivity : ComponentActivity() {
             val recoveryToken = viewModel.onPlayUpdateInstallStatus(status)
             if (recoveryToken != null) checkPlayUpdate(recoveryToken)
         }
-        LauncherDebugLog.event("ViewModel ready ${viewModel.uiState.value.debugSummary()}")
+        LauncherDebugLog.event("ViewModel ready %s", viewModel.uiState.value.debugSummary())
         // A "Show wallpaper" toggle restarts the launcher through a fresh
         // activity start (see `restartForWallpaperWindowMode`); the restart
         // intent asks the new instance to land back in Settings so the toggle
@@ -684,7 +688,7 @@ class MainActivity : ComponentActivity() {
     internal fun onPlayUpdateLaunchResult(result: ActivityResult) {
         val launchException = intentSenderLaunchException(result)
         if (launchException != null) {
-            LauncherDebugLog.warning("Play update sheet failed to launch", launchException)
+            LauncherDebugLog.failure(launchException, "Play update sheet failed to launch")
             recoverFromFailedPlayUpdateLaunch()
             return
         }
@@ -762,7 +766,7 @@ class MainActivity : ComponentActivity() {
             appWidgetHost.stopListening()
             LauncherDebugLog.event("AppWidgetHost.stopListening")
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("AppWidgetHost.stopListening failed", exception)
+            LauncherDebugLog.failure(exception, "AppWidgetHost.stopListening failed")
         }
     }
 
@@ -772,7 +776,7 @@ class MainActivity : ComponentActivity() {
             appWidgetHost.startListening()
             LauncherDebugLog.event("AppWidgetHost.startListening")
         } catch (exception: RuntimeException) {
-            LauncherDebugLog.warning("AppWidgetHost.startListening failed", exception)
+            LauncherDebugLog.failure(exception, "AppWidgetHost.startListening failed")
         }
     }
 
@@ -970,7 +974,7 @@ class MainActivity : ComponentActivity() {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
             window.setFormat(PixelFormat.OPAQUE)
         }
-        LauncherDebugLog.event("applyWallpaperWindowMode wallpaperShown=$wallpaperShown")
+        LauncherDebugLog.event("applyWallpaperWindowMode wallpaperShown=%s", wallpaperShown)
     }
 
     /**
@@ -1034,7 +1038,7 @@ class MainActivity : ComponentActivity() {
             SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         }
         enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-        LauncherDebugLog.event("applyEdgeToEdgeForThemeMode mode=$mode isDark=$isDark")
+        LauncherDebugLog.event("applyEdgeToEdgeForThemeMode mode=%s isDark=%s", mode, isDark)
     }
 
     // SOFT_INPUT_ADJUST_RESIZE is deprecated in favor of a WindowInsets/IME
@@ -1055,7 +1059,7 @@ class MainActivity : ComponentActivity() {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
             }
         window.setSoftInputMode(mode)
-        LauncherDebugLog.event("applyKeyboardAutoShownPreference autoShown=$autoShown mode=0x${mode.toString(16)}")
+        LauncherDebugLog.event("applyKeyboardAutoShownPreference autoShown=%s mode=0x%s", autoShown, mode.toString(16))
     }
 
     private fun observeHomeReady() {
@@ -1105,7 +1109,7 @@ class MainActivity : ComponentActivity() {
         hasReconciledWidgets = true
         lifecycleScope.launch(ioDispatcher) {
             val allocatedIds = runCatching { appWidgetHost.appWidgetIds }.getOrElse { exception ->
-                LauncherDebugLog.warning("widget reconciliation: failed to read allocated ids", exception)
+                LauncherDebugLog.failure(exception, "widget reconciliation: failed to read allocated ids")
                 return@launch
             }
             val knownWidgetIds = viewModel.uiState.value.widgetIds
@@ -1129,15 +1133,16 @@ class MainActivity : ComponentActivity() {
                     id !in allocatedSet
             }
             if (orphans.isNotEmpty()) {
-                LauncherDebugLog.event("widget reconciliation deleting ${orphans.size} orphaned ids=$orphans")
+                LauncherDebugLog.event("widget reconciliation deleting %s orphaned ids=%s", orphans.size, orphans)
                 orphans.forEach { id ->
                     // The host-binding delete is a Binder IPC — keep it off the
                     // main thread.
                     runCatching { appWidgetHost.deleteAppWidgetId(id) }
                         .onFailure { exception ->
-                            LauncherDebugLog.warning(
-                                "widget reconciliation: failed to delete orphaned id=$id",
+                            LauncherDebugLog.failure(
                                 exception,
+                                "widget reconciliation: failed to delete orphaned id=%s",
+                                id,
                             )
                         }
                 }
@@ -1154,38 +1159,44 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        LauncherDebugLog.event("MainActivity.onSaveInstanceState beforeSuper outState=${outState.debugSummary()}")
+        LauncherDebugLog.event("MainActivity.onSaveInstanceState beforeSuper outState=%s", outState.debugSummary())
         // Carry the in-flight add ID across recreation; see KEY_PENDING_WIDGET_ID.
         outState.putInt(KEY_PENDING_WIDGET_ID, widgetAddFlow.pendingWidgetId)
         outState.putInt(KEY_RESTORE_TARGET_WIDGET_ID, restoreTargetWidgetId)
         super.onSaveInstanceState(outState)
-        LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=${outState.debugSummary()}")
+        LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=%s", outState.debugSummary())
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         LauncherDebugLog.event(
-            "MainActivity.onRestoreInstanceState beforeSuper savedInstanceState=${savedInstanceState.debugSummary()}",
+            "MainActivity.onRestoreInstanceState beforeSuper savedInstanceState=%s",
+            savedInstanceState.debugSummary(),
         )
         super.onRestoreInstanceState(savedInstanceState)
         LauncherDebugLog.event(
-            "MainActivity.onRestoreInstanceState afterSuper savedInstanceState=${savedInstanceState.debugSummary()}",
+            "MainActivity.onRestoreInstanceState afterSuper savedInstanceState=%s",
+            savedInstanceState.debugSummary(),
         )
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        LauncherDebugLog.event("MainActivity.onAttachedToWindow window=${window.debugSummary()}")
+        LauncherDebugLog.event("MainActivity.onAttachedToWindow window=%s", window.debugSummary())
         window.decorView.windowToken?.let(::reportCenteredWallpaperOffsets)
     }
 
     override fun onDetachedFromWindow() {
-        LauncherDebugLog.event("MainActivity.onDetachedFromWindow window=${window.debugSummary()}")
+        LauncherDebugLog.event("MainActivity.onDetachedFromWindow window=%s", window.debugSummary())
         super.onDetachedFromWindow()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        LauncherDebugLog.event("MainActivity.onWindowFocusChanged hasFocus=$hasFocus window=${window.debugSummary()}")
+        LauncherDebugLog.event(
+            "MainActivity.onWindowFocusChanged hasFocus=%s window=%s",
+            hasFocus,
+            window.debugSummary(),
+        )
         if (hasFocus && ::viewModel.isInitialized) {
             if (hasSeenInitialWindowFocus) {
                 viewModel.requestShowKeyboardOnHomeResume()
@@ -1198,15 +1209,22 @@ class MainActivity : ComponentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         LauncherDebugLog.event(
-            "MainActivity.onConfigurationChanged orientation=${newConfig.orientation} " +
-                "keyboard=${newConfig.keyboard} keyboardHidden=${newConfig.keyboardHidden} " +
-                "uiMode=0x${newConfig.uiMode.toString(16)} screenLayout=0x${newConfig.screenLayout.toString(16)}",
+            "MainActivity.onConfigurationChanged orientation=%s keyboard=%s keyboardHidden=%s uiMode=0x%s screenLayout=0x%s",
+            newConfig.orientation,
+            newConfig.keyboard,
+            newConfig.keyboardHidden,
+            newConfig.uiMode.toString(16),
+            newConfig.screenLayout.toString(16),
         )
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        LauncherDebugLog.event("MainActivity.onTrimMemory level=$level description=${level.trimMemoryDescription()}")
+        LauncherDebugLog.event(
+            "MainActivity.onTrimMemory level=%s description=%s",
+            level,
+            level.trimMemoryDescription(),
+        )
     }
 
     override fun onLowMemory() {
@@ -1220,12 +1238,30 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        LauncherDebugLog.event("MainActivity.onKeyDown keyCode=$keyCode event=${event.debugSummary()}")
+        // `keyCode` is withheld from the mirror here as well as inside the
+        // summary: this argument is an Int, so the type rule would carry it
+        // and the redaction in `debugSummary()` would be defeated by the
+        // duplicate. On a type-to-search launcher a run of key codes is the
+        // user's query.
+        LauncherDebugLog.event(
+            "MainActivity.onKeyDown keyCode=%s event=%s",
+            sensitive(keyCode),
+            event.debugSummary(),
+        )
         return super.onKeyDown(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        LauncherDebugLog.event("MainActivity.onKeyUp keyCode=$keyCode event=${event.debugSummary()}")
+        // `keyCode` is withheld from the mirror here as well as inside the
+        // summary: this argument is an Int, so the type rule would carry it
+        // and the redaction in `debugSummary()` would be defeated by the
+        // duplicate. On a type-to-search launcher a run of key codes is the
+        // user's query.
+        LauncherDebugLog.event(
+            "MainActivity.onKeyUp keyCode=%s event=%s",
+            sensitive(keyCode),
+            event.debugSummary(),
+        )
         return super.onKeyUp(keyCode, event)
     }
 
@@ -1243,8 +1279,10 @@ class MainActivity : ComponentActivity() {
                 AppWidgetManager.INVALID_APPWIDGET_ID,
             )
             LauncherDebugLog.event(
-                "configureWidget resultCode=$resultCode resultWidgetId=$resultWidgetId " +
-                    "pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+                "configureWidget resultCode=%s resultWidgetId=%s pendingWidgetId=%s",
+                resultCode,
+                resultWidgetId,
+                widgetAddFlow.pendingWidgetId,
             )
             widgetAddFlow.onConfigureResult(resultCode == RESULT_OK, resultWidgetId)
         }
@@ -1265,21 +1303,20 @@ class MainActivity : ComponentActivity() {
     private fun onRestoreWidget(widgetId: Int) {
         val record = viewModel.widgetProviderRecord(widgetId)
         if (record == null) {
-            LauncherDebugLog.warning("onRestoreWidget: no provider record for id=$widgetId")
+            LauncherDebugLog.warning("onRestoreWidget: no provider record for id=%s", widgetId)
             return
         }
         val profile = getSystemService<UserManager>()?.getUserForSerialNumber(record.profileSerial)
         if (profile == null) {
             LauncherDebugLog.warning(
-                "onRestoreWidget: unresolved profile serial=${record.profileSerial} id=$widgetId",
+                "onRestoreWidget: unresolved profile serial=%s id=%s",
+                record.profileSerial,
+                widgetId,
             )
             Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
-        TelemetryRedaction.rememberPackage(record.component.packageName)
-        LauncherDebugLog.event(
-            "onRestoreWidget id=$widgetId component=${record.component.flattenToShortString()}",
-        )
+        LauncherDebugLog.event("onRestoreWidget id=%s component=%s", widgetId, record.component.flattenToShortString())
         startWidgetBind(record.component, profile, restoreTargetId = widgetId)
     }
 
@@ -1307,11 +1344,11 @@ class MainActivity : ComponentActivity() {
             id = appWidgetHost.allocateAppWidgetId()
         }
         if (discarded.isNotEmpty()) {
-            LauncherDebugLog.event("allocateFreshWidgetId re-rolled past ${discarded.size} tracked ids=$discarded")
+            LauncherDebugLog.event("allocateFreshWidgetId re-rolled past %s tracked ids=%s", discarded.size, discarded)
             discarded.forEach { discardedId -> runCatching { appWidgetHost.deleteAppWidgetId(discardedId) } }
         }
         if (id in tracked) {
-            LauncherDebugLog.warning("allocateFreshWidgetId exhausted retries, id=$id still tracked")
+            LauncherDebugLog.warning("allocateFreshWidgetId exhausted retries, id=%s still tracked", id)
         }
         return id
     }
@@ -1330,7 +1367,8 @@ class MainActivity : ComponentActivity() {
         // refused second tap doesn't allocate — and leak — a second ID.
         if (widgetAddFlow.isAddInFlight || bindLaunchInFlight) {
             LauncherDebugLog.event(
-                "bindWidget ignored: add in flight pendingWidgetId=${widgetAddFlow.pendingWidgetId}",
+                "bindWidget ignored: add in flight pendingWidgetId=%s",
+                widgetAddFlow.pendingWidgetId,
             )
             return
         }
@@ -1354,10 +1392,11 @@ class MainActivity : ComponentActivity() {
                     bindingWidgetId = id
                 }
             }
-            TelemetryRedaction.rememberPackage(component.packageName)
             LauncherDebugLog.event(
-                "bindWidget provider=${component.flattenToShortString()} appWidgetId=$appWidgetId " +
-                    "restoreTargetId=$restoreTargetId",
+                "bindWidget provider=%s appWidgetId=%s restoreTargetId=%s",
+                component.flattenToShortString(),
+                appWidgetId,
+                restoreTargetId,
             )
             val allowed = try {
                 withContext(ioDispatcher) {
@@ -1373,9 +1412,10 @@ class MainActivity : ComponentActivity() {
                 // Release the allocated ID and reset the latches (onBindStarted
                 // hasn't run yet, so no pendingWidgetId is wedged), then surface
                 // the same unavailable toast as a failed picker launch.
-                LauncherDebugLog.warning(
-                    "bindWidget failed: provider ${component.flattenToShortString()} not bindable",
+                LauncherDebugLog.failure(
                     exception,
+                    "bindWidget failed: provider %s not bindable",
+                    component.flattenToShortString(),
                 )
                 withContext(ioDispatcher) { runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) } }
                 bindingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
@@ -1399,7 +1439,7 @@ class MainActivity : ComponentActivity() {
             bindingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
             bindLaunchInFlight = false
             if (allowed) {
-                LauncherDebugLog.event("bindWidget allowed appWidgetId=$appWidgetId")
+                LauncherDebugLog.event("bindWidget allowed appWidgetId=%s", appWidgetId)
                 widgetAddFlow.onBindAllowed(appWidgetId)
                 return@launch
             }
@@ -1409,14 +1449,14 @@ class MainActivity : ComponentActivity() {
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, component)
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, profile)
             try {
-                LauncherDebugLog.event("bindWidget launching system bind intent appWidgetId=$appWidgetId")
+                LauncherDebugLog.event("bindWidget launching system bind intent appWidgetId=%s", appWidgetId)
                 bindWidgetLauncher.launch(bindIntent)
             } catch (exception: ActivityNotFoundException) {
-                LauncherDebugLog.warning("bindWidget failed: picker unavailable", exception)
+                LauncherDebugLog.failure(exception, "bindWidget failed: picker unavailable")
                 widgetAddFlow.onBindLaunchFailed()
                 Toast.makeText(this@MainActivity, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
             } catch (exception: SecurityException) {
-                LauncherDebugLog.warning("bindWidget failed: security exception", exception)
+                LauncherDebugLog.failure(exception, "bindWidget failed: security exception")
                 widgetAddFlow.onBindLaunchFailed()
                 Toast.makeText(this@MainActivity, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
             }
@@ -1424,7 +1464,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun removeWidget(appWidgetId: Int) {
-        LauncherDebugLog.event("removeWidget appWidgetId=$appWidgetId")
+        LauncherDebugLog.event("removeWidget appWidgetId=%s", appWidgetId)
         viewModel.removeWidget(appWidgetId)
         // The host-binding delete is a Binder IPC — keep it off the main
         // thread (same policy as reconcileOrphanedWidgets) so a busy
@@ -1434,7 +1474,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(ioDispatcher) {
             runCatching { appWidgetHost.deleteAppWidgetId(appWidgetId) }
                 .onFailure { exception ->
-                    LauncherDebugLog.warning("removeWidget: failed to delete id=$appWidgetId", exception)
+                    LauncherDebugLog.failure(exception, "removeWidget: failed to delete id=%s", appWidgetId)
                 }
         }
         // Drop the persisted size cache entry so the widget_size_cache
@@ -1454,7 +1494,7 @@ class MainActivity : ComponentActivity() {
             // Some OEM builds ship no activity for ROLE_HOME's request intent
             // or for ACTION_HOME_SETTINGS — launching it unguarded crashed the
             // launcher. Swallow the miss so the prompt just no-ops instead.
-            LauncherDebugLog.warning("requestDefaultLauncher no activity for home settings", exception)
+            LauncherDebugLog.failure(exception, "requestDefaultLauncher no activity for home settings")
         }
     }
 
