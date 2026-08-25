@@ -239,6 +239,10 @@ class MainActivity : ComponentActivity() {
             val providerInfo = appWidgetManager.getAppWidgetInfo(appWidgetId)
             val configure = providerInfo?.configure
             if (configure != null) {
+                // A widget provider need not have a launcher activity, so its
+                // package can be absent from the installed-app list the
+                // redactor is seeded from. Remember it before it is logged.
+                TelemetryRedaction.rememberPackage(configure.packageName)
                 LauncherDebugLog.event(
                     "configureOrAddWidget launching configure appWidgetId=$appWidgetId " +
                         "configure=${configure.flattenToShortString()}",
@@ -1264,6 +1268,7 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
+        TelemetryRedaction.rememberPackage(record.component.packageName)
         LauncherDebugLog.event(
             "onRestoreWidget id=$widgetId component=${record.component.flattenToShortString()}",
         )
@@ -1341,6 +1346,7 @@ class MainActivity : ComponentActivity() {
                     bindingWidgetId = id
                 }
             }
+            TelemetryRedaction.rememberPackage(component.packageName)
             LauncherDebugLog.event(
                 "bindWidget provider=${component.flattenToShortString()} appWidgetId=$appWidgetId " +
                     "restoreTargetId=$restoreTargetId",
