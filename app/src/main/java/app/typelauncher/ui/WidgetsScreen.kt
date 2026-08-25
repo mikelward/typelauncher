@@ -63,6 +63,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -509,6 +510,24 @@ private fun WidgetPreview(
     }
     val preview = loadedPreview
     var generatedInflationFailed by remember(preview?.generated) { mutableStateOf(false) }
+    // The static preview is only drawn when there is no generated RemoteViews
+    // to prefer, or when that one turned out not to inflate — so it is only
+    // rasterized then. A provider that ships a large legacy preview alongside
+    // a generated one would otherwise pay a full-size draw and allocation per
+    // expanded row for a bitmap nothing ever shows.
+    val staticImage = preview?.image
+    val needsStaticImage = preview != null && (preview.generated == null || generatedInflationFailed)
+    // `Dispatchers.Default`, not the `IO` the fetch above uses: converting a
+    // drawable is CPU-bound, and IO's parallelism would let one expanded app's
+    // rows run many full-size draws at once against the UI thread. Same split
+    // AppIconLoader.performLoad makes between resolving an icon and
+    // normalizing it.
+    val previewBitmap by produceState<ImageBitmap?>(null, staticImage, needsStaticImage) {
+        value = null
+        if (staticImage == null || !needsStaticImage) return@produceState
+        value = withContext(Dispatchers.Default) { staticImage.toBitmap().asImageBitmap() }
+    }
+    val staticBitmap = previewBitmap
 
     Surface(
         modifier = modifier,
@@ -529,13 +548,9 @@ private fun WidgetPreview(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            preview?.image != null -> {
-                val previewImage = preview.image
-                val previewBitmap = remember(previewImage) {
-                    previewImage.toBitmap().asImageBitmap()
-                }
+            staticBitmap != null -> {
                 Image(
-                    bitmap = previewBitmap,
+                    bitmap = staticBitmap,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
