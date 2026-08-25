@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">کام %1$s</string>
     <string name="widgets_restore_action">%1$s ویجٹ بحال کرنے کے لیے تھپتھپائیں</string>
     <string name="settings_show_wallpaper_title">وال پیپر دکھائیں</string>
+    <string name="settings_wallpaper_title">وال پیپر</string>
+    <string name="settings_change_wallpaper_button">تبدیل کریں</string>
+    <string name="settings_change_wallpaper_button_description">وال پیپر تبدیل کریں</string>
+    <string name="settings_wallpaper_picker_unavailable">وال پیپر منتخب کنندہ دستیاب نہیں</string>
 </resources>

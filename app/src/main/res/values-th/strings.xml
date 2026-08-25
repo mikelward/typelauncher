@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">งาน %1$s</string>
     <string name="widgets_restore_action">แตะเพื่อคืนค่าวิดเจ็ต %1$s</string>
     <string name="settings_show_wallpaper_title">แสดงวอลเปเปอร์</string>
+    <string name="settings_wallpaper_title">วอลเปเปอร์</string>
+    <string name="settings_change_wallpaper_button">เปลี่ยน</string>
+    <string name="settings_change_wallpaper_button_description">เปลี่ยนวอลเปเปอร์</string>
+    <string name="settings_wallpaper_picker_unavailable">ไม่มีแอปเลือกวอลเปเปอร์</string>
 </resources>

@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">ಕೆಲಸ %1$s</string>
     <string name="widgets_restore_action">%1$s ವಿಜೆಟ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ</string>
     <string name="settings_show_wallpaper_title">ವಾಲ್‌ಪೇಪರ್ ತೋರಿಸಿ</string>
+    <string name="settings_wallpaper_title">ವಾಲ್‌ಪೇಪರ್</string>
+    <string name="settings_change_wallpaper_button">ಬದಲಾಯಿಸಿ</string>
+    <string name="settings_change_wallpaper_button_description">ವಾಲ್‌ಪೇಪರ್ ಬದಲಾಯಿಸಿ</string>
+    <string name="settings_wallpaper_picker_unavailable">ವಾಲ್‌ಪೇಪರ್ ಆಯ್ಕೆಗಾರ ಲಭ್ಯವಿಲ್ಲ</string>
 </resources>

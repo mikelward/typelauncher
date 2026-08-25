@@ -165,4 +165,8 @@
     <string name="app_label_with_work_prefix">عمل %1$s</string>
     <string name="widgets_restore_action">انقر لاستعادة أداة %1$s</string>
     <string name="settings_show_wallpaper_title">إظهار الخلفية</string>
+    <string name="settings_wallpaper_title">الخلفية</string>
+    <string name="settings_change_wallpaper_button">تغيير</string>
+    <string name="settings_change_wallpaper_button_description">تغيير الخلفية</string>
+    <string name="settings_wallpaper_picker_unavailable">منتقي الخلفية غير متوفر</string>
 </resources>

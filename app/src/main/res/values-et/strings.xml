@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Töö %1$s</string>
     <string name="widgets_restore_action">Puudutage vidina %1$s taastamiseks</string>
     <string name="settings_show_wallpaper_title">Kuva taustapilt</string>
+    <string name="settings_wallpaper_title">Taustapilt</string>
+    <string name="settings_change_wallpaper_button">Muuda</string>
+    <string name="settings_change_wallpaper_button_description">Muuda taustapilti</string>
+    <string name="settings_wallpaper_picker_unavailable">Taustapildi valija pole saadaval</string>
 </resources>

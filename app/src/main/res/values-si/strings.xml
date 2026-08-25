@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">කාර්යාල %1$s</string>
     <string name="widgets_restore_action">%1$s විජට් යළි පිහිටුවීමට තට්ටු කරන්න</string>
     <string name="settings_show_wallpaper_title">බිතුපත පෙන්වන්න</string>
+    <string name="settings_wallpaper_title">බිතුපත</string>
+    <string name="settings_change_wallpaper_button">වෙනස් කරන්න</string>
+    <string name="settings_change_wallpaper_button_description">බිතුපත වෙනස් කරන්න</string>
+    <string name="settings_wallpaper_picker_unavailable">බිතුපත තෝරනය නොමැත</string>
 </resources>

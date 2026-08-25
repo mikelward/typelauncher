@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">કાર્ય %1$s</string>
     <string name="widgets_restore_action">%1$s વિજેટ પુનઃસ્થાપિત કરવા ટૅપ કરો</string>
     <string name="settings_show_wallpaper_title">વૉલપેપર બતાવો</string>
+    <string name="settings_wallpaper_title">વૉલપેપર</string>
+    <string name="settings_change_wallpaper_button">બદલો</string>
+    <string name="settings_change_wallpaper_button_description">વૉલપેપર બદલો</string>
+    <string name="settings_wallpaper_picker_unavailable">વૉલપેપર પિકર ઉપલબ્ધ નથી</string>
 </resources>

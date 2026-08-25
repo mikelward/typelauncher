@@ -162,4 +162,8 @@
     <string name="app_label_with_work_prefix">Poslovni %1$s</string>
     <string name="widgets_restore_action">Dodirnite za vraćanje widgeta %1$s</string>
     <string name="settings_show_wallpaper_title">Prikaži pozadinu</string>
+    <string name="settings_wallpaper_title">Pozadina</string>
+    <string name="settings_change_wallpaper_button">Promijeni</string>
+    <string name="settings_change_wallpaper_button_description">Promijeni pozadinu</string>
+    <string name="settings_wallpaper_picker_unavailable">Odabir pozadine nije dostupan</string>
 </resources>

@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">பணி %1$s</string>
     <string name="widgets_restore_action">%1$s விட்ஜெட்டை மீட்டமைக்க தட்டவும்</string>
     <string name="settings_show_wallpaper_title">வால்பேப்பரைக் காட்டு</string>
+    <string name="settings_wallpaper_title">வால்பேப்பர்</string>
+    <string name="settings_change_wallpaper_button">மாற்று</string>
+    <string name="settings_change_wallpaper_button_description">வால்பேப்பரை மாற்று</string>
+    <string name="settings_wallpaper_picker_unavailable">வால்பேப்பர் தேர்வி கிடைக்கவில்லை</string>
 </resources>

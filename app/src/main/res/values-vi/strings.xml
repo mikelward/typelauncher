@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">Công việc %1$s</string>
     <string name="widgets_restore_action">Nhấn để khôi phục tiện ích %1$s</string>
     <string name="settings_show_wallpaper_title">Hiển thị hình nền</string>
+    <string name="settings_wallpaper_title">Hình nền</string>
+    <string name="settings_change_wallpaper_button">Thay đổi</string>
+    <string name="settings_change_wallpaper_button_description">Thay đổi hình nền</string>
+    <string name="settings_wallpaper_picker_unavailable">Không có ứng dụng chọn hình nền</string>
 </resources>

@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">ਕੰਮ %1$s</string>
     <string name="widgets_restore_action">%1$s ਵਿਜੇਟ ਮੁੜ-ਬਹਾਲ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ</string>
     <string name="settings_show_wallpaper_title">ਵਾਲਪੇਪਰ ਦਿਖਾਓ</string>
+    <string name="settings_wallpaper_title">ਵਾਲਪੇਪਰ</string>
+    <string name="settings_change_wallpaper_button">ਬਦਲੋ</string>
+    <string name="settings_change_wallpaper_button_description">ਵਾਲਪੇਪਰ ਬਦਲੋ</string>
+    <string name="settings_wallpaper_picker_unavailable">ਵਾਲਪੇਪਰ ਚੋਣਕਾਰ ਉਪਲਬਧ ਨਹੀਂ</string>
 </resources>

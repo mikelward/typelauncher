@@ -162,4 +162,8 @@
     <string name="app_label_with_work_prefix">Feina %1$s</string>
     <string name="widgets_restore_action">Toca per restaurar el widget %1$s</string>
     <string name="settings_show_wallpaper_title">Mostra el fons de pantalla</string>
+    <string name="settings_wallpaper_title">Fons de pantalla</string>
+    <string name="settings_change_wallpaper_button">Canvia</string>
+    <string name="settings_change_wallpaper_button_description">Canvia el fons de pantalla</string>
+    <string name="settings_wallpaper_picker_unavailable">El selector de fons de pantalla no està disponible</string>
 </resources>

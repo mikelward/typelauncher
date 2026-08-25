@@ -163,4 +163,8 @@
     <string name="app_label_with_work_prefix">עבודה %1$s</string>
     <string name="widgets_restore_action">הקישו לשחזור הווידג\'ט %1$s</string>
     <string name="settings_show_wallpaper_title">הצגת טפט</string>
+    <string name="settings_wallpaper_title">טפט</string>
+    <string name="settings_change_wallpaper_button">שינוי</string>
+    <string name="settings_change_wallpaper_button_description">שינוי הטפט</string>
+    <string name="settings_wallpaper_picker_unavailable">בורר הטפטים אינו זמין</string>
 </resources>

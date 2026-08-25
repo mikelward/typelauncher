@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Εργασία %1$s</string>
     <string name="widgets_restore_action">Πατήστε για επαναφορά του γραφικού στοιχείου %1$s</string>
     <string name="settings_show_wallpaper_title">Εμφάνιση ταπετσαρίας</string>
+    <string name="settings_wallpaper_title">Ταπετσαρία</string>
+    <string name="settings_change_wallpaper_button">Αλλαγή</string>
+    <string name="settings_change_wallpaper_button_description">Αλλαγή ταπετσαρίας</string>
+    <string name="settings_wallpaper_picker_unavailable">Η επιλογή ταπετσαρίας δεν είναι διαθέσιμη</string>
 </resources>

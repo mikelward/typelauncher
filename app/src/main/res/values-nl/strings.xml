@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Werk %1$s</string>
     <string name="widgets_restore_action">Tik om de widget %1$s te herstellen</string>
     <string name="settings_show_wallpaper_title">Achtergrond tonen</string>
+    <string name="settings_wallpaper_title">Achtergrond</string>
+    <string name="settings_change_wallpaper_button">Wijzigen</string>
+    <string name="settings_change_wallpaper_button_description">Achtergrond wijzigen</string>
+    <string name="settings_wallpaper_picker_unavailable">Achtergrondkiezer niet beschikbaar</string>
 </resources>

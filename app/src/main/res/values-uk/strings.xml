@@ -163,4 +163,8 @@
     <string name="app_label_with_work_prefix">Робоча %1$s</string>
     <string name="widgets_restore_action">Натисніть, щоб відновити віджет %1$s</string>
     <string name="settings_show_wallpaper_title">Показувати шпалери</string>
+    <string name="settings_wallpaper_title">Шпалери</string>
+    <string name="settings_change_wallpaper_button">Змінити</string>
+    <string name="settings_change_wallpaper_button_description">Змінити шпалери</string>
+    <string name="settings_wallpaper_picker_unavailable">Засіб вибору шпалер недоступний</string>
 </resources>

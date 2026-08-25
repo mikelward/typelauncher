@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">仕事用 %1$s</string>
     <string name="widgets_restore_action">タップして%1$sウィジェットを復元します</string>
     <string name="settings_show_wallpaper_title">壁紙を表示</string>
+    <string name="settings_wallpaper_title">壁紙</string>
+    <string name="settings_change_wallpaper_button">変更</string>
+    <string name="settings_change_wallpaper_button_description">壁紙を変更</string>
+    <string name="settings_wallpaper_picker_unavailable">壁紙の選択アプリがありません</string>
 </resources>

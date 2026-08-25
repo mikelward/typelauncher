@@ -131,14 +131,10 @@
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
     <string name="settings_show_wallpaper_title">Show wallpaper</string>
-    <!-- TODO: translate -->
-    <string name="settings_wallpaper_title" tools:ignore="MissingTranslation">Wallpaper</string>
-    <!-- TODO: translate -->
-    <string name="settings_change_wallpaper_button" tools:ignore="MissingTranslation">Change</string>
-    <!-- TODO: translate -->
-    <string name="settings_change_wallpaper_button_description" tools:ignore="MissingTranslation">Change wallpaper</string>
-    <!-- TODO: translate -->
-    <string name="settings_wallpaper_picker_unavailable" tools:ignore="MissingTranslation">Wallpaper picker unavailable</string>
+    <string name="settings_wallpaper_title">Wallpaper</string>
+    <string name="settings_change_wallpaper_button">Change</string>
+    <string name="settings_change_wallpaper_button_description">Change wallpaper</string>
+    <string name="settings_wallpaper_picker_unavailable">Wallpaper picker unavailable</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <!-- TODO: translate -->
     <string name="settings_search_contacts_title" tools:ignore="MissingTranslation">Search contacts</string>

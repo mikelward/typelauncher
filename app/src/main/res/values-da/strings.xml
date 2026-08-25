@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Arbejde %1$s</string>
     <string name="widgets_restore_action">Tryk for at gendanne widgetten %1$s</string>
     <string name="settings_show_wallpaper_title">Vis baggrund</string>
+    <string name="settings_wallpaper_title">Baggrund</string>
+    <string name="settings_change_wallpaper_button">Skift</string>
+    <string name="settings_change_wallpaper_button_description">Skift baggrund</string>
+    <string name="settings_wallpaper_picker_unavailable">Baggrundsvælger er ikke tilgængelig</string>
 </resources>

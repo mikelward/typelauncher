@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">Kerja %1$s</string>
     <string name="widgets_restore_action">Ketik untuk memulihkan widget %1$s</string>
     <string name="settings_show_wallpaper_title">Tunjukkan kertas dinding</string>
+    <string name="settings_wallpaper_title">Kertas dinding</string>
+    <string name="settings_change_wallpaper_button">Tukar</string>
+    <string name="settings_change_wallpaper_button_description">Tukar kertas dinding</string>
+    <string name="settings_wallpaper_picker_unavailable">Pemilih kertas dinding tidak tersedia</string>
 </resources>

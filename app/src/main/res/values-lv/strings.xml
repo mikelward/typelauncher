@@ -162,4 +162,8 @@
     <string name="app_label_with_work_prefix">Darba %1$s</string>
     <string name="widgets_restore_action">Pieskarieties, lai atjaunotu logrīku %1$s</string>
     <string name="settings_show_wallpaper_title">Rādīt fona tapeti</string>
+    <string name="settings_wallpaper_title">Fona tapete</string>
+    <string name="settings_change_wallpaper_button">Mainīt</string>
+    <string name="settings_change_wallpaper_button_description">Mainīt fona tapeti</string>
+    <string name="settings_wallpaper_picker_unavailable">Fona tapetes atlasītājs nav pieejams</string>
 </resources>

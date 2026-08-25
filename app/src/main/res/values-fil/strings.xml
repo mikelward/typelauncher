@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Trabaho %1$s</string>
     <string name="widgets_restore_action">I-tap para ibalik ang widget na %1$s</string>
     <string name="settings_show_wallpaper_title">Ipakita ang wallpaper</string>
+    <string name="settings_wallpaper_title">Wallpaper</string>
+    <string name="settings_change_wallpaper_button">Palitan</string>
+    <string name="settings_change_wallpaper_button_description">Palitan ang wallpaper</string>
+    <string name="settings_wallpaper_picker_unavailable">Walang wallpaper picker</string>
 </resources>

@@ -162,4 +162,8 @@
     <string name="app_label_with_work_prefix">Lavoro %1$s</string>
     <string name="widgets_restore_action">Tocca per ripristinare il widget %1$s</string>
     <string name="settings_show_wallpaper_title">Mostra sfondo</string>
+    <string name="settings_wallpaper_title">Sfondo</string>
+    <string name="settings_change_wallpaper_button">Modifica</string>
+    <string name="settings_change_wallpaper_button_description">Modifica sfondo</string>
+    <string name="settings_wallpaper_picker_unavailable">Selettore sfondi non disponibile</string>
 </resources>

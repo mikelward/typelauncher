@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">ការងារ %1$s</string>
     <string name="widgets_restore_action">ប៉ះដើម្បីស្តារធាតុវិដជិត %1$s</string>
     <string name="settings_show_wallpaper_title">បង្ហាញផ្ទាំងខាងក្រោយ</string>
+    <string name="settings_wallpaper_title">ផ្ទាំងខាងក្រោយ</string>
+    <string name="settings_change_wallpaper_button">ផ្លាស់ប្តូរ</string>
+    <string name="settings_change_wallpaper_button_description">ផ្លាស់ប្តូរផ្ទាំងខាងក្រោយ</string>
+    <string name="settings_wallpaper_picker_unavailable">មិនមានកម្មវិធីជ្រើសរើសផ្ទាំងខាងក្រោយ</string>
 </resources>

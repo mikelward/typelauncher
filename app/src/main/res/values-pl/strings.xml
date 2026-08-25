@@ -163,4 +163,8 @@
     <string name="app_label_with_work_prefix">Służbowe %1$s</string>
     <string name="widgets_restore_action">Stuknij, aby przywrócić widżet %1$s</string>
     <string name="settings_show_wallpaper_title">Pokaż tapetę</string>
+    <string name="settings_wallpaper_title">Tapeta</string>
+    <string name="settings_change_wallpaper_button">Zmień</string>
+    <string name="settings_change_wallpaper_button_description">Zmień tapetę</string>
+    <string name="settings_wallpaper_picker_unavailable">Wybór tapety niedostępny</string>
 </resources>
