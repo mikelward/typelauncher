@@ -5682,6 +5682,77 @@ private fun WorkDockSettingsRow(
     }
 }
 
+/**
+ * The wallpaper pair in the settings card: the "Show wallpaper" switch, and the
+ * hand-off to the system wallpaper picker beneath it.
+ *
+ * They sit together because neither makes much sense alone — the launcher can
+ * only ever *reveal* the wallpaper, never read, draw, or edit it (its bitmap is
+ * off-limits on API 34+, which is why "Show wallpaper" is a window flag rather
+ * than an image), so "change it" can only mean handing the user to the app that
+ * owns the wallpaper, right next to the switch that decides whether they ever
+ * see the result.
+ *
+ * Extracted from [SettingsScreen] so a screenshot test can render the pair on
+ * its own: they are far enough down a scrolling page that a whole-page capture
+ * would not show them.
+ */
+@Composable
+internal fun WallpaperSettingsRows(
+    isWallpaperShown: Boolean,
+    onWallpaperShownChanged: (Boolean) -> Unit,
+    onChangeWallpaper: () -> Unit,
+) {
+    val changeWallpaperDescription = stringResource(R.string.settings_change_wallpaper_button_description)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_show_wallpaper_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Switch(
+            checked = isWallpaperShown,
+            onCheckedChange = onWallpaperShownChanged,
+            modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_wallpaper_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        // A TextButton rather than a filled one, matching the dropdowns this
+        // card already uses as trailing controls — a filled button would read
+        // as the page's primary action next to a row of switches.
+        //
+        // The visible label is just "Change" because the row's own label
+        // supplies the noun, but that context is visual only: the label is a
+        // separate semantics node, so a screen reader landing on the button
+        // would hear "Change, button" and no more. The content description
+        // carries the whole action for that case, and takes precedence over
+        // the child text rather than reading alongside it.
+        TextButton(
+            onClick = onChangeWallpaper,
+            modifier = Modifier
+                .testTag(CHANGE_WALLPAPER_BUTTON_TAG)
+                .semantics { contentDescription = changeWallpaperDescription },
+        ) {
+            Text(stringResource(R.string.settings_change_wallpaper_button))
+        }
+    }
+}
+
 @Composable
 internal fun SettingsScreen(
     state: LauncherUiState,
@@ -5696,6 +5767,7 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
+    onChangeWallpaper: () -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     // "Search contacts" / "Search calendar events". Enabling routes through
     // MainActivity's permission request first; the persisted flag (and this
@@ -5971,23 +6043,11 @@ internal fun SettingsScreen(
                     modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_show_wallpaper_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Switch(
-                    checked = state.isWallpaperShown,
-                    onCheckedChange = onWallpaperShownChanged,
-                    modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
-                )
-            }
+            WallpaperSettingsRows(
+                isWallpaperShown = state.isWallpaperShown,
+                onWallpaperShownChanged = onWallpaperShownChanged,
+                onChangeWallpaper = onChangeWallpaper,
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

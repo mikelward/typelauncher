@@ -7,7 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -34,6 +37,16 @@ import java.time.ZoneId
  * through the margins and the gaps around the opaque cards. The opaque-page
  * default (setting off) is pinned alongside so the pair documents the
  * setting's visual delta.
+ *
+ * Also covers the settings card's wallpaper pair ([WallpaperSettingsRows] —
+ * the "Show wallpaper" switch and the "Change" hand-off to the system
+ * wallpaper picker), captured in isolation because those rows sit too far
+ * down a scrolling page for a whole-page capture to reach them. They live
+ * here, rather than in a class of their own, because the CI screenshot job
+ * runs an explicit `--tests` allow-list and the workflow executes under
+ * `pull_request_target` — so the allow-list that runs is `main`'s, and a
+ * brand-new screenshot class records nothing on the PR that introduces it.
+ * Every wallpaper-facing surface in one already-listed class avoids that.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -154,6 +167,55 @@ class WallpaperAllPagesScreenshotTest {
                 eventId = 2L,
             ),
         )
+    }
+
+    @Test
+    fun wallpaperSettingsRows_light() {
+        composeRule.setContent {
+            // Fixed scheme (no dynamic color) so the card surface and the
+            // action's primary tint are deterministic across runners rather
+            // than device-tinted.
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                WallpaperSettingsCard(isWallpaperShown = false)
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Change").assertExists()
+
+        capture("compose_wallpaper_settings_light_robolectric.png", heightPx = 400)
+    }
+
+    @Test
+    fun wallpaperSettingsRows_dark() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Dark, dynamicColor = false) {
+                // Switch on — the state a user who cares about the wallpaper is
+                // in when they reach for Change.
+                WallpaperSettingsCard(isWallpaperShown = true)
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Change").assertExists()
+
+        capture("compose_wallpaper_settings_dark_robolectric.png", heightPx = 400)
+    }
+
+    @Composable
+    private fun WallpaperSettingsCard(isWallpaperShown: Boolean) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            SectionCard(modifier = Modifier.padding(16.dp)) {
+                WallpaperSettingsRows(
+                    isWallpaperShown = isWallpaperShown,
+                    onWallpaperShownChanged = {},
+                    onChangeWallpaper = {},
+                )
+            }
+        }
     }
 
     private fun capture(name: String, widthPx: Int = 720, heightPx: Int = 900) {

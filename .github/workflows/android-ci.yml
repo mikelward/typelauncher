@@ -563,7 +563,9 @@ jobs:
         # Renders the Widgets and Agenda pages with the wallpaper backdrop
         # active (transparent page background over a bright gradient standing
         # in for the wallpaper) so the PR `roborazzi-screenshots` artifact
-        # shows the all-pages treatment "Show wallpaper" now implies.
+        # shows the all-pages treatment "Show wallpaper" now implies, plus the
+        # settings card's wallpaper pair (the switch and the "Change" hand-off
+        # to the system picker) in light and dark.
         run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.WallpaperAllPagesScreenshotTest" -Proborazzi.test.record=true
 
       - name: Run dock folder screenshot tests
