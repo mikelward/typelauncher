@@ -9,6 +9,7 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
 import android.widget.FrameLayout
+import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -537,11 +538,11 @@ private fun WidgetPreview(
         when {
             preview?.generated != null && !generatedInflationFailed -> AndroidView(
                 factory = { viewContext ->
-                    try {
+                    inflatedPreviewOrNull(provider.componentName.flattenToShortString()) {
                         preview.generated.apply(viewContext, FrameLayout(viewContext)).also { view ->
                             view.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                         }
-                    } catch (_: RuntimeException) {
+                    } ?: run {
                         generatedInflationFailed = true
                         FrameLayout(viewContext)
                     }
@@ -1116,16 +1117,48 @@ internal data class WidgetGroupKey(
         get() = if (isWorkProvider) "$appName|work" else appName
 }
 
+/**
+ * Runs [fetch] — the generated-preview lookup — and turns a failure into "no
+ * generated preview" plus a log line, rather than the silent null it used to
+ * be: a provider whose preview never arrives is otherwise indistinguishable
+ * from one that ships none.
+ *
+ * Extracted so both this and [inflatedPreviewOrNull] are reachable from a JVM
+ * test; the calls they wrap are not.
+ */
+internal fun generatedPreviewOrNull(provider: String, fetch: () -> RemoteViews?): RemoteViews? =
+    try {
+        fetch()
+    } catch (exception: RuntimeException) {
+        // [provider] is a plain String, so it renders in full on device and is
+        // withheld from the Crashlytics mirror by the default-safe rule. Which
+        // widget is broken is the whole point of the line — "a preview failed"
+        // says nothing useful when the picker has thirty rows.
+        LauncherDebugLog.failure(exception, "generated widget preview unavailable for %s", provider)
+        null
+    }
+
+/**
+ * Runs [inflate] — applying a generated preview's `RemoteViews` — and returns
+ * null if the provider's own views won't inflate, so the caller can fall back
+ * to the static preview.
+ */
+internal fun inflatedPreviewOrNull(provider: String, inflate: () -> View): View? =
+    try {
+        inflate()
+    } catch (exception: RuntimeException) {
+        LauncherDebugLog.failure(exception, "generated widget preview would not inflate for %s", provider)
+        null
+    }
+
 private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context: Context): WidgetPreviewValue {
     val generated = if (Build.VERSION.SDK_INT >= GENERATED_WIDGET_PREVIEW_MIN_API) {
-        try {
+        generatedPreviewOrNull(componentName.flattenToShortString()) {
             appWidgetManager?.getWidgetPreview(
                 componentName,
                 profile,
                 AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
             )
-        } catch (_: RuntimeException) {
-            null
         }
     } else {
         null
