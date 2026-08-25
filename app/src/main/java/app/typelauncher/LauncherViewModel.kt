@@ -281,7 +281,15 @@ internal class LauncherViewModel(
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
-            isTelemetryEnabled = dockSettingsStore.isTelemetryEnabled,
+            // The *effective* answer, not the raw preference. The stored value
+            // defaults to enabled, so showing it directly would put a switch
+            // reading "on" on the same screen as a card saying nothing is being
+            // sent — and the user's first tap on it could only turn it further
+            // off. What the switch reports is whether collection is actually
+            // happening, which while the question stands is: no.
+            isTelemetryEnabled = StoredTelemetryPreferences(dockSettingsStore).isEnabled() ?: false,
+            isTelemetryConsentPending = TELEMETRY_REQUIRES_CONSENT &&
+                !dockSettingsStore.isTelemetryChoiceAnswered,
             isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
@@ -612,25 +620,42 @@ internal class LauncherViewModel(
      * writes the SDKs' persisted flags so the choice survives the next start.
      */
     fun setTelemetryEnabled(isEnabled: Boolean) {
-        // Gate first, synchronously, before the preference write, the state
-        // update, or logState's breadcrumb: everything below can itself produce
-        // telemetry, so deferring the gate to the coroutine left a window in
-        // which the switch already read "off" while breadcrumbs, custom keys,
-        // or a crash could still be recorded and uploaded.
-        // The preferences go in here, not just to the coroutine below: an
-        // opt-out's promise to discard has to be on disk *before* the
-        // asynchronous gap, or a rapid off→on plus a process death leaves the
-        // next launch reading "enabled, nothing owed".
+        // Both answers are written to disk *here*, synchronously, before the
+        // asynchronous half below can act on either. Both directions need that,
+        // for different reasons:
+        //
+        // - **Yes** is written first, and if it does not land nothing else
+        //   happens. The transition below turns Firebase's own persisted flags
+        //   on, and those outlive the process independently of ours, so
+        //   enabling on the strength of a failed write would leave the next
+        //   launch believing the question was unanswered while the SDKs
+        //   auto-started enabled — precisely the state the consent gate exists
+        //   to prevent. Returning early leaves everything as it was: question
+        //   open, collection off, and the user free to tap again.
+        // - **No** is written by `setCollectionGate` below, in one transaction
+        //   with the discard it owes, because a rapid off→on plus a process
+        //   death otherwise leaves the next launch reading "enabled, nothing
+        //   owed".
+        //
+        // Neither can be deferred to the coroutine. Doing so lets a write land
+        // *after* a later answer and overwrite it — `allowing then declining
+        // leaves the pending report owed a discard` fails on exactly that.
+        // These are the only blocking writes on this path and it is a Settings
+        // tap, not a cold start or a scroll.
+        if (isEnabled && !dockSettingsStore.recordTelemetryOptIn()) {
+            LauncherDebugLog.warning("analytics consent not persisted; leaving the question open")
+            return
+        }
+        // Gate synchronously, before the state update or logState's breadcrumb:
+        // everything below can itself produce telemetry, so deferring the gate
+        // left a window in which the switch already read "off" while
+        // breadcrumbs, custom keys, or a crash could still be recorded.
         LauncherTelemetry.setCollectionGate(isEnabled, StoredTelemetryPreferences(dockSettingsStore))
-        // Only the opt-in writes the preference here. The opt-out branch above
-        // has already written it — in the same durable transaction as the
-        // discard it owes, since a death between two separate writes leaves the
-        // next launch reading "enabled, owed", which it honors by deleting the
-        // reports and then turning collection back on. An opt-in needs no such
-        // care: losing it just leaves the stored choice off, which is the safe
-        // direction.
-        if (isEnabled) dockSettingsStore.isTelemetryEnabled = true
-        _uiState.update { it.copy(isTelemetryEnabled = isEnabled) }
+        // Either answer retires the question, so the card and the gear dot go
+        // away — using the switch is answering it just as much as the card is.
+        _uiState.update {
+            it.copy(isTelemetryEnabled = isEnabled, isTelemetryConsentPending = false)
+        }
         logState("setTelemetryEnabled=%s", isEnabled)
         // The SDK half is deferred and serialized inside [LauncherTelemetry],
         // which is where the lock has to live: `TypeLauncherApp`'s startup

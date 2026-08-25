@@ -235,5 +235,15 @@
     <!-- TODO: translate -->
     <string name="crash_pending_badge_description" tools:ignore="MissingTranslation">Possible crash detected</string>
     <!-- TODO: translate -->
+    <string name="telemetry_consent_title" tools:ignore="MissingTranslation">Anonymous analytics</string>
+    <!-- TODO: translate -->
+    <string name="telemetry_consent_body" tools:ignore="MissingTranslation">Send crash reports and usage data. Your personal data is never sent.</string>
+    <!-- TODO: translate -->
+    <string name="telemetry_consent_allow" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
+    <string name="telemetry_consent_deny" tools:ignore="MissingTranslation">Don\'t allow</string>
+    <!-- TODO: translate -->
+    <string name="telemetry_consent_badge_description" tools:ignore="MissingTranslation">Analytics needs an answer</string>
+    <!-- TODO: translate -->
     <string name="settings_analytics_title" tools:ignore="MissingTranslation">Analytics</string>
 </resources>

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-07-26_
+_Last updated: 2026-08-25_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -13,7 +13,8 @@ the app does and does not do with your data.
   widgets, and settings — lives only on your device.
 - The app makes no network requests of its own to any backend operated by the
   developer.
-- The app may collect anonymous crash reports and performance analytics.
+- The app asks before sending anonymous crash reports and performance
+  analytics, and sends nothing until you say yes.
   These are described below and never include PII, your typed queries, your
   app list, your notifications, your contacts, or your calendar contents.
 
@@ -91,7 +92,8 @@ transmitted off your device by the app.
 
 ## Anonymous crash reporting and performance analytics
 
-Type Launcher may collect anonymous crash reports and performance analytics,
+With your permission, Type Launcher collects anonymous crash reports and
+performance analytics,
 typically through a third-party service such as Google Firebase (for example,
 **Firebase Crashlytics** and **Firebase Performance Monitoring**). The
 specific service or services used may change over time.
@@ -137,16 +139,34 @@ processed by Google as a sub-processor; see Google's
 [Firebase privacy and security](https://firebase.google.com/support/privacy)
 documentation for details on its handling.
 
-### Turning it off
+### Nothing is sent until you say yes
 
-Settings → **Analytics** turns crash reporting and performance
-analytics off. Everything in this section stops being collected or sent while
-that switch is off, and the choice persists across restarts and updates. The
-switch is on by default.
+Type Launcher asks. Settings shows an **Anonymous analytics** card with **Don't
+allow** and **Allow**, and the Settings gear carries a dot until you answer it
+one way or the other. Both services are switched off until you allow them, so
+nothing in this section is uploaded while the question is unanswered. Ignoring
+the card is therefore a complete answer on its own; you never have to act to
+keep it off.
 
-Turning the switch off also discards any crash report that has been recorded
-but not yet sent, so a crash that happened while it was off is not uploaded
-later if you turn it back on.
+To be exact about the guarantee: what is switched off is *sending*. Crashlytics
+can still write a crash record to your own device's storage, but an unanswered
+question is treated as a no, so that record is discarded on the next launch
+rather than held for you to consent to later. A crash that happened before you
+answered is not sent even if you later allow — only crashes after that are.
+
+The stored default is off, so this holds from the first launch of a fresh
+install onward — there is no window in which anything is sent because nobody has
+told the app not to yet.
+
+### Changing your mind
+
+Settings → **Analytics** turns crash reporting and performance analytics on or
+off at any time, and answers the question if the card is still showing. The
+choice persists across restarts and updates.
+
+Turning it off — or tapping **Don't allow** — also discards any crash report
+that has been recorded but not yet sent, so a crash that happened while it was
+off is not uploaded later if you turn it back on.
 
 Turning it off does not affect the on-device debug log or the **Report bug**
 action — that report is assembled on your device, and nothing is sent until

@@ -741,19 +741,65 @@ internal class DockSettingsStore(context: Context) {
     /**
      * Settings → "Analytics". Gates Firebase Crashlytics and
      * Performance Monitoring at runtime ([LauncherTelemetry.applyCollectionPreference]).
-     * Defaults to true because `PRIVACY.md` has always declared anonymous crash
-     * reporting as part of the app; the toggle exists so a user can decline it,
-     * not to introduce collection that was previously off. The Firebase SDKs
-     * persist their own copy of the flag, so this is the launcher-side record of
-     * the user's choice, re-asserted once per start.
+     *
+     * Defaults to **off**. Nothing is collected until the user answers the
+     * consent card, so a default of `true` would only ever have described an
+     * install that had already said yes — and it would have left the launcher's
+     * own record disagreeing with what it actually does. Off is the honest
+     * default and the safe one. The Firebase SDKs persist their own copy of the
+     * flag, so this is the launcher-side record of the user's choice,
+     * re-asserted once per start.
      */
     var isTelemetryEnabled: Boolean
-        get() = sharedPreferences.getBoolean(KEY_TELEMETRY_ENABLED, true)
+        get() = sharedPreferences.getBoolean(KEY_TELEMETRY_ENABLED, false)
         set(value) {
             sharedPreferences.edit()
                 .putBoolean(KEY_TELEMETRY_ENABLED, value)
                 .apply()
         }
+
+    /**
+     * Whether the user has actually answered the Analytics question — by the
+     * consent card, or by touching the Settings switch either way.
+     *
+     * Separate from [isTelemetryEnabled] because "hasn't been asked" and "said
+     * no" now store the *same* value — both leave it off — and only this tells
+     * them apart. Which matters, because only an answered question takes the
+     * consent card and the gear badge down; without it a user who had declined
+     * would be asked again on every launch.
+     */
+    val isTelemetryChoiceAnswered: Boolean
+        get() = sharedPreferences.getBoolean(KEY_TELEMETRY_CHOICE_ANSWERED, false)
+
+    /**
+     * Records an explicit "yes" — the choice and the fact that it was made —
+     * returning whether it reached disk.
+     *
+     * `commit()`, like its opt-out counterpart, and for a less obvious reason.
+     * Losing this write looks like the safe direction — the question reads
+     * unanswered, so the launcher withholds collection — but the transition it
+     * precedes turns Firebase's *own* persisted flags on, and those survive
+     * independently. A dropped consent write would leave the next launch
+     * believing nobody had answered while the SDKs auto-started enabled: the
+     * exact state the consent gate exists to prevent, reached by way of an
+     * optimization.
+     */
+    @Suppress("ApplySharedPref")
+    fun recordTelemetryOptIn(): Boolean {
+        val firstAnswer = !isTelemetryChoiceAnswered
+        val editor = sharedPreferences.edit()
+            .putBoolean(KEY_TELEMETRY_ENABLED, true)
+            .putBoolean(KEY_TELEMETRY_CHOICE_ANSWERED, true)
+        // A *first* yes still owes the discard. Anything Crashlytics wrote while
+        // the question stood was recorded without consent, and saying yes now
+        // permits future reports rather than retroactively permitting those —
+        // which is what `PRIVACY.md` promises. Owing it here rather than leaving
+        // it to the startup transition is what makes the promise hold when the
+        // user answers before that transition has run. In the same transaction,
+        // so a death between cannot leave consent stored with the debt lost.
+        if (firstAnswer) editor.putBoolean(KEY_REPORT_DISCARD_OWED, true)
+        return editor.commit()
+    }
 
     /**
      * Whether an opt-out promised to discard Crashlytics' unsent reports and
@@ -796,6 +842,11 @@ internal class DockSettingsStore(context: Context) {
         sharedPreferences.edit()
             .putBoolean(KEY_TELEMETRY_ENABLED, false)
             .putBoolean(KEY_REPORT_DISCARD_OWED, true)
+            // Saying no is answering the question, so it takes the card and the
+            // badge down as surely as saying yes does. In the same transaction
+            // as the rest: a death that left this unset would re-ask a user who
+            // had already declined.
+            .putBoolean(KEY_TELEMETRY_CHOICE_ANSWERED, true)
             .commit()
 
     @Suppress("ApplySharedPref")
@@ -807,6 +858,7 @@ internal class DockSettingsStore(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "dock_settings"
         const val KEY_REPORT_DISCARD_OWED = "telemetry_report_discard_owed"
+        const val KEY_TELEMETRY_CHOICE_ANSWERED = "telemetry_choice_answered"
         const val KEY_DOCK_ENABLED = "dock_enabled"
         const val KEY_DOCK_TARGET_ICON_SIZE_DP = "dock_target_icon_size_dp"
         const val KEY_DOCK_ICON_COUNT = "dock_icon_count"

@@ -66,6 +66,22 @@
 
 ## Layout, caching, rendering, and recomposition follow-ups
 
+- [ ] **The Settings scroll chevron can land between the consent card's two
+      actions.** The chevron is a screen-level overlay pinned bottom-center;
+      `TelemetryConsentCard` arranges **Don't allow** and **Allow** at opposite
+      ends, so the empty middle is exactly where the chevron sits when the card
+      is at the bottom of a scrollable viewport — and it then reads as a third
+      consent choice. Visible in
+      `compose_telemetry_consent_settings_placement_robolectric.png`.
+
+      Left as-is deliberately: the card normally sits at the *top* of Settings
+      with the chevron at the bottom of the screen, so it takes a short viewport
+      or a large font scale to collide, and the buttons stay labeled either way.
+      Worth fixing if it shows up on a real device — reserve bottom clearance in
+      the row rather than abandoning the edge-to-edge arrangement, which is
+      deliberate (a two-way choice with no default should not read as an action
+      plus an escape hatch). Raised by Codex on #668.
+
 - Split `LauncherUiState` consumption into smaller screen/subtree projections so typing, widget, and settings updates do not invalidate broad composition scopes. Candidate slices: theme, home/search/results, keyboard tray, carousel, widgets, and settings.
 - Move query filtering and ranking off the main thread, or pre-index enough app search metadata to keep per-keystroke work cheap. Keep query text updates immediate, make result computation cancellable with `mapLatest`, and publish only the latest filtered list.
 - Revisit offscreen carousel composition so non-current widget and agenda pages stay lightweight. Prefer composing the current page plus the active drag/animation target, and avoid creating hosted widget `AndroidView`s for pages that are only preloaded for swipe readiness.
@@ -97,47 +113,104 @@
 
 ## Privacy
 
-- [ ] **Hold Crashlytics off before it auto-starts, when a discard is owed.**
-      Crashlytics auto-initializes from a `ContentProvider` *before*
-      `Application.onCreate`, so its own persisted collection flag decides what
-      happens before any launcher code runs. A launch that inherits an
-      unserviced discard (opt-out → opt-in → process death) therefore races its
-      own startup transition: the SDK can upload a queued report before the
-      coroutine disables collection and deletes it. Raised by Codex on #666 and
-      real. Not a defect #666 introduced — the window predates it; what changed
-      is that the durable debt makes the race visible.
+- [x] **Hold Crashlytics off before it auto-starts.** Done. Both SDKs now
+      default off via `firebase_crashlytics_collection_enabled` and
+      `firebase_performance_collection_enabled` in the manifest, and only an
+      explicit Allow turns them on. The consent gate is what forced it: with
+      `PRIVACY.md` promising nothing is sent until the user says yes, an SDK
+      that auto-initializes already collecting made that claim false. The
+      runtime setters persist an override, so an install that has consented
+      still collects from auto-initialization — the default governs only the
+      un-consented case, which is the one that needed it.
 
-      **Codex's round-6 finding belongs here too.** If the opt-out's own write
-      *throws*, the stored choice stays `true` while only the in-memory state
-      says otherwise — and the queued transition then re-reads the store,
-      discharges the debt, and re-enables collection in the same process, with
-      the Settings switch still showing off. Same root: our record can fail to
-      take, and a re-read of the store then contradicts what the user actually
-      chose. The inversion below is what makes the record authoritative instead
-      of advisory.
+      What this does *not* fix is the other half of the same root cause: a
+      flag write that throws, or our own preference write that throws, still
+      leaves the launcher's belief and the SDK's state disagreeing. The
+      remaining step is to stop treating the SDK flag as the record at all —
+      keep it derived from ours, and re-assert rather than assume. Codex found
+      six instances of this across #662, #666 and #668; the manifest default
+      closes the widest one.
 
-      **Codex's round-5 finding on #666 is the same defect from the other end**,
-      and belongs to this item rather than to that PR. `applySdkFlags` logs a
-      throw from either SDK and carries on, so a failed *disable* leaves
-      collection on while the discharge runs and then clears the durable marker
-      anyway — no debt left for a later transition to retry. Both that and the
-      auto-start window above come from the same wrong assumption: that the
-      SDK's persisted flag can be set on demand and therefore reflects our
-      intent. It cannot, and no amount of ordering inside the transition fixes
-      a write that did not take.
+- [ ] **Take over Firebase initialization, if a persisted opt-in ever exists.**
+      Not currently reachable, and recorded so it is not rediscovered as a bug.
+      A runtime `setCrashlyticsCollectionEnabled(true)` persists an override that
+      beats the manifest default, and `FirebaseInitProvider` runs before
+      `Application.onCreate` — so an install carrying such an override would have
+      a window on each launch, provider start to the startup coroutine, in which
+      a queued report could upload before the gate is applied.
 
-      The fix is to stop relying on the SDK's own flag as the source of truth:
-      declare `firebase_crashlytics_collection_enabled=false` in the manifest so
-      nothing auto-collects, and have the transition turn it on once it has
-      established that nothing is owed. That inverts the initialization contract
-      for the whole app, and getting it wrong means telemetry is silently off
-      for everyone — the failure this repo is least able to detect — so it wants
-      its own PR and its own verification on a device carrying the config.
-      When it lands, the discharge should also decline to clear the marker
-      unless the disable it depends on actually succeeded — which that design
-      makes knowable, and today's does not.
+      No shipped build has ever enabled collection, so no install carries that
+      override, and the consent gate means none can acquire one without its user
+      asking for it. If that changes — a build ships collecting, or the trial is
+      reverted and later re-applied — this becomes live, and closing it means
+      removing `FirebaseInitProvider` from the merged manifest
+      (`tools:node="remove"`) and initializing Firebase ourselves after a
+      synchronous read of the stored choice, which needs care against the
+      cold-start budget.
+
+- [ ] **A failed consent `commit()` leaves the in-memory preferences claiming
+      consent.** `SharedPreferences.Editor.commit()` applies the edit to the
+      process's live map *before* returning `false` for a disk write that never
+      landed. `setTelemetryEnabled` returns early on that `false`, so nothing is
+      gated and no transition is enqueued — but the in-memory map now reads
+      `enabled/answered = true`, and if `TypeLauncherApp`'s startup transition is
+      still pending it would read those values and enable Firebase's persisted
+      flags. Disk then says unanswered while the SDKs auto-start enabled.
+
+      Left as-is. It needs a failing disk write *and* the startup transition
+      still pending — which, since it runs at `Application.onCreate`, means the
+      user is tapping Allow in Settings within the first moments of a process
+      start — *and* a process death after. Closing it means snapshotting both
+      preference values before the write and restoring them on failure, which
+      cannot be a blanket `false/false` (that would erase a previous decline),
+      so it is state-snapshot machinery in the function this review reshaped
+      repeatedly. Raised by Codex on #668; noted rather than fixed because the
+      cost is real and the reachability is not.
+
+- [ ] **Stop treating the SDK flags as the record of the user's choice.**
+      The manifest defaults above close the auto-start hole, but not the rest
+      of the same root cause: our record can fail to take, and something then
+      re-reads state that contradicts what the user actually chose.
+
+      Three shapes of it, all found by Codex and all real:
+      - `applySdkFlags` logs a throw from either SDK and carries on, so a failed
+        *disable* leaves collection on while the discharge runs, and the durable
+        marker is then cleared anyway — no debt left for a later transition.
+      - If the opt-out's own preference write *throws*, the stored choice stays
+        `true` while only the in-memory state says otherwise; the queued
+        transition re-reads the store, discharges, and re-enables collection in
+        the same process, with the Settings switch still showing off.
+      - More generally, a write that did not take cannot record that it did not
+        take, so no ordering *inside* the transition repairs it.
+
+      The fix is to make the launcher's own record authoritative and derive the
+      SDK state from it — re-assert on every transition rather than assume the
+      last write landed, and refuse to clear a debt unless the disable it
+      depends on actually succeeded. That is knowable under this design and is
+      not under today's.
 
 ### Decisions needing review
+
+- **Analytics is opt-in now, as a trial.** Nothing is collected until the user
+  taps **Allow** on the Settings consent card; an unanswered question behaves as
+  a refusal. The repo owner asked for this explicitly and called it a trial —
+  "I think it's fine but I don't know if it's the permanent I just want to try
+  it" — so it is recorded here rather than treated as settled.
+
+  What it costs: every existing install stops reporting crashes on the update
+  that carries it, until its user answers. Expect crash volume to fall and stay
+  down for whatever fraction never opens Settings. That is the point of the
+  change, but it is also the thing to watch before deciding whether to keep it.
+
+  Reversing it is **three edits, not one**, and this note exists because the
+  constant's name suggests otherwise: flip `TELEMETRY_REQUIRES_CONSENT` to
+  `false`, flip `DockSettingsStore.isTelemetryEnabled`'s default back to `true`,
+  and remove the two `firebase_*_collection_enabled` meta-data entries from the
+  manifest. The constant alone leaves the preference defaulting off and both SDKs
+  starting disabled, which is not the old behavior — it is the new behavior with
+  the card hidden, which would be worse than either. `PRIVACY.md`'s "Nothing is
+  sent until you say yes" section reverts with the three — it is written to be
+  removable as a block.
 
 - **The opt-out's durable write blocks the main thread, on purpose.**
   `setCollectionGate(false, …)` reaches `SharedPreferences.commit()` before

@@ -2752,6 +2752,21 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Analytics").performScrollTo().assertIsDisplayed()
+        // Off to begin with: a fresh install has not answered the consent card,
+        // and nothing is collected until it does, so the switch reports what is
+        // actually happening rather than the stored preference's default.
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().assertIsOff()
+
+        // Turning it on is the affirmative answer, and it takes the consent card
+        // and the gear dot with it.
+        composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        assertTrue(viewModel.uiState.value.isTelemetryEnabled)
+        assertFalse(
+            "using the switch answers the question",
+            viewModel.uiState.value.isTelemetryConsentPending,
+        )
         composeRule.onNodeWithTag(ANALYTICS_SWITCH_TAG).performScrollTo().assertIsOn()
 
         saveScreenshot("compose_settings_analytics_robolectric.png")

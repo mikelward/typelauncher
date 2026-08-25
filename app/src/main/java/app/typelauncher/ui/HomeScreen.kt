@@ -931,6 +931,7 @@ internal fun HomeScreen(
                     autoShowKeyboard = autoShowKeyboard,
                     showPlayUpdateBadge = state.playUpdate.showBadge,
                     showCrashBanner = state.isCrashBannerVisible,
+                    showTelemetryConsentBadge = state.isTelemetryConsentPending,
                     placeholderSuffix = searchPlaceholderSuffix,
                     // The inline preview must name whatever Enter fires. In the
                     // contact-actions mode Enter fires the first visible channel/
@@ -1330,6 +1331,7 @@ private fun SearchCard(
     autoShowKeyboard: Boolean,
     showPlayUpdateBadge: Boolean,
     showCrashBanner: Boolean,
+    showTelemetryConsentBadge: Boolean,
     placeholderSuffix: String,
     suggestion: InlineSearchSuggestion?,
     keyboardShowRequests: SharedFlow<Unit>,
@@ -1420,9 +1422,18 @@ private fun SearchCard(
                                     Icons.Filled.Settings,
                                     contentDescription = stringResource(R.string.settings_open_button_description),
                                 )
-                                // One badge slot: a possible crash always outranks a
-                                // pending Play update, so the triangle takes the
-                                // corner and the update dot waits its turn.
+                                // One badge slot, and three claims on it, ranked by
+                                // what missing them costs and by how long each
+                                // waits. A possible crash is first: it may cost a
+                                // fix. A pending Play update is next — not because
+                                // it matters more than the Analytics question, but
+                                // because it is *transient*, so letting it take the
+                                // slot briefly costs the question nothing, while the
+                                // reverse would hide every update on an install
+                                // whose question is never answered. The consent dot
+                                // is last and can afford to be: nothing is collected
+                                // while it stands, so leaving it unanswered is
+                                // already the outcome the dot would ask for.
                                 if (showCrashBanner) {
                                     val badgeDescription = stringResource(R.string.crash_pending_badge_description)
                                     Icon(
@@ -1453,6 +1464,26 @@ private fun SearchCard(
                                             .background(MaterialTheme.colorScheme.primary, CircleShape)
                                             .semantics { contentDescription = badgeDescription }
                                             .testTag(PLAY_UPDATE_BADGE_TAG),
+                                    )
+                                } else if (showTelemetryConsentBadge) {
+                                    val badgeDescription =
+                                        stringResource(R.string.telemetry_consent_badge_description)
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            // Same 2dp optical nudge as the badges
+                                            // above, so whichever one wins the slot
+                                            // seats identically into the corner.
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                            // Error red, not the update dot's primary:
+                                            // this one asks for a decision about the
+                                            // user's data, and should not read as the
+                                            // same routine "something's available" as
+                                            // an app update.
+                                            .background(MaterialTheme.colorScheme.error, CircleShape)
+                                            .semantics { contentDescription = badgeDescription }
+                                            .testTag(TELEMETRY_CONSENT_BADGE_TAG),
                                     )
                                 }
                             }
@@ -6069,6 +6100,18 @@ internal fun SettingsScreen(
                 CrashBannerCard(
                     onShare = onShareCrash,
                     onDismiss = onDismissCrash,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // Below the crash prompt: that one is about something that already
+            // went wrong and may cost the user a fix if they miss it, while this
+            // is a standing question whose unanswered state is already the safe
+            // one. Both answers route through the same callback the Analytics
+            // switch uses, so the durable opt-out transaction runs either way.
+            if (state.isTelemetryConsentPending) {
+                TelemetryConsentCard(
+                    onAllow = { onTelemetryEnabledChanged(true) },
+                    onDeny = { onTelemetryEnabledChanged(false) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

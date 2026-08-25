@@ -45,6 +45,30 @@
             android:name="google_analytics_adid_collection_enabled"
             android:value="false" />
 
+        <!--
+            Both SDKs start OFF, and only an explicit Allow turns them on.
+
+            Firebase auto-initializes from a ContentProvider before
+            Application.onCreate, so by the time any launcher code runs the SDKs
+            have already decided whether to collect — and, on an upgrade from a
+            version that collected by default, their own persisted flags say
+            yes. The consent gate applies asynchronously after that, which is
+            far too late: a crash or a startup trace from the very launch that
+            was supposed to be asking permission could already be on its way.
+
+            These are defaults, not kill switches — the runtime setters
+            override and persist over them, which is exactly how consent turns
+            collection on. The permanent variant
+            (firebase_performance_collection_deactivated) is deliberately not
+            used, since that one cannot be undone at runtime.
+        -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_performance_collection_enabled"
+            android:value="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

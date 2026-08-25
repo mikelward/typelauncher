@@ -791,6 +791,13 @@ internal data class LauncherUiState(
     // `DebugFileSink.hasUnacknowledgedCrash` at startup; a routine process death
     // never sets it. Defaults off (previews, tests, no-sink builds).
     val isCrashBannerVisible: Boolean = false,
+    // True while the Analytics question has not been answered either way, so
+    // Settings shows the consent card and the gear picks up a dot. Distinct
+    // from `isTelemetryEnabled` being false: that is a decision, this is the
+    // absence of one. Seeded off the main thread at startup and cleared by
+    // either answer. Defaults off so previews, tests, and any build with
+    // `TELEMETRY_REQUIRES_CONSENT` disabled render without it.
+    val isTelemetryConsentPending: Boolean = false,
     val playUpdate: PlayUpdateState = PlayUpdateState.NotAvailable,
     // Whether the last Restart tap failed to hand off to the installer — the
     // tap that would otherwise look like it did nothing.
