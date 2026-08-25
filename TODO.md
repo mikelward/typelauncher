@@ -191,6 +191,20 @@
 
 ### Decisions needing review
 
+- **"Default" / "Undefault" needs reconciling with its translations.** The
+  long-press menu on a contact's number toggles whether that number is the
+  default, and the English labels are `Default` and `Undefault` — the second is
+  not a word, and neither says what it acts on. The translations landed as the
+  *sense* rather than the letter ("Set as default" / "Remove as default", per
+  locale idiom), so 63 locales now read better than the source they came from.
+
+  Candidates for the English, none yet chosen: **Set default / Unset default**
+  (shortest, symmetric, mildly technical), **Set as default / Remove as
+  default** (Android-standard), **Use by default / Don't use by default**
+  (warmest, mirrors the consent card's Allow / Don't allow — rejected as too
+  long). Changing it is English-only and needs no re-translation, since the
+  locales already say the right thing.
+
 - **Analytics is opt-in now, as a trial.** Nothing is collected until the user
   taps **Allow** on the Settings consent card; an unanswered question behaves as
   a refusal. The repo owner asked for this explicitly and called it a trial —

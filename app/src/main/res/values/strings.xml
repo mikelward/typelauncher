@@ -13,8 +13,7 @@
     <string name="play_update_banner_downloaded_body">Tap to restart and install.</string>
     <string name="play_update_banner_restart_button">Restart</string>
     <string name="play_update_banner_dismiss_description">Dismiss update banner</string>
-    <!-- TODO: translate -->
-    <string name="play_update_banner_restart_failed" tools:ignore="MissingTranslation">Couldn\'t restart to install</string>
+    <string name="play_update_banner_restart_failed">Couldn\'t restart to install</string>
     <string name="installed_apps_list_label">Installed apps</string>
     <string name="dock_apps_list_label">Dock</string>
     <string name="dock_apps_hint">Long press apps to dock</string>
@@ -24,10 +23,8 @@
     <string name="dock_recents_description">Recent apps</string>
     <string name="dock_recents_scroll_more_hint">Scroll for more recent apps</string>
     <string name="apps_list_scroll_more_hint">Scroll for more apps</string>
-    <!-- TODO: translate -->
-    <string name="scroll_up_for_more_hint" tools:ignore="MissingTranslation">Scroll up for more</string>
-    <!-- TODO: translate -->
-    <string name="scroll_down_for_more_hint" tools:ignore="MissingTranslation">Scroll down for more</string>
+    <string name="scroll_up_for_more_hint">Scroll up for more</string>
+    <string name="scroll_down_for_more_hint">Scroll down for more</string>
     <string name="agenda_title">Agenda</string>
     <string name="agenda_events_list_label">Calendar agenda events</string>
     <string name="agenda_permission_message">Allow calendar access to show your agenda.</string>
@@ -140,38 +137,23 @@
     <string name="settings_change_wallpaper_button_description">Change wallpaper</string>
     <string name="settings_wallpaper_picker_unavailable">Wallpaper picker unavailable</string>
     <string name="settings_show_agenda_title">Show agenda</string>
-    <!-- TODO: translate -->
-    <string name="settings_search_contacts_title" tools:ignore="MissingTranslation">Search contacts</string>
-    <!-- TODO: translate -->
-    <string name="settings_search_calendar_title" tools:ignore="MissingTranslation">Search calendar events</string>
-    <!-- TODO: translate -->
-    <string name="settings_call_using_title" tools:ignore="MissingTranslation">Call using</string>
-    <!-- TODO: translate -->
-    <string name="settings_call_using_option_phone_app" tools:ignore="MissingTranslation">Phone app</string>
-    <!-- TODO: translate -->
-    <string name="settings_call_using_option_ask" tools:ignore="MissingTranslation">Ask which app</string>
-    <!-- TODO: translate -->
-    <string name="contact_result_starred_description" tools:ignore="MissingTranslation">Starred contact</string>
-    <!-- TODO: translate -->
-    <string name="contact_action_call" tools:ignore="MissingTranslation">Call</string>
-    <!-- TODO: translate -->
-    <string name="contact_action_message" tools:ignore="MissingTranslation">Message</string>
-    <!-- TODO: translate -->
-    <string name="contact_action_email" tools:ignore="MissingTranslation">Email</string>
-    <!-- TODO: translate -->
-    <string name="contact_actions_open_contact" tools:ignore="MissingTranslation">Open contact</string>
-    <!-- TODO: translate -->
-    <string name="contact_actions_choose_number" tools:ignore="MissingTranslation">Choose a number</string>
+    <string name="settings_search_contacts_title">Search contacts</string>
+    <string name="settings_search_calendar_title">Search calendar events</string>
+    <string name="settings_call_using_title">Call using</string>
+    <string name="settings_call_using_option_phone_app">Phone app</string>
+    <string name="settings_call_using_option_ask">Ask which app</string>
+    <string name="contact_result_starred_description">Starred contact</string>
+    <string name="contact_action_call">Call</string>
+    <string name="contact_action_message">Message</string>
+    <string name="contact_action_email">Email</string>
+    <string name="contact_actions_open_contact">Open contact</string>
+    <string name="contact_actions_choose_number">Choose a number</string>
     <!-- Long-press menu on a contact search result: toggles the platform favorite. -->
-    <!-- TODO: translate -->
-    <string name="contact_action_favorite" tools:ignore="MissingTranslation">Favorite</string>
-    <!-- TODO: translate -->
-    <string name="contact_action_unfavorite" tools:ignore="MissingTranslation">Unfavorite</string>
+    <string name="contact_action_favorite">Favorite</string>
+    <string name="contact_action_unfavorite">Unfavorite</string>
     <!-- Long-press menu on a number in the quick-actions picker: set / clear it as the default. -->
-    <!-- TODO: translate -->
-    <string name="contact_action_make_default" tools:ignore="MissingTranslation">Default</string>
-    <!-- TODO: translate -->
-    <string name="contact_action_clear_default" tools:ignore="MissingTranslation">Undefault</string>
+    <string name="contact_action_make_default">Default</string>
+    <string name="contact_action_clear_default">Undefault</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>
@@ -198,52 +180,35 @@
     <!-- Open-source attribution, reached from the About dialog. The row reads
          "Licenses" because the About dialog it sits in already sets the
          context; the page it opens spells out which licenses these are. -->
-    <!-- TODO: translate -->
-    <string name="settings_about_licenses" tools:ignore="MissingTranslation">Licenses</string>
-    <!-- TODO: translate -->
-    <string name="settings_licenses_title" tools:ignore="MissingTranslation">Open source licenses</string>
+    <string name="settings_about_licenses">Licenses</string>
+    <string name="settings_licenses_title">Open source licenses</string>
     <!-- Version of one bundled component, shown in the dialog a component row
          opens. Separate from settings_about_version_value above, which carries
          the launcher\'s own version name and build number. -->
-    <!-- TODO: translate -->
-    <string name="settings_licenses_version" tools:ignore="MissingTranslation">Version %1$s</string>
-    <!-- TODO: translate -->
-    <string name="settings_licenses_back_button" tools:ignore="MissingTranslation">Back</string>
-    <!-- TODO: translate -->
-    <string name="settings_licenses_details_dismiss" tools:ignore="MissingTranslation">Done</string>
+    <string name="settings_licenses_version">Version %1$s</string>
+    <string name="settings_licenses_back_button">Back</string>
+    <string name="settings_licenses_details_dismiss">Done</string>
     <string name="settings_manage_hidden_apps_button">Manage hidden apps</string>
     <string name="settings_hidden_apps_dialog_title">Hidden apps</string>
     <string name="settings_hidden_apps_dialog_empty">No hidden apps. Long-press an app and choose Hide to add one here.</string>
     <string name="settings_hidden_apps_dialog_dismiss">Done</string>
     <string name="settings_hidden_apps_unhide_description">Unhide %1$s</string>
     <string name="bug_report_chooser_title">Share bug report</string>
-    <!-- TODO: translate -->
-    <string name="bug_report_share_failed" tools:ignore="MissingTranslation">Couldn\'t share the bug report</string>
+    <string name="bug_report_share_failed">Couldn\'t share the bug report</string>
     <string name="bug_report_consent_dialog_title">Send bug report?</string>
     <string name="bug_report_consent_dialog_body">This report includes a screenshot of the current screen plus your launcher settings, list of installed apps, and recent in-app activity to help diagnose the issue. You\'ll be able to review and edit it before sending.</string>
     <string name="bug_report_consent_dialog_dont_show_again">Don\'t show this again</string>
     <string name="bug_report_consent_dialog_confirm">Continue</string>
     <string name="bug_report_consent_dialog_cancel">Cancel</string>
-    <!-- TODO: translate -->
-    <string name="crash_banner_title" tools:ignore="MissingTranslation">Did Type Launcher crash?</string>
-    <!-- TODO: translate -->
-    <string name="crash_banner_body" tools:ignore="MissingTranslation">If it did, share a bug report to help us fix it</string>
-    <!-- TODO: translate -->
-    <string name="crash_banner_share" tools:ignore="MissingTranslation">Share</string>
-    <!-- TODO: translate -->
-    <string name="crash_banner_dismiss" tools:ignore="MissingTranslation">Dismiss</string>
-    <!-- TODO: translate -->
-    <string name="crash_pending_badge_description" tools:ignore="MissingTranslation">Possible crash detected</string>
-    <!-- TODO: translate -->
-    <string name="telemetry_consent_title" tools:ignore="MissingTranslation">Anonymous analytics</string>
-    <!-- TODO: translate -->
-    <string name="telemetry_consent_body" tools:ignore="MissingTranslation">Send crash reports and usage data. Your personal data is never sent.</string>
-    <!-- TODO: translate -->
-    <string name="telemetry_consent_allow" tools:ignore="MissingTranslation">Allow</string>
-    <!-- TODO: translate -->
-    <string name="telemetry_consent_deny" tools:ignore="MissingTranslation">Don\'t allow</string>
-    <!-- TODO: translate -->
-    <string name="telemetry_consent_badge_description" tools:ignore="MissingTranslation">Analytics needs an answer</string>
-    <!-- TODO: translate -->
-    <string name="settings_analytics_title" tools:ignore="MissingTranslation">Analytics</string>
+    <string name="crash_banner_title">Did Type Launcher crash?</string>
+    <string name="crash_banner_body">If it did, share a bug report to help us fix it</string>
+    <string name="crash_banner_share">Share</string>
+    <string name="crash_banner_dismiss">Dismiss</string>
+    <string name="crash_pending_badge_description">Possible crash detected</string>
+    <string name="telemetry_consent_title">Anonymous analytics</string>
+    <string name="telemetry_consent_body">Send crash reports and usage data. Your personal data is never sent.</string>
+    <string name="telemetry_consent_allow">Allow</string>
+    <string name="telemetry_consent_deny">Don\'t allow</string>
+    <string name="telemetry_consent_badge_description">Analytics needs an answer</string>
+    <string name="settings_analytics_title">Analytics</string>
 </resources>

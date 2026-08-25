@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -35,7 +36,9 @@ import org.robolectric.annotation.GraphicsMode
  * The Analytics consent card ([TelemetryConsentCard]) is captured here rather
  * than in a class of its own: it is the other card in the same Settings slot,
  * and CI's screenshot allow-list comes from the base branch, so a brand-new
- * class records nothing on the PR that introduces it.
+ * class records nothing on the PR that introduces it. One of its captures
+ * ([telemetryConsent_longestLabels]) renders a translated locale, which is the
+ * suite's only coverage of a non-English string in a fixed-width layout.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -126,6 +129,34 @@ class CrashBannerScreenshotTest {
         composeRule.onNodeWithText("Anonymous analytics").assertExists()
 
         capture("compose_telemetry_consent_dark_robolectric.png")
+    }
+
+    // The same card in the locale with the longest Allow/Deny pair of the 63,
+    // because the button row is a fixed-width `SpaceBetween` and the two labels
+    // grow toward each other in the middle of it. Greek rather than Odia, whose
+    // pair is longer still: Robolectric has no Odia glyphs, so that capture
+    // would be tofu boxes whose advance widths say nothing about the real
+    // thing. This is the one screenshot in the suite that renders translated
+    // strings, so it is what catches a label collision or an unexpected wrap
+    // before it ships to a locale nobody here reads.
+    @Test
+    @Config(qualifiers = "+el-rGR")
+    fun telemetryConsent_longestLabels() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                ConsentCardOnPlainBackground()
+            }
+        }
+        composeRule.waitForIdle()
+        // By tag, not by text: the text under test is whatever the locale says.
+        composeRule.onNodeWithTag(TELEMETRY_CONSENT_TAG).assertExists()
+
+        // At the full w411dp window width, unlike the English captures' 720:
+        // this one is about whether the longest labels fit the row a phone
+        // actually renders, so cropping the canvas narrower than the device
+        // would manufacture a wrap that no user sees. Taller too, because the
+        // Greek body runs to three lines.
+        capture("compose_telemetry_consent_longest_labels_robolectric.png", widthPx = 1079, heightPx = 640)
     }
 
     // Both cards at once, which is the state a first launch after a crash

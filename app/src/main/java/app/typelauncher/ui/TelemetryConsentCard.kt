@@ -60,15 +60,26 @@ internal fun TelemetryConsentCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            // `weight(fill = false)` caps each button at half the row while
+            // letting it stay its natural size when it fits. Without the cap a
+            // long translated pair (Greek is the longest of the 63) overruns
+            // the row and the labels are squeezed into their buttons' minimum
+            // width and truncated; with it, the label wraps instead. Both keep
+            // their own horizontal content padding, so even two half-width
+            // buttons stay visually apart.
             TextButton(
                 onClick = onDeny,
-                modifier = Modifier.testTag(TELEMETRY_CONSENT_DENY_TAG),
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .testTag(TELEMETRY_CONSENT_DENY_TAG),
             ) {
                 Text(stringResource(R.string.telemetry_consent_deny))
             }
             Button(
                 onClick = onAllow,
-                modifier = Modifier.testTag(TELEMETRY_CONSENT_ALLOW_TAG),
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .testTag(TELEMETRY_CONSENT_ALLOW_TAG),
             ) {
                 Text(stringResource(R.string.telemetry_consent_allow))
             }
