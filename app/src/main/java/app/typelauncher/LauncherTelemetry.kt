@@ -4,6 +4,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.perf.FirebasePerformance
 import com.google.firebase.perf.metrics.Trace
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Thin wrapper over Firebase Crashlytics + Performance Monitoring that no-ops
@@ -54,6 +55,8 @@ internal object LauncherTelemetry {
     /** Serializes [applyCollectionPreference] across the toggle and startup. */
     private val collectionLock = Any()
 
+    /** One-shot latch so a broken SDK can't produce a warning per custom key. */
+    private val customKeyFailureReported = AtomicBoolean(false)
 
     /**
      * Opens or closes this wrapper's own gate, and nothing else.
@@ -128,6 +131,48 @@ internal object LauncherTelemetry {
         } catch (error: RuntimeException) {
             LauncherDebugLog.warning("pending crash reports not discarded on opt-out", error)
         }
+    }
+
+    /**
+     * Attaches a custom key to every subsequent crash report. Keys are the
+     * structured half of a report — the settings and counts that a stack trace
+     * alone can't tell us — and are what makes a crash triageable without the
+     * user ever sharing a bug report. Cheap (an in-memory map write in the SDK)
+     * but still off the first-frame path by convention; see [setCustomKeys].
+     *
+     * **Privacy**: values must stay inside the same floor the breadcrumbs keep
+     * (`PRIVACY.md`) — settings, enum choices, and counts only, never a package
+     * name, app or contact label, search query, or widget content. The keys
+     * shipped are built in one place ([launcherTelemetryKeys]) so that floor is
+     * reviewable and testable rather than spread across call sites.
+     */
+    fun setCustomKey(key: String, value: String) {
+        // Dropped, not buffered, while the gate is closed. Buffering was tried
+        // so the foreground key written before the startup preference read
+        // could be replayed — but the buffer could not tell "preference not
+        // loaded yet" from "user has opted out", so state recorded during an
+        // opt-out was replayed on opt-in, which is exactly what `PRIVACY.md`
+        // promises does not happen. A key missing until the next state change
+        // is a diagnostic gap; replaying one is a broken promise.
+        if (!reporting) return
+        try {
+            FirebaseCrashlytics.getInstance().setCustomKey(key, value)
+        } catch (error: RuntimeException) {
+            // Latched: a broken SDK would otherwise log once per key per
+            // publish. The key name is ours and the value is already inside the
+            // privacy floor, but neither is worth repeating — the failure is
+            // what matters, and losing it entirely would let the crash-context
+            // feature disappear in production with nothing to show for it.
+            if (customKeyFailureReported.compareAndSet(false, true)) {
+                LauncherDebugLog.warning("crash-report custom keys not being recorded", error)
+            }
+        }
+    }
+
+    /** Bulk [setCustomKey], for the snapshot published after a state change. */
+    fun setCustomKeys(keys: Map<String, String>) {
+        if (!reporting) return
+        keys.forEach { (key, value) -> setCustomKey(key, value) }
     }
 
     fun startTrace(name: String): TraceHandle {

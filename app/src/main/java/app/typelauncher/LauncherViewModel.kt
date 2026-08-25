@@ -46,6 +46,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -580,11 +582,43 @@ internal class LauncherViewModel(
         registerManagedProfileReceiver()
         registerDateChangedReceiver()
         seedCrashBanner()
+        publishTelemetryKeys()
     }
 
     /** The on-device debug-log sink, or null before the Application wires it (previews, tests, no-Firebase builds). */
     private val debugFileSink: DebugFileSink?
         get() = debugFileSinkProvider()
+
+    /**
+     * Keeps Crashlytics' custom keys in step with the launcher's state, so a
+     * crash report arrives already carrying the settings and counts that would
+     * otherwise only reach us if the user noticed the post-crash prompt and
+     * shared a bug report. This is the "lean on Crashlytics" half of the
+     * diagnostic story: breadcrumbs say what happened, the keys say what the
+     * launcher looked like when it did.
+     *
+     * Runs on [ioDispatcher], never the main thread, and only pushes when the
+     * rendered key map actually changes — [LauncherUiState] updates on every
+     * keystroke, and none of the fields here move with the query, so
+     * `distinctUntilChanged` collapses a burst of typing into no work at all.
+     * See [launcherTelemetryKeys] for the privacy floor the values keep.
+     */
+    /**
+     * A plain function, not a `by lazy` property: [publishTelemetryKeys] is
+     * started from `init`, and a property declared after it is still null when
+     * the collector's first emission reads it. Reads `BuildConfig`, so it is
+     * cheap enough to call per publish.
+     */
+    private fun telemetryIsLocalBuild(): Boolean = buildSourceInfoFromConfig()?.isLocalBuild ?: false
+
+    private fun publishTelemetryKeys() {
+        viewModelScope.launch(ioDispatcher) {
+            uiState
+                .map { state -> launcherTelemetryKeys(state, telemetryIsLocalBuild()) }
+                .distinctUntilChanged()
+                .collect { keys -> LauncherTelemetry.setCustomKeys(keys) }
+        }
+    }
 
 
     /**
@@ -621,6 +655,16 @@ internal class LauncherViewModel(
         scope.launch {
             withContext(ioDispatcher) {
                 LauncherTelemetry.applyCollectionPreference { dockSettingsStore.isTelemetryEnabled }
+                // Opting back in needs the key set pushed again: the collector
+                // dropped every map published while the gate was closed, and
+                // `isTelemetryEnabled` is deliberately not one of the keys, so
+                // `distinctUntilChanged` would suppress the identical map and
+                // leave a crash right after opt-in with no context at all.
+                if (dockSettingsStore.isTelemetryEnabled) {
+                    LauncherTelemetry.setCustomKeys(
+                        launcherTelemetryKeys(_uiState.value, telemetryIsLocalBuild()),
+                    )
+                }
             }
         }
     }
