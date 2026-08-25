@@ -1,8 +1,6 @@
 # TODO
 
-- Extend the widget picker filter to also match individual widget labels (and possibly description) within an app group, not just the app group names. Today (`WidgetsScreen.kt`'s `WidgetPickerCard`) only filters by `WidgetProvider.appName`.
 - Decide whether empty-query Enter/Search should continue opening Type Launcher settings or do something else.
-- Translate the Settings wallpaper strings once the English wording is settled: `settings_wallpaper_title`, `settings_change_wallpaper_button`, `settings_change_wallpaper_button_description` (the Change button's screen-reader label — a locale that gets the visible text but not this one announces English to TalkBack), and `settings_wallpaper_picker_unavailable` ship English-only with a per-string `tools:ignore="MissingTranslation"`; the follow-up PR fans them out to every `values-*/` locale and drops the suppression.
 - Revisit cached Home keyboard geometry after adding a permanent bottom reservation for the recents bar. Today `keyboard_reservation_bottom_px` keeps Home in typing-height geometry even after the user dismisses the IME with Back; that is intentional for the current hot path, but it should become redundant once the app list and dock reserve stable bottom space independent of keyboard visibility.
 - Decide the secondary-tray behavior when `Show keyboard automatically` is disabled. The current tray is coupled to cached keyboard geometry from the type-first path; keyboard-opt-out users may need a stable bottom reservation that is not derived from IME auto-show.
 - Design keyboard access for launching docked apps.
@@ -179,6 +177,18 @@
       Bounded meanwhile: Performance carries durations and counts under
       hard-coded names, so a failed opt-out here leaks timing, not user data;
       Crashlytics, which carries the breadcrumbs, opts out on its own `try`.
+
+- **The widget picker filter matches app names and widget labels, and stops
+  there — no match against a widget's `android:description`.** The filter item
+  that asked for label matching (now shipped) floated description matching as a
+  "possibly". Left undone deliberately: the picker renders only the app name and
+  the widget label, so a description hit would surface a result with the query
+  visible nowhere on screen, and descriptions are prose — a sentence like "Shows
+  your upcoming events" turns incidental words into matches and dilutes the
+  ranking tiers, which are built for names. *Alternative:* read
+  `AppWidgetProviderInfo.loadDescription` (available at `minSdk 34`) and match it
+  at a tier below the label. *Reversible:* one extra `launcherMatchTier` call in
+  `WidgetPickerCard`'s group fold; nothing persists and no UI moves.
 
 ## Review and merge gates
 
