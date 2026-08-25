@@ -76,7 +76,7 @@ on:
 # run's and stand as the latest verdict for a commit nobody re-validated —
 # the retarget/title-edit race mikelward/lanes's design flags as needing a
 # concurrency group. Not for a run that can reach `deploy`: canceling one
-# mid-flight could interrupt a Firebase/Play upload, a worse outcome than
+# mid-flight could interrupt a Play upload, a worse outcome than
 # the staleness this guards.
 #
 # Every run that can reach `deploy` shares ONE non-cancelling group,
@@ -227,7 +227,6 @@ jobs:
       # -- and these secrets, since that trigger hands every job the full
       # `secrets` context regardless of fork status, unlike plain
       # `pull_request`'s fork withholding.
-      HAS_DEBUG_KEYSTORE: ${{ github.event_name == 'push' && secrets.DEBUG_KEYSTORE_BASE64 != '' }}
       HAS_GOOGLE_SERVICES: ${{ github.event_name == 'push' && secrets.GOOGLE_SERVICES_JSON != '' }}
     # contents: read only — this job checks out and executes the PR's own
     # Gradle code (assembleDebug, test, lint all run PR-controlled build
@@ -279,48 +278,13 @@ jobs:
           # trigger.
           cache-read-only: ${{ github.event_name != 'push' }}
 
-      - name: Materialize debug keystore
-        # Decode the checked-in-only-as-a-secret debug keystore so CI-built APKs
-        # share a signing identity with previous CI builds. Without this, every
-        # runner generates its own ~/.android/debug.keystore and tester devices
-        # refuse to install successive Firebase App Distribution releases as
-        # updates. Skipped on PRs / forks where the secret isn't set; the build
-        # still finishes using AGP's auto-generated debug keystore.
-        if: env.HAS_DEBUG_KEYSTORE == 'true'
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
-          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
-          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
-        # `build` job: writes `DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore`, a
-        # fixed path this workflow constructs, and only when `HAS_DEBUG_KEYSTORE` —
-        # itself gated on `github.event_name == 'push'` — is true. Never PR-supplied
-        # text, never reachable from PR content.
-        run: |  # zizmor: ignore[github-env]
-          # If the keystore secret is set, its companions must be too, and
-          # the decoded bytes must actually open with the configured
-          # password — otherwise the failure surfaces later as an opaque
-          # signing error. Validate here so wrong base64, a wrong password,
-          # or a missing companion secret fails with a clear message.
-          # (Ported from clothescast's ci.yml.)
-          missing=""
-          [ -z "$DEBUG_KEYSTORE_PASSWORD" ] && missing="$missing DEBUG_KEYSTORE_PASSWORD"
-          [ -z "$DEBUG_KEY_PASSWORD" ]      && missing="$missing DEBUG_KEY_PASSWORD"
-          if [ -n "$missing" ]; then
-            echo "::error::DEBUG_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
-            exit 1
-          fi
-          printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
-          if ! keytool -list -keystore "${RUNNER_TEMP}/debug.keystore" -storepass "$DEBUG_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
-            echo "::error::Decoded debug keystore is not a valid keystore or DEBUG_KEYSTORE_PASSWORD is wrong."
-            exit 1
-          fi
-          echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
-
       - name: Materialize google-services.json
-        # Drops the Firebase project config into app/google-services.json so the
-        # google-services + crashlytics gradle plugins activate (see
-        # app/build.gradle.kts) and Crashlytics + Performance Monitoring ship
-        # in the built APK. Skipped on forks / PRs without the secret — the
+        # Drops the Firebase project config into app/google-services.json so
+        # the google-services + crashlytics gradle plugins activate (see
+        # app/build.gradle.kts). Nothing installs this job's APK, so the point
+        # is the plugin path itself: a stale or malformed config fails here on
+        # the push that introduced it rather than in `deploy`, where it would
+        # block the release. Skipped on forks / PRs without the secret — the
         # build still finishes, just without telemetry.
         if: env.HAS_GOOGLE_SERVICES == 'true'
         env:
@@ -328,19 +292,10 @@ jobs:
         run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
 
       - name: Build debug APK
-        # This step has no `if:` -- assembleDebug has to run on every heavy
-        # lane, PR or push -- so unlike the two steps above, gating on
-        # HAS_DEBUG_KEYSTORE isn't available here; the same `github.event_name
-        # == 'push'` condition is inlined per secret instead. Before this,
-        # these three env vars carried the real secret values on EVERY run
-        # unconditionally, regardless of push vs. PR -- reachable by anything
-        # this step's own Gradle invocation executes, PR-authored code
-        # included, whether or not DEBUG_KEYSTORE_FILE (set only when
-        # HAS_DEBUG_KEYSTORE is true) was ever consumed.
-        env:
-          DEBUG_KEYSTORE_PASSWORD: ${{ github.event_name == 'push' && secrets.DEBUG_KEYSTORE_PASSWORD || '' }}
-          DEBUG_KEY_PASSWORD: ${{ github.event_name == 'push' && secrets.DEBUG_KEY_PASSWORD || '' }}
-          DEBUG_KEY_ALIAS: ${{ github.event_name == 'push' && secrets.DEBUG_KEY_ALIAS || '' }}
+        # Signed with AGP's auto-generated debug keystore, like a developer's
+        # own build: nothing distributes this APK, so no runner needs a shared
+        # signing identity. It runs on every heavy lane, PR or push, as the
+        # compile check.
         run: ./gradlew assembleDebug
 
       - name: Check licenses export is up to date
@@ -975,8 +930,8 @@ jobs:
     #      so this re-checks `github.ref` rather than trusting that
     #      default) — never on PRs.
     #   2. `environment: production` — secrets used here
-    #      (FIREBASE_SERVICE_ACCOUNT_JSON, RELEASE_KEYSTORE_*,
-    #      PLAY_SERVICE_ACCOUNT_JSON) live in the `production`
+    #      (RELEASE_KEYSTORE_*, PLAY_SERVICE_ACCOUNT_JSON,
+    #      GOOGLE_SERVICES_JSON) live in the `production`
     #      environment with deployment protection rules. Configure the
     #      environment in repo Settings → Environments → production:
     #      restrict deployment branches to `main` and optionally
@@ -998,9 +953,7 @@ jobs:
       # A step's `if:` can't read that same step's `env:`, so the gates
       # below evaluate these job-level booleans instead of the secrets
       # directly; the secret values stay scoped to the steps that use them.
-      HAS_DEBUG_KEYSTORE: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
       HAS_GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
-      HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.FIREBASE_SERVICE_ACCOUNT_JSON != '' }}
       HAS_RELEASE_KEYSTORE_SECRET: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
       HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     permissions:
@@ -1029,59 +982,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
 
-      - name: Materialize debug keystore
-        # The Firebase distribution APK is a debug build (so testers
-        # can side-load over previous installs), signed with the
-        # shared debug keystore so successive Firebase releases install
-        # as updates. Duplicated from the build job because deploy
-        # runs on a separate runner.
-        if: env.HAS_DEBUG_KEYSTORE == 'true'
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
-          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
-          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
-        # `deploy` job: same value, same fixed path. This job's own `if:` restricts
-        # it to `github.ref == 'refs/heads/main' && (push || workflow_dispatch)`, so
-        # no PR content reaches it.
-        run: |  # zizmor: ignore[github-env]
-          # If the keystore secret is set, its companions must be too, and
-          # the decoded bytes must actually open with the configured
-          # password — otherwise the failure surfaces later as an opaque
-          # signing error. Validate here so wrong base64, a wrong password,
-          # or a missing companion secret fails with a clear message.
-          # (Ported from clothescast's ci.yml.)
-          missing=""
-          [ -z "$DEBUG_KEYSTORE_PASSWORD" ] && missing="$missing DEBUG_KEYSTORE_PASSWORD"
-          [ -z "$DEBUG_KEY_PASSWORD" ]      && missing="$missing DEBUG_KEY_PASSWORD"
-          if [ -n "$missing" ]; then
-            echo "::error::DEBUG_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
-            exit 1
-          fi
-          printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
-          if ! keytool -list -keystore "${RUNNER_TEMP}/debug.keystore" -storepass "$DEBUG_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
-            echo "::error::Decoded debug keystore is not a valid keystore or DEBUG_KEYSTORE_PASSWORD is wrong."
-            exit 1
-          fi
-          echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
-
       - name: Materialize google-services.json
         if: env.HAS_GOOGLE_SERVICES == 'true'
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
 
-      - name: Build debug APK for Firebase distribution
-        env:
-          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
-          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
-          DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
-        run: ./gradlew assembleDebug
-
       - name: Build release notes
         # Walks every commit in this push oldest-first and collects the
-        # subject line of each one worth shipping as a release note — to
-        # both Firebase App Distribution (testers' phones) and the Play
-        # Store internal track (Play Console "What's new"):
+        # subject line of each one worth shipping as a release note to
+        # the Play Store internal track (Play Console "What's new"):
         #   - skip commits whose subject starts with a non-user-facing
         #     prefix — `ci:` (CI plumbing, e.g. snapshot regenerations),
         #     `docs:` (documentation), `internal:` (build config, deps,
@@ -1099,13 +1009,12 @@ jobs:
         #     genuinely user-facing and counts as a real commit.
         # The qualifying subjects are emitted as a "• "-bulleted list,
         # oldest-first — always bulleted, even when there's only one
-        # qualifying commit, so the Play "What's new" card and Firebase
-        # release notes render with a consistent shape. If no commit in
-        # the push qualifies, sets RELEASE_NOTES_SKIP=true and both the
-        # Firebase distribution and Play upload steps below skip — so a
-        # push of only prefixed (ci: / docs: / internal: / refactor: /
-        # test: / tests:) or docs / dotfile commits doesn't buzz
-        # testers' phones or ship a redundant Play release.
+        # qualifying commit, so the Play "What's new" card renders with a
+        # consistent shape. If no commit in the push qualifies, sets
+        # RELEASE_NOTES_SKIP=true and the Play upload steps below skip —
+        # so a push of only prefixed (ci: / docs: / internal: /
+        # refactor: / test: / tests:) or docs / dotfile commits doesn't
+        # ship a redundant Play release.
         #
         # A manual workflow_dispatch is the one exception: it's an
         # explicit "publish the current tip anyway" request (see the
@@ -1120,8 +1029,8 @@ jobs:
         # distributing, `before` would be that failed push's tip and the
         # next run's notes would silently omit the unreleased commits
         # from the failed range. The base must be a run that actually
-        # *published* — its Firebase or Play step concluded success —
-        # not merely a green deploy job: with publication secrets
+        # *published* — its Play upload step concluded success — not
+        # merely a green deploy job: with publication secrets
         # missing, every publish step skips and the deploy still
         # concludes success, and counting such a run as released would
         # drop its range's commits from the first real release after the
@@ -1152,8 +1061,8 @@ jobs:
 
           # Walk recent main runs of this workflow (newest first) and take
           # as the range base the head SHA of the first one whose deploy
-          # job succeeded AND actually published — i.e. its Firebase or
-          # Play upload *step* concluded success, not just the job. A
+          # job succeeded AND actually published — i.e. its Play upload
+          # *step* concluded success, not just the job. A
           # deploy concludes green while publishing nothing whenever its
           # publication secrets are missing (every step skips), and also
           # when RELEASE_NOTES_SKIP suppressed a housekeeping-only push;
@@ -1163,11 +1072,15 @@ jobs:
           # the range and the prefix/path filter drops them again. The
           # job and step names below must match the `name:` values in
           # this workflow verbatim; rename them together. The current
-          # run and re-runs of the same head SHA are skipped. Known
-          # trade: a run where Firebase published but a later step
-          # failed the job doesn't count, so Firebase testers may see a
-          # repeated bullet — better than Play's permanent "What's new"
-          # record omitting one.
+          # run and re-runs of the same head SHA are skipped. The
+          # retired `Distribute via Firebase App Distribution` step name
+          # is deliberately not accepted here: these notes are Play's
+          # `whatsnew-en-US`, so a historical run that distributed
+          # through Firebase while the Play upload skipped never put its
+          # commits in front of a Play reader, and treating it as the
+          # base would drop them from Play's record for good. Requiring
+          # a Play upload can only repeat a bullet instead — the trade
+          # this pipeline has always preferred.
           prev_sha=""
           while IFS=$'\t' read -r run_id run_head; do
             [ -z "$run_id" ] && continue
@@ -1178,8 +1091,7 @@ jobs:
                      | select(.name == "Distribute and release")
                      | select(.conclusion == "success")
                      | .steps[]
-                     | select(.name == "Distribute via Firebase App Distribution"
-                              or .name == "Upload to Play Store internal track")
+                     | select(.name == "Upload to Play Store internal track")
                      | .conclusion]
                     | any(. == "success")' \
               2>/dev/null || true)
@@ -1272,7 +1184,7 @@ jobs:
               echo "No release-worthy commits, but this is a manual workflow_dispatch — publishing the current tip anyway with a generic note."
               subjects+=("Internal test build")
             else
-              echo "No release-worthy commits in this push (all ci: / docs: / internal: / refactor: / test: / tests: prefixed or docs / dotfile housekeeping); skipping Firebase distribution and Play upload."
+              echo "No release-worthy commits in this push (all ci: / docs: / internal: / refactor: / test: / tests: prefixed or docs / dotfile housekeeping); skipping the Play upload."
               echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
               exit 0
             fi
@@ -1288,7 +1200,7 @@ jobs:
 
           # Always emit a "• "-bulleted line per subject — even for a
           # single qualifying commit — so the Play "What's new" card
-          # and Firebase release notes always render as a list.
+          # always renders as a list.
           format_notes() {
             local first=1
             for s in "$@"; do
@@ -1369,53 +1281,6 @@ jobs:
             printf '%s\n' "$notes"
             printf '%s\n' "$delim"
           } >> "$GITHUB_ENV"
-
-      - name: Distribute via Firebase App Distribution
-        # Skipped when secrets aren't set so the build still finishes on a
-        # fresh repo / fork. Also skipped when the preceding step set
-        # RELEASE_NOTES_SKIP=true because every commit in this push was
-        # either prefixed (`ci:` / `docs:` / `internal:` / `refactor:` /
-        # `test:` / `tests:`) or pure docs / dotfile housekeeping
-        # (`.github/`, `.claude/`, …) — see "Build release notes" — so we
-        # don't buzz testers' phones for a notification whose preview
-        # would read e.g. "ci: bump actions/checkout". Runs
-        # before the Play Store upload so a Play failure (e.g. quota,
-        # propagation) doesn't gate the faster Firebase channel testers
-        # actually rely on. A manual workflow_dispatch never sets
-        # RELEASE_NOTES_SKIP (see "Build release notes"), so this step
-        # runs normally for a dispatch too — the point of dispatching is
-        # to reach testers' phones on demand.
-        #
-        # Also requires the stable debug keystore: an APK signed with the
-        # runner's throwaway debug key can't install as an update over a
-        # previous Firebase build (signature mismatch forces an uninstall),
-        # so distributing without it does more harm than skipping. Flagged
-        # by Codex on Simmo's port of this workflow (mikelward/simmo#45).
-        if: |
-          success() &&
-          env.HAS_FIREBASE == 'true' &&
-          env.HAS_DEBUG_KEYSTORE == 'true' &&
-          env.RELEASE_NOTES_SKIP != 'true'
-        uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6  # v1.7.1
-        with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          # Tester group must exist in Firebase App Distribution console — see
-          # docs/firebase-app-distribution.md. "testers" is the convention; rename
-          # there + here together if you change it.
-          groups: testers
-          file: app/build/outputs/apk/debug/app-debug.apk
-          # Push notification on the tester's phone shows the first ~60 chars
-          # of these notes — for a multi-commit push that's the oldest
-          # qualifying commit's subject (the list is oldest-first; see
-          # "Build release notes" upstream). The full bulleted list is
-          # visible inside the Firebase tester app, and the same string
-          # is what Play ships as "What's new", so the two surfaces stay
-          # in sync.
-          releaseNotes: |
-            ${{ env.RELEASE_NOTES }}
-            ---
-            Build: ${{ github.run_number }} · ${{ github.sha }}
 
       - name: Materialize release keystore
         # Decoded whenever the keystore secret is present, independent of the

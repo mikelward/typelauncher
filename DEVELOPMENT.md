@@ -55,7 +55,7 @@ Instrumented tests require an emulator or physical device, so they are not expec
 1. Start an emulator or connect a physical Android device.
 2. Select the `app` configuration.
 3. Click Run.
-4. When Android asks for a default home app, choose **Type Launcher Dev** if you want to test launcher behavior — a build made outside CI is labeled that way, so it is distinguishable from a co-installed Play build (plain "Type Launcher") or Firebase tester build ("Type Launcher Debug").
+4. When Android asks for a default home app, choose **Type Launcher Dev** if you want to test launcher behavior — a build made outside CI is labeled that way, so it is distinguishable from a co-installed Play build (plain "Type Launcher") or CI debug build ("Type Launcher Debug").
 
 ### Command line
 
@@ -91,7 +91,7 @@ You can list connected devices with:
 adb devices
 ```
 
-After installation, press the device Home button and select **Type Launcher Dev** when Android prompts for the default launcher — that is the label a build made outside CI carries, as distinct from a co-installed Play or tester build.
+After installation, press the device Home button and select **Type Launcher Dev** when Android prompts for the default launcher — that is the label a build made outside CI carries, as distinct from a co-installed Play or CI-built one.
 
 ## Testing
 
@@ -210,11 +210,11 @@ CI must check the repo out with full history for the count to be correct. The `a
 
 If you need to override the base name (for example, to bump to `2.0`), edit `baseVersionName` in `app/build.gradle.kts`.
 
-## Firebase App Distribution
+## Distribution
 
-CI uploads the debug APK to Firebase App Distribution as the last step of the `build` job, using `wzieba/Firebase-Distribution-Github-Action@v1`. The upload only runs on `push` to `main` and is silently skipped when the `FIREBASE_APP_ID` / `FIREBASE_SERVICE_ACCOUNT_JSON` secrets aren't set, so PRs and forks still get green CI.
+Internal testing builds go out through the Play Store internal track, uploaded by the `deploy` job on every push to `main` that carries a release-worthy commit. See [docs/play-store-internal-track.md](docs/play-store-internal-track.md).
 
-See [docs/firebase-app-distribution.md](docs/firebase-app-distribution.md) for the required GitHub secrets, the tester group convention, and how to upload manually from a workstation.
+Firebase App Distribution used to ship the CI debug APK alongside it. Both channels published on every push and reached the same testers, so it was retired; the internal track is also the route to alpha/beta/production. Nothing distributes a debug APK now — sideloading one means building it locally.
 
 ## Common Gradle commands
 
