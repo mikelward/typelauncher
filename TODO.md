@@ -69,7 +69,14 @@
 - Split `LauncherUiState` consumption into smaller screen/subtree projections so typing, widget, and settings updates do not invalidate broad composition scopes. Candidate slices: theme, home/search/results, keyboard tray, carousel, widgets, and settings.
 - Move query filtering and ranking off the main thread, or pre-index enough app search metadata to keep per-keystroke work cheap. Keep query text updates immediate, make result computation cancellable with `mapLatest`, and publish only the latest filtered list.
 - Revisit offscreen carousel composition so non-current widget and agenda pages stay lightweight. Prefer composing the current page plus the active drag/animation target, and avoid creating hosted widget `AndroidView`s for pages that are only preloaded for swipe readiness.
-- Move widget picker preview and app-icon bitmap generation out of composition. Add async loaders/caches keyed by provider and requested preview/icon size, render placeholders first, and rasterize drawables away from the UI thread.
+- Cache the widget picker's app-icon and widget-icon bitmaps, keyed by drawable
+  and requested size. The preview half of this is done — the fetch was already
+  off the main thread and the rasterization now happens on the same IO hop. The
+  icons still rasterize in composition, deliberately (see `Decisions needing
+  review`), but `remember(appIcon)` only caches for as long as that row stays
+  composed, and the picker emits rows positionally — so filtering re-rasterizes
+  every visible icon on each keystroke. A cache keyed by the drawable would cost
+  nothing at first paint and remove the repeat work.
 - Use lazy or otherwise bounded rendering inside the widget picker list. The picker currently materializes matching app groups in a regular `Column`; flattening into the outer lazy list or using a bounded nested lazy list would scale better on devices with many widget providers.
 - Decide whether to persist more than priority icons only after telemetry shows first-scroll icon misses are hurting startup or scroll performance. If needed, persist a bounded first screenful for the active empty-query sort order and icon size.
 - Add lightweight debug-only recomposition/performance instrumentation around hot composables and interactions: search, app list rows/grid buttons, keyboard tray, widgets, first query keystroke, backspace, Home ↔ Widgets swipe, and widget-picker expansion.
@@ -169,6 +176,19 @@
   `AppWidgetProviderInfo.loadDescription` (available at `minSdk 34`) and match it
   at a tier below the label. *Reversible:* one extra `launcherMatchTier` call in
   `WidgetPickerCard`'s group fold; nothing persists and no UI moves.
+
+- **The widget picker's 36dp icons still rasterize during composition; only the
+  preview image moved off it.** The follow-up asked for both. Moving the icons
+  too would mean a `produceState` hop each, and their drawables are already in
+  memory — `provider.icon()` is a field read, not IPC — so the cost being moved
+  is a small `toBitmap` and the cost being added is a visible pop-in on the
+  picker's opening frame, against the quality bar's "prefer showing the real
+  thing instantly when it's already in memory". The preview image is the
+  opposite case: whatever size the app shipped, and already progressive, so
+  rasterizing it on the existing IO hop changes nothing a user sees.
+  *Alternative:* make the icons async too and accept the pop-in, or cache the
+  rasterized bitmaps (queued above) which removes the repeat cost without one.
+  *Reversible:* the conversion is one line in each of two composables.
 
 ## Review and merge gates
 
