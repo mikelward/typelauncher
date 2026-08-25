@@ -97,6 +97,66 @@
 
 ## Privacy
 
+- [ ] **Hold Crashlytics off before it auto-starts, when a discard is owed.**
+      Crashlytics auto-initializes from a `ContentProvider` *before*
+      `Application.onCreate`, so its own persisted collection flag decides what
+      happens before any launcher code runs. A launch that inherits an
+      unserviced discard (opt-out → opt-in → process death) therefore races its
+      own startup transition: the SDK can upload a queued report before the
+      coroutine disables collection and deletes it. Raised by Codex on #666 and
+      real. Not a defect #666 introduced — the window predates it; what changed
+      is that the durable debt makes the race visible.
+
+      **Codex's round-6 finding belongs here too.** If the opt-out's own write
+      *throws*, the stored choice stays `true` while only the in-memory state
+      says otherwise — and the queued transition then re-reads the store,
+      discharges the debt, and re-enables collection in the same process, with
+      the Settings switch still showing off. Same root: our record can fail to
+      take, and a re-read of the store then contradicts what the user actually
+      chose. The inversion below is what makes the record authoritative instead
+      of advisory.
+
+      **Codex's round-5 finding on #666 is the same defect from the other end**,
+      and belongs to this item rather than to that PR. `applySdkFlags` logs a
+      throw from either SDK and carries on, so a failed *disable* leaves
+      collection on while the discharge runs and then clears the durable marker
+      anyway — no debt left for a later transition to retry. Both that and the
+      auto-start window above come from the same wrong assumption: that the
+      SDK's persisted flag can be set on demand and therefore reflects our
+      intent. It cannot, and no amount of ordering inside the transition fixes
+      a write that did not take.
+
+      The fix is to stop relying on the SDK's own flag as the source of truth:
+      declare `firebase_crashlytics_collection_enabled=false` in the manifest so
+      nothing auto-collects, and have the transition turn it on once it has
+      established that nothing is owed. That inverts the initialization contract
+      for the whole app, and getting it wrong means telemetry is silently off
+      for everyone — the failure this repo is least able to detect — so it wants
+      its own PR and its own verification on a device carrying the config.
+      When it lands, the discharge should also decline to clear the marker
+      unless the disable it depends on actually succeeded — which that design
+      makes knowable, and today's does not.
+
+### Decisions needing review
+
+- **The opt-out's durable write blocks the main thread, on purpose.**
+  `setCollectionGate(false, …)` reaches `SharedPreferences.commit()` before
+  returning, from Compose's `onCheckedChange`. Codex asked for it to be moved
+  off the UI thread (#666, round 2) having asked on round 1 for it to be
+  written *before the asynchronous gap* — the two cannot both hold, since the
+  gap is the boundary between the tap and any background work.
+
+  Kept on the main thread. AGENTS.md L15 aims at cold-start, first-frame,
+  scroll and transition paths, and a Settings switch is none of them; the cost
+  is one boolean into an already-loaded instance, on the opt-out branch only;
+  and the alternative is either losing durability — reopening the hole #666
+  exists to close — or a second durable channel written asynchronously, which
+  is more machinery than the thing it protects, with the same failure mode.
+
+  Reversible: moving the write later is a one-line change if a real frame trace
+  ever shows it. What is *not* cheap to undo is a report uploaded after the user
+  asked for it to be deleted.
+
 - [x] **Make the debug log default-safe, so a new call site can't send user
       data off device.** Done. A log call is now a hard-coded format string
       plus arguments (`LauncherDebugLog.event` / `warning` / `failure`), and an
@@ -170,53 +230,24 @@
       gate could not express without also dropping every cold-start trace on a
       slow start.
 
-      **Open, and deliberately not closed in that PR: the deletion debt does
-      not survive process death.** Both counters live in memory, so an
-      off→on cycle followed by the process dying before the transition
-      completes forgets the promised deletion — the stored preference reads
-      `true`, the next process starts with the counters at zero, and the
-      startup re-assert deletes nothing, leaving the report captured during
-      the off period uploadable. Found by review on PR #662.
+      **The deletion debt now survives process death.** Closed in the
+      follow-up. `DockSettingsStore.isReportDiscardOwed` records the promise
+      beside the preference on opt-out and is cleared only once a discard
+      succeeds, so a run that dies before servicing it hands the obligation to
+      the next one. The preference seam widened from `() -> Boolean?` to
+      `TelemetryPreferences`, which can read and clear that record, and the
+      startup re-assert therefore services a debt it never incurred.
 
-      **Also declined on scope (#662 round 13):** `applySdkFlags` swallows a
-      throw, so a caller that stops the SDKs before discharging proceeds as
-      though they stopped. With a Firebase setter that throws, plus a rapid
-      off→on leaving the flags on, plus a pending report, the delete can run —
-      and clear the debt — while that report is still uploadable. The fix is to
-      return the disable outcome and hold the debt until the stop succeeds.
-      Deferred here because it is the fourth consecutive finding created by the
-      previous round's fix in the same function, and the durable-debt rework
-      expresses it naturally as "the debt stays owed and the next process
-      services it" rather than as another boolean threaded through
-      `applyCollectionPreference`.
+      Two readings fail toward *not* collecting: an unreadable choice changes
+      nothing (assuming a value would let a corrupt file overwrite a stored
+      opt-out), and an unreadable discard record counts as owed, because not
+      knowing whether a promise was kept is not a reason to resume.
 
-      **This is a class, not a list.** Eleven review rounds on #662 kept
-      naming new instances of one shape: the transition reads state that a
-      lock-free main-thread writer (`setCollectionGate`) can change under it,
-      so there is always another gap between a check and its use. The last fix
-      made the final check test the invariant itself — never leave the SDKs
-      enabled with a discharge outstanding — rather than proxies for it, which
-      stops the individual gaps mattering. Two genuinely irreducible ones
-      remain, both declined deliberately: the instructions between a check and
-      the write it guards, and between a trace's `mayReport()` and its `stop()`.
-      Closing either needs mutual exclusion with the main-thread toggle, and
-      that call must stay lock-free so reporting stops instantly without
-      blocking on two Firebase IPCs. Durable debt is what actually retires the
-      class, because it makes the repair survive the crash that is the only
-      reason any of these windows matter.
-
-      It is **not a regression**: the deletion was in-memory and edge-triggered
-      before that PR too, so a process death lost it just the same. What the PR
-      changed is that the in-process races are now closed, which leaves this as
-      the remaining hole in the same promise rather than one of several.
-
-      Closing it means making the debt durable — a flag in `DockSettingsStore`
-      written beside `isTelemetryEnabled` on opt-out and cleared only once a
-      delete succeeds, with `applyCollectionPreference` reading it so the
-      startup re-assert services a debt inherited from a previous process. That
-      needs the preference seam to widen from `() -> Boolean?` to something that
-      can also read and clear the flag, which is a design change rather than a
-      patch, and is why it is here rather than folded into that PR.
+      This is also what retires the residual class below. Each of those windows
+      is a moment where the flags could be left enabled with a discard still
+      owed; with the debt durable, the next transition — or the next process —
+      sees the obligation and services it, so they are repairable after the
+      fact rather than needing to be prevented one gap at a time.
 
       The SDK side effects sit behind a small interface so the transition's
       ordering and failure semantics are unit-testable without Firebase — every
