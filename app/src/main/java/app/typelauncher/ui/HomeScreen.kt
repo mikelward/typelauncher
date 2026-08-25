@@ -2351,9 +2351,17 @@ internal fun DockFolderInPlace(
     val scope = rememberCoroutineScope()
     // Same top/bottom scroll chevrons the apps list uses: shown only while there
     // is more folder to scroll to, and a tap pages by one viewport.
+    //
+    // derivedStateOf, unlike the lazy states below: `ScrollState`'s two
+    // properties are plain comparisons against `value`, so reading either one
+    // subscribes to the scroll offset itself and invalidates on every frame of
+    // a drag or fling. Deriving them collapses that to the one flip the
+    // chevrons actually care about.
+    val canScrollUp = remember(scrollState) { derivedStateOf { scrollState.canScrollBackward } }
+    val canScrollDown = remember(scrollState) { derivedStateOf { scrollState.canScrollForward } }
     AppListOverflowChevronBox(
-        canScrollUp = scrollState.canScrollBackward,
-        canScrollDown = scrollState.canScrollForward,
+        canScrollUp = { canScrollUp.value },
+        canScrollDown = { canScrollDown.value },
         chevronsReady = true,
         chevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
         onScrollPageUp = {
@@ -3661,8 +3669,13 @@ private suspend fun ScrollState.scrollOneHorizontalPage(backward: Boolean, viewp
  */
 @Composable
 private fun AppListOverflowChevronBox(
-    canScrollUp: Boolean,
-    canScrollDown: Boolean,
+    // Lambdas, not booleans: whether an edge can still scroll is read inside
+    // [AppListOverflowChevrons] rather than here, so the state subscription
+    // lands on the two small icons instead of on this Box — whose scope also
+    // holds `content()`, the whole list or folder grid. Passing the value
+    // would put every flip through the list's own composition.
+    canScrollUp: () -> Boolean,
+    canScrollDown: () -> Boolean,
     chevronsReady: Boolean,
     chevronContentDescription: String,
     onScrollPageUp: () -> Unit,
@@ -3674,26 +3687,55 @@ private fun AppListOverflowChevronBox(
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         content()
-        if (chevronsReady && canScrollUp) {
-            AppListOverflowChevron(
-                icon = Icons.Filled.KeyboardArrowUp,
-                contentDescription = chevronContentDescription,
-                alignment = Alignment.TopCenter,
-                edgeOffset = -VerticalScrollChevronEdgeOffset,
-                testTag = topChevronTestTag,
-                onClick = onScrollPageUp,
-            )
-        }
-        if (chevronsReady && canScrollDown) {
-            AppListOverflowChevron(
-                icon = Icons.Filled.KeyboardArrowDown,
-                contentDescription = chevronContentDescription,
-                alignment = Alignment.BottomCenter,
-                edgeOffset = VerticalScrollChevronEdgeOffset,
-                testTag = bottomChevronTestTag,
-                onClick = onScrollPageDown,
-            )
-        }
+        AppListOverflowChevrons(
+            canScrollUp = canScrollUp,
+            canScrollDown = canScrollDown,
+            chevronsReady = chevronsReady,
+            chevronContentDescription = chevronContentDescription,
+            onScrollPageUp = onScrollPageUp,
+            onScrollPageDown = onScrollPageDown,
+            topChevronTestTag = topChevronTestTag,
+            bottomChevronTestTag = bottomChevronTestTag,
+        )
+    }
+}
+
+/**
+ * The chevron pair on its own, so the scroll-state reads below invalidate
+ * only this composable. Separate from [AppListOverflowChevronBox] because a
+ * read in that function's scope would drag the scrolling list it wraps
+ * through recomposition too.
+ */
+@Composable
+private fun BoxScope.AppListOverflowChevrons(
+    canScrollUp: () -> Boolean,
+    canScrollDown: () -> Boolean,
+    chevronsReady: Boolean,
+    chevronContentDescription: String,
+    onScrollPageUp: () -> Unit,
+    onScrollPageDown: () -> Unit,
+    topChevronTestTag: String,
+    bottomChevronTestTag: String,
+) {
+    if (chevronsReady && canScrollUp()) {
+        AppListOverflowChevron(
+            icon = Icons.Filled.KeyboardArrowUp,
+            contentDescription = chevronContentDescription,
+            alignment = Alignment.TopCenter,
+            edgeOffset = -VerticalScrollChevronEdgeOffset,
+            testTag = topChevronTestTag,
+            onClick = onScrollPageUp,
+        )
+    }
+    if (chevronsReady && canScrollDown()) {
+        AppListOverflowChevron(
+            icon = Icons.Filled.KeyboardArrowDown,
+            contentDescription = chevronContentDescription,
+            alignment = Alignment.BottomCenter,
+            edgeOffset = VerticalScrollChevronEdgeOffset,
+            testTag = bottomChevronTestTag,
+            onClick = onScrollPageDown,
+        )
     }
 }
 
@@ -3969,8 +4011,8 @@ internal fun AppsCard(
                 // so the chevron predicate that asks "can we scroll visually
                 // up / down" swaps to canScrollForward / canScrollBackward
                 // respectively.
-                val canScrollUp = if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward
-                val canScrollDown = if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward
+                val canScrollUp = { if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward }
+                val canScrollDown = { if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward }
                 // layoutInfo is state rewritten after every measure pass, so
                 // reading it directly in composition subscribes this whole
                 // card scope to every frame of a fling. derivedStateOf
@@ -4029,8 +4071,8 @@ internal fun AppsCard(
             } else {
                 val listState = rememberLazyListState()
                 LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
-                val canScrollUp = if (reverseLayout) listState.canScrollForward else listState.canScrollBackward
-                val canScrollDown = if (reverseLayout) listState.canScrollBackward else listState.canScrollForward
+                val canScrollUp = { if (reverseLayout) listState.canScrollForward else listState.canScrollBackward }
+                val canScrollDown = { if (reverseLayout) listState.canScrollBackward else listState.canScrollForward }
                 // Same derivedStateOf rationale as the icon-only branch above:
                 // don't subscribe this scope to every-frame layoutInfo writes.
                 val viewportMeasured by remember(listState) {
