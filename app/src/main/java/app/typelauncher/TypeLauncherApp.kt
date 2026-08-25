@@ -70,6 +70,12 @@ class TypeLauncherApp : Application() {
      * cold-start path ("Fast loading"). It also re-arms [LauncherTelemetry]'s
      * own in-process gate, which starts permissive so a crash in this very
      * window is still reported for an opted-in install.
+     *
+     * That window is no longer a hole for someone who has *not* consented: both
+     * SDKs default off in the manifest, so nothing collects before this runs.
+     * It stays covered for someone who *has* — the runtime setters persist an
+     * override, so an install that once tapped Allow starts collecting at
+     * auto-initialization, without waiting for this coroutine.
      */
     private fun applyTelemetryPreference() {
         appScope.launch(Dispatchers.IO) {

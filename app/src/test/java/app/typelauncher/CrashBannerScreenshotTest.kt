@@ -31,6 +31,11 @@ import org.robolectric.annotation.GraphicsMode
  * of the real [SettingsScreen] layout, so spacing against the title row and
  * the Play-update banner slot below it is covered too (`SettingsScreenTest`
  * covers the same placement's content, not its pixels).
+ *
+ * The Analytics consent card ([TelemetryConsentCard]) is captured here rather
+ * than in a class of its own: it is the other card in the same Settings slot,
+ * and CI's screenshot allow-list comes from the base branch, so a brand-new
+ * class records nothing on the PR that introduces it.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -95,6 +100,81 @@ class CrashBannerScreenshotTest {
         composeRule.onNodeWithText("Did Type Launcher crash?").assertExists()
 
         capture("compose_crash_banner_settings_placement_robolectric.png", heightPx = 1280)
+    }
+
+    @Test
+    fun telemetryConsent_light() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                ConsentCardOnPlainBackground()
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Anonymous analytics").assertExists()
+
+        capture("compose_telemetry_consent_light_robolectric.png")
+    }
+
+    @Test
+    fun telemetryConsent_dark() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Dark, dynamicColor = false) {
+                ConsentCardOnPlainBackground()
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Anonymous analytics").assertExists()
+
+        capture("compose_telemetry_consent_dark_robolectric.png")
+    }
+
+    // Both cards at once, which is the state a first launch after a crash
+    // actually produces — and the one where their ordering and the gap between
+    // them can go wrong without either card being wrong on its own.
+    @Test
+    fun telemetryConsent_atTopOfSettings() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                SettingsScreen(
+                    state = LauncherUiState(isTelemetryConsentPending = true),
+                    innerPadding = PaddingValues(),
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onUnhideApp = {},
+                    onOpenLauncherAppInfo = {},
+                    onOpenPlayUpdate = {},
+                    onCompletePlayUpdate = {},
+                    onDismissPlayUpdate = {},
+                    showCrashBanner = true,
+                    onShareCrash = {},
+                    onDismissCrash = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Anonymous analytics").assertExists()
+
+        capture("compose_telemetry_consent_settings_placement_robolectric.png", heightPx = 1280)
+    }
+
+    @Composable
+    private fun ConsentCardOnPlainBackground() {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            TelemetryConsentCard(
+                onAllow = {},
+                onDeny = {},
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            )
+        }
     }
 
     @Composable

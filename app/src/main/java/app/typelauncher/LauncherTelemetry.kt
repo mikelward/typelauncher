@@ -51,6 +51,25 @@ import java.util.concurrent.atomic.AtomicLong
  * process, so clearing it is part of servicing it. Reading happens inside the
  * transition's lock so a burst of taps converges on what is actually stored.
  */
+/**
+ * Whether collection waits for an explicit "yes".
+ *
+ * **This is a trial**, and this constant is its name — one place to look rather
+ * than a scattering of conditionals. While it holds, an unanswered question
+ * behaves as a refusal: nothing is uploaded until the user taps Allow, and that
+ * applies to an install upgrading from a build with the Analytics switch too,
+ * since collection needs the preference *and* an answer.
+ *
+ * **Reverting the trial takes three edits, not this one.** Flipping this alone
+ * leaves `DockSettingsStore.isTelemetryEnabled` defaulting to `false` and both
+ * `firebase_*_collection_enabled` manifest entries `false` — which is not the
+ * old default-on behavior but the new behavior with the card hidden, so nobody
+ * would ever be asked and nothing would ever be sent. `TODO.md` under
+ * "Decisions needing review" lists all three; follow it rather than this
+ * constant's name.
+ */
+internal const val TELEMETRY_REQUIRES_CONSENT = true
+
 internal interface TelemetryPreferences {
     /** The user's choice, or `null` if it could not be read at all. */
     fun isEnabled(): Boolean?
@@ -720,7 +739,11 @@ internal class StoredTelemetryPreferences(
     private val store: DockSettingsStore,
 ) : TelemetryPreferences {
     override fun isEnabled(): Boolean? = try {
-        store.isTelemetryEnabled
+        // An unanswered question is not a "yes". The single read is what makes
+        // the whole feature reversible: with [TELEMETRY_REQUIRES_CONSENT] off,
+        // this is the stored preference and nothing else, exactly as before.
+        store.isTelemetryEnabled &&
+            (!TELEMETRY_REQUIRES_CONSENT || store.isTelemetryChoiceAnswered)
     } catch (error: RuntimeException) {
         // Rare: corrupt XML, direct-boot. Both SDKs already hold the user's
         // last choice in their own persisted flags and this only re-asserts it.
