@@ -1,6 +1,6 @@
 # Play Store internal testing track
 
-CI uploads a signed release AAB to the Google Play Store **internal** testing track on every push to `main`. The upload is wired into the `build` job in `.github/workflows/android-ci.yml` using [`r0adkll/upload-google-play@v1`](https://github.com/r0adkll/upload-google-play). It runs in addition to (not instead of) the Firebase App Distribution step — Firebase remains the faster, no-Play-review channel; the internal track is the route to alpha/beta/production once we want to go there.
+CI uploads a signed release AAB to the Google Play Store **internal** testing track on every push to `main`. The upload is wired into the `build` job in `.github/workflows/android-ci.yml` using [`r0adkll/upload-google-play@v1`](https://github.com/r0adkll/upload-google-play). It is the only automated distribution channel: Firebase App Distribution was set up first and then retired, since both published on every push to `main` and reached the same testers, and the internal track is also the route to alpha/beta/production.
 
 ## What gets uploaded
 
@@ -126,7 +126,7 @@ The workflow builds an `whatsnew-en-US` file from the head commit message plus r
 Build: <run-number> · <sha>
 ```
 
-Internal-track release notes show up in Play Console under the release; testers don't see a push notification the way Firebase delivers one, so the audience is mostly future-you reading the release history.
+Internal-track release notes show up in Play Console under the release and on the store listing for testers who look, so the audience is mostly future-you reading the release history.
 
 ## versionCode
 
