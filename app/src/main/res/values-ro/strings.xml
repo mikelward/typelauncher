@@ -162,4 +162,8 @@
     <string name="app_label_with_work_prefix">Serviciu %1$s</string>
     <string name="widgets_restore_action">Apăsați pentru a restabili widgetul %1$s</string>
     <string name="settings_show_wallpaper_title">Afișează imaginea de fundal</string>
+    <string name="settings_wallpaper_title">Imagine de fundal</string>
+    <string name="settings_change_wallpaper_button">Schimbă</string>
+    <string name="settings_change_wallpaper_button_description">Schimbă imaginea de fundal</string>
+    <string name="settings_wallpaper_picker_unavailable">Selectorul de imagini de fundal nu este disponibil</string>
 </resources>

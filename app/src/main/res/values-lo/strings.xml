@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">ວຽກ %1$s</string>
     <string name="widgets_restore_action">ແຕະເພື່ອກັບຄືນວິດເຈັດ %1$s</string>
     <string name="settings_show_wallpaper_title">ສະແດງພາບພື້ນຫຼັງ</string>
+    <string name="settings_wallpaper_title">ພາບພື້ນຫຼັງ</string>
+    <string name="settings_change_wallpaper_button">ປ່ຽນ</string>
+    <string name="settings_change_wallpaper_button_description">ປ່ຽນພາບພື້ນຫຼັງ</string>
+    <string name="settings_wallpaper_picker_unavailable">ບໍ່ມີຕົວເລືອກພາບພື້ນຫຼັງ</string>
 </resources>

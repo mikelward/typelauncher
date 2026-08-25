@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Laneko %1$s</string>
     <string name="widgets_restore_action">Sakatu %1$s widgeta berrezartzeko</string>
     <string name="settings_show_wallpaper_title">Erakutsi horma-papera</string>
+    <string name="settings_wallpaper_title">Horma-papera</string>
+    <string name="settings_change_wallpaper_button">Aldatu</string>
+    <string name="settings_change_wallpaper_button_description">Aldatu horma-papera</string>
+    <string name="settings_wallpaper_picker_unavailable">Horma-paper hautatzailea ez dago erabilgarri</string>
 </resources>

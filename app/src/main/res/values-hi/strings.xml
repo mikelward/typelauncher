@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">कार्य %1$s</string>
     <string name="widgets_restore_action">%1$s विजेट को पुनर्स्थापित करने के लिए टैप करें</string>
     <string name="settings_show_wallpaper_title">वॉलपेपर दिखाएं</string>
+    <string name="settings_wallpaper_title">वॉलपेपर</string>
+    <string name="settings_change_wallpaper_button">बदलें</string>
+    <string name="settings_change_wallpaper_button_description">वॉलपेपर बदलें</string>
+    <string name="settings_wallpaper_picker_unavailable">वॉलपेपर पिकर उपलब्ध नहीं है</string>
 </resources>

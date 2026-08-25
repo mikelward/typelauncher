@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">কৰ্ম %1$s</string>
     <string name="widgets_restore_action">%1$s উইজেট পুনৰুদ্ধাৰ কৰিবলৈ টেপ কৰক</string>
     <string name="settings_show_wallpaper_title">ৱালপেপাৰ দেখুৱাওক</string>
+    <string name="settings_wallpaper_title">ৱালপেপাৰ</string>
+    <string name="settings_change_wallpaper_button">সলনি কৰক</string>
+    <string name="settings_change_wallpaper_button_description">ৱালপেপাৰ সলনি কৰক</string>
+    <string name="settings_wallpaper_picker_unavailable">ৱালপেপাৰ বাছনিকৰ্তা উপলব্ধ নহয়</string>
 </resources>

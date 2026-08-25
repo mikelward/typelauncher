@@ -162,4 +162,8 @@
     <string name="app_label_with_work_prefix">Trabalho %1$s</string>
     <string name="widgets_restore_action">Toque para restaurar o widget %1$s</string>
     <string name="settings_show_wallpaper_title">Mostrar papel de parede</string>
+    <string name="settings_wallpaper_title">Papel de parede</string>
+    <string name="settings_change_wallpaper_button">Alterar</string>
+    <string name="settings_change_wallpaper_button_description">Alterar papel de parede</string>
+    <string name="settings_wallpaper_picker_unavailable">Seletor de papel de parede indisponível</string>
 </resources>

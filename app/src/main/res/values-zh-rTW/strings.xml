@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">工作 %1$s</string>
     <string name="widgets_restore_action">點按以還原 %1$s 小工具</string>
     <string name="settings_show_wallpaper_title">顯示桌布</string>
+    <string name="settings_wallpaper_title">桌布</string>
+    <string name="settings_change_wallpaper_button">變更</string>
+    <string name="settings_change_wallpaper_button_description">變更桌布</string>
+    <string name="settings_wallpaper_picker_unavailable">桌布選擇器無法使用</string>
 </resources>

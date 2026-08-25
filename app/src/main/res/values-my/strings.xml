@@ -160,4 +160,8 @@
     <string name="app_label_with_work_prefix">အလုပ် %1$s</string>
     <string name="widgets_restore_action">%1$s ဝစ်ဂျက်ကို ပြန်လည်ရယူရန် တို့ပါ</string>
     <string name="settings_show_wallpaper_title">နောက်ခံပုံ ပြသမည်</string>
+    <string name="settings_wallpaper_title">နောက်ခံပုံ</string>
+    <string name="settings_change_wallpaper_button">ပြောင်းရန်</string>
+    <string name="settings_change_wallpaper_button_description">နောက်ခံပုံ ပြောင်းရန်</string>
+    <string name="settings_wallpaper_picker_unavailable">နောက်ခံပုံ ရွေးချယ်စနစ် မရနိုင်ပါ</string>
 </resources>

@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">کاری %1$s</string>
     <string name="widgets_restore_action">برای بازگرداندن ابزارک %1$s ضربه بزنید</string>
     <string name="settings_show_wallpaper_title">نمایش کاغذدیواری</string>
+    <string name="settings_wallpaper_title">کاغذدیواری</string>
+    <string name="settings_change_wallpaper_button">تغییر</string>
+    <string name="settings_change_wallpaper_button_description">تغییر کاغذدیواری</string>
+    <string name="settings_wallpaper_picker_unavailable">انتخابگر کاغذدیواری در دسترس نیست</string>
 </resources>

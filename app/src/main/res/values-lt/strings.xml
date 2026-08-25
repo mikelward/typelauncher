@@ -163,4 +163,8 @@
     <string name="app_label_with_work_prefix">Darbo %1$s</string>
     <string name="widgets_restore_action">Bakstelėkite, kad atkurtumėte %1$s valdiklį</string>
     <string name="settings_show_wallpaper_title">Rodyti foną</string>
+    <string name="settings_wallpaper_title">Fonas</string>
+    <string name="settings_change_wallpaper_button">Keisti</string>
+    <string name="settings_change_wallpaper_button_description">Keisti foną</string>
+    <string name="settings_wallpaper_picker_unavailable">Fono parinkiklis nepasiekiamas</string>
 </resources>

@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Munkahelyi %1$s</string>
     <string name="widgets_restore_action">Koppintson a(z) %1$s widget visszaállításához</string>
     <string name="settings_show_wallpaper_title">Háttérkép megjelenítése</string>
+    <string name="settings_wallpaper_title">Háttérkép</string>
+    <string name="settings_change_wallpaper_button">Módosítás</string>
+    <string name="settings_change_wallpaper_button_description">Háttérkép módosítása</string>
+    <string name="settings_wallpaper_picker_unavailable">A háttérkép-választó nem érhető el</string>
 </resources>

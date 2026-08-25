@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">কর্মক্ষেত্র %1$s</string>
     <string name="widgets_restore_action">%1$s উইজেট পুনরুদ্ধার করতে ট্যাপ করুন</string>
     <string name="settings_show_wallpaper_title">ওয়ালপেপার দেখান</string>
+    <string name="settings_wallpaper_title">ওয়ালপেপার</string>
+    <string name="settings_change_wallpaper_button">পরিবর্তন করুন</string>
+    <string name="settings_change_wallpaper_button_description">ওয়ালপেপার পরিবর্তন করুন</string>
+    <string name="settings_wallpaper_picker_unavailable">ওয়ালপেপার পিকার উপলব্ধ নেই</string>
 </resources>

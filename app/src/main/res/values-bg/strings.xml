@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Служебно %1$s</string>
     <string name="widgets_restore_action">Докоснете за възстановяване на джаджата %1$s</string>
     <string name="settings_show_wallpaper_title">Покажи тапет</string>
+    <string name="settings_wallpaper_title">Тапет</string>
+    <string name="settings_change_wallpaper_button">Промяна</string>
+    <string name="settings_change_wallpaper_button_description">Промяна на тапета</string>
+    <string name="settings_wallpaper_picker_unavailable">Няма приложение за тапети</string>
 </resources>

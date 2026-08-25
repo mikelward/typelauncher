@@ -161,4 +161,8 @@
     <string name="app_label_with_work_prefix">Jobb %1$s</string>
     <string name="widgets_restore_action">Tryck för att återställa widgeten %1$s</string>
     <string name="settings_show_wallpaper_title">Visa bakgrundsbild</string>
+    <string name="settings_wallpaper_title">Bakgrundsbild</string>
+    <string name="settings_change_wallpaper_button">Ändra</string>
+    <string name="settings_change_wallpaper_button_description">Ändra bakgrundsbild</string>
+    <string name="settings_wallpaper_picker_unavailable">Bakgrundsväljaren är inte tillgänglig</string>
 </resources>
