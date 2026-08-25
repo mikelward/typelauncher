@@ -5917,6 +5917,11 @@ internal fun SettingsScreen(
         true -> Color.Black
         false -> Color.White
     }
+    // Settings is a long page on every device, and the last row used to sit
+    // flush against the bottom edge with nothing to say more followed. The
+    // bottom edge now fades out while there is more below it (and only then),
+    // which is the affordance doing that work.
+    val settingsScrollState = rememberScrollState()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -5924,7 +5929,10 @@ internal fun SettingsScreen(
                 if (state.isWallpaperShown) Color.Transparent else settingsBackgroundColor,
             )
             .padding(innerPadding)
-            .verticalScroll(rememberScrollState())
+            // Outside `verticalScroll`, so the fade rides the viewport's bottom
+            // edge rather than scrolling away with the content.
+            .bottomScrollFade(settingsScrollState)
+            .verticalScroll(settingsScrollState)
             // Asymmetric top (8) vs bottom (16): the header row below leads with
             // a Material Button whose own content padding already adds optical
             // top space, so a full 16dp here would sit the header too low; the
