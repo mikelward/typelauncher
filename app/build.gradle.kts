@@ -30,11 +30,10 @@ val isCiBuild: Boolean = providers.environmentVariable("CI")
     .getOrElse(false)
 
 // A debug build made outside CI is `.dev`, not `.debug`, so it co-installs
-// beside the tester build Firebase distributes instead of fighting it for one
-// package name. The two are signed by different keys — CI's stable debug
-// keystore vs. the developer's own — so sharing an ID isn't an upgrade, it's an
-// INSTALL_FAILED_UPDATE_INCOMPATIBLE that forces an uninstall to switch between
-// them. CI keeps `.debug`, leaving Firebase App Distribution untouched.
+// beside a CI-built one instead of fighting it for one package name. Every debug
+// build is signed by whichever machine produced it, so sharing an ID isn't an
+// upgrade, it's an INSTALL_FAILED_UPDATE_INCOMPATIBLE that forces an uninstall
+// to switch between them.
 val debugApplicationIdSuffix = if (isCiBuild) ".debug" else ".dev"
 val debugApplicationId = "app.typelauncher$debugApplicationIdSuffix"
 
@@ -55,7 +54,7 @@ if (hasFirebaseConfig) {
     // debug variant needs the same treatment the release variant already gets
     // below. app.typelauncher.dev deliberately has no client: a build from a
     // developer's machine should not file crashes into the shared project beside
-    // real tester data, and nobody should have to register an extra Firebase app
+    // the released build's, and nobody should have to register an extra Firebase app
     // just to build. Telemetry stays dormant in local builds exactly as it does
     // in a checkout with no config. Register app.typelauncher.dev and this stops
     // applying, wiring Firebase up for local builds too.
@@ -63,15 +62,15 @@ if (hasFirebaseConfig) {
     // The !isCiBuild clause matters: in CI a missing debug client means the
     // GOOGLE_SERVICES_JSON secret is stale, and the plugin's hard failure is the
     // signal the setup docs promise. Without it CI would take this bypass as well
-    // and quietly distribute a tester APK with no Crashlytics.
+    // and quietly build an APK with no Crashlytics.
     if (!isCiBuild && !firebaseConfig.contains("\"$debugApplicationId\"")) {
         // Disabling the task stops it regenerating, but Gradle does not delete a
         // disabled task's earlier output. Any checkout that has ever built the
-        // tester variant — a local `CI=true` run, or any build from before the
-        // `.dev` suffix existed — still holds the tester project's google_app_id
+        // `.debug` variant — a local `CI=true` run, or any build from before the
+        // `.dev` suffix existed — still holds that variant's google_app_id
         // under build/generated/res/, and the resource merge will happily package
         // it into the `.dev` APK. Firebase would then initialize in a local build
-        // and report to the shared tester project: precisely what this guard is
+        // and report to the shared project: precisely what this guard is
         // for. So purge that directory ahead of the merge, not just skip the
         // regeneration. (Two paths: AGP names the directory after the task;
         // older versions used google-services/<variant>.)
@@ -152,11 +151,11 @@ val isGitWorkingTreeDirty: Boolean =
     }
 val baseVersionName = "1.0"
 // One badged icon per build, resolved at manifest-merge time. The Play build is
-// plain; the CI debug build Firebase distributes wears a "DEBUG" bar; any build
-// outside CI wears the "DEV" bar. Both bars use the same yellow plate and dark
-// lettering — only the word differs. Previously the tester build was plain too,
-// so it was indistinguishable from Play on the home screen, which is the one
-// pairing most likely to be installed together since testers get both.
+// plain; the CI debug build wears a "DEBUG" bar; any build outside CI wears the
+// "DEV" bar. Both bars use the same yellow plate and dark lettering — only the
+// word differs. Previously the CI debug build was plain too, so it was
+// indistinguishable from Play on the home screen, which is the one pairing most
+// likely to be installed together.
 val devLauncherIcon = "@mipmap/ic_launcher_local"
 val devLauncherRoundIcon = "@mipmap/ic_launcher_round_local"
 val releaseLauncherIcon = if (isCiBuild) "@mipmap/ic_launcher" else devLauncherIcon
@@ -166,9 +165,9 @@ val debugLauncherRoundIcon = if (isCiBuild) "@mipmap/ic_launcher_round_debug" el
 
 // The DEV badge on the local icon, said again in the name beside it — the badge
 // is easy to miss at icon size, and the home-role picker and app list are text.
-// Three builds can co-exist on one phone: the Play build (app.typelauncher), the
-// CI-built tester Firebase ships (app.typelauncher.debug), and a local APK. Only
-// the Play build keeps the localized @string/app_name; the tester build is "Type
+// Three builds can co-exist on one phone: the Play build (app.typelauncher), a
+// CI-built debug APK (app.typelauncher.debug), and a local one. Only the Play
+// build keeps the localized @string/app_name; the CI debug build is "Type
 // Launcher Debug", and anything built outside CI — either build type — is "Type
 // Launcher Dev". The two badged labels are manifest literals on purpose: they
 // mark a build, never reach a store listing, and are not translated.
@@ -267,21 +266,11 @@ android {
     }
 
     signingConfigs {
-        // CI materializes a stable debug keystore from a secret and points
-        // DEBUG_KEYSTORE_FILE at it, so successive Firebase App Distribution
-        // builds carry the same signature and tester devices can install
-        // them as updates. Local builds without DEBUG_KEYSTORE_FILE set
-        // fall through to AGP's auto-generated ~/.android/debug.keystore.
-        // See docs/firebase-app-distribution.md.
-        getByName("debug") {
-            val keystorePath = providers.environmentVariable("DEBUG_KEYSTORE_FILE").orNull
-            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
-                storePassword = providers.environmentVariable("DEBUG_KEYSTORE_PASSWORD").orNull
-                keyAlias = providers.environmentVariable("DEBUG_KEY_ALIAS").getOrElse("androiddebugkey")
-                keyPassword = providers.environmentVariable("DEBUG_KEY_PASSWORD").orNull
-            }
-        }
+        // Debug builds use AGP's auto-generated ~/.android/debug.keystore
+        // everywhere, CI included. The stable keystore CI used to materialize
+        // from a secret existed so App Distribution testers installed each new
+        // build over the last one instead of hitting a signature mismatch;
+        // nothing distributes a debug APK now.
         // CI materializes a release keystore from a secret for the Play Store
         // internal-track upload (see docs/play-store-internal-track.md). The
         // keystore is the upload key; Play App Signing re-signs with its
@@ -307,7 +296,7 @@ android {
             manifestPlaceholders["launcherRoundIcon"] = debugLauncherRoundIcon
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
-            // CI runs R8 in shrink-only mode (see proguard-rules.pro) so tester APKs
+            // CI runs R8 in shrink-only mode (see proguard-rules.pro) so CI APKs
             // drop the bulk of unused code, including the unreferenced 99% of
             // material-icons-extended. Local debug builds skip R8 to keep the
             // edit-install loop fast.

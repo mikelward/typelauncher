@@ -121,7 +121,7 @@ class MainActivityRobolectricScreenshotTest {
         // the longest form — this is where truncation or a row-height change
         // would show up. SeedLauncherStateRule pins it for this method only, so
         // the row's icon is still whichever the build under test resolved (the
-        // DEV-badged local one) — only the label is pinned to the tester form.
+        // DEV-badged local one) — only the label is pinned to the debug form.
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(HOME_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithText(LONGEST_BADGED_APP_NAME).assertIsDisplayed()
@@ -4019,10 +4019,10 @@ class MainActivityRobolectricScreenshotTest {
         const val UNBADGED_APP_NAME = "Type Launcher"
 
         /**
-         * The longest label any build wears: the CI debug build Firebase
-         * distributes. `android:label` resolves per build type, so the launcher's
-         * own row in its own app list is "Type Launcher" on Play, this on the
-         * tester build, and "Type Launcher Dev" outside CI — this is the one that
+         * The longest label any build wears: the CI debug build.
+         * `android:label` resolves per build type, so the launcher's own row in
+         * its own app list is "Type Launcher" on Play, this on a CI debug
+         * build, and "Type Launcher Dev" outside CI — this is the one that
          * stresses the layout.
          */
         const val LONGEST_BADGED_APP_NAME = "Type Launcher Debug"

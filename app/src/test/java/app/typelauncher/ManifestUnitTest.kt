@@ -56,7 +56,7 @@ class ManifestUnitTest {
 
         assertTrue(buildFile.contains("providers.environmentVariable(\"CI\")"))
         // Three icons, one per build. Only the CI release build is unbadged: the
-        // tester build used to share that plain icon, which made it
+        // CI debug build used to share that plain icon, which made it
         // indistinguishable from the Play build on a device carrying both.
         assertTrue(buildFile.contains("val devLauncherIcon = \"@mipmap/ic_launcher_local\""))
         assertTrue(buildFile.contains("releaseLauncherIcon = if (isCiBuild) \"@mipmap/ic_launcher\" else devLauncherIcon"))
@@ -71,8 +71,8 @@ class ManifestUnitTest {
     fun `appLabel names the build outside a CI release`() {
         val buildFile = File("build.gradle.kts").readText()
 
-        // Only the Play build keeps the localized name; the Firebase tester and
-        // any local APK say which build they are, so three co-installed copies
+        // Only the Play build keeps the localized name; a CI debug APK and
+        // any local one say which build they are, so three co-installed copies
         // are distinguishable in the app list and the home-role picker.
         assertTrue(buildFile.contains("val devAppLabel = \"Type Launcher Dev\""))
         assertTrue(
@@ -93,10 +93,9 @@ class ManifestUnitTest {
     fun `a local debug build gets its own application ID`() {
         val buildFile = File("build.gradle.kts").readText()
 
-        // Without this a local debug build and the Firebase tester build are both
+        // Without this a local debug build and a CI-built one are both
         // app.typelauncher.debug, and since they carry different signatures the
-        // collision is an install failure rather than an upgrade. CI must keep
-        // ".debug" so Firebase App Distribution's app ID still matches.
+        // collision is an install failure rather than an upgrade.
         assertTrue(buildFile.contains("val debugApplicationIdSuffix = if (isCiBuild) \".debug\" else \".dev\""))
         assertTrue(buildFile.contains("applicationIdSuffix = debugApplicationIdSuffix"))
         // app.typelauncher.dev has no google-services.json client on purpose, so
@@ -106,7 +105,7 @@ class ManifestUnitTest {
         assertTrue(buildFile.contains("val debugApplicationId = \"app.typelauncher\$debugApplicationIdSuffix\""))
         // Scoped to non-CI: in CI a missing debug client means a stale
         // GOOGLE_SERVICES_JSON secret, and the plugin's hard failure is the only
-        // thing that surfaces it before a tester build ships without Crashlytics.
+        // thing that surfaces it before a build ships without Crashlytics.
         assertTrue(buildFile.contains("if (!isCiBuild && !firebaseConfig.contains("))
         // Disabling the task leaves its earlier output in place, which the resource
         // merge would package into the .dev APK — so the stale directory is purged.

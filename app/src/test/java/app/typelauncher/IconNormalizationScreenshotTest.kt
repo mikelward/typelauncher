@@ -130,7 +130,7 @@ class IconNormalizationScreenshotTest {
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
         if (!isRecord && !isVerify) return
 
-        // The tester build's icon under the same themed path. The DEV golden
+        // The CI debug build's icon under the same themed path. The DEV golden
         // above cannot stand in for it: the two monochrome layers are separately
         // authored files, and "DEBUG" is the longer word in the same bar, so it
         // is the one whose cut-outs are most likely to close up or clip. This
