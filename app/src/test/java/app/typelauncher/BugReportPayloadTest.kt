@@ -2,6 +2,7 @@ package app.typelauncher
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.ZoneId
 import java.util.Locale
 
 class BugReportPayloadTest {
@@ -19,6 +20,7 @@ class BugReportPayloadTest {
             androidRelease = "14",
             androidSdkInt = 34,
             locale = Locale.US,
+            zoneId = ZoneId.of("Australia/Sydney"),
             isDockEnabled = true,
             appListLayout = AppListLayout.NameBeside,
             dockIconSizeDp = 5,
@@ -36,6 +38,13 @@ class BugReportPayloadTest {
         assertTrue("includes device", payload.contains("Model: Pixel Pixel Test"))
         assertTrue("includes android release", payload.contains("Android: 14 (SDK 34)"))
         assertTrue("includes locale", payload.contains("Locale: en-US"))
+        assertTrue("includes time zone", payload.contains("Time zone: Australia/Sydney"))
+        // The capture stamp carries the offset for the same reason every log
+        // line does: the report is read somewhere else, later.
+        assertTrue(
+            "captured stamp carries the offset",
+            payload.contains("Captured: 2023-11-15T09:13:20.000+11:00"),
+        )
         assertTrue("includes dock enabled", payload.contains("Dock enabled: true"))
         assertTrue("includes app list layout", payload.contains("App list layout: NameBeside"))
         assertTrue("includes dock icon size", payload.contains("Dock icon size: 5dp"))
@@ -63,6 +72,7 @@ class BugReportPayloadTest {
             androidRelease = "14",
             androidSdkInt = 34,
             locale = Locale.US,
+            zoneId = ZoneId.of("Australia/Sydney"),
             isDockEnabled = false,
             appListLayout = AppListLayout.IconOnly,
             dockIconSizeDp = 4,
@@ -124,6 +134,7 @@ class BugReportPayloadTest {
             androidRelease = "14",
             androidSdkInt = 34,
             locale = Locale.US,
+            zoneId = ZoneId.of("Australia/Sydney"),
             isDockEnabled = false,
             appListLayout = AppListLayout.IconOnly,
             dockIconSizeDp = 4,
@@ -154,6 +165,7 @@ class BugReportPayloadTest {
             androidRelease = "14",
             androidSdkInt = 34,
             locale = Locale.US,
+            zoneId = ZoneId.of("Australia/Sydney"),
             isDockEnabled = false,
             appListLayout = AppListLayout.IconOnly,
             dockIconSizeDp = 4,
@@ -196,6 +208,7 @@ class BugReportPayloadTest {
             androidRelease = "14",
             androidSdkInt = 34,
             locale = Locale.US,
+            zoneId = ZoneId.of("Australia/Sydney"),
             isDockEnabled = false,
             appListLayout = AppListLayout.IconOnly,
             dockIconSizeDp = 4,
@@ -222,6 +235,7 @@ class BugReportPayloadTest {
         androidRelease = "14",
         androidSdkInt = 34,
         locale = Locale.US,
+        zoneId = ZoneId.of("Australia/Sydney"),
         isDockEnabled = false,
         appListLayout = AppListLayout.IconOnly,
         dockIconSizeDp = 4,
