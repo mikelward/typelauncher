@@ -151,4 +151,20 @@ class LogValueTest {
     fun aFormatWithNoArgumentsIsUnchanged() {
         assertEquals("launchActiveApp opening system settings", mirrored("launchActiveApp opening system settings"))
     }
+
+    // A zone id is coarse location, and the zone-change line records two of
+    // them. They must reach the on-device log in full — naming both sides is
+    // what makes a step in the log's own timestamps readable — and neither may
+    // reach the Crashlytics mirror, which has no per-share review.
+    @Test
+    fun aTimeZoneChangeKeepsBothIdsOnDeviceAndWithholdsThemFromTheMirror() {
+        assertEquals(
+            "time zone Australia/Sydney -> Europe/London",
+            onDevice("time zone %s -> %s", "Australia/Sydney", "Europe/London"),
+        )
+        assertEquals(
+            "time zone <redacted> -> <redacted>",
+            mirrored("time zone %s -> %s", "Australia/Sydney", "Europe/London"),
+        )
+    }
 }
