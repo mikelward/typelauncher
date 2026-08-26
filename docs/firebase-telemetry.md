@@ -102,9 +102,17 @@ telemetry wiring itself — register an `app.typelauncher.dev` Android app in th
 Firebase project and re-download `google-services.json`. The client check then
 matches and Firebase wires up for local builds with no further changes.
 
-## Crashlytics symbol upload
+## Crashlytics mapping upload
 
-`isMinifyEnabled = false` for both build types today, so there are no
-ProGuard/R8 mappings to upload. If you later turn on minification, the
-`firebase-crashlytics` gradle plugin will start uploading mapping files
-automatically as part of `assembleRelease`.
+CI builds run R8 fully optimizing — shrink, optimize, obfuscate
+(`isMinifyEnabled = isCiBuild`, see `app/proguard-rules.pro`) — so a release
+stack trace only becomes readable once its mapping file has been uploaded. The
+`firebase-crashlytics` Gradle plugin does that for every minified variant on its
+own: `uploadCrashlyticsMappingFileRelease` runs as part of `assembleRelease` /
+`bundleRelease`, with no configuration of ours.
+
+That upload depends on the same `google-services.json` everything else here
+does. Without a matching client the plugin is never applied and the upload task
+is disabled (`app/build.gradle.kts`), so a crash from such a build arrives with
+obfuscated frames and nothing to resolve them against. A local build skips R8
+altogether, so its traces are un-obfuscated to begin with.
