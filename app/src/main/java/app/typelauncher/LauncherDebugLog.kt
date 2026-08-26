@@ -8,9 +8,10 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Window
-import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.ArrayDeque
-import java.util.Date
 import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -36,11 +37,42 @@ internal const val LOG_BUFFER_MAX_ENTRY_CHARS = 2_000
  */
 private const val COMPACT_STACK_FRAMES = 8
 
+/**
+ * The one timestamp format for everything a bug report carries — every log line
+ * and the report's own header — so a reader compares like with like:
+ * `2026-08-26T14:03:11.482+10:00`.
+ *
+ * The UTC offset is the point. This log is mirrored to disk and survives the
+ * process, so a report is routinely read days after the lines in it were
+ * written; a bare wall clock is unreadable once the device has crossed a zone
+ * or a DST boundary, because the timestamps jump with nothing saying why.
+ * [Locale.US] pins the digits to ASCII, which a locale carrying its own
+ * numbering system would otherwise change.
+ */
+internal val LOG_TIMESTAMP_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
+
+/**
+ * Renders [epochMillis] in [zone], which defaults to the device's zone *as it
+ * is right now*.
+ *
+ * Resolving the zone per call, rather than once, is the whole reason this
+ * exists. A `SimpleDateFormat` captures `TimeZone.getDefault()` when it is
+ * constructed, and `DateTimeFormatter.withZone(ZoneId.systemDefault())` does
+ * the same — while these formatters live as long as the process. So after the
+ * device changed zone (a flight, or the user changing the setting), every
+ * later line was still stamped in the *old* zone: silently wrong, with no
+ * marker in the file to reveal it. DST transitions were never the problem —
+ * a zone carries its own rules — zone switches were. Re-reading costs a field
+ * read and a small clone, and does no IPC.
+ */
+internal fun formatLogTimestamp(
+    epochMillis: Long,
+    zone: ZoneId = ZoneId.systemDefault(),
+): String = LOG_TIMESTAMP_FORMAT.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
+
 internal object LauncherDebugLog {
     private val buffer = ArrayDeque<String>(LOG_BUFFER_MAX_ENTRIES)
-    private val timestampFormat = ThreadLocal.withInitial {
-        SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
-    }
 
     /**
      * A downstream consumer of every recorded line, in addition to the in-memory
@@ -182,7 +214,7 @@ internal object LauncherDebugLog {
     }
 
     private fun record(level: Char, message: String, throwable: Throwable?) {
-        val timestamp = timestampFormat.get().format(Date())
+        val timestamp = formatLogTimestamp(System.currentTimeMillis())
         val entry = if (throwable == null) {
             "$timestamp $level $LAUNCHER_DEBUG_TAG: $message"
         } else {

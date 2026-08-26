@@ -3,6 +3,7 @@ package app.typelauncher
 import android.content.Intent
 import android.net.Uri
 import android.view.KeyEvent
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -10,13 +11,23 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.ZoneId
+import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class LauncherDebugLogTest {
+    private lateinit var previousZone: TimeZone
+
     @Before
     fun resetBuffer() {
         LauncherDebugLog.clearForTest()
+        previousZone = TimeZone.getDefault()
+    }
+
+    @After
+    fun restoreZone() {
+        TimeZone.setDefault(previousZone)
     }
 
     @Test
@@ -287,4 +298,37 @@ class LauncherDebugLogTest {
         assertEquals("stops at the cycle", null, redacted.cause?.cause)
     }
 
+    @Test
+    fun timestampsAreIsoWithTheOffset() {
+        // A fixed instant and an explicit zone: the format itself, with nothing
+        // depending on when or where the test runs.
+        assertEquals(
+            "2023-11-15T09:13:20.000+11:00",
+            formatLogTimestamp(1_700_000_000_000L, ZoneId.of("Australia/Sydney")),
+        )
+        // Rendered in the zone asked for, not in one baked in anywhere.
+        assertEquals(
+            "2023-11-14T17:13:20.000-05:00",
+            formatLogTimestamp(1_700_000_000_000L, ZoneId.of("America/New_York")),
+        )
+    }
+
+    // The bug this format exists to fix: the log outlives the process and is
+    // read days later, so a line stamped in a zone the device has since left
+    // has to say so. A formatter that captured the default zone when it was
+    // constructed kept stamping the old one — silently, with nothing in the
+    // file to reveal it.
+    @Test
+    fun aZoneChangeIsReflectedInLaterLines() {
+        TimeZone.setDefault(TimeZone.getTimeZone("GMT+10:00"))
+        LauncherDebugLog.event("before the flight")
+
+        TimeZone.setDefault(TimeZone.getTimeZone("GMT-05:00"))
+        LauncherDebugLog.event("after the flight")
+
+        val snapshot = LauncherDebugLog.snapshot()
+        assertEquals(2, snapshot.size)
+        assertTrue("first line carries the departure offset", snapshot[0].contains("+10:00 D "))
+        assertTrue("second line carries the arrival offset", snapshot[1].contains("-05:00 D "))
+    }
 }

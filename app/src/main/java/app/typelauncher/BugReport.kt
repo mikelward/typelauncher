@@ -25,8 +25,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.coroutines.resume
 
@@ -182,6 +181,7 @@ internal object BugReport {
             androidRelease = Build.VERSION.RELEASE,
             androidSdkInt = Build.VERSION.SDK_INT,
             locale = Locale.getDefault(),
+            zoneId = ZoneId.systemDefault(),
             isDockEnabled = dockSettings.isDockEnabled,
             appListLayout = dockSettings.appListLayout,
             dockIconSizeDp = dockSettings.dockIconSizeDp,
@@ -400,6 +400,7 @@ internal fun buildBugReportPayload(
     androidRelease: String,
     androidSdkInt: Int,
     locale: Locale,
+    zoneId: ZoneId,
     isDockEnabled: Boolean,
     appListLayout: AppListLayout,
     dockIconSizeDp: Int,
@@ -411,7 +412,7 @@ internal fun buildBugReportPayload(
     previousRun: String? = null,
 ): String {
     val widgetIds = widgetPages.flatten()
-    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))
+    val timestamp = formatLogTimestamp(nowMillis, zoneId)
     val head = buildString {
         appendLine("Type Launcher bug report")
         appendLine("Captured: $timestamp")
@@ -426,6 +427,12 @@ internal fun buildBugReportPayload(
         appendLine("Model: $deviceManufacturer $deviceModel")
         appendLine("Android: $androidRelease (SDK $androidSdkInt)")
         appendLine("Locale: ${locale.toLanguageTag()}")
+        // Named because every timestamp below — the capture time, and every
+        // log line — is rendered in it. The offset each line carries says what
+        // the clock read; the zone says which rules produced it, which is what
+        // makes a DST step or a mid-log zone change reconstructible rather than
+        // just visible.
+        appendLine("Time zone: ${zoneId.id}")
         appendLine()
         appendLine("--- Settings ---")
         appendLine("Dock enabled: $isDockEnabled")
