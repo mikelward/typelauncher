@@ -243,9 +243,32 @@ internal class LauncherViewModel(
     // (see `applyDynamicCalendarToken`) so the on-screen icon refreshes within a
     // frame or two. The killed-overnight case is handled separately by the
     // per-day cache key surviving into `IconSnapshotStore`.
+    // The zone the log's timestamps were last being rendered in. Every line
+    // carries its own offset, so a zone change is already *visible* as a step in
+    // the stamps — but an offset alone doesn't say whether the device moved or
+    // DST turned over, and a move between two zones sharing an offset doesn't
+    // step at all. Naming both sides once, where the broadcast lands, makes the
+    // rest of the log readable.
+    private var lastKnownZoneId: String = ZoneId.systemDefault().id
+
     private val dateChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action ?: return
+            if (action == Intent.ACTION_TIMEZONE_CHANGED) {
+                val current = ZoneId.systemDefault().id
+                if (current != lastKnownZoneId) {
+                    // Both ids go through as arguments, never interpolated into
+                    // the format string: a String argument is withheld from the
+                    // Crashlytics mirror by default (LogValue.kt), and a zone id
+                    // is coarse location. It stays in full in the on-device log,
+                    // which is what the user reviews before sharing a report.
+                    // Never wrap either in safe() — the test there is "a
+                    // different user would produce the same value", and a zone
+                    // is precisely what differs between users.
+                    LauncherDebugLog.event("time zone %s -> %s", lastKnownZoneId, current)
+                    lastKnownZoneId = current
+                }
+            }
             scheduleReload("dateChanged", safe(action))
             // Refresh the typed-search event *set* on a day/clock/zone change so
             // a foreground launcher rolls the 14-day window forward and drops

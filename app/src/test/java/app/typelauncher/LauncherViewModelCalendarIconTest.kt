@@ -8,6 +8,7 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,6 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.TimeZone
 
 /**
  * Covers the dynamic-calendar icon refresh: date-aware calendar apps get a
@@ -26,6 +28,13 @@ import org.robolectric.annotation.Config
 class LauncherViewModelCalendarIconTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+
+    private val defaultZone: TimeZone = TimeZone.getDefault()
+
+    @After
+    fun restoreZone() {
+        TimeZone.setDefault(defaultZone)
+    }
 
     @After
     fun clearPrefs() {
@@ -96,6 +105,48 @@ class LauncherViewModelCalendarIconTest {
         assertTrue(
             "Date-changed broadcast must trigger a reload of the installed-app list",
             viewModel.uiState.value.filteredApps.any { it.name == "Chat" },
+        )
+    }
+
+    // A log read days later has to be able to explain a step in its own
+    // timestamps. The offset each line carries shows *that* the clock moved; only
+    // the zone ids say whether the device travelled or DST turned over — and two
+    // zones sharing an offset don't move the stamps at all.
+    @Test
+    fun aTimeZoneChangeIsNamedInTheLog() {
+        TimeZone.setDefault(TimeZone.getTimeZone("Australia/Sydney"))
+        seedApp("Mail", "com.example.mail")
+        newViewModel()
+        idle()
+        LauncherDebugLog.clearForTest()
+
+        TimeZone.setDefault(TimeZone.getTimeZone("Europe/London"))
+        context.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))
+        idle()
+
+        assertTrue(
+            "the log must name both sides of the change",
+            LauncherDebugLog.snapshot().any { it.contains("time zone Australia/Sydney -> Europe/London") },
+        )
+    }
+
+    // A broadcast that doesn't actually change the zone must not add a line —
+    // ACTION_TIMEZONE_CHANGED also fires on a DST transition, and a log full of
+    // "Europe/London -> Europe/London" is noise crowding out real entries.
+    @Test
+    fun anUnchangedZoneLogsNothing() {
+        TimeZone.setDefault(TimeZone.getTimeZone("Europe/London"))
+        seedApp("Mail", "com.example.mail")
+        newViewModel()
+        idle()
+        LauncherDebugLog.clearForTest()
+
+        context.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))
+        idle()
+
+        assertEquals(
+            emptyList<String>(),
+            LauncherDebugLog.snapshot().filter { it.contains("time zone ") },
         )
     }
 
