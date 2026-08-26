@@ -296,15 +296,15 @@ android {
             manifestPlaceholders["launcherRoundIcon"] = debugLauncherRoundIcon
             buildConfigField("String", "SEARCH_PLACEHOLDER_SUFFIX", buildConfigString(debugSearchPlaceholderSuffix))
             buildConfigField("boolean", "PLAY_UPDATE_CHECKS_ENABLED", "false")
-            // CI runs R8 in shrink-only mode (see proguard-rules.pro) so CI APKs
-            // drop the bulk of unused code, including the unreferenced 99% of
-            // material-icons-extended. Local debug builds skip R8 to keep the
-            // edit-install loop fast.
+            // Shrink the CI debug APK so it drops the bulk of unused code,
+            // including the unreferenced 99% of material-icons-extended; local
+            // debug builds skip R8 entirely to keep the edit-install loop fast.
+            // Shrinking is all this is — AGP disables every optimization and all
+            // obfuscation for a debuggable build type whatever isMinifyEnabled
+            // says, so a debug APK is not a preview of the release build and
+            // cannot smoke-test the optimizer. Use assembleRelease for that.
             isMinifyEnabled = isCiBuild
             isShrinkResources = isCiBuild
-            // AGP 9.x rejects the non-optimize baseline (proguard-android.txt) by
-            // default, so we always pull in the optimize baseline and rely on
-            // -dontoptimize in proguard-rules.pro to keep this a shrink-only run.
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
