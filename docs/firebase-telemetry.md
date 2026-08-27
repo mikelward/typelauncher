@@ -119,3 +119,17 @@ does. Without a matching client the plugin is never applied and the upload task
 is disabled (`app/build.gradle.kts`), so a crash from such a build arrives with
 obfuscated frames and nothing to resolve them against. A local build skips R8
 altogether, so its traces are un-obfuscated to begin with.
+
+**That is the current state, not a hypothetical.** The `google-services.json`
+CI materializes carries no `app.typelauncher` release client, so
+`hasReleaseClient` is false and both `processReleaseGoogleServices` and
+`uploadCrashlyticsMappingFileRelease` are disabled in every lane — the `deploy`
+job included. Every `main` run's `Build release AAB` step logs
+`uploadCrashlyticsMappingFileRelease SKIPPED`, and has done since before R8 was
+turned on. So no mapping has ever reached Crashlytics for a shipping build.
+
+It mattered less while release R8 was shrink-only, since frames kept their real
+names. Now that obfuscation is on, it is the difference between a readable
+crash and an unreadable one — for whatever release Firebase configuration the
+Play build does have. Fixing it is a Firebase console change (add the release
+client, refresh the CI secret), not a build-script one.
