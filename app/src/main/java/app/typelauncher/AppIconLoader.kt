@@ -344,7 +344,9 @@ internal object AppIconLoader {
     fun cachedWorkBadge(user: UserHandle, sizePx: Int): ImageBitmap? =
         cached(workBadgeCacheId(user), sizePx)
 
-    private fun workBadgeCacheId(user: UserHandle): String = "workbadge:${user.hashCode()}"
+    private const val WORK_BADGE_ID_PREFIX = "workbadge:"
+
+    private fun workBadgeCacheId(user: UserHandle): String = "$WORK_BADGE_ID_PREFIX${user.hashCode()}"
 
     /**
      * Composites the work-profile badge onto a fully transparent [sizePx] tile,
@@ -523,6 +525,56 @@ internal object AppIconLoader {
         // cache and hit, so the cost is one lookup per visible icon on a rare
         // per-package event, not a reload storm.
         cacheGeneration.intValue++
+    }
+
+    /**
+     * Drops every cached bitmap whose id is not in [retainIds], keeping every
+     * size cached for the ids that are. Used when the launcher stops or the
+     * system asks for memory back: the bitmaps still held are the ones the
+     * next foreground frame paints, and everything dropped is recoverable.
+     *
+     * This is a memory measure, not a correctness one, and that distinction
+     * decides two things. The retained bitmaps are still valid, so unlike
+     * [evict] and [evictAll] this does **not** bump [cacheGeneration] -- there
+     * is nothing to re-key, and bumping it would force every surviving icon
+     * through a needless reload on the next composition. And the dropped ones
+     * are not stale, so nothing has to be invalidated -- they are simply absent,
+     * and a later miss re-resolves them.
+     *
+     * That miss is not cheap, and it is the real cost of this trim. There is no
+     * disk-backed miss path: `IconSnapshotStore.load` runs once, during view-model
+     * initialization, and it holds only the priority set -- the ids this method
+     * *keeps*. So a dropped icon comes back through a full `LauncherApps` resolve
+     * plus a rasterize, and its row paints the placeholder until that lands. The
+     * trade is that cost, on the icons the user is least likely to look at first,
+     * against holding every one of them resident in states where none can be
+     * painted.
+     *
+     * Retention is by id rather than by (id, size) so an app that renders at
+     * two sizes -- a docked app also shown in the list -- keeps both. Losing
+     * one size would leave half its surfaces reloading for no saving worth
+     * having.
+     *
+     * The shared `workbadge:<userHash>` overlays are always kept, whatever
+     * [retainIds] holds, for the same reason [evict] leaves them alone: they
+     * are keyed on the user rather than the package, so no caller's set of app
+     * ids can name one. Dropping them is worse than it looks -- a retained
+     * work app would paint its base icon immediately and its briefcase only
+     * after `getUserBadgedIcon` returns, so it would render as a *personal*
+     * app in the meantime, which is confidently wrong rather than visibly
+     * loading. They cost one entry per profile per size, so keeping them saves
+     * a wrong frame for a few kilobytes.
+     *
+     * Same locking rationale as [evict]: detach in-flight producers and drop
+     * from the LRU under one critical section, so a producer completing
+     * mid-trim cannot re-pin a bitmap the trim just dropped.
+     */
+    fun retainOnly(retainIds: Set<String>) {
+        fun keep(id: String): Boolean = id in retainIds || id.startsWith(WORK_BADGE_ID_PREFIX)
+        synchronized(inFlightLock) {
+            inFlight.keys.filter { !keep(it.id) }.toList().forEach { inFlight.remove(it) }
+            cache.snapshot().keys.filter { !keep(it.id) }.forEach { cache.remove(it) }
+        }
     }
 
     /**

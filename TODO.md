@@ -92,6 +92,28 @@
   than inferring. The CI behavior itself does not depend on the answer: the skip
   gates on fork status, not on the secret, so it holds under either scope.
 
+- **Derive the icon-cache priority set from what is actually on the home screen,
+  rather than from launch counts.** The background trim added 2026-08-27 keeps
+  the dock (folder members included) plus the top 50 apps by launch count, which
+  is a proxy: it is the set `IconSnapshotStore` already persists, so reusing it
+  meant one definition instead of two drifting apart. The ideal is the real
+  thing — infer the visible set from the layout settings (grid size, rows and
+  columns, current sort order) so the retained icons are exactly the ones the
+  next foreground frame paints, no more and no fewer. Maintainer's call
+  (2026-08-27): top-N plus the dock is good enough until that inference exists.
+
+  Two things to weigh when doing it. Launch count and screen position disagree
+  for an app that is displayed but rarely opened; the count-based set misses it,
+  and it is on screen. And `priorityIconCacheIds()` filters `launchCount > 0`,
+  which is only harmless because newly installed apps do not bubble to the top
+  of the list — if that ever changes, a new app on the home screen becomes the
+  one icon that reloads.
+
+  Numbers to size it against, measured 2026-08-27 at ARGB_8888, 4 bytes/px:
+  a 56dp icon is 110KB at xxhdpi and 196KB at xxxhdpi, so a 42-icon home screen
+  is 4.5MB / 8.0MB respectively, against a 24MB cache budget. An app rendered
+  at two sizes (docked and in the list) holds two entries.
+
 - **Cover the release-keystore configuration guard with an automated test**
   (Codex, PR #674; applies to all four repos, which now share the guard). The
   all-or-none check and the signing-config attachment are build-script logic
