@@ -76,9 +76,12 @@ from the Firebase console (Project settings → General → Your apps →
 
 The `Materialize google-services.json` step in
 `.github/workflows/ci.yml` writes it to `app/google-services.json`
-before `assembleDebug`. The step is gated on the secret being non-empty, so PR
-builds from forks (which can't see secrets) still pass — they just produce an
-APK without Firebase telemetry.
+before the build. The step is gated on the secret being non-empty *and* on the
+event being a push, so pull requests — forks or not — build without Firebase at
+all, and the Crashlytics plugin never applies there. On a push it does apply,
+and `RELEASE_KEYSTORE_FILE` keeps the mapping upload to the job that deploys, so
+the build job's release APK doesn't upload a mapping for an artifact nobody
+receives.
 
 ## Local development
 

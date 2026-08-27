@@ -244,7 +244,7 @@ jobs:
       # `pull_request`'s fork withholding.
       HAS_GOOGLE_SERVICES: ${{ github.event_name == 'push' && secrets.GOOGLE_SERVICES_JSON != '' }}
     # contents: read only — this job checks out and executes the PR's own
-    # Gradle code (assembleDebug, test, lint all run PR-controlled build
+    # Gradle code (assembleRelease, test, lint all run PR-controlled build
     # scripts and plugins). A `pull-requests: write` token in this job would
     # be reachable by that code even with persist-credentials: false below:
     # an earlier step can poison $GITHUB_PATH/$GITHUB_ENV for the later
@@ -306,12 +306,29 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
 
-      - name: Build debug APK
-        # Signed with AGP's auto-generated debug keystore, like a developer's
-        # own build: nothing distributes this APK, so no runner needs a shared
-        # signing identity. It runs on every heavy lane, PR or push, as the
-        # compile check.
-        run: ./gradlew assembleDebug
+      # No assembleDebug step, deliberately. Nothing distributes a debug APK, and
+      # everything that step verified is already covered: `Run unit tests` below
+      # pulls in compileDebugKotlin, mergeDebugResources and processDebugManifest,
+      # so a debug compile break or a broken manifest placeholder still fails
+      # here; and debug's R8 is shrink-only, since AGP disables optimization and
+      # obfuscation for a debuggable build type whatever isMinifyEnabled says.
+      # All it uniquely did was dex and package an APK nobody installs.
+
+      - name: Build release APK (runs the full R8 pipeline)
+        # The only step in this lane that exercises R8 shrinking, optimization
+        # and obfuscation together — which is what the Play build ships. Without
+        # it, a release-only R8 failure (a keep rule that misses a reflective
+        # lookup, an optimizer crash) passes every required check and surfaces
+        # after merge, when the deploy job's bundleRelease is the first thing to
+        # run it. Unsigned here: the release signingConfig attaches only when
+        # RELEASE_KEYSTORE_FILE is set, which the deploy job does and this job
+        # does not. On a PR that also means no Crashlytics: google-services.json
+        # is materialized on `push` only, so the plugin never applies here. On a
+        # push to main it does apply, and the same RELEASE_KEYSTORE_FILE marker
+        # gates the mapping upload off for this job (see app/build.gradle.kts) so
+        # it doesn't duplicate the one `deploy` uploads for the build that ships.
+        # Build-time only; runtime reflection still needs a device check.
+        run: ./gradlew assembleRelease
 
       - name: Check licenses export is up to date
         # The open-source attribution list is committed to res/raw (AGP 9 can't

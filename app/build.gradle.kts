@@ -97,6 +97,23 @@ if (hasFirebaseConfig) {
         }
     }
     // If google-services.json has no release client (app.typelauncher), disable the
+    // Only the deploy lane can ship, and only a shipping build's mapping file is
+    // worth uploading. The build job now runs assembleRelease as its R8 check
+    // (see .github/workflows/ci.yml) and the Crashlytics plugin wires the upload
+    // into the assemble task itself, so on a push to main that job would upload
+    // a mapping for an APK nobody receives — duplicating, and racing, the one
+    // `deploy` uploads for the build that actually ships. (On a PR the question
+    // doesn't arise: google-services.json is materialized on push only, so the
+    // plugin never applies there.) RELEASE_KEYSTORE_FILE is the deploy job's own
+    // marker: it populates the signing config above, and no other job sets it.
+    val canShip = !providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()
+    if (!canShip) {
+        afterEvaluate {
+            tasks.matching { it.name == "uploadCrashlyticsMappingFileRelease" }
+                .configureEach { enabled = false }
+        }
+    }
+
     // release processing task so bundleRelease doesn't fail. When a release client is
     // present the task runs normally and Firebase/Crashlytics are wired up for production.
     val hasReleaseClient = firebaseConfig.contains("\"app.typelauncher\"")
