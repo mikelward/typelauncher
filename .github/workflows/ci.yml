@@ -326,8 +326,12 @@ jobs:
         # does not. On a PR that also means no Crashlytics: google-services.json
         # is materialized on `push` only, so the plugin never applies here. On a
         # push to main it does apply, and the same RELEASE_KEYSTORE_FILE marker
-        # gates the mapping upload off for this job (see app/build.gradle.kts) so
-        # it doesn't duplicate the one `deploy` uploads for the build that ships.
+        # gates the mapping upload off for this job (see app/build.gradle.kts).
+        # That gate is currently inert -- `deploy` uploads no mapping either,
+        # because the CI google-services.json carries no release client, so
+        # nothing is being duplicated today. It is kept for the moment a release
+        # client is added, when this job's assembleRelease would start uploading
+        # alongside `deploy`'s bundleRelease.
         # Build-time only; runtime reflection still needs a device check.
         run: ./gradlew assembleRelease
 

@@ -50,6 +50,24 @@ Instrumented tests require an emulator or physical device, so they are not expec
 
 ## Build and run
 
+> **First run after the `.dev` → `.debug` rename: uninstall the old package once.**
+> Every debug build is now `app.typelauncher.debug`; local builds used to be
+> `app.typelauncher.dev`. Android treats that as a different app, not an upgrade,
+> so unless the old one is removed it stays installed *and keeps the home role*
+> — pressing Home goes on running the old build and no launcher prompt appears,
+> which reads as "my build didn't take". Separately, a `.debug` APK left over
+> from when CI published them is signed with a different key, so installing over
+> it fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
+>
+> `./gradlew installAndRun` handles both automatically. **Android Studio's Run
+> button and `./gradlew installDebug` do not** — they are AGP's own paths and
+> get none of it. Before using either, once:
+>
+> ```sh
+> adb uninstall app.typelauncher.dev    # ignore "Unknown package"
+> adb uninstall app.typelauncher.debug  # only if it was installed by CI
+> ```
+
 ### Android Studio
 
 1. Start an emulator or connect a physical Android device.
@@ -78,6 +96,8 @@ To install and launch the debug build only in the personal/default profile on a 
 ```
 
 That task targets Android user `0`, removes the debug build from non-owner users if it is present there, and starts the debug launcher as user `0`. The package it acts on is `app.typelauncher.debug`, everywhere. (It used to be `.dev` for a local build and `.debug` in CI; CI has built no debug APK since the build job moved to the release variant, so there was nothing left for the split to distinguish.)
+
+The task also clears two installs that would otherwise get in the way of that rename, so neither needs doing by hand. It uninstalls `app.typelauncher.dev` if present — a rename does not upgrade, so the old launcher would keep the home role and its layout, and pressing Home would go on running stale code. And if a `.debug` install is already there signed by a different key — a CI-built APK from when Firebase App Distribution shipped them — `adb install -r` refuses it with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`; the task recognizes that one failure, uninstalls, and installs fresh. Any other install error is reported rather than worked around. Either way the old build's layout is gone, and Android prompts for the default launcher again on the next Home press.
 
 If multiple devices are attached, set `ANDROID_SERIAL` first:
 

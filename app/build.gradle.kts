@@ -117,10 +117,13 @@ if (hasFirebaseConfig) {
     // Currently this changes nothing, because the CI google-services.json has no
     // release client and the hasReleaseClient block below already disables the
     // upload in every lane — main's deploy job included, where the log reads
-    // `uploadCrashlyticsMappingFileRelease SKIPPED`. So no mapping reaches
-    // Crashlytics for the shipping build today, and with R8 now obfuscating,
-    // any crash it did receive would be unreadable. That is a Firebase console
-    // question, not a build one. This gate is what keeps the fix to it from
+    // `uploadCrashlyticsMappingFileRelease SKIPPED`. And the effect is larger
+    // than a missing mapping: the same hasReleaseClient branch also disables
+    // processReleaseGoogleServices, so a shipping build carries no generated
+    // google_app_id, no FirebaseApp initializes, and LauncherTelemetry takes
+    // its no-op path. The shipping build reports nothing at all -- there are no
+    // obfuscated crashes to be unreadable. That is a Firebase console question,
+    // not a build one. This gate is what keeps the fix to it from
     // introducing the duplicate upload: add the release client and the block
     // below stops disabling anything, at which point this becomes load-bearing.
     val canShip = !providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()
@@ -239,18 +242,112 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
     @get:Input
     abstract val applicationId: Property<String>
 
+    /**
+     * A previous application ID for the debug build, uninstalled first if it is
+     * still on the device. Local debug builds were `app.typelauncher.dev` until
+     * the suffix collapsed to `.debug`; a rename does not upgrade, it installs
+     * a second app. For a launcher that is worse than it sounds — the old one
+     * keeps the home role and the stored layout, so pressing Home goes on
+     * running stale code and Android never prompts, which reads as "my build
+     * didn't take" rather than as two installs.
+     */
+    @get:Input
+    abstract val legacyApplicationId: Property<String>
+
     @TaskAction
     fun installAndRun() {
         uninstallFromNonPersonalUsers()
-        execOperations.exec {
-            commandLine("adb", "install", "--user", PERSONAL_USER_ID, "-r", apkFile.get().asFile.absolutePath)
-        }
+        installForPersonalUser()
+        // After the install, never before. The legacy package may be the
+        // developer's current default launcher; removing it first and then
+        // failing to install the replacement — no space, device unplugged
+        // mid-run — would leave them with no working launcher at all.
+        uninstallLegacyPackage()
         execOperations.exec {
             commandLine(
                 "adb", "shell", "am", "start", "--user", PERSONAL_USER_ID,
                 "-n", "${applicationId.get()}/app.typelauncher.MainActivity",
             )
         }
+    }
+
+    /**
+     * Installs over any existing copy, falling back to uninstall-then-install on
+     * a signature mismatch.
+     *
+     * `adb install -r` refuses to replace an APK signed by a different key, and
+     * two histories produce exactly that. A debug APK built by CI carries CI's
+     * stored debug key, not this machine's `~/.android/debug.keystore`, and one
+     * could reach a phone while Firebase App Distribution was still shipping
+     * them. And local debug builds only recently took this application ID, so a
+     * device can hold a `.debug` install from either source. Neither is the
+     * developer's fault and both fail with the same opaque
+     * INSTALL_FAILED_UPDATE_INCOMPATIBLE.
+     *
+     * Only on that specific failure: any other install error is a real one and
+     * is rethrown with its output, rather than being papered over by an
+     * uninstall that would silently discard the layout.
+     */
+    private fun installForPersonalUser() {
+        val output = ByteArrayOutputStream()
+        val result = execOperations.exec {
+            commandLine("adb", "install", "--user", PERSONAL_USER_ID, "-r", apkFile.get().asFile.absolutePath)
+            standardOutput = output
+            errorOutput = output
+            isIgnoreExitValue = true
+        }
+        if (result.exitValue == 0) return
+
+        val text = output.toString()
+        if (!text.contains(SIGNATURE_MISMATCH)) {
+            logger.error(text)
+            result.assertNormalExitValue()
+            return
+        }
+
+        logger.lifecycle(
+            "Existing ${applicationId.get()} was signed by a different key " +
+                "(a CI-built APK, or a build from before local builds used this ID). " +
+                "Uninstalling it and installing fresh — its layout is not recoverable.",
+        )
+        execOperations.exec {
+            commandLine("adb", "uninstall", applicationId.get())
+            isIgnoreExitValue = true
+        }
+        execOperations.exec {
+            commandLine("adb", "install", "--user", PERSONAL_USER_ID, "-r", apkFile.get().asFile.absolutePath)
+        }
+    }
+
+    /**
+     * Removes a previous debug package, once the replacement is installed.
+     *
+     * "Not installed" is the ordinary case and is not a failure — most
+     * developers never had the legacy package, and every run after the first
+     * finds it gone. Anything else is reported: a removal blocked by a device
+     * policy or a user restriction would otherwise leave the legacy launcher
+     * holding the home role while this task exits green, so pressing Home would
+     * still open stale code with nothing having said so.
+     */
+    private fun uninstallLegacyPackage() {
+        val output = ByteArrayOutputStream()
+        val result = execOperations.exec {
+            commandLine("adb", "uninstall", legacyApplicationId.get())
+            standardOutput = output
+            errorOutput = output
+            isIgnoreExitValue = true
+        }
+        if (result.exitValue == 0) return
+
+        val text = output.toString()
+        if (NOT_INSTALLED.any { text.contains(it, ignoreCase = true) }) return
+
+        logger.warn(
+            "Could not remove ${legacyApplicationId.get()}: ${text.trim()}\n" +
+                "It may still hold the home role, in which case pressing Home opens the " +
+                "old build rather than the one just installed. Remove it by hand: " +
+                "adb uninstall ${legacyApplicationId.get()}",
+        )
     }
 
     private fun uninstallFromNonPersonalUsers() {
@@ -272,6 +369,10 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
     }
 
     private companion object {
+        const val SIGNATURE_MISMATCH = "INSTALL_FAILED_UPDATE_INCOMPATIBLE"
+
+        /** How `adb uninstall` reports a package that was never there. */
+        val NOT_INSTALLED = listOf("Unknown package", "DELETE_FAILED_INTERNAL_ERROR")
         const val PERSONAL_USER_ID = "0"
         val USER_INFO_REGEX = Regex("""UserInfo\{(\d+):""")
     }
@@ -383,6 +484,7 @@ tasks.register<InstallAndRunPersonalDebugTask>("installAndRun") {
     dependsOn("assembleDebug")
     apkFile.set(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
     applicationId.set(debugApplicationId)
+    legacyApplicationId.set("app.typelauncher.dev")
 }
 
 tasks.withType<Test>().configureEach {
