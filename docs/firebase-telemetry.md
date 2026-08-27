@@ -36,8 +36,10 @@ Firebase is gated on **two** things: `app/google-services.json` being present,
   applies the `com.google.gms.google-services` and
   `com.google.firebase.crashlytics` plugins, the SDKs auto-initialize via the
   manifest-merged `FirebaseInitProvider`, and telemetry flows. Release builds
-  only — CI's and a local one alike, both plain `app.typelauncher`, so both
-  match the production client.
+  only — a release build is plain `app.typelauncher` wherever it was made, so
+  whether this case applies turns entirely on whether the config in the build
+  tree registers that client. **Today's CI secret does not**, so no shipping
+  build is currently in this case at all; see the mapping-upload section below.
 - **File present, debug variant** → the debug-variant Google Services tasks are
   skipped and any Firebase resources an earlier build generated are purged, so
   the SDKs find no `FirebaseApp` and `LauncherTelemetry` stays in its no-op path.
@@ -116,30 +118,38 @@ To exercise the telemetry wiring itself, build the release variant.
 Release builds run R8 fully optimizing — shrink, optimize, obfuscate — on any
 machine, not only in CI (`isMinifyEnabled = true`, see
 `app/proguard-rules.pro`), so a release stack trace only becomes readable once
-its mapping file has been uploaded. That applies to a release APK you build
-locally too: its frames are obfuscated, and the mapping upload is gated to the
-deploy lane, so there is nothing to resolve them against. Build debug for
-day-to-day work. The
-`firebase-crashlytics` Gradle plugin does that for every minified variant on its
-own: `uploadCrashlyticsMappingFileRelease` runs as part of `assembleRelease` /
+its mapping file has been uploaded. The `firebase-crashlytics` Gradle plugin
+does that for every minified variant on its own:
+`uploadCrashlyticsMappingFileRelease` runs as part of `assembleRelease` /
 `bundleRelease`, with no configuration of ours.
 
 That upload depends on the same `google-services.json` everything else here
 does. Without a matching client the plugin is never applied and the upload task
 is disabled (`app/build.gradle.kts`), so a crash from such a build arrives with
-obfuscated frames and nothing to resolve them against. A local build skips R8
-altogether, so its traces are un-obfuscated to begin with.
+obfuscated frames and nothing to resolve them against.
 
-**That is the current state, not a hypothetical.** The `google-services.json`
-CI materializes carries no `app.typelauncher` release client, so
-`hasReleaseClient` is false and both `processReleaseGoogleServices` and
-`uploadCrashlyticsMappingFileRelease` are disabled in every lane — the `deploy`
-job included. Every `main` run's `Build release AAB` step logs
-`uploadCrashlyticsMappingFileRelease SKIPPED`, and has done since before R8 was
-turned on. So no mapping has ever reached Crashlytics for a shipping build.
+Which variant you built decides whether that matters. A **debug** build runs no
+R8 at all, so its traces are un-obfuscated to begin with and need no mapping. A
+**release** build always runs R8, on any machine — so a release APK you build
+locally is obfuscated too, while the mapping upload stays gated to the deploy
+lane. Its frames have nothing to resolve against. Build debug for day-to-day
+work.
 
-It mattered less while release R8 was shrink-only, since frames kept their real
-names. Now that obfuscation is on, it is the difference between a readable
-crash and an unreadable one — for whatever release Firebase configuration the
-Play build does have. Fixing it is a Firebase console change (add the release
-client, refresh the CI secret), not a build-script one.
+**That is the current state, not a hypothetical, and it is worse than a missing
+mapping.** The `google-services.json` CI materializes carries no
+`app.typelauncher` release client, so `hasReleaseClient` is false and both
+`processReleaseGoogleServices` **and** `uploadCrashlyticsMappingFileRelease` are
+disabled in every lane — the `deploy` job included. Every `main` run's
+`Build release AAB` step logs `uploadCrashlyticsMappingFileRelease SKIPPED`, and
+has done since before R8 was turned on.
+
+Disabling `processReleaseGoogleServices` means the shipping build carries no
+generated `google_app_id`. No `FirebaseApp` initializes, so `LauncherTelemetry`
+takes the same no-op path it takes in a checkout with no config at all. **The
+Play build reports nothing** — no crashes, no traces. There are no obfuscated
+stack traces going unresolved, because none are being sent.
+
+So the missing mapping is a symptom, not the problem, and fixing the mapping
+alone would fix nothing. The remedy is a Firebase console change: register an
+`app.typelauncher` release client and refresh the `GOOGLE_SERVICES_JSON` secret.
+Both tasks then re-enable together.
