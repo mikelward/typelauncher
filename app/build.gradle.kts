@@ -34,7 +34,13 @@ val isCiBuild: Boolean = providers.environmentVariable("CI")
 // build is signed by whichever machine produced it, so sharing an ID isn't an
 // upgrade, it's an INSTALL_FAILED_UPDATE_INCOMPATIBLE that forces an uninstall
 // to switch between them.
-val debugApplicationIdSuffix = if (isCiBuild) ".debug" else ".dev"
+// One suffix everywhere. It used to be `.debug` in CI and `.dev` locally, so a
+// developer's debug build could co-install beside a CI-built one — but CI has
+// built no debug APK since the build job moved to the release variant, so there
+// is nothing left to sit beside. The other thing `.dev` did was keep local
+// builds out of Firebase by not being a registered client; that is now a
+// property of the debug variant itself (see above), not of its name.
+val debugApplicationIdSuffix = ".debug"
 val debugApplicationId = "app.typelauncher$debugApplicationIdSuffix"
 
 // Firebase Crashlytics + Performance Monitoring need google-services.json to be
@@ -49,33 +55,39 @@ if (hasFirebaseConfig) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
     val firebaseConfig = firebaseConfigFile.readText()
-    // The Google Services plugin hard-fails any build whose application ID has no
-    // matching client ("No matching client found for package name ..."), so the
-    // debug variant needs the same treatment the release variant already gets
-    // below. app.typelauncher.dev deliberately has no client: a build from a
-    // developer's machine should not file crashes into the shared project beside
-    // the released build's, and nobody should have to register an extra Firebase app
-    // just to build. Telemetry stays dormant in local builds exactly as it does
-    // in a checkout with no config. Register app.typelauncher.dev and this stops
-    // applying, wiring Firebase up for local builds too.
+    // The debug variant never gets Firebase. Not conditionally, not in CI —
+    // never. A build that isn't the one users install has no business filing
+    // crashes or analytics into the shared project beside the released build's,
+    // and the environment it was built in doesn't change that.
     //
-    // The !isCiBuild clause matters: in CI a missing debug client means the
-    // GOOGLE_SERVICES_JSON secret is stale, and the plugin's hard failure is the
-    // signal the setup docs promise. Without it CI would take this bypass as well
-    // and quietly build an APK with no Crashlytics.
-    if (!isCiBuild && !firebaseConfig.contains("\"$debugApplicationId\"")) {
+    // This used to be conditional, and both halves of the condition were wrong.
+    // It keyed on whether the debug applicationId happened to be registered in
+    // google-services.json, so dormancy was an accident of what a developer had
+    // not registered rather than a property of the build — register it and
+    // telemetry silently switched on. And it exempted CI, so the debug variant
+    // there did wire Firebase up, while CI is precisely where the debug variant
+    // is exercised most: testDebugUnitTest runs the unit and Robolectric
+    // screenshot suites against it, with the generated google_app_id resource
+    // present and FirebaseInitProvider in the merged manifest. Test runs
+    // emitting analytics is not a risk worth carrying for a build nobody ships.
+    //
+    // What the CI exemption bought was a stale-secret signal: a missing debug
+    // client made the plugin hard-fail, telling you GOOGLE_SERVICES_JSON needed
+    // refreshing. It was guarding the wrong door — the client that matters is
+    // the release one, which is what ships and what the mapping upload needs,
+    // and the hasReleaseClient block below is where that is checked.
+    run {
         // Disabling the task stops it regenerating, but Gradle does not delete a
-        // disabled task's earlier output. Any checkout that has ever built the
-        // `.debug` variant — a local `CI=true` run, or any build from before the
-        // `.dev` suffix existed — still holds that variant's google_app_id
-        // under build/generated/res/, and the resource merge will happily package
-        // it into the `.dev` APK. Firebase would then initialize in a local build
-        // and report to the shared project: precisely what this guard is
-        // for. So purge that directory ahead of the merge, not just skip the
-        // regeneration. (Two paths: AGP names the directory after the task;
-        // older versions used google-services/<variant>.)
+        // disabled task's earlier output. Any checkout that has ever built this
+        // variant with the plugin enabled still holds its google_app_id under
+        // build/generated/res/, and the resource merge will happily package it
+        // into the debug APK — Firebase would then initialize in a build this
+        // guard exists to keep quiet. So purge that directory ahead of the
+        // merge, not just skip the regeneration. (Two paths: AGP names the
+        // directory after the task; older versions used
+        // google-services/<variant>.)
         val purgeForeignFirebaseResources = tasks.register<Delete>("purgeDebugGoogleServicesResources") {
-            description = "Deletes Firebase resources generated for a different application ID."
+            description = "Deletes Firebase resources generated for the debug variant, which ships without them."
             delete(
                 layout.buildDirectory.dir("generated/res/processDebugGoogleServices"),
                 layout.buildDirectory.dir("generated/res/google-services/debug"),

@@ -90,25 +90,27 @@ class ManifestUnitTest {
     }
 
     @Test
-    fun `a local debug build gets its own application ID`() {
+    fun `the debug build gets one application ID and never gets Firebase`() {
         val buildFile = File("build.gradle.kts").readText()
 
-        // Without this a local debug build and a CI-built one are both
-        // app.typelauncher.debug, and since they carry different signatures the
-        // collision is an install failure rather than an upgrade.
-        assertTrue(buildFile.contains("val debugApplicationIdSuffix = if (isCiBuild) \".debug\" else \".dev\""))
+        // One suffix, every environment. It was `.debug` in CI and `.dev`
+        // locally so the two could co-install, but CI has built no debug APK
+        // since the build job moved to the release variant, so the split had
+        // nothing left to distinguish.
+        assertTrue(buildFile.contains("val debugApplicationIdSuffix = \".debug\""))
         assertTrue(buildFile.contains("applicationIdSuffix = debugApplicationIdSuffix"))
-        // app.typelauncher.dev has no google-services.json client on purpose, so
-        // the plugin's "No matching client" failure is sidestepped for that
-        // variant instead of breaking every local build that has a config.
-        assertTrue(buildFile.contains("\"processDebugGoogleServices\","))
         assertTrue(buildFile.contains("val debugApplicationId = \"app.typelauncher\$debugApplicationIdSuffix\""))
-        // Scoped to non-CI: in CI a missing debug client means a stale
-        // GOOGLE_SERVICES_JSON secret, and the plugin's hard failure is the only
-        // thing that surfaces it before a build ships without Crashlytics.
-        assertTrue(buildFile.contains("if (!isCiBuild && !firebaseConfig.contains("))
-        // Disabling the task leaves its earlier output in place, which the resource
-        // merge would package into the .dev APK — so the stale directory is purged.
+
+        // The debug variant never gets Firebase, unconditionally. This used to
+        // key on whether the debug applicationId was a registered client, which
+        // made dormancy an accident of what a developer had not registered, and
+        // exempted CI entirely -- where testDebugUnitTest runs the unit and
+        // Robolectric suites against this very variant.
+        assertTrue(buildFile.contains("\"processDebugGoogleServices\","))
+        assertFalse(buildFile.contains("if (!isCiBuild && !firebaseConfig.contains("))
+        // Disabling the task leaves its earlier output in place, which the
+        // resource merge would package into the debug APK -- so the stale
+        // directory is purged ahead of the merge.
         assertTrue(buildFile.contains("purgeDebugGoogleServicesResources"))
         assertTrue(buildFile.contains("dependsOn(purgeForeignFirebaseResources)"))
         // installAndRun uninstalls and launches by package name, so it has to

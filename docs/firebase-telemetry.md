@@ -38,13 +38,14 @@ Firebase is gated on **two** things: `app/google-services.json` being present,
   manifest-merged `FirebaseInitProvider`, and telemetry flows. This is CI's debug
   and release builds, and a local *release* build (still unsuffixed
   `app.typelauncher`, so it matches the production client).
-- **File present, no matching client** → the debug-variant Google Services tasks
-  are skipped and any Firebase resources an earlier build generated are purged, so
+- **File present, debug variant** → the debug-variant Google Services tasks are
+  skipped and any Firebase resources an earlier build generated are purged, so
   the SDKs find no `FirebaseApp` and `LauncherTelemetry` stays in its no-op path.
-  This is the local *debug* build: it is `app.typelauncher.dev`, which the shared
-  project deliberately does not register. Only outside CI — in CI a missing client
-  means a stale `GOOGLE_SERVICES_JSON` secret, and the plugin's hard failure is
-  left in place to surface it. See "Local development" below.
+  Unconditionally, in every environment including CI: a build nobody installs
+  has no business reporting into the project beside the released build's, and
+  CI is where the debug variant is exercised most — `testDebugUnitTest` runs the
+  unit and Robolectric screenshot suites against it. See "Local development"
+  below.
 - **File absent** → the plugins are skipped, the SDKs find no
   `FirebaseApp` at runtime, and `LauncherTelemetry` stays in its no-op path.
   Forks, the Cursor Cloud sandbox, and Robolectric tests build cleanly.
@@ -90,20 +91,25 @@ Day-to-day work does not need telemetry: with no `google-services.json` in
 minus the trace/crash reports.
 
 Dropping the same `google-services.json` into `app/` is **not** enough to enable
-it locally, and that is deliberate. A debug build made outside CI has the
-application ID `app.typelauncher.dev` (see `DEVELOPMENT.md`), and the shared
-Firebase project does not register that ID — so `app/build.gradle.kts` skips the
-Google Services tasks for it and purges any Firebase resources a previous tester
-build left behind. A local *debug* build therefore stays dormant even with
-the config present, which is what keeps a developer's day-to-day crashes and
-traces out of the shared project alongside real tester data. (A local *release*
-build keeps the unsuffixed `app.typelauncher` and does match the production
-client, so telemetry is live there — rare, and deliberate when you do it.)
+it for a debug build, and that is deliberate. `app/build.gradle.kts` skips the
+Google Services tasks for the debug variant outright and purges any Firebase
+resources a previous build left behind, so a debug build stays dormant even with
+the config present. That is what keeps a developer's day-to-day crashes and
+traces — and CI's test runs — out of the shared project alongside real tester
+data.
 
-To genuinely enable local telemetry — normally only worth it when debugging the
-telemetry wiring itself — register an `app.typelauncher.dev` Android app in the
-Firebase project and re-download `google-services.json`. The client check then
-matches and Firebase wires up for local builds with no further changes.
+It is not conditional on the application ID any more. It used to be: the debug
+build was `app.typelauncher.dev`, which the project deliberately did not
+register, so dormancy fell out of a client being absent rather than out of any
+decision. Registering that ID silently switched telemetry on, and CI was exempt
+from the check entirely. Now the debug variant simply never gets Firebase, and
+the suffix is plain `.debug` everywhere.
+
+A local *release* build is the exception and always was: it keeps the unsuffixed
+`app.typelauncher`, matches the production client, and reports. Rare, and
+deliberate when you do it.
+
+To exercise the telemetry wiring itself, build the release variant.
 
 ## Crashlytics mapping upload
 
