@@ -352,6 +352,11 @@ class MainActivity : ComponentActivity() {
     // `observeWallpaperShownPreference`.
     private var appliedWallpaperShown = false
 
+    // Set by `restartForWallpaperWindowMode` so onStop can tell that teardown
+    // apart from the user actually leaving. Instance state, not persisted: it
+    // only has to survive from finish() to this instance's own onStop.
+    private var restartingForWallpaperWindowMode = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         LauncherDebugLog.activityCallback(this, "MainActivity.onCreate beforeSuper")
         LauncherDebugLog.event("onCreate savedInstanceState=%s", savedInstanceState.debugSummary())
@@ -571,6 +576,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         LauncherDebugLog.activityCallback(this, "MainActivity.onStart")
+        // Cancels a background trim that was deferred while the app inventory
+        // loaded: the launcher is on screen again, so the cache is back to doing
+        // the job its foreground budget is sized for.
+        if (::viewModel.isInitialized) {
+            viewModel.onLauncherVisible()
+        }
         if (deferStartListening) {
             LauncherDebugLog.event("AppWidgetHost.startListening deferred until home ready")
         } else {
@@ -735,6 +746,27 @@ class MainActivity : ComponentActivity() {
         stopListeningSafely()
         if (::viewModel.isInitialized) {
             viewModel.persistIconSnapshot()
+            // After the snapshot, never before: persistIconSnapshot harvests the
+            // priority icons out of the cache, so trimming first would hand it a
+            // partial set and prune icons off disk that belong there.
+            //
+            // Not while the activity is being recreated. This activity declares no
+            // `configChanges`, so a rotation, a dark-mode toggle or a font-scale
+            // change destroys and rebuilds it -- onStop runs, but the launcher is
+            // still on screen and the replacement composition asks for the same
+            // icons a moment later. Trimming there would drop everything outside
+            // the priority set and hand the new composition a cache miss per
+            // visible row, so the user would watch their own screen redraw from
+            // placeholders for no memory saved: the app never reached the
+            // background states the trim exists to shrink.
+            // Nor during the "Show wallpaper" restart, which is the same
+            // situation reached by a different door: that path calls finish()
+            // and immediately starts a replacement, so `isChangingConfigurations`
+            // is false even though the launcher is going straight back on screen.
+            // Only an actual departure should trim.
+            if (!isChangingConfigurations && !restartingForWallpaperWindowMode) {
+                viewModel.trimIconCacheToPriority()
+            }
         }
         super.onStop()
     }
@@ -907,7 +939,15 @@ class MainActivity : ComponentActivity() {
      * away so the swap reads as an in-place refresh, matching what recreate()
      * looked like.
      */
-    private fun restartForWallpaperWindowMode() {
+    /**
+     * Visible for tests: the trim exclusion this sets is only observable by driving
+     * the real restart and then the real onStop.
+     */
+    internal fun restartForWallpaperWindowMode() {
+        // Tells onStop this teardown is a hand-off, not a departure. The icon
+        // cache is process-wide and the process survives, so the replacement
+        // instance inherits every warmed bitmap -- unless the trim runs first.
+        restartingForWallpaperWindowMode = true
         val restart = Intent(this, MainActivity::class.java)
             .putExtra(EXTRA_REOPEN_SETTINGS, true)
             // Hardening for the singleTask launch mode: intent delivery already
@@ -1225,6 +1265,13 @@ class MainActivity : ComponentActivity() {
             level,
             level.trimMemoryDescription(),
         )
+        // Only the UI-hidden and background levels trim. The foreground levels
+        // (RUNNING_MODERATE and friends) arrive while the launcher is on screen,
+        // where the cache is doing the job it is sized for and dropping it would
+        // re-rasterize icons the user is looking at.
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN && ::viewModel.isInitialized) {
+            viewModel.trimIconCacheToPriority()
+        }
     }
 
     override fun onLowMemory() {

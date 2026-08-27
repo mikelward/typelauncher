@@ -131,6 +131,13 @@ internal class LauncherViewModel(
     /** See [abandonPendingPlayUpdateRecovery]. */
     private var isRecoveryAbandoned = false
     private var installedApps: List<InstalledApp> = emptyList()
+
+    // Set when a background trim was asked for but the app inventory was not known
+    // yet, and cleared the moment the launcher is on screen again. Without it a
+    // launcher left during its own startup keeps a full foreground-sized cache
+    // resident for the whole background residency: the trim's guard returns, and
+    // neither onStop nor the UI-hidden trim callback comes round a second time.
+    private var pendingBackgroundTrim = false
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the
     // launcher can be rebuilt from saved-instance after a full process
@@ -458,6 +465,7 @@ internal class LauncherViewModel(
                 }
             }
             iconSnapshotRestoreComplete = true
+            runDeferredBackgroundTrim()
         }
         if (cachedMetadata.isNotEmpty()) {
             androidTrace("launcher.metadata_prefill") {
@@ -572,6 +580,7 @@ internal class LauncherViewModel(
                 )
             }
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+            runDeferredBackgroundTrim()
             // Replay any icon-pick that arrived during the cold-start window
             // (e.g. picker callback fired after a process-death recreation
             // before this load finished). Has to happen *after*
@@ -1301,12 +1310,19 @@ internal class LauncherViewModel(
      * the launcher is about to be backgrounded so the IO is not on a user-visible path.
      */
     fun persistIconSnapshot() {
-        if (installedApps.isEmpty()) {
-            // The fresh LauncherApps load hasn't completed yet, so an empty priority
-            // set here would mean "we don't know what's installed", not "nothing is
-            // worth keeping". Leave the on-disk snapshot alone rather than wiping the
-            // previous session's icons.
+        if (!_uiState.value.isFreshAppLoadComplete) {
+            // Not just "is the list empty": the metadata prefill populates
+            // `installedApps` from `AppMetadataStore` before the fresh load runs,
+            // and that store deliberately holds personal-profile apps only. So a
+            // non-empty list here can still be missing every work app, and the
+            // priority set derived from it would omit them -- pruning their
+            // restored icons off disk on the way past. An incomplete load means
+            // "we don't know what's installed", not "nothing is worth keeping".
             LauncherDebugLog.event("persistIconSnapshot skipped: fresh load incomplete")
+            return
+        }
+        if (installedApps.isEmpty()) {
+            LauncherDebugLog.event("persistIconSnapshot skipped: no installed apps")
             return
         }
         if (!iconSnapshotRestoreComplete) {
@@ -1318,7 +1334,7 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("persistIconSnapshot skipped: snapshot restore in flight")
             return
         }
-        val priorityIds = priorityIconCacheIds()
+        val priorityIds = priorityIconCacheIds(includeDynamicCalendar = false)
         val snapshots = AppIconLoader.cacheSnapshot()
             .filterKeys { key -> key.id in priorityIds }
             .map { (key, bitmap) ->
@@ -1334,6 +1350,89 @@ internal class LauncherViewModel(
     }
 
     /**
+     * Drops every cached icon outside the priority set -- the same dock + most
+     * launched apps [persistIconSnapshot] writes to disk.
+     *
+     * `AppIconLoader`'s budget is 24 MB, sized so scrolling a long app list
+     * never re-rasterizes. That is the right size while the launcher is on
+     * screen and the wrong one once it is not: the bitmaps stay resident in
+     * the background and cached states, where nothing can paint them. Play
+     * measures bitmap memory usage in exactly those states from February 2027.
+     *
+     * Called after [persistIconSnapshot] rather than before it. That harvests
+     * the priority set out of the cache, so trimming first would hand it a
+     * partial set and prune icons off disk that belong there.
+     *
+     * The priority set is the same one used for the snapshot deliberately:
+     * what is worth keeping warm in memory and what is worth persisting are
+     * the same question, and two lists would drift apart.
+     */
+    fun trimIconCacheToPriority() {
+        if (!_uiState.value.isFreshAppLoadComplete ||
+            installedApps.isEmpty() ||
+            !iconSnapshotRestoreComplete
+        ) {
+            // Same guards as persistIconSnapshot: without a completed load the
+            // priority set is "we do not know yet", not "nothing matters", and
+            // trimming to it would drop everything.
+            //
+            // `isFreshAppLoadComplete` is the load-shaped one and it is not
+            // redundant with the emptiness check. The metadata prefill fills
+            // `installedApps` from a store that holds personal-profile apps only,
+            // so in the window before the fresh load lands the list is non-empty
+            // and every work app is missing from it -- and `priorityIconCacheIds`
+            // filters through that list, so even a work-docked app's id drops out.
+            // Trimming there would evict exactly the restored work icons the
+            // snapshot existed to keep warm.
+            // Latched rather than dropped: whichever of the two initialization jobs
+            // is outstanding retries this once it lands, so the saving is deferred
+            // rather than lost. Leaving the launcher during its own startup is
+            // exactly when the process then sits in the states Play measures.
+            pendingBackgroundTrim = true
+            LauncherDebugLog.event("trimIconCacheToPriority deferred: state incomplete")
+            return
+        }
+        pendingBackgroundTrim = false
+        // Unlike the snapshot, this keeps dynamic calendar icons -- see
+        // [priorityIconCacheIdsFor] for why memory and disk differ on exactly this.
+        val priorityIds = priorityIconCacheIds(includeDynamicCalendar = true)
+        val before = AppIconLoader.cacheSnapshot().size
+        AppIconLoader.retainOnly(priorityIds)
+        val after = AppIconLoader.cacheSnapshot().size
+        LauncherDebugLog.event(
+            "trimIconCacheToPriority priority=%s entries %s -> %s",
+            priorityIds.size,
+            before,
+            after,
+        )
+    }
+
+    /**
+     * Runs a trim that was deferred because the app inventory was not known yet.
+     *
+     * Called from the tail of each initialization job rather than from a timer: the
+     * two of them are precisely what the guard was waiting on, so the second one to
+     * finish is the earliest moment the retry can succeed.
+     *
+     * Safe against trimming a visible launcher because the latch is cleared by
+     * [onLauncherVisible] -- a user who comes back while the load is still in flight
+     * cancels the deferred trim rather than racing it.
+     */
+    private fun runDeferredBackgroundTrim() {
+        if (!pendingBackgroundTrim) return
+        LauncherDebugLog.event("runDeferredBackgroundTrim retrying")
+        trimIconCacheToPriority()
+    }
+
+    /**
+     * The launcher is on screen again, so any deferred background trim is moot: the
+     * cache is back to doing the job its foreground budget is sized for.
+     */
+    fun onLauncherVisible() {
+        pendingBackgroundTrim = false
+    }
+
+    /**
      * The renderer-state fingerprint for [IconSnapshotStore]: the icon theme plus the
      * resolved themed palette, read from the `AppIconLoader` mirrors (which this view
      * model seeds in init, before the snapshot restore launches, and keeps current on
@@ -1342,7 +1441,7 @@ internal class LauncherViewModel(
     private fun currentIconRendererState(): String =
         IconSnapshotStore.rendererState(AppIconLoader.iconTheme, AppIconLoader.themedIconColors)
 
-    private fun priorityIconCacheIds(): Set<String> {
+    private fun priorityIconCacheIds(includeDynamicCalendar: Boolean): Set<String> {
         // `dockedOrFolderedAppIds` already unions loose docked apps with folder
         // members, so a folder of rarely-launched apps keeps its members' icon
         // snapshots and the dock paints real mini-icons on the next cold start.
@@ -1355,15 +1454,7 @@ internal class LauncherViewModel(
             .take(SNAPSHOT_TOP_LAUNCH_COUNT)
             .map { (id, _) -> id }
             .toSet()
-        val priorityIds = docked + topByLaunches
-        return installedApps
-            .asSequence()
-            // Never persist a dynamic calendar icon: it depicts a specific day, so a
-            // saved bitmap is wrong on any later day. Leaving it out means the next
-            // save also prunes a previously-saved (now stale) one off disk.
-            .filter { app -> app.id in priorityIds && app.packageName !in DYNAMIC_CALENDAR_PACKAGES }
-            .map { app -> app.iconCacheId }
-            .toSet()
+        return priorityIconCacheIdsFor(installedApps, docked + topByLaunches, includeDynamicCalendar)
     }
 
     fun refreshAgenda() {
@@ -4636,6 +4727,35 @@ internal fun ApplicationInfo.iconCacheToken(packageManager: PackageManager): Str
 // (yesterday's) icon; `applyDynamicCalendarToken` folds the current local date
 // into their cache key instead. Extend this set as other date-aware calendar
 // apps are confirmed.
+/**
+ * The icon cache ids worth keeping, out of [apps], for the priority apps named by
+ * [priorityAppIds] (ids, not cache ids -- an app's cache id carries tokens the caller
+ * does not have to reconstruct).
+ *
+ * [includeDynamicCalendar] is the single point where memory retention and disk
+ * persistence differ, and the asymmetry is deliberate rather than an oversight.
+ *
+ * A dynamic calendar icon depicts one specific day, and its cache id carries that day
+ * as a token. **On disk** that is a hazard: a saved bitmap outlives the process, so it
+ * must not be written -- and leaving it out of the set means the next save also prunes
+ * any previously-saved, now-stale file. **In memory** the same token is the protection:
+ * a new day derives a different cache id, so yesterday's entry can never be served for
+ * today, and dropping it only costs a docked calendar app its warm icon for no gain.
+ *
+ * Keeping one derivation with one named difference, rather than two sets, is the point:
+ * two independently-maintained lists would drift, which is the bug this shape avoids.
+ */
+internal fun priorityIconCacheIdsFor(
+    apps: List<InstalledApp>,
+    priorityAppIds: Set<String>,
+    includeDynamicCalendar: Boolean,
+): Set<String> = apps
+    .asSequence()
+    .filter { app -> app.id in priorityAppIds }
+    .filter { app -> includeDynamicCalendar || app.packageName !in DYNAMIC_CALENDAR_PACKAGES }
+    .map { app -> app.iconCacheId }
+    .toSet()
+
 internal val DYNAMIC_CALENDAR_PACKAGES = setOf(
     "com.google.android.calendar", // Google Calendar
     "com.samsung.android.calendar", // Samsung Calendar
@@ -4687,7 +4807,7 @@ private const val WIDGET_CELL_ESTIMATE_DP = 56
 // Sized to cover the visible app rows on a typical phone screen (~12 text rows or ~24
 // icon-only grid cells) plus a margin so quick scrolls also paint without flashing,
 // while keeping cold-start file IO bounded.
-private const val SNAPSHOT_TOP_LAUNCH_COUNT = 24
+private const val SNAPSHOT_TOP_LAUNCH_COUNT = 50
 
 /**
  * Collapses any leading [prefixWord]-as-whole-word tokens in [rawLabel] and
