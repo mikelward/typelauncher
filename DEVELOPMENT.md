@@ -77,7 +77,7 @@ To install and launch the debug build only in the personal/default profile on a 
 ./gradlew :app:installAndRun
 ```
 
-That task targets Android user `0`, removes the debug build from non-owner users if it is present there, and starts the debug launcher as user `0`. The package it acts on follows the build: `app.typelauncher.dev` for a local build, `app.typelauncher.debug` in CI — so when diagnosing an install by hand, check `.dev` rather than `.debug`.
+That task targets Android user `0`, removes the debug build from non-owner users if it is present there, and starts the debug launcher as user `0`. The package it acts on is `app.typelauncher.debug`, everywhere. (It used to be `.dev` for a local build and `.debug` in CI; CI has built no debug APK since the build job moved to the release variant, so there was nothing left for the split to distinguish.)
 
 If multiple devices are attached, set `ANDROID_SERIAL` first:
 
