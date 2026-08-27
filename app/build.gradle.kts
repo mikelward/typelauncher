@@ -96,16 +96,26 @@ if (hasFirebaseConfig) {
             }
         }
     }
-    // If google-services.json has no release client (app.typelauncher), disable the
     // Only the deploy lane can ship, and only a shipping build's mapping file is
-    // worth uploading. The build job now runs assembleRelease as its R8 check
-    // (see .github/workflows/ci.yml) and the Crashlytics plugin wires the upload
-    // into the assemble task itself, so on a push to main that job would upload
-    // a mapping for an APK nobody receives — duplicating, and racing, the one
-    // `deploy` uploads for the build that actually ships. (On a PR the question
-    // doesn't arise: google-services.json is materialized on push only, so the
-    // plugin never applies there.) RELEASE_KEYSTORE_FILE is the deploy job's own
-    // marker: it populates the signing config above, and no other job sets it.
+    // worth uploading. The build job runs assembleRelease as its R8 check (see
+    // .github/workflows/ci.yml) and the Crashlytics plugin wires the upload into
+    // the assemble task itself, so on a push to main that job would otherwise
+    // upload a mapping for an APK nobody receives — duplicating, and racing, the
+    // one `deploy` uploads for the build that actually ships. (On a PR the
+    // question doesn't arise: google-services.json is materialized on push only,
+    // so the plugin never applies there.) RELEASE_KEYSTORE_FILE is the deploy
+    // job's own marker: it populates the signing config above, and no other job
+    // sets it.
+    //
+    // Currently this changes nothing, because the CI google-services.json has no
+    // release client and the hasReleaseClient block below already disables the
+    // upload in every lane — main's deploy job included, where the log reads
+    // `uploadCrashlyticsMappingFileRelease SKIPPED`. So no mapping reaches
+    // Crashlytics for the shipping build today, and with R8 now obfuscating,
+    // any crash it did receive would be unreadable. That is a Firebase console
+    // question, not a build one. This gate is what keeps the fix to it from
+    // introducing the duplicate upload: add the release client and the block
+    // below stops disabling anything, at which point this becomes load-bearing.
     val canShip = !providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()
     if (!canShip) {
         afterEvaluate {
@@ -114,6 +124,7 @@ if (hasFirebaseConfig) {
         }
     }
 
+    // If google-services.json has no release client (app.typelauncher), disable the
     // release processing task so bundleRelease doesn't fail. When a release client is
     // present the task runs normally and Firebase/Crashlytics are wired up for production.
     val hasReleaseClient = firebaseConfig.contains("\"app.typelauncher\"")
