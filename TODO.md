@@ -113,6 +113,43 @@
 
 - [ ] **Adopt `mikelward/gradle-update`** — the weekly Gradle catalog updater.
       Consumers get wired up one repo at a time; this batch was done by hand.
+- [ ] **Drop `material-icons-extended` and vendor the 22 icons the app uses.**
+      The library ships several thousand `ImageVector`s; `app/src/main`
+      references 22. R8 strips the rest from the release APK, so the shipped
+      size is unaffected — but the debug APK, which never minifies, measured
+      **76.57 MiB (73.44 MiB of it dex)** against a 4.83 MiB release APK on
+      2026-08-27. That is the APK `installDebug` puts on a phone.
+
+      Copy **all 22**, rather than taking what `material-icons-core` happens to
+      cover and hand-vectoring the remainder. One mechanism beats two: a split
+      leaves no way to tell by looking whether a given icon came from the
+      library or the local set, and the next icon someone adds silently pulls
+      the dependency back in. Vendoring the lot makes adding a 23rd a
+      deliberate act.
+
+      The 22, as of `4c4d08b0`:
+
+      ```
+      AutoMirrored.Filled: ArrowBack, KeyboardArrowLeft, KeyboardArrowRight, Message
+      Filled: Add, ArrowDropDown, Call, Clear, DragHandle, Email, EventBusy,
+              ExpandLess, ExpandMore, KeyboardArrowDown, KeyboardArrowUp,
+              MoreVert, Person, Search, Settings, Star, Warning, Widgets
+      ```
+
+      Re-derive the list before starting rather than trusting this one:
+      `grep -rhoE "Icons\.(Filled|Outlined|Rounded|TwoTone|Sharp|Default|AutoMirrored)[A-Za-z.]*\.[A-Za-z]+" app/src/main --include="*.kt" | sort -u`
+
+      Icons are visual, so this needs screenshot-test coverage to prove nothing
+      shifted: several of the 22 already appear in recorded snapshots, and a
+      vendored vector that differs by a pixel will show up there. Check the
+      Roborazzi diff rather than assuming a copy is a copy.
+
+      This is typelauncher-only: simmo (8 icons) and clothescast (15) already
+      depend on `material-icons-core`, and snoozemo has no material-icons
+      dependency at all. So there is no fleet-wide version of this change, and
+      `-core` is the shape the siblings already settled on — which is an
+      argument for checking how many of the 22 it covers before vendoring, even
+      though vendoring all of them stays the more robust end state.
 
 ## Not planned
 
