@@ -203,6 +203,8 @@
     <string name="crash_banner_title">Did Type Launcher crash?</string>
     <string name="crash_banner_body">If it did, share a bug report to help us fix it</string>
     <string name="crash_banner_share">Share</string>
+    <!-- TODO: translate -->
+    <string name="crash_banner_sharing" tools:ignore="MissingTranslation">Sharing…</string>
     <string name="crash_banner_dismiss">Dismiss</string>
     <string name="crash_pending_badge_description">Possible crash detected</string>
     <string name="telemetry_consent_title">Anonymous analytics</string>

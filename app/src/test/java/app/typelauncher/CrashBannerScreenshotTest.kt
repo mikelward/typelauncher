@@ -75,6 +75,21 @@ class CrashBannerScreenshotTest {
         capture("compose_crash_banner_dark_robolectric.png")
     }
 
+    // The state during a share: the button says so and stops taking taps, so a
+    // second tap reads as the app working rather than as a dead button.
+    @Test
+    fun crashBanner_sharing() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                BannerAtTopOfHome(isSharing = true)
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Sharing…").assertExists()
+
+        capture("compose_crash_banner_sharing_robolectric.png")
+    }
+
     @Test
     fun crashBanner_atTopOfSettings() {
         composeRule.setContent {
@@ -209,7 +224,7 @@ class CrashBannerScreenshotTest {
     }
 
     @Composable
-    private fun BannerAtTopOfHome() {
+    private fun BannerAtTopOfHome(isSharing: Boolean = false) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -220,6 +235,7 @@ class CrashBannerScreenshotTest {
                 onShare = {},
                 onDismiss = {},
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                isSharing = isSharing,
             )
         }
     }

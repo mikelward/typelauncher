@@ -21,6 +21,9 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -54,6 +57,14 @@ internal object BugReport {
         val reportedRunIds: Set<String> = emptySet(),
     )
 
+    private val inFlight = MutableStateFlow(false)
+
+    /**
+     * Whether a share is running right now, so the affordances that start one
+     * (Settings' "Share debug logs" and the post-crash banner) can show it and
+     * stop taking taps.
+     */
+    val isSharing: StateFlow<Boolean> = inFlight.asStateFlow()
 
     /**
      * Captures the screen, builds the text payload, copies the text to the
@@ -76,6 +87,44 @@ internal object BugReport {
         screenshotCapture: suspend (Activity) -> Uri? = ::captureAndPersistScreenshot,
         clipboardWrite: (Context, String) -> Boolean = ::copyToClipboard,
         chooserLaunch: (Activity, String, Uri?) -> Boolean = ::startShare,
+    ) {
+        // One share at a time. Two taps in a row is the normal way to use a
+        // button that gives no feedback, and overlapping shares race the consume
+        // below: the first deletes the runs it carried while the second is still
+        // collecting, so the second reads an emptied directory, builds a report
+        // with no prior run in it, and is the one the user is left holding
+        // (simmo, "Stop a second Share tap from discarding the crash log").
+        // Claiming at the entry point makes that unreachable rather than merely
+        // unlikely.
+        if (!inFlight.compareAndSet(expect = false, update = true)) {
+            LauncherDebugLog.event("BugReport share already running; ignoring the repeat tap")
+            return
+        }
+        try {
+            shareClaimed(
+                activity = activity,
+                includeScreenshot = includeScreenshot,
+                mainDispatcher = mainDispatcher,
+                payloadCollect = payloadCollect,
+                screenshotCapture = screenshotCapture,
+                clipboardWrite = clipboardWrite,
+                chooserLaunch = chooserLaunch,
+            )
+        } finally {
+            // In a finally so a share that throws — or is canceled with the
+            // screenshot capture suspended — still leaves the button usable.
+            inFlight.value = false
+        }
+    }
+
+    private suspend fun shareClaimed(
+        activity: Activity,
+        includeScreenshot: Boolean,
+        mainDispatcher: CoroutineDispatcher,
+        payloadCollect: (Context, DebugFileSink?) -> Payload,
+        screenshotCapture: suspend (Activity) -> Uri?,
+        clipboardWrite: (Context, String) -> Boolean,
+        chooserLaunch: (Activity, String, Uri?) -> Boolean,
     ) {
         val fileSink = (activity.applicationContext as? TypeLauncherApp)?.debugFileSink
         // Build the payload off the main thread: it reads persisted settings and
