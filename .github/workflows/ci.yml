@@ -1366,8 +1366,10 @@ jobs:
         # Gated only on the keystore being present — a signed AAB is useful on
         # its own (downloadable artifact for the seed upload, even before the
         # Play service account is set up). Release signing config only attaches
-        # when RELEASE_KEYSTORE_FILE is set (see app/build.gradle.kts), so
-        # without the keystore Play would reject the AAB anyway.
+        # when all four RELEASE_KEYSTORE_* / RELEASE_KEY_* variables are set
+        # (see app/build.gradle.kts), which the decode step above guarantees
+        # whenever it sets RELEASE_KEYSTORE_FILE — it fails first if any of the
+        # other three is empty. Without them Play would reject the AAB anyway.
         if: env.RELEASE_KEYSTORE_FILE != ''
         env:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}

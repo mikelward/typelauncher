@@ -46,6 +46,26 @@ val debugApplicationId = "app.typelauncher$debugApplicationIdSuffix"
 // FirebaseApp is initialized. See docs/firebase-telemetry.md.
 val firebaseConfigFile = file("google-services.json")
 val hasFirebaseConfig = firebaseConfigFile.exists()
+
+// The four release-keystore variables, normalized once: blank is absent. A
+// secret that resolves to whitespace is a misconfigured secret, not a value,
+// and every reader has to agree about that. Reading the raw string in one place
+// and the trimmed one in another let a whitespace-only RELEASE_KEYSTORE_FILE
+// slip past the all-or-none guard below and then attach an empty signing
+// config, failing inside AGP with "Keystore file not set for signing config
+// release" -- the late, unattributable failure that guard exists to prevent.
+fun releaseKeystoreEnv(name: String): String? =
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+
+val releaseKeystorePath = releaseKeystoreEnv("RELEASE_KEYSTORE_FILE")
+val releaseKeystorePassword = releaseKeystoreEnv("RELEASE_KEYSTORE_PASSWORD")
+val releaseKeyAlias = releaseKeystoreEnv("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseKeystoreEnv("RELEASE_KEY_PASSWORD")
+
+val anyReleaseKeystoreVarSet = releaseKeystorePath != null || releaseKeystorePassword != null ||
+    releaseKeyAlias != null || releaseKeyPassword != null
+val releaseSigningConfigured = releaseKeystorePath != null && releaseKeystorePassword != null &&
+    releaseKeyAlias != null && releaseKeyPassword != null
 if (hasFirebaseConfig) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
@@ -126,7 +146,7 @@ if (hasFirebaseConfig) {
     // not a build one. This gate is what keeps the fix to it from
     // introducing the duplicate upload: add the release client and the block
     // below stops disabling anything, at which point this becomes load-bearing.
-    val canShip = !providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()
+    val canShip = releaseSigningConfigured
     if (!canShip) {
         afterEvaluate {
             tasks.matching { it.name == "uploadCrashlyticsMappingFileRelease" }
@@ -413,12 +433,29 @@ android {
         // without RELEASE_KEYSTORE_FILE set produce an unsigned release AAB,
         // which is fine for inspection and means forks build cleanly.
         create("release") {
-            val keystorePath = providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull
-            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
-                storePassword = providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
-                keyAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
-                keyPassword = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+            // All four, or none. A partial set used to configure storeFile and
+            // leave a password null, which fails deep inside apksigner with a
+            // message that names neither the missing variable nor this block --
+            // the shape of a mistyped secret name in CI. Fail here instead, and
+            // say which ones are missing.
+            if (anyReleaseKeystoreVarSet && !releaseSigningConfigured) {
+                error(
+                    "Partial release-keystore configuration. Set all of RELEASE_KEYSTORE_FILE, " +
+                        "RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD — or none, " +
+                        "to build unsigned. With none set, assembleRelease and bundleRelease succeed " +
+                        "and emit an unsigned artifact, which Play will reject on upload.",
+                )
+            }
+
+            if (releaseSigningConfigured) {
+                val keystore = file(releaseKeystorePath!!)
+                check(keystore.exists()) {
+                    "RELEASE_KEYSTORE_FILE is set but does not exist: ${keystore.path}"
+                }
+                storeFile = keystore
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
@@ -456,9 +493,12 @@ android {
                 "proguard-rules.pro"
             )
             // Only attach the release signingConfig when CI has populated it;
-            // otherwise an unset storeFile makes bundleRelease fail locally
-            // for anyone without the secrets.
-            if (!providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()) {
+            // otherwise an unset storeFile makes bundleRelease fail locally for
+            // anyone without the secrets. This is the same decision the guard
+            // in signingConfigs makes, read from the same value rather than
+            // re-derived from one raw variable -- so the two can't disagree
+            // about whether the config was populated.
+            if (releaseSigningConfigured) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
