@@ -121,7 +121,9 @@ machine, not only in CI (`isMinifyEnabled = true`, see
 its mapping file has been uploaded. The `firebase-crashlytics` Gradle plugin
 does that for every minified variant on its own:
 `uploadCrashlyticsMappingFileRelease` runs as part of `assembleRelease` /
-`bundleRelease`, with no configuration of ours.
+`bundleRelease`, with no configuration of ours. On `main` the only release
+build is `deploy`'s `bundleRelease` — the build job runs `assembleRelease` on
+pull requests only — so there is one mapping-producing build per push, not two.
 
 That upload depends on the same `google-services.json` everything else here
 does. Without a matching client the plugin is never applied and the upload task

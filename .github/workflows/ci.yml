@@ -317,22 +317,59 @@ jobs:
 
       - name: Build release APK (runs the full R8 pipeline)
         # The only step in this lane that exercises R8 shrinking, optimization
-        # and obfuscation together — which is what the Play build ships. Without
-        # it, a release-only R8 failure (a keep rule that misses a reflective
-        # lookup, an optimizer crash) passes every required check and surfaces
-        # after merge, when the deploy job's bundleRelease is the first thing to
-        # run it. Unsigned here: the release signingConfig attaches only when
-        # RELEASE_KEYSTORE_FILE is set, which the deploy job does and this job
-        # does not. On a PR that also means no Crashlytics: google-services.json
-        # is materialized on `push` only, so the plugin never applies here. On a
-        # push to main it does apply, and the same RELEASE_KEYSTORE_FILE marker
-        # gates the mapping upload off for this job (see app/build.gradle.kts).
-        # That gate is currently inert -- `deploy` uploads no mapping either,
-        # because the CI google-services.json carries no release client, so
-        # nothing is being duplicated today. It is kept for the moment a release
-        # client is added, when this job's assembleRelease would start uploading
-        # alongside `deploy`'s bundleRelease.
+        # and obfuscation together -- which is what the Play build ships.
+        # Without it, a release-only R8 failure (a keep rule that misses a
+        # reflective lookup, an optimizer crash) passes every required check and
+        # surfaces after merge, when the deploy job's bundleRelease is the first
+        # thing to run it.
+        #
+        # Pull requests only. On main `deploy` runs bundleRelease, which
+        # --dry-run confirms pulls in minifyReleaseWithR8 and lintVitalRelease
+        # itself, so running both meant R8 ran twice per push -- and unlike a
+        # parallel job this one is in series with the tests, so its ~2m50s sat
+        # squarely on the critical path into deploy. The Gradle build cache does
+        # not save it: gradle/actions/setup-gradle keys its cache per job, so
+        # deploy restores its own entry from the PREVIOUS run and never sees
+        # what this job just built.
+        #
+        # bundleRelease does NOT pull in optimizeReleaseResources or
+        # convertShrunkResourcesToBinaryRelease -- that is the APK resource
+        # path, and the AAB shrinks resources its own way. So main does leave
+        # those unrun. Deliberate: they are not what ships on main, and the pull
+        # request for the same commit already ran them.
+        #
+        # The condition is `deploy`'s `if:` verbatim. If that changes, change
+        # this with it, or the release check silently stops running somewhere.
+        #
+        # Unsigned here: the release signingConfig attaches only when all four
+        # RELEASE_KEYSTORE_* variables are set, which the deploy job does and
+        # this job does not. That also means no Crashlytics mapping upload from
+        # this job, and on a PR no Crashlytics at all -- google-services.json is
+        # materialized on `push` only, so the plugin never applies here.
         # Build-time only; runtime reflection still needs a device check.
+        #
+        # Skipped on main only where `deploy` is guaranteed to build a release
+        # variant in this run's place. On this repo that guarantee comes from
+        # deploy's "Require a release keystore" step: with the secret present it
+        # builds the AAB, and without it the run fails outright, so a green main
+        # push always ran R8 somewhere.
+        #
+        # Forks get no such guarantee -- they are exempt from that step and
+        # deploy's build steps skip on their own conditions -- so they keep
+        # building the release APK here, and their unsigned no-keystore state
+        # stays covered exactly as before.
+        #
+        # Fork status rather than the keystore secret, deliberately: this job
+        # declares no `environment`, so whether it can see that secret at all
+        # depends on where the secret is scoped -- a repository secret is
+        # visible here, an environment one is not. Gating on it would then work
+        # or silently stop working depending on that scope, skipping nothing and
+        # quietly keeping the duplicate R8 build this change exists to remove.
+        # Fork status comes from the `github` context and holds either way.
+        if: |
+          !(github.ref == 'refs/heads/main' &&
+            (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+            github.event.repository.fork != true)
         run: ./gradlew assembleRelease
 
       - name: Check licenses export is up to date
