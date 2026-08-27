@@ -3989,7 +3989,7 @@ class MainActivityRobolectricScreenshotTest {
             val packageManager = shadowOf(context.packageManager)
             // MainActivity matches this intent, so the app under test supplies a
             // row of its own, labeled from the manifest — and android:label is
-            // badged outside a CI release ("Type Launcher Dev" locally, "Type
+            // badged on the debug build type ("Type Launcher Debug"; the "Type
             // Launcher Debug" on CI). Left alone, both these assertions and the
             // recorded snapshots would depend on where they ran. Robolectric
             // can't drop a manifest-declared activity from queryIntentActivities
@@ -4112,7 +4112,7 @@ class MainActivityRobolectricScreenshotTest {
          * The longest label any build wears: the CI debug build.
          * `android:label` resolves per build type, so the launcher's own row in
          * its own app list is "Type Launcher" on Play, this on a CI debug
-         * build, and "Type Launcher Dev" outside CI — this is the one that
+         * build; the older "Type Launcher Dev" identity is gone — this is the one that
          * stresses the layout.
          */
         const val LONGEST_BADGED_APP_NAME = "Type Launcher Debug"

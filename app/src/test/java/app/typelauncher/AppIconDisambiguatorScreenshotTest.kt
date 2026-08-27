@@ -186,7 +186,7 @@ class AppIconDisambiguatorScreenshotTest {
             val pm = shadowOf(context.packageManager)
             // MainActivity matches this intent, so the launcher lists itself and
             // its android:label and android:icon land in these snapshots. That label is badged
-            // outside a CI release ("Type Launcher Dev" locally, "Type Launcher
+            // on the debug build type ("Type Launcher Debug"; the older "Type Launcher
             // Debug" on CI), which would make the recorded images depend on where
             // they were recorded — local verification failing against CI-recorded
             // PNGs, and every local recording producing drift CI then rewrites.

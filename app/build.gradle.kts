@@ -190,30 +190,28 @@ val isGitWorkingTreeDirty: Boolean =
         true
     }
 val baseVersionName = "1.0"
-// One badged icon per build, resolved at manifest-merge time. The Play build is
-// plain; the CI debug build wears a "DEBUG" bar; any build outside CI wears the
-// "DEV" bar. Both bars use the same yellow plate and dark lettering — only the
-// word differs. Previously the CI debug build was plain too, so it was
-// indistinguishable from Play on the home screen, which is the one pairing most
-// likely to be installed together.
-val devLauncherIcon = "@mipmap/ic_launcher_local"
-val devLauncherRoundIcon = "@mipmap/ic_launcher_round_local"
-val releaseLauncherIcon = if (isCiBuild) "@mipmap/ic_launcher" else devLauncherIcon
-val releaseLauncherRoundIcon = if (isCiBuild) "@mipmap/ic_launcher_round" else devLauncherRoundIcon
-val debugLauncherIcon = if (isCiBuild) "@mipmap/ic_launcher_debug" else devLauncherIcon
-val debugLauncherRoundIcon = if (isCiBuild) "@mipmap/ic_launcher_round_debug" else devLauncherRoundIcon
+// One badged icon per build type, resolved at manifest-merge time. Release is
+// plain; debug wears a "DEBUG" bar on a yellow plate with dark lettering.
+//
+// Keyed on the build type and nothing else. There used to be a third identity —
+// a "DEV" bar for anything built outside CI, on either build type — so a
+// developer's debug APK could sit beside a CI-built one. CI has built no debug
+// APK since the build job moved to the release variant, so there was nothing
+// left to sit beside, and keying an artifact's identity on the machine that
+// happened to compile it meant the same source produced two differently-badged
+// builds. A debug build wears the debug badge because it is a debug build.
+val releaseLauncherIcon = "@mipmap/ic_launcher"
+val releaseLauncherRoundIcon = "@mipmap/ic_launcher_round"
+val debugLauncherIcon = "@mipmap/ic_launcher_debug"
+val debugLauncherRoundIcon = "@mipmap/ic_launcher_round_debug"
 
-// The DEV badge on the local icon, said again in the name beside it — the badge
-// is easy to miss at icon size, and the home-role picker and app list are text.
-// Three builds can co-exist on one phone: the Play build (app.typelauncher), a
-// CI-built debug APK (app.typelauncher.debug), and a local one. Only the Play
-// build keeps the localized @string/app_name; the CI debug build is "Type
-// Launcher Debug", and anything built outside CI — either build type — is "Type
-// Launcher Dev". The two badged labels are manifest literals on purpose: they
-// mark a build, never reach a store listing, and are not translated.
-val devAppLabel = "Type Launcher Dev"
-val releaseAppLabel = if (isCiBuild) "@string/app_name" else devAppLabel
-val debugAppLabel = if (isCiBuild) "Type Launcher Debug" else devAppLabel
+// The DEBUG badge on the icon, said again in the name beside it — the badge is
+// easy to miss at icon size, and the home-role picker and app list are text.
+// The release build keeps the localized @string/app_name; the debug build is
+// "Type Launcher Debug". That label is a manifest literal on purpose: it marks
+// a build, never reaches a store listing, and is not translated.
+val releaseAppLabel = "@string/app_name"
+val debugAppLabel = "Type Launcher Debug"
 val buildConfiguredAtMillis = System.currentTimeMillis()
 val localBuildBranch = if (isCiBuild) "" else gitBranchName
 val localBuildSha = if (isCiBuild) "" else gitShortSha

@@ -51,16 +51,16 @@ class ManifestUnitTest {
     }
 
     @Test
-    fun launcherIcon_manifestPlaceholdersUseLocalBadgeOutsideCi() {
+    fun launcherIcon_manifestPlaceholdersBadgeTheDebugBuildType() {
         val buildFile = File("build.gradle.kts").readText()
 
-        assertTrue(buildFile.contains("providers.environmentVariable(\"CI\")"))
-        // Three icons, one per build. Only the CI release build is unbadged: the
-        // CI debug build used to share that plain icon, which made it
-        // indistinguishable from the Play build on a device carrying both.
-        assertTrue(buildFile.contains("val devLauncherIcon = \"@mipmap/ic_launcher_local\""))
-        assertTrue(buildFile.contains("releaseLauncherIcon = if (isCiBuild) \"@mipmap/ic_launcher\" else devLauncherIcon"))
-        assertTrue(buildFile.contains("debugLauncherIcon = if (isCiBuild) \"@mipmap/ic_launcher_debug\" else devLauncherIcon"))
+        // One icon per build type, keyed on the build type and nothing else.
+        // There used to be a third, a DEV badge for anything built outside CI,
+        // so the machine that compiled an artifact decided how it was branded.
+        assertTrue(buildFile.contains("val releaseLauncherIcon = \"@mipmap/ic_launcher\""))
+        assertTrue(buildFile.contains("val debugLauncherIcon = \"@mipmap/ic_launcher_debug\""))
+        assertFalse(buildFile.contains("releaseLauncherIcon = if (isCiBuild)"))
+        assertFalse(buildFile.contains("debugLauncherIcon = if (isCiBuild)"))
         assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = releaseLauncherIcon"))
         assertTrue(buildFile.contains("manifestPlaceholders[\"launcherIcon\"] = debugLauncherIcon"))
         assertTrue(buildFile.contains("manifestPlaceholders[\"launcherRoundIcon\"] = releaseLauncherRoundIcon"))
@@ -68,23 +68,17 @@ class ManifestUnitTest {
     }
 
     @Test
-    fun `appLabel names the build outside a CI release`() {
+    fun `appLabel names the debug build type`() {
         val buildFile = File("build.gradle.kts").readText()
 
-        // Only the Play build keeps the localized name; a CI debug APK and
-        // any local one say which build they are, so three co-installed copies
-        // are distinguishable in the app list and the home-role picker.
-        assertTrue(buildFile.contains("val devAppLabel = \"Type Launcher Dev\""))
-        assertTrue(
-            buildFile.contains(
-                "val releaseAppLabel = if (isCiBuild) \"@string/app_name\" else devAppLabel",
-            ),
-        )
-        assertTrue(
-            buildFile.contains(
-                "val debugAppLabel = if (isCiBuild) \"Type Launcher Debug\" else devAppLabel",
-            ),
-        )
+        // The release build keeps the localized name; the debug build says
+        // which build it is, so two co-installed copies are distinguishable in
+        // the app list and the home-role picker. Keyed on the build type, not
+        // on where it was compiled.
+        assertTrue(buildFile.contains("val releaseAppLabel = \"@string/app_name\""))
+        assertTrue(buildFile.contains("val debugAppLabel = \"Type Launcher Debug\""))
+        assertFalse(buildFile.contains("releaseAppLabel = if (isCiBuild)"))
+        assertFalse(buildFile.contains("debugAppLabel = if (isCiBuild)"))
         assertTrue(buildFile.contains("manifestPlaceholders[\"appLabel\"] = releaseAppLabel"))
         assertTrue(buildFile.contains("manifestPlaceholders[\"appLabel\"] = debugAppLabel"))
     }
