@@ -1,5 +1,5 @@
-# R8 keep rules for the minified builds — every CI-built APK and the Play AAB
-# (isMinifyEnabled = isCiBuild in app/build.gradle.kts).
+# R8 keep rules for the release build — every release build, wherever it is
+# made (isMinifyEnabled = true in app/build.gradle.kts). Debug never minifies.
 #
 # R8 runs fully optimizing here: shrink, optimize, obfuscate. Google Play's
 # code-optimization requirement is defined as exactly that configuration —
