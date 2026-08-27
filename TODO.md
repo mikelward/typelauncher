@@ -74,6 +74,24 @@
   reports what is bundled, it does not gate on what a license says. Work out
   placement, gating, and coverage (release vs. debug classpath, etc.) when
   actually building this.
+- **Reconcile `SPEC.md` and `docs/play-store-internal-track.md` with the release
+  keystore now being required** (Codex, PR #674; deferred there deliberately, at
+  the maintainer's instruction). Two records still describe the old behavior:
+  - `SPEC.md` says the AAB build "is gated only on `RELEASE_KEYSTORE_BASE64`
+    being present", and that the build job's release APK is always produced. On
+    a non-fork push to `main` the keystore is now required rather than a gate —
+    `deploy`'s `Require a release keystore` step fails the run without it — and
+    the build job skips its release APK for any non-fork `main` push.
+  - `docs/play-store-internal-track.md` still promises fresh clones without
+    secrets get a green run. That now holds for **forks** only.
+
+  Left for the maintainer because the same document also states the release
+  secrets are environment-scoped, which does not describe their current state
+  (they are repository-scoped, with the move planned), so rewriting the setup
+  contract means asserting facts about infrastructure that need checking rather
+  than inferring. The CI behavior itself does not depend on the answer: the skip
+  gates on fork status, not on the secret, so it holds under either scope.
+
 - **Cover the release-keystore configuration guard with an automated test**
   (Codex, PR #674; applies to all four repos, which now share the guard). The
   all-or-none check and the signing-config attachment are build-script logic
