@@ -84,7 +84,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> false },
             chooserLaunch = { _, _, _ -> false },
         )
@@ -103,7 +103,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> throw SecurityException("no clipboard access") },
             chooserLaunch = { _, _, _ -> throw IllegalStateException("no share target") },
         )
@@ -117,7 +117,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> false },
             chooserLaunch = { _, _, _ -> true },
         )
@@ -137,7 +137,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> false },
         )
 
@@ -154,7 +154,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             screenshotCapture = { captured = true; null },
             clipboardWrite = { _, _ -> true },
             chooserLaunch = { _, _, _ -> true },

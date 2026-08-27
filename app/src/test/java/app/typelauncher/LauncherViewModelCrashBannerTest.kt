@@ -81,8 +81,7 @@ class LauncherViewModelCrashBannerTest {
         assertTrue(viewModel.uiState.value.isCrashBannerVisible)
 
         // A successful share consumes the prior run (as BugReport.share does).
-        sink.readPreviousRun()
-        sink.clearPreviousRun()
+        sink.consumePreviousRuns(sink.readPreviousRuns().map { it.id })
         viewModel.refreshCrashBanner()
         idle()
 
