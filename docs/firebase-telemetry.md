@@ -32,12 +32,12 @@ tests, forks, and de-Googled devices.
 Firebase is gated on **two** things: `app/google-services.json` being present,
 *and* that file carrying a client for the application ID being built.
 
-- **File present, client matches** → `app/build.gradle.kts` applies the
-  `com.google.gms.google-services` and
+- **File present, release variant, client matches** → `app/build.gradle.kts`
+  applies the `com.google.gms.google-services` and
   `com.google.firebase.crashlytics` plugins, the SDKs auto-initialize via the
-  manifest-merged `FirebaseInitProvider`, and telemetry flows. This is CI's debug
-  and release builds, and a local *release* build (still unsuffixed
-  `app.typelauncher`, so it matches the production client).
+  manifest-merged `FirebaseInitProvider`, and telemetry flows. Release builds
+  only — CI's and a local one alike, both plain `app.typelauncher`, so both
+  match the production client.
 - **File present, debug variant** → the debug-variant Google Services tasks are
   skipped and any Firebase resources an earlier build generated are purged, so
   the SDKs find no `FirebaseApp` and `LauncherTelemetry` stays in its no-op path.
@@ -113,9 +113,13 @@ To exercise the telemetry wiring itself, build the release variant.
 
 ## Crashlytics mapping upload
 
-CI builds run R8 fully optimizing — shrink, optimize, obfuscate
-(`isMinifyEnabled = isCiBuild`, see `app/proguard-rules.pro`) — so a release
-stack trace only becomes readable once its mapping file has been uploaded. The
+Release builds run R8 fully optimizing — shrink, optimize, obfuscate — on any
+machine, not only in CI (`isMinifyEnabled = true`, see
+`app/proguard-rules.pro`), so a release stack trace only becomes readable once
+its mapping file has been uploaded. That applies to a release APK you build
+locally too: its frames are obfuscated, and the mapping upload is gated to the
+deploy lane, so there is nothing to resolve them against. Build debug for
+day-to-day work. The
 `firebase-crashlytics` Gradle plugin does that for every minified variant on its
 own: `uploadCrashlyticsMappingFileRelease` runs as part of `assembleRelease` /
 `bundleRelease`, with no configuration of ours.

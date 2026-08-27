@@ -310,9 +310,10 @@ jobs:
       # everything that step verified is already covered: `Run unit tests` below
       # pulls in compileDebugKotlin, mergeDebugResources and processDebugManifest,
       # so a debug compile break or a broken manifest placeholder still fails
-      # here; and debug's R8 is shrink-only, since AGP disables optimization and
-      # obfuscation for a debuggable build type whatever isMinifyEnabled says.
-      # All it uniquely did was dex and package an APK nobody installs.
+      # here. Debug runs no R8 at all now (see the debug build type in
+      # app/build.gradle.kts), so there is no debug-only shrinker configuration
+      # left for an assembleDebug step to exercise either. All it uniquely did
+      # was dex and package an APK nobody installs.
 
       - name: Build release APK (runs the full R8 pipeline)
         # The only step in this lane that exercises R8 shrinking, optimization

@@ -29,11 +29,6 @@ val isCiBuild: Boolean = providers.environmentVariable("CI")
     .map { value -> value.equals("true", ignoreCase = true) }
     .getOrElse(false)
 
-// A debug build made outside CI is `.dev`, not `.debug`, so it co-installs
-// beside a CI-built one instead of fighting it for one package name. Every debug
-// build is signed by whichever machine produced it, so sharing an ID isn't an
-// upgrade, it's an INSTALL_FAILED_UPDATE_INCOMPATIBLE that forces an uninstall
-// to switch between them.
 // One suffix everywhere. It used to be `.debug` in CI and `.dev` locally, so a
 // developer's debug build could co-install beside a CI-built one — but CI has
 // built no debug APK since the build job moved to the release variant, so there
@@ -236,9 +231,10 @@ abstract class InstallAndRunPersonalDebugTask @Inject constructor(
     abstract val apkFile: RegularFileProperty
 
     /**
-     * The debug APK's application ID, which depends on the environment — `.dev`
-     * for a local build, `.debug` in CI — so it can't be a compile-time constant.
-     * Wrong value here and the task uninstalls (or launches) the wrong package.
+     * The debug APK's application ID — `app.typelauncher.debug`. Passed in
+     * rather than hardcoded so the task follows [debugApplicationIdSuffix] if
+     * it ever changes again: wrong value here and the task uninstalls (or
+     * launches) the wrong package.
      */
     @get:Input
     abstract val applicationId: Property<String>
