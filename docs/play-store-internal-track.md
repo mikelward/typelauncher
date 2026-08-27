@@ -32,6 +32,19 @@ Go to https://play.google.com/console → "Create app" and use:
 
 Complete the required declarations under "App content" (privacy policy, target audience, etc.) — Play won't let you ship to the internal track without them.
 
+Play Console → **Monitor and improve → Policy and programs → App content**
+(verified 2026-08-27). "Policy" is no longer a top-level item — it is nested a
+level deeper, which is what makes this page hard to find from the menu. The
+direct URLs, which skip the hunt:
+
+    .../app/<app-id>/app-content/overview                 the App content hub
+    .../app/<app-id>/app-content/data-privacy-security    the Data safety form
+
+under `https://play.google.com/console/u/0/developers/<developer-id>`. Both ids
+are in the address bar of any Play Console page for the app. Note `app-content`
+alone does not resolve — it needs the `/overview` child.
+
+
 ### 2. Seed the internal track with a manual upload
 
 The first AAB for any new app must be uploaded through the Play Console UI; the API can only create subsequent releases. There are two ways to get a signed AAB:
