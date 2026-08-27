@@ -330,8 +330,15 @@ android {
             // build. Use assembleRelease to smoke-test the optimizer.
         }
         release {
-            isMinifyEnabled = isCiBuild
-            isShrinkResources = isCiBuild
+            // Always, not just in CI. A release build is the artifact that
+            // ships, so it should be the artifact anyone can reproduce: with
+            // this gated on CI, a locally-built release APK was un-obfuscated
+            // and un-shrunk, which is precisely the difference R8 bugs live in
+            // (reflection, serialization, enum names). Testing one told you
+            // nothing about the one Play serves. Debug is where the fast loop
+            // lives; release is where the truth does.
+            isMinifyEnabled = true
+            isShrinkResources = true
             manifestPlaceholders["appLabel"] = releaseAppLabel
             manifestPlaceholders["launcherIcon"] = releaseLauncherIcon
             manifestPlaceholders["launcherRoundIcon"] = releaseLauncherRoundIcon
