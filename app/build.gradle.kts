@@ -124,15 +124,16 @@ if (hasFirebaseConfig) {
         }
     }
     // Only the deploy lane can ship, and only a shipping build's mapping file is
-    // worth uploading. The build job runs assembleRelease as its R8 check (see
-    // .github/workflows/ci.yml) and the Crashlytics plugin wires the upload into
-    // the assemble task itself, so on a push to main that job would otherwise
-    // upload a mapping for an APK nobody receives — duplicating, and racing, the
-    // one `deploy` uploads for the build that actually ships. (On a PR the
-    // question doesn't arise: google-services.json is materialized on push only,
-    // so the plugin never applies there.) RELEASE_KEYSTORE_FILE is the deploy
-    // job's own marker: it populates the signing config above, and no other job
-    // sets it.
+    // worth uploading. RELEASE_KEYSTORE_FILE is the deploy job's own marker: it
+    // populates the signing config above, and no other job sets it.
+    //
+    // The duplicate this originally guarded against is now structurally gone as
+    // well: the build job runs assembleRelease on pull requests only, so on a
+    // push to main it no longer produces a release APK for the Crashlytics
+    // plugin to attach an upload to. The gate is kept because it is the narrower
+    // guarantee -- it holds for any lane that acquires a release build later,
+    // including a manual workflow_dispatch, without depending on the workflow's
+    // `if:` staying as it is.
     //
     // Currently this changes nothing, because the CI google-services.json has no
     // release client and the hasReleaseClient block below already disables the
