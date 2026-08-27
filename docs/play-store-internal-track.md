@@ -14,7 +14,7 @@ The upload steps are gated so they only run when **all** of the following are tr
 - `RELEASE_KEYSTORE_BASE64` is non-empty (so the upload key materialises).
 - `PLAY_SERVICE_ACCOUNT_JSON` is non-empty (so we can authenticate to Play).
 
-Forks and fresh clones without these secrets configured still get a green CI run — the AAB build and upload steps are silently skipped. The release `signingConfig` in `app/build.gradle.kts` is also only attached when the keystore env vars are set, so a local `./gradlew bundleRelease` without them produces an unsigned AAB rather than a build failure. Set **all four or none**: a partial set now fails configuration with a message naming the missing ones, rather than failing later inside apksigner.
+Forks and fresh clones without these secrets configured still get a green CI run — the AAB build and upload steps are silently skipped. The release `signingConfig` in `app/build.gradle.kts` is also only attached when `RELEASE_KEYSTORE_FILE` is set, so a local `./gradlew bundleRelease` without the env vars produces an unsigned AAB rather than a build failure.
 
 ## One-time Play Console setup
 
@@ -134,7 +134,7 @@ Play rejects an AAB whose `versionCode` is `<=` the highest one already on any t
 
 ## Troubleshooting
 
-- **`The Android App Bundle was not signed.`** — the `release` `signingConfig` didn't attach. Confirm `RELEASE_KEYSTORE_BASE64` is set and the materialise step ran. The build only attaches the signing config when `RELEASE_KEYSTORE_FILE` is non-empty; if some of the four keystore variables are set and others are not, configuration fails outright instead, naming the missing ones.
+- **`The Android App Bundle was not signed.`** — the `release` `signingConfig` didn't attach. Confirm `RELEASE_KEYSTORE_BASE64` is set and the materialise step ran. The build only attaches the signing config when `RELEASE_KEYSTORE_FILE` is non-empty.
 - **`APK specifies a version code that has already been used.`** — usually means CI ran on a shallow clone and `git rev-list --count HEAD` came up short. The workflow uses `fetch-depth: 0`; check that the checkout step ran with it.
 - **`The caller does not have permission`** — service account doesn't have "Release to testing tracks" on the app yet, or the invite hasn't propagated. Re-check Play Console → Users and permissions.
 - **`Package not found: app.typelauncher`** — the listing doesn't exist yet on Play Console, or the very first AAB hasn't been uploaded manually. Do step 2 above.

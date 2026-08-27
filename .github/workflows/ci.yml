@@ -1328,6 +1328,24 @@ jobs:
             printf '%s\n' "$delim"
           } >> "$GITHUB_ENV"
 
+      - name: Require a release keystore
+        # A push to main must end in a signed AAB. Without the keystore secret
+        # every step below skips on its own condition and the job goes green
+        # having built and published nothing -- indistinguishable, from the
+        # outside, from a release that worked. Fail here instead, naming what
+        # is missing, so a secret that was renamed, expired, or lost in a move
+        # to the `production` environment is caught on the push that broke it
+        # rather than the next time someone looks for a build that never came.
+        #
+        # Forks are exempt. They have no secrets by design, and building
+        # unsigned is a supported state here -- failing their main pushes would
+        # turn that into a red build. The `build` job keeps its release compile
+        # in exactly that case, so R8 still runs for them.
+        if: env.HAS_RELEASE_KEYSTORE_SECRET != 'true' && github.event.repository.fork != true
+        run: |
+          echo "::error::A push to main must produce a signed AAB, but RELEASE_KEYSTORE_BASE64 is unset or empty. Set it together with RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD, or this release would publish nothing."
+          exit 1
+
       - name: Materialize release keystore
         # Decoded whenever the keystore secret is present, independent of the
         # Play upload secrets. This lets the user populate the keystore secrets
