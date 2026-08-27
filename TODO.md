@@ -74,6 +74,21 @@
   reports what is bundled, it does not gate on what a license says. Work out
   placement, gating, and coverage (release vs. debug classpath, etc.) when
   actually building this.
+- **Cover the release-keystore configuration guard with an automated test**
+  (Codex, PR #674; applies to all four repos, which now share the guard). The
+  all-or-none check and the signing-config attachment are build-script logic
+  with no test behind them: the only evidence they work is a Gradle invocation
+  run by hand. That gap is not theoretical — review caught a real defect in the
+  first version, where the guard normalized blank to absent but the build type
+  tested the raw string, so a whitespace-only `RELEASE_KEYSTORE_FILE` slipped
+  past the guard and then attached an empty signing config. A test over the
+  none / whitespace / partial / complete cases would have caught it. Not done
+  here because nothing in any of the four repos can test build logic today —
+  no `buildSrc`, no `build-logic`, no Gradle TestKit — so this is a new harness
+  in four places, and the cheaper alternative (a CI step asserting the guard
+  fires) adds a second Gradle invocation to every pull-request run, which cuts
+  against what #674 was for. Worth doing the first time any of these repos
+  grows a `buildSrc` for another reason.
 - Stop searching for the screenshot-diff comment altogether. The lookup now paginates (`gh api --paginate`), which is correct at any comment count but is still a search costing O(comments) API calls per run on a long PR. Stashing the comment id somewhere stable — a workflow-run output, a branch note, the check-run summary — would make the upsert a direct PATCH. Not urgent; this is about cost and simplicity, not correctness.
 
 ## Layout, caching, rendering, and recomposition follow-ups
