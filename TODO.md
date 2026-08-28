@@ -150,6 +150,26 @@
   entry count, background trimming and what it keeps, the trade a dropped icon
   costs. Drop the rest into the code, where it already lives.
 
+- **Trigger the icon warm-up from `refreshLists()` rather than from a list of
+  named events.** The foreground warm-up added 2026-08-28 is kicked off by seven
+  explicit triggers — home ready, foreground return, a rendered-size change, an
+  icon-theme change, a palette change, an installed-app reload, and unhiding an
+  app. That list was declared complete twice and was wrong both times; setting or
+  clearing a per-app custom icon is the eighth, found in review and deliberately
+  left unfixed rather than making the list one longer.
+
+  `refreshLists()` is the funnel: 32 call sites, and the single place that
+  recomputes the visible and searchable lists. Every one of those events reaches
+  it. Warming from there closes the family instead of enumerating it.
+
+  **Debounce first — this is the reason it wasn't done inline.** A drag-reorder
+  calls `refreshLists` once per move, and each warm-up cancels the one before it,
+  so an undebounced hook would restart the sweep every frame of a drag and never
+  finish one. It needs a short trailing debounce, and a test that a burst
+  collapses to a single sweep. Landing that as its own change keeps the failure
+  mode reviewable, which is exactly what an eighth inline trigger would not have
+  been.
+
 - **Give the icon cache a disk-backed miss path, so a trimmed icon comes back
   cheaply.** The background trim added 2026-08-27 drops everything outside the
   priority set when the launcher goes off screen. Coming back, each dropped icon
