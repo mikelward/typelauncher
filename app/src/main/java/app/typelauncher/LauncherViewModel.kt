@@ -1608,16 +1608,37 @@ internal class LauncherViewModel(
             // in the UI), and index 0 renders at the visual bottom under it, so the
             // head of this list is on screen either way.
             //
-            // No dock arguments. `dockedAppIds` only floats apps the two passes above
-            // have already warmed to the front, and `excludedAppIds` is the caller's
-            // answer to whether the dock is on screen -- the question this plan does
-            // not ask. Passing neither also means one launch-count snapshot for the
-            // whole sort instead of a store lookup per comparison.
+            // Pinned apps float to the head of the list, so they head the warm order
+            // too -- and at the *list* size, which neither pass above warms. Miss this
+            // and a pin late in the alphabet is the first visible row and still cold
+            // on a device that reaches the ceiling.
+            //
+            // The union of both docks, unconditionally, rather than
+            // `floatingDockedIdsForState`'s answer: personal pins float in every state
+            // anyway, and whether the *work* pins do is a visibility question (a live
+            // query, the Compact landscape tier, an IME suppressing the dock) that this
+            // plan does not ask. A superset costs a dock's worth of icons warmed sooner
+            // than they might be needed and is right in every state; asking was wrong
+            // five times over.
+            //
+            // `expandFolderOccupants` because a foldered app floats at its folder's own
+            // rank, and `distinct()` keeps the personal position of an app pinned to
+            // both docks -- `filterByName` builds its rank map with `withIndex()
+            // .associate`, where a later duplicate silently overwrites the earlier one.
+            val floatingDockedIds = (
+                dockedAppStore.expandFolderOccupants(dockedAppStore.dockedAppIds) +
+                    workDockedAppStore.expandFolderOccupants(workDockedAppStore.dockedAppIds)
+                ).distinct()
+            // `excludedAppIds` stays empty: that one *is* the dock-visibility question,
+            // and dropping an app from the plan because a dock might be drawing it is
+            // how the tail goes cold. The counts arrive as one snapshot rather than a
+            // store lookup per comparison, which `sortedByDescending` used to do.
             byId.values.toList()
                 .filterByName(
                     query = "",
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = emptyList(),
+                    dockedAppIds = floatingDockedIds,
                     sortOrder = effectiveAppListSortOrder(
                         _uiState.value.appListSortOrder,
                         _uiState.value.homeLandscapeTier,
