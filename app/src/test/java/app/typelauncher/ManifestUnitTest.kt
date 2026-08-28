@@ -30,17 +30,30 @@ class ManifestUnitTest {
         assertEquals("true", attrs.getNamedItem("android:clearTaskOnLaunch").nodeValue)
         assertEquals("true", attrs.getNamedItem("android:excludeFromRecents").nodeValue)
         assertEquals("singleTask", attrs.getNamedItem("android:launchMode").nodeValue)
-        // stateNotNeeded must NOT be declared: it lets Android restart the
-        // launcher after a low-memory process death with a null saved-state
-        // bundle, which silently breaks every in-flight-result recovery the
-        // app carries through instance state — the rememberSaveable
-        // pendingIconPickAppId (and the ActivityResultRegistry's own
-        // pending-request record) for the icon picker, and MainActivity's
-        // KEY_PENDING_WIDGET_ID for the widget bind/configure flow. All the
-        // state saved is tiny and restore-safe, so the flag's
-        // crash-loop-on-restore protection isn't worth re-breaking those
-        // flows for.
-        assertEquals(null, attrs.getNamedItem("android:stateNotNeeded"))
+        // stateNotNeeded must be declared. AOSP reads it in one place,
+        // ActivityRecord.handleAppDied, which force-removes an activity from
+        // history when its process died holding no saved state unless the flag
+        // is set. An activity holds no saved state precisely while it is
+        // resumed and visible, so without the flag a launcher killed while on
+        // screen loses its activity record and stays gone until started by
+        // hand.
+        //
+        // The documented contract is wider than that one implementation: it
+        // permits the system to skip onSaveInstanceState and pass onCreate a
+        // null bundle, and an OEM framework may. So the flag is taken on the
+        // trade, not on the assurance that the bundle always survives — an
+        // icon-pick or widget-configure result in flight at the kill can be
+        // dropped. Three things bound that. The exposure is one pick the user
+        // repeats, not corrupted state. A skipping implementation would break
+        // AOSP's own Launcher3, which declares this flag and keeps its pending
+        // widget-add args in instance state — so one is unlikely to be
+        // shipping. And in the case the flag actually changes, the bundle is
+        // null either way; without the flag the activity is lost as well.
+        //
+        // That is what 50165c1b, which removed the flag to protect those
+        // flows, weighed wrongly: it traded the launcher's survival for a
+        // recovery that the same process death breaks regardless.
+        assertEquals("true", attrs.getNamedItem("android:stateNotNeeded").nodeValue)
         assertEquals("stateAlwaysVisible|adjustResize", attrs.getNamedItem("android:windowSoftInputMode").nodeValue)
         assertEquals("intent", queryIntent.nodeName)
         assertEquals("action", queryElements[0].nodeName)
