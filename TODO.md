@@ -150,6 +150,34 @@
   entry count, background trimming and what it keeps, the trade a dropped icon
   costs. Drop the rest into the code, where it already lives.
 
+- **Decide whether the icon warm-up should know about an in-progress drag.**
+  Raised by Codex on #683 and correct on the mechanism, declined there pending a
+  call from the maintainer. The warm-up's 150 ms trailing debounce measures quiet
+  between *reorder events*, not gesture completion: `handleDockDrag` calls
+  `onReorder` only when the dragged icon crosses a slot, so a user who holds an
+  icon still mid-drag lets the timer expire and a sweep starts while the gesture
+  is live.
+
+  What that actually costs is small. The next slot crossing cancels the sweep
+  immediately (`scheduleIconWarmUp` cancels `iconWarmUpJob`), and the drop itself
+  schedules the real one, so the residue is the handful of icon loads already
+  handed to `AppIconLoader` — which finish in its own scope regardless — running on
+  IO and Default while the drag resumes on Main. Not the whole sweep racing the
+  gesture; that part is closed.
+
+  What closing it would cost is the open question, and it is why this is not a
+  judgment to make unilaterally. There is no drag state in the view model today, so
+  it means the UI pushing drag start/end for every drag surface (the dock, an opened
+  folder, and anything added later) — with a new failure mode where a missed drag-end
+  suppresses warming for the rest of the session. There is precedent both ways:
+  `setDockSuppressedByKeyboard` and `onRenderedIconSizes` are already UI-pushed
+  state, but the standing rule from #679 is that questions whose answer lives in the
+  composable go stale anywhere else, and five review rounds were lost to exactly that.
+
+  Cheaper alternatives if it is worth closing at all: raise the debounce (trades
+  responsiveness on every other trigger for this one case), or have the sweep check
+  a drag flag only at its yield points rather than gating the schedule.
+
 - **Reprioritize the warm-up when the rendered order changes.** Changing "Sort apps
   by", or rotating into or out of the Compact landscape tier, changes which apps head
   the warm-up plan without changing the set. The `refreshLists` funnel (landed
