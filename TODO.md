@@ -366,6 +366,40 @@
 
 ## Privacy
 
+- [ ] **Align the four app repos' debug loggers.** `ProcessExitReasons.kt` was
+      ported from here into clothescast, Snoozemo and Simmo as a deliberate
+      copy — same file name, function names, log-line format and field names —
+      so the four logs read identically and a future unification is a
+      lift-and-share rather than a reconciliation. The loggers underneath
+      them are what differ, and the divergence is real. The other three repos
+      each carry this same inventory; this is the copy for the repo the others
+      treat as the reference.
+      - **Type Launcher** (here) has the *default-safe type rule*
+        (`LogValue`): a log call is a literal format string plus arguments,
+        and an argument reaches the Crashlytics breadcrumb mirror only if its
+        type cannot name anything of the user's, with `safe(...)` /
+        `sensitive(...)` overriding per value. This is the strictest of the
+        four and the one worth converging on.
+      - **clothescast's `DiagLog`** takes a pre-built `String` and writes to
+        disk only — no breadcrumb mirror — so redaction is whatever the call
+        site remembered, and the port needed no wrappers.
+      - **Snoozemo's `SnoozeDebugLog`** is also a pre-built `String`, an
+        in-memory buffer plus a file sink with no off-device mirror, gated on
+        a recording preference that is on by default.
+      - **Simmo's `SimmoDebugLog`** redacts whole lines with `scrubPii` and
+        *does* fan out to Crashlytics breadcrumbs on opted-in installs — the
+        combination that made the port omit the exit `description` there and
+        render timestamps in a spelled-month format, since `scrubPii` masks a
+        raw epoch as a phone number.
+
+      Unifying them is a bigger piece of work than any one port and was
+      explicitly out of scope for the ports (maintainer, 2026-08-28: *"the
+      loggers should be aligned, that's likely a bigger thing, but don't
+      diverge them further"*). This entry exists so whoever picks it up starts
+      from an inventory rather than rediscovering the differences. The floor
+      stays per-repo regardless: uniformity must not loosen any repo's privacy
+      rules.
+
 - [x] **Hold Crashlytics off before it auto-starts.** Done. Both SDKs now
       default off via `firebase_crashlytics_collection_enabled` and
       `firebase_performance_collection_enabled` in the manifest, and only an
