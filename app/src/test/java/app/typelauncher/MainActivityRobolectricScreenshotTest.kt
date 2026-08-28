@@ -1449,6 +1449,25 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun homeRoleStateIsRecordedInTheLog() {
+        // When the launcher is reported missing from Home, the first thing to
+        // establish is whether the home role was actually lost or whether the
+        // launcher simply was not brought up while still holding it — two very
+        // different failures that look identical from the outside. The value is
+        // read here for the Settings button either way; the log line is what
+        // makes it recoverable from a bug report after the fact.
+        composeRule.activity.viewModel.refreshPermissionDrivenUi()
+        composeRule.waitForIdle()
+        assertTrue(LauncherDebugLog.snapshot().any { it.contains("homeRoleHeld=false") })
+
+        val roleManager = composeRule.activity.getSystemService(RoleManager::class.java)
+        (shadowOf(roleManager) as ShadowRoleManager).addHeldRole(RoleManager.ROLE_HOME)
+        composeRule.activity.viewModel.refreshPermissionDrivenUi()
+        composeRule.waitForIdle()
+        assertTrue(LauncherDebugLog.snapshot().any { it.contains("homeRoleHeld=true") })
+    }
+
+    @Test
     fun screenshot_appListIconOnly_sevenPerRow_packsSevenIconsInTheTopRow() {
         // The "Icons per row" slider's densest stop reaches 7 on this 411dp
         // screen (the default test width — see the 32dp icon-size floor). Render

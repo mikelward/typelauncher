@@ -73,6 +73,43 @@ class ProcessExitReasonsTest {
             exitLines.toString(),
             exitLines.all { it.contains("description=stopped by the installer") },
         )
+        // Importance says whether the launcher was on screen when it died,
+        // which is what separates a routine background reclaim from the
+        // process dying out from under someone looking at it.
+        assertTrue(exitLines.toString(), exitLines.all { it.contains("importance=foreground") })
+    }
+
+    @Test
+    fun recordsTheExitsEvenWhenThePackageLookupCannotRun() {
+        // The package timestamps are the optional half; the exit records are
+        // the point. Ordering them last is what stops a failure in the former
+        // discarding the latter — the records are already fetched by then, so
+        // losing them would lose exactly the evidence this is read for. The
+        // package name is forced to one that does not resolve, which is what a
+        // failing lookup looks like from here.
+        seedExit(ApplicationExitInfo.REASON_LOW_MEMORY)
+
+        logRecentProcessExits(NonResolvingPackageContext(context))
+
+        assertTrue(
+            loggedLines().toString(),
+            loggedLines().any { it.contains("processExit reason=lowMemory") },
+        )
+        assertTrue(
+            loggedLines().toString(),
+            loggedLines().any { it.contains("ownPackage query failed") },
+        )
+    }
+
+    /**
+     * A context whose package name resolves to nothing, so the package-info
+     * lookup fails while the exit-reason query — which is asked by the same
+     * name but answered from the shadow's own store — still returns records.
+     */
+    private class NonResolvingPackageContext(
+        base: android.content.Context,
+    ) : android.content.ContextWrapper(base) {
+        override fun getPackageName(): String = "app.typelauncher.absent"
     }
 
     @Test
@@ -131,5 +168,30 @@ class ProcessExitReasonsTest {
         // the platform already uses for a reason of its own.
         assertEquals("unrecognized(9999)", exitReasonName(9999))
         assertEquals("unknown", exitReasonName(ApplicationExitInfo.REASON_UNKNOWN))
+    }
+
+    @Test
+    fun namesTheImportanceThatSaysWhetherWeWereOnScreen() {
+        // A background process being reclaimed is routine — the launcher lives
+        // there all day. The same reason at foreground importance is the
+        // process dying out from under someone looking at it, which is the
+        // distinction the record exists to make.
+        assertEquals(
+            "foreground",
+            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND),
+        )
+        assertEquals(
+            "visible",
+            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE),
+        )
+        assertEquals(
+            "cached",
+            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED),
+        )
+        assertEquals(
+            "gone",
+            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE),
+        )
+        assertEquals("unrecognized(7)", processImportanceName(7))
     }
 }

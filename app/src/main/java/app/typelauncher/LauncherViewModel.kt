@@ -1318,6 +1318,15 @@ internal class LauncherViewModel(
     fun refreshPermissionDrivenUi() {
         LauncherDebugLog.event("refreshPermissionDrivenUi destination=%s", _uiState.value.destination)
         val isDefaultLauncher = app.getSystemService<RoleManager>()?.isRoleHeld(RoleManager.ROLE_HOME) ?: false
+        // Logged, not just published to the UI. When the launcher is reported
+        // missing from Home, the first thing to establish is whether the home
+        // role was actually lost or whether the launcher simply was not brought
+        // up while still holding it — two different failures that look identical
+        // to the user. The value was already being read here for the Settings
+        // button; without a log line, a bug report could not answer the
+        // question, and the answer is not recoverable after the fact. A boolean,
+        // so it carries to the Crashlytics mirror.
+        LauncherDebugLog.event("homeRoleHeld=%s", isDefaultLauncher)
         _uiState.update { it.copy(isDefaultLauncher = isDefaultLauncher) }
         if (_uiState.value.destination is LauncherDestination.Agenda) {
             refreshAgenda()
