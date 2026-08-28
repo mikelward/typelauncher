@@ -133,7 +133,11 @@ class SettingsScreenTest {
         composeRule.setContent {
             TypeLauncherTheme {
                 SettingsScreen(
-                    state = LauncherUiState(),
+                    // Explicit rather than the state's default, which is now
+                    // false: this test is about the switch reflecting what it
+                    // is handed and reporting the flip, so reading the default
+                    // only made it break when the default moved.
+                    state = LauncherUiState(isTelemetryEnabled = true),
                     innerPadding = PaddingValues(),
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
