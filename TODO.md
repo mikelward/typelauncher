@@ -170,6 +170,42 @@
   mode reviewable, which is exactly what an eighth inline trigger would not have
   been.
 
+  **And the funnel alone is not enough for a *reorder*.** Raised in review of the
+  sort-order change (2026-08-28). Changing "Sort apps by", or rotating into or out
+  of the Compact landscape tier, changes which apps are at the head of the plan
+  without changing the set — and both reach `refreshLists`, so the funnel would
+  fire. But on a device already at the 75% ceiling the re-sweep exits on its first
+  iteration, because the ceiling is checked before any load: the cache is full of
+  the *old* head, and the new one never gets warmed. The list still paints — the
+  visible rows miss and load on demand, exactly as they did before any warm-up
+  existed — so this is a lost optimization, not a stuck placeholder. Closing it
+  means making room for the new head rather than restarting a ceiling-bound sweep,
+  which is the same reservation the first-screenful item below needs. Do the two
+  together.
+
+- **Reserve the first screenful of the app list against live eviction.** The 75%
+  ceiling bounds the *warm-up*, not rendering: the UI fills the cache to 100% and
+  the LRU evicts freely. And `rememberAppIconResolution` reads the cache only in
+  its `remember` initializer, so an icon's recency is set once when its row
+  composes and never refreshed while it stays on screen — which makes the rows the
+  user has been looking at longest the *first* the LRU reclaims.
+
+  So on a large app set — roughly 425 apps at xxhdpi, 245 at xxxhdpi before a
+  40dp list icon's ~58KB/~102KB fills 24MB — scrolling to the bottom of the list
+  can evict the top of it, and scrolling back up pays one async load per row. The
+  dock is unaffected: it never leaves composition, so Compose holds its bitmaps
+  whatever the LRU does.
+
+  Closing it means pinning (or reserving budget for) the rows at the head of the
+  current sort order. Two things to settle. How many rows is "a screenful" — that
+  is layout knowledge the view model does not have and must not guess at, since
+  every wrong guess about what the UI draws cost a review round in #679; the UI
+  would have to report it the way it already reports rendered sizes. And whether
+  a reservation is a pinned set or a second, smaller `LruCache` — a pinned set
+  cannot be evicted under pressure, which is the point and also the risk.
+
+  Pairs with the reorder half of the item above: both need the same reservation.
+
 - **Give the icon cache a disk-backed miss path, so a trimmed icon comes back
   cheaply.** The background trim added 2026-08-27 drops everything outside the
   priority set when the launcher goes off screen. Coming back, each dropped icon
