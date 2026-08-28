@@ -1621,13 +1621,22 @@ internal class LauncherViewModel(
             // than they might be needed and is right in every state; asking was wrong
             // five times over.
             //
+            // Each half in *grid-rank* order, via the same two helpers the rendered
+            // list uses. The stores' raw `dockedAppIds` is insertion order, so once a
+            // user has rearranged their dock the first visible pin is not the
+            // first-added one and the warm order would head with the wrong icon. Those
+            // helpers ask nothing about visibility -- their inputs are the sort setting
+            // and a slot count derived from the screen's short edge and the persisted
+            // icon size, which is a device capability, not whether a dock is drawn.
+            //
             // `expandFolderOccupants` because a foldered app floats at its folder's own
             // rank, and `distinct()` keeps the personal position of an app pinned to
             // both docks -- `filterByName` builds its rank map with `withIndex()
             // .associate`, where a later duplicate silently overwrites the earlier one.
+            val state = _uiState.value
             val floatingDockedIds = (
-                dockedAppStore.expandFolderOccupants(dockedAppStore.dockedAppIds) +
-                    workDockedAppStore.expandFolderOccupants(workDockedAppStore.dockedAppIds)
+                dockedAppStore.expandFolderOccupants(dockedAppIdsForState(state)) +
+                    workDockedAppStore.expandFolderOccupants(workDockedAppIdsForState(state))
                 ).distinct()
             // `excludedAppIds` stays empty: that one *is* the dock-visibility question,
             // and dropping an app from the plan because a dock might be drawing it is
@@ -1640,8 +1649,8 @@ internal class LauncherViewModel(
                     excludedAppIds = emptyList(),
                     dockedAppIds = floatingDockedIds,
                     sortOrder = effectiveAppListSortOrder(
-                        _uiState.value.appListSortOrder,
-                        _uiState.value.homeLandscapeTier,
+                        state.appListSortOrder,
+                        state.homeLandscapeTier,
                     ),
                 )
                 .forEach { installed -> add(installed to sizes.listPx) }
