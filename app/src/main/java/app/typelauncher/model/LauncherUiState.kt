@@ -741,11 +741,19 @@ internal data class LauncherUiState(
     // source. They gate the content sections below.
     val isContactSearchEnabled: Boolean = false,
     val isCalendarSearchEnabled: Boolean = false,
-    // Settings → "Analytics". Defaults true, matching the stored
-    // preference's default and PRIVACY.md's long-standing declaration; drives
-    // the Settings switch and, through the ViewModel, whether Crashlytics and
-    // Performance Monitoring collect at all.
-    val isTelemetryEnabled: Boolean = true,
+    // Settings → "Analytics". Drives the Settings switch and, through the
+    // ViewModel, whether Crashlytics and Performance Monitoring collect at all.
+    //
+    // Defaults false because every other layer says no: the manifest starts
+    // Crashlytics and Performance with collection off, and
+    // `StoredTelemetryPreferences` resolves an unanswered consent question to
+    // "no". Production never reads this default — `LauncherViewModel` supplies
+    // the effective answer explicitly — so this is about the previews and
+    // tests that do, and about not leaving a default that contradicts the
+    // product for the next call site to inherit. `SettingsScreenTest` was
+    // already reading it as its "switch is on" fixture, which is exactly how
+    // a wrong default becomes a wrong assertion.
+    val isTelemetryEnabled: Boolean = false,
     // The contacts / calendar-events sections of Home's typed search, appended
     // after `filteredApps` in data order so `reverseLayout` naturally keeps
     // them beyond the apps in the scroll direction under both sort directions.

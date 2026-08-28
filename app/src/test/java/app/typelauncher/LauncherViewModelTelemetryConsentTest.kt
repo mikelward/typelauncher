@@ -34,6 +34,26 @@ class LauncherViewModelTelemetryConsentTest {
     }
 
     @Test
+    fun `the state's default agrees with what the launcher actually does`() {
+        // Not a production path: `LauncherViewModel` supplies
+        // `isTelemetryEnabled` explicitly, so nothing user-facing reads this
+        // default (Codex, PR #687 — the first version of this test implied
+        // otherwise). What reads it are the previews and the tests, and a
+        // default that contradicts the product is how one of those quietly
+        // becomes a wrong fixture.
+        //
+        // Both halves are asserted together on purpose: the default alone
+        // would pass while disagreeing with the ViewModel, and the ViewModel
+        // alone would pass while the default stayed a trap.
+        assertFalse(LauncherUiState().isTelemetryEnabled)
+
+        val viewModel = newViewModel()
+        idle()
+
+        assertFalse(viewModel.uiState.value.isTelemetryEnabled)
+    }
+
+    @Test
     fun `a fresh install is asked`() {
         val viewModel = newViewModel()
         idle()
