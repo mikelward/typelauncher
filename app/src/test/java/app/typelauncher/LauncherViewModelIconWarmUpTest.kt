@@ -4,10 +4,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Looper
+import java.time.Duration
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -78,6 +80,21 @@ class LauncherViewModelIconWarmUpTest {
     private fun LauncherViewModel.becomeVisible() = onLauncherVisible()
 
     /**
+     * Idles past the warm-up's trailing debounce.
+     *
+     * Every trigger now goes through `scheduleIconWarmUp`, so a bare `idle()` runs the
+     * looper's pending work and stops short of the delayed post -- the sweep has not
+     * been asked for yet. Driving the clock explicitly (rather than sleeping) keeps
+     * these deterministic.
+     */
+    private fun settle() {
+        val looper = shadowOf(Looper.getMainLooper())
+        looper.idle()
+        looper.idleFor(Duration.ofMillis(ICON_WARM_UP_DEBOUNCE_MILLIS + 50))
+        looper.idle()
+    }
+
+    /**
      * Asserts on the *start* of the warm-up, not its completion. The loads it drives
      * run on `AppIconLoader`'s own dispatchers, so waiting for the finish line would
      * make these tests depend on real IO landing inside an `idle()` -- passing or
@@ -96,7 +113,7 @@ class LauncherViewModelIconWarmUpTest {
         LauncherDebugLog.clearForTest()
 
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "home-ready must start the warm-up: ${LauncherDebugLog.snapshot()}",
@@ -113,11 +130,11 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes()
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
         LauncherDebugLog.clearForTest()
 
         viewModel.onLauncherVisible()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "every return to the foreground must re-warm: ${LauncherDebugLog.snapshot()}",
@@ -136,7 +153,7 @@ class LauncherViewModelIconWarmUpTest {
         LauncherDebugLog.clearForTest()
 
         viewModel.onLauncherVisible()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertFalse(
             "warming must wait for the first frame: ${LauncherDebugLog.snapshot()}",
@@ -155,7 +172,7 @@ class LauncherViewModelIconWarmUpTest {
         LauncherDebugLog.clearForTest()
 
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "with no rendered size the warm-up must skip, not guess: " +
@@ -178,7 +195,7 @@ class LauncherViewModelIconWarmUpTest {
         LauncherDebugLog.clearForTest()
 
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         val start = LauncherDebugLog.snapshot().first { it.contains("warmIconCache starting") }
         assertTrue("the list size must be carried: $start", start.contains("list=40"))
@@ -195,11 +212,11 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes(listPx = 40)
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
         LauncherDebugLog.clearForTest()
 
         viewModel.reportSizes(listPx = 64)
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "a size change must re-warm: ${LauncherDebugLog.snapshot()}",
@@ -215,11 +232,11 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes(listPx = 40)
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
         LauncherDebugLog.clearForTest()
 
         viewModel.reportSizes(listPx = 40)
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertFalse(
             "an unchanged report must be ignored: ${LauncherDebugLog.snapshot()}",
@@ -273,11 +290,11 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes()
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
         LauncherDebugLog.clearForTest()
 
         viewModel.setIconTheme(IconTheme.Monochrome)
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "a whole-cache invalidation must re-warm: ${LauncherDebugLog.snapshot()}",
@@ -297,7 +314,7 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.reportSizes()
         viewModel.setDockEnabled(false)
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "the sweep still runs for the list: ${LauncherDebugLog.snapshot()}",
@@ -319,11 +336,11 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes()
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
         LauncherDebugLog.clearForTest()
 
         viewModel.setThemeMode(ThemeMode.Dark)
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "a palette flip must re-warm: ${LauncherDebugLog.snapshot()}",
@@ -340,7 +357,7 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.reportSizes()
         viewModel.setDockEnabled(false)
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "the sweep still runs for the list: ${LauncherDebugLog.snapshot()}",
@@ -359,15 +376,128 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes()
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         viewModel.onLauncherHidden()
         LauncherDebugLog.clearForTest()
         viewModel.onRenderedIconSizes(listPx = 64, dockPx = 132, folderPx = 56)
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertFalse(
             "nothing may warm while the launcher is off screen: " +
+                "${LauncherDebugLog.snapshot()}",
+            warmUpStarted(),
+        )
+    }
+
+    @Test
+    fun aListChangeWithNoNamedTriggerOfItsOwnStillWarms() {
+        // The point of the funnel. Toggling the dock changes the searchable set --
+        // docked apps leave the list when the dock draws them and come back when it
+        // does not -- and it never had a warm-up trigger, because the trigger list was
+        // written by enumerating events rather than by finding where they converge.
+        val viewModel = newViewModel()
+        viewModel.becomeVisible()
+        viewModel.reportSizes()
+        viewModel.onHomeReady()
+        settle()
+        LauncherDebugLog.clearForTest()
+
+        viewModel.setDockEnabled(false)
+        settle()
+
+        assertTrue(
+            "a change to the searchable set must warm, named trigger or not: " +
+                "${LauncherDebugLog.snapshot()}",
+            warmUpStarted(),
+        )
+    }
+
+    /**
+     * Parks every IO block, so a started sweep stays suspended inside its
+     * `withContext(ioDispatcher)` instead of finishing instantly against Robolectric's
+     * empty app inventory. That is what makes "a sweep is in flight" a state the test
+     * can actually be in, rather than a race it hopes to win.
+     */
+    private class ParkingDispatcher : kotlinx.coroutines.CoroutineDispatcher() {
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) = Unit
+    }
+
+    @Test
+    fun aListChangeCancelsTheSweepAlreadyRunning() {
+        // The defect this pins, and one this PR introduced: the named triggers used to
+        // call `warmIconCache` directly, which cancelled the running sweep at once.
+        // Debouncing without this cancel leaves the pre-change sweep resolving and
+        // rasterizing for the whole burst plus the debounce -- competing with the very
+        // drag that raised the signal, which is the jank the debounce exists to stop.
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = ParkingDispatcher(),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        viewModel.becomeVisible()
+        viewModel.reportSizes()
+        viewModel.onHomeReady()
+        settle()
+        assertTrue(
+            "precondition: a sweep must be in flight for the cancel to mean anything: " +
+                "${LauncherDebugLog.snapshot()}",
+            warmUpStarted(),
+        )
+        LauncherDebugLog.clearForTest()
+
+        viewModel.setDockEnabled(false)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(
+            "the first signal of a burst must stop the stale sweep, not just the timer: " +
+                "${LauncherDebugLog.snapshot()}",
+            LauncherDebugLog.snapshot().any { it.contains("canceled the in-flight sweep") },
+        )
+    }
+
+    @Test
+    fun aBurstOfListChangesCollapsesToOneSweep() {
+        // The reason the funnel needed a debounce before it could be hooked at all.
+        // A drag-reorder calls `refreshLists` once per move and each warm-up cancels
+        // the one before it, so an undebounced hook would restart the sweep every
+        // frame of the drag and never finish one -- strictly worse than the eight
+        // named triggers it replaces.
+        val viewModel = newViewModel()
+        viewModel.becomeVisible()
+        viewModel.reportSizes()
+        viewModel.onHomeReady()
+        settle()
+        LauncherDebugLog.clearForTest()
+
+        repeat(8) { index -> viewModel.setDockEnabled(index % 2 == 0) }
+        settle()
+
+        assertEquals(
+            "a burst must collapse to a single sweep: ${LauncherDebugLog.snapshot()}",
+            1,
+            LauncherDebugLog.snapshot().count { it.contains("warmIconCache starting") },
+        )
+    }
+
+    @Test
+    fun aBurstStillInFlightHasNotWarmedYet() {
+        // Trailing, not leading. Firing at the front of a burst would warm the
+        // pre-change plan -- the drop has not landed, the reload has not published --
+        // and then need doing again once it settles.
+        val viewModel = newViewModel()
+        viewModel.becomeVisible()
+        viewModel.reportSizes()
+        viewModel.onHomeReady()
+        settle()
+        LauncherDebugLog.clearForTest()
+
+        repeat(4) { index -> viewModel.setDockEnabled(index % 2 == 0) }
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertFalse(
+            "nothing may sweep while the burst is still arriving: " +
                 "${LauncherDebugLog.snapshot()}",
             warmUpStarted(),
         )
@@ -381,7 +511,7 @@ class LauncherViewModelIconWarmUpTest {
         viewModel.becomeVisible()
         viewModel.reportSizes()
         viewModel.onHomeReady()
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
         LauncherDebugLog.clearForTest()
 
         viewModel.unhideApp(
@@ -396,7 +526,7 @@ class LauncherViewModelIconWarmUpTest {
                 launchWithLauncherApps = true,
             ),
         )
-        shadowOf(Looper.getMainLooper()).idle()
+        settle()
 
         assertTrue(
             "restoring an app to search must re-warm: ${LauncherDebugLog.snapshot()}",

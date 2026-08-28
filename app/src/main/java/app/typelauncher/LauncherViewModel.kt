@@ -40,6 +40,7 @@ import com.google.android.play.core.install.model.InstallStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,6 +146,7 @@ internal class LauncherViewModel(
     // launcher cancels it: warming while backgrounded would refill exactly what
     // the trim just freed, in the states Play measures.
     private var iconWarmUpJob: Job? = null
+    private var iconWarmUpDebounceJob: Job? = null
 
     // The pixel sizes each surface actually renders at, reported by the UI. Not
     // derived here: the dock size is clamped to fit the row and the list size
@@ -915,12 +917,6 @@ internal class LauncherViewModel(
             // package the reload would have dropped.
             drainPendingIconOverrideRequest()
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
-            // A reload republishes the inventory while the launcher is still on
-            // screen -- an app installed, updated, or a profile coming back. The
-            // rendered sizes have not moved and no foreground callback follows, so
-            // without this the newcomers stay cold until the user leaves and
-            // returns, which is the one thing this warm-up exists to avoid.
-            warmIconCache(reason = "appsReloaded")
             LauncherDebugLog.event(
                 "scheduleReload complete reason=%s detail=%s apps=%s",
                 safe(reason),
@@ -1046,7 +1042,7 @@ internal class LauncherViewModel(
         // Same deferral rationale again: filling the icon cache ahead of demand is
         // cold-start-adjacent work, so it waits for the first frame rather than
         // competing with the app list for Dispatchers.IO.
-        warmIconCache(reason = "homeReady")
+        scheduleIconWarmUp(reason = "homeReady")
         // Same deferral rationale as the agenda load: the content-search
         // indices are cold-start-adjacent IO, so they wait for home-ready
         // rather than competing with the app list on Dispatchers.IO.
@@ -1482,9 +1478,7 @@ internal class LauncherViewModel(
         // Every return, not just the first: the background trim dropped the long
         // tail on the way out, and search is what goes looking for it.
         // `onHomeReady` covers the cold start, where this fires too early.
-        if (_uiState.value.isHomeReady) {
-            warmIconCache(reason = "foreground")
-        }
+        scheduleIconWarmUp(reason = "foreground")
     }
 
     /**
@@ -1534,7 +1528,7 @@ internal class LauncherViewModel(
                 setOf(sizes.listPx, sizes.dockPx, sizes.folderPx)
         }
         if (retired.isEmpty()) {
-            if (_uiState.value.isHomeReady) warmIconCache(reason = "sizesChanged")
+            scheduleIconWarmUp(reason = "sizesChanged")
             return
         }
         // Retirement happens off the main thread. This runs from a composition effect
@@ -1549,12 +1543,17 @@ internal class LauncherViewModel(
         viewModelScope.launch {
             withContext(ioDispatcher) { AppIconLoader.evictSizes(retired) }
             LauncherDebugLog.event("onRenderedIconSizes retired sizes=%s", retired.size)
-            if (_uiState.value.isHomeReady) warmIconCache(reason = "sizesChanged")
+            scheduleIconWarmUp(reason = "sizesChanged")
         }
     }
 
     fun onLauncherHidden() {
         launcherVisible = false
+        // The pending debounce as well as the running sweep. `warmIconCache` would
+        // refuse a late fire anyway (it re-checks `launcherVisible`), but leaving the
+        // timer armed means the trim runs with work still scheduled behind it.
+        iconWarmUpDebounceJob?.cancel()
+        iconWarmUpDebounceJob = null
         iconWarmUpJob?.cancel()
         iconWarmUpJob = null
     }
@@ -1663,6 +1662,49 @@ internal class LauncherViewModel(
                     ),
                 )
                 .forEach { installed -> add(installed to sizes.listPx) }
+        }
+    }
+
+    /**
+     * The debounced way in to [warmIconCache]. Every trigger goes through here.
+     *
+     * `refreshLists` is the funnel for changes to the searchable set, and it is called
+     * from 30-odd places -- a drag-reorder calls it once per move, and each warm-up
+     * cancels the one before it. Hooked without a debounce, a single drag would
+     * restart the sweep every frame and never finish one, which is worse than the
+     * enumerated triggers it replaces.
+     *
+     * Trailing, so a burst collapses to one sweep after it settles rather than firing
+     * at the front of it: at the front the plan is still mid-change (the drop has not
+     * landed, the reload has not published), so the sweep would warm the pre-change
+     * order and then need doing again.
+     */
+    private fun scheduleIconWarmUp(reason: String) {
+        // The first frame is the floor for every trigger, not just the ones that used
+        // to check it at the call site. Filling the cache ahead of demand is
+        // cold-start-adjacent IO and must not race the app list for the dispatcher --
+        // and `refreshLists` runs during startup, so the funnel would otherwise walk
+        // straight past a guard the named triggers each had to remember.
+        if (!_uiState.value.isHomeReady) return
+        iconWarmUpDebounceJob?.cancel()
+        // The in-flight sweep goes too, not just the pending timer. Whatever is
+        // running was planned before this change and is now warming a stale order --
+        // and leaving it would have it resolving and rasterizing for the whole
+        // duration of the burst plus the debounce, competing with the drag or reorder
+        // that raised the signal. That is the jank the debounce exists to prevent, so
+        // the debounce must not be the thing that lets it run.
+        //
+        // Restarting is cheap: the replacement sweep skips whatever the old one
+        // already cached, so the work is not repeated, only re-planned. (Loads already
+        // handed to `AppIconLoader` finish regardless -- it runs producers in its own
+        // scope so a canceled caller cannot orphan a half-rasterized bitmap.)
+        if (iconWarmUpJob?.isActive == true) {
+            LauncherDebugLog.event("scheduleIconWarmUp canceled the in-flight sweep reason=%s", safe(reason))
+        }
+        iconWarmUpJob?.cancel()
+        iconWarmUpDebounceJob = viewModelScope.launch {
+            delay(ICON_WARM_UP_DEBOUNCE_MILLIS)
+            warmIconCache(reason)
         }
     }
 
@@ -3034,11 +3076,6 @@ internal class LauncherViewModel(
         hiddenAppStore.unhide(app.id)
         refreshLists()
         logState("unhideApp")
-        // Unhiding puts an app back into search, and the warm-up deliberately skips
-        // hidden ones -- so without this it stays cold until some unrelated
-        // foreground transition, which is the very thing this warm-up exists to
-        // stop. Hiding needs no counterpart: it only shrinks the searchable set.
-        warmIconCache(reason = "appUnhidden")
     }
 
     /**
@@ -4002,7 +4039,7 @@ internal class LauncherViewModel(
         // The second of the two paths that empty the cache without moving a size --
         // under the Monochrome theme a palette flip evicts everything. Same reason as
         // setIconTheme: the sizes are unchanged, so nothing else asks for a re-warm.
-        warmIconCache(reason = "iconPaletteChanged")
+        scheduleIconWarmUp(reason = "iconPaletteChanged")
     }
 
     /**
@@ -4048,7 +4085,7 @@ internal class LauncherViewModel(
         // re-warm: closing Settings remounts Home and reports the same sizes, which
         // the change check would swallow. Only the rows on screen would reload, and
         // search would stay cold until some later foreground transition.
-        warmIconCache(reason = "iconThemeChanged")
+        scheduleIconWarmUp(reason = "iconThemeChanged")
     }
 
     // The Settings slider still picks a per-row *count*; store the icon *size*
@@ -4122,6 +4159,18 @@ internal class LauncherViewModel(
                 eventResults = eventResultsFor(state, query),
             )
         }
+        // The funnel. Every change to the searchable set lands here -- an install, a
+        // dock or undock, a folder edit, an icon override, a sort-order change, an
+        // unhide -- so warming from here closes the family instead of enumerating it.
+        // The enumerated list was declared complete twice and was wrong both times.
+        //
+        // `refreshFilteredApps` is deliberately NOT hooked. It is the keystroke path,
+        // and the plan does not depend on the query: it is built from `installedApps`,
+        // the dock stores, the hidden set and the rendered sizes, none of which a
+        // keystroke moves. Hooking it would re-arm the debounce on every typing pause
+        // and restart a sweep that had nothing new to do -- on the one interaction
+        // this whole warm-up exists to keep fast.
+        scheduleIconWarmUp(reason = "listsRefreshed")
     }
 
     private fun refreshFilteredApps() {
@@ -5179,6 +5228,10 @@ private const val SNAPSHOT_TOP_LAUNCH_COUNT = 50
 // How much of the icon cache the foreground warm-up may fill. The headroom is the
 // point: warming past the budget would evict, and LRU reclaims what was rendered
 // longest ago -- the home screen still on screen behind the search field.
+// Long enough to swallow a drag-reorder, which calls `refreshLists` once per move,
+// and short enough that a settled change is warm before the user can act on it.
+internal const val ICON_WARM_UP_DEBOUNCE_MILLIS = 150L
+
 private const val WARM_UP_CACHE_CEILING_FRACTION = 0.75
 
 /**

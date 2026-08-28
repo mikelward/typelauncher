@@ -150,38 +150,20 @@
   entry count, background trimming and what it keeps, the trade a dropped icon
   costs. Drop the rest into the code, where it already lives.
 
-- **Trigger the icon warm-up from `refreshLists()` rather than from a list of
-  named events.** The foreground warm-up added 2026-08-28 is kicked off by seven
-  explicit triggers — home ready, foreground return, a rendered-size change, an
-  icon-theme change, a palette change, an installed-app reload, and unhiding an
-  app. That list was declared complete twice and was wrong both times; setting or
-  clearing a per-app custom icon is the eighth, found in review and deliberately
-  left unfixed rather than making the list one longer.
+- **Reprioritize the warm-up when the rendered order changes.** Changing "Sort apps
+  by", or rotating into or out of the Compact landscape tier, changes which apps head
+  the warm-up plan without changing the set. The `refreshLists` funnel (landed
+  2026-08-28) now fires for the sort-order case, but firing is not enough: on a device
+  already at the 75% ceiling the re-sweep exits on its first iteration, because the
+  ceiling is checked before any load -- the cache is full of the *old* head and the new
+  one never warms. The tier case does not even fire, since `setHomeLandscapeTier` goes
+  through `refreshFilteredApps` (the keystroke path, deliberately not hooked) rather
+  than `refreshLists`.
 
-  `refreshLists()` is the funnel: 32 call sites, and the single place that
-  recomputes the visible and searchable lists. Every one of those events reaches
-  it. Warming from there closes the family instead of enumerating it.
-
-  **Debounce first — this is the reason it wasn't done inline.** A drag-reorder
-  calls `refreshLists` once per move, and each warm-up cancels the one before it,
-  so an undebounced hook would restart the sweep every frame of a drag and never
-  finish one. It needs a short trailing debounce, and a test that a burst
-  collapses to a single sweep. Landing that as its own change keeps the failure
-  mode reviewable, which is exactly what an eighth inline trigger would not have
-  been.
-
-  **And the funnel alone is not enough for a *reorder*.** Raised in review of the
-  sort-order change (2026-08-28). Changing "Sort apps by", or rotating into or out
-  of the Compact landscape tier, changes which apps are at the head of the plan
-  without changing the set — and both reach `refreshLists`, so the funnel would
-  fire. But on a device already at the 75% ceiling the re-sweep exits on its first
-  iteration, because the ceiling is checked before any load: the cache is full of
-  the *old* head, and the new one never gets warmed. The list still paints — the
-  visible rows miss and load on demand, exactly as they did before any warm-up
-  existed — so this is a lost optimization, not a stuck placeholder. Closing it
-  means making room for the new head rather than restarting a ceiling-bound sweep,
-  which is the same reservation the first-screenful item below needs. Do the two
-  together.
+  The list still paints either way -- the visible rows miss and load on demand, as
+  every row did before any warm-up existed -- so this is a lost optimization, not a
+  stuck first page. Closing it means making room for the new head, which is the same
+  reservation the item below needs. Do the two together.
 
 - **Reserve the first screenful of the app list against live eviction.** The 75%
   ceiling bounds the *warm-up*, not rendering: the UI fills the cache to 100% and
