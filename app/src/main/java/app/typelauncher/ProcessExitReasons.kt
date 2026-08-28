@@ -124,12 +124,20 @@ internal fun exitReasonName(reason: Int): String = when (reason) {
 /**
  * Maps an [ApplicationExitInfo.importance] to a stable, readable name.
  *
- * Importance is what says whether the launcher was *on screen* when it died,
- * and that is the half of an exit record that decides what the death meant. A
+ * Importance is the priority Android had assigned the process when it died, and
+ * that is the half of an exit record that decides what the death meant. A
  * background process being reclaimed is routine and costs the user nothing —
- * the launcher lives in the background all day. The same reason at foreground
- * importance is the process dying out from under someone who was looking at it,
- * and is the precondition for the activity being dropped with no saved state.
+ * the launcher lives in the background all day. Foreground importance means the
+ * system was not treating the launcher as idle at that moment.
+ *
+ * It is **not** proof an Activity was on screen: a broadcast receiver handling
+ * a package change reaches that importance for the duration of its callback
+ * with nothing visible, and a launcher is sent those all day. Read it as "the
+ * system counted this as user-aware work", not as "the user was looking" — the
+ * on-screen case is the one that also drops the activity with no saved state,
+ * but importance alone does not establish it. A process kept alive by a
+ * foreground service is a separate value (`foregroundService`) rather than a
+ * second sense of this one.
  *
  * Named rather than numeric for the same reason as [exitReasonName]: the raw
  * values are sparse constants (100, 125, 230, …) that mean nothing to a reader

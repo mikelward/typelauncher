@@ -171,11 +171,11 @@ class ProcessExitReasonsTest {
     }
 
     @Test
-    fun namesTheImportanceThatSaysWhetherWeWereOnScreen() {
+    fun namesThePriorityAndroidAssignedTheProcess() {
         // A background process being reclaimed is routine — the launcher lives
-        // there all day. The same reason at foreground importance is the
-        // process dying out from under someone looking at it, which is the
-        // distinction the record exists to make.
+        // there all day. Foreground importance means the system was not
+        // treating it as idle, which is the distinction the record exists to
+        // make. It is not proof an Activity was on screen.
         assertEquals(
             "foreground",
             processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND),
