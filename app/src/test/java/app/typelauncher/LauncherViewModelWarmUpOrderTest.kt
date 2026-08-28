@@ -91,7 +91,9 @@ class LauncherViewModelWarmUpOrderTest {
             .commit()
     }
 
-    private fun launchCountKey(slug: String): String {
+    private fun launchCountKey(slug: String): String = "launch_count:${appId(slug)}"
+
+    private fun appId(slug: String): String {
         val id = InstalledApp(
             name = slug,
             packageName = "com.example.$slug",
@@ -102,7 +104,7 @@ class LauncherViewModelWarmUpOrderTest {
             isWorkApp = false,
             launchWithLauncherApps = true,
         ).id
-        return "launch_count:$id"
+        return id
     }
 
     private fun setSortOrder(order: AppListSortOrder) {
@@ -147,6 +149,23 @@ class LauncherViewModelWarmUpOrderTest {
         setSortOrder(AppListSortOrder.Alphabetical)
 
         assertEquals(listOf("Aardvark", "Middle", "Zebra"), warmOrderNames())
+    }
+
+    @Test
+    fun aPinnedAppHeadsTheTailEvenWhenTheAlphabetPutsItLast() {
+        // The defect this pins: the dock and folder passes warm `dockPx`/`folderPx`,
+        // never `listPx`. Pinned apps float to the head of the *list* in every state,
+        // so with the dock hidden a pin late in the alphabet is the first visible row
+        // -- and without floating it here it warms last, which on a device that
+        // reaches the ceiling means it is the one row that never warms at all.
+        seedApps()
+        setSortOrder(AppListSortOrder.Alphabetical)
+        context.getSharedPreferences("docked_apps", Context.MODE_PRIVATE)
+            .edit()
+            .putString("docked_app_ids", appId("zebra"))
+            .commit()
+
+        assertEquals(listOf("Zebra", "Aardvark", "Middle"), warmOrderNames())
     }
 
     @Test
