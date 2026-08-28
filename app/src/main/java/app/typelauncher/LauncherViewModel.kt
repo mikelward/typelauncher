@@ -1551,28 +1551,6 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Fills the icon cache ahead of demand, so typing a search finds its results
-     * already rasterized instead of resolving them a row at a time.
-     *
-     * The background trim keeps the dock and the most-launched apps, which is what
-     * Home paints -- and drops the long tail, which is exactly what search is for.
-     * Without this the trim quietly made the app's primary interaction colder than
-     * it was before: every search for a rarely-opened app paid a `LauncherApps`
-     * resolve plus a rasterize, and painted a placeholder while it waited.
-     *
-     * Warming is a *foreground* cost, which is the point. Play measures bitmap
-     * memory in the background and cached states, not while the UI is visible, and
-     * the 24 MB budget exists precisely to be full while the user is looking at the
-     * launcher. So the pairing is deliberate: full warmth on screen, trimmed to the
-     * priority set the moment it leaves.
-     *
-     * Bounded three ways. It stops at [WARM_UP_CACHE_CEILING_FRACTION] of the
-     * budget, so it can never evict the icons already on screen to make room for
-     * ones that are not. It works in descending launch order, so a device that hits
-     * the ceiling warms the apps most likely to be searched for first. And it yields
-     * between icons, so it stays behind anything the user is actually doing.
-     */
-    /**
      * The (app, size) pairs worth warming, in the order they should be warmed.
      *
      * Read off the rendered state rather than rebuilt from the dock stores. The stores
@@ -1583,10 +1561,10 @@ internal class LauncherViewModel(
      *
      * Dock and folders lead: both sets are small, both are on screen the instant the
      * launcher opens, and putting them first means a device that reaches the ceiling
-     * still has them. The list tail follows in descending launch order, so a device
-     * that runs out of room has warmed the likeliest search results.
+     * still has them. The list tail follows in the order the list itself renders, so
+     * a device that runs out of room has warmed the rows already on screen.
      */
-    private fun buildWarmUpPlan(sizes: RenderedIconSizes): List<Pair<InstalledApp, Int>> {
+    internal fun buildWarmUpPlan(sizes: RenderedIconSizes): List<Pair<InstalledApp, Int>> {
         val hidden = hiddenAppStore.hiddenAppIds
         // Everything docked, and every folder member, without asking whether the dock
         // happens to be on screen right now. Chasing that question is what this plan
@@ -1621,13 +1599,57 @@ internal class LauncherViewModel(
                 add(member to sizes.folderPx)
                 add(member to sizes.dockPx)
             }
-            byId.values
-                .asSequence()
-                .sortedByDescending { installed -> appLaunchStatsStore.launchCount(installed.id) }
+            // The tail in the order the app list renders it, built by the list's own
+            // comparator rather than a second one written here. Launch order is only
+            // the rendered order under a Usage sort; under an alphabetical one it
+            // warms the visible rows last, which is backwards -- and any hand-rolled
+            // copy of the real comparator drifts from it. The reversed variants share
+            // their forward counterpart's data ordering (the flip is `reverseLayout`
+            // in the UI), and index 0 renders at the visual bottom under it, so the
+            // head of this list is on screen either way.
+            //
+            // No dock arguments. `dockedAppIds` only floats apps the two passes above
+            // have already warmed to the front, and `excludedAppIds` is the caller's
+            // answer to whether the dock is on screen -- the question this plan does
+            // not ask. Passing neither also means one launch-count snapshot for the
+            // whole sort instead of a store lookup per comparison.
+            byId.values.toList()
+                .filterByName(
+                    query = "",
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    excludedAppIds = emptyList(),
+                    sortOrder = effectiveAppListSortOrder(
+                        _uiState.value.appListSortOrder,
+                        _uiState.value.homeLandscapeTier,
+                    ),
+                )
                 .forEach { installed -> add(installed to sizes.listPx) }
         }
     }
 
+    /**
+     * Fills the icon cache ahead of demand, so typing a search finds its results
+     * already rasterized instead of resolving them a row at a time.
+     *
+     * The background trim keeps the dock and the most-launched apps, which is what
+     * Home paints -- and drops the long tail, which is exactly what search is for.
+     * Without this the trim quietly made the app's primary interaction colder than
+     * it was before: every search for a rarely-opened app paid a `LauncherApps`
+     * resolve plus a rasterize, and painted a placeholder while it waited.
+     *
+     * Warming is a *foreground* cost, which is the point. Play measures bitmap
+     * memory in the background and cached states, not while the UI is visible, and
+     * the 24 MB budget exists precisely to be full while the user is looking at the
+     * launcher. So the pairing is deliberate: full warmth on screen, trimmed to the
+     * priority set the moment it leaves.
+     *
+     * Bounded three ways. It stops at [WARM_UP_CACHE_CEILING_FRACTION] of the
+     * budget, so it can never evict the icons already on screen to make room for
+     * ones that are not. It works in the order the app list renders, so a device
+     * that hits the ceiling warms what the user can already see before what they
+     * would have to scroll to. And it yields between icons, so it stays behind
+     * anything the user is actually doing.
+     */
     private fun warmIconCache(reason: String) {
         iconWarmUpJob?.cancel()
         if (!launcherVisible) {
