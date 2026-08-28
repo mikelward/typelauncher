@@ -472,6 +472,19 @@ internal object AppIconLoader {
     fun cacheSnapshot(): Map<CacheKey, ImageBitmap> = cache.snapshot()
 
     /**
+     * Bytes currently held, against [cacheByteBudget].
+     *
+     * Exposed for the foreground warm-up, which fills the cache ahead of demand and
+     * therefore has to know when to stop: pushing past the budget would start
+     * evicting, and what LRU reclaims first is whatever was rendered longest ago --
+     * the home screen the user is looking at.
+     */
+    fun cacheBytes(): Int = cache.size()
+
+    /** The cache's byte ceiling. See [cacheBytes]. */
+    val cacheByteBudget: Int get() = CACHE_BYTE_BUDGET
+
+    /**
      * Compose-observable counter [evictAll] and [evict] bump;
      * [rememberAppIconBitmap] and [rememberWorkBadgeOverlay] key on it so live
      * compositions reload after an eviction.
@@ -569,6 +582,25 @@ internal object AppIconLoader {
      * from the LRU under one critical section, so a producer completing
      * mid-trim cannot re-pin a bitmap the trim just dropped.
      */
+    /**
+     * Drops every entry rendered at one of [sizesPx], whatever app it belongs to.
+     *
+     * For sizes a layout or icon-size change has orphaned: nothing will ask for them
+     * again, but they still occupy the budget the foreground warm-up measures itself
+     * against, so leaving them can make the replacement sweep a no-op.
+     *
+     * Deliberately size-scoped rather than a full [evictAll]: the surviving sizes are
+     * still on screen, and re-rasterizing them would trade a stale-byte problem for a
+     * visible one.
+     */
+    fun evictSizes(sizesPx: Set<Int>) {
+        if (sizesPx.isEmpty()) return
+        synchronized(inFlightLock) {
+            inFlight.keys.filter { it.sizePx in sizesPx }.toList().forEach { inFlight.remove(it) }
+            cache.snapshot().keys.filter { it.sizePx in sizesPx }.forEach { cache.remove(it) }
+        }
+    }
+
     fun retainOnly(retainIds: Set<String>) {
         fun keep(id: String): Boolean = id in retainIds || id.startsWith(WORK_BADGE_ID_PREFIX)
         synchronized(inFlightLock) {

@@ -745,6 +745,10 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onStop")
         stopListeningSafely()
         if (::viewModel.isInitialized) {
+            // Before anything else: a warm-up still running would put back what the
+            // trim below is about to free, and would do it in the states the trim
+            // exists to shrink.
+            viewModel.onLauncherHidden()
             viewModel.persistIconSnapshot()
             // After the snapshot, never before: persistIconSnapshot harvests the
             // priority icons out of the cache, so trimming first would hand it a
