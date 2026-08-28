@@ -20,6 +20,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Process
+import android.os.SystemClock
 import android.os.UserHandle
 import android.os.UserManager
 import android.provider.CalendarContract
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -138,6 +140,24 @@ internal class LauncherViewModel(
     // resident for the whole background residency: the trim's guard returns, and
     // neither onStop nor the UI-hidden trim callback comes round a second time.
     private var pendingBackgroundTrim = false
+
+    // The foreground icon warm-up (see [warmIconCache]). Held so leaving the
+    // launcher cancels it: warming while backgrounded would refill exactly what
+    // the trim just freed, in the states Play measures.
+    private var iconWarmUpJob: Job? = null
+
+    // The pixel sizes each surface actually renders at, reported by the UI. Not
+    // derived here: the dock size is clamped to fit the row and the list size
+    // depends on the layout setting, so a value recomputed in the view model could
+    // name a size nothing draws -- and warming a size nothing reads is warming
+    // nothing at all.
+    private var renderedIconSizes: RenderedIconSizes? = null
+
+    // Whether the launcher is on screen. The warm-up is a foreground-only measure --
+    // running it while backgrounded refills exactly what the trim just freed, in the
+    // states Play measures -- and not every trigger implies visibility: a reload can
+    // land after the user has already left.
+    private var launcherVisible = false
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the
     // launcher can be rebuilt from saved-instance after a full process
@@ -895,6 +915,12 @@ internal class LauncherViewModel(
             // package the reload would have dropped.
             drainPendingIconOverrideRequest()
             launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+            // A reload republishes the inventory while the launcher is still on
+            // screen -- an app installed, updated, or a profile coming back. The
+            // rendered sizes have not moved and no foreground callback follows, so
+            // without this the newcomers stay cold until the user leaves and
+            // returns, which is the one thing this warm-up exists to avoid.
+            warmIconCache(reason = "appsReloaded")
             LauncherDebugLog.event(
                 "scheduleReload complete reason=%s detail=%s apps=%s",
                 safe(reason),
@@ -1017,6 +1043,10 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(isHomeReady = true) }
         LauncherDebugLog.event("onHomeReady published")
         triggerInitialAgendaLoadIfEnabled(reason = "homeReady")
+        // Same deferral rationale again: filling the icon cache ahead of demand is
+        // cold-start-adjacent work, so it waits for the first frame rather than
+        // competing with the app list for Dispatchers.IO.
+        warmIconCache(reason = "homeReady")
         // Same deferral rationale as the agenda load: the content-search
         // indices are cold-start-adjacent IO, so they wait for home-ready
         // rather than competing with the app list on Dispatchers.IO.
@@ -1397,13 +1427,22 @@ internal class LauncherViewModel(
         // [priorityIconCacheIdsFor] for why memory and disk differ on exactly this.
         val priorityIds = priorityIconCacheIds(includeDynamicCalendar = true)
         val before = AppIconLoader.cacheSnapshot().size
+        val beforeBytes = AppIconLoader.cacheBytes()
         AppIconLoader.retainOnly(priorityIds)
         val after = AppIconLoader.cacheSnapshot().size
+        val afterBytes = AppIconLoader.cacheBytes()
+        // The byte figures are the point of this line: `afterBytes` is what the
+        // process carries into the background and cached states, which is the
+        // number Play actually measures. Entry counts alone can't say that --
+        // an icon's cost varies by density and by rendered size.
         LauncherDebugLog.event(
-            "trimIconCacheToPriority priority=%s entries %s -> %s",
+            "trimIconCacheToPriority priority=%s entries %s -> %s bytes %s -> %s (freed %s)",
             priorityIds.size,
             before,
             after,
+            beforeBytes,
+            afterBytes,
+            beforeBytes - afterBytes,
         )
     }
 
@@ -1429,7 +1468,250 @@ internal class LauncherViewModel(
      * cache is back to doing the job its foreground budget is sized for.
      */
     fun onLauncherVisible() {
+        launcherVisible = true
         pendingBackgroundTrim = false
+        // Every return, not just the first: the background trim dropped the long
+        // tail on the way out, and search is what goes looking for it.
+        // `onHomeReady` covers the cold start, where this fires too early.
+        if (_uiState.value.isHomeReady) {
+            warmIconCache(reason = "foreground")
+        }
+    }
+
+    /**
+     * Stops the warm-up sweep.
+     *
+     * Called on the way out, before the trim: a sweep still running in the background
+     * would put back what the trim is about to take, in exactly the states the trim
+     * exists to shrink.
+     *
+     * It stops the *sweep*, not the one load already in flight -- that producer runs
+     * in `AppIconLoader`'s own scope and finishes regardless. The trim is what
+     * neutralizes it: `retainOnly` clears the in-flight entry along with the cached
+     * one, and the producer's completion only inserts while its deferred is still the
+     * one registered, so a straggler for a dropped id is discarded rather than
+     * re-cached. A straggler for a retained id does insert, which is right -- the trim
+     * was keeping that one anyway.
+     */
+    /**
+     * The UI reporting the pixel sizes it renders each surface at, so the warm-up
+     * fills the sizes that will actually be read back.
+     *
+     * Re-warms when they change, which is what a layout or icon-size setting change
+     * looks like from here: the old sizes are now dead keys and the new ones are cold.
+     */
+    fun onRenderedIconSizes(listPx: Int, dockPx: Int, folderPx: Int) {
+        val sizes = RenderedIconSizes(listPx = listPx, dockPx = dockPx, folderPx = folderPx)
+        if (sizes == renderedIconSizes) return
+        val previous = renderedIconSizes
+        renderedIconSizes = sizes
+        // Retire the sizes this change orphaned. They are dead keys -- nothing will
+        // read them again -- but they still count toward the warm-up's byte ceiling,
+        // so leaving them would let a cache filled at the old size turn the
+        // replacement sweep into an immediate no-op and strand the tail cold at the
+        // size now on screen. Only sizes this tuple used are dropped: other surfaces
+        // (a menu icon, a folder merge preview) render sizes of their own that this
+        // has no business evicting.
+        LauncherDebugLog.event(
+            "onRenderedIconSizes list=%s dock=%s folder=%s",
+            listPx,
+            dockPx,
+            folderPx,
+        )
+        val retired = if (previous == null) {
+            emptySet()
+        } else {
+            setOf(previous.listPx, previous.dockPx, previous.folderPx) -
+                setOf(sizes.listPx, sizes.dockPx, sizes.folderPx)
+        }
+        if (retired.isEmpty()) {
+            if (_uiState.value.isHomeReady) warmIconCache(reason = "sizesChanged")
+            return
+        }
+        // Retirement happens off the main thread. This runs from a composition effect
+        // on Main, and dragging the icon-size slider reports a new tuple per notch --
+        // each one scanning a cache that may hold hundreds of entries under a lock,
+        // right beside the preview the drag is animating.
+        //
+        // Sequenced before the warm-up rather than run alongside it, because the
+        // warm-up measures itself against the cache's byte total: starting it while
+        // the dead sizes were still resident is what made the replacement sweep a
+        // no-op in the first place.
+        viewModelScope.launch {
+            withContext(ioDispatcher) { AppIconLoader.evictSizes(retired) }
+            LauncherDebugLog.event("onRenderedIconSizes retired sizes=%s", retired.size)
+            if (_uiState.value.isHomeReady) warmIconCache(reason = "sizesChanged")
+        }
+    }
+
+    fun onLauncherHidden() {
+        launcherVisible = false
+        iconWarmUpJob?.cancel()
+        iconWarmUpJob = null
+    }
+
+    /**
+     * Fills the icon cache ahead of demand, so typing a search finds its results
+     * already rasterized instead of resolving them a row at a time.
+     *
+     * The background trim keeps the dock and the most-launched apps, which is what
+     * Home paints -- and drops the long tail, which is exactly what search is for.
+     * Without this the trim quietly made the app's primary interaction colder than
+     * it was before: every search for a rarely-opened app paid a `LauncherApps`
+     * resolve plus a rasterize, and painted a placeholder while it waited.
+     *
+     * Warming is a *foreground* cost, which is the point. Play measures bitmap
+     * memory in the background and cached states, not while the UI is visible, and
+     * the 24 MB budget exists precisely to be full while the user is looking at the
+     * launcher. So the pairing is deliberate: full warmth on screen, trimmed to the
+     * priority set the moment it leaves.
+     *
+     * Bounded three ways. It stops at [WARM_UP_CACHE_CEILING_FRACTION] of the
+     * budget, so it can never evict the icons already on screen to make room for
+     * ones that are not. It works in descending launch order, so a device that hits
+     * the ceiling warms the apps most likely to be searched for first. And it yields
+     * between icons, so it stays behind anything the user is actually doing.
+     */
+    /**
+     * The (app, size) pairs worth warming, in the order they should be warmed.
+     *
+     * Read off the rendered state rather than rebuilt from the dock stores. The stores
+     * keep their occupants when a dock is switched off, and they know nothing about
+     * which surfaces are drawn -- warming from them spends the ceiling on icons no
+     * visible surface will ever read. The state is what the UI actually paints, so a
+     * plan built from it cannot drift from what is on screen.
+     *
+     * Dock and folders lead: both sets are small, both are on screen the instant the
+     * launcher opens, and putting them first means a device that reaches the ceiling
+     * still has them. The list tail follows in descending launch order, so a device
+     * that runs out of room has warmed the likeliest search results.
+     */
+    private fun buildWarmUpPlan(sizes: RenderedIconSizes): List<Pair<InstalledApp, Int>> {
+        val hidden = hiddenAppStore.hiddenAppIds
+        // Everything docked, and every folder member, without asking whether the dock
+        // happens to be on screen right now. Chasing that question is what this plan
+        // did before, and it was wrong five times over -- a disabled dock, the work
+        // dock's own predicate, a landscape tier, an IME suppressing the dock, a
+        // folder showing four of its members. Each answer lived in the composable and
+        // went stale here.
+        //
+        // The set is small and the user chose it: a dock's worth of apps, warmed
+        // first. Warming a few icons a hidden dock would not have drawn costs a
+        // fraction of the budget; getting the visibility question wrong cost a
+        // review round every time.
+        val looseDocked = dockedAppStore.dockedAppIds + workDockedAppStore.dockedAppIds
+        val dockedOrFoldered =
+            dockedAppStore.dockedOrFolderedAppIds + workDockedAppStore.dockedOrFolderedAppIds
+        // The same availability filter the list pass uses. A hidden app is on no
+        // surface, and a paused profile's app cannot be resolved at all -- warming
+        // either spends the sweep, and the ceiling, on an icon that cannot be shown.
+        // Dock membership does not exempt them: this is about whether the app is
+        // available, not about whether the dock is on screen.
+        val byId = installedApps
+            .filter { installed -> installed.id !in hidden && !installed.isQuietMode }
+            .associateBy { it.id }
+        return buildList {
+            looseDocked.mapNotNull { byId[it] }.forEach { docked -> add(docked to sizes.dockPx) }
+            val folderMembers = (dockedOrFoldered - looseDocked.toSet()).mapNotNull { byId[it] }
+            folderMembers.forEach { member ->
+                // Two sizes, and both are drawn: the closed folder shows a 2x2 of
+                // mini-cells, and opening it paints the same members at the full dock
+                // size. Warming only the mini-cell left every folder cold on the tap
+                // that opens it.
+                add(member to sizes.folderPx)
+                add(member to sizes.dockPx)
+            }
+            byId.values
+                .asSequence()
+                .sortedByDescending { installed -> appLaunchStatsStore.launchCount(installed.id) }
+                .forEach { installed -> add(installed to sizes.listPx) }
+        }
+    }
+
+    private fun warmIconCache(reason: String) {
+        iconWarmUpJob?.cancel()
+        if (!launcherVisible) {
+            // Not every trigger implies the launcher is on screen. A reload started
+            // while it was can finish after the user has left, and starting a sweep
+            // then would refill the cache to its ceiling in exactly the states the
+            // trim exists to shrink -- undoing the trim that just ran.
+            LauncherDebugLog.event("warmIconCache skipped: not visible reason=%s", safe(reason))
+            return
+        }
+        val sizes = renderedIconSizes
+        if (sizes == null) {
+            LauncherDebugLog.event("warmIconCache skipped: no rendered sizes yet")
+            return
+        }
+        iconWarmUpJob = viewModelScope.launch {
+            LauncherDebugLog.event(
+                "warmIconCache starting reason=%s list=%s dock=%s folder=%s",
+                safe(reason),
+                sizes.listPx,
+                sizes.dockPx,
+                sizes.folderPx,
+            )
+            val startedAtMs = SystemClock.elapsedRealtime()
+            val ceiling = (AppIconLoader.cacheByteBudget * WARM_UP_CACHE_CEILING_FRACTION).toInt()
+
+            // The whole sweep runs off the main thread, not just the loads. This
+            // coroutine is dispatched on Main, and every iteration touches the LRU
+            // under a lock even when it finds a hit -- so a pass over an already-warm
+            // cache, which is what most foreground returns are, would run hundreds of
+            // synchronized lookups end to end with nothing to suspend on. Yielding on
+            // the hit path would paper over that; moving the loop is the fix.
+            withContext(ioDispatcher) {
+                val plan = buildWarmUpPlan(sizes)
+
+                // Badges before the base sweep, so the ceiling cannot stop between
+                // them. The badge is a separate overlay composed over the base icon at
+                // draw time, so a warm base with a cold badge paints a work app as a
+                // *personal* one until getUserBadgedIcon returns -- confidently wrong
+                // rather than visibly loading, on the surface where the distinction is
+                // the whole point. Front-loading costs almost nothing: one entry per
+                // profile per size, however many work apps there are.
+                for ((user, sizePx) in plan.asSequence()
+                    .filter { (installed, _) -> installed.isWorkApp }
+                    .map { (installed, sizePx) -> installed.user to sizePx }
+                    .distinct()
+                ) {
+                    if (AppIconLoader.cachedWorkBadge(user, sizePx) != null) continue
+                    AppIconLoader.loadWorkBadge(app, user, sizePx)
+                    yield()
+                }
+
+                var warmed = 0
+                var alreadyWarm = 0
+                for ((installed, sizePx) in plan) {
+                    if (AppIconLoader.cacheBytes() >= ceiling) {
+                        LauncherDebugLog.event(
+                            "warmIconCache stopped at ceiling reason=%s warmed=%s bytes=%s tookMs=%s",
+                            safe(reason),
+                            warmed,
+                            AppIconLoader.cacheBytes(),
+                            SystemClock.elapsedRealtime() - startedAtMs,
+                        )
+                        return@withContext
+                    }
+                    if (AppIconLoader.cached(installed.iconCacheId, sizePx) != null) {
+                        alreadyWarm++
+                        continue
+                    }
+                    AppIconLoader.load(app, installed, sizePx)
+                    warmed++
+                    // Behind anything the user is doing, never ahead of it.
+                    yield()
+                }
+                LauncherDebugLog.event(
+                    "warmIconCache complete reason=%s warmed=%s skipped=%s bytes=%s tookMs=%s",
+                    safe(reason),
+                    warmed,
+                    alreadyWarm,
+                    AppIconLoader.cacheBytes(),
+                    SystemClock.elapsedRealtime() - startedAtMs,
+                )
+            }
+        }
     }
 
     /**
@@ -2691,6 +2973,11 @@ internal class LauncherViewModel(
         hiddenAppStore.unhide(app.id)
         refreshLists()
         logState("unhideApp")
+        // Unhiding puts an app back into search, and the warm-up deliberately skips
+        // hidden ones -- so without this it stays cold until some unrelated
+        // foreground transition, which is the very thing this warm-up exists to
+        // stop. Hiding needs no counterpart: it only shrinks the searchable set.
+        warmIconCache(reason = "appUnhidden")
     }
 
     /**
@@ -3651,6 +3938,10 @@ internal class LauncherViewModel(
         AppIconLoader.setThemedIconPalette(app, isLauncherThemeDark(mode))
         _uiState.update { it.copy(themeMode = mode) }
         logState("setThemeMode=%s", mode)
+        // The second of the two paths that empty the cache without moving a size --
+        // under the Monochrome theme a palette flip evicts everything. Same reason as
+        // setIconTheme: the sizes are unchanged, so nothing else asks for a re-warm.
+        warmIconCache(reason = "iconPaletteChanged")
     }
 
     /**
@@ -3692,6 +3983,11 @@ internal class LauncherViewModel(
         AppIconLoader.evictAll()
         _uiState.update { it.copy(iconTheme = theme) }
         logState("setIconTheme=%s", theme)
+        // The cache is now empty at unchanged sizes, so nothing else will ask for a
+        // re-warm: closing Settings remounts Home and reports the same sizes, which
+        // the change check would swallow. Only the rows on screen would reload, and
+        // search would stay cold until some later foreground transition.
+        warmIconCache(reason = "iconThemeChanged")
     }
 
     // The Settings slider still picks a per-row *count*; store the icon *size*
@@ -4807,7 +5103,22 @@ private const val WIDGET_CELL_ESTIMATE_DP = 56
 // Sized to cover the visible app rows on a typical phone screen (~12 text rows or ~24
 // icon-only grid cells) plus a margin so quick scrolls also paint without flashing,
 // while keeping cold-start file IO bounded.
+/**
+ * The pixel sizes the launcher's surfaces render icons at, as reported by the UI.
+ *
+ * Three rather than one because each surface draws a different set of apps: the dock
+ * a handful, folder mini-cells a few per folder, and the list every app there is.
+ * Warming each set at its own size is what keeps the warm-up's footprint close to
+ * "the app list once" instead of a multiple of it.
+ */
+internal data class RenderedIconSizes(val listPx: Int, val dockPx: Int, val folderPx: Int)
+
 private const val SNAPSHOT_TOP_LAUNCH_COUNT = 50
+
+// How much of the icon cache the foreground warm-up may fill. The headroom is the
+// point: warming past the budget would evict, and LRU reclaims what was rendered
+// longest ago -- the home screen still on screen behind the search field.
+private const val WARM_UP_CACHE_CEILING_FRACTION = 0.75
 
 /**
  * Collapses any leading [prefixWord]-as-whole-word tokens in [rawLabel] and

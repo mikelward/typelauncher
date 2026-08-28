@@ -181,6 +181,10 @@ internal fun HomeScreen(
     state: LauncherUiState,
     innerPadding: PaddingValues,
     bodyReady: Boolean,
+    // Reports the pixel size each surface renders icons at, so the foreground
+    // warm-up fills sizes that will actually be read back. Defaulted so previews
+    // and screenshot tests need no extra argument.
+    onRenderedIconSizes: (listPx: Int, dockPx: Int, folderPx: Int) -> Unit = { _, _, _ -> },
     // True when this Home page is the carousel's settled page *or* the page a
     // carousel transition is animating toward — i.e. Home is on screen or
     // sliding into view. Drives the wallpaper presentation so it leads the
@@ -290,6 +294,29 @@ internal fun HomeScreen(
     val dockSizing = dockIconSizing(dockReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
+    // Each surface's rendered size, reported to the view model for the icon warm-up.
+    // Computed here rather than there because the dock size is clamped to fit the row
+    // and the list size follows the layout setting -- recomputing either off-screen
+    // could name a size nothing draws, and warming a size nothing reads warms nothing.
+    val iconWarmUpDensity = LocalDensity.current
+    val dockFolderCellSizeDp = (
+        (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp -
+            (DOCK_FOLDER_TILE_PADDING_DP * 2 + DOCK_FOLDER_MINI_GAP_DP).dp
+        ) / 2
+    val appListIconSizeDp = if (state.appListLayout == AppListLayout.NameBeside) {
+        APP_ROW_ICON_SIZE_DP.dp
+    } else {
+        dockIconSizeDp.dp
+    }
+    LaunchedEffect(appListIconSizeDp, dockIconSizeDp, dockFolderCellSizeDp, iconWarmUpDensity) {
+        with(iconWarmUpDensity) {
+            onRenderedIconSizes(
+                appListIconSizeDp.roundToPx().coerceAtLeast(1),
+                dockIconSizeDp.dp.roundToPx().coerceAtLeast(1),
+                dockFolderCellSizeDp.roundToPx().coerceAtLeast(1),
+            )
+        }
+    }
     // In a wider-than-portrait window (landscape) the dock flattens into a
     // single reading-order row — the top portrait row first, then the next row
     // appended on the right — so a two-row portrait dock collapses to one row
@@ -2018,6 +2045,10 @@ private const val DOCK_FOLDER_EMPHASIS_BORDER_DP = 2
 // and each sub-icon is ~20dp; two sub-icons plus a 4dp gap would overflow that
 // area, so 2dp keeps the 2x2 reading as a single folder mark.
 private const val DOCK_FOLDER_MINI_GAP_DP = 2
+// The app list's row-layout icon size. Hoisted so the warm-up's reported size and
+// the rendered one cannot drift apart.
+private const val APP_ROW_ICON_SIZE_DP = 40
+
 private const val DOCK_FOLDER_TILE_PADDING_DP = 4
 // Horizontal (and vertical) inset around the Home content column, so the dock and
 // app-list cards sit as islands rather than edge-to-edge.
@@ -4907,7 +4938,7 @@ private fun AppRow(
         ) {
             AppIcon(
                 app = app,
-                size = 40.dp,
+                size = APP_ROW_ICON_SIZE_DP.dp,
                 backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
             )
             Text(
