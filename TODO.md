@@ -313,6 +313,117 @@
 - Decide whether to persist more than priority icons only after telemetry shows first-scroll icon misses are hurting startup or scroll performance. If needed, persist a bounded first screenful for the active empty-query sort order and icon size.
 - Add lightweight debug-only recomposition/performance instrumentation around hot composables and interactions: search, app list rows/grid buttons, keyboard tray, widgets, first query keystroke, backspace, Home ↔ Widgets swipe, and widget-picker expansion.
 
+## Process death and restart
+
+- [x] **Declare `android:stateNotNeeded` on the home activity.** Done, and the
+      flag turns out to cost nothing — the reasoning that removed it in
+      `50165c1b` rested on the documentation's cautious wording rather than on
+      what the platform does.
+
+      AOSP reads the flag in exactly one place, `ActivityRecord.handleAppDied`:
+
+      ```java
+      } else if ((!mHaveState && !stateNotNeeded
+              && !isState(State.RESTARTING_PROCESS)) || finishing) {
+          remove = true;   // "Force removing ...: app died, no saved state"
+      }
+      ```
+
+      `mHaveState` follows `mIcicle != null` (`setSavedState`), so it is false
+      precisely while the activity is resumed and visible. Without the flag, a
+      launcher killed while on screen has its activity record force-removed
+      from history — and stays removed until started by hand, which is
+      *Failure A*'s signature exactly.
+
+      In current AOSP it does not suppress state saving: `ActivityThread` gates
+      `onSaveInstanceState` on `saveState && !mFinished && r.state == null &&
+      !isPreHoneycomb()` and never reads the flag, and `Activity.java` has no
+      reference to it. But the *documented* contract is wider — it permits the
+      system to skip the save and pass `onCreate` a null bundle — and an OEM
+      framework may do so (Codex, PR #686). So the flag is taken on the trade
+      rather than on an assurance, and the trade is one-sided three ways: the
+      exposure is a single icon-pick or widget-configure result the user simply
+      repeats; a skipping implementation would break AOSP's own Launcher3,
+      which declares this flag and keeps its pending widget-add args in
+      instance state, so one is unlikely to be shipping; and in the case the
+      flag actually changes the outcome the bundle is null either way, with the
+      activity lost as well when the flag is absent.
+
+      Which is what `50165c1b` weighed wrongly — it traded the launcher's
+      survival for a recovery the same process death breaks regardless. AOSP's
+      Launcher3 declares the flag beside the same `launchMode="singleTask"` and
+      `clearTaskOnLaunch="true"`.
+
+- [ ] **Confirm which failure the revert-to-other-launcher symptom actually is.**
+      There appear to be **two distinct failures**, not one, and the
+      `stateNotNeeded` flag above addresses at most the first.
+
+      **A — silent fallback.** After a batch of app updates, a Home press goes
+      straight to the other launcher with no prompt, and stays that way until
+      Type Launcher is opened by hand from that launcher. The home role is
+      still held throughout. Seen repeatedly, roughly weekly.
+
+      **B — the resolver sheet.** Android's "which launcher app would you like
+      to use" sheet appears. Left unanswered, so nothing was revoked; opening
+      Type Launcher afterwards confirms it still holds the role. Seen once,
+      separately from A.
+
+      Both are consistent with the home activity not being resolvable at the
+      moment Home was pressed, differing in whether the system fell back
+      silently or asked — but A *persisting* until a manual launch is what the
+      momentary install window does not explain, and is the part the
+      saved-state flag would. A dropped home activity does not produce the
+      sheet: the system would re-resolve to the role holder and start it. A
+      sheet means home resolution could not reach an unambiguous target *while
+      the role still named us*, which is what the installer swapping the APK
+      looks like — during the replace there is no home activity to resolve to,
+      and nothing has been revoked. No activity attribute reaches B; it is a
+      role-resolution problem, not a saved-state one.
+
+      The evidence that separates them is a bug report carrying the
+      `processExit` records, the `ownPackage lastUpdateTime`, and the home-role
+      line. A previous run ending in `packageUpdated` whose timestamp sits
+      beside this package's own update time confirms the install window (B).
+      One ending in `lowMemory` or `crash` at foreground importance points at
+      the saved-state case (A). The **gap** between that exit timestamp and
+      this run's first log line tells them apart even when the reason matches:
+      seconds means a momentary window, hours means the launcher stayed
+      unreachable until it was started by hand, which is A's signature.
+
+      With the flag now declared, a report still showing A is the signal that
+      the flag was not the cause and the search reopens.
+
+- [ ] **In-flight picks still don't survive a death while the launcher is
+      resumed.** Independent of `stateNotNeeded` — equally true before and
+      after it — and low priority, but worth recording since it was mistakenly
+      believed to be a cost of that flag.
+
+      If the process dies while a widget-configure or icon-pick activity is
+      foreground, `onCreate` is handed a null bundle and the answer never
+      lands. The obvious fix does not work: `ActivityResultRegistry` assigns
+      each registered launcher a **random** request code
+      (`generateRandomNumber`, from `0x00010000`) and rebuilds `rcToKey` only
+      from `onRestoreInstanceState`, so with a null bundle `dispatchResult`
+      returns `false` and the callback never fires. Persisting our own pending
+      id buys nothing — the *routing* is what was lost, not the payload.
+
+      Recovering these flows therefore means fixed request codes and an
+      `onActivityResult` override, which is what Launcher3 does throughout and
+      what the widget **configure** leg here already does of necessity
+      (`CONFIGURE_WIDGET_REQUEST_CODE`, since
+      `startAppWidgetConfigureActivityForResult` reports nowhere else). That
+      leg keeps its routing across a null bundle and would need only its
+      `pendingWidgetId` persisted; the bind leg (`registerForActivityResult`)
+      and the icon picker (`rememberLauncherForActivityResult`, whose
+      `pendingIconPickAppId` is a Compose `rememberSaveable`) would need the
+      move. If it is ever done, note that persisting `pendingWidgetId`
+      asynchronously races the orphan sweep, which `MainActivity`'s `onCreate`
+      requires be re-seeded before it can act on a stale `INVALID` — so the
+      sweep has to be gated on that load.
+
+      AOSP accepts the identical loss, and both flows recover on the next
+      attempt, so there is no urgency here.
+
 ## Dependency updates
 
 - [ ] **Adopt `mikelward/gradle-update`** — the weekly Gradle catalog updater.
@@ -477,77 +588,6 @@
       not under today's.
 
 ### Decisions needing review
-
-- **`stateNotNeeded` on the home activity is an open question, not a settled
-  one.** `ManifestUnitTest.mainActivity_manifestHasLauncherFlagsAndCalendarPermission`
-  asserts `android:stateNotNeeded` is **absent** from `MainActivity`, with a
-  rationale in the test: the flag lets Android restart the launcher with a null
-  saved-state bundle, which breaks every in-flight-result recovery carried
-  through instance state — the icon picker's `rememberSaveable`
-  `pendingIconPickAppId`, `ActivityResultRegistry`'s own pending-request
-  record, and `MainActivity`'s `KEY_PENDING_WIDGET_ID` for the widget
-  bind/configure flow.
-
-  Reopened because the rationale weighs the flag as "crash-loop-on-restore
-  protection", and that is narrower than what the attribute actually does. When
-  a process dies the system removes any activity that had not yet saved its
-  state, and an activity is stateless *precisely while it is resumed and
-  visible* — which is what the launcher is when a batch of app updates kills
-  it. So the case is not a rare crash loop; it is the ordinary path. Android's
-  own documentation names the home screen as the example for the attribute
-  ("the activity that displays the Home screen uses this setting to make sure
-  that it doesn't get removed if it crashes for some reason"), and AOSP's
-  Launcher3 sets it, which leaves Type Launcher as the only home app on the
-  device without the guard.
-
-  What it would cost: an icon-pick or widget-configure result that was in
-  flight *at the moment the process died* is dropped. Rare, and the flows
-  recover on the next attempt.
-
-  What it might buy: the launcher still being there when the user presses Home
-  after an update batch. The reported symptom is the phone falling back to the
-  other launcher, escaped by opening Type Launcher by hand — with the home role
-  never revoked, so no launcher-side state reflects it.
-
-  Not yet established that this is the cause, and there appear to be **two
-  distinct failures** here, not one:
-
-  **A — silent fallback.** After a batch of app updates, a Home press goes
-  straight to the other launcher with no prompt, and stays that way until Type
-  Launcher is opened by hand from that launcher. The home role is still held
-  throughout. Seen repeatedly, roughly weekly.
-
-  **B — the resolver sheet.** Android's "which launcher app would you like to
-  use" sheet appears. Left unanswered, so nothing was revoked; opening Type
-  Launcher afterwards confirms it still holds the role. Seen once, separately
-  from A.
-
-  Both are consistent with the home activity not being resolvable at the moment
-  Home was pressed, differing in whether the system fell back silently or
-  asked — but A *persisting* until a manual launch is what the momentary
-  install window does not explain, and is the part the saved-state flag would.
-  The observation that argues against the flag explaining everything: the
-  "which launcher app would you like to use" resolver sheet, left it
-  unanswered, opened Type Launcher by hand, and found it still holding the
-  role. A dropped home activity does not produce that sheet  — the system would re-resolve to the role
-  holder and start it. A sheet means home resolution could not reach an
-  unambiguous target *while the role still named us*, which is what the
-  installer swapping the APK looks like: during the replace there is no home
-  activity to resolve to, and nothing has been revoked. So the flag addresses
-  at most A.
-
-  The evidence that separates them is a bug report carrying the `processExit`
-  records, the `ownPackage lastUpdateTime`, and the home-role line. A previous
-  run ending in `packageUpdated` whose timestamp sits beside this package's own
-  update time confirms the install window (B). One ending in `lowMemory` or
-  `crash` at foreground importance points back at the saved-state flag (A). The
-  **gap** between that exit timestamp and this run's first log line is what
-  tells the two apart even when the reason is the same: seconds means a
-  momentary window, hours means the launcher stayed unreachable until it was
-  started by hand, which is A's signature. Decide after a
-  report from a real device, and if the flag goes in, the test and its comment
-  are the record to update — a reversal belongs in `SPEC.md` with its reason,
-  not silently swapped.
 
 - **"Default" / "Undefault" needs reconciling with its translations.** The
   long-press menu on a contact's number toggles whether that number is the
