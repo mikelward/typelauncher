@@ -434,6 +434,45 @@
 
 ### Decisions needing review
 
+- **`stateNotNeeded` on the home activity is an open question, not a settled
+  one.** `ManifestUnitTest.mainActivity_manifestHasLauncherFlagsAndCalendarPermission`
+  asserts `android:stateNotNeeded` is **absent** from `MainActivity`, with a
+  rationale in the test: the flag lets Android restart the launcher with a null
+  saved-state bundle, which breaks every in-flight-result recovery carried
+  through instance state — the icon picker's `rememberSaveable`
+  `pendingIconPickAppId`, `ActivityResultRegistry`'s own pending-request
+  record, and `MainActivity`'s `KEY_PENDING_WIDGET_ID` for the widget
+  bind/configure flow.
+
+  Reopened because the rationale weighs the flag as "crash-loop-on-restore
+  protection", and that is narrower than what the attribute actually does. When
+  a process dies the system removes any activity that had not yet saved its
+  state, and an activity is stateless *precisely while it is resumed and
+  visible* — which is what the launcher is when a batch of app updates kills
+  it. So the case is not a rare crash loop; it is the ordinary path. Android's
+  own documentation names the home screen as the example for the attribute
+  ("the activity that displays the Home screen uses this setting to make sure
+  that it doesn't get removed if it crashes for some reason"), and AOSP's
+  Launcher3 sets it, which leaves Type Launcher as the only home app on the
+  device without the guard.
+
+  What it would cost: an icon-pick or widget-configure result that was in
+  flight *at the moment the process died* is dropped. Rare, and the flows
+  recover on the next attempt.
+
+  What it might buy: the launcher still being there when the user presses Home
+  after an update batch. The reported symptom is the phone falling back to the
+  other launcher, escaped by opening Type Launcher by hand — with the home role
+  never revoked, so no launcher-side state reflects it.
+
+  Not yet established that this is the cause. The evidence that would settle it
+  is a bug report whose `processExit` line shows the previous run ending in
+  `packageUpdated` or `lowMemory` at foreground importance; the exit-reason
+  logging that produces it is the other half of this work. Decide after a
+  report from a real device, and if the flag goes in, the test and its comment
+  are the record to update — a reversal belongs in `SPEC.md` with its reason,
+  not silently swapped.
+
 - **"Default" / "Undefault" needs reconciling with its translations.** The
   long-press menu on a contact's number toggles whether that number is the
   default, and the English labels are `Default` and `Undefault` — the second is
