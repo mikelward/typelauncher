@@ -145,6 +145,13 @@ internal class LauncherViewModel(
     // The foreground icon warm-up (see [warmIconCache]). Held so leaving the
     // launcher cancels it: warming while backgrounded would refill exactly what
     // the trim just freed, in the states Play measures.
+    // Declared with the other fields rather than beside [FilterTiming], because
+    // `refreshFilteredApps` is reachable from `init` -- the permission coercion
+    // calls it before the constructor finishes -- and Kotlin initializes properties
+    // in declaration order, so a declaration further down the class body is still
+    // null when that first call records into it.
+    private val typedFilterTiming = FilterTiming()
+    private val blankFilterTiming = FilterTiming()
     private var iconWarmUpJob: Job? = null
     private var iconWarmUpDebounceJob: Job? = null
 
@@ -4173,8 +4180,43 @@ internal class LauncherViewModel(
         scheduleIconWarmUp(reason = "listsRefreshed")
     }
 
+    /**
+     * Times [refreshFilteredApps], which runs on the main thread for every keystroke.
+     *
+     * Here to answer one question with a number instead of an argument: is the
+     * per-keystroke filter actually eating the frame budget? Moving it off Main would
+     * not make it faster -- it is the same sequential sort either way -- it would free
+     * Main to draw and let `mapLatest` cancel the filters a fast typist supersedes.
+     * That is worth doing at 5 ms a keystroke and actively harmful at 1 ms, where it
+     * would only add a frame of latency. Nobody has measured it.
+     *
+     * Blank and typed queries are counted separately because they are different code
+     * paths in `filterByName` -- the blank one sorts the whole inventory, the typed one
+     * matches and ranks -- and averaging them together would hide whichever is slower.
+     */
+    private class FilterTiming {
+        var samples = 0
+        var totalNanos = 0L
+        var maxNanos = 0L
+
+        fun record(elapsedNanos: Long) {
+            samples++
+            totalNanos += elapsedNanos
+            if (elapsedNanos > maxNanos) maxNanos = elapsedNanos
+        }
+
+        fun avgMicros(): Long = if (samples == 0) 0 else (totalNanos / samples) / 1_000
+        fun maxMicros(): Long = maxNanos / 1_000
+        fun reset() {
+            samples = 0
+            totalNanos = 0
+            maxNanos = 0
+        }
+    }
+
     private fun refreshFilteredApps() {
         val query = _uiState.value.query.trim()
+        val startedAtNanos = SystemClock.elapsedRealtimeNanos()
         _uiState.update { state ->
             val dockedIds = dockedAppIdsForState(state)
             val workDockedIds = workDockedAppIdsForState(state)
@@ -4188,6 +4230,48 @@ internal class LauncherViewModel(
                 ).markVisibility(),
                 contactResults = contactResultsFor(state, query),
                 eventResults = eventResultsFor(state, query),
+            )
+        }
+        recordFilterTiming(
+            elapsedNanos = SystemClock.elapsedRealtimeNanos() - startedAtNanos,
+            typed = query.isNotEmpty(),
+        )
+    }
+
+    /**
+     * Accumulates rather than logging per keystroke, and emits off the main thread.
+     *
+     * Both halves matter. Logging every keystroke would put the measurement on the
+     * path it is measuring; batching alone only makes that intermittent, and an
+     * intermittent hitch on one keystroke in 25 is indistinguishable from the very
+     * symptom this exists to diagnose. `LauncherDebugLog.event` formats the message
+     * twice, takes the buffer lock, and fans out to its sinks -- one of which writes
+     * to disk. None of that belongs on a keystroke.
+     *
+     * Only the emit moves. The accumulate-and-reset stays synchronous (three
+     * arithmetic ops) so a burst of keystrokes cannot race the reset and report the
+     * same window twice.
+     */
+    private fun recordFilterTiming(elapsedNanos: Long, typed: Boolean) {
+        val timing = if (typed) typedFilterTiming else blankFilterTiming
+        timing.record(elapsedNanos)
+        if (timing.samples < FILTER_TIMING_SAMPLE_INTERVAL) return
+        val samples = timing.samples
+        val avgMicros = timing.avgMicros()
+        val maxMicros = timing.maxMicros()
+        val appCount = installedApps.size
+        timing.reset()
+        viewModelScope.launch(ioDispatcher) {
+            LauncherDebugLog.event(
+                // No query text or length: the query is search history, which stays
+                // off every artifact that leaves the device, logs included. `typed`
+                // is the only thing about it worth knowing here.
+                "refreshFilteredApps timing typed=%s samples=%s avgMicros=%s maxMicros=%s apps=%s",
+                typed,
+                samples,
+                avgMicros,
+                maxMicros,
+                appCount,
             )
         }
     }
@@ -5230,6 +5314,10 @@ private const val SNAPSHOT_TOP_LAUNCH_COUNT = 50
 // longest ago -- the home screen still on screen behind the search field.
 // Long enough to swallow a drag-reorder, which calls `refreshLists` once per move,
 // and short enough that a settled change is warm before the user can act on it.
+// Enough samples to average out a single scheduling hiccup, few enough that a normal
+// search emits a line rather than needing a long typing session to say anything.
+internal const val FILTER_TIMING_SAMPLE_INTERVAL = 25
+
 internal const val ICON_WARM_UP_DEBOUNCE_MILLIS = 150L
 
 private const val WARM_UP_CACHE_CEILING_FRACTION = 0.75
