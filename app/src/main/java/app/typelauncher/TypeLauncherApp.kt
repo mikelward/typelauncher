@@ -14,6 +14,11 @@ import kotlinx.coroutines.launch
  * or surfaced by the post-crash prompt on the next launch. Crashlytics
  * ([LauncherTelemetry]) still installs its own uncaught handler; the crash
  * handler here chains to it.
+ *
+ * It also asks the platform why the previous processes ended
+ * ([logRecentProcessExits]), which is the only way to see the deaths that leave
+ * no in-process trace — an ANR, a native crash, an out-of-memory reclaim, or
+ * the installer stopping us for an update.
  */
 class TypeLauncherApp : Application() {
 
@@ -58,7 +63,22 @@ class TypeLauncherApp : Application() {
         fileSink.start()
         LauncherDebugLog.addSink(fileSink)
         debugFileSink = fileSink
+        logProcessExitReasons()
         applyTelemetryPreference()
+    }
+
+    /**
+     * Asks the platform why the launcher's recent processes ended and writes the
+     * answer into this run's log.
+     *
+     * Off the main thread because it is an `ActivityManager` IPC and `onCreate`
+     * is the cold-start path ("Fast loading"). Ordering against the sink's own
+     * worker does not matter: this run's log file is written from the buffer,
+     * and the rotation that preserves the *previous* run is already enqueued
+     * ahead of any write.
+     */
+    private fun logProcessExitReasons() {
+        appScope.launch(Dispatchers.IO) { logRecentProcessExits(this@TypeLauncherApp) }
     }
 
     /**
