@@ -92,6 +92,89 @@
   than inferring. The CI behavior itself does not depend on the answer: the skip
   gates on fork status, not on the secret, so it holds under either scope.
 
+- **Scale the retained icon count by device RAM tier.** The background trim added
+  2026-08-27 keeps the same set — dock plus the top 50 apps — whether the phone
+  has 4GB or 16GB. That is backwards relative to how the threshold works: Play
+  grades its memory and bitmap-memory thresholds **by device RAM tier**, so the
+  cheapest device, where the limit is tightest, currently gets exactly the same
+  footprint as a flagship.
+
+  Scaling the count off `ActivityManager.getMemoryClass()` (or `isLowRamDevice`
+  as the coarse signal) would put the app clearly under where it is tight and
+  keep full warmth where there is headroom, at no cost on a high-tier device.
+
+  Two things to settle when doing it. What the low-tier floor should be — one
+  screenful is the obvious candidate, but a 42-icon screen is 4.5MB at xxhdpi
+  and 8.0MB at xxxhdpi, and a cheap phone can still be high-density, so the
+  floor wants deriving from icon size rather than fixing as a count. And whether
+  to scale the **foreground** budget too: the 24MB cache is also unscaled, and
+  on a 4GB device it is a larger share of what the app is allowed. That is the
+  riskier half — the foreground budget is what keeps scrolling free of
+  re-rasterization — so it wants a device to test on before being touched.
+
+  `minSdk = 34` does not cover this. It raises the OS floor, not the RAM floor:
+  entry-level phones ship with current Android, so a new Android 14/15 device
+  with 4GB is in scope, and Android Go targets that segment specifically. The
+  low RAM tier is exactly where the threshold is tightest, and minSdk excludes
+  none of it.
+
+  Nothing blocks doing this — `getMemoryClass()` and `isLowRamDevice` are
+  ordinary runtime reads. What is blocked is *verifying* it: Play vitals has no
+  data for this app and no handset is available, so the effect can be reasoned
+  about but not measured.
+
+  Worth knowing before sizing any of this: launchers likely fall under Play's
+  **Personalization** category, alongside wallpaper and theme apps, which hold
+  far less resident state and have no reason to stay warm. If thresholds are set
+  against that comparison set, a launcher's usage shape is unfavorable and the
+  margin matters more, not less. Unverified — Play vitals reports "not enough
+  data" for this app, so every figure here is arithmetic rather than
+  measurement, and the first real signal is vitals once there are enough
+  installs to report.
+
+- **Bring the icon-cache bullet in `SPEC.md` back up to spec altitude.** Codex
+  flagged it on PR #678 and the flag is fair: that one bullet carries concrete
+  class names, a byte budget, cache-key shape, dispatcher names, and the
+  in-flight coalescing mechanism — all facts that live in the code and change
+  with it, which is exactly what the "product and architecture decisions, not
+  low-level implementation detail" rule excludes.
+
+  Not done in #678 deliberately: the offending text is almost entirely
+  pre-existing, so rewriting the paragraph around a memory fix would turn that
+  PR into a spec refactor and land the rewrite unreviewed as a side effect of
+  something unrelated. Worth its own change, where the diff is the point.
+
+  The test to apply, bullet by bullet: would this still be true and worth
+  stating if the implementation were rewritten? Keep the decisions — lazy icon
+  loading with a placeholder, per-size rasterization, one budget rather than an
+  entry count, background trimming and what it keeps, the trade a dropped icon
+  costs. Drop the rest into the code, where it already lives.
+
+- **Give the icon cache a disk-backed miss path, so a trimmed icon comes back
+  cheaply.** The background trim added 2026-08-27 drops everything outside the
+  priority set when the launcher goes off screen. Coming back, each dropped icon
+  is re-resolved through `LauncherApps` and re-rasterized from scratch, with its
+  row painting the placeholder until that lands — the trim's real cost, and the
+  reason the retained set cannot simply be made small.
+
+  `IconSnapshotStore` already writes pre-rasterized tiles as raw pixel buffers,
+  and a read of one is a plain file read with no decoder cost — far cheaper than
+  a resolve plus a rasterize. But it does not help here, for two reasons. It is
+  read exactly once, in `LauncherViewModel`'s init block, so nothing consults it
+  after startup. And it persists only the priority set — precisely the ids the
+  trim *keeps* — so even a lookup would miss on every icon the trim dropped.
+
+  Two changes, and they are separable. Have `AppIconLoader` consult the snapshot
+  on a miss before falling back to a resolve, which alone helps any icon still on
+  disk. And widen what is persisted beyond the priority set, so the trimmed icons
+  are actually there to be found — that one trades disk for warmth and needs a
+  cap, since the whole app list at two sizes is not a small directory.
+
+  Sizing matters more than it looks: at 4 bytes/px a 56dp tile is 110KB at xxhdpi
+  and 196KB at xxxhdpi, so persisting a couple of hundred at two sizes is tens of
+  megabytes of storage to save tens of milliseconds of resolve. Worth measuring
+  what a resolve-plus-rasterize actually costs on a handset before assuming the
+  trade is good.
 - **Derive the icon-cache priority set from what is actually on the home screen,
   rather than from launch counts.** The background trim added 2026-08-27 keeps
   the dock (folder members included) plus the top 50 apps by launch count, which
