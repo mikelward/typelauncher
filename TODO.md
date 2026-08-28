@@ -465,10 +465,42 @@
   other launcher, escaped by opening Type Launcher by hand — with the home role
   never revoked, so no launcher-side state reflects it.
 
-  Not yet established that this is the cause. The evidence that would settle it
-  is a bug report whose `processExit` line shows the previous run ending in
-  `packageUpdated` or `lowMemory` at foreground importance; the exit-reason
-  logging that produces it is the other half of this work. Decide after a
+  Not yet established that this is the cause, and there appear to be **two
+  distinct failures** here, not one:
+
+  **A — silent fallback.** After a batch of app updates, a Home press goes
+  straight to the other launcher with no prompt, and stays that way until Type
+  Launcher is opened by hand from that launcher. The home role is still held
+  throughout. Seen repeatedly, roughly weekly.
+
+  **B — the resolver sheet.** Android's "which launcher app would you like to
+  use" sheet appears. Left unanswered, so nothing was revoked; opening Type
+  Launcher afterwards confirms it still holds the role. Seen once, separately
+  from A.
+
+  Both are consistent with the home activity not being resolvable at the moment
+  Home was pressed, differing in whether the system fell back silently or
+  asked — but A *persisting* until a manual launch is what the momentary
+  install window does not explain, and is the part the saved-state flag would.
+  The observation that argues against the flag explaining everything: the
+  "which launcher app would you like to use" resolver sheet, left it
+  unanswered, opened Type Launcher by hand, and found it still holding the
+  role. A dropped home activity does not produce that sheet  — the system would re-resolve to the role
+  holder and start it. A sheet means home resolution could not reach an
+  unambiguous target *while the role still named us*, which is what the
+  installer swapping the APK looks like: during the replace there is no home
+  activity to resolve to, and nothing has been revoked. So the flag addresses
+  at most A.
+
+  The evidence that separates them is a bug report carrying the `processExit`
+  records, the `ownPackage lastUpdateTime`, and the home-role line. A previous
+  run ending in `packageUpdated` whose timestamp sits beside this package's own
+  update time confirms the install window (B). One ending in `lowMemory` or
+  `crash` at foreground importance points back at the saved-state flag (A). The
+  **gap** between that exit timestamp and this run's first log line is what
+  tells the two apart even when the reason is the same: seconds means a
+  momentary window, hours means the launcher stayed unreachable until it was
+  started by hand, which is A's signature. Decide after a
   report from a real device, and if the flag goes in, the test and its comment
   are the record to update — a reversal belongs in `SPEC.md` with its reason,
   not silently swapped.
