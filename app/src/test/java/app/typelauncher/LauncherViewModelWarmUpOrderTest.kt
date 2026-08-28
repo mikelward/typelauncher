@@ -169,6 +169,27 @@ class LauncherViewModelWarmUpOrderTest {
     }
 
     @Test
+    fun pinsWarmInGridRankOrderNotTheOrderTheyWereDocked() {
+        // The stores keep `dockedAppIds` in insertion order; the rendered list floats
+        // pins by their persisted grid coordinates. Once a user has rearranged the
+        // dock the two disagree, and warming by insertion order heads the sweep with
+        // the wrong icon -- the second-row pin, while the first visible one waits.
+        seedApps()
+        setSortOrder(AppListSortOrder.Alphabetical)
+        // Docked Middle first, Zebra second, then dragged Zebra into slot 0.
+        context.getSharedPreferences("docked_apps", Context.MODE_PRIVATE)
+            .edit()
+            .putString("docked_app_ids", "${appId("middle")}\n${appId("zebra")}")
+            .putString(
+                "docked_app_positions",
+                "${appId("middle")}\t0\t1\n${appId("zebra")}\t0\t0",
+            )
+            .commit()
+
+        assertEquals(listOf("Zebra", "Middle", "Aardvark"), warmOrderNames())
+    }
+
+    @Test
     fun aReversedSortWarmsItsForwardOrder() {
         // Reversed variants share their forward counterpart's data ordering -- the
         // flip is `reverseLayout` in the UI -- and index 0 renders at the visual
