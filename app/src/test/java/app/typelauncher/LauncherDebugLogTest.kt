@@ -33,6 +33,67 @@ class LauncherDebugLogTest {
     @Test
     fun snapshotIsEmptyAfterReset() {
         assertEquals(emptyList<String>(), LauncherDebugLog.snapshot())
+        assertEquals(emptyList<String>(), LauncherDebugLog.pinnedSnapshot())
+    }
+
+    @Test
+    fun iconCacheStatsAreRecordedAsOneBufferedLine() {
+        // Buffered, not logcat-only: this is the copy that reaches the file
+        // behind the next report's "Previous run" section, which is the only
+        // place a crashed run's cache behavior can still be read (Codex on PR
+        // #689). The per-lookup counters that used to carry it are logcat-only
+        // now, so if this line stopped being an `event` the fact would go with
+        // it, silently.
+        AppIconLoader.logCacheStats()
+
+        val line = LauncherDebugLog.snapshot().single { it.contains("AppIconLoader cache stats") }
+        assertTrue(line, line.contains("entries="))
+        assertTrue(line, line.contains("bytes="))
+        assertTrue(line, line.contains("hits="))
+        assertTrue(line, line.contains("misses="))
+    }
+
+    @Test
+    fun pinnedEventOutlivesTheRingBufferThatEvictsIt() {
+        // The whole reason pinning exists. Every real report has been captured
+        // hours into a run, by which time the ring has turned over several
+        // times and the lines explaining how the run started are gone — so the
+        // test that matters is that a pinned line is still there *after* the
+        // ring has evicted its own copy, not merely that it was recorded.
+        LauncherDebugLog.pinnedEvent("process started")
+        repeat(LOG_BUFFER_MAX_ENTRIES) { index -> LauncherDebugLog.event("filler %s", index) }
+
+        assertTrue(
+            "the ring evicted it",
+            LauncherDebugLog.snapshot().none { it.contains("process started") },
+        )
+        assertTrue(
+            "the pinned copy survived",
+            LauncherDebugLog.pinnedSnapshot().any { it.contains("process started") },
+        )
+    }
+
+    @Test
+    fun pinnedEventIsAlsoAnOrdinaryLogLine() {
+        // Pinning adds a second reference; it must not divert the line out of
+        // the chronology, or the log would read as though startup logged
+        // nothing at all.
+        LauncherDebugLog.event("before")
+        LauncherDebugLog.pinnedEvent("pinned line")
+        LauncherDebugLog.event("after")
+
+        val messages = LauncherDebugLog.snapshot().map { it.substringAfter("TypeLauncherDebug: ") }
+        assertEquals(listOf("before", "pinned line", "after"), messages)
+    }
+
+    @Test
+    fun pinnedBufferEvictsItsOwnOldestAndKeepsTheNewest() {
+        repeat(PINNED_BUFFER_MAX_ENTRIES + 1) { index -> LauncherDebugLog.pinnedEvent("pinned %s", index) }
+
+        val pinned = LauncherDebugLog.pinnedSnapshot()
+        assertEquals(PINNED_BUFFER_MAX_ENTRIES, pinned.size)
+        assertTrue("dropped the oldest", pinned.none { it.endsWith("pinned 0") })
+        assertTrue("kept the newest", pinned.last().endsWith("pinned $PINNED_BUFFER_MAX_ENTRIES"))
     }
 
     @Test

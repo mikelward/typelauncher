@@ -223,7 +223,79 @@ class BugReportPayloadTest {
         assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
     }
 
-    private fun basePayload(previousRun: String?): String = buildBugReportPayload(
+    @Test
+    fun payloadCarriesTheProcessStartSectionBetweenTheTwoRuns() {
+        // The section exists because the ring buffer had already evicted these
+        // lines in every real report, so what matters is that it renders from
+        // the pinned list independently of the recent log — and that it sits
+        // where the transition reads in order: last run, then how this one
+        // began, then this run.
+        val payload = basePayload(
+            previousRun = "11-04 08:59:59.000 D TypeLauncherDebug: home ready",
+            pinnedLog = listOf("11-04 09:00:00.000 D TypeLauncherDebug: processExit reason=packageUpdated"),
+        )
+
+        assertTrue(payload.contains("--- Process start (as of capture) ---"))
+        assertTrue(payload.contains("processExit reason=packageUpdated"))
+        assertTrue(
+            "sits after the previous run and before this run's log",
+            payload.indexOf("--- Previous run") <
+                payload.indexOf("--- Process start (as of capture) ---"),
+        )
+        assertTrue(
+            payload.indexOf("--- Process start (as of capture) ---") < payload.indexOf("--- Recent log"),
+        )
+    }
+
+    @Test
+    fun processStartSectionIsLabelledASnapshotAndClaimsNothingMore() {
+        // These lines are written from background work, so the section is a
+        // picture of the moment share was tapped and nothing more. An earlier
+        // version asserted an empty section meant the startup diagnostic had not
+        // run, and keeping that assertion true drew eight review findings in a
+        // row; the heading now says what the section actually is.
+        val payload = basePayload(previousRun = null, pinnedLog = emptyList())
+
+        assertTrue(payload.contains("--- Process start (as of capture) ---"))
+        assertTrue(payload.contains("(nothing captured)"))
+        assertTrue("claims nothing about why it is empty", !payload.contains("(nothing recorded)"))
+    }
+
+    @Test
+    fun oversizedProcessStartSectionKeepsItsNewestLines() {
+        // The section is truncated from its head, so its lines have to be
+        // chronological — the exit that explains this start is the newest one,
+        // and dropping it while labelling it "older" is the one outcome this
+        // section must not produce (Codex on PR #689).
+        val pinned = (0 until 40).map { "line-$it " + "x".repeat(600) } +
+            "11-04 09:00:00.000 D TypeLauncherDebug: processExit reason=packageUpdated"
+
+        val payload = basePayload(previousRun = null, pinnedLog = pinned)
+
+        assertTrue("the newest line survives", payload.contains("processExit reason=packageUpdated"))
+        assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
+    }
+
+    @Test
+    fun payloadIncludesIconCacheCountersOnlyWhenSupplied() {
+        assertTrue(
+            "no section without stats",
+            !basePayload(previousRun = null).contains("--- Icon cache ---"),
+        )
+        val payload = basePayload(
+            previousRun = null,
+            iconCache = AppIconLoader.CacheStats(entries = 128, bytes = 6_458_904, hits = 32_949, misses = 15_301),
+        )
+        assertTrue(payload.contains("--- Icon cache ---"))
+        assertTrue(payload.contains("Entries: 128 (6458904 bytes)"))
+        assertTrue(payload.contains("Lookups: 32949 hits, 15301 misses"))
+    }
+
+    private fun basePayload(
+        previousRun: String?,
+        pinnedLog: List<String> = emptyList(),
+        iconCache: AppIconLoader.CacheStats? = null,
+    ): String = buildBugReportPayload(
         nowMillis = 1_700_000_000_000L,
         versionName = "1.0",
         versionCode = 1L,
@@ -245,5 +317,7 @@ class BugReportPayloadTest {
         widgetPages = listOf(emptyList()),
         recentLog = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
         previousRun = previousRun,
+        pinnedLog = pinnedLog,
+        iconCache = iconCache,
     )
 }

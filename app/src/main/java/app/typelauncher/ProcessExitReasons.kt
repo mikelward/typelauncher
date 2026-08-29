@@ -41,10 +41,18 @@ private const val MAX_EXIT_RECORDS = 5
  * varies per user and records when their launcher died — so it is marked
  * [sensitive]. Both stay in full in the on-device log, where the user reviews
  * them before sharing, which is where their diagnostic value lives anyway.
+ *
+ * Every line here is pinned ([LauncherDebugLog.pinnedEvent]), because each is
+ * written once at startup and read hours later: in every report so far the ring
+ * buffer had already evicted them by the time the user shared one, which left
+ * this diagnostic answering nothing on exactly the reports it exists for. The
+ * failures are pinned too, as a sanitized status line beside the throwable's own
+ * ring entry — a section that has lost the record of a failed query reads as a
+ * complete diagnostic that simply found nothing.
  */
 internal fun logRecentProcessExits(context: Context) {
     val activityManager = context.getSystemService<ActivityManager>() ?: run {
-        LauncherDebugLog.event("processExits unavailable reason=%s", safe("noActivityManager"))
+        LauncherDebugLog.pinnedEvent("processExits unavailable reason=%s", safe("noActivityManager"))
         return
     }
     val exits = try {
@@ -56,10 +64,16 @@ internal fun logRecentProcessExits(context: Context) {
         // this existed: the rest of the log is unaffected, so report and return
         // rather than letting the failure escape into cold start.
         LauncherDebugLog.failure(exception, "processExits query failed")
+        // And pin the fact of it, sanitized and without the stack trace the
+        // line above carries. Otherwise, once the ring turns over, the Process
+        // start section shows the later home-resolution line with no exit
+        // records beside it — an incomplete startup diagnostic that reads as a
+        // complete one (Codex on PR #689).
+        LauncherDebugLog.pinnedEvent("processExits unavailable reason=%s", safe("queryFailed"))
         return
     }
     if (exits.isEmpty()) {
-        LauncherDebugLog.event("processExits none")
+        LauncherDebugLog.pinnedEvent("processExits none")
     } else {
         logExitRecords(exits)
     }
@@ -71,10 +85,14 @@ internal fun logRecentProcessExits(context: Context) {
 
 /** See [logRecentProcessExits]; split out so a later failure cannot preempt it. */
 private fun logExitRecords(exits: List<ApplicationExitInfo>) {
-    // Newest first, which is how the platform returns them and the order a
-    // reader wants: the most recent exit is the one that explains this start.
-    exits.forEach { info ->
-        LauncherDebugLog.event(
+    // Oldest first, reversing the order the platform returns them in, so these
+    // lines read chronologically like every other line in the log and end on
+    // the exit that explains this start. Not only for reading: the pinned
+    // section is truncated from its head when it overflows its budget, which
+    // with newest-first would have discarded the most recent exits and labelled
+    // them "older" (Codex on PR #689).
+    exits.reversed().forEach { info ->
+        LauncherDebugLog.pinnedEvent(
             "processExit reason=%s importance=%s status=%s timestamp=%s description=%s",
             safe(exitReasonName(info.reason)),
             safe(processImportanceName(info.importance)),
@@ -178,7 +196,7 @@ internal fun processImportanceName(importance: Int): String = when (importance) 
 private fun logOwnPackageTimestamps(context: Context) {
     try {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
-        LauncherDebugLog.event(
+        LauncherDebugLog.pinnedEvent(
             "ownPackage lastUpdateTime=%s firstInstallTime=%s",
             sensitive(info.lastUpdateTime),
             sensitive(info.firstInstallTime),
@@ -188,6 +206,7 @@ private fun logOwnPackageTimestamps(context: Context) {
         // the exit records above still stand on their own, so report and carry
         // on rather than losing them to it.
         LauncherDebugLog.failure(exception, "ownPackage query failed")
+        LauncherDebugLog.pinnedEvent("ownPackage unavailable reason=%s", safe("notFound"))
     } catch (exception: RuntimeException) {
         // The lookup is a binder call, so it can also fail as a RuntimeException
         // — a dead system_server mid-restart being the realistic case, which is
@@ -195,5 +214,6 @@ private fun logOwnPackageTimestamps(context: Context) {
         // the same reason as above: this is the optional half, and it must not
         // take the exit records down with it.
         LauncherDebugLog.failure(exception, "ownPackage query failed")
+        LauncherDebugLog.pinnedEvent("ownPackage unavailable reason=%s", safe("queryFailed"))
     }
 }

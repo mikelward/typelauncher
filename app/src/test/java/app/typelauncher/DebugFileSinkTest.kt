@@ -88,6 +88,58 @@ class DebugFileSinkTest {
     }
 
     @Test
+    fun `a pinned line survives in the persisted log after the ring evicts it`() {
+        // The case pinning exists for, on the path pinning did not originally
+        // reach: the startup lines roll out of the ring over a long run, then
+        // the process ends, and the next launch reads this file. The in-memory
+        // pinned buffer dies with the process, so if it is not written here the
+        // previous-run section loses exactly the evidence (Codex on PR #689).
+        val dir = folder.newFolder()
+        val sink = DebugFileSink(dir)
+        sink.start()
+
+        LauncherDebugLog.pinnedEvent("homeStart via=%s", safe("chooser"))
+        repeat(LOG_BUFFER_MAX_ENTRIES + 1) { LauncherDebugLog.event("filler %s", it) }
+        assertFalse(
+            "the ring must have evicted it for this to be testing anything",
+            LauncherDebugLog.snapshot().any { it.contains("homeStart via=chooser") },
+        )
+
+        sink.log("trigger") // writes the snapshot to disk (async)
+        sink.awaitIdleForTest()
+
+        val next = DebugFileSink(dir)
+        next.start()
+        next.awaitIdleForTest()
+        assertTrue(next.readPreviousRun()!!.contains("homeStart via=chooser"))
+    }
+
+    @Test
+    fun `the crash snapshot carries the icon-cache counters`() {
+        // A foreground crash never reaches MainActivity.onStop, the other place
+        // these are recorded, so this path is the only way the run that actually
+        // crashed contributes any. It has to land *before* the snapshot is
+        // written and inside the bounded flush, and a rebase has silently undone
+        // that ordering once — hence a test on the persisted bytes rather than
+        // on where the call sits (Codex on PR #689).
+        val dir = folder.newFolder()
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+
+        val sink = DebugFileSink(dir)
+        sink.start()
+        Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(
+            Thread.currentThread(),
+            IllegalStateException("layout blew up"),
+        )
+        sink.awaitIdleForTest()
+
+        val next = DebugFileSink(dir)
+        next.start()
+        next.awaitIdleForTest()
+        assertTrue(next.readPreviousRun()!!.contains("AppIconLoader cache stats"))
+    }
+
+    @Test
     fun `an unread previous run survives later boring restarts`() {
         val dir = folder.newFolder()
 

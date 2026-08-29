@@ -4741,11 +4741,22 @@ internal class LauncherViewModel(
     private fun loadInstalledApps(): List<InstalledApp> {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
+        // Logcat-only, here and for the two lines below. A reload costs eight
+        // buffer entries and a device installing updates runs one every minute,
+        // which is what left real reports covering barely an hour of a run that
+        // had gone on for eight; every fact they carried now rides on the single
+        // completion line at the end of this function instead.
+        // Buffered, not logcat-only, unlike the per-profile progress lines
+        // below: if the enumeration hangs or throws, the completion line
+        // never runs, and without this the previous-run report would carry no
+        // trace that app loading had even started (Codex on PR #689).
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
         val userManager = app.getSystemService<UserManager>()
         val profiles = launcherApps?.profiles.orEmpty()
-            .also { profiles -> LauncherDebugLog.event("loadInstalledApps profiles=%s", profiles.size) }
+            .also { profiles -> LauncherDebugLog.trace("loadInstalledApps profiles=${profiles.size}") }
+        // Per-profile counts for that completion line, in profile order.
+        val profileSummaries = mutableListOf<String>()
         // Resolve quiet mode once per profile rather than per activity. The
         // personal profile is never in quiet mode, so skip the binder call for
         // it. `isQuietModeEnabled` is documented since API 24 and requires no
@@ -4778,11 +4789,10 @@ internal class LauncherViewModel(
                     LauncherDebugLog.failure(exception, "loadInstalledApps profile rejected user=%s", user.hashCode())
                     emptyList()
                 }
-                LauncherDebugLog.event(
-                    "loadInstalledApps profile=%s activities=%s quiet=%s",
-                    user.hashCode(),
-                    activities.size,
-                    quietByUser[user] == true,
+                val quiet = quietByUser[user] == true
+                profileSummaries += "${user.hashCode()}:${activities.size}" + if (quiet) "(quiet)" else ""
+                LauncherDebugLog.trace(
+                    "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} quiet=$quiet",
                 )
                 activities
                     .map { activity ->
@@ -4839,7 +4849,19 @@ internal class LauncherViewModel(
             .applyCustomBadges()
             .applyIconOverrides()
             .applyDynamicCalendarToken()
-            .also { apps -> LauncherDebugLog.event("loadInstalledApps complete apps=%s", apps.size) }
+            .also { apps ->
+                LauncherDebugLog.event(
+                    "loadInstalledApps complete apps=%s profiles=%s activities=%s",
+                    apps.size,
+                    profiles.size,
+                    // One argument rather than a line per profile, so a
+                    // work-profile reload still costs one entry. A String, so
+                    // the default-withhold rule keeps the profile identifiers
+                    // on device; the app count beside it is the number that
+                    // carries to the mirror.
+                    profileSummaries.joinToString(separator = " ").ifEmpty { "(none)" },
+                )
+            }
     }
 
     /**

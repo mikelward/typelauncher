@@ -42,6 +42,17 @@ private const val MAX_PREVIOUS_RUNS = 5
 private const val PERSIST_BUDGET_CHARS = 150_000
 
 /**
+ * The slice of [PERSIST_BUDGET_CHARS] reserved for the pinned start-up lines,
+ * so they are never the part that gets trimmed.
+ *
+ * The persisted file is a *tail* — it keeps the newest and drops the oldest —
+ * which is the opposite of what the start-up lines need. Without a reserve
+ * they are the first thing to go, and the previous-run section of the next
+ * report loses exactly the evidence pinning exists to keep (Codex on PR #689).
+ */
+private const val PINNED_PERSIST_BUDGET_CHARS = 20_000
+
+/**
  * How long the crash handler waits for the final flush (queued behind any
  * in-flight write) before chaining on. Long enough to land the crash snapshot on
  * healthy storage, short enough that a stalled disk never delays Crashlytics or
@@ -192,8 +203,25 @@ internal class DebugFileSink internal constructor(
 
     private fun writeSnapshot() {
         runCatching {
-            val text = boundedLogTail(LauncherDebugLog.snapshot(), PERSIST_BUDGET_CHARS)
-                .joinToString("\n")
+            // The ring's own tail first, then whichever pinned lines it no
+            // longer holds. A pinned line is missing from that tail only
+            // because newer lines pushed it out — of the ring, or of the
+            // budget — so every one of them is older than everything in the
+            // tail, and prepending them keeps the file chronological without
+            // having to compare timestamps across a device zone change.
+            // Both buffers in one read, so nothing can land between them and
+            // be classified as older than the tail it is in fact newer than.
+            val snapshots = LauncherDebugLog.snapshots()
+            val ring = boundedLogTail(
+                snapshots.recent,
+                PERSIST_BUDGET_CHARS - PINNED_PERSIST_BUDGET_CHARS,
+            )
+            val alreadyKept = ring.toHashSet()
+            val pinned = boundedLogTail(
+                snapshots.pinned.filterNot { it in alreadyKept },
+                PINNED_PERSIST_BUDGET_CHARS,
+            )
+            val text = (pinned + ring).joinToString("\n")
             // Atomic replace: write a temp file, then rename it over the current
             // one. A kill mid-write then leaves the prior *complete* snapshot
             // intact rather than a truncated/empty file — surviving exactly that
@@ -318,7 +346,23 @@ internal class DebugFileSink internal constructor(
                 // a banner-raising crash-suffixed name. A graceful run never writes
                 // it, so an ordinary process death never raises the banner.
                 val flush = worker.submit {
+                    // Mandatory first, optional second, in that order and each in
+                    // its own runCatching. The icon-cache read is the optional
+                    // half: the fatal being handled here may be an
+                    // OutOfMemoryError the cache is itself implicated in, which is
+                    // exactly when reading it allocates and throws — and a shared
+                    // runCatching would take the marker and the snapshot down with
+                    // it (Codex on PR #689). On the worker rather than the dying
+                    // thread so a stalled cache lock is bounded by the deadline
+                    // below instead of running ahead of it.
                     runCatching { crashMarker.writeText("1") }
+                    // Still ahead of writeSnapshot, which is the whole reason
+                    // these are on this path: a foreground crash never reaches
+                    // `onStop`, where they are otherwise recorded, so without this
+                    // the run that actually crashed contributes no cache counters
+                    // at all — and a report's live read describes the process
+                    // doing the reporting, not the one that died.
+                    runCatching { AppIconLoader.logCacheStats() }
                     writeSnapshot()
                 }
                 runCatching { flush.get(CRASH_WRITE_TIMEOUT_MS, TimeUnit.MILLISECONDS) }

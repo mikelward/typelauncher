@@ -751,6 +751,11 @@ class MainActivity : ComponentActivity() {
             // trim below is about to free, and would do it in the states the trim
             // exists to shrink.
             viewModel.onLauncherHidden()
+            // The icon cache's counters, once, on the way out — see
+            // [AppIconLoader.logCacheStats] for why the end of a run is where
+            // they have to be written. One line per background trip, against the
+            // several hundred a run the old per-50-lookup interval cost.
+            AppIconLoader.logCacheStats()
             viewModel.persistIconSnapshot()
             // After the snapshot, never before: persistIconSnapshot harvests the
             // priority icons out of the cache, so trimming first would hand it a
