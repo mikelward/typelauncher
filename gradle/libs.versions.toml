@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.1"
+agp = "9.3.2"
 kotlin = "2.4.10"
 activity = "1.13.0"
 composeBom = "2026.08.00"
@@ -13,9 +13,9 @@ testCore = "1.7.0"
 uiautomator = "2.4.0"
 robolectric = "4.16.1"
 roborazzi = "1.72.0"
-firebaseBom = "34.17.0"
+firebaseBom = "34.18.0"
 googleServices = "4.5.0"
-firebaseCrashlyticsGradle = "3.0.7"
+firebaseCrashlyticsGradle = "3.0.8"
 playAppUpdate = "2.1.0"
 androidsvg = "1.4"
 # AboutLibraries — the open-source attribution list behind Settings → About →
