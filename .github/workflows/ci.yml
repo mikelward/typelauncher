@@ -1004,46 +1004,42 @@ jobs:
           app-id: ${{ secrets.LANES_APP_ID }}
           app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
 
-  deploy:
-    name: Distribute and release
-    # Production deployment job. Gated three ways:
-    #   1. `if:` — only runs on a push to main or a manual workflow_dispatch
-    #      explicitly targeting main (the dispatch UI defaults the ref
-    #      selector to main, but a maintainer could pick another branch,
-    #      so this re-checks `github.ref` rather than trusting that
-    #      default) — never on PRs.
-    #   2. `environment: production` — secrets used here
-    #      (RELEASE_KEYSTORE_*, PLAY_SERVICE_ACCOUNT_JSON,
-    #      GOOGLE_SERVICES_JSON) live in the `production`
-    #      environment with deployment protection rules. Configure the
-    #      environment in repo Settings → Environments → production:
-    #      restrict deployment branches to `main` and optionally
-    #      require a reviewer. This makes the boundary enforced by
-    #      GitHub, not just by the `if:` above (a malicious workflow
-    #      edit on an internal branch can change `if:` but cannot
-    #      bypass an environment protection rule).
-    #   3. `needs:` — only runs after build and connected-tests
-    #      both pass. A failing screenshot test on main now blocks the
-    #      release; the previous setup would have shipped anyway.
+  release-build:
+    name: Build the release AAB
+    # The signed AAB, built in parallel with `build` and `connected-tests`
+    # rather than after them.
+    #
+    # This used to be a run of steps inside `deploy`, which needs both of those
+    # jobs — so on every push to main the release compile and R8 started only
+    # once the slower of them had finished, adding its full ~3.5 min to the
+    # critical path for work that depends on nothing they produce. Splitting the
+    # build from the publish lets it overlap them; `deploy` still needs both, so
+    # nothing reaches Play until the tests and screenshots are green.
+    #
+    # Gated as `deploy` is — main-only by `if:`, `environment: production`
+    # because the upload keystore lives there — plus `docs_only`, which `deploy`
+    # gets transitively from its `needs:` and this job would otherwise miss: a
+    # docs-only push would build and sign an AAB that nothing then publishes.
     if: |
       github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: [build, connected-tests]
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.classify.outputs.docs_only != 'true'
+    needs: classify
     runs-on: ubuntu-latest
     environment: production
     env:
-      # Secret *presence* flags — see the note on the `build` job's env.
-      # A step's `if:` can't read that same step's `env:`, so the gates
-      # below evaluate these job-level booleans instead of the secrets
-      # directly; the secret values stay scoped to the steps that use them.
       HAS_GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
       HAS_RELEASE_KEYSTORE_SECRET: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
-      HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    outputs:
+      # Whether a signed AAB was actually produced. `deploy` gates its publish
+      # steps on this: they used to read `env.RELEASE_KEYSTORE_FILE`, which the
+      # keystore decode writes into *this* job's environment and cannot cross a
+      # job boundary — left as-is, every publish step would have silently
+      # skipped, which is exactly the failure `Require a release keystore`
+      # below exists to make impossible.
+      signed: ${{ steps.bundle.outputs.signed }}
     permissions:
       contents: read
-      # Used by "Build release notes" to walk recent main runs of this
-      # workflow and find the last one whose deploy job succeeded.
-      actions: read
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
@@ -1070,6 +1066,142 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
+
+      - name: Require a release keystore
+        # A push to main must end in a signed AAB. Without the keystore secret
+        # every step below skips on its own condition and the job goes green
+        # having built and published nothing -- indistinguishable, from the
+        # outside, from a release that worked. Fail here instead, naming what
+        # is missing, so a secret that was renamed, expired, or lost in a move
+        # to the `production` environment is caught on the push that broke it
+        # rather than the next time someone looks for a build that never came.
+        #
+        # Forks are exempt. They have no secrets by design, and building
+        # unsigned is a supported state here -- failing their main pushes would
+        # turn that into a red build. The `build` job keeps its release compile
+        # in exactly that case, so R8 still runs for them.
+        if: env.HAS_RELEASE_KEYSTORE_SECRET != 'true' && github.event.repository.fork != true
+        run: |
+          echo "::error::A push to main must produce a signed AAB, but RELEASE_KEYSTORE_BASE64 is unset or empty. Set it together with RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD, or this release would publish nothing."
+          exit 1
+
+      - name: Materialize release keystore
+        # Decoded whenever the keystore secret is present, independent of the
+        # Play upload secrets. This lets the user populate the keystore secrets
+        # first and download the resulting signed AAB from CI artifacts to do
+        # the manual seed upload Play Console requires for new listings, then
+        # add PLAY_SERVICE_ACCOUNT_JSON later to enable the automated upload.
+        # See docs/play-store-internal-track.md.
+        if: env.HAS_RELEASE_KEYSTORE_SECRET == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        # `deploy` job: writes `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`,
+        # same job, same gate, same fixed-path reasoning as the debug keystore above.
+        run: |  # zizmor: ignore[github-env]
+          # Same early validation as the debug keystore above: fail with a
+          # clear message on missing companion secrets, wrong base64, or a
+          # wrong password rather than at bundleRelease signing time.
+          missing=""
+          [ -z "$RELEASE_KEYSTORE_PASSWORD" ] && missing="$missing RELEASE_KEYSTORE_PASSWORD"
+          [ -z "$RELEASE_KEY_PASSWORD" ]      && missing="$missing RELEASE_KEY_PASSWORD"
+          [ -z "$RELEASE_KEY_ALIAS" ]         && missing="$missing RELEASE_KEY_ALIAS"
+          if [ -n "$missing" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
+          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/release.keystore" -storepass "$RELEASE_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded release keystore is not a valid keystore or RELEASE_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
+          echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
+
+      - name: Build release AAB
+        # Gated only on the keystore being present — a signed AAB is useful on
+        # its own (downloadable artifact for the seed upload, even before the
+        # Play service account is set up). Release signing config only attaches
+        # when all four RELEASE_KEYSTORE_* / RELEASE_KEY_* variables are set
+        # (see app/build.gradle.kts), which the decode step above guarantees
+        # whenever it sets RELEASE_KEYSTORE_FILE — it fails first if any of the
+        # other three is empty. Without them Play would reject the AAB anyway.
+        id: bundle
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: |
+          ./gradlew bundleRelease
+          # Read by `deploy` as needs.release-build.outputs.signed. Set
+          # after the build, so it means "a signed AAB exists" rather
+          # than "the keystore decoded".
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed AAB as workflow artifact
+        # Lets us download the signed AAB from the Actions UI for the one-time
+        # manual seed upload to Play Console. Useful indefinitely afterwards
+        # too if a release ever needs to be inspected or re-uploaded by hand.
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
+
+
+  deploy:
+    name: Distribute and release
+    # Production deployment job. Gated three ways:
+    #   1. `if:` — only runs on a push to main or a manual workflow_dispatch
+    #      explicitly targeting main (the dispatch UI defaults the ref
+    #      selector to main, but a maintainer could pick another branch,
+    #      so this re-checks `github.ref` rather than trusting that
+    #      default) — never on PRs.
+    #   2. `environment: production` — secrets used here
+    #      (RELEASE_KEYSTORE_*, PLAY_SERVICE_ACCOUNT_JSON,
+    #      GOOGLE_SERVICES_JSON) live in the `production`
+    #      environment with deployment protection rules. Configure the
+    #      environment in repo Settings → Environments → production:
+    #      restrict deployment branches to `main` and optionally
+    #      require a reviewer. This makes the boundary enforced by
+    #      GitHub, not just by the `if:` above (a malicious workflow
+    #      edit on an internal branch can change `if:` but cannot
+    #      bypass an environment protection rule).
+    #   3. `needs:` — only runs after build and connected-tests
+    #      both pass. A failing screenshot test on main now blocks the
+    #      release; the previous setup would have shipped anyway.
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [build, connected-tests, release-build]
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      # Secret *presence* flags — see the note on the `build` job's env.
+      # A step's `if:` can't read that same step's `env:`, so the gates
+      # below evaluate these job-level booleans instead of the secrets
+      # directly; the secret values stay scoped to the steps that use them.
+      HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    permissions:
+      contents: read
+      # Used by "Build release notes" to walk recent main runs of this
+      # workflow and find the last one whose deploy job succeeded.
+      actions: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # No later step in this job needs to push, and nothing here
+          # checks out PR-controlled content either (deploy only runs on
+          # push/workflow_dispatch against main) — but the token has no
+          # reason to sit in .git/config for the run's duration regardless,
+          # matching every other checkout in this workflow.
+          persist-credentials: false
 
       - name: Build release notes
         # Walks every commit in this push oldest-first and collects the
@@ -1365,84 +1497,15 @@ jobs:
             printf '%s\n' "$delim"
           } >> "$GITHUB_ENV"
 
-      - name: Require a release keystore
-        # A push to main must end in a signed AAB. Without the keystore secret
-        # every step below skips on its own condition and the job goes green
-        # having built and published nothing -- indistinguishable, from the
-        # outside, from a release that worked. Fail here instead, naming what
-        # is missing, so a secret that was renamed, expired, or lost in a move
-        # to the `production` environment is caught on the push that broke it
-        # rather than the next time someone looks for a build that never came.
-        #
-        # Forks are exempt. They have no secrets by design, and building
-        # unsigned is a supported state here -- failing their main pushes would
-        # turn that into a red build. The `build` job keeps its release compile
-        # in exactly that case, so R8 still runs for them.
-        if: env.HAS_RELEASE_KEYSTORE_SECRET != 'true' && github.event.repository.fork != true
-        run: |
-          echo "::error::A push to main must produce a signed AAB, but RELEASE_KEYSTORE_BASE64 is unset or empty. Set it together with RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD, or this release would publish nothing."
-          exit 1
-
-      - name: Materialize release keystore
-        # Decoded whenever the keystore secret is present, independent of the
-        # Play upload secrets. This lets the user populate the keystore secrets
-        # first and download the resulting signed AAB from CI artifacts to do
-        # the manual seed upload Play Console requires for new listings, then
-        # add PLAY_SERVICE_ACCOUNT_JSON later to enable the automated upload.
-        # See docs/play-store-internal-track.md.
-        if: env.HAS_RELEASE_KEYSTORE_SECRET == 'true'
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-        # `deploy` job: writes `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`,
-        # same job, same gate, same fixed-path reasoning as the debug keystore above.
-        run: |  # zizmor: ignore[github-env]
-          # Same early validation as the debug keystore above: fail with a
-          # clear message on missing companion secrets, wrong base64, or a
-          # wrong password rather than at bundleRelease signing time.
-          missing=""
-          [ -z "$RELEASE_KEYSTORE_PASSWORD" ] && missing="$missing RELEASE_KEYSTORE_PASSWORD"
-          [ -z "$RELEASE_KEY_PASSWORD" ]      && missing="$missing RELEASE_KEY_PASSWORD"
-          [ -z "$RELEASE_KEY_ALIAS" ]         && missing="$missing RELEASE_KEY_ALIAS"
-          if [ -n "$missing" ]; then
-            echo "::error::RELEASE_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
-            exit 1
-          fi
-          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
-          if ! keytool -list -keystore "${RUNNER_TEMP}/release.keystore" -storepass "$RELEASE_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
-            echo "::error::Decoded release keystore is not a valid keystore or RELEASE_KEYSTORE_PASSWORD is wrong."
-            exit 1
-          fi
-          echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
-
-      - name: Build release AAB
-        # Gated only on the keystore being present — a signed AAB is useful on
-        # its own (downloadable artifact for the seed upload, even before the
-        # Play service account is set up). Release signing config only attaches
-        # when all four RELEASE_KEYSTORE_* / RELEASE_KEY_* variables are set
-        # (see app/build.gradle.kts), which the decode step above guarantees
-        # whenever it sets RELEASE_KEYSTORE_FILE — it fails first if any of the
-        # other three is empty. Without them Play would reject the AAB anyway.
-        if: env.RELEASE_KEYSTORE_FILE != ''
-        env:
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-        run: ./gradlew bundleRelease
-
-      - name: Upload signed AAB as workflow artifact
-        # Lets us download the signed AAB from the Actions UI for the one-time
-        # manual seed upload to Play Console. Useful indefinitely afterwards
-        # too if a release ever needs to be inspected or re-uploaded by hand.
-        if: env.RELEASE_KEYSTORE_FILE != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      - name: Download the release AAB
+        # Built by `release-build`, in parallel with the tests rather than after
+        # them. Restored to the path Gradle would have written it to, so the
+        # publish step's `releaseFiles` is unchanged.
+        if: needs.release-build.outputs.signed == 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         with:
           name: app-release-aab
-          path: app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 30
+          path: app/build/outputs/bundle/release
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
@@ -1454,7 +1517,7 @@ jobs:
         # docs / dotfile housekeeping) the gate below skips this and the
         # upload step.
         if: |
-          env.RELEASE_KEYSTORE_FILE != '' &&
+          needs.release-build.outputs.signed == 'true' &&
           env.HAS_PLAY_SA == 'true' &&
           env.RELEASE_NOTES_SKIP != 'true'
         # `deploy` job: writes `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew`. The
@@ -1478,7 +1541,7 @@ jobs:
         # redundant. See docs/play-store-internal-track.md for the Play
         # Console / service-account setup the upload depends on.
         if: |
-          env.RELEASE_KEYSTORE_FILE != '' &&
+          needs.release-build.outputs.signed == 'true' &&
           env.HAS_PLAY_SA == 'true' &&
           env.RELEASE_NOTES_SKIP != 'true'
         uses: r0adkll/upload-google-play@a80b0bcdcfdfcc2d026f2bc73f726760b2cbc967  # post-v1.1.5: fixes DEP0040/DEP0169 Node.js deprecation warnings
@@ -1489,3 +1552,4 @@ jobs:
           tracks: internal
           status: completed
           whatsNewDirectory: ${{ env.PLAY_WHATSNEW_DIR }}
+
