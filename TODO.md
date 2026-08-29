@@ -322,6 +322,42 @@
 
 ## Layout, caching, rendering, and recomposition follow-ups
 
+- [ ] **The icon-size retirement re-check is still not atomic with the eviction.**
+      `onRenderedIconSizes` re-reads the live size tuple inside the dispatcher hop
+      before calling `AppIconLoader.evictSizes`, which closes the large window (a
+      queued job evicting sizes that came back while it waited — covered by
+      `LauncherViewModelIconSizeRetirementTest.aSizeThatBecameCurrentAgainIsNotEvicted`).
+      A sub-millisecond check-then-act gap remains: the read is outside
+      `evictSizes`'s `synchronized(inFlightLock)`, and Main never takes that lock
+      when publishing a new tuple, so Main can publish size A between the IO job
+      reading B and the eviction running. Raised by Codex on #692.
+
+      Left as-is deliberately, because the obvious fixes are worse than the
+      residue:
+
+      - **A generation counter** — the form Codex proposed — has the identical
+        gap. Comparing a generation and then evicting is still check-then-act, so
+        it would look like a fix while changing nothing.
+      - **Making publication, check and eviction atomic** means Main takes
+        `inFlightLock` to publish, while IO holds it to scan a cache of hundreds
+        of entries. That puts a lock-wait on the main thread during an icon-size
+        slider drag, which is the exact jank the off-main hop exists to prevent.
+      - **Evicting everything outside the live tuple**, computed under the lock,
+        is wrong: other surfaces (a menu icon, a folder merge preview) render
+        sizes of their own that retirement has no business evicting.
+
+      The residue is also self-limiting: an evicted current-size icon re-resolves
+      on demand within a frame or two, so the visible cost is a brief placeholder,
+      and it only outlives the moment if an `onStop` lands inside the same
+      sub-millisecond window and snapshots the gap.
+
+      Worth revisiting only alongside the larger question of whether size
+      retirement should exist at all. Dead-size entries are by definition not being
+      read, so the LRU would evict them first under pressure without any of this
+      machinery; retirement exists to reclaim the budget sooner. If that turns out
+      not to be worth a race, deleting the mechanism removes the bug class rather
+      than narrowing it.
+
 - [ ] **The Settings scroll chevron can land between the consent card's two
       actions.** The chevron is a screen-level overlay pinned bottom-center;
       `TelemetryConsentCard` arranges **Don't allow** and **Allow** at opposite
