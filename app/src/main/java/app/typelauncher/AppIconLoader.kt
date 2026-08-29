@@ -46,10 +46,15 @@ internal object AppIconLoader {
     private const val CACHE_BYTE_BUDGET = 24 * 1024 * 1024
     private const val ARGB_8888_BYTES_PER_PIXEL = 4
 
-    // How often to flush the cache hit/miss counters into a LauncherDebugLog event so
-    // they show up as Crashlytics breadcrumbs and (in debug builds) logcat. 50 keeps
-    // the cold-start picture roughly chronological while staying out of the way during
-    // steady-state usage.
+    // How often to flush the cache hit/miss counters to logcat. Logcat only: at one
+    // line per 50 lookups this ran to hundreds of entries over a run and was the
+    // single largest consumer of the bug report's 300-entry ring buffer, evicting
+    // the lifecycle and package-change context a report is read for. The counters
+    // themselves are still reported twice over: [cacheStats] reads them live into
+    // the report's own section for the current run, and [logCacheStats] writes one
+    // line wherever a run can observe its own ending — each background trip, and
+    // the crash handler's flush — so they also reach the log file that becomes
+    // the next report's "Previous run" section.
     private const val CACHE_STATS_LOG_INTERVAL = 50
 
     internal data class CacheKey(val id: String, val sizePx: Int)
@@ -481,6 +486,60 @@ internal object AppIconLoader {
      */
     fun cacheBytes(): Int = cache.size()
 
+    /**
+     * A live read of what the cache holds and how it has been performing, for
+     * the bug report's own section.
+     *
+     * Read on demand rather than streamed into the log: the answer a reader
+     * wants is the current one, and streaming it cost the report far more than
+     * it was worth (see [CACHE_STATS_LOG_INTERVAL]). The counters are
+     * process-lifetime totals, so they say how the cache has served this run,
+     * not the last few seconds of it.
+     */
+    fun cacheStats(): CacheStats = CacheStats(
+        entries = cache.snapshot().size,
+        bytes = cache.size(),
+        hits = cacheHits.get(),
+        misses = cacheMisses.get(),
+    )
+
+    /**
+     * Writes [cacheStats] into the debug log as one line.
+     *
+     * Called wherever a run can observe its own ending — each background trip,
+     * and the crash handler's flush — because that is what puts the counters in
+     * the buffer that becomes the *next* report's "Previous run" section. The
+     * live [cacheStats] read the report does at capture describes the process
+     * doing the reporting, and after a crash that is not the process anyone is
+     * asking about (Codex on PR #689, twice: once for the background case and
+     * again for the crash case, which `onStop` does not cover).
+     *
+     * On the crash path it is deliberately the optional half: it runs on the
+     * flush worker, after the crash marker and inside its own `runCatching`, so
+     * that reading the cache — which allocates, on a path whose fatal may well
+     * be an `OutOfMemoryError` the icon cache is implicated in — can neither
+     * throw nor stall its way past the marker and the snapshot, which are not
+     * optional.
+     *
+     * Four separate numbers rather than a pre-joined string, so the type rule
+     * carries them to the Crashlytics mirror too: how hard the cache was working
+     * says nothing about which apps are installed, and a crash report is exactly
+     * where that gets asked.
+     */
+    fun logCacheStats() {
+        val stats = cacheStats()
+        LauncherDebugLog.event(
+            "AppIconLoader cache stats entries=%s bytes=%s hits=%s misses=%s",
+            stats.entries,
+            stats.bytes,
+            stats.hits,
+            stats.misses,
+        )
+    }
+
+    /** See [cacheStats]. */
+    internal data class CacheStats(val entries: Int, val bytes: Int, val hits: Int, val misses: Int)
+
     /** The cache's byte ceiling. See [cacheBytes]. */
     val cacheByteBudget: Int get() = CACHE_BYTE_BUDGET
 
@@ -638,7 +697,7 @@ internal object AppIconLoader {
         }
         val total = hits + misses
         if (total % CACHE_STATS_LOG_INTERVAL == 0) {
-            LauncherDebugLog.event("AppIconLoader cache hits=%s misses=%s total=%s", hits, misses, total)
+            LauncherDebugLog.trace("AppIconLoader cache hits=$hits misses=$misses total=$total")
         }
     }
 

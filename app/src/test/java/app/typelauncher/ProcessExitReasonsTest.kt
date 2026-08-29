@@ -65,6 +65,16 @@ class ProcessExitReasonsTest {
         assertEquals(2, exitLines.size)
         assertTrue(exitLines.any { it.contains("reason=crash") })
         assertTrue(exitLines.any { it.contains("reason=packageUpdated") })
+        // Oldest first, ending on the exit that explains this start. The
+        // platform hands them back newest-first, and the shared report
+        // truncates its pinned section from the head — so leaving them in the
+        // platform's order would have dropped the most recent exit and called
+        // it older (Codex on PR #689). The shadow returns them in the order
+        // they were added, so the second seeded exit is the newest.
+        assertTrue(
+            exitLines.toString(),
+            exitLines.last().contains("reason=packageUpdated"),
+        )
         // The platform's own account of the death rides along, and the
         // on-device log carries it in full — that is what the report is read
         // for. (It is withheld from the Crashlytics mirror; see LogValueTest
@@ -99,6 +109,15 @@ class ProcessExitReasonsTest {
             loggedLines().toString(),
             loggedLines().any { it.contains("ownPackage query failed") },
         )
+        // And pinned, so the failure outlives the ring buffer alongside the
+        // records it sits beside. Without it a report whose ring has turned
+        // over shows a Process start section with no package timestamps and
+        // nothing saying why, which reads as a complete diagnostic (Codex on
+        // PR #689).
+        assertTrue(
+            LauncherDebugLog.pinnedSnapshot().toString(),
+            LauncherDebugLog.pinnedSnapshot().any { it.contains("ownPackage unavailable reason=notFound") },
+        )
     }
 
     /**
@@ -110,6 +129,19 @@ class ProcessExitReasonsTest {
         base: android.content.Context,
     ) : android.content.ContextWrapper(base) {
         override fun getPackageName(): String = "app.typelauncher.absent"
+    }
+
+    @Test
+    fun everyRecordedStartupLineIsPinned() {
+        // The whole point of the section: these are written once at startup and
+        // read hours later, by which time the ring has evicted them.
+        seedExit(ApplicationExitInfo.REASON_PACKAGE_UPDATED)
+
+        logRecentProcessExits(context)
+
+        val pinned = LauncherDebugLog.pinnedSnapshot()
+        assertTrue(pinned.toString(), pinned.any { it.contains("processExit reason=packageUpdated") })
+        assertTrue(pinned.toString(), pinned.any { it.contains("ownPackage lastUpdateTime=") })
     }
 
     @Test

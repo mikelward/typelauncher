@@ -19,6 +19,26 @@ private const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
 internal const val LOG_BUFFER_MAX_ENTRIES = 300
 
 /**
+ * Cap for the pinned buffer — the lines that say how *this* run began, which
+ * the bug report renders in their own section instead of leaving them to the
+ * ring buffer above.
+ *
+ * They are written once each, at process start and at the rare moments home
+ * resolution changes under us, and the ring buffer holds 300 entries of a log
+ * that a busy device fills in well under two hours — a package-change reload
+ * alone costs several lines and can repeat every minute. So by the time a user
+ * notices something and shares a report, the lines explaining how the run
+ * started are routinely gone, which is exactly what the process-exit records
+ * were added for. Pinning them costs a second reference to a handful of
+ * strings and makes the report answer that question whenever it is asked.
+ *
+ * Bounded anyway, and oldest-evicted like the ring: a device where home
+ * resolution genuinely flaps writes one line per flip, and the newest are the
+ * ones worth keeping.
+ */
+internal const val PINNED_BUFFER_MAX_ENTRIES = 32
+
+/**
  * Cap for a single buffer entry, so one pathological stack trace can't dominate
  * the 300-entry buffer — and, with it, the shareable report. The report's own
  * budget is enforced separately by total characters in [BugReport] (strings
@@ -71,8 +91,28 @@ internal fun formatLogTimestamp(
     zone: ZoneId = ZoneId.systemDefault(),
 ): String = LOG_TIMESTAMP_FORMAT.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
 
+/** The two buffers of [LauncherDebugLog], read together; see [LauncherDebugLog.snapshots]. */
+internal data class LogSnapshots(val recent: List<String>, val pinned: List<String>)
+
 internal object LauncherDebugLog {
+    /**
+     * Guards both buffers below. One lock, not two, so a line is appended to
+     * the ring and to the pinned copy as a single step: with a lock each, two
+     * threads could interleave between the appends and leave the pinned lines
+     * in a different order than the ring's — a report whose start-up section
+     * reads out of sequence (Codex on PR #689).
+     */
+    private val bufferLock = Any()
+
     private val buffer = ArrayDeque<String>(LOG_BUFFER_MAX_ENTRIES)
+
+    /**
+     * The subset of [buffer]'s lines that must outlive its eviction; see
+     * [PINNED_BUFFER_MAX_ENTRIES] and [pinnedEvent]. Holds the same rendered
+     * strings, so a pinned line still appears in the recent log too for as
+     * long as the ring keeps it — the pinned copy is what remains afterwards.
+     */
+    private val pinnedBuffer = ArrayDeque<String>(PINNED_BUFFER_MAX_ENTRIES)
 
     /**
      * A downstream consumer of every recorded line, in addition to the in-memory
@@ -118,6 +158,27 @@ internal object LauncherDebugLog {
     fun event(format: String, vararg args: Any?) {
         val message = formatLogMessage(format, args, redactSensitive = false)
         record('D', message, throwable = null)
+        Log.d(LAUNCHER_DEBUG_TAG, message)
+        LauncherTelemetry.log(formatLogMessage(format, args, redactSensitive = true))
+    }
+
+    /**
+     * Records one line exactly like [event], and additionally pins it so the
+     * bug report carries it however long the run goes on.
+     *
+     * For the handful of lines that explain how a run began — why the previous
+     * process ended, when this package was last updated, how the system was
+     * resolving Home — and that a report is read for hours or days later, by
+     * which time the ring buffer has long since evicted them. See
+     * [PINNED_BUFFER_MAX_ENTRIES].
+     *
+     * Same [format]-plus-arguments contract as [event]; see there. Reserve it:
+     * anything written more than a few times a run belongs in [event], where
+     * eviction is the correct behavior.
+     */
+    fun pinnedEvent(format: String, vararg args: Any?) {
+        val message = formatLogMessage(format, args, redactSensitive = false)
+        record('D', message, throwable = null, pinned = true)
         Log.d(LAUNCHER_DEBUG_TAG, message)
         LauncherTelemetry.log(formatLogMessage(format, args, redactSensitive = true))
     }
@@ -205,29 +266,76 @@ internal object LauncherDebugLog {
         )
     }
 
-    /** Returns the captured log lines, oldest first. */
-    fun snapshot(): List<String> = synchronized(buffer) { buffer.toList() }
+    /**
+     * Returns the captured log lines, oldest first.
+     *
+     * Use [snapshots] when the pinned lines are wanted too — see there.
+     */
+    fun snapshot(): List<String> = synchronized(bufferLock) { buffer.toList() }
 
-    /** Test-only: empties the in-memory ring buffer so tests start from a known state. */
-    internal fun clearForTest() {
-        synchronized(buffer) { buffer.clear() }
+    /**
+     * Returns the pinned lines ([pinnedEvent]), oldest first.
+     *
+     * Use [snapshots] when the ring's lines are wanted too — see there.
+     */
+    fun pinnedSnapshot(): List<String> = synchronized(bufferLock) { pinnedBuffer.toList() }
+
+    /**
+     * Both buffers as they stood at one instant, oldest first in each.
+     *
+     * One call rather than two, because reading them separately admits a line
+     * landing in between: it is then missing from [LogSnapshots.recent] and
+     * present in [LogSnapshots.pinned], and a caller that treats "pinned but
+     * not in the ring" as "older than everything in the ring" — which is how
+     * both callers order the two — puts that *newer* line ahead of older ones
+     * (Codex on PR #689). Taking both under one lock removes the way to get
+     * that wrong instead of asking each caller to remember it.
+     */
+    fun snapshots(): LogSnapshots = synchronized(bufferLock) {
+        LogSnapshots(recent = buffer.toList(), pinned = pinnedBuffer.toList())
     }
 
-    private fun record(level: Char, message: String, throwable: Throwable?) {
-        val timestamp = formatLogTimestamp(System.currentTimeMillis())
-        val entry = if (throwable == null) {
-            "$timestamp $level $LAUNCHER_DEBUG_TAG: $message"
-        } else {
-            "$timestamp $level $LAUNCHER_DEBUG_TAG: $message\n${compactStackTrace(throwable).trimEnd()}"
+    /** Test-only: empties both in-memory buffers so tests start from a known state. */
+    internal fun clearForTest() {
+        synchronized(bufferLock) {
+            buffer.clear()
+            pinnedBuffer.clear()
         }
-        val bounded = if (entry.length > LOG_BUFFER_MAX_ENTRY_CHARS) {
-            entry.take(LOG_BUFFER_MAX_ENTRY_CHARS) + "…(truncated)"
+    }
+
+    private fun record(level: Char, message: String, throwable: Throwable?, pinned: Boolean = false) {
+        // Everything expensive happens before the lock; only stamping and
+        // appending happen inside it. A throwable's stack trace is the reason
+        // that split is worth having — rendering one under the lock would hold
+        // every other logging thread behind it.
+        val body = if (throwable == null) {
+            "$level $LAUNCHER_DEBUG_TAG: $message"
         } else {
-            entry
+            "$level $LAUNCHER_DEBUG_TAG: $message\n${compactStackTrace(throwable).trimEnd()}"
         }
-        synchronized(buffer) {
+        val bounded = synchronized(bufferLock) {
+            // Stamped here rather than on entry, so a line's timestamp and its
+            // position in the buffer are decided at the same instant. Read the
+            // clock first and two threads can be preempted between stamping and
+            // appending, landing the earlier-stamped line after the later one —
+            // and the pinned section, which reads oldest-first and truncates
+            // from its head, would then discard the newest evidence as "older"
+            // (Codex on PR #689).
+            val entry = "${formatLogTimestamp(System.currentTimeMillis())} $body"
+            val bounded = if (entry.length > LOG_BUFFER_MAX_ENTRY_CHARS) {
+                entry.take(LOG_BUFFER_MAX_ENTRY_CHARS) + "…(truncated)"
+            } else {
+                entry
+            }
             if (buffer.size >= LOG_BUFFER_MAX_ENTRIES) buffer.removeFirst()
             buffer.addLast(bounded)
+            // The pinned copy is appended in the same step, so the two orders
+            // can never diverge; see [bufferLock].
+            if (pinned) {
+                if (pinnedBuffer.size >= PINNED_BUFFER_MAX_ENTRIES) pinnedBuffer.removeFirst()
+                pinnedBuffer.addLast(bounded)
+            }
+            bounded
         }
         // Fan out to disk (and any other) sinks outside the buffer lock. Each is
         // best-effort: a sink that throws must never lose the log line for the
