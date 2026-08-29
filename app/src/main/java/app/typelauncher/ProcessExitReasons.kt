@@ -32,15 +32,18 @@ private const val MAX_EXIT_RECORDS = 5
  *
  * The exit reason and the process importance are fixed vocabulary — every user
  * on the same failure produces the same values — so they are marked [safe] and
- * reach the Crashlytics mirror. Two things deliberately do not. The system's
- * free-text [ApplicationExitInfo.description] is composed by the platform and
- * can name another package (the installer that stopped us, a dependency that
- * died), so it is passed as a plain [String] and the default-withhold rule in
- * [LogValue] keeps it on device. The exit *timestamp* is a number, which that
- * rule would otherwise let through, but it is not fixed vocabulary either — it
- * varies per user and records when their launcher died — so it is marked
- * [sensitive]. Both stay in full in the on-device log, where the user reviews
- * them before sharing, which is where their diagnostic value lives anyway.
+ * reach the Crashlytics mirror. So do the times: the exit timestamp and the
+ * package's install and update times are numbers the type rule carries, and
+ * they are facts about this build on this device rather than anything of the
+ * user's. Carrying them is the point — an exit whose time lines up with the
+ * package's update time is the installer swapping the APK rather than a bug,
+ * and that correlation is the reason the two are logged together.
+ *
+ * One thing deliberately does not reach the mirror. The system's free-text
+ * [ApplicationExitInfo.description] is composed by the platform and can name
+ * another package (the installer that stopped us, a dependency that died), so
+ * it is passed as a plain [String] and the default-withhold rule in [LogValue]
+ * keeps it on device, where the user reviews it before sharing.
  *
  * Every line here is pinned ([LauncherDebugLog.pinnedEvent]), because each is
  * written once at startup and read hours later: in every report so far the ring
@@ -97,13 +100,7 @@ private fun logExitRecords(exits: List<ApplicationExitInfo>) {
             safe(exitReasonName(info.reason)),
             safe(processImportanceName(info.importance)),
             safe(info.status),
-            // The exit time is a number, which the type rule would let through
-            // to the mirror on its own — but it is not fixed vocabulary: it
-            // varies with whoever is holding the phone and records when their
-            // launcher died. Withheld from the mirror and kept in full on
-            // device, where lining it up against the package's update time is
-            // the whole point of having it.
-            sensitive(info.timestamp),
+            info.timestamp,
             info.description,
         )
     }
@@ -184,22 +181,17 @@ internal fun processImportanceName(importance: Int): String = when (importance) 
  * because the launcher is not running during it. What it does leave behind is a
  * previous-process exit whose timestamp sits alongside this package's own update
  * time; if the two line up, the window is confirmed rather than assumed, and if
- * they do not, the explanation is somewhere else.
- *
- * Both are numbers, which the type rule would carry to the Crashlytics mirror
- * on its own, and neither is fixed vocabulary: they say when *this* user
- * installed and last updated the launcher. Marked [sensitive] for the same
- * reason as the exit timestamp they are read against — the correlation is done
- * on the device, in the log the user reviews before sharing, so withholding
- * them from the mirror costs the diagnostic nothing.
+ * they do not, the explanation is somewhere else. Both times reach the
+ * Crashlytics mirror alongside the exit's own, since the correlation is the
+ * whole point and a mirror missing either half cannot make it.
  */
 private fun logOwnPackageTimestamps(context: Context) {
     try {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
         LauncherDebugLog.pinnedEvent(
             "ownPackage lastUpdateTime=%s firstInstallTime=%s",
-            sensitive(info.lastUpdateTime),
-            sensitive(info.firstInstallTime),
+            info.lastUpdateTime,
+            info.firstInstallTime,
         )
     } catch (exception: PackageManager.NameNotFoundException) {
         // Querying our own package cannot normally miss; if it somehow does,

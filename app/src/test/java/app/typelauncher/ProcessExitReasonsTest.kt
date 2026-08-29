@@ -155,25 +155,31 @@ class ProcessExitReasonsTest {
         assertFalse(loggedLines().any { it.contains("processExit reason=") })
     }
 
+    // The correlation these lines exist for — an exit whose time matches the
+    // package's update time is the installer swapping the APK, not a bug — is
+    // only makeable if both times reach the mirror. Wrapping any of the three
+    // in `sensitive(...)` would render them `<redacted>` there and take the
+    // correlation with them, which is what this asserts against. Written
+    // against `formatLogMessage` with the arguments the call sites pass, the
+    // same shape as the mirror assertions in LauncherDebugLogTest: the
+    // mirrored rendering is only observable through the telemetry object,
+    // which has no test seam.
     @Test
-    fun withholdsTheExitTimestampFromTheCrashlyticsMirror() {
-        // The timestamp is a number, so the type rule would carry it off the
-        // device on its own. It is not fixed vocabulary — it records when this
-        // user's launcher died — so the call site marks it sensitive, and the
-        // on-device log keeps it in full because that is where it is read.
-        val mirrored = formatLogMessage(
-            "processExit timestamp=%s",
-            arrayOf<Any?>(sensitive(1_700_000_000_000L)),
+    fun theProcessAndPackageTimesReachTheCrashlyticsMirror() {
+        val exitLine = formatLogMessage(
+            "processExit reason=%s timestamp=%s",
+            arrayOf<Any?>(safe("REASON_USER_REQUESTED"), 1_700_000_000_000L),
             redactSensitive = true,
         )
-        val onDevice = formatLogMessage(
-            "processExit timestamp=%s",
-            arrayOf<Any?>(sensitive(1_700_000_000_000L)),
-            redactSensitive = false,
+        val packageLine = formatLogMessage(
+            "ownPackage lastUpdateTime=%s firstInstallTime=%s",
+            arrayOf<Any?>(1_700_000_000_000L, 1_600_000_000_000L),
+            redactSensitive = true,
         )
 
-        assertFalse(mirrored.contains("1700000000000"))
-        assertTrue(onDevice.contains("1700000000000"))
+        assertTrue("the exit time is the half a report is read for", exitLine.contains("1700000000000"))
+        assertTrue("the update time is the other half", packageLine.contains("1700000000000"))
+        assertTrue("the install time rides with it", packageLine.contains("1600000000000"))
     }
 
     @Test
