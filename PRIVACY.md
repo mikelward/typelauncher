@@ -110,7 +110,10 @@ These services may collect:
 
   Each breadcrumb is a fixed sentence written into the app's source, plus
   values filled into it. A value is only included if its type cannot name
-  anything of yours — a count, a duration, a setting, a yes or no. Anything
+  anything of yours — a count, a duration, a time, a setting, a yes or no.
+  Times are the app's own: when a previous run of the launcher ended, and
+  when this build was installed or last updated, which together say whether
+  it disappeared because the installer was replacing it. Anything
   that could identify you or something of yours is replaced with
   `<redacted>` before the breadcrumb leaves your device, and that is the
   default for every value the app does not explicitly mark otherwise. The
