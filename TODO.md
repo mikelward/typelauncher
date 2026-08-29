@@ -13,6 +13,32 @@
   - **Distribute the row's actual pixel width across N cells the way `Adaptive` does.** A custom `Layout` (or a `Row` with `weight(1f)` per cell, modulo wrapping) would give each cell `(rowPx - spacingPx*(N-1)) / N` and centre the AppIcon inside it. That removes the rounding accumulation entirely at any density — at the cost of dropping the FlowRow primitive and re-implementing the wrap and drag-reorder slot-centre tracking against the new layout.
   - If neither path reclaims the dp, leave the slack in place — the visual delta (43 → 42 dp on six slots) is invisible and the trade is correctness for 1 dp.
 
+- [ ] **A tap can fire on Home from the tail of the system's home gesture.** In a
+      user bug report, three of four returns to Home ended with an app launching
+      straight back 21 ms, 33 ms and 611 ms after
+      `MainActivity.onWindowFocusChanged hasFocus=true`. The first two are far too
+      fast to be a deliberate tap, and no `launchActiveApp` line precedes any of
+      them — so they arrived through an app row or dock icon's `onClick`, not
+      through Enter (which, on an empty query, opens settings anyway). The read:
+      the finger lift that ends the swipe-up-to-home gesture reaches the launcher
+      once its window is touchable, and whatever icon sits under it launches.
+      When that icon is the app the user just left, the swipe reads as having
+      done nothing.
+
+      There is no guard today. `MainActivity` does not override
+      `dispatchTouchEvent`, does not read the `gesture_nav_contract_v1` extra the
+      system puts on the home intent, and the rows are plain `clickable`s that
+      fire on the first `ACTION_UP` they see. Fix shape: record the uptime when
+      the window gains focus (`hasSeenInitialWindowFocus` is already there to
+      hang it off) and drop any gesture whose `ACTION_DOWN` predates it. Reject
+      on the down rather than the up, so no gesture is left half-consumed, and
+      keep the predicate a pure function so it is unit-testable without a device.
+
+      Not reproduced on a device yet, and that gap matters: whether the stray
+      input is a stale `ACTION_UP` or a fresh down/up pair delivered after the
+      transition hands the window over decides whether the guard also needs a
+      short grace window for a down landing in the same frame as focus.
+
 - Revisit two carousel-gesture hardening items if either becomes user-visible. Both currently sit at "theoretical bug, no real trigger today, defensive fix introduces complexity worse than the symptom." Revisit if telemetry / bug reports show the trigger actually firing, or if a future code path (async widget reload, programmatic agenda toggle, dispatch path that returns early) makes either reachable.
 
   1. **Mid-gesture `widgetPageCount` / `isAgendaEnabled` change cancels the swipe.** The horizontal `pointerInput` in `SwipeNavigationBox` is keyed on both values. Compose tears down the `awaitEachGesture` coroutine when any key changes, so a recomposition with a new value mid-swipe drops the gesture. Today the trigger isn't reachable: Settings is a separate screen (no overlap with swipes), widget add/remove fires from the long-press menu (the user has to release before tapping). Defensive fix shape: capture both values via `rememberUpdatedState` and drop them from the keys list. **Caveat (PR #298 first revision found this):** the defensive fix on its own is worse — the gesture survives the recomposition but `claimGestureStartPage` was captured in the old `visibleCarouselPages` modulo space, while the post-change config has a different `visiblePages` size, so `targetPage = claimGestureStartPage + dragDirection` translated through the new config can land on the wrong `LauncherPage`. To do this safely also requires re-anchoring `claimGestureStartPage` (via `LauncherScreen.reanchoredCarouselPage`) at release if the snapshot config differs from the live config.
