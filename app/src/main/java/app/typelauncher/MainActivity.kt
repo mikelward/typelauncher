@@ -365,6 +365,12 @@ class MainActivity : ComponentActivity() {
         androidTrace("launcher.super_onCreate") { super.onCreate(savedInstanceState) }
         enableEdgeToEdge()
         LauncherDebugLog.event("onCreate afterSuper window=%s", window.debugSummary())
+        // The chooser's own start is the one this instance may exist because of,
+        // and it is delivered here — a fresh root instance — not through
+        // onNewIntent. Only on a fresh start: a configuration change recreates
+        // the activity against the same Intent object, and re-reading its flags
+        // would report a second chooser hand-off that never happened.
+        if (savedInstanceState == null) recordHomeEntryFromChooser(intent)
         // Wraps onCreate → first pre-draw so Firebase Performance shows the
         // launcher's own cold-start time alongside the SDK's auto-instrumented
         // app_start trace. The auto trace covers Application.onCreate +
@@ -566,6 +572,7 @@ class MainActivity : ComponentActivity() {
 
     internal fun handleLauncherIntent(intent: Intent) {
         if (!intent.isLauncherEntryIntent()) return
+        recordHomeEntryFromChooser(intent)
         LauncherDebugLog.event("handleLauncherIntent returning to launcher home")
         viewModel.returnToLauncherHome()
     }
@@ -1542,6 +1549,49 @@ class MainActivity : ComponentActivity() {
         appWidgetHost.forgetWidgetSize(appWidgetId)
     }
 
+    /**
+     * Notes a Home entry that arrived by way of the system's "which Home app"
+     * chooser, and samples how Home resolves now that it has.
+     *
+     * The chooser leaves no trace of its own: a report showed only that the
+     * activity was finished and immediately recreated, and the sheet was
+     * recoverable solely by decoding the new intent's flags by hand. So say it
+     * outright, and pin it, since the question is asked long after the fact.
+     *
+     * `FLAG_ACTIVITY_FORWARD_RESULT` is the marker. The framework's
+     * `ResolverActivity` sets it on the target it forwards to; nothing the
+     * launcher starts itself sets it, and an ordinary Home press does not carry
+     * it — the same report's other Home presses came through with plain
+     * `NEW_TASK | EXCLUDE_FROM_RECENTS | BROUGHT_TO_FRONT`. The Settings "Home
+     * app" picker forwards the same way, which is a user deliberately choosing
+     * a launcher and is equally worth recording.
+     *
+     * The resolution sample that follows reads state the user's own choice has
+     * just settled, so `self` does not clear anything — but `chooser` or `none`
+     * here means resolution was *still* ambiguous afterwards, which is a live
+     * finding rather than an inference.
+     *
+     * One case it cannot tell apart: an activity restarted from history after
+     * the process died keeps the intent it was created with, flags and all, and
+     * `onCreate`'s own guard against re-reading them does not catch that one
+     * because the bundle is null there too. It reports the task's origin rather
+     * than a fresh hand-off — true of the task, a repeat as an event — and
+     * needing both a chooser start and a later death makes it rare enough to
+     * accept over inventing a marker to carry across the death.
+     */
+    private fun recordHomeEntryFromChooser(intent: Intent) {
+        if (!intent.isLauncherEntryIntent() || !intent.isForwardedFromChooser()) return
+        LauncherDebugLog.pinnedEvent("homeStart via=%s", safe("chooser"))
+        // PackageManager and RoleManager IPC, and this runs on onCreate — the
+        // cold-start path this repo never blocks. Off the main thread, and
+        // nothing waits on the answer: a report captured before it lands simply
+        // does not carry the reading, and the Process start section says it is a
+        // snapshot rather than claiming to be complete.
+        lifecycleScope.launch(ioDispatcher) {
+            HomeResolution.record(applicationContext, moment = "homeChooser")
+        }
+    }
+
     private fun requestDefaultLauncher() {
         LauncherDebugLog.event("requestDefaultLauncher")
         val intent = getSystemService<RoleManager>()?.createRequestRoleIntent(RoleManager.ROLE_HOME)
@@ -1563,6 +1613,10 @@ class MainActivity : ComponentActivity() {
     private fun hasPermission(permission: String): Boolean =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 }
+
+/** See [MainActivity.recordHomeEntryFromChooser] for why this flag is the marker. */
+private fun Intent.isForwardedFromChooser(): Boolean =
+    (flags and Intent.FLAG_ACTIVITY_FORWARD_RESULT) != 0
 
 private fun Intent.isLauncherEntryIntent(): Boolean =
     action == Intent.ACTION_MAIN &&

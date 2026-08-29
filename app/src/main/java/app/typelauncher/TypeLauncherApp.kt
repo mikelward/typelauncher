@@ -78,7 +78,12 @@ class TypeLauncherApp : Application() {
      * ahead of any write.
      */
     private fun logProcessExitReasons() {
-        appScope.launch(Dispatchers.IO) { logRecentProcessExits(this@TypeLauncherApp) }
+        appScope.launch(Dispatchers.IO) {
+            logRecentProcessExits(this@TypeLauncherApp)
+            // Alongside them, and last: how this run found Home resolving,
+            // beside the exits that explain how the previous one ended.
+            HomeResolution.record(this@TypeLauncherApp, moment = "processStart")
+        }
     }
 
     /**

@@ -16,8 +16,7 @@ class ManifestUnitTest {
         val manifest = parseManifest()
         val application = manifest.getElementsByTagName("application").item(0)
         val activity = manifest.getElementsByTagName("activity").item(0)
-        val queryIntent = manifest.getElementsByTagName("queries").item(0).elementChildren().single()
-        val queryElements = queryIntent.elementChildren()
+        val queryIntents = manifest.getElementsByTagName("queries").item(0).elementChildren()
         val applicationAttrs = application.attributes
         val attrs = activity.attributes
         val permissions = manifest.getElementsByTagName("uses-permission")
@@ -55,11 +54,24 @@ class ManifestUnitTest {
         // recovery that the same process death breaks regardless.
         assertEquals("true", attrs.getNamedItem("android:stateNotNeeded").nodeValue)
         assertEquals("stateAlwaysVisible|adjustResize", attrs.getNamedItem("android:windowSoftInputMode").nodeValue)
-        assertEquals("intent", queryIntent.nodeName)
-        assertEquals("action", queryElements[0].nodeName)
-        assertEquals("android.intent.action.MAIN", queryElements[0].attributes.getNamedItem("android:name").nodeValue)
-        assertEquals("category", queryElements[1].nodeName)
-        assertEquals("android.intent.category.LAUNCHER", queryElements[1].attributes.getNamedItem("android:name").nodeValue)
+        // Two queried intents: launchable activities (the app list), and home
+        // activities (so the home-resolution diagnostic can see the full
+        // candidate list rather than a visibility-filtered one, which would
+        // make another launcher indistinguishable from the system chooser).
+        assertEquals(listOf("intent", "intent"), queryIntents.map { it.nodeName })
+        assertEquals(
+            listOf("android.intent.category.LAUNCHER", "android.intent.category.HOME"),
+            queryIntents.map { intent ->
+                val elements = intent.elementChildren()
+                assertEquals("action", elements[0].nodeName)
+                assertEquals(
+                    "android.intent.action.MAIN",
+                    elements[0].attributes.getNamedItem("android:name").nodeValue,
+                )
+                assertEquals("category", elements[1].nodeName)
+                elements[1].attributes.getNamedItem("android:name").nodeValue
+            },
+        )
         assertTrue(names.contains("android.permission.READ_CALENDAR"))
     }
 
