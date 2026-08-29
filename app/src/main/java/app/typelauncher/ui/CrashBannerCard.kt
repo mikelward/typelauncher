@@ -31,14 +31,15 @@ import androidx.compose.ui.unit.dp
  * is not urgent enough to interrupt the home screen with a push-down layout,
  * and the Settings gear already carries a small warning-triangle badge (see
  * `SearchCard`) so the prompt is discoverable without being disruptive.
- * Stateless — [onShare] and [onDismiss] are owned by the caller — so the
- * screenshot test can render it directly.
+ * Stateless — [onShare], [onDismiss] and [isSharing] are owned by the caller —
+ * so the screenshot test can render every state directly.
  */
 @Composable
 internal fun CrashBannerCard(
     onShare: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    isSharing: Boolean = false,
 ) {
     SectionCard(
         modifier = modifier
@@ -71,11 +72,21 @@ internal fun CrashBannerCard(
             ) {
                 Text(stringResource(R.string.crash_banner_dismiss))
             }
+            // A share suspends — payload build, screenshot capture, then the
+            // chooser — and a second tap during it is refused (see
+            // [BugReport.share]). Saying so beats a button that looks live and
+            // does nothing: a silent refusal reads as the app being broken,
+            // which is what makes people tap again.
             Button(
                 onClick = onShare,
+                enabled = !isSharing,
                 modifier = Modifier.testTag(CRASH_BANNER_SHARE_TAG),
             ) {
-                Text(stringResource(R.string.crash_banner_share))
+                Text(
+                    stringResource(
+                        if (isSharing) R.string.crash_banner_sharing else R.string.crash_banner_share,
+                    ),
+                )
             }
         }
     }

@@ -20,9 +20,23 @@ private const val PREVIOUS_PLAIN_SUFFIX = ".log"
  * crash, as opposed to a routine kill (OS reclaim, force-stop, app update). Only
  * these raise the post-crash banner, so it is never shown for an ordinary
  * process death. Both kinds of prior run are still readable/shareable
- * ([readPreviousRun]); the suffix only gates the *banner*.
+ * ([readPreviousRuns]); the suffix only gates the *banner*.
  */
 private const val PREVIOUS_CRASH_SUFFIX = ".crash.log"
+
+/**
+ * Suffix for a run that crashed and whose crash the user has already seen —
+ * dismissed, or delivered by a report that could not carry the whole run. It
+ * keeps the crash *classification* while no longer raising the banner.
+ *
+ * Acknowledgement used to rename straight to [PREVIOUS_PLAIN_SUFFIX], which was
+ * harmless while the suffix only gated the banner. It stopped being harmless
+ * once the report began labeling each section: the suffix is the only persisted
+ * record that a run crashed, so an acknowledged crash came back in a later
+ * report as "ended without a clean exit, no crash recorded" — contradicting its
+ * own contents, which still hold the uncaught exception.
+ */
+private const val PREVIOUS_ACKNOWLEDGED_CRASH_SUFFIX = ".crash-seen.log"
 
 /**
  * Companion to [CURRENT_FILE], written by the uncaught-exception handler and
@@ -59,6 +73,45 @@ private const val CRASH_WRITE_TIMEOUT_MS = 250L
  * doesn't, because the crash handler flushes explicitly (Codex on PR #592).
  */
 private const val WRITE_DEBOUNCE_MS = 500L
+
+/**
+ * One prior run's persisted log, as handed to the bug report.
+ *
+ * [id] is the sink's own file name — opaque to the report, and the token it
+ * hands back to [DebugFileSink.consumePreviousRuns] to delete exactly the runs
+ * a report carried. [crashed] distinguishes a run that ended in an uncaught
+ * exception from one that ended in a routine kill, which the report has to be
+ * able to say out loud: both used to render under the same "ended without a
+ * clean exit" heading, so a user holding a crash report could not tell whether
+ * anything had actually crashed.
+ */
+internal data class PreviousRunLog(
+    /**
+     * The run's rotation stem, *without* the suffix that records how it ended.
+     * Deliberately not the file name: acknowledging a crash renames the file, so
+     * a share whose payload captured a name could no longer find its own run if
+     * anything renamed it in between — a Dismiss tapped mid-share did exactly
+     * that, and the fully-carried run then survived to be reported again.
+     */
+    val id: String,
+    val crashed: Boolean,
+    /**
+     * True when [crashed] and the user has already been shown this crash — it
+     * has been dismissed, or delivered by an earlier report. Still a crash for
+     * labeling, but it must not outrank one nobody has seen when the report
+     * spends its budget, or an oversized seen crash would take that budget on
+     * every share and an older unseen one could never be reported at all.
+     */
+    val crashAlreadySeen: Boolean = false,
+    val lines: List<String>,
+    /**
+     * True when [lines] is already short of what the file holds, because the
+     * read itself was bounded. Such a run can never be consumed: the report can
+     * only compare against what it was given, so "carried in full" would mean
+     * "carried all of what we bothered to read".
+     */
+    val truncatedAtRead: Boolean = false,
+)
 
 /**
  * Persists the debug log to app-private files so it survives the process ending
@@ -111,9 +164,64 @@ internal class DebugFileSink internal constructor(
         (dir.listFiles { file -> file.name.startsWith(PREVIOUS_PREFIX) } ?: emptyArray())
             .sortedBy { it.lastModified() }
 
-    /** Prior runs that crashed (crash-suffixed) — the files that raise the banner. */
+    /** Prior runs whose crash the user has not yet seen — the files that raise the banner. */
     private fun crashedFiles(): List<File> =
         previousFiles().filter { it.name.endsWith(PREVIOUS_CRASH_SUFFIX) }
+
+    /**
+     * Deletes [file], saying so when it doesn't go. `delete()` reports failure by
+     * returning false as readily as by throwing, and swallowing either leaves a
+     * file behind with nothing anywhere to say why — whether that is a shared
+     * crash still raising its prompt or a retained-run directory quietly growing
+     * past its cap. Returns whether it went, so callers can act on the answer.
+     * [what] names the operation; no user data — file names here are the sink's
+     * own rotation stamps.
+     */
+    private fun deleteSaying(file: File, what: String): Boolean {
+        val outcome = runCatching { file.delete() }
+        val thrown = outcome.exceptionOrNull()
+        return when {
+            thrown != null -> {
+                LauncherDebugLog.failure(thrown, "DebugFileSink could not %s; the file stays for the next attempt", safe(what))
+                false
+            }
+            outcome.getOrDefault(false) -> true
+            else -> {
+                LauncherDebugLog.warning("DebugFileSink could not %s; the file stays for the next attempt", safe(what))
+                false
+            }
+        }
+    }
+
+    /** A run's identity across the suffix changes that record how it ended. */
+    private fun stemOf(file: File): String = file.name.substringBefore('.')
+
+    /** Whether this run crashed at all, seen or not — what the report labels it by. */
+    private fun isCrashed(file: File): Boolean =
+        file.name.endsWith(PREVIOUS_CRASH_SUFFIX) || file.name.endsWith(PREVIOUS_ACKNOWLEDGED_CRASH_SUFFIX)
+
+    /**
+     * Bounds how many unshared prior runs pile up, **evicting ordinary runs
+     * before crashed ones**. A crashed run is the evidence the post-crash banner
+     * is offering the user; a run that ended in a routine kill is not. Evicting
+     * strictly oldest-first let a handful of boring cold starts push a crash out
+     * of the window before the user got round to sharing it — the banner then
+     * outlived the log it was offering. Only when crashed runs alone overflow
+     * does the oldest crash go.
+     */
+    private fun evictOldestRuns() {
+        val prior = previousFiles()
+        val excess = prior.size - MAX_PREVIOUS_RUNS
+        if (excess <= 0) return
+        // Each group keeps previousFiles()' oldest-first order, so taking from the
+        // front of this order drops the least valuable first: an ordinary run,
+        // then a crash the user has already seen, and only last a crash still
+        // waiting to be reported.
+        val unseen = prior.filter { it.name.endsWith(PREVIOUS_CRASH_SUFFIX) }
+        val seen = prior.filter { it.name.endsWith(PREVIOUS_ACKNOWLEDGED_CRASH_SUFFIX) }
+        val ordinary = prior.filterNot { isCrashed(it) }
+        (ordinary + seen + unseen).take(excess).forEach { deleteSaying(it, "evict an old prior run") }
+    }
 
     // Single worker, prestarted so the first call never pays thread creation.
     // Daemon, so it never keeps the process alive. Single-threaded, so every file
@@ -151,11 +259,7 @@ internal class DebugFileSink internal constructor(
                         // existence check.
                         val suffix = if (crashMarker.exists()) PREVIOUS_CRASH_SUFFIX else PREVIOUS_PLAIN_SUFFIX
                         current.renameTo(File(dir, "$PREVIOUS_PREFIX${System.nanoTime()}$suffix"))
-                        // Bound how many unshared runs pile up; drop the oldest.
-                        val prior = previousFiles()
-                        if (prior.size > MAX_PREVIOUS_RUNS) {
-                            prior.take(prior.size - MAX_PREVIOUS_RUNS).forEach { it.delete() }
-                        }
+                        evictOldestRuns()
                     }
                     // Consume the just-read crash marker so it can't mislabel this run.
                     crashMarker.delete()
@@ -207,53 +311,127 @@ internal class DebugFileSink internal constructor(
         }
     }
 
-    // The files that [readPreviousRun] last actually read, so [clearPreviousRun]
-    // deletes only those — a file that failed to read is left for next time.
-    private var lastSurfaced: List<File> = emptyList()
+    /**
+     * Every unshared prior run's log, oldest first, **one entry per run** — each
+     * carrying the id the report hands back to [consumePreviousRuns] and whether
+     * that run crashed. Runs on the worker so it is ordered *after* the startup
+     * rotation [start] queued there — otherwise a share racing a slow rotation
+     * could scan before `debug.log` is renamed and miss the just-ended run (Codex
+     * on PR #592). Call off the main thread (this blocks on the worker and reads
+     * up to [MAX_PREVIOUS_RUNS] files); a file that fails to read is skipped and
+     * left in place, never destroyed.
+     *
+     * Returning the runs separately rather than one concatenated blob is what
+     * lets the report label a crash as a crash, show where one run ends and the
+     * next begins, spend its budget on the crashed run first, and — the part that
+     * cost a real crash log — delete only the runs it actually carried.
+     */
+    fun readPreviousRuns(): List<PreviousRunLog> =
+        runCatching { worker.submit<List<PreviousRunLog>> { readPreviousRunsOnWorker() }.get() }
+            .getOrDefault(emptyList())
+
+    private fun readPreviousRunsOnWorker(): List<PreviousRunLog> =
+        previousFiles().mapNotNull { file ->
+            // A file that fails to read is skipped, not surfaced and not deleted:
+            // the report can only consume ids it was given, so an unreadable run
+            // survives for the next attempt. Say so rather than dropping it
+            // silently — otherwise a report arrives with no crash section and
+            // neither it nor the log explains the hole. No user data in the
+            // message: the name is the sink's own rotation stamp.
+            val text = runCatching { file.readText() }
+                .onFailure { LauncherDebugLog.failure(it, "DebugFileSink could not read a retained prior run; keeping it for the next report") }
+                .getOrNull() ?: return@mapNotNull null
+            val runLines = text.split("\n").filter { it.isNotEmpty() }
+            if (runLines.isEmpty()) {
+                null
+            } else {
+                // This read is itself bounded, and a legacy file written before
+                // the per-entry cap can exceed that bound. Say when it did:
+                // otherwise the report compares what it rendered against an
+                // already-trimmed list, calls the run carried in full, and
+                // deletes a file most of which it never saw.
+                val bounded = boundedLogTail(runLines, PERSIST_BUDGET_CHARS)
+                PreviousRunLog(
+                    id = stemOf(file),
+                    crashed = isCrashed(file),
+                    crashAlreadySeen = file.name.endsWith(PREVIOUS_ACKNOWLEDGED_CRASH_SUFFIX),
+                    lines = bounded,
+                    truncatedAtRead = bounded != runLines,
+                )
+            }
+        }
 
     /**
-     * Every unshared prior run's log, oldest first, newest-bounded — or null if
-     * the last run(s) left nothing. Runs on the worker so it is ordered *after*
-     * the startup rotation [start] queued there — otherwise a share racing a slow
-     * rotation could scan before `debug.log` is renamed and miss the just-ended
-     * run (Codex on PR #592). Call off the main thread (this blocks on the worker
-     * and reads up to [MAX_PREVIOUS_RUNS] files); a file that fails to read is
-     * skipped and left in place, never destroyed (it is not added to the set
-     * [clearPreviousRun] deletes).
+     * Deletes exactly the prior runs named by [ids] — the ones a report actually
+     * carried in full. Anything the report trimmed or never read keeps its file,
+     * because deleting it would destroy the only copy of a crash the user has
+     * just been told they are sharing. Ids come from [readPreviousRuns]; unknown
+     * ones are ignored. On the worker, so it can't race the mirror or rotation.
      */
-    fun readPreviousRun(): String? =
-        runCatching { worker.submit<String?> { readPreviousRunOnWorker() }.get() }.getOrNull()
-
-    private fun readPreviousRunOnWorker(): String? {
-        val files = previousFiles()
-        val read = mutableListOf<File>()
-        val lines = files.flatMap { file ->
-            val text = runCatching { file.readText() }.getOrNull()
-            if (text != null) {
-                read += file
-                text.split("\n")
-            } else {
-                emptyList()
-            }
-        }.filter { it.isNotEmpty() }
-        lastSurfaced = read
-        if (lines.isEmpty()) return null
-        return boundedLogTail(lines, PERSIST_BUDGET_CHARS).joinToString("\n").takeIf { it.isNotBlank() }
+    fun consumePreviousRuns(ids: Collection<String>): Set<String> {
+        if (ids.isEmpty()) return emptySet()
+        val wanted = ids.toSet()
+        return runCatching {
+            worker.submit<Set<String>> {
+                previousFiles()
+                    .filter { stemOf(it) in wanted }
+                    // Returning what actually went lets the caller stand a
+                    // survivor's prompt down instead of stranding it.
+                    .filter { file -> deleteSaying(file, "consume a reported prior run") }
+                    .map { stemOf(it) }
+                    .toSet()
+            }.get()
+        }.getOrDefault(emptySet())
     }
 
+
     /**
-     * Deletes only the prior-run files that were surfaced by the last read. On the
-     * worker too, so it can't race the mirror's writes and reads/mutates
-     * [lastSurfaced] under the same single-threaded ordering as [readPreviousRun].
+     * Renames the named runs off the crash suffix, keeping their logs. The same
+     * rename [acknowledgeCrashBanner] does, aimed at particular runs: a report
+     * that carried a crash but could not fit the whole run has still delivered
+     * the crash, so the card comes down while the file stays for a later report.
+     * Ids not present, or not crash-suffixed, are ignored. On the worker, so it
+     * cannot race the rotation or the mirror.
      */
-    fun clearPreviousRun() {
+    fun acknowledgeCrashRuns(ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val wanted = ids.toSet()
         runCatching {
             worker.submit {
-                lastSurfaced.forEach { runCatching { it.delete() } }
-                lastSurfaced = emptyList()
+                crashedFiles()
+                    .filter { stemOf(it) in wanted }
+                    .forEach { file -> acknowledge(file) }
             }.get()
         }
     }
+
+    /**
+     * Renames one crashed run to its acknowledged name, saying so when that
+     * fails. `renameTo` reports failure by returning false as readily as by
+     * throwing, and swallowing either left the card standing after a share the
+     * user watched succeed, with nothing anywhere to say why. Leaving the card up
+     * is the safe direction — the crash is still offered — but it must not be a
+     * silent one. No user data in the message: the name is a rotation stamp.
+     */
+    private fun acknowledge(file: File) {
+        val outcome = runCatching { file.renameTo(acknowledgedNameFor(file)) }
+        val thrown = outcome.exceptionOrNull()
+        when {
+            thrown != null ->
+                LauncherDebugLog.failure(thrown, "DebugFileSink could not stand down a reported crash; its prompt stays up")
+            outcome.getOrDefault(false) -> Unit
+            else ->
+                LauncherDebugLog.warning("DebugFileSink could not stand down a reported crash; its prompt stays up")
+        }
+    }
+
+    /**
+     * The same file under [PREVIOUS_ACKNOWLEDGED_CRASH_SUFFIX] — no longer
+     * banner-raising, but still recorded as a crash so a later report labels it
+     * as one.
+     */
+    private fun acknowledgedNameFor(file: File): File =
+        File(dir, file.name.removeSuffix(PREVIOUS_CRASH_SUFFIX) + PREVIOUS_ACKNOWLEDGED_CRASH_SUFFIX)
 
     /**
      * Whether a prior run *crashed* (ended in an uncaught exception) and the user
@@ -261,12 +439,13 @@ internal class DebugFileSink internal constructor(
      * shows on. A routine kill, force-stop, app update, or silent kill leaves a
      * prior-run file too, but not a crash-suffixed one, so this stays false for
      * them and the banner never mislabels an ordinary exit. Runs on the worker
-     * (like [readPreviousRun]) so FIFO ordering places it after the startup
+     * (like [readPreviousRuns]) so FIFO ordering places it after the startup
      * rotation [start] queued there — otherwise a check racing a slow rotation
      * could scan before `debug.log` is renamed to its crash-suffixed name and
      * miss the just-ended crash. Metadata only (a directory listing; never the
      * log itself), so it is cheap; call it off the main thread as it blocks on
-     * the worker. Sharing a report clears the runs ([clearPreviousRun]) and
+     * the worker. Sharing a report consumes the runs it carried
+     * ([consumePreviousRuns]) and
      * dismissing renames them off the crash suffix ([acknowledgeCrashBanner]);
      * either way this then returns false until a later run crashes.
      */
@@ -285,10 +464,7 @@ internal class DebugFileSink internal constructor(
     fun acknowledgeCrashBanner() {
         runCatching {
             worker.submit {
-                crashedFiles().forEach { file ->
-                    val plain = File(dir, file.name.removeSuffix(PREVIOUS_CRASH_SUFFIX) + PREVIOUS_PLAIN_SUFFIX)
-                    runCatching { file.renameTo(plain) }
-                }
+                crashedFiles().forEach { file -> acknowledge(file) }
             }.get()
         }
     }

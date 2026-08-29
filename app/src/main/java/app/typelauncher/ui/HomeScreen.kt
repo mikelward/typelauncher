@@ -102,6 +102,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -6132,6 +6133,11 @@ internal fun SettingsScreen(
                     onShare = onShareCrash,
                     onDismiss = onDismissCrash,
                     modifier = Modifier.fillMaxWidth(),
+                    // Read here rather than threaded through the screen's
+                    // parameters: the share outlives the composition that
+                    // starts it (it runs on the application scope), so the
+                    // flow it owns is the only thing that still knows.
+                    isSharing = BugReport.isSharing.collectAsState().value,
                 )
             }
             // Below the crash prompt: that one is about something that already

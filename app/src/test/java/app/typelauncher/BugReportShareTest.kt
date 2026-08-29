@@ -2,8 +2,10 @@ package app.typelauncher
 
 import android.app.Activity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -15,6 +17,9 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowToast
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * [BugReport.share] must never turn a failure while collecting the report into
@@ -84,7 +89,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> false },
             chooserLaunch = { _, _, _ -> false },
         )
@@ -103,7 +108,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> throw SecurityException("no clipboard access") },
             chooserLaunch = { _, _, _ -> throw IllegalStateException("no share target") },
         )
@@ -117,7 +122,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> false },
             chooserLaunch = { _, _, _ -> true },
         )
@@ -137,13 +142,90 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             clipboardWrite = { _, _ -> false },
         )
 
         val started = shadowOf(activity.application).nextStartedActivity
         assertNotNull("the chooser still launched", started)
         assertNull("and nothing was reported as a failed share", ShadowToast.getLatestToast())
+    }
+
+    @Test
+    fun `a second share while one is running is refused, not run alongside`() = runBlocking {
+        // Two taps in a row is the normal way to use a button that gives no
+        // feedback, and overlapping shares race the consume: the first deletes
+        // the prior runs it carried while the second is still collecting, so the
+        // second builds a report with no crash in it and that is the one the user
+        // is left holding — with the log already gone.
+        val firstIsCollecting = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+        val collections = AtomicInteger()
+
+        val first = launch(Dispatchers.IO) {
+            BugReport.share(
+                activity,
+                includeScreenshot = false,
+                mainDispatcher = Dispatchers.Unconfined,
+                payloadCollect = { _, _ ->
+                    collections.incrementAndGet()
+                    firstIsCollecting.countDown()
+                    // Held open by the test, so the overlap is deterministic
+                    // rather than a race the test hopes to win.
+                    releaseFirst.await()
+                    BugReport.Payload("report", emptySet())
+                },
+                clipboardWrite = { _, _ -> true },
+                chooserLaunch = { _, _, _ -> true },
+            )
+        }
+        assertTrue("the first share reached its payload build", firstIsCollecting.await(10, TimeUnit.SECONDS))
+
+        BugReport.share(
+            activity,
+            includeScreenshot = false,
+            mainDispatcher = Dispatchers.Unconfined,
+            payloadCollect = { _, _ ->
+                collections.incrementAndGet()
+                BugReport.Payload("second report", emptySet())
+            },
+            clipboardWrite = { _, _ -> true },
+            chooserLaunch = { _, _, _ -> true },
+        )
+
+        // Read the count, then always release the first share before asserting:
+        // asserting first would leave the gate latch closed on failure, and
+        // runBlocking would wait on a child that can never finish — a regression
+        // has to fail, not hang.
+        val builds = collections.get()
+        releaseFirst.countDown()
+        first.join()
+
+        assertEquals("the repeat tap never built a second report", 1, builds)
+    }
+
+    @Test
+    fun `the gate reopens once a share finishes, including a failing one`() = runBlocking {
+        repeat(2) {
+            BugReport.share(
+                activity,
+                includeScreenshot = false,
+                mainDispatcher = Dispatchers.Unconfined,
+                payloadCollect = { _, _ -> throw IllegalStateException("settings store unreadable") },
+                clipboardWrite = { _, _ -> true },
+                chooserLaunch = { _, _, _ -> true },
+            )
+        }
+        var ran = false
+        BugReport.share(
+            activity,
+            includeScreenshot = false,
+            mainDispatcher = Dispatchers.Unconfined,
+            payloadCollect = { _, _ -> ran = true; BugReport.Payload("report", emptySet()) },
+            clipboardWrite = { _, _ -> true },
+            chooserLaunch = { _, _, _ -> true },
+        )
+        assertTrue("a later share is not locked out by an earlier one", ran)
     }
 
     @Test
@@ -154,7 +236,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> "report" },
+            payloadCollect = { _, _ -> BugReport.Payload("report", emptySet()) },
             screenshotCapture = { captured = true; null },
             clipboardWrite = { _, _ -> true },
             chooserLaunch = { _, _, _ -> true },

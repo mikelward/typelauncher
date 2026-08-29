@@ -778,7 +778,8 @@ internal class LauncherViewModel(
 
     /**
      * Re-evaluates the banner after a share attempt. A successful share consumes
-     * the prior run ([DebugFileSink.clearPreviousRun] inside [BugReport.share]),
+     * the prior runs it carried ([DebugFileSink.consumePreviousRuns] inside
+     * [BugReport.share]),
      * so the banner hides; if the share was canceled or both handoffs failed the
      * crash file survives and the banner stays up for a retry.
      */
