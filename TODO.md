@@ -329,6 +329,22 @@
       Worth revisiting only with a design that does not depend on two coroutines
       racing.
 
+- [ ] **Consider making the bug report's `Process start` section say whether it
+      is complete.** It is a plain snapshot today: an empty one says "nothing
+      captured" and nothing about why. Knowing the difference between "the
+      startup diagnostic did not run" and "it had not finished yet" would be
+      worth having on a report shared seconds after launch — a post-crash one,
+      most plausibly — where an empty section is currently unreadable. It is not
+      worth having at the price already paid once: keeping that claim true means
+      every background producer of a pinned line being awaited, which drew eight
+      review findings in a row on PR #689 before the claim was dropped. If it is
+      revisited, the version worth building is one where producers register
+      themselves so a caller cannot start an untracked one, a cancelled producer
+      pins its own `reason=canceled` line rather than disappearing, and the
+      chooser probe moves off `lifecycleScope` — a configuration change there
+      cancels it before it runs, which is what makes a missing reading likely in
+      the first place.
+
 - [x] **Declare `android:stateNotNeeded` on the home activity.** Done, and the
       flag turns out to cost nothing — the reasoning that removed it in
       `50165c1b` rested on the documentation's cautious wording rather than on
