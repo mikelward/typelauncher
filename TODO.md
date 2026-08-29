@@ -588,6 +588,19 @@
       not under today's.
 
 ### Decisions needing review
+- [ ] **Two jobs now enter `environment: production` on a main run.**
+      `release-build` declares it because the upload keystore lives there, and
+      `deploy` keeps it for the Play service account. Today that costs nothing:
+      the environment carries no required-reviewer or wait-timer rule, and
+      every recent `deploy` started within ~3s of its `needs:` completing. If a
+      reviewer rule is ever added — which this workflow's own comments suggest
+      doing — a release would pause for approval twice, and the second pause is
+      easy to miss because reviewers assume their first approval covered the
+      run. The alternative is to drop `environment:` from `release-build`, but
+      that removes the environment-enforced deployment-branch restriction from
+      the job that actually holds the keystore, which is the protection those
+      comments argue for. Flagged by Codex; the same shape is already merged in
+      clothescast with the maintainer's approval.
 
 - **"Default" / "Undefault" needs reconciling with its translations.** The
   long-press menu on a contact's number toggles whether that number is the
