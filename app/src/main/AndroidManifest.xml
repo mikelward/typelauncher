@@ -28,6 +28,17 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!--
+            Home activities, so the diagnostic that samples what a Home press
+            resolves to can see the full candidate list. Without this, package
+            visibility filters other launchers out, and a resolution to one of
+            them is indistinguishable from a resolution to the system chooser —
+            which is exactly the distinction the diagnostic exists to make.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
     </queries>
 
     <application

@@ -317,6 +317,18 @@
 
 ## Process death and restart
 
+- [ ] **Consider sampling home resolution around app reloads too.** Today it is
+      read at process start and at a chooser hand-off only. Reading it around a
+      package install/remove as well would put a sample inside the window where
+      the platform re-evaluates home resolution — the one place a launcher is
+      awake for an ambiguous reading it did not cause. It was built that way on
+      PR #689 and removed: getting the ordering right (sample before the reload,
+      not cancelled by the next event of a burst, not overtaken by the reload it
+      is meant to precede) drew five review findings in a row, each caused by the
+      previous fix, and every one of them was in that sampling and nowhere else.
+      Worth revisiting only with a design that does not depend on two coroutines
+      racing.
+
 - [x] **Declare `android:stateNotNeeded` on the home activity.** Done, and the
       flag turns out to cost nothing — the reasoning that removed it in
       `50165c1b` rested on the documentation's cautious wording rather than on
@@ -394,6 +406,45 @@
 
       With the flag now declared, a report still showing A is the signal that
       the flag was not the cause and the search reopens.
+
+      **B has now been observed with a report, and the APK-swap explanation
+      above does not survive it** (2026-08-29). The sheet appeared, the user
+      picked Type Launcher, and the report was captured eleven seconds later.
+      Three things it establishes:
+
+      - It really was the system's chooser, and the choice was made. The intent
+        that created the replacement activity carried `FORWARD_RESULT |
+        PREVIOUS_IS_TOP | CLEAR_TASK` against the plain `NEW_TASK |
+        EXCLUDE_FROM_RECENTS | BROUGHT_TO_FRONT` on every other Home press in
+        the same log — the resolver forwarding to its chosen target.
+      - The launcher did not raise it. `requestDefaultLauncher` never logged,
+        and the process had been backgrounded and silent for the preceding half
+        hour.
+      - **No APK was being swapped.** The old activity's `onDestroy` and the
+        replacement's `onCreate` are nine milliseconds apart *in the same
+        in-memory ring buffer*, which does not survive a process death — so the
+        process lived through it, nothing was replacing our package, and
+        `homeRoleHeld=true` read back twenty milliseconds later. Home
+        resolution went ambiguous while the process, the activity record and
+        the role were all intact.
+
+      So the open question is no longer "A or B" but what makes resolution
+      ambiguous under those conditions. The report could not say: the
+      `processExit` and `ownPackage` lines had been written hours earlier and
+      the ring buffer had long since evicted them, with roughly four fifths of
+      its window taken by package-change reload blocks and icon-cache counters.
+      Both halves of that are now addressed — the startup lines are pinned into
+      the report's own `Process start` section, and the two noisy sources are
+      logcat-only — and `homeResolution` records what a Home press would
+      resolve to at process start and at a chooser hand-off, so the next
+      occurrence should arrive with the evidence attached. See `SPEC.md`.
+
+      What to look for in the next report: a `homeResolution` line reading
+      `resolvesTo=chooser` (or `none`) says resolution was ambiguous and names
+      the moment it was read at. One reading `self` beside a `homeStart
+      via=chooser` says the ambiguity was momentary and healed before the
+      launcher was asked, which points at the platform's own preferred-home
+      bookkeeping during an install rather than at anything of ours.
 
 - [ ] **In-flight picks still don't survive a death while the launcher is
       resumed.** Independent of `stateNotNeeded` — equally true before and

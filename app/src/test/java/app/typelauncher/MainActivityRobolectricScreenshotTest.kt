@@ -615,6 +615,62 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun homeIntentForwardedByTheSystemChooserIsRecordedAndPinned() {
+        // The chooser leaves no trace of its own. The report that prompted this
+        // showed only an activity finished and immediately recreated, and the
+        // sheet was recoverable only by decoding the replacement intent's flags
+        // by hand — FLAG_ACTIVITY_FORWARD_RESULT, which the framework's
+        // ResolverActivity sets on the target it forwards to. Pinned, because
+        // the question is asked hours later.
+        LauncherDebugLog.clearForTest()
+        // Holds the scheduled block instead of running it, so the probe is
+        // observable while still in flight and then finished on the test's own
+        // terms — a real background coroutine touching Robolectric's package
+        // manager would outlive the test and land in whichever came next.
+        val deferring = DeferringCoroutineDispatcher()
+        composeRule.activity.runOnUiThread { composeRule.activity.ioDispatcher = deferring }
+
+        composeRule.activity.runOnUiThread {
+            composeRule.activity.handleLauncherIntent(
+                Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME)
+                    .addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT),
+            )
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(LauncherDebugLog.pinnedSnapshot().any { it.contains("homeStart via=chooser") })
+        assertTrue(
+            "the resolution probe is IPC and must go to the injected dispatcher",
+            deferring.pending.isNotEmpty(),
+        )
+
+        // Drained here rather than left queued, so nothing outlives the test.
+        deferring.runPending()
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun ordinaryHomeIntentIsNotRecordedAsComingFromTheChooser() {
+        // Home is pressed dozens of times a session; recording each one would
+        // fill the pinned buffer with the case that is never interesting and
+        // evict the one that is.
+        LauncherDebugLog.clearForTest()
+        val deferring = DeferringCoroutineDispatcher()
+        composeRule.activity.runOnUiThread { composeRule.activity.ioDispatcher = deferring }
+
+        composeRule.activity.runOnUiThread {
+            composeRule.activity.handleLauncherIntent(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+            )
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(LauncherDebugLog.pinnedSnapshot().none { it.contains("homeStart") })
+        assertTrue("no probe for an ordinary Home press", deferring.pending.isEmpty())
+    }
+
+    @Test
     fun receivingLauncherIntent_closesSettingsAndReturnsHome() {
         val viewModel = composeRule.activity.viewModel
         viewModel.openSettings()
@@ -4268,6 +4324,26 @@ class MainActivityRobolectricScreenshotTest {
  * push onto its injectable ioDispatcher actually goes there — deterministically,
  * with no background thread to await.
  */
+/**
+ * A [CoroutineDispatcher] that holds each block instead of running it, so a
+ * test can observe work while it is still in flight and then finish it on its
+ * own terms. Nothing reaches a real background thread, so nothing outlives the
+ * test.
+ */
+private class DeferringCoroutineDispatcher : CoroutineDispatcher() {
+    val pending = mutableListOf<Runnable>()
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        pending += block
+    }
+
+    fun runPending() {
+        val queued = pending.toList()
+        pending.clear()
+        queued.forEach { it.run() }
+    }
+}
+
 private class RecordingCoroutineDispatcher : CoroutineDispatcher() {
     var dispatched = false
         private set
