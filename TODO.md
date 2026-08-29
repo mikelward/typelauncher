@@ -46,6 +46,18 @@
   recurrence: the rate here was too low to demonstrate a fix by absence, so the
   argument is structural.
 
+  **It has recurred.** On PR #689, on a tree carrying this fix,
+  `resetRankAction_resetsLaunchCountAndReordersApps` failed with
+  `IllegalArgumentException` from `InlineClassHelper.kt:36` — a fourth
+  assertion, in the same class, in the same shape: exactly one failure in a
+  full run, and green on the next full run plus three isolated runs of the
+  class with nothing changed. So the dispatcher was one cause and not the
+  only one: something in this suite still leaves work crossing a test
+  boundary. The next step is to find what outlives a test here rather than
+  what dispatches it — the class is the unit that flakes, never a single
+  method, which points at state carried between tests rather than at any
+  one test's own setup.
+
 - **Reconcile the docs-lane classifier with the release-notes-skip classifier
   for `PRIVACY.md`, and reconsider forcing it onto the code lane at all.**
   `.github/lanes.conf`'s `code PRIVACY.md` rule means a PRIVACY.md-only
