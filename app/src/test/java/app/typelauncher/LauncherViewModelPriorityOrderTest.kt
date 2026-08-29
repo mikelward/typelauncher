@@ -20,21 +20,23 @@ import org.robolectric.annotation.Config
 import kotlin.coroutines.CoroutineContext
 
 /**
- * Pins the warm-up's tail to the order the app list actually renders in.
+ * Pins [LauncherViewModel.renderedAppListOrder] to the order the app list actually
+ * renders in.
  *
- * The warm-up stops at a fraction of the byte budget, so on a device with enough apps
- * to reach it the tail's order decides which icons end up warm. Ordering it by launch
- * count only matches the screen under a Usage sort; under an alphabetical one it warms
- * the visible rows *last*, which is the opposite of what the ceiling is for -- the user
- * looks at the top of their list and finds exactly the icons the sweep never got to.
+ * That order is what the priority icon set is taken from -- the head of it is the
+ * screenful Home paints before the user types anything, and since nothing warms the
+ * cache ahead of demand, what falls outside the head is what re-rasterizes on the way
+ * back in. Ordering by launch count matches the screen only under a Usage sort; under
+ * an alphabetical one the first visible rows are exactly the ones such a ranking puts
+ * last, so the screenful kept would be the one the user cannot see.
  *
- * So the plan sorts with the list's own comparator rather than a second one written
+ * So the order comes from the list's own comparator rather than a second one written
  * beside it. These fix that to the setting: same apps, same launch counts, different
- * "Sort apps by" choice, different warm order.
+ * "Sort apps by" choice, different order.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-class LauncherViewModelWarmUpOrderTest {
+class LauncherViewModelPriorityOrderTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
     @After
@@ -51,7 +53,7 @@ class LauncherViewModelWarmUpOrderTest {
      *
      * Robolectric has no launchable activities, so letting the fresh load land would
      * replace the fixture with an empty list and leave nothing to order. Parking it is
-     * what keeps these three apps in the plan. (Same device as
+     * what keeps these three apps in the order. (Same device as
      * `LauncherViewModelIconTrimGuardTest`, for the same reason.)
      */
     private class RunFirstBlockOnlyDispatcher : CoroutineDispatcher() {
@@ -63,7 +65,7 @@ class LauncherViewModelWarmUpOrderTest {
 
     /**
      * Three apps whose alphabetical order is the reverse of their launch order, so a
-     * plan built the wrong way round is unambiguous rather than coincidentally right.
+     * order built the wrong way round is unambiguous rather than coincidentally right.
      */
     private fun seedApps() {
         val entries = listOf("Aardvark" to "aardvark", "Middle" to "middle", "Zebra" to "zebra")
@@ -114,8 +116,8 @@ class LauncherViewModelWarmUpOrderTest {
             .commit()
     }
 
-    /** The list-size half of the plan, which is the pass this ordering governs. */
-    private fun warmOrderNames(): List<String> {
+    /** The rendered order the priority set's head is taken from. */
+    private fun renderedOrderNames(): List<String> {
         val viewModel = LauncherViewModel(
             app = ApplicationProvider.getApplicationContext(),
             workPackages = emptySet(),
@@ -123,41 +125,37 @@ class LauncherViewModelWarmUpOrderTest {
         )
         shadowOf(Looper.getMainLooper()).idle()
         assertFalse(
-            "the fixture must survive into the plan; a landed fresh load would empty it",
+            "the fixture must survive into the order; a landed fresh load would empty it",
             viewModel.uiState.value.isFreshAppLoadComplete,
         )
-        return viewModel
-            .buildWarmUpPlan(RenderedIconSizes(listPx = 40, dockPx = 132, folderPx = 56))
-            .filter { (_, sizePx) -> sizePx == 40 }
-            .map { (installed, _) -> installed.name }
+        return viewModel.renderedAppListOrder().map { installed -> installed.name }
     }
 
     @Test
-    fun theTailFollowsLaunchCountUnderAUsageSort() {
+    fun theOrderFollowsLaunchCountUnderAUsageSort() {
         seedApps()
         setSortOrder(AppListSortOrder.Usage)
 
-        assertEquals(listOf("Zebra", "Middle", "Aardvark"), warmOrderNames())
+        assertEquals(listOf("Zebra", "Middle", "Aardvark"), renderedOrderNames())
     }
 
     @Test
-    fun theTailFollowsTheAlphabetUnderANameSort() {
-        // The defect this pins. By launch count "Aardvark" is warmed last, but under
-        // this setting it is the first row on screen -- so on a device that reaches
-        // the ceiling it is the one row guaranteed to still be a placeholder.
+    fun theOrderFollowsTheAlphabetUnderANameSort() {
+        // The defect this pins. By launch count "Aardvark" ranks last, but under this
+        // setting it is the first row on screen -- so a priority set taken by launches
+        // drops the one row the user is guaranteed to be looking at.
         seedApps()
         setSortOrder(AppListSortOrder.Alphabetical)
 
-        assertEquals(listOf("Aardvark", "Middle", "Zebra"), warmOrderNames())
+        assertEquals(listOf("Aardvark", "Middle", "Zebra"), renderedOrderNames())
     }
 
     @Test
-    fun aPinnedAppHeadsTheTailEvenWhenTheAlphabetPutsItLast() {
-        // The defect this pins: the dock and folder passes warm `dockPx`/`folderPx`,
-        // never `listPx`. Pinned apps float to the head of the *list* in every state,
-        // so with the dock hidden a pin late in the alphabet is the first visible row
-        // -- and without floating it here it warms last, which on a device that
-        // reaches the ceiling means it is the one row that never warms at all.
+    fun aPinnedAppHeadsTheOrderEvenWhenTheAlphabetPutsItLast() {
+        // Pinned apps float to the head of the *list* in every state, so with the dock
+        // hidden a pin late in the alphabet is the first visible row -- and without
+        // floating it here it ranks last, which puts the first row on screen outside
+        // the head that is kept.
         seedApps()
         setSortOrder(AppListSortOrder.Alphabetical)
         context.getSharedPreferences("docked_apps", Context.MODE_PRIVATE)
@@ -165,15 +163,15 @@ class LauncherViewModelWarmUpOrderTest {
             .putString("docked_app_ids", appId("zebra"))
             .commit()
 
-        assertEquals(listOf("Zebra", "Aardvark", "Middle"), warmOrderNames())
+        assertEquals(listOf("Zebra", "Aardvark", "Middle"), renderedOrderNames())
     }
 
     @Test
-    fun pinsWarmInGridRankOrderNotTheOrderTheyWereDocked() {
+    fun pinsRankInGridOrderNotTheOrderTheyWereDocked() {
         // The stores keep `dockedAppIds` in insertion order; the rendered list floats
         // pins by their persisted grid coordinates. Once a user has rearranged the
-        // dock the two disagree, and warming by insertion order heads the sweep with
-        // the wrong icon -- the second-row pin, while the first visible one waits.
+        // dock the two disagree, and ranking by insertion order heads the set with the
+        // wrong icon -- the second-row pin, while the first visible one is dropped.
         seedApps()
         setSortOrder(AppListSortOrder.Alphabetical)
         // Docked Middle first, Zebra second, then dragged Zebra into slot 0.
@@ -186,18 +184,18 @@ class LauncherViewModelWarmUpOrderTest {
             )
             .commit()
 
-        assertEquals(listOf("Zebra", "Middle", "Aardvark"), warmOrderNames())
+        assertEquals(listOf("Zebra", "Middle", "Aardvark"), renderedOrderNames())
     }
 
     @Test
-    fun aReversedSortWarmsItsForwardOrder() {
+    fun aReversedSortKeepsItsForwardOrder() {
         // Reversed variants share their forward counterpart's data ordering -- the
         // flip is `reverseLayout` in the UI -- and index 0 renders at the visual
         // bottom under it. So the head of this list is still what the user sees, and
-        // reversing the warm order here would warm the off-screen end first.
+        // reversing the order here would keep the off-screen end instead.
         seedApps()
         setSortOrder(AppListSortOrder.AlphabeticalReversed)
 
-        assertEquals(listOf("Aardvark", "Middle", "Zebra"), warmOrderNames())
+        assertEquals(listOf("Aardvark", "Middle", "Zebra"), renderedOrderNames())
     }
 }
