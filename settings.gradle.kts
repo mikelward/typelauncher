@@ -10,9 +10,6 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    plugins {
-        id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
-    }
 }
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
