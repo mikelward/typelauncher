@@ -144,10 +144,12 @@ class MainActivity : ComponentActivity() {
     // The dispatcher the activity's Binder IPCs (widget-host orphan
     // reconciliation and removal, the wallpaper-offset report) hop onto, kept
     // off the main thread. Injectable so Robolectric tests can pass a
-    // deterministic dispatcher, mirroring LauncherViewModel.ioDispatcher — the
-    // production default is Dispatchers.IO.
+    // deterministic dispatcher, mirroring LauncherViewModel.ioDispatcher. The
+    // default comes from LauncherDispatchers rather than Dispatchers.IO
+    // directly, so a test that launches this activity can confine the work
+    // before onCreate starts it — setting the field afterwards is too late.
     @VisibleForTesting
-    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    internal var ioDispatcher: CoroutineDispatcher = LauncherDispatchers.io
 
     private val requestDefaultLauncherLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}

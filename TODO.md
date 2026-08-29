@@ -32,17 +32,19 @@
 
 ## CI
 
-- **`screenshot_appListIconOnly_overflowingGrid` fails intermittently in the
-  screenshot job**, and only there: `assertIsDisplayed()` on the apps-list
-  bottom chevron throws `IllegalArgumentException: performMeasureAndLayout
-  called during measure layout` from Compose's `MeasureAndLayoutDelegate`. Seen
-  once on PR #669 (head `fe0bea50`) and not on the head immediately before it,
-  nor on any local run of the same class under `-Proborazzi.test.record=true`.
-  The assertion re-enters measurement while a pass is already running, so it is
-  an ordering bug in the test rather than anything about the chevron itself —
-  the fix is to make the ordering explicit, not to retry or sleep. Left alone
-  for now because it reproduces nowhere a fix could be verified; if it recurs,
-  that is the signal to stop treating it as noise.
+- **Fixed: `MainActivityRobolectricScreenshotTest`'s intermittent failures.**
+  Three assertions kept failing at random, one per run, always green on the
+  next: `performMeasureAndLayout called during measure layout`, `removeObserver
+  must be called on the main thread`, and an `assertIsDisplayed()` on a tag
+  every passing run has. One cause — this is the only suite that launches the
+  real `MainActivity`, so it was the only one whose view model took the
+  production `Dispatchers.IO`, and those threads raced Robolectric's single
+  main looper and outlived the test that started them. Both defaults now read
+  `LauncherDispatchers.io`, which the suite overrides with a main-looper
+  dispatcher before the activity launches;
+  `suiteConfinesLauncherIoToTheMainLooper` guards the wiring. Watch for a
+  recurrence: the rate here was too low to demonstrate a fix by absence, so the
+  argument is structural.
 
 - **Reconcile the docs-lane classifier with the release-notes-skip classifier
   for `PRIVACY.md`, and reconsider forcing it onto the code lane at all.**
