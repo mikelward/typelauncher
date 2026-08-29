@@ -10,6 +10,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.os.UserHandle
 import android.view.KeyEvent as AndroidKeyEvent
@@ -50,6 +52,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
@@ -70,6 +73,7 @@ import org.robolectric.shadows.ShadowToast
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 
 @RunWith(RobolectricTestRunner::class)
@@ -77,11 +81,15 @@ import kotlinx.coroutines.CoroutineDispatcher
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MainActivityRobolectricScreenshotTest {
     private val placeholderSuffixRule = TestSearchPlaceholderSuffixRule()
+    private val ioDispatcherRule = MainLooperIoDispatcherRule()
     val composeRule = createAndroidComposeRule<MainActivity>()
 
+    // Outside composeRule, because the activity it launches reads the seam in
+    // onCreate — see MainLooperIoDispatcherRule.
     @get:Rule
     val ruleChain: RuleChain = RuleChain
         .outerRule(placeholderSuffixRule)
+        .around(ioDispatcherRule)
         .around(SeedLauncherStateRule())
         .around(composeRule)
 
@@ -96,6 +104,39 @@ class MainActivityRobolectricScreenshotTest {
     @After
     fun resetToastState() {
         ShadowToast.reset()
+    }
+
+    @Test
+    fun suiteConfinesLauncherIoToTheMainLooper() {
+        // The guard for this class's long-standing intermittent failures
+        // (`TODO.md`, "CI"). They were three unrelated-looking assertions —
+        // `performMeasureAndLayout called during measure layout`,
+        // `removeObserver must be called on the main thread`, and an
+        // `assertIsDisplayed()` on a tag every passing run has — with one
+        // cause: this is the only suite that launches the real activity, so it
+        // was the only one whose view model took the production
+        // `Dispatchers.IO`, and real threads raced Robolectric's single main
+        // looper and outlived the test that started them.
+        //
+        // Both halves matter. Reading the seam is what the fix was; a dispatch
+        // actually arriving is what stops a future change from putting a
+        // hardcoded dispatcher back on the startup path and leaving the seam
+        // wired to nothing. `@Before` has already awaited the initial app load,
+        // so by here the view model has done its `LauncherApps` query.
+        assertSame(
+            "the view model must take its IO dispatcher from the seam this suite overrides",
+            ioDispatcherRule.dispatcher,
+            composeRule.activity.viewModel.ioDispatcher,
+        )
+        assertSame(
+            "the activity must take its IO dispatcher from the seam this suite overrides",
+            ioDispatcherRule.dispatcher,
+            composeRule.activity.ioDispatcher,
+        )
+        assertTrue(
+            "startup IO must actually run on the suite's dispatcher, not a real thread pool",
+            ioDispatcherRule.dispatcher.dispatchCount > 0,
+        )
     }
 
     @Test
@@ -4056,6 +4097,68 @@ class MainActivityRobolectricScreenshotTest {
                 packageManager.addResolveInfoForIntent(launcherIntent, resolveInfo)
                 packageManager.addActivityIcon(componentName, ColorDrawable(OVERFLOW_ICON_COLORS[index % OVERFLOW_ICON_COLORS.size]))
             }
+        }
+    }
+
+    /**
+     * Runs the activity's and the view model's IO work on Robolectric's main
+     * looper instead of a real background thread pool, for the length of one
+     * test.
+     *
+     * This is the only suite that launches the real [MainActivity], so it is
+     * the only one whose view model gets the production `Dispatchers.IO` — every
+     * other test constructs the view model itself and passes a dispatcher it
+     * controls. Real threads there gave a single-threaded Robolectric main
+     * looper a genuine race: a startup app query, an icon load or a widget IPC
+     * completing mid-pass, and outliving the test that started it into the next
+     * one's activity. That is what the intermittent failures in this class were
+     * — `performMeasureAndLayout called during measure layout`, `removeObserver
+     * must be called on the main thread`, and an `assertIsDisplayed()` on a tag
+     * every passing run has (`TODO.md`, "CI").
+     *
+     * A main-looper dispatcher rather than [kotlinx.coroutines.Dispatchers.Unconfined]:
+     * it keeps the asynchrony the tests are written against — `launch` still
+     * returns before its body runs, so a test can still stage work in flight —
+     * while making the body run at a point the suite already synchronizes on,
+     * since `waitForIdle` and `waitUntil` drain that looper. Unconfined would
+     * run each body inline inside its caller, which is a different ordering
+     * again and can re-enter composition.
+     *
+     * Outside `composeRule` in the chain: the activity reads the seam in
+     * `onCreate`, so the override has to be in place before it launches.
+     */
+    private class MainLooperIoDispatcherRule : TestRule {
+        lateinit var dispatcher: MainLooperIoDispatcher
+            private set
+
+        override fun apply(base: Statement, description: Description): Statement =
+            object : Statement() {
+                override fun evaluate() {
+                    val previous = LauncherDispatchers.testOverride
+                    dispatcher = MainLooperIoDispatcher()
+                    LauncherDispatchers.testOverride = dispatcher
+                    try {
+                        base.evaluate()
+                    } finally {
+                        LauncherDispatchers.testOverride = previous
+                    }
+                }
+            }
+    }
+
+    /**
+     * Posts to Robolectric's main looper and counts what it was handed, so a
+     * test can tell a seam that is wired from one that is merely present.
+     */
+    private class MainLooperIoDispatcher : CoroutineDispatcher() {
+        private val delegate = Handler(Looper.getMainLooper()).asCoroutineDispatcher()
+
+        var dispatchCount = 0
+            private set
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            dispatchCount++
+            delegate.dispatch(context, block)
         }
     }
 

@@ -38,7 +38,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.google.android.play.core.install.model.InstallStatus
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.BufferOverflow
@@ -64,7 +63,10 @@ import java.time.ZoneOffset
 internal class LauncherViewModel(
     private val app: Application,
     private val workPackages: Set<String>,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    // Read by MainActivityRobolectricScreenshotTest, the one suite that cannot
+    // pass this in: it launches the real activity, which builds the view model.
+    @get:VisibleForTesting
+    internal val ioDispatcher: CoroutineDispatcher = LauncherDispatchers.io,
     // The on-device debug-log sink, resolved from the Application by default.
     // Injectable so a test can drive the post-crash banner with its own sink —
     // the Application skips wiring the real one under Robolectric (a per-test
