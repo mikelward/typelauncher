@@ -65,6 +65,37 @@
 
 ## CI
 
+- [ ] **Give `deploy` its own concurrency group, and port snoozemo's
+      superseded-run guard.** Today all `main` runs share one
+      `ci-main-deploy` group at the WORKFLOW level, so they do serialize and
+      the newest pending run does win — but the evicted one loses its
+      **tests** as well as its release, for a commit that is on `main` either
+      way. Adding a `deploy`-level group turns that into losing only an
+      intermediate release card: the release-notes range base is the last run
+      that actually *published*, so an evicted deploy's commits ship next
+      time with their subjects intact.
+
+      **Add the deploy group, do not MOVE the workflow one** (Codex, #699).
+      The per-PR half of the workflow group is load-bearing here and must
+      stay cancelable: an `edited` event reruns the same head SHA, and this
+      repo publishes its `lanes` verdict from an App, so without cancellation
+      an older `Publish the lanes status` job can land a stale verdict after
+      the newer run — leaving the required status inconsistent with the
+      current base. Take clothescast's shape (#1172), which splits rather
+      than moves: PR branches keep one cancelable group, `main` keys per
+      commit SHA so no two `main` runs share a group, and `deploy` gets
+      `deploy-main-release` with `cancel-in-progress: false` — never cancel a
+      Play upload in flight.
+      Separately, group ordering is arbitrary, so an older push's deploy can
+      reach the upload after a newer one published a higher `versionCode` and
+      Play rejects the stale upload — a failed billed run. snoozemo's guard
+      (`deploy` skips when the head of a run that actually published already
+      descends from this run's head) fixes that; this repo lacks it. Check
+      `$prev_sha`, never `main`'s raw tip — `main` can advance with nothing
+      having published, and skipping on that strands this run's releasable
+      commits. No ordered release queue: the maintainer accepted the eviction
+      (2026-08-30), and no repo in this fleet has one.
+
 - **Fixed: `MainActivityRobolectricScreenshotTest`'s intermittent failures.**
   Three assertions kept failing at random, one per run, always green on the
   next: `performMeasureAndLayout called during measure layout`, `removeObserver
