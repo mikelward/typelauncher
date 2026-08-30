@@ -38,12 +38,21 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '**'
-      - '!**/*.md'
-      - '!.*'
-      - '!.*/**'
-      - '.github/workflows/**'
+    # No paths filter. There was one here restating .github/lanes.conf by
+    # hand, and it disagreed with it in three places: it skipped
+    # `app/README.md`, which `code app/**` matches first and calls code, and
+    # it skipped `.gitignore` and `.claude/**`, which match no rule and are
+    # therefore code too. Nothing checked the two against each other.
+    # `push classify` in lanes.conf now decides that question from the policy
+    # itself, and every heavy job plus `deploy` is already gated on
+    # `docs_only`, so a docs-only push starts a run and skips inside it
+    # rather than never starting one.
+    #
+    # The engine refuses the range rather than guessing whenever it cannot
+    # prove the push added it: a force-push, a first push, a branch deletion
+    # (where the payload's `after` is all zeros but GITHUB_SHA is main's
+    # tip), a comparison that is not `ahead`, or a file list at the API's
+    # 300-file page cap. Every refusal takes the code lane.
   # Manual override for the `deploy` job: lets a maintainer force an
   # internal-track release from the GitHub web UI (works from a phone
   # browser — no local build tooling needed) when `main`'s tip is stuck
