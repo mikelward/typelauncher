@@ -123,7 +123,30 @@ concurrency:
   #
   # Merging with nothing in flight at all is what makes this safe; the diff
   # cannot enforce it. See the PR. Raised by Codex on #651.
-  group: ci-${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'main-deploy' || github.event.pull_request.number || github.ref }}
+  #
+  # SPLIT, not moved (clothescast #1172's shape). `main` runs used to share
+  # one `main-deploy` group here, which serialized them — and because a group
+  # holds only ONE pending run, a third arrival evicted the second, losing its
+  # TESTS as well as its release. Classifying a push made that load-bearing
+  # rather than merely wasteful: a docs-only push now starts a run where it
+  # previously started none, so it can evict a pending code run and then skip
+  # every heavy job, since its range is only its own commits. The evicted
+  # push's code then sits on `main` with no main-lane build at all. An evicted
+  # CODE run was self-healing — the run that evicted it builds `main`'s tip,
+  # which contains the evicted commits — and a docs one is not.
+  #
+  # So `main` now keys per commit SHA: no two `main` runs share a group, none
+  # evicts another, and every push gets its own build. Serialization moves to
+  # where it is actually needed — `deploy`'s own group, below — because the
+  # only thing that must not overlap is a Play upload.
+  #
+  # The per-PR half stays exactly as it was, and must: `edited` is in this
+  # workflow's `types:` and an edit leaves the head SHA unchanged, so without
+  # cancellation an older run survives alongside the newer one — and
+  # `finalize` is `if: !cancelled()`, so the older one still publishes. This
+  # repo publishes its `lanes` verdict from an App, so a stale verdict landing
+  # last would overwrite the newer one on a required check.
+  group: ci-${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && format('main-{0}', github.sha) || github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ !(github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
 
 # Explicitly empty, not omitted — each job below declares the least-privilege
@@ -1182,6 +1205,24 @@ jobs:
     #   3. `needs:` — only runs after build and connected-tests
     #      both pass. A failing screenshot test on main now blocks the
     #      release; the previous setup would have shipped anyway.
+    #
+    # The one thing that must never overlap is a Play upload: two deploys
+    # running at once race to publish, and Play rejects whichever arrives
+    # with a versionCode no higher than one already taken. Every run that can
+    # reach here shares ONE group — pushes and main dispatches alike, which
+    # is what the workflow-level group used to provide before it split so
+    # that `main` runs could validate in parallel.
+    #
+    # `cancel-in-progress: false` queues the second run rather than canceling
+    # the first: canceling mid-upload is the one thing this must never do.
+    # That means an older push's deploy can still reach the upload after a
+    # newer one published, since group order is by when each job started
+    # waiting rather than by push order — which is exactly what the
+    # superseded-run guard in "Build release notes" catches, skipping instead
+    # of failing on a rejected upload.
+    concurrency:
+      group: deploy-main-release
+      cancel-in-progress: false
     if: |
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -1346,6 +1387,36 @@ jobs:
           # lives on qualifying subjects inside the filter loop below
           # instead; the per-commit diff-tree cost on a pathologically
           # long range (release outage) is the accepted trade.
+          # A later push already published everything this run would ship,
+          # so there is nothing left to release and uploading would only
+          # re-use a versionCode Play has already taken.
+          #
+          # This is reachable because `main` runs no longer queue behind one
+          # another: each keys its own concurrency group, so two can validate
+          # at once, and only `deploy` serializes. Group order is arbitrary —
+          # by when each job started waiting, not by push order — so an older
+          # push's deploy can reach the upload after a newer one published a
+          # higher versionCode, and Play rejects it. That failure costs a
+          # billed run and reads as a broken release rather than a race.
+          #
+          # Checks $prev_sha, never main's raw current tip. `main` can advance
+          # past this run's SHA with nothing having published — the later push
+          # may be docs-only and skip every heavy job, or its build may fail
+          # before `deploy` runs — and skipping on that would strand this
+          # run's releasable commits with nothing left to ship them. The only
+          # signal that this run's work is genuinely already covered is
+          # $prev_sha, the head of a run that actually published, descending
+          # from $AFTER_SHA. `git cat-file -e` first because a shallow or
+          # pruned clone may not hold that object, and `merge-base` on a
+          # missing commit answers no rather than erroring.
+          if [ -n "$prev_sha" ] \
+             && git cat-file -e "$prev_sha" 2>/dev/null \
+             && git merge-base --is-ancestor "$AFTER_SHA" "$prev_sha" 2>/dev/null; then
+            echo "A later push already published (last published SHA ${prev_sha} already includes this run's ${AFTER_SHA}); skipping."
+            echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           base_sha=""
           if [ -n "$prev_sha" ] && git cat-file -e "$prev_sha" 2>/dev/null; then
             base_sha="$prev_sha"
