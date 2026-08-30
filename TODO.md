@@ -65,6 +65,19 @@
 
 ## CI
 
+### Decisions needing review
+
+- **`play/README.md` is now code, not docs** (autopilot, 2026-08-30).
+  Narrowing `.github/lanes.conf` from `docs **/*.md` to `docs *.md` +
+  `docs docs/**/*.md` — the standard lanes' README now states — moves the one
+  markdown file that is neither at the root nor under `docs/` onto the code
+  lane. **Alternative:** add a `docs play/*.md` rule to keep it on the docs
+  lane. **Not taken**, because a per-path exception list is exactly what
+  lanes' README warns decays: it drifts silently, and `play/` holds Play
+  listing input, so erring toward code is the safe direction. **Reversible**
+  by adding that one line if editing it turns out to cost a full lane often
+  enough to matter.
+
 - [ ] **Give `deploy` its own concurrency group, and port snoozemo's
       superseded-run guard.** Today all `main` runs share one
       `ci-main-deploy` group at the WORKFLOW level, so they do serialize and
@@ -74,6 +87,26 @@
       intermediate release card: the release-notes range base is the last run
       that actually *published*, so an evicted deploy's commits ship next
       time with their subjects intact.
+
+      **Classifying a push made this load-bearing rather than merely
+      wasteful** (Codex, #700). Before, an evicted code run was self-healing:
+      the run that evicted it checked out `main`'s tip, which contains the
+      evicted commits, so the code was still built. A docs-only push now
+      starts a run where it previously started none, evicts a pending code
+      run, and then skips every heavy job — because its range is only its own
+      commits. The evicted push's code is then on `main` with no main-lane
+      build and no release until the next push. Bounded (that code was
+      already validated on its PR against a merge with `main`, and the
+      release-notes base is the last run that actually *published*, so its
+      subjects ship next time intact) and it needs three pushes inside one
+      run's window — but it is coverage this repo had and now doesn't.
+
+      **Land the two halves together.** The split lets `main` runs validate
+      in parallel instead of queuing, so more deploys can reach Play close
+      together, and queued-job order is by when each started waiting rather
+      than by push order. The superseded-run guard is what makes an
+      out-of-order publish safe. Doing the split first would be the risky
+      half without its safety net.
 
       **Add the deploy group, do not MOVE the workflow one** (Codex, #699).
       The per-PR half of the workflow group is load-bearing here and must
