@@ -78,15 +78,16 @@
   by adding that one line if editing it turns out to cost a full lane often
   enough to matter.
 
-- [ ] **Give `deploy` its own concurrency group, and port snoozemo's
-      superseded-run guard.** Today all `main` runs share one
-      `ci-main-deploy` group at the WORKFLOW level, so they do serialize and
-      the newest pending run does win — but the evicted one loses its
-      **tests** as well as its release, for a commit that is on `main` either
-      way. Adding a `deploy`-level group turns that into losing only an
-      intermediate release card: the release-notes range base is the last run
-      that actually *published*, so an evicted deploy's commits ship next
-      time with their subjects intact.
+- [x] **Gave `deploy` its own concurrency group, and ported snoozemo's
+      superseded-run guard.** Both halves landed together, as the analysis
+      below required. `main` runs used to share one `ci-main-deploy` group at
+      the WORKFLOW level, so they serialized and the newest pending run won —
+      but the evicted one lost its **tests** as well as its release, for a
+      commit that is on `main` either way. `main` now keys per commit SHA, so
+      no two `main` runs share a group and none evicts another; serialization
+      moved to `deploy`'s own group, because a Play upload is the only thing
+      that must not overlap. The per-PR group is unchanged and still
+      cancelable, for the reason recorded below.
 
       **Classifying a push made this load-bearing rather than merely
       wasteful** (Codex, #700). Before, an evicted code run was self-healing:
