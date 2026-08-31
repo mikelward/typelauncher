@@ -1,6 +1,6 @@
 package app.typelauncher
 
-import com.mikelward.androidlog.REDACTED_PLACEHOLDER
+import com.mikelward.androidlog.OFF_DEVICE_PLACEHOLDER
 import com.mikelward.androidlog.formatLogMessage
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -35,8 +35,8 @@ class LogValueTest {
     @Test
     fun aStringNobodyWroteARuleForIsStillWithheld() {
         assertEquals(
-            "openThing label=$REDACTED_PLACEHOLDER query=$REDACTED_PLACEHOLDER " +
-                "component=$REDACTED_PLACEHOLDER",
+            "openThing label=$OFF_DEVICE_PLACEHOLDER query=$OFF_DEVICE_PLACEHOLDER " +
+                "component=$OFF_DEVICE_PLACEHOLDER",
             offDevice(
                 "openThing label=%s query=%s component=%s",
                 "Alice Example",
@@ -72,7 +72,7 @@ class LogValueTest {
             offDevice("setThemeMode=%s", ThemeMode.Dark),
         )
         assertEquals(
-            "renameApp=$REDACTED_PLACEHOLDER",
+            "renameApp=$OFF_DEVICE_PLACEHOLDER",
             offDevice("renameApp=%s", "Alice's Mail"),
         )
     }
@@ -90,7 +90,7 @@ class LogValueTest {
             onDevice("time zone %s -> %s", "Australia/Sydney", "Europe/London"),
         )
         assertEquals(
-            "time zone $REDACTED_PLACEHOLDER -> $REDACTED_PLACEHOLDER",
+            "time zone $OFF_DEVICE_PLACEHOLDER -> $OFF_DEVICE_PLACEHOLDER",
             offDevice("time zone %s -> %s", "Australia/Sydney", "Europe/London"),
         )
     }

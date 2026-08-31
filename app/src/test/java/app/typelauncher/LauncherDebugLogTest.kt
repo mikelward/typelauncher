@@ -3,7 +3,7 @@ package app.typelauncher
 import android.content.Intent
 import android.net.Uri
 import android.view.KeyEvent
-import com.mikelward.androidlog.REDACTED_PLACEHOLDER
+import com.mikelward.androidlog.OFF_DEVICE_PLACEHOLDER
 import com.mikelward.androidlog.formatLogMessage
 import com.mikelward.androidlog.sensitive
 import java.time.ZoneId
@@ -254,7 +254,7 @@ class LauncherDebugLogTest {
         assertTrue("the on-device log keeps it", summary.full.contains("com.example.mail.ACTION_SECRET"))
         assertTrue("a caller-chosen action can name a package", !summary.mirrored.contains("com.example.mail"))
         // The shape survives even though the names do not.
-        assertTrue(summary.mirrored.contains("$REDACTED_PLACEHOLDER=Integer"))
+        assertTrue(summary.mirrored.contains("$OFF_DEVICE_PLACEHOLDER=Integer"))
 
         val framework = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
 

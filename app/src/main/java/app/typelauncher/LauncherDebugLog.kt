@@ -8,7 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Window
-import com.mikelward.androidlog.REDACTED_PLACEHOLDER
+import com.mikelward.androidlog.OFF_DEVICE_PLACEHOLDER
 import com.mikelward.androidlog.formatLogMessage
 import com.mikelward.androidlog.safe
 import java.time.Instant
@@ -469,8 +469,8 @@ internal fun Intent?.debugSummary(): LogSummary {
     return LogSummary(
         full = "$fullHead component=${component?.flattenToShortString() ?: "null"} " +
             "package=${`package` ?: "null"} data=$fullData extras=${extrasSummary.full}",
-        mirrored = "$mirroredHead component=$REDACTED_PLACEHOLDER " +
-            "package=$REDACTED_PLACEHOLDER data=$mirroredData extras=${extrasSummary.mirrored}",
+        mirrored = "$mirroredHead component=$OFF_DEVICE_PLACEHOLDER " +
+            "package=$OFF_DEVICE_PLACEHOLDER data=$mirroredData extras=${extrasSummary.mirrored}",
     )
 }
 
@@ -538,7 +538,7 @@ private val KNOWN_INTENT_VOCABULARY: Set<String> = setOf(
 private fun mirroredVocabulary(value: String?): String = when {
     value == null -> "null"
     value in KNOWN_INTENT_VOCABULARY -> value
-    else -> REDACTED_PLACEHOLDER
+    else -> OFF_DEVICE_PLACEHOLDER
 }
 
 /**
@@ -555,7 +555,7 @@ private val KNOWN_URI_SCHEMES = setOf(
 private fun mirroredScheme(scheme: String?, fullSummary: String): String = when {
     scheme == null -> fullSummary
     scheme.lowercase() in KNOWN_URI_SCHEMES -> fullSummary
-    else -> REDACTED_PLACEHOLDER
+    else -> OFF_DEVICE_PLACEHOLDER
 }
 
 /**
@@ -645,7 +645,7 @@ internal fun KeyEvent?.debugSummary(): LogSummary {
     val tail = "repeat=$repeatCount downTime=$downTime eventTime=$eventTime"
     return LogSummary(
         full = "action=$action keyCode=$keyCode $tail",
-        mirrored = "action=$action keyCode=$REDACTED_PLACEHOLDER $tail",
+        mirrored = "action=$action keyCode=$OFF_DEVICE_PLACEHOLDER $tail",
     )
 }
 
