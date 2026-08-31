@@ -3,6 +3,9 @@ package app.typelauncher
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import androidx.test.core.app.ApplicationProvider
+import com.mikelward.androidlog.formatLogMessage
+import com.mikelward.androidlog.safe
+import com.mikelward.androidlog.sensitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,8 +14,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
-import org.robolectric.shadows.ShadowActivityManager
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowActivityManager
 
 /**
  * The exit reason is the whole diagnostic value of [logRecentProcessExits]: it
@@ -158,7 +161,7 @@ class ProcessExitReasonsTest {
     // The correlation these lines exist for — an exit whose time matches the
     // package's update time is the installer swapping the APK, not a bug — is
     // only makeable if both times reach the mirror. Wrapping any of the three
-    // in `sensitive(...)` would render them `<redacted>` there and take the
+    // in `sensitive(...)` would render them as the placeholder there and take the
     // correlation with them, which is what this asserts against. Written
     // against `formatLogMessage` with the arguments the call sites pass, the
     // same shape as the mirror assertions in LauncherDebugLogTest: the
@@ -169,12 +172,12 @@ class ProcessExitReasonsTest {
         val exitLine = formatLogMessage(
             "processExit reason=%s timestamp=%s",
             arrayOf<Any?>(safe("REASON_USER_REQUESTED"), 1_700_000_000_000L),
-            redactSensitive = true,
+            leavingDevice = true,
         )
         val packageLine = formatLogMessage(
             "ownPackage lastUpdateTime=%s firstInstallTime=%s",
             arrayOf<Any?>(1_700_000_000_000L, 1_600_000_000_000L),
-            redactSensitive = true,
+            leavingDevice = true,
         )
 
         assertTrue("the exit time is the half a report is read for", exitLine.contains("1700000000000"))

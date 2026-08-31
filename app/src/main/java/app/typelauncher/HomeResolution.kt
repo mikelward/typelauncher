@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.content.getSystemService
+import com.mikelward.androidlog.safe
 
 /**
  * Records how the system currently resolves a Home press, and whether the

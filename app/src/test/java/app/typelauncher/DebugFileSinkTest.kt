@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import com.mikelward.androidlog.safe
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

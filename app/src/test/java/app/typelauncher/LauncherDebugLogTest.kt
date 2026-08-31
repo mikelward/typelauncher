@@ -3,6 +3,11 @@ package app.typelauncher
 import android.content.Intent
 import android.net.Uri
 import android.view.KeyEvent
+import com.mikelward.androidlog.REDACTED_PLACEHOLDER
+import com.mikelward.androidlog.formatLogMessage
+import com.mikelward.androidlog.sensitive
+import java.time.ZoneId
+import java.util.TimeZone
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,8 +16,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.time.ZoneId
-import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -251,7 +254,7 @@ class LauncherDebugLogTest {
         assertTrue("the on-device log keeps it", summary.full.contains("com.example.mail.ACTION_SECRET"))
         assertTrue("a caller-chosen action can name a package", !summary.mirrored.contains("com.example.mail"))
         // The shape survives even though the names do not.
-        assertTrue(summary.mirrored.contains("<redacted>=Integer"))
+        assertTrue(summary.mirrored.contains("$REDACTED_PLACEHOLDER=Integer"))
 
         val framework = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
 
@@ -310,7 +313,7 @@ class LauncherDebugLogTest {
         val line = formatLogMessage(
             "MainActivity.onKeyDown keyCode=%s event=%s",
             arrayOf(sensitive(KeyEvent.KEYCODE_A), event.debugSummary()),
-            redactSensitive = true,
+            leavingDevice = true,
         )
 
         assertTrue(
