@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -113,9 +114,27 @@ class CrashBannerScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Anonymous analytics").assertExists()
+        composeRule.onNodeWithText("Help make Type Launcher better?").assertExists()
+        // Both actions, not just the title (Codex, PR #702). The family copy is
+        // two lines of title over three of body, and at the old 560px capture
+        // height the button row fell off the bottom — leaving a recorded
+        // baseline of a card with no buttons that a title-only assertion was
+        // happy to accept. A screenshot that cannot see the control it exists
+        // to check is a disabled check wearing a green tick.
+        composeRule.onNodeWithText("No thanks").assertExists()
+        composeRule.onNodeWithText("Yes please").assertExists()
 
-        capture("compose_telemetry_consent_light_robolectric.png")
+        // At the device's own width, for the reason
+        // [telemetryConsent_longestLabels] gives: the button row is a
+        // fixed-width `SpaceBetween`, so capturing narrower than w411dp wraps
+        // "Yes please" inside its pill in the picture while it sits on one line
+        // on a phone. A snapshot that invents a defect is as useless as one
+        // that hides a real one.
+        capture(
+            "compose_telemetry_consent_light_robolectric.png",
+            heightPx = 720,
+            requireWholeContent = true,
+        )
     }
 
     @Test
@@ -126,9 +145,27 @@ class CrashBannerScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Anonymous analytics").assertExists()
+        composeRule.onNodeWithText("Help make Type Launcher better?").assertExists()
+        // Both actions, not just the title (Codex, PR #702). The family copy is
+        // two lines of title over three of body, and at the old 560px capture
+        // height the button row fell off the bottom — leaving a recorded
+        // baseline of a card with no buttons that a title-only assertion was
+        // happy to accept. A screenshot that cannot see the control it exists
+        // to check is a disabled check wearing a green tick.
+        composeRule.onNodeWithText("No thanks").assertExists()
+        composeRule.onNodeWithText("Yes please").assertExists()
 
-        capture("compose_telemetry_consent_dark_robolectric.png")
+        // At the device's own width, for the reason
+        // [telemetryConsent_longestLabels] gives: the button row is a
+        // fixed-width `SpaceBetween`, so capturing narrower than w411dp wraps
+        // "Yes please" inside its pill in the picture while it sits on one line
+        // on a phone. A snapshot that invents a defect is as useless as one
+        // that hides a real one.
+        capture(
+            "compose_telemetry_consent_dark_robolectric.png",
+            heightPx = 720,
+            requireWholeContent = true,
+        )
     }
 
     // The same card in the locale with the longest Allow/Deny pair of the 63,
@@ -150,13 +187,17 @@ class CrashBannerScreenshotTest {
         composeRule.waitForIdle()
         // By tag, not by text: the text under test is whatever the locale says.
         composeRule.onNodeWithTag(TELEMETRY_CONSENT_TAG).assertExists()
+        composeRule.onNodeWithTag(TELEMETRY_CONSENT_DENY_TAG).assertExists()
+        composeRule.onNodeWithTag(TELEMETRY_CONSENT_ALLOW_TAG).assertExists()
 
-        // At the full w411dp window width, unlike the English captures' 720:
-        // this one is about whether the longest labels fit the row a phone
-        // actually renders, so cropping the canvas narrower than the device
-        // would manufacture a wrap that no user sees. Taller too, because the
-        // Greek body runs to three lines.
-        capture("compose_telemetry_consent_longest_labels_robolectric.png", widthPx = 1079, heightPx = 640)
+        // Taller than the default, because the Greek body runs to three lines.
+        // The full-width capture this test used to specify explicitly is now
+        // what every capture in the class does — see [capture].
+        capture(
+            "compose_telemetry_consent_longest_labels_robolectric.png",
+            heightPx = 800,
+            requireWholeContent = true,
+        )
     }
 
     // Both cards at once, which is the state a first launch after a crash
@@ -187,8 +228,13 @@ class CrashBannerScreenshotTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Anonymous analytics").assertExists()
+        composeRule.onNodeWithText("Help make Type Launcher better?").assertExists()
 
+        // No whole-content requirement here, unlike the isolated captures:
+        // this is the scrolling Settings screen, which is taller than any
+        // frame, so cropping it is the intent rather than a defect. What this
+        // capture is for is the two cards' ordering and the gap between them,
+        // and both are inside the frame at this height.
         capture("compose_telemetry_consent_settings_placement_robolectric.png", heightPx = 1280)
     }
 
@@ -232,16 +278,51 @@ class CrashBannerScreenshotTest {
     // by bisecting heights after the body text grew from one line to two and
     // "Dismiss"/"Share" started rendering blank. Keep some margin below the
     // card here rather than cutting it exactly to fit.
-    private fun capture(name: String, widthPx: Int = 720, heightPx: Int = 560) {
-        val isRecord = System.getProperty("roborazzi.test.record") == "true"
-        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
-        if (!isRecord && !isVerify) return
+
+    private fun capture(
+        name: String,
+        widthPx: Int = 1079,
+        heightPx: Int = 560,
+        /**
+         * Whether the whole composable must fit the canvas. True for a capture
+         * of one card on a background, where anything cropped is a defect;
+         * false for a capture of a scrolling screen, which is taller than any
+         * frame and is cropped on purpose.
+         */
+        requireWholeContent: Boolean = false,
+    ) {
         val root = composeRule.activity.window.decorView.rootView
+        val widthSpec =
+            android.view.View.MeasureSpec.makeMeasureSpec(widthPx, android.view.View.MeasureSpec.EXACTLY)
+        if (requireWholeContent) {
+            // Ask what the content actually needs at this width, before
+            // forcing it into the frame — the whole point of Codex's PR #702
+            // finding. Asserting on the buttons' semantics bounds *looks* like
+            // the right check and is vacuous: laid out at a height too small
+            // for it, the card reflows and every node still reports a position
+            // inside the frame, while the drawn output is clipped. The
+            // unconstrained measurement is the honest question, and it is what
+            // fails at the 720x560 this class used to capture at.
+            root.measure(
+                widthSpec,
+                android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
+            )
+            assertTrue(
+                "$name: the content needs ${root.measuredHeight}px at ${widthPx}px wide, " +
+                    "so a ${heightPx}px capture crops it",
+                root.measuredHeight <= heightPx,
+            )
+        }
+        // Ahead of the record/verify gate, so the check runs under a plain
+        // `./gradlew test` rather than only where a file gets written.
         root.measure(
-            android.view.View.MeasureSpec.makeMeasureSpec(widthPx, android.view.View.MeasureSpec.EXACTLY),
+            widthSpec,
             android.view.View.MeasureSpec.makeMeasureSpec(heightPx, android.view.View.MeasureSpec.EXACTLY),
         )
         root.layout(0, 0, widthPx, heightPx)
+        val isRecord = System.getProperty("roborazzi.test.record") == "true"
+        val isVerify = System.getProperty("roborazzi.test.verify") == "true"
+        if (!isRecord && !isVerify) return
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         root.draw(Canvas(bitmap))
         bitmap.captureRoboImage(filePath = "src/test/snapshots/images/$name")

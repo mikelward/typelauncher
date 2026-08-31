@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import com.google.firebase.FirebaseApp
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.perf.FirebasePerformance
 import com.google.firebase.perf.metrics.Trace
@@ -96,6 +97,7 @@ internal interface TelemetryPreferences {
 internal interface TelemetrySdk {
     fun setCrashlyticsCollectionEnabled(enabled: Boolean)
     fun setPerformanceCollectionEnabled(enabled: Boolean)
+    fun setAnalyticsCollectionEnabled(enabled: Boolean)
     fun deleteUnsentReports()
 }
 
@@ -106,6 +108,15 @@ private object FirebaseTelemetrySdk : TelemetrySdk {
 
     override fun setPerformanceCollectionEnabled(enabled: Boolean) {
         FirebasePerformance.getInstance().isPerformanceCollectionEnabled = enabled
+    }
+
+    override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+        // The app context via FirebaseApp rather than a field: this is an
+        // `object` with no context of its own, and Firebase is already
+        // initialized by the time any of these run (its own ContentProvider
+        // does it before Application.onCreate).
+        FirebaseAnalytics.getInstance(FirebaseApp.getInstance().applicationContext)
+            .setAnalyticsCollectionEnabled(enabled)
     }
 
     override fun deleteUnsentReports() {
@@ -279,8 +290,11 @@ internal object LauncherTelemetry {
             // *off*, which is the direction an unreadable preference may safely
             // take.
             if (firebaseAvailable && (readDiscardOwed(preferences) || deletionOwed())) {
-                applySdkFlags(enabled = false)
-                dischargeOwedDeletion(preferences)
+                // Crashlytics specifically, here as everywhere: a debt
+                // cleared while Crashlytics is still collecting records a
+                // promise as kept that was not, and the other two SDKs do not
+                // bear on it.
+                if (applySdkFlags(enabled = false).crashlytics) dischargeOwedDeletion(preferences)
             }
             return@synchronized
         }
@@ -301,7 +315,13 @@ internal object LauncherTelemetry {
             // the length of that IPC. "Stop, then discard" is the rule on the
             // way out; it has to hold here as well, and only when a debt is
             // actually owed, so an ordinary opt-in costs no extra IPCs.
-            if (deletionOwed()) applySdkFlags(enabled = false)
+            // Captured, because the ordering rule below rests on it: if the
+            // stop did not take, discharging now deletes with collection
+            // still live, which is the window "stop, then discard" exists to
+            // close. A false here falls to the `else` branch, which writes
+            // `false` again and holds collection off until a later
+            // transition succeeds.
+            val stopped = if (deletionOwed()) applySdkFlags(enabled = false).crashlytics else true
             // Re-enabling is *conditional* on the debt being discharged. If the
             // delete throws, the reports an earlier opt-out promised to discard
             // are still on disk, and turning upload back on would send them —
@@ -315,9 +335,12 @@ internal object LauncherTelemetry {
             // enabled against a switch that reads off — and they survive the
             // process, so a crash before the queued opt-out transition runs
             // would start the next process collecting.
-            if (dischargeOwedDeletion(preferences) && collectionState == CollectionState.Enabled) {
+            if (stopped &&
+                dischargeOwedDeletion(preferences) &&
+                collectionState == CollectionState.Enabled
+            ) {
                 val servicing = optOuts.get()
-                applySdkFlags(enabled = true)
+                val enableApplied = applySdkFlags(enabled = true).all
                 // The check above cannot cover the write itself: an opt-out can
                 // land between it and here, or midway through the two flags,
                 // and those flags are persisted — they survive the process, so
@@ -337,9 +360,25 @@ internal object LauncherTelemetry {
                     collectionState != CollectionState.Enabled ||
                     deletionOwed()
                 ) {
-                    applySdkFlags(enabled = false)
-                    dischargeOwedDeletion(preferences)
+                    if (applySdkFlags(enabled = false).crashlytics) dischargeOwedDeletion(preferences)
                     LauncherDebugLog.event("analytics opt-in reversed: an opt-out landed mid-transition")
+                } else if (!enableApplied) {
+                    // Said explicitly rather than left to the per-flag failure
+                    // line (Codex, PR #702). Deliberately *not* symmetric with
+                    // the opt-out: a flag that fails to go on collects less
+                    // than the user allowed, which harms nobody, and the two
+                    // available symmetries are both worse — reverting the
+                    // stored preference throws away an answer they gave, and
+                    // holding the other SDKs off punishes them for a third
+                    // one's failure. `collectionState` stays `Enabled` because
+                    // it is accurate for what it gates: this app's own
+                    // breadcrumbs, keys and traces, whose SDKs did take the
+                    // flag. The startup re-assert retries from the stored
+                    // preference on the next launch.
+                    LauncherDebugLog.warning(
+                        "analytics opt-in incomplete: a flag did not take, so less is collected " +
+                            "than allowed until the next launch re-asserts it",
+                    )
                 }
             } else {
                 // Not enabling is not the same as being off. On a rapid off→on
@@ -356,36 +395,95 @@ internal object LauncherTelemetry {
                 )
             }
         } else {
-            applySdkFlags(enabled = false)
-            dischargeOwedDeletion(preferences)
+            val stoppedFlags = applySdkFlags(enabled = false)
+            // **Keyed on Crashlytics alone, and deliberately not on all three**
+            // (Codex, PR #702). The debt is a promise to discard *Crashlytics*
+            // reports, and its only precondition is that Crashlytics has
+            // stopped writing them. Gating it on every flag meant a
+            // persistently-throwing Performance or Analytics setter skipped
+            // the deletion on every retry — not deferring the promise but
+            // breaking it, since nothing would ever discharge it.
+            if (stoppedFlags.crashlytics) dischargeOwedDeletion(preferences)
+            if (!stoppedFlags.all) {
+                // The retry for the other two is the stored preference, which
+                // already reads off, so the startup re-assert re-applies them
+                // on the next launch — the same durable path the opt-in
+                // direction leans on. What is left is the rest of this
+                // process, and it is named rather than left to be inferred:
+                // Analytics feeds itself, so a stuck flag there means it may
+                // still be collecting behind a switch that reads off.
+                LauncherDebugLog.warning(
+                    "analytics opt-out incomplete: a flag did not take, so collection may " +
+                        "continue until the next launch re-asserts it",
+                )
+            }
         }
     }
 
     /**
-     * Sets both SDKs' persisted flags, each in its own `try`: sharing one means
-     * a throw from the first silently leaves the second as it was and reports
-     * the opt-out as successful.
+     * Sets all three SDKs' persisted flags, each in its own `try`: sharing one
+     * means a throw from the first silently leaves the rest as they were and
+     * reports the opt-out as successful.
      *
-     * A failure is logged rather than swallowed, and it cannot leave this
-     * process feeding a still-enabled SDK: [collectionState] is already
-     * `Disabled` by the time this runs, which stops breadcrumbs, keys, and —
-     * since the tri-state distinguishes an opt-out from an unread preference —
-     * traces as well. That last part is what a failed *Performance* opt-out
-     * needed: its flag may be stuck on, but nothing here will start another
-     * trace to feed it.
+     * **Returns whether every flag actually took**, and the caller has to act
+     * on it, because for one of the three [collectionState] is not a backstop
+     * (Codex, PR #702). Crashlytics and Performance are *fed* by this app —
+     * breadcrumbs, recorded exceptions, traces this code starts — so a stuck
+     * flag on either is harmless once the wrapper is `Disabled`: nothing will
+     * hand them anything. That was the whole justification for logging and
+     * carrying on, and Analytics does not fit it. It records its own automatic
+     * events with no call site of ours to gate, so a failed opt-out leaves it
+     * collecting against a stored preference and a UI that both read off.
+     *
+     * There is no second lever to reach for — the setter is the only switch —
+     * so the answer is to refuse to call the opt-out finished: the caller
+     * leaves the discard debt owed, which both re-runs this on the next
+     * transition and blocks a re-enable until it has taken. The window that
+     * remains is the rest of this process, and it is named in the log rather
+     * than left to be inferred.
      */
-    private fun applySdkFlags(enabled: Boolean) {
+    private fun applySdkFlags(enabled: Boolean): SdkFlags {
+        var crashlytics = true
+        var others = true
         try {
             sdk.setCrashlyticsCollectionEnabled(enabled)
         } catch (error: RuntimeException) {
+            crashlytics = false
             LauncherDebugLog.failure(error, "crash reporting opt-in/out not applied")
         }
         try {
             sdk.setPerformanceCollectionEnabled(enabled)
         } catch (error: RuntimeException) {
+            others = false
             LauncherDebugLog.failure(error, "performance opt-in/out not applied")
         }
+        // Third of three, behind the same single answer. The consent card
+        // offers crash reports and anonymous analytics together, so a build
+        // where one could be live while the others were not would answer a
+        // question nobody was asked.
+        try {
+            sdk.setAnalyticsCollectionEnabled(enabled)
+        } catch (error: RuntimeException) {
+            others = false
+            LauncherDebugLog.failure(error, "analytics opt-in/out not applied")
+        }
+        return SdkFlags(crashlytics = crashlytics, all = crashlytics && others)
     }
+
+    /**
+     * Which of the three flags took.
+     *
+     * Two fields rather than one boolean because two different decisions read
+     * this and they have different preconditions (Codex, PR #702). Discarding
+     * unsent reports is safe once **Crashlytics** is stopped — the other two
+     * SDKs have nothing to do with whether a Crashlytics report can still be
+     * written — while [all] is what says the opt-out as a whole is complete.
+     *
+     * Collapsing them made a persistent failure in an unrelated SDK skip the
+     * deletion on every retry, forever, which breaks the policy's promise
+     * outright rather than delaying it.
+     */
+    private data class SdkFlags(val crashlytics: Boolean, val all: Boolean)
 
     /**
      * Drops crash reports Crashlytics has stored but not uploaded, if an
