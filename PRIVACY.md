@@ -205,11 +205,11 @@ told the app not to yet.
 
 ### Changing your mind
 
-Settings → **Analytics** turns crash reporting, performance analytics, and
-usage statistics on or off at any time, and answers the question if the card is
-still showing. The choice persists across restarts and updates. There is one
-switch, not three: a single answer covers all of them, and nothing described
-here is ever sent against it.
+Settings → **Help make Type Launcher better** turns crash reporting,
+performance analytics, and usage statistics on or off at any time, and answers
+the question if the card is still showing. The choice persists across restarts
+and updates. There is one switch, not three: a single answer covers all of
+them, and nothing described here is ever sent against it.
 
 Turning it off — or tapping **No thanks** — also discards any crash report
 that has been recorded but not yet sent, so a crash that happened while it was
