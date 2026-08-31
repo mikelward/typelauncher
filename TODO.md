@@ -803,6 +803,29 @@
       not under today's.
 
 ### Decisions needing review
+
+- [ ] **`debugSummary()` passes its `full` form untagged, not `safe(mirrored)` —
+  the written plan predates the boundary rule** (autopilot, 2026-08-31).
+  `mikelward/androidlog`'s migration plan says `Intent.debugSummary()` →
+  `safe(mirrored)`, "losing component and package", called "a window, not a
+  decision" pending the `either(full, reduced)` tag. That was written while the
+  library reduced at **ingestion**, where there was one rendering and
+  `safe(mirrored)` was therefore free. The boundary rule (androidlog #24)
+  restored the second rendering, which changes what each option costs:
+  - `safe(mirrored)` now degrades the **on-device** log too — `component=•••`
+    in the bug report the user actually reads, which is not what it does today.
+  - Passing `full` **untagged** keeps the on-device log exactly as it is, and
+    withholds the whole summary off device.
+  Taken the second. It matches the library's own principle — the device's copy
+  is whole, the reduction applies to what leaves — and it is the more
+  conservative of the two for privacy, since strictly less leaves. What it
+  costs is the action, categories and URI scheme that reach Crashlytics
+  breadcrumbs today; the on-device report, which is the primary diagnostic
+  surface, is unchanged.
+  Reversible in one line per overload. The `mirroredVocabulary` /
+  `mirroredScheme` machinery is **kept, not deleted**, so `either(...)` can
+  restore the off-device half without rebuilding it.
+
 - [ ] **Two jobs now enter `environment: production` on a main run.**
       `release-build` declares it because the upload keystore lives there, and
       `deploy` keeps it for the Play service account. Today that costs nothing:
