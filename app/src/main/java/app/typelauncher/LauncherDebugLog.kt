@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Window
+import com.mikelward.androidlog.REDACTED_PLACEHOLDER
+import com.mikelward.androidlog.formatLogMessage
+import com.mikelward.androidlog.safe
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -156,10 +159,10 @@ internal object LauncherDebugLog {
      * guarantee: interpolate nothing, pass values as arguments.
      */
     fun event(format: String, vararg args: Any?) {
-        val message = formatLogMessage(format, args, redactSensitive = false)
+        val message = formatLogMessage(format, args, leavingDevice = false)
         record('D', message, throwable = null)
         Log.d(LAUNCHER_DEBUG_TAG, message)
-        LauncherTelemetry.log(formatLogMessage(format, args, redactSensitive = true))
+        LauncherTelemetry.log(formatLogMessage(format, args, leavingDevice = true))
     }
 
     /**
@@ -177,10 +180,10 @@ internal object LauncherDebugLog {
      * eviction is the correct behavior.
      */
     fun pinnedEvent(format: String, vararg args: Any?) {
-        val message = formatLogMessage(format, args, redactSensitive = false)
+        val message = formatLogMessage(format, args, leavingDevice = false)
         record('D', message, throwable = null, pinned = true)
         Log.d(LAUNCHER_DEBUG_TAG, message)
-        LauncherTelemetry.log(formatLogMessage(format, args, redactSensitive = true))
+        LauncherTelemetry.log(formatLogMessage(format, args, leavingDevice = true))
     }
 
     /**
@@ -217,10 +220,10 @@ internal object LauncherDebugLog {
             failure(throwable, "$format [throwable passed to warning(); use failure()]", *args)
             return
         }
-        val message = formatLogMessage(format, args, redactSensitive = false)
+        val message = formatLogMessage(format, args, leavingDevice = false)
         record('W', message, throwable = null)
         Log.w(LAUNCHER_DEBUG_TAG, message)
-        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, redactSensitive = true))
+        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, leavingDevice = true))
     }
 
     /**
@@ -233,10 +236,10 @@ internal object LauncherDebugLog {
      * intent, a `LauncherApps` `SecurityException` the package.
      */
     fun failure(throwable: Throwable, format: String, vararg args: Any?) {
-        val message = formatLogMessage(format, args, redactSensitive = false)
+        val message = formatLogMessage(format, args, leavingDevice = false)
         record('W', message, throwable)
         Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
-        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, redactSensitive = true))
+        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, leavingDevice = true))
         LauncherTelemetry.recordException(throwable.redactedForTelemetry())
     }
 

@@ -5,6 +5,7 @@ import android.app.ApplicationExitInfo
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.getSystemService
+import com.mikelward.androidlog.safe
 
 /**
  * How many prior process exits to read. The launcher is a long-lived process
