@@ -1,4 +1,5 @@
 [versions]
+androidlog = "1.0.46"
 agp = "9.3.1"
 kotlin = "2.4.10"
 activity = "1.13.0"
@@ -54,6 +55,8 @@ firebase-perf = { group = "com.google.firebase", name = "firebase-perf" }
 play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
 aboutlibraries-compose-m3 = { group = "com.mikepenz", name = "aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
+androidlog-logging-core = { group = "com.mikelward.androidlog", name = "logging-core", version.ref = "androidlog" }
+androidlog-logging-android = { group = "com.mikelward.androidlog", name = "logging-android", version.ref = "androidlog" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
