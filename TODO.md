@@ -914,6 +914,25 @@ Not blocking the PR: nothing in it changes what is transmitted.
   long). Changing it is English-only and needs no re-translation, since the
   locales already say the right thing.
 
+- **Fan out the telemetry consent copy to the 63 locales.** Five keys are
+  approved English waiting on translation, all reworded existing keys — so
+  `MissingTranslation` never fires and nothing goes red: `telemetry_consent_title`,
+  `_body`, `_allow`, `_deny`, `telemetry_consent_badge_description`, and
+  `settings_analytics_title`. Each carries a `TODO: translate` comment, which is
+  the only record that its locales are stale.
+
+  **The cost while they are stale is real and worth naming** (raised by Codex,
+  PR #705): `PRIVACY.md`'s revoke path names the English row title, every locale
+  links to that same English policy, and every `values-*` still supplies the old
+  translated label — French shows `Statistiques`. So a French user following the
+  opt-out instructions cannot match the control by name. That mismatch is not new
+  (the policy said `Analytics`, French said `Statistiques`), but the rename does
+  not close it either, and only the fan-out will.
+
+  **Rejected**: describing the switch by function in `PRIVACY.md` instead. The
+  rename exists so the card, the row and the policy say the same words, and
+  genericizing the policy trades a permanent loss of that for a temporary gap.
+
 - **The Yoruba SMS label is `SMS`, not a Yoruba word.** `contact_action_message`
   first shipped as `Iṣẹ́`, which is "work"; the Yoruba for a message is `ìṣẹ́`,
   differing only by the tone mark on the first vowel. Correcting the mark would

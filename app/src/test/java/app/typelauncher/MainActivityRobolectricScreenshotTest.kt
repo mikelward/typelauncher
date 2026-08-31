@@ -2915,7 +2915,7 @@ class MainActivityRobolectricScreenshotTest {
 
         composeRule.onNodeWithTag(SETTINGS_BUTTON_TAG).performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Analytics").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Help make Type Launcher better").performScrollTo().assertIsDisplayed()
         // Off to begin with: a fresh install has not answered the consent card,
         // and nothing is collected until it does, so the switch reports what is
         // actually happening rather than the stored preference's default.
