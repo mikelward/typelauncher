@@ -624,6 +624,15 @@ dependencies {
     // Only `rememberLibraries` and the `Libs`/`Library` model are used -- the
     // artifact's own list UI is not.
     implementation(libs.aboutlibraries.compose.m3)
+
+    // The shared on-device debug log, mikelward/androidlog — resolved from the
+    // Maven repository declared in settings.gradle.kts and bumped by the weekly
+    // Gradle batch. `logging-android` carries the parts that need a `Context`
+    // (the file sink, the report); `logging-core` is the buffer and the value
+    // rules. See settings.gradle.kts for why this is a resolved dependency
+    // rather than a composite build.
+    implementation(libs.androidlog.logging.core)
+    implementation(libs.androidlog.logging.android)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
