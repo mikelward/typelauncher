@@ -164,7 +164,7 @@ class LauncherViewModelTelemetryConsentTest {
 
         assertEquals(
             "unanswered stops the SDKs and discards, exactly as a decline does",
-            listOf("crashlytics=false", "performance=false", "delete"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete"),
             sdk.calls,
         )
     }
@@ -179,6 +179,10 @@ class LauncherViewModelTelemetryConsentTest {
 
         override fun setPerformanceCollectionEnabled(enabled: Boolean) {
             calls += "performance=$enabled"
+        }
+
+        override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+            calls += "analytics=$enabled"
         }
 
         override fun deleteUnsentReports() {

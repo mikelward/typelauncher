@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-08-25_
+_Last updated: 2026-08-31_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -80,7 +80,12 @@ transmitted off your device by the app.
 
 - It does not contact a backend service operated by the developer.
 - It does not collect your name, email, phone number, location, or device
-  identifiers (IMEI, advertising ID, etc.). Contacts and calendar events are
+  identifiers (IMEI, advertising ID, etc.). Type Launcher never asks Android
+  for your location and holds no location permission, so nothing here reads
+  where you are. One thing is worth naming rather than leaving to be inferred:
+  if you have turned the analytics below on, the service receives those reports
+  over the internet and, like any server, sees the network address they arrive
+  from, from which it derives a coarse region — see **Coarse region** there. Contacts and calendar events are
   read on your device only for the opt-in search and agenda features
   described under "Permissions" and are never stored beyond the current
   session or transmitted.
@@ -90,13 +95,13 @@ transmitted off your device by the app.
 - It does not show ads.
 - It does not sell or share data with third parties for marketing.
 
-## Anonymous crash reporting and performance analytics
+## Anonymous crash reporting, performance analytics, and usage statistics
 
-With your permission, Type Launcher collects anonymous crash reports and
-performance analytics,
+With your permission, Type Launcher collects anonymous crash reports,
+performance analytics, and usage statistics,
 typically through a third-party service such as Google Firebase (for example,
-**Firebase Crashlytics** and **Firebase Performance Monitoring**). The
-specific service or services used may change over time.
+**Firebase Crashlytics**, **Firebase Performance Monitoring**, and **Firebase
+Analytics**). The specific service or services used may change over time.
 
 These services may collect:
 
@@ -131,25 +136,62 @@ These services may collect:
   launcher), and *how many* apps, docked apps, hidden apps, dock folders,
   widgets, and widget pages you have. These are counts and settings only —
   never which apps, which widgets, or what you searched for.
+- Anonymous usage statistics: the events the analytics service records on its
+  own, without Type Launcher asking it to. They cover installing, opening,
+  closing and updating the app — the first launch after install, a session
+  starting and ending, a screen opening, an update to a new version, an
+  Android upgrade, and your clearing the app's data or uninstalling it — and
+  with them **how long you were actively in the app**, which the service
+  reports as engagement time. The service decides that list, not Type
+  Launcher, and can add to it; what stays true whatever it adds is the line
+  below, because it is a fact about this app rather than about the service:
+  **Type Launcher sends no events of its own and sets no properties of its
+  own.** Everything above is the service's automatic collection and there is
+  no code here that could attach anything to it — so what it learns is that
+  the launcher was opened, how often, and for how long, and never what you did
+  inside it: no search queries or keys pressed, no app names or package names,
+  no contacts, calendar entries, notifications, or widget contents.
 - Standard device and app metadata that the analytics service collects
   automatically: device model, OS version, app version, locale, and a
   service-generated installation identifier that is not tied to your Google
   account or to any PII collected by the app.
 
+  **Coarse region.** Reports reach the service over the internet, so it sees
+  the network address they come from and derives an approximate region from it
+  — typically the country. That is not a location Type Launcher collected: the
+  app has no location permission and never asks Android where you are, and the
+  region is inferred by the service from the connection itself, as it would be
+  for any site you visit. It is named here because "no location" would
+  otherwise read as a stronger promise than the internet can keep. Turning
+  analytics off stops the reports, and with them this.
+
+  **No advertising ID.** Type Launcher removes the `AD_ID` permission that
+  Firebase Analytics would otherwise declare, and switches the advertising-ID
+  collection off in the app's manifest. The identifier above is per-install
+  and specific to this app: it cannot be joined up with your activity in other
+  apps, and it is reset if you clear the app's data or reinstall.
+
 This information is used solely to diagnose crashes and performance
-regressions and to improve the app. When Firebase is the provider, data is
+regressions and to understand how much the app is used, so it can be
+improved. When Firebase is the provider, data is
 processed by Google as a sub-processor; see Google's
 [Firebase privacy and security](https://firebase.google.com/support/privacy)
 documentation for details on its handling.
 
 ### Nothing is sent until you say yes
 
-Type Launcher asks. Settings shows an **Anonymous analytics** card with **Don't
-allow** and **Allow**, and the Settings gear carries a dot until you answer it
-one way or the other. Both services are switched off until you allow them, so
-nothing in this section is uploaded while the question is unanswered. Ignoring
-the card is therefore a complete answer on its own; you never have to act to
-keep it off.
+Type Launcher asks. Settings shows a **Help make Type Launcher better?** card
+with **No thanks** and **Yes please**, and the Settings gear carries a dot
+until you answer it one way or the other. All three services are switched off
+until you say yes, so nothing in this section is uploaded while the question is
+unanswered. Ignoring the card is therefore a complete answer on its own; you
+never have to act to keep it off.
+
+Each service is switched off twice over: once in the app's manifest, which is
+what the SDK reads as it starts up before any of the launcher's own code runs,
+and again by the app once it has read your answer. The manifest default is
+what closes the gap in between — without it a service would decide for itself
+on that first launch, which is the launch that was supposed to be asking.
 
 To be exact about the guarantee: what is switched off is *sending*. Crashlytics
 can still write a crash record to your own device's storage, but an unanswered
@@ -163,11 +205,13 @@ told the app not to yet.
 
 ### Changing your mind
 
-Settings → **Analytics** turns crash reporting and performance analytics on or
-off at any time, and answers the question if the card is still showing. The
-choice persists across restarts and updates.
+Settings → **Analytics** turns crash reporting, performance analytics, and
+usage statistics on or off at any time, and answers the question if the card is
+still showing. The choice persists across restarts and updates. There is one
+switch, not three: a single answer covers all of them, and nothing described
+here is ever sent against it.
 
-Turning it off — or tapping **Don't allow** — also discards any crash report
+Turning it off — or tapping **No thanks** — also discards any crash report
 that has been recorded but not yet sent, so a crash that happened while it was
 off is not uploaded later if you turn it back on.
 

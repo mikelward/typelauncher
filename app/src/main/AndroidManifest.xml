@@ -57,7 +57,7 @@
             android:value="false" />
 
         <!--
-            Both SDKs start OFF, and only an explicit Allow turns them on.
+            All three SDKs start OFF, and only an explicit yes turns them on.
 
             Firebase auto-initializes from a ContentProvider before
             Application.onCreate, so by the time any launcher code runs the SDKs
@@ -78,6 +78,9 @@
             android:value="false" />
         <meta-data
             android:name="firebase_performance_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
             android:value="false" />
 
         <provider

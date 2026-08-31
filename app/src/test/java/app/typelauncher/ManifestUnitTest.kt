@@ -305,6 +305,72 @@ class ManifestUnitTest {
         val translateY: Double,
     )
 
+    @Test
+    fun `every Firebase SDK is switched off in the manifest`() {
+        // Firebase auto-initializes from a `ContentProvider` before
+        // `Application.onCreate`, so an SDK with no manifest default decides
+        // for itself whether to collect — and can record and upload before the
+        // asynchronous consent read has even happened. The runtime setters are
+        // what turn collection on; these are what stop it starting.
+        //
+        // Analytics landed without its default and nothing here caught it
+        // (Codex, PR #702). A hard-coded set does not fix that, which is the
+        // second half of the same finding: a set written when there were two
+        // SDKs would not have failed when the third arrived, because nothing
+        // ties the list to what the build actually depends on. So the expected
+        // switches are **derived from the declared Firebase dependencies** —
+        // add one to `app/build.gradle.kts` and this test demands to know its
+        // switch, rather than quietly continuing to check the old three.
+        //
+        // The name mapping stays explicit because it is not mechanical
+        // (`firebase-perf` guards `firebase_performance_collection_enabled`),
+        // but an unmapped dependency fails here instead of passing silently.
+        val switchFor = mapOf(
+            "analytics" to "firebase_analytics_collection_enabled",
+            "crashlytics" to "firebase_crashlytics_collection_enabled",
+            "perf" to "firebase_performance_collection_enabled",
+        )
+        val declared = File("build.gradle.kts").readLines()
+            // Commented-out lines are not dependencies, and failing on one
+            // would send the next reader looking for a manifest switch that
+            // nothing needs.
+            .filterNot { it.trimStart().startsWith("//") }
+            .flatMap { line ->
+                Regex("""libs\.firebase\.([a-zA-Z]+)""").findAll(line).map { it.groupValues[1] }
+            }
+            .filter { it != "bom" }
+            .toSet()
+        assertTrue(
+            "no Firebase dependencies found — the parse broke, not the build",
+            declared.isNotEmpty(),
+        )
+        assertEquals(
+            "a Firebase SDK is declared with no known collection switch: add it to " +
+                "switchFor and give it a manifest default",
+            emptySet<String>(),
+            declared - switchFor.keys,
+        )
+        val expected = declared.map { switchFor.getValue(it) }.toSet()
+        val application = parseManifest().getElementsByTagName("application").item(0)
+        val metaData = application.elementChildren()
+            .filter { it.tagName == "meta-data" }
+            .associate {
+                it.getAttribute("android:name") to it.getAttribute("android:value")
+            }
+
+        assertEquals(
+            "every Firebase collection switch must be declared and default off",
+            expected.associateWith { "false" },
+            metaData.filterKeys { it in expected },
+        )
+        // The advertising ID is a separate switch from collection, and its
+        // absence would not show up above.
+        assertEquals(
+            "false",
+            metaData["google_analytics_adid_collection_enabled"],
+        )
+    }
+
     private fun parseManifest() = DocumentBuilderFactory.newInstance()
         .newDocumentBuilder()
         .parse(File("src/main/AndroidManifest.xml"))

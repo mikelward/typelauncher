@@ -205,10 +205,27 @@
     <string name="crash_banner_share">Share</string>
     <string name="crash_banner_dismiss">Dismiss</string>
     <string name="crash_pending_badge_description">Possible crash detected</string>
-    <string name="telemetry_consent_title">Anonymous analytics</string>
-    <string name="telemetry_consent_body">Send crash reports and usage data. Your personal data is never sent.</string>
-    <string name="telemetry_consent_allow">Allow</string>
-    <string name="telemetry_consent_deny">Don\'t allow</string>
+    <!--
+      Reworded to the fleet's shared shape (maintainer, 2026-08-31): a
+      question, one line of what it buys, and two answers that answer it.
+      simmo and ClothesCast already ask exactly this, and Snoozemo now does
+      too, so the four apps read alike.
+
+      The old copy was a statement — "Anonymous analytics" over Allow /
+      Don't allow — which reads as a setting being operated rather than a
+      question being answered. The words "anonymous" and "so bugs get found
+      and fixed" both survive the move, so nothing about what is sent or why
+      is lost.
+
+      TODO: translate — all four are reworded existing keys, so every one of
+      the 63 locales is stale until the approved copy is fanned out. No
+      `tools:ignore` needed: MissingTranslation fires on a key absent from a
+      locale, and none of these is absent.
+    -->
+    <string name="telemetry_consent_title">Help make Type Launcher better?</string>
+    <string name="telemetry_consent_body">Send crash reports and anonymous usage stats so bugs get found and fixed?</string>
+    <string name="telemetry_consent_allow">Yes please</string>
+    <string name="telemetry_consent_deny">No thanks</string>
     <string name="telemetry_consent_badge_description">Analytics needs an answer</string>
     <string name="settings_analytics_title">Analytics</string>
 </resources>

@@ -690,6 +690,64 @@
   - The `INTERACT_ACROSS_PROFILES` / connected-apps route does not help — it grants no cross-profile content-provider access, and full cross-user provider queries need system-only permissions a launcher cannot hold.
   - **User workarounds (no code needed):** (1) add the work calendar app's widget to a widget page — the launcher already hosts work-profile widgets, so this works today and is the recommendation to give users; (2) share the work calendar with the personal account server-side so it syncs into the personal provider — but many orgs block sharing work calendars with non-work accounts, so this one often isn't available either.
 
+## Play policy question — approximate location from Analytics (PR #702)
+
+**For the maintainer, not for autopilot.** The same question is open on snoozemo
+(its `TODO.md` carries the fuller write-up); both apps should be answered the same way,
+and both are owed before a Play build carrying Analytics is submitted.
+
+**The finding** (Codex, PR #702, P1): Firebase Analytics derives a coarse region — country
+— from the network address a report arrives on, which Play may classify as **Approximate
+location**. Removing `AD_ID` does not switch that off.
+
+**What is settled and already done**: `PRIVACY.md` now discloses it under **Coarse region**
+rather than letting "no location" stand as a flat claim, and the "what the app does not do"
+bullet points at it. Type Launcher holds no location permission and never asks Android
+where the device is, so nothing here *collects* a location; the region is inferred by the
+service from the connection, as it would be for any site.
+
+**What is not settled**: whether the Data Safety form wants processor-side IP derivation
+declared as Approximate location when the app collects none. That turns on Play's current
+wording, not on anything in this diff.
+
+- **Declare it** — safest against review; puts a Location row on the listing of an app that
+  reads nothing about where the user is, which is the least accurate impression available
+  to a privacy-minded reader.
+- **Leave it undeclared** — matches what the app does; risks a rejection if Play reads
+  processor-side derivation as collection.
+
+Not blocking the PR: nothing in it changes what is transmitted.
+
+## Deferred review findings (Codex, PR #702)
+
+- [ ] **A failed Analytics opt-out has no in-process retry, only the next launch's.** Needs a
+  maintainer decision, because three Codex findings on the same function point in different
+  directions and the third would undo the second.
+
+  **Where it stands.** `applySdkFlags` returns `SdkFlags(crashlytics, all)`. The unsent-report
+  deletion discharges on `.crashlytics` alone, since Crashlytics is what writes the reports the
+  debt promises to discard. A failed Analytics or Performance disable is logged; the retry is the
+  stored preference, which already reads off and which the startup re-assert re-applies on the
+  next launch.
+
+  **What is still flagged.** Between the failed setter and that next launch, Analytics can keep
+  recording its automatic events while the switch and the stored preference both read off.
+  Bounded by the process lifetime, and no data the user declined is *sent* that they were not
+  already exposed to by the throw itself — but the window is real.
+
+  **Why it was not closed here.** The proposed fix is a second piece of retry state, and this
+  file's own history is the argument against it: the deletion debt exists precisely because four
+  independent mechanisms that were each correct alone did not compose. Worse, a retry *flag*
+  buys almost nothing, because nothing triggers a retry inside the process — no transition runs
+  unless the user toggles the switch again, which is the same trigger the stored preference
+  already has. Actually closing the window needs a *scheduled* retry, which is new machinery on a
+  path that has just absorbed three consecutive review rounds.
+
+  **The decision.** Either (a) accept the window, as now, with the log naming it; or (b) add a
+  scheduled retry — a `WorkManager` one-shot, or a re-assert on the next foreground — which is
+  its own PR with its own tests, and which reopens the question of what happens when *that*
+  retry fails too. Not settled here.
+
 ## Privacy
 
 - [ ] **Align the four app repos' debug loggers.** `ProcessExitReasons.kt` was
@@ -726,10 +784,12 @@
       stays per-repo regardless: uniformity must not loosen any repo's privacy
       rules.
 
-- [x] **Hold Crashlytics off before it auto-starts.** Done. Both SDKs now
-      default off via `firebase_crashlytics_collection_enabled` and
-      `firebase_performance_collection_enabled` in the manifest, and only an
-      explicit Allow turns them on. The consent gate is what forced it: with
+- [x] **Hold Crashlytics off before it auto-starts.** Done, and since extended
+      to Analytics: every Firebase SDK defaults off in the manifest —
+      `firebase_crashlytics_collection_enabled`,
+      `firebase_performance_collection_enabled` and
+      `firebase_analytics_collection_enabled` — and only an explicit yes turns
+      them on. The consent gate is what forced it: with
       `PRIVACY.md` promising nothing is sent until the user says yes, an SDK
       that auto-initializes already collecting made that claim false. The
       runtime setters persist an override, so an install that has consented
@@ -877,10 +937,15 @@
   Reversing it is **three edits, not one**, and this note exists because the
   constant's name suggests otherwise: flip `TELEMETRY_REQUIRES_CONSENT` to
   `false`, flip `DockSettingsStore.isTelemetryEnabled`'s default back to `true`,
-  and remove the two `firebase_*_collection_enabled` meta-data entries from the
-  manifest. The constant alone leaves the preference defaulting off and both SDKs
-  starting disabled, which is not the old behavior — it is the new behavior with
-  the card hidden, which would be worse than either. `PRIVACY.md`'s "Nothing is
+  and remove **every** `firebase_*_collection_enabled` meta-data entry from the
+  manifest. There are three of them — Crashlytics, Performance and Analytics —
+  and the count is written as "every" rather than a number on purpose: this
+  line said "the two" until Analytics landed and made it wrong, silently, in a
+  way a reader following it would only discover as Analytics staying dead after
+  a rollback that looked complete. `ManifestUnitTest` asserts the set, so the
+  manifest is the list. The constant alone leaves the preference defaulting off
+  and every SDK starting disabled, which is not the old behavior — it is the
+  new behavior with the card hidden, which would be worse than either. `PRIVACY.md`'s "Nothing is
   sent until you say yes" section reverts with the three — it is written to be
   removable as a block.
 

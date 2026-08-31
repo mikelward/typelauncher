@@ -128,7 +128,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "the inherited debt is discharged before collection resumes",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=true", "performance=true"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=true", "performance=true", "analytics=true"),
             sdk.calls,
         )
         assertFalse(prefs.owed)
@@ -156,6 +156,7 @@ class LauncherTelemetryStateTest {
         val sdk = object : TelemetrySdk {
             override fun setCrashlyticsCollectionEnabled(enabled: Boolean) = Unit
             override fun setPerformanceCollectionEnabled(enabled: Boolean) = Unit
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) = Unit
             override fun deleteUnsentReports() {
                 // The user opts out again while this call is blocked.
                 LauncherTelemetry.setCollectionGate(false, store)
@@ -180,6 +181,7 @@ class LauncherTelemetryStateTest {
         val sdk = object : TelemetrySdk {
             override fun setCrashlyticsCollectionEnabled(enabled: Boolean) = Unit
             override fun setPerformanceCollectionEnabled(enabled: Boolean) = Unit
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) = Unit
             override fun deleteUnsentReports() = Unit
         }
         LauncherTelemetry.useSdkForTest(sdk)
@@ -220,7 +222,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "the choice survives with the debt, so nothing re-enables",
-            listOf("crashlytics=false", "performance=false", "delete"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete"),
             sdk.calls,
         )
         assertEquals(LauncherTelemetry.CollectionState.Disabled, LauncherTelemetry.collectionStateForTest())
@@ -236,7 +238,7 @@ class LauncherTelemetryStateTest {
 
         LauncherTelemetry.applyCollectionPreference(FakePreferences(enabled = null, owed = true))
 
-        assertEquals(listOf("crashlytics=false", "performance=false", "delete"), sdk.calls)
+        assertEquals(listOf("crashlytics=false", "performance=false", "analytics=false", "delete"), sdk.calls)
     }
 
     // ...but with nothing owed it still changes nothing at all.
@@ -304,6 +306,10 @@ class LauncherTelemetryStateTest {
             calls += "performance=$enabled"
         }
 
+        override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+            calls += "analytics=$enabled"
+        }
+
         override fun deleteUnsentReports() {
             calls += "delete"
             if (deleteThrows) throw IllegalStateException("delete failed")
@@ -319,7 +325,7 @@ class LauncherTelemetryStateTest {
 
         LauncherTelemetry.applyCollectionPreference(FakePreferences(enabled = false))
 
-        assertEquals(listOf("crashlytics=false", "performance=false", "delete"), sdk.calls)
+        assertEquals(listOf("crashlytics=false", "performance=false", "analytics=false", "delete"), sdk.calls)
     }
 
     // Turning on: discharge what an earlier opt-out owed *before* upload is
@@ -336,7 +342,7 @@ class LauncherTelemetryStateTest {
         assertEquals(
             "the flags are stopped before the discard on this path too, since a rapid " +
                 "off→on leaves them enabled from before the opt-out",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=true", "performance=true"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=true", "performance=true", "analytics=true"),
             sdk.calls,
         )
     }
@@ -356,7 +362,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "upload must not be re-enabled over undeleted reports, and the flags are written off",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=false", "performance=false"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=false", "performance=false", "analytics=false"),
             sdk.calls,
         )
         assertTrue("the debt survives for the next transition", LauncherTelemetry.isDeletionOwedForTest())
@@ -374,14 +380,21 @@ class LauncherTelemetryStateTest {
         LauncherTelemetry.applyCollectionPreference(FakePreferences(enabled = true))
 
         assertEquals(
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=true", "performance=true"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=true", "performance=true", "analytics=true"),
             sdk.calls,
         )
         assertFalse(LauncherTelemetry.isDeletionOwedForTest())
     }
 
-    // A Crashlytics failure must not skip the Performance call: sharing one
-    // try block reported a half-applied opt-out as successful.
+    // A Crashlytics failure must not skip the Performance or Analytics calls:
+    // sharing one try block reported a half-applied opt-out as successful.
+    //
+    // It must not clear the debt either (Codex, PR #702), and the reason is
+    // specific to this SDK rather than general: *Crashlytics* writes the
+    // reports the debt promises to discard, so a failed Crashlytics stop means
+    // deleting now would clear a promise it can immediately break again. The
+    // other two failing does not have that property — see
+    // `anAnalyticsFailureStillDiscardsTheReports`.
     @Test
     fun aCrashlyticsFailureStillOptsPerformanceOut() {
         val sdk = object : TelemetrySdk {
@@ -392,6 +405,10 @@ class LauncherTelemetryStateTest {
             override fun setPerformanceCollectionEnabled(enabled: Boolean) {
                 calls += "performance=$enabled"
             }
+
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+                calls += "analytics=$enabled"
+            }
             override fun deleteUnsentReports() {
                 calls += "delete"
             }
@@ -400,7 +417,48 @@ class LauncherTelemetryStateTest {
 
         LauncherTelemetry.applyCollectionPreference(FakePreferences(enabled = false))
 
-        assertEquals(listOf("performance=false", "delete"), sdk.calls)
+        assertEquals(listOf("performance=false", "analytics=false"), sdk.calls)
+        assertTrue(
+            "Crashlytics is still collecting, so the debt stands and a later transition retries it",
+            LauncherTelemetry.isDeletionOwedForTest(),
+        )
+    }
+
+    // Codex, PR #702, twice over. An Analytics failure must not hold the
+    // *Crashlytics* deletion hostage: the debt is a promise to discard
+    // Crashlytics reports, and its only precondition is that Crashlytics has
+    // stopped writing them. Gating it on all three meant a persistently
+    // throwing setter in an unrelated SDK skipped the delete on every retry —
+    // breaking the promise outright rather than deferring it.
+    @Test
+    fun anAnalyticsFailureStillDiscardsTheReports() {
+        val sdk = object : TelemetrySdk {
+            val calls = mutableListOf<String>()
+            override fun setCrashlyticsCollectionEnabled(enabled: Boolean) {
+                calls += "crashlytics=$enabled"
+            }
+            override fun setPerformanceCollectionEnabled(enabled: Boolean) {
+                calls += "performance=$enabled"
+            }
+
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+                throw IllegalStateException("analytics unavailable")
+            }
+            override fun deleteUnsentReports() {
+                calls += "delete"
+            }
+        }
+        LauncherTelemetry.useSdkForTest(sdk)
+
+        LauncherTelemetry.applyCollectionPreference(FakePreferences(enabled = false))
+
+        // The other two still applied — one SDK's failure never skips another
+        // — and Crashlytics stopping is what makes the delete safe.
+        assertEquals(listOf("crashlytics=false", "performance=false", "delete"), sdk.calls)
+        assertFalse(
+            "Crashlytics stopped, so the promise was kept and the debt is discharged",
+            LauncherTelemetry.isDeletionOwedForTest(),
+        )
     }
 
     // A failed Performance opt-out leaves its flag stuck on, so the in-process
@@ -410,6 +468,10 @@ class LauncherTelemetryStateTest {
         val sdk = object : TelemetrySdk {
             override fun setCrashlyticsCollectionEnabled(enabled: Boolean) = Unit
             override fun setPerformanceCollectionEnabled(enabled: Boolean) {
+                throw IllegalStateException("performance unavailable")
+            }
+
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
                 throw IllegalStateException("performance unavailable")
             }
             override fun deleteUnsentReports() = Unit
@@ -439,6 +501,10 @@ class LauncherTelemetryStateTest {
                 calls += "performance=$enabled"
             }
 
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+                calls += "analytics=$enabled"
+            }
+
             override fun deleteUnsentReports() {
                 calls += "delete"
                 // Stands in for the user tapping the switch off while this
@@ -454,7 +520,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "upload must not be re-enabled against a switch that reads off",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=false", "performance=false"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=false", "performance=false", "analytics=false"),
             calls,
         )
         assertTrue(
@@ -500,6 +566,10 @@ class LauncherTelemetryStateTest {
                 calls += "performance=$enabled"
             }
 
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+                calls += "analytics=$enabled"
+            }
+
             override fun deleteUnsentReports() {
                 calls += "delete"
             }
@@ -510,7 +580,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "the enable is reversed in the same transition, not left to the next one",
-            listOf("crashlytics=true", "performance=true", "crashlytics=false", "performance=false", "delete"),
+            listOf("crashlytics=true", "performance=true", "analytics=true", "crashlytics=false", "performance=false", "analytics=false", "delete"),
             calls,
         )
         assertEquals(LauncherTelemetry.CollectionState.Disabled, LauncherTelemetry.collectionStateForTest())
@@ -589,7 +659,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "the flags must be written off, not merely left unwritten",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=false", "performance=false"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=false", "performance=false", "analytics=false"),
             sdk.calls,
         )
         assertEquals(LauncherTelemetry.CollectionState.Disabled, LauncherTelemetry.collectionStateForTest())
@@ -613,6 +683,10 @@ class LauncherTelemetryStateTest {
                 calls += "performance=$enabled"
             }
 
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+                calls += "analytics=$enabled"
+            }
+
             override fun deleteUnsentReports() {
                 calls += "delete"
                 // The user taps off, then straight back on, while this blocks.
@@ -628,7 +702,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "upload must not be re-enabled over a debt this delete never serviced",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=false", "performance=false"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=false", "performance=false", "analytics=false"),
             calls,
         )
         assertTrue("the newer debt survives", LauncherTelemetry.isDeletionOwedForTest())
@@ -652,6 +726,10 @@ class LauncherTelemetryStateTest {
                 calls += "performance=$enabled"
             }
 
+            override fun setAnalyticsCollectionEnabled(enabled: Boolean) {
+                calls += "analytics=$enabled"
+            }
+
             override fun deleteUnsentReports() {
                 calls += "delete"
                 if (!tripped) {
@@ -671,7 +749,9 @@ class LauncherTelemetryStateTest {
 
         assertTrue(
             "the SDKs must not be left enabled with a discharge outstanding",
-            calls.last() == "performance=false" || calls.last() == "delete",
+            // `analytics=false` is the last of the three flag writes now, so it
+            // is the one that can be left at the end alongside `delete`.
+            calls.last() == "analytics=false" || calls.last() == "delete",
         )
         assertEquals(LauncherTelemetry.CollectionState.Disabled, LauncherTelemetry.collectionStateForTest())
     }
@@ -690,7 +770,7 @@ class LauncherTelemetryStateTest {
 
         assertEquals(
             "the inherited discard is serviced before collection resumes",
-            listOf("crashlytics=false", "performance=false", "delete", "crashlytics=true", "performance=true"),
+            listOf("crashlytics=false", "performance=false", "analytics=false", "delete", "crashlytics=true", "performance=true", "analytics=true"),
             sdk.calls,
         )
         assertFalse("and the record is cleared once it succeeds", inherited.owed)

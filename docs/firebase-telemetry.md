@@ -1,8 +1,8 @@
-# Firebase Crashlytics + Performance Monitoring
+# Firebase Crashlytics + Performance Monitoring + Analytics
 
-The launcher reports crashes and performance traces to Firebase. Both SDKs
-identify installs by an anonymous Firebase Installation ID — there is no Google
-sign-in or user-visible login. Devices without Google Play Services (e.g.
+The launcher reports crashes, performance traces and anonymous usage statistics
+to Firebase. All three SDKs identify installs by an anonymous Firebase
+Installation ID — there is no Google sign-in or user-visible login. Devices without Google Play Services (e.g.
 GrapheneOS, LineageOS without GApps) skip telemetry silently.
 
 ## What is captured
@@ -22,10 +22,39 @@ GrapheneOS, LineageOS without GApps) skip telemetry silently.
   - `agenda_initial_load` — the `CalendarContract` query, attribute `state` =
     `Events` / `Empty` / `PermissionRequired`.
 
-`LauncherTelemetry.kt` wraps both SDKs. Every entry point checks whether a
+- **Analytics**: only what the SDK records on its own — first launch, session
+  start and end, screen views, app and OS updates, clear-data, uninstall, and
+  the engagement time attached to them. **The launcher logs no events and sets
+  no user properties**, so there is no call site to review, and that invariant
+  rather than the event list is what the privacy policy leans on: Google owns
+  the list and can add to it. The advertising ID is off and the `AD_ID`
+  permission is removed, so the identifier is the per-install app-instance ID.
+  Reports travel over the internet, so the service derives a coarse region from
+  the address they arrive from — see `PRIVACY.md`'s **Coarse region**.
+
+`LauncherTelemetry.kt` wraps all three SDKs. Every entry point checks whether a
 `FirebaseApp` is initialized in the current process and no-ops if not, so the
 production code paths are unconditional and safe to call from Robolectric
 tests, forks, and de-Googled devices.
+
+## Collection defaults
+
+**Every SDK is switched off in the manifest**, not two:
+`firebase_crashlytics_collection_enabled`,
+`firebase_performance_collection_enabled` and
+`firebase_analytics_collection_enabled`, plus
+`google_analytics_adid_collection_enabled` (a separate switch, and the
+`AD_ID` permission itself is removed). Firebase auto-initializes every SDK from
+one `ContentProvider` before `Application.onCreate`, so an SDK without a
+default here decides for itself before any of the launcher's code has run —
+which on the launch that is supposed to be *asking* is the whole consent gate
+defeated. Analytics is where that bites hardest: it records its own automatic
+events with no call site of ours to gate.
+
+`ManifestUnitTest` asserts these as a **set** rather than one at a time, so a
+fourth SDK cannot land without its own default the way Analytics nearly did.
+Treat the manifest and that test as the list; prose that names a count goes
+stale the next time an SDK is added.
 
 ## Build wiring
 
@@ -52,7 +81,8 @@ Firebase is gated on **two** things: `app/google-services.json` being present,
   `FirebaseApp` at runtime, and `LauncherTelemetry` stays in its no-op path.
   Forks, the Cursor Cloud sandbox, and Robolectric tests build cleanly.
 
-The `firebase-bom`, `firebase-crashlytics`, and `firebase-perf` dependencies
+The `firebase-bom`, `firebase-crashlytics`, `firebase-perf`, and
+`firebase-analytics` dependencies
 are always pulled so the wrapper compiles either way; only the gradle plugins
 (which inject the project config and upload symbols) are conditional.
 
