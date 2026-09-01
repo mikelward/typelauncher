@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import com.mikelward.androidlog.DebugLog
+import java.io.File
 import com.mikelward.androidlog.safe
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -33,6 +34,226 @@ class DebugFileSinkTest {
     fun tearDown() {
         Thread.setDefaultUncaughtExceptionHandler(original)
         LauncherDebugLog.resetForTest()
+    }
+
+    /**
+     * A timed-out read must not inherit an *earlier* read's file list.
+     *
+     * `BugReport.share` clears only when the clipboard write lands, so a share
+     * that read the files and then failed to copy leaves them on disk with the
+     * sink still holding their list. If the next share's read times out and that
+     * list is left standing, its clear deletes runs its own report never
+     * contained (Codex, PR #707) — the same loss as the test below, reached from
+     * stale state rather than from a late task.
+     */
+    @Test
+    fun `a timed-out read does not inherit the previous read's files`() {
+        val dir = folder.newFolder()
+        val previous = File(dir, "debug-prev-1.log").apply { writeText("earlier run\n") }
+        val worker = java.util.concurrent.ScheduledThreadPoolExecutor(
+            1,
+        ) { runnable -> Thread(runnable, "test-debug-log").apply { isDaemon = true } }
+        val occupied = java.util.concurrent.CountDownLatch(1)
+        val running = java.util.concurrent.CountDownLatch(1)
+        try {
+            val sink = DebugFileSink({ dir }, 0L, { worker }, 200L)
+
+            // A first share reads the run, then fails to reach the clipboard, so
+            // nothing is cleared and the files stay on disk.
+            assertTrue(
+                "the first read must actually surface the run",
+                sink.readPreviousRun()?.contains("earlier run") == true,
+            )
+            assertTrue("and must not have deleted it", previous.exists())
+
+            // The worker then wedges, so the next share's read times out.
+            worker.execute {
+                running.countDown()
+                runCatching { occupied.await(30, java.util.concurrent.TimeUnit.SECONDS) }
+            }
+            assertTrue(running.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertNull("the second read must give up", sink.readPreviousRun())
+
+            occupied.countDown()
+            sink.clearPreviousRun()
+
+            assertTrue(
+                "a run absent from the second report must survive its clear",
+                previous.exists(),
+            )
+        } finally {
+            occupied.countDown()
+            worker.shutdownNow()
+        }
+    }
+
+    /**
+     * A clear that outlives its bound must still delete the files *it* was given.
+     *
+     * Bounding [DebugFileSink.clearPreviousRun] leaves its task queued on
+     * purpose — deleting files the caller did receive is the whole point of it,
+     * so it should still happen if the worker recovers. But the test above
+     * publishes an empty list from a timed-out read, on the *caller* thread. So
+     * a queued clear that read the live slot when it finally ran would find it
+     * emptied by an unrelated share and delete nothing: a run the user already
+     * shared stays on disk, and its crash banner comes back (Codex, PR #707).
+     *
+     * The guard is taking the file list at submission rather than at execution.
+     * **Load-bearing**: reverting to reading `lastSurfaced` inside the task
+     * fails this test.
+     */
+    @Test
+    fun `a clear that outlives its bound deletes the files it was given`() {
+        val dir = folder.newFolder()
+        val previous = File(dir, "debug-prev-1.log").apply { writeText("earlier run\n") }
+        val worker = java.util.concurrent.ScheduledThreadPoolExecutor(
+            1,
+        ) { runnable -> Thread(runnable, "test-debug-log").apply { isDaemon = true } }
+        val occupied = java.util.concurrent.CountDownLatch(1)
+        val running = java.util.concurrent.CountDownLatch(1)
+        try {
+            val sink = DebugFileSink({ dir }, 0L, { worker }, 200L)
+
+            // A share reads the run and copies it, so this clear is entitled to
+            // delete exactly that file.
+            assertTrue(
+                "the read must actually surface the run",
+                sink.readPreviousRun()?.contains("earlier run") == true,
+            )
+
+            // The worker wedges before the clear can run, so the clear gives up
+            // waiting and leaves its task queued.
+            worker.execute {
+                running.countDown()
+                runCatching { occupied.await(30, java.util.concurrent.TimeUnit.SECONDS) }
+            }
+            assertTrue(running.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            sink.clearPreviousRun()
+            assertTrue("the wedged clear cannot have run yet", previous.exists())
+
+            // A second share then times out reading, emptying the slot the
+            // queued clear would otherwise consult.
+            assertNull("the second read must give up", sink.readPreviousRun())
+
+            occupied.countDown()
+            // FIFO: the queued clear runs before this barrier returns.
+            worker.submit { }.get(5, java.util.concurrent.TimeUnit.SECONDS)
+
+            assertFalse(
+                "the recovered clear must delete the run its own share reported",
+                previous.exists(),
+            )
+        } finally {
+            occupied.countDown()
+            worker.shutdownNow()
+        }
+    }
+
+    /**
+     * A timed-out read must leave nothing for a later clear to delete.
+     *
+     * `BugReport.share` clears the prior run once the report is on the clipboard,
+     * and the sink deletes whatever the last read surfaced. Bounding the read
+     * made that reachable: the abandoned task could run later on a recovered
+     * worker and publish files this caller never received, so a report built
+     * *without* those logs would go on to delete them — destroying the only copy
+     * (Codex, PR #707).
+     *
+     * Two guards prevent it and **either one alone is sufficient**, verified by
+     * reverting them separately: the timed-out future is cancelled, so the
+     * abandoned task never runs; and the file list is published on *receipt*
+     * rather than by the worker, so a task that did run could not publish it
+     * anyway. This test fails only with both removed — stated plainly rather
+     * than claiming each is load-bearing. They are kept as belt and braces
+     * because the cost is nil and the failure they prevent destroys the user's
+     * only copy of a log.
+     */
+    @Test
+    fun `a timed-out read leaves the earlier runs on disk for the next attempt`() {
+        val dir = folder.newFolder()
+        val previous = File(dir, "debug-prev-1.log").apply { writeText("earlier run\n") }
+        val occupied = java.util.concurrent.CountDownLatch(1)
+        val running = java.util.concurrent.CountDownLatch(1)
+        val worker = java.util.concurrent.ScheduledThreadPoolExecutor(
+            1,
+        ) { runnable -> Thread(runnable, "test-debug-log").apply { isDaemon = true } }
+        try {
+            worker.execute {
+                running.countDown()
+                runCatching { occupied.await(30, java.util.concurrent.TimeUnit.SECONDS) }
+            }
+            assertTrue(running.await(5, java.util.concurrent.TimeUnit.SECONDS))
+
+            val sink = DebugFileSink({ dir }, 0L, { worker }, 200L)
+            assertNull("the read must give up rather than return the run", sink.readPreviousRun())
+
+            // The worker recovers, so the abandoned read can now run -- and the
+            // share path's clear follows it.
+            occupied.countDown()
+            sink.clearPreviousRun()
+
+            assertTrue(
+                "a run the caller never received must survive the clear",
+                previous.exists(),
+            )
+        } finally {
+            occupied.countDown()
+            worker.shutdownNow()
+        }
+    }
+
+    /**
+     * A wedged worker must not park the bug-report path for the life of the
+     * process.
+     *
+     * `readPreviousRun()` is synchronous and used to wait on the worker with an
+     * unbounded `get()`, so a worker that never came back parked its caller
+     * forever. androidlog#31 fixed the same defect in the shared library's
+     * sink; this one is Type Launcher's own and did not inherit it
+     * (Codex, PR #707).
+     *
+     * The wedge is staged rather than waited for: the injected worker's only
+     * thread is occupied by a task released in `finally`, so the timeout is
+     * reached deterministically, and the injected bound keeps the case to a
+     * fraction of a second.
+     */
+    @Test
+    fun `an earlier-runs read gives up when the worker never gets to it`() {
+        val dir = folder.newFolder()
+        val occupied = java.util.concurrent.CountDownLatch(1)
+        val running = java.util.concurrent.CountDownLatch(1)
+        val worker = java.util.concurrent.ScheduledThreadPoolExecutor(
+            1,
+        ) { runnable -> Thread(runnable, "test-debug-log").apply { isDaemon = true } }
+        try {
+            worker.execute {
+                running.countDown()
+                runCatching { occupied.await(30, java.util.concurrent.TimeUnit.SECONDS) }
+            }
+            assertTrue(
+                "the worker must actually be occupied, or this proves nothing",
+                running.await(5, java.util.concurrent.TimeUnit.SECONDS),
+            )
+
+            val sink = DebugFileSink(
+                { dir },
+                0L,
+                { worker },
+                200L,
+            )
+            val startedAt = System.nanoTime()
+            val read = sink.readPreviousRun()
+            val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
+
+            assertNull("a read the worker never reaches must answer null", read)
+            assertTrue(
+                "it must give up at its own bound, not wait the worker out: $elapsedMs ms",
+                elapsedMs < 15_000,
+            )
+        } finally {
+            occupied.countDown()
+            worker.shutdownNow()
+        }
     }
 
     @Test
