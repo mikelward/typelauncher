@@ -37,6 +37,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.google.android.play.core.install.model.InstallStatus
+import com.mikelward.androidlog.android.DebugFileSink
 import com.mikelward.androidlog.safe
 import com.mikelward.androidlog.sensitive
 import java.time.Instant
@@ -443,6 +444,27 @@ internal class LauncherViewModel(
     private var isPlacingCall = false
     private var isPlacingPermissionGrantedCall = false
 
+    /**
+     * The sink's crash-state observer, held so it can be removed in [onCleared].
+     *
+     * The library derives this value on its own worker and pushes changes, which
+     * replaced a blocking `hasUnacknowledgedCrash()` poll this view model used to
+     * run on [ioDispatcher]. Registering delivers the current value once, so the
+     * banner never has to assume one, and the derivation stays where the files
+     * are rather than being re-implemented per screen.
+     *
+     * Fires **on the sink's worker**, so it must not block: it only hops to the
+     * view model's scope and updates state.
+     *
+     * **Declared above [init] deliberately.** Kotlin initializes properties and
+     * init blocks in source order, and `init` calls [seedCrashBanner] — so
+     * declaring this below it passed a null listener to `addCrashListener` and
+     * threw on every construction.
+     */
+    private val crashListener = DebugFileSink.CrashListener { unacknowledged ->
+        viewModelScope.launch { _uiState.update { it.copy(isCrashBannerVisible = unacknowledged) } }
+    }
+
     init {
         LauncherDebugLog.event("LauncherViewModel initialized %s", _uiState.value.debugSummary())
         // A backup restore or permission auto-reset can leave a content-search
@@ -752,24 +774,29 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Raises the post-crash banner if the previous run crashed. The
-     * [DebugFileSink.hasUnacknowledgedCrash] check is a directory listing, so it
-     * runs on [ioDispatcher] off the cold-start main thread; the banner only
-     * flips on (never off) here, so a slow check can't hide an already-shown
-     * banner, and the first frame renders without it.
+     * Starts observing the post-crash banner's state and asks for it to be
+     * derived from what is actually on disk.
+     *
+     * The recompute is the part that matters at startup: the sink's value begins
+     * false and a failed directory listing leaves it alone, so without asking, a
+     * read that could not look would render as "no crash" for the life of the
+     * process. Both calls return at once — the listing happens on the sink's
+     * worker — so the first frame is never waiting on it.
      */
     private fun seedCrashBanner() {
         val sink = debugFileSink ?: return
-        viewModelScope.launch {
-            val hasCrash = withContext(ioDispatcher) { sink.hasUnacknowledgedCrash() }
-            if (hasCrash) _uiState.update { it.copy(isCrashBannerVisible = true) }
-        }
+        sink.addCrashListener(crashListener)
+        sink.requestCrashRecompute()
     }
 
     /**
      * Dismiss: hide the banner now (optimistic, so the tap feels instant) and
      * rename the crash log off the crash suffix off the main thread so a later
      * cold start doesn't re-raise it. A future crash raises it again.
+     *
+     * The optimistic update is not redundant now that the listener drives the
+     * flag: the sink's own change lands a moment later, from its worker, and the
+     * tap has to feel instant.
      */
     fun dismissCrashBanner() {
         if (!_uiState.value.isCrashBannerVisible) return
@@ -780,7 +807,7 @@ internal class LauncherViewModel(
 
     /**
      * Re-evaluates the banner after a share attempt. A successful share consumes
-     * the prior run ([DebugFileSink.clearPreviousRun] inside [BugReport.share]),
+     * the prior run it carried ([DebugFileSink.clearPreviousRun] inside [BugReport.share]),
      * so the banner hides; if the share was canceled or both handoffs failed the
      * crash file survives and the banner stays up for a retry.
      */
@@ -789,10 +816,9 @@ internal class LauncherViewModel(
             _uiState.update { it.copy(isCrashBannerVisible = false) }
             return
         }
-        viewModelScope.launch {
-            val hasCrash = withContext(ioDispatcher) { sink.hasUnacknowledgedCrash() }
-            _uiState.update { it.copy(isCrashBannerVisible = hasCrash) }
-        }
+        // Just ask; the listener registered in [seedCrashBanner] delivers the
+        // answer. Nothing to await here, and nothing to hop threads for.
+        sink.requestCrashRecompute()
     }
 
     /**
@@ -963,6 +989,13 @@ internal class LauncherViewModel(
             }
             dateChangedReceiverRegistered = false
         }
+        // The sink outlives this view model (it is the Application's), so an
+        // unremoved listener would keep a torn-down view model reachable and
+        // keep updating state nothing renders. One delivery may already be in
+        // flight when this returns, by the library's design; the listener only
+        // launches on a scope that is already cancelled by then, so it is a
+        // no-op rather than a leak.
+        debugFileSink?.removeCrashListener(crashListener)
         super.onCleared()
     }
 
