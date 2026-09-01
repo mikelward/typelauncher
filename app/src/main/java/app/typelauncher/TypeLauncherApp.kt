@@ -3,6 +3,7 @@ package app.typelauncher
 import android.app.Application
 import android.os.Build
 import com.mikelward.androidlog.DebugLog
+import com.mikelward.androidlog.android.DebugFileSink
 import com.mikelward.androidlog.android.LogcatSink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,7 +54,7 @@ class TypeLauncherApp : Application() {
         // per test, so re-installing across the run would grow that chain
         // unboundedly (each link pinning a torn-down sandbox) and destabilize the
         // JVM. The sink is a production concern and is unit-tested directly with an
-        // injected directory (DebugFileSinkTest), so nothing is lost by not wiring
+        // injected directory (the library's own suite), so nothing is lost by not wiring
         // it here in tests. Same spirit as LauncherTelemetry no-opping without a
         // Firebase config.
         if (isRobolectric) return
@@ -61,8 +62,20 @@ class TypeLauncherApp : Application() {
         // installs the chained crash handler. Register the sink AFTER start() so
         // the rotation is ordered before any of this run's writes. All disk work is
         // off the first-frame path ("Fast loading").
-        val fileSink = DebugFileSink(this)
+        val fileSink = DebugFileSink(LauncherDebugLog, this)
         fileSink.start()
+        // Carry prior runs written by the launcher's own former sink onto the
+        // names this sink reads, so the swap does not orphan logs already on the
+        // device. On its own thread, off the first-frame path: it lists the
+        // cache directory and renames files.
+        //
+        // Started after the sink exists so it can ask for the crash state to be
+        // re-derived when it finishes. Without that, a carry-over landing after
+        // the view model's one startup recompute would publish a crashed legacy
+        // run to nobody: renaming a file behind the sink notifies no listener,
+        // and the only other recompute is the one after a share, so the card
+        // could stay down until the process restarted (Codex, PR #708).
+        carryOverLegacyDebugLogsInBackground(fileSink)
         // Three sinks, each declaring which side of the device boundary it is,
         // so the library decides what each is handed rather than every call
         // site rendering both forms by hand.
@@ -72,6 +85,39 @@ class TypeLauncherApp : Application() {
         debugFileSink = fileSink
         logProcessExitReasons()
         applyTelemetryPreference()
+    }
+
+    /**
+     * Runs [carryOverLegacyDebugLogs] on its own short-lived daemon thread.
+     *
+     * A bare thread rather than [appScope]: this must not wait on a dispatcher
+     * that cold start is already contending for, it runs exactly once per
+     * process, and it must never keep the process alive. Silent when there was
+     * nothing to carry over, which is every start after the first.
+     */
+    private fun carryOverLegacyDebugLogsInBackground(fileSink: DebugFileSink) {
+        val thread = Thread({
+            // cacheDir touches the filesystem and can create the directory, so
+            // it is resolved here rather than on the caller's thread.
+            val outcome = runCatching { carryOverLegacyDebugLogs(cacheDir) }
+                .onFailure { LauncherDebugLog.failure(it, "Legacy debug logs could not be carried over") }
+                .getOrNull() ?: return@Thread
+            if (!outcome.didSomething) return@Thread
+            // Files appeared behind the sink, which notifies nobody. Ask for the
+            // crash state to be re-derived so a carried-over crash raises its
+            // card on this launch rather than the next one. Returns at once --
+            // the listing happens on the sink's worker.
+            if (outcome.carried > 0) fileSink.requestCrashRecompute()
+            LauncherDebugLog.event(
+                "debug log: carried over %s earlier run(s) from the former sink, %s failed, listed=%s",
+                outcome.carried,
+                outcome.failed,
+                outcome.listed,
+            )
+        }, "typelauncher-log-carryover")
+        thread.isDaemon = true
+        runCatching { thread.start() }
+            .onFailure { LauncherDebugLog.failure(it, "Legacy debug-log carry-over could not be started") }
     }
 
     /**

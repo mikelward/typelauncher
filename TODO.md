@@ -750,33 +750,26 @@ Not blocking the PR: nothing in it changes what is transmitted.
 
 ## Deferred review findings (Codex, PR #707)
 
-- [ ] **Migrate `app.typelauncher.DebugFileSink` to the shared library's sink.** Two
-  reasons now, and the second is a correctness bug rather than duplication.
+- [x] **Migrate `app.typelauncher.DebugFileSink` to the shared library's sink.**
+  Done. The launcher's own 514-line sink is deleted; `TypeLauncherApp` builds
+  `com.mikelward.androidlog.android.DebugFileSink`.
 
-  **The duplication.** `TypeLauncherApp` builds the launcher's own `DebugFileSink`,
-  never the library's, so every fix landed in `mikelward/androidlog` has to be
-  re-applied here by hand — which is exactly what PR #707 ended up doing for the
-  bounded earlier-runs read. The two have diverged: this sink's `readPreviousRun()`
-  returns `String?` where the library's returns a `PreviousRun` handle, so the swap
-  is not a one-line import; the share and clear paths in `BugReport.kt` are built
-  around the current shape.
+  **What it fixed.** `readPreviousRun()` now returns a `PreviousRun` handle and
+  `clearPreviousRun(run)` consumes the one the caller was given, so a share
+  deletes exactly the runs its own report carried. The single process-wide
+  `lastSurfaced` slot is gone, and with it the race Codex found: two overlapping
+  shares could cross, one attempt's clipboard write deleting the other's files.
+  `BugReport`'s `carriesPriorRun` flag went with it — the fallback path simply
+  has no handle, which cannot fall out of step with what the report contains.
 
-  **The bug.** One process-wide `lastSurfaced` slot associates a clear with whichever
-  read wrote it last, not with the read the caller actually received. Two overlapping
-  shares — `rememberBugReportTrigger` launches each on the application scope with no
-  re-entrancy guard, and there are two triggers — can therefore cross: attempt A times
-  out and builds a report with no earlier-run logs, attempt B reads successfully and
-  publishes its list, and A's clipboard write then deletes B's files. Pre-existing: the
-  same slot is written from the worker on `main`, so this predates #707's bound.
+  **What it also removed.** A duplicated `boundedLogTail`, and a crash-banner
+  derivation the launcher was re-implementing: `LauncherViewModel` now observes
+  the sink's `addCrashListener` / `requestCrashRecompute` instead of polling a
+  blocking `hasUnacknowledgedCrash()` on the IO dispatcher.
 
-  **Why the library is the fix rather than a local patch.** Its `clearPreviousRun`
-  consumes a handle the caller was given, so the association is per-attempt by
-  construction and "overlapping flows included" is a stated invariant there. Building a
-  second receipt type here would be a third parallel copy of the thing the shared
-  library exists to remove.
-
-  **Cost of leaving it.** Requires two shares racing while the file worker is wedged —
-  narrow, but the loss is the user's only copy of the logs they were trying to report.
+  **What it cost.** The library hard-codes its file names, so prior runs written
+  under the old ones had to be carried over (`LegacyDebugLogFiles.kt`) or every
+  upgrading device would silently orphan them.
 
 ## Privacy
 

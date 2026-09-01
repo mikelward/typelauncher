@@ -18,6 +18,9 @@ import android.view.View
 import android.view.Window
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.mikelward.androidlog.android.DebugFileSink
+import com.mikelward.androidlog.android.PreviousRun
+import com.mikelward.androidlog.boundedLogTail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +41,23 @@ private const val SCREENSHOT_DIR_NAME = "bug-reports"
  * off via [Intent.ACTION_SEND] so the share sheet can deliver it. Also drops
  * the text on the clipboard as a paste fallback.
  */
+/**
+ * What one collection produced: the report text, and the prior-run handle it
+ * was built from.
+ *
+ * The handle travels with the text rather than staying on the sink, and that
+ * pairing is the whole point: [DebugFileSink.clearPreviousRun] consumes the
+ * handle this report was built from, so a share deletes exactly the runs it
+ * carried. When the files lived in one slot on the sink, an overlapping share
+ * could consume whatever the *latest* read had surfaced instead — destroying a
+ * run only the other attempt had read, and whose own hand-off might still fail
+ * (Codex, PR #707 finding 4).
+ *
+ * Null [previousRun] means there was nothing to send, or the read could not be
+ * completed. Either way there is nothing this report may delete.
+ */
+internal class CollectedReport(val text: String, val previousRun: PreviousRun?)
+
 internal object BugReport {
     /**
      * Captures the screen, builds the text payload, copies the text to the
@@ -56,21 +76,16 @@ internal object BugReport {
         activity: Activity,
         includeScreenshot: Boolean = true,
         mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
-        payloadCollect: (Context, DebugFileSink?) -> String = ::collectPayload,
+        payloadCollect: (Context, DebugFileSink?) -> CollectedReport = ::collectPayload,
         screenshotCapture: suspend (Activity) -> Uri? = ::captureAndPersistScreenshot,
         clipboardWrite: (Context, String) -> Boolean = ::copyToClipboard,
         chooserLaunch: (Activity, String, Uri?) -> Boolean = ::startShare,
     ) {
         val fileSink = (activity.applicationContext as? TypeLauncherApp)?.debugFileSink
-        // Whether the report below actually carries what the collection read —
-        // including the prior run's log, which the sink has already handed over
-        // and will delete on [DebugFileSink.clearPreviousRun]. False on the
-        // fallback path, and that is what gates the clear.
-        var carriesPriorRun = true
         // Build the payload off the main thread: it reads persisted settings and
         // up to a few prior-run log files, and share() normally runs in a
         // main-thread UI scope (Codex on PR #592).
-        val text = try {
+        val collected = try {
             withContext(Dispatchers.IO) { payloadCollect(activity, fileSink) }
         } catch (e: CancellationException) {
             throw e
@@ -79,10 +94,15 @@ internal object BugReport {
             // Never turn a failure while inspecting that state into another app
             // crash — this runs from a UI tap, where an escaping throwable takes
             // the launcher down. Retain a small shareable diagnostic instead.
-            carriesPriorRun = false
+            //
+            // No handle: the fallback carries no prior run, so it must never
+            // consume one. That used to need a `carriesPriorRun` flag; now it is
+            // the absence of the receipt, which cannot fall out of step with
+            // what the report actually contains.
             LauncherDebugLog.failure(t, "BugReport payload collection failed")
-            buildFallbackPayload(t)
+            CollectedReport(buildFallbackPayload(t), previousRun = null)
         }
+        val text = collected.text
         // The screenshot capture draws the live Compose window via PixelCopy, and
         // the clipboard/chooser handoff touches the Activity — all must run on the
         // main thread. Pin them there explicitly: the payload build above hops to
@@ -127,8 +147,9 @@ internal object BugReport {
         // all, so it must never consume one: deleting the crash log the user
         // tapped Share for, in favor of a report that doesn't contain it, would
         // destroy the only copy.
-        if (carriesPriorRun && clipboardOk) {
-            withContext(Dispatchers.IO) { fileSink?.clearPreviousRun() }
+        val consumed = collected.previousRun
+        if (consumed != null && clipboardOk) {
+            withContext(Dispatchers.IO) { fileSink?.clearPreviousRun(consumed) }
         }
     }
 
@@ -173,7 +194,7 @@ internal object BugReport {
         }.onFailure { LauncherDebugLog.failure(it, "BugReport share-failed notice could not be shown") }
     }
 
-    private fun collectPayload(context: Context, fileSink: DebugFileSink?): String {
+    private fun collectPayload(context: Context, fileSink: DebugFileSink?): CollectedReport {
         // One read, ordered and budgeted by the library: the ring's kept tail
         // with the pinned lines it no longer holds prepended. Reading the two
         // buffers separately is what let a line land in between and be filed as
@@ -185,7 +206,12 @@ internal object BugReport {
         val dockSettings = DockSettingsStore(context)
         val dockedApps = DockedAppStore(context).dockedAppIds
         val widgetStore = WidgetStore(context)
-        return buildBugReportPayload(
+        // The previous run's handle if one ended without a clean exit (a crash
+        // or a silent kill). Read here (on Dispatchers.IO via share()) and
+        // carried out with the text; share() consumes it only after the
+        // hand-off, so a cancellation can't lose the run.
+        val previousRun = fileSink?.readPreviousRun()
+        val text = buildBugReportPayload(
             nowMillis = System.currentTimeMillis(),
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE.toLong(),
@@ -207,11 +233,9 @@ internal object BugReport {
             widgetPages = widgetStore.widgetPages,
             log = log,
             iconCache = AppIconLoader.cacheStats(),
-            // The previous run's log if it ended without a clean exit (a crash or
-            // a silent kill). Read here (on Dispatchers.IO via share()); cleared by
-            // share() only after the handoff so a cancellation can't lose it.
-            previousRun = fileSink?.readPreviousRun(),
+            previousRun = previousRun?.text,
         )
+        return CollectedReport(text, previousRun)
     }
 
     private suspend fun captureAndPersistScreenshot(activity: Activity): Uri? {
