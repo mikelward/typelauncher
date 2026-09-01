@@ -154,10 +154,13 @@ internal object BugReport {
         // The pinned lines come with it, in the same read: this path runs only
         // when collection already failed, and how the run started is the context
         // least likely to still be in the ring buffer.
-        val logs = runCatching { LauncherDebugLog.snapshots() }
-            .getOrDefault(LogSnapshots(recent = emptyList(), pinned = emptyList()))
-        append(renderPinnedLog(logs.pinned))
-        append(renderRecentLog(logs.recent, MAX_LOG_PAYLOAD_CHARS))
+        val logs = runCatching {
+            LauncherDebugLog.boundedSnapshot(
+                pinnedBudgetChars = MAX_PINNED_PAYLOAD_CHARS,
+                recentBudgetChars = MAX_LOG_PAYLOAD_CHARS,
+            )
+        }.getOrDefault(emptyList())
+        append(renderLog(logs, MAX_LOG_PAYLOAD_CHARS + MAX_PINNED_PAYLOAD_CHARS))
     }
 
     /** Tells the user a share reached neither the chooser nor the clipboard. */
@@ -171,9 +174,14 @@ internal object BugReport {
     }
 
     private fun collectPayload(context: Context, fileSink: DebugFileSink?): String {
-        // One read of both buffers, so the report's two log sections describe the
-        // same instant rather than two.
-        val logs = LauncherDebugLog.snapshots()
+        // One read, ordered and budgeted by the library: the ring's kept tail
+        // with the pinned lines it no longer holds prepended. Reading the two
+        // buffers separately is what let a line land in between and be filed as
+        // older than lines it was newer than (Codex on PR #689).
+        val log = LauncherDebugLog.boundedSnapshot(
+            pinnedBudgetChars = MAX_PINNED_PAYLOAD_CHARS,
+            recentBudgetChars = MAX_LOG_PAYLOAD_CHARS,
+        )
         val dockSettings = DockSettingsStore(context)
         val dockedApps = DockedAppStore(context).dockedAppIds
         val widgetStore = WidgetStore(context)
@@ -197,9 +205,7 @@ internal object BugReport {
             isAgendaEnabled = dockSettings.isAgendaEnabled,
             dockedAppIds = dockedApps,
             widgetPages = widgetStore.widgetPages,
-            recentLog = logs.recent,
-            // Kept whatever the ring buffer has evicted; see renderPinnedLog.
-            pinnedLog = logs.pinned,
+            log = log,
             iconCache = AppIconLoader.cacheStats(),
             // The previous run's log if it ended without a clean exit (a crash or
             // a silent kill). Read here (on Dispatchers.IO via share()); cleared by
@@ -419,9 +425,8 @@ internal fun buildBugReportPayload(
     isAgendaEnabled: Boolean,
     dockedAppIds: List<String>,
     widgetPages: List<List<Int>>,
-    recentLog: List<String>,
+    log: List<String>,
     previousRun: String? = null,
-    pinnedLog: List<String> = emptyList(),
     iconCache: AppIconLoader.CacheStats? = null,
 ): String {
     val widgetIds = widgetPages.flatten()
@@ -501,64 +506,35 @@ internal fun buildBugReportPayload(
             )
         }
     }
-    return boundedHead + crash + renderPinnedLog(pinnedLog) +
-        renderRecentLog(recentLog, MAX_LOG_PAYLOAD_CHARS)
+    return boundedHead + crash +
+        renderLog(log, MAX_LOG_PAYLOAD_CHARS + MAX_PINNED_PAYLOAD_CHARS)
 }
 
 /**
- * The "Process start" section — the pinned lines
- * ([LauncherDebugLog.pinnedEvent]), newest last.
- *
- * Rendered separately from the recent log, and between the previous run and
- * this one, because that is the order a reader reconstructs the transition in:
- * how the last run ended, then how this one began, then what it did. Its whole
- * reason for existing is that the ring buffer had already evicted these lines
- * by the time every real report was captured — a busy device fills 300 entries
- * in well under two hours, and the question "what happened at startup" is asked
- * hours or days later.
- *
- * Bounded like the other log sections, and keeping the newest lines the same
- * way — the buffer is already capped at [PINNED_BUFFER_MAX_ENTRIES] short
- * entries, so the character budget only guards against one pathological line.
- *
- * **A snapshot, and it says so.** The heading carries "as of capture" and an
- * empty section says only "(nothing captured)", because these lines are written
- * from background work and the report is a picture of the moment share was
- * tapped. An earlier version said "(nothing recorded)" — asserting the startup
- * diagnostic had not run — and made the report wait to keep that assertion
- * true. Every review round then found another way for it to be false: a second
- * producer nobody waited for, a code path that did not carry the pending flag,
- * a cancelled job counted as finished. Eight findings, one claim. Deleting the
- * claim ends it, and costs almost nothing: telling "did not run" from "has not
- * finished" only ever mattered inside the few milliseconds after process start,
- * and a report is shared hours later — which is the whole reason this section
- * exists. The line timestamps say when they were written; the report's own
- * header says when it was captured; a reader who needs the gap can see it.
- */
-private fun renderPinnedLog(pinnedLog: List<String>): String = buildString {
-    appendLine()
-    val kept = boundedLogTail(pinnedLog, MAX_PINNED_PAYLOAD_CHARS)
-    val dropped = pinnedLog.size - kept.size
-    appendLine("--- Process start (as of capture) ---")
-    if (dropped > 0) appendLine("($dropped older line(s) omitted to keep the report shareable)")
-    if (pinnedLog.isEmpty()) appendLine("(nothing captured)")
-    kept.forEach { appendLine(it) }
-}
-
-/**
- * The "Recent log" section — the in-memory ring buffer, newest last, bounded to
+ * The "Log" section — one chronological run of lines, newest last, bounded to
  * [budgetChars]. Shared with the collection-failure fallback ([BugReport]),
  * which needs it most: a fallback report with no log says nothing at all.
+ *
+ * One section, not two: the log restores the pinned lines it has since evicted
+ * ahead of its kept tail, in order and without duplication, so the startup
+ * context and the recent run read as the single sequence they were.
+ *
+ * **The heading counts what is here and claims nothing about what is not.** It
+ * used to read "N of M shown", with M the size of the list handed in — which
+ * was the whole ring back when this function did the only bounding. It is not
+ * any more: `boundedSnapshot` bounds first, so M arrives already equal to N and
+ * the heading read "120 of 120 shown" on a report that had dropped 180 lines
+ * upstream — a report claiming to be complete precisely when it was not (Codex
+ * on PR #706). The count of what was dropped is not knowable here, so the
+ * heading states the bound instead of a total it cannot have.
  */
-private fun renderRecentLog(recentLog: List<String>, budgetChars: Int): String = buildString {
+private fun renderLog(log: List<String>, budgetChars: Int): String = buildString {
     appendLine()
-    val kept = boundedLogTail(recentLog, budgetChars)
-    val dropped = recentLog.size - kept.size
-    appendLine("--- Recent log (newest last, ${kept.size} of ${recentLog.size} shown, max $LOG_BUFFER_MAX_ENTRIES) ---")
-    if (recentLog.isEmpty()) {
+    val kept = boundedLogTail(log, budgetChars)
+    appendLine("--- Log (${kept.size} lines, newest last; older lines are dropped to keep the report shareable) ---")
+    if (kept.isEmpty()) {
         appendLine("(no captured log lines)")
     } else {
-        if (dropped > 0) appendLine("($dropped older line(s) omitted to keep the report shareable)")
         kept.forEach { appendLine(it) }
     }
 }
@@ -573,9 +549,9 @@ private fun renderRecentLog(recentLog: List<String>, budgetChars: Int): String =
  * `TransactionTooLargeException` at both ends, and since both are best-effort the
  * tap did nothing whatsoever — no chooser, nothing on the clipboard.
  *
- * The four section budgets below add up to 156,000; the slack covers the section
- * headers and the one over-budget line each log section may keep (a single line
- * is itself capped, see [LOG_BUFFER_MAX_ENTRY_CHARS]).
+ * The section budgets below add up to 156,000; the slack covers the section
+ * headers and the one over-budget line each section may keep (a single line is
+ * itself capped by the log's own per-entry ceiling).
  */
 internal const val MAX_SHARE_PAYLOAD_CHARS = 160_000
 
@@ -583,14 +559,13 @@ internal const val MAX_SHARE_PAYLOAD_CHARS = 160_000
 private const val MAX_LOG_PAYLOAD_CHARS = 60_000
 
 /**
- * Ceiling for the "Process start" section.
+ * Ceiling for the pinned lines the log restores ahead of its kept tail.
  *
- * Small because the section is: [PINNED_BUFFER_MAX_ENTRIES] short lines
- * written once each at startup, a few hundred characters in total in practice.
- * It is capped anyway rather than left to the entry count alone, so that one
- * pathological line — a platform-composed [android.app.ApplicationExitInfo]
- * description runs to [LOG_BUFFER_MAX_ENTRY_CHARS] — cannot put the whole
- * report over the share ceiling.
+ * Small because they are: a couple of dozen short lines written once each at
+ * startup, a few hundred characters in total in practice. It is capped anyway
+ * rather than left to the entry count alone, so that one pathological line — a
+ * platform-composed [android.app.ApplicationExitInfo] description runs to the
+ * log's per-entry ceiling — cannot put the whole report over the share ceiling.
  */
 private const val MAX_PINNED_PAYLOAD_CHARS = 8_000
 

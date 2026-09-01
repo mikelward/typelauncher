@@ -136,7 +136,7 @@ internal class AndroidWallpaperColorsRegistrar(private val context: Context) : W
         val listener = WallpaperManager.OnColorsChangedListener { _, which -> onColorsChanged(which) }
         // Named rather than returned as a trailing block: a bare lambda right
         // after the register call parses as an argument to it.
-        val unregister = {
+        val unregister: () -> Unit = {
             try {
                 manager.removeOnColorsChangedListener(listener)
             } catch (exception: RuntimeException) {

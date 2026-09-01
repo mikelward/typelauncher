@@ -154,7 +154,7 @@ class LauncherViewModelIconTrimGuardTest {
             LauncherDebugLog.snapshot().any { it.contains("trimIconCacheToPriority deferred") },
         )
 
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         io.release()
         shadowOf(Looper.getMainLooper()).idle()
 
@@ -180,7 +180,7 @@ class LauncherViewModelIconTrimGuardTest {
         viewModel.trimIconCacheToPriority()
 
         viewModel.onLauncherVisible()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         io.release()
         shadowOf(Looper.getMainLooper()).idle()
 

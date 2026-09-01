@@ -622,7 +622,7 @@ class MainActivityRobolectricScreenshotTest {
         // by hand — FLAG_ACTIVITY_FORWARD_RESULT, which the framework's
         // ResolverActivity sets on the target it forwards to. Pinned, because
         // the question is asked hours later.
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         // Holds the scheduled block instead of running it, so the probe is
         // observable while still in flight and then finished on the test's own
         // terms — a real background coroutine touching Robolectric's package
@@ -655,7 +655,7 @@ class MainActivityRobolectricScreenshotTest {
         // Home is pressed dozens of times a session; recording each one would
         // fill the pinned buffer with the case that is never interesting and
         // evict the one that is.
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         val deferring = DeferringCoroutineDispatcher()
         composeRule.activity.runOnUiThread { composeRule.activity.ioDispatcher = deferring }
 

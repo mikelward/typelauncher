@@ -33,7 +33,7 @@ class HomeResolutionTest {
 
     @Before
     fun reset() {
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     private fun resolutionLines(): List<String> =

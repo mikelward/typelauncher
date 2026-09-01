@@ -2,6 +2,8 @@ package app.typelauncher
 
 import android.app.Application
 import android.os.Build
+import com.mikelward.androidlog.DebugLog
+import com.mikelward.androidlog.android.LogcatSink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,7 +63,12 @@ class TypeLauncherApp : Application() {
         // off the first-frame path ("Fast loading").
         val fileSink = DebugFileSink(this)
         fileSink.start()
-        LauncherDebugLog.addSink(fileSink)
+        // Three sinks, each declaring which side of the device boundary it is,
+        // so the library decides what each is handed rather than every call
+        // site rendering both forms by hand.
+        LauncherDebugLog.addSink(LogcatSink(LAUNCHER_DEBUG_TAG), DebugLog.Destination.DEVICE)
+        LauncherDebugLog.addSink(fileSink, DebugLog.Destination.DEVICE)
+        LauncherDebugLog.addSink(CrashlyticsBreadcrumbSink, DebugLog.Destination.OFF_DEVICE)
         debugFileSink = fileSink
         logProcessExitReasons()
         applyTelemetryPreference()

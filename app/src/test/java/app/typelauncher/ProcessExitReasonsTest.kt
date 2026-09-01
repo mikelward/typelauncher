@@ -31,7 +31,7 @@ class ProcessExitReasonsTest {
 
     @Before
     fun clearLog() {
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     private fun seedExit(
@@ -114,9 +114,9 @@ class ProcessExitReasonsTest {
         )
         // And pinned, so the failure outlives the ring buffer alongside the
         // records it sits beside. Without it a report whose ring has turned
-        // over shows a Process start section with no package timestamps and
-        // nothing saying why, which reads as a complete diagnostic (Codex on
-        // PR #689).
+        // over restores the startup lines with no package timestamps among
+        // them and nothing saying why, which reads as a complete diagnostic
+        // (Codex on PR #689).
         assertTrue(
             LauncherDebugLog.pinnedSnapshot().toString(),
             LauncherDebugLog.pinnedSnapshot().any { it.contains("ownPackage unavailable reason=notFound") },

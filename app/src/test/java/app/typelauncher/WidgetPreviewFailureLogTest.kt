@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 class WidgetPreviewFailureLogTest {
     @Before
     fun resetBuffer() {
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     @Test
@@ -30,7 +30,7 @@ class WidgetPreviewFailureLogTest {
         val result = generatedPreviewOrNull(PROVIDER) { throw IllegalStateException("no preview") }
 
         assertNull(result)
-        val logged = LauncherDebugLog.snapshot().single()
+        val logged = LauncherDebugLog.entriesForTest().single()
         assertTrue(logged, logged.contains("generated widget preview unavailable"))
         assertTrue(logged, logged.contains("IllegalStateException"))
         // Naming the provider is the point; on-device only, by the
@@ -43,7 +43,7 @@ class WidgetPreviewFailureLogTest {
         val result = generatedPreviewOrNull(PROVIDER) { null }
 
         assertNull(result)
-        assertEquals(emptyList<String>(), LauncherDebugLog.snapshot())
+        assertEquals(emptyList<String>(), LauncherDebugLog.entriesForTest())
     }
 
     @Test
@@ -53,7 +53,7 @@ class WidgetPreviewFailureLogTest {
         // Null is what tells the caller to set `generatedInflationFailed` and
         // render the static preview instead.
         assertNull(result)
-        val logged = LauncherDebugLog.snapshot().single()
+        val logged = LauncherDebugLog.entriesForTest().single()
         assertTrue(logged, logged.contains("generated widget preview would not inflate"))
         assertTrue(logged, logged.contains("IllegalArgumentException"))
         assertTrue(logged, logged.contains(PROVIDER))
@@ -65,7 +65,7 @@ class WidgetPreviewFailureLogTest {
         val result = inflatedPreviewOrNull(PROVIDER) { FrameLayout(context) }
 
         assertNotNull(result)
-        assertEquals(emptyList<String>(), LauncherDebugLog.snapshot())
+        assertEquals(emptyList<String>(), LauncherDebugLog.entriesForTest())
     }
 
     private companion object {

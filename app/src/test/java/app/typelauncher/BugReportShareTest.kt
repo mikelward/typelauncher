@@ -33,13 +33,12 @@ class BugReportShareTest {
     @Before
     fun setUp() {
         activity = Robolectric.buildActivity(Activity::class.java).setup().get()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     @After
     fun tearDown() {
-        LauncherDebugLog.clearForTest()
-        LauncherDebugLog.clearSinksForTest()
+        LauncherDebugLog.resetForTest()
         ShadowToast.reset()
     }
 

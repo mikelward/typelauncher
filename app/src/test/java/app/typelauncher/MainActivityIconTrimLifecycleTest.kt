@@ -34,10 +34,10 @@ import org.robolectric.annotation.Config
 class MainActivityIconTrimLifecycleTest {
 
     @Before
-    fun clearLog() = LauncherDebugLog.clearForTest()
+    fun clearLog() = LauncherDebugLog.resetForTest()
 
     @After
-    fun resetLog() = LauncherDebugLog.clearForTest()
+    fun resetLog() = LauncherDebugLog.resetForTest()
 
     private fun trimWasAttempted(): Boolean =
         LauncherDebugLog.snapshot().any { it.contains("trimIconCacheToPriority") }
@@ -51,7 +51,7 @@ class MainActivityIconTrimLifecycleTest {
         // call from onStop entirely would leave both of them passing.
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
         try {
-            LauncherDebugLog.clearForTest()
+            LauncherDebugLog.resetForTest()
 
             controller.pause().stop()
 
@@ -71,7 +71,7 @@ class MainActivityIconTrimLifecycleTest {
         // per visible row and redraw the user's own screen from placeholders.
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
         try {
-            LauncherDebugLog.clearForTest()
+            LauncherDebugLog.resetForTest()
 
             controller.configurationChange(
                 Configuration(controller.get().resources.configuration).apply {
@@ -96,7 +96,7 @@ class MainActivityIconTrimLifecycleTest {
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
         try {
             controller.get().restartForWallpaperWindowMode()
-            LauncherDebugLog.clearForTest()
+            LauncherDebugLog.resetForTest()
 
             controller.pause().stop()
 
