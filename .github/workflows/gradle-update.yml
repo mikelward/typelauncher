@@ -40,3 +40,24 @@ jobs:
       token: ${{ secrets.GRADLE_UPDATE_PAT }}
       app-id: ${{ secrets.GRADLE_UPDATE_APP_ID }}
       app-private-key: ${{ secrets.GRADLE_UPDATE_APP_PRIVATE_KEY }}
+    with:
+      # androidlog is published to a branch of its own repository rather than
+      # to Maven Central, so the engine cannot discover its releases through
+      # the default repositories. Declaring it here is what lets the weekly
+      # batch see a new version at all — without it the coordinate sits at
+      # whatever it was pinned to, silently, with no failing run to say so.
+      # settings.gradle.kts already declares the same repository, scoped to
+      # that one group, so Gradle can resolve what the batch selects.
+      extra-repositories: |
+        https://raw.githubusercontent.com/mikelward/androidlog/maven
+      # Both coordinates, because they share one `androidlog` version key and
+      # the input exempts a key only when every coordinate it pins is named.
+      # The cooldown exists to let a compromised third-party release be yanked
+      # before an unattended job takes it; it guards nothing against a library
+      # this owner publishes and reviews, and would never expire anyway —
+      # raw.githubusercontent.com serves no `Last-Modified`, so there is no
+      # release date to age out and the coordinate would be deferred forever
+      # rather than merely delayed.
+      no-cooldown-for: |
+        com.mikelward.androidlog:logging-core
+        com.mikelward.androidlog:logging-android
