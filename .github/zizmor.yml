@@ -81,3 +81,18 @@ rules:
   # them one by one rather than ignoring the file wholesale. Each one now
   # carries its reasoning beside the step it excuses, where the next reader
   # of that step will find it.
+  # `secrets-inherit` is deliberately NOT configured here either. The two
+  # callers that pass `secrets: inherit` on purpose -- the weekly batch in
+  # gradle-update.yml and the screenshot sync in ci.yml -- carry an inline
+  # `# zizmor: ignore[secrets-inherit]` on that one line, with the reasoning
+  # beside it: the called workflow's publish/commit job reads its credential
+  # from an environment (`gradle-update`, `ci-commit-artifact`), and an
+  # environment secret reaches a called workflow no other way, while the
+  # `secrets:` block zizmor prefers delivers the credential to the runner of
+  # every job in the called workflow, the untrusted update job included. A
+  # file entry here would also excuse a NEW `secrets: inherit` on any other
+  # call in those files; the inline form excuses only the call it sits on.
+  # The price of `inherit` is that every repository-level secret reaches
+  # the called jobs too, so this repository keeps its secrets
+  # environment-scoped (mikelward/repo's `repo audit` reports any that are
+  # not, and `repo setup` moves them).
