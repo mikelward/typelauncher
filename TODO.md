@@ -748,6 +748,36 @@ Not blocking the PR: nothing in it changes what is transmitted.
   its own PR with its own tests, and which reopens the question of what happens when *that*
   retry fails too. Not settled here.
 
+## Deferred review findings (Codex, PR #707)
+
+- [ ] **Migrate `app.typelauncher.DebugFileSink` to the shared library's sink.** Two
+  reasons now, and the second is a correctness bug rather than duplication.
+
+  **The duplication.** `TypeLauncherApp` builds the launcher's own `DebugFileSink`,
+  never the library's, so every fix landed in `mikelward/androidlog` has to be
+  re-applied here by hand — which is exactly what PR #707 ended up doing for the
+  bounded earlier-runs read. The two have diverged: this sink's `readPreviousRun()`
+  returns `String?` where the library's returns a `PreviousRun` handle, so the swap
+  is not a one-line import; the share and clear paths in `BugReport.kt` are built
+  around the current shape.
+
+  **The bug.** One process-wide `lastSurfaced` slot associates a clear with whichever
+  read wrote it last, not with the read the caller actually received. Two overlapping
+  shares — `rememberBugReportTrigger` launches each on the application scope with no
+  re-entrancy guard, and there are two triggers — can therefore cross: attempt A times
+  out and builds a report with no earlier-run logs, attempt B reads successfully and
+  publishes its list, and A's clipboard write then deletes B's files. Pre-existing: the
+  same slot is written from the worker on `main`, so this predates #707's bound.
+
+  **Why the library is the fix rather than a local patch.** Its `clearPreviousRun`
+  consumes a handle the caller was given, so the association is per-attempt by
+  construction and "overlapping flows included" is a stated invariant there. Building a
+  second receipt type here would be a third parallel copy of the thing the shared
+  library exists to remove.
+
+  **Cost of leaving it.** Requires two shares racing while the file worker is wedged —
+  narrow, but the loss is the user's only copy of the logs they were trying to report.
+
 ## Privacy
 
 - [ ] **Align the four app repos' debug loggers.** `ProcessExitReasons.kt` was
