@@ -828,19 +828,23 @@ jobs:
       #   manual re-dispatch needed. dispatch-workflow exists for callers
       #   that push with the job's own GITHUB_TOKEN instead, which starts no
       #   workflow run on its own.
-    secrets:
-      # CI_COMMIT_ARTIFACT_TOKEN, not github.token: GitHub's documented
-      # recursion prevention means a GITHUB_TOKEN-authored push starts no
-      # workflow run at all, so the refreshed head would carry no check of
-      # its own and the required `lanes` status would never report on it. A
-      # fine-grained PAT (contents: write, this repository only) pushes as
-      # an ordinary authenticated push instead, which DOES fire a fresh
-      # pull_request_target run on the new commit through the normal
-      # pipeline. Named for the shared PAT/naming convention this token
-      # backs across every caller of mikelward/ci-commit-artifact, not
-      # something typelauncher- or screenshot-specific — see that repo's
-      # README.
-      push-token: ${{ secrets.CI_COMMIT_ARTIFACT_TOKEN }}
+    # `inherit`, not a `secrets:` block naming CI_COMMIT_ARTIFACT_TOKEN: the
+    # hub's commit job declares the `ci-commit-artifact` environment and
+    # reads the token from it, and an environment secret reaches a called
+    # workflow no other way. A repository-level token passed by name here
+    # would also reach every job of every workflow that inherits this
+    # repository's secrets, the weekly batch's untrusted update job
+    # included. The token itself is still what it was: GitHub's documented
+    # recursion prevention means a GITHUB_TOKEN-authored push starts no
+    # workflow run at all, so the refreshed head would carry no check of its
+    # own and the required `lanes` status would never report on it; a
+    # fine-grained PAT (contents: write, this repository only) pushes as an
+    # ordinary authenticated push, which DOES fire a fresh
+    # pull_request_target run on the new commit. The corresponding zizmor
+    # finding (secrets-inherit) is excused inline on that one line, with
+    # the same reason; .github/zizmor.yml says why the inline form rather
+    # than a file entry.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
 
   # Embeds every snapshot this PR adds or changes, pinned to commit SHAs,
   # into a single auto-updated PR comment (marker: <!-- screenshot-diff -->)
