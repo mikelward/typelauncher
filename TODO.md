@@ -886,29 +886,25 @@ Not blocking the PR: nothing in it changes what is transmitted.
   `mirroredScheme` machinery is **kept, not deleted**, so `either(...)` can
   restore the off-device half without rebuilding it.
 
-- [ ] **The bug report's two log sections became one** (autopilot, 2026-09-01).
-  A report used to carry a **Process start** section and a **Recent log**
-  section, the first rendered from a separately-retained pinned list. The
-  library's `boundedSnapshot(pinnedBudgetChars, recentBudgetChars)` does that
-  merge itself — it restores the pinned lines the ring has since evicted ahead
-  of the tail it still holds, in order and without duplicating one the ring
-  still carries — so the report now renders **one** chronological `--- Log ---`
-  section. **Alternative:** keep two sections by calling `pinnedSnapshot()` and
-  `snapshot()` separately and rendering them apart, as before. **Not taken**,
-  because the merge is what the library was given the two budgets to do, and
-  two sections re-introduce the duplication it exists to avoid: a pinned line
-  the ring still holds appeared in both. **Reversible** in `BugReport.kt`
-  alone — both library calls are still public — but it is a user-visible
-  change to the report's shape, so it wants an eye on a real report.
+- [x] **The bug report's two log sections became one** — approved by the
+  maintainer, 2026-09-01: separate sections were something that needed further
+  design before implementing, so collapsing to one is the right default until
+  that design exists. A report used to carry a **Process start** section and a
+  **Recent log** section, the first rendered from a separately-retained pinned
+  list. The library's `boundedSnapshot(pinnedBudgetChars, recentBudgetChars)`
+  does that merge itself — it restores the pinned lines the ring has since
+  evicted ahead of the tail it still holds, in order and without duplicating
+  one the ring still carries — so the report renders **one** chronological
+  `--- Log ---` section. Reversible in `BugReport.kt` alone if the two-section
+  design is ever taken up: both library calls are still public.
 
-- [ ] **Stack traces in the log drop to 6 frames per cause link, from 8**
-  (autopilot, 2026-09-01). The library's `DEFAULT_MAX_TRACE_FRAMES` is 6 and
-  the app took the default; every other bound already matched (300 entries, 32
-  pinned, 2,000 chars per entry). **Alternative:** pass `maxTraceFrames = 8` to
-  keep the app's number. **Not taken**, because a per-app deviation from a
-  shared default needs a reason, and there was no recorded one for 8 — it
-  predates the library. **Reversible** by one constructor argument if a real
-  trace turns out to be cut above the frame that mattered.
+- [x] **Stack traces in the log drop to 6 frames per cause link, from 8** — put
+  to the maintainer 2026-09-01, who had no opinion either way, so the shared
+  default stands. The library's `DEFAULT_MAX_TRACE_FRAMES` is 6 and the app
+  takes it; every other bound already matched (300 entries, 32 pinned, 2,000
+  chars per entry). A per-app deviation needs a reason and there was no
+  recorded one for 8 — it predates the library. Reversible by one constructor
+  argument if a real trace turns out to be cut above the frame that mattered.
 
 - [ ] **Two jobs now enter `environment: production` on a main run.**
       `release-build` declares it because the upload keystore lives there, and
