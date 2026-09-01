@@ -73,6 +73,24 @@ private const val CRASH_WRITE_TIMEOUT_MS = 250L
 private const val WRITE_DEBOUNCE_MS = 500L
 
 /**
+ * How long [DebugFileSink.readPreviousRun] waits on the worker.
+ *
+ * Generous on purpose. The read is ordered *behind* whatever the worker is
+ * already doing -- the startup rotation above all -- and then reads every prior
+ * run's file, so a bound tight enough to catch a genuinely stuck worker would
+ * also fire on a slow device doing nothing wrong. That is the expensive
+ * direction: giving up is indistinguishable to the caller from "there is
+ * nothing to send", so the run it abandoned stays on disk unshared.
+ *
+ * The bound is not here to make slow reads fail faster. It is here so an
+ * unbounded wait cannot exist: this call is made from the bug-report path, and
+ * an unbounded `get()` parks that caller for the life of the process
+ * (androidlog#31, which fixed the same defect in the shared library's sink --
+ * this sink is Type Launcher's own and did not inherit that fix).
+ */
+private const val PREVIOUS_RUN_READ_TIMEOUT_MS = 10_000L
+
+/**
  * Persists the debug log to app-private files so it survives the process ending
  * — a crash *or* a silent kill (the launcher process can be killed with no
  * visible UI and no uncaught exception, so a crash-only handler would miss it).
@@ -100,6 +118,24 @@ internal class DebugFileSink internal constructor(
     // Debounce for the continuous mirror. 0 in tests so a logged line persists
     // synchronously (deterministic); [WRITE_DEBOUNCE_MS] in production.
     private val writeDebounceMs: Long = 0L,
+    /**
+     * Builds the single worker every file operation runs on. A seam, so a test
+     * can occupy it and observe what a caller sees when it does not come back;
+     * production always gets the default.
+     */
+    workerFactory: () -> ScheduledThreadPoolExecutor = {
+        ScheduledThreadPoolExecutor(
+            1,
+        ) { runnable -> Thread(runnable, "typelauncher-debug-log").apply { isDaemon = true } }
+            .apply { prestartCoreThread() }
+    },
+    /**
+     * How long [readPreviousRun] waits on the worker. A seam for the same
+     * reason [workerFactory] is one -- waiting out
+     * [PREVIOUS_RUN_READ_TIMEOUT_MS] to see the behavior would put ten seconds
+     * in the suite. Defaulted and last, so no existing call site names it.
+     */
+    private val previousRunReadTimeoutMs: Long = PREVIOUS_RUN_READ_TIMEOUT_MS,
 ) : DebugLog.Sink {
 
     // Production: resolve cacheDir lazily, so the (possibly dir-creating) I/O of
@@ -132,10 +168,7 @@ internal class DebugFileSink internal constructor(
     // operation is serialized without an explicit lock; *scheduled* so a debounced
     // write can be enqueued with a delay while a 0-delay task (rotation, crash
     // flush, share read) still runs ahead of it.
-    private val worker = ScheduledThreadPoolExecutor(
-        1,
-    ) { runnable -> Thread(runnable, "typelauncher-debug-log").apply { isDaemon = true } }
-        .apply { prestartCoreThread() }
+    private val worker = workerFactory()
 
     private val writePending = AtomicBoolean(false)
 
@@ -230,9 +263,21 @@ internal class DebugFileSink internal constructor(
         }
     }
 
-    // The files that [readPreviousRun] last actually read, so [clearPreviousRun]
-    // deletes only those — a file that failed to read is left for next time.
+    // The files a caller of [readPreviousRun] actually *received*, so
+    // [clearPreviousRun] deletes only those — a file that failed to read is left
+    // for next time.
+    //
+    // Assigned by [readPreviousRun] once the read has come back, never by the
+    // worker task itself. That ordering is load-bearing now the wait is bounded
+    // (Codex, PR #707): a task abandoned at the timeout may still run later on a
+    // recovered worker, and if *it* published the list, a share whose report
+    // never contained those logs could go on to delete them. Volatile because it
+    // is now written off the worker and read on it.
+    @Volatile
     private var lastSurfaced: List<File> = emptyList()
+
+    /** What one read produced: the report text, and the files it came from. */
+    private class PreviousRunRead(val text: String?, val files: List<File>)
 
     /**
      * Every unshared prior run's log, oldest first, newest-bounded — or null if
@@ -244,10 +289,49 @@ internal class DebugFileSink internal constructor(
      * skipped and left in place, never destroyed (it is not added to the set
      * [clearPreviousRun] deletes).
      */
-    fun readPreviousRun(): String? =
-        runCatching { worker.submit<String?> { readPreviousRunOnWorker() }.get() }.getOrNull()
+    fun readPreviousRun(): String? {
+        val result = runCatching {
+            val pending = worker.submit<PreviousRunRead> { readPreviousRunOnWorker() }
+            try {
+                pending.get(previousRunReadTimeoutMs, TimeUnit.MILLISECONDS)
+            } catch (e: java.util.concurrent.TimeoutException) {
+                // Abandon the task as well as the wait. Left queued, it could run
+                // on a recovered worker and publish files this caller never got.
+                pending.cancel(true)
+                throw e
+            }
+        }
+            .onFailure { failure ->
+                // Named apart from a plain failure because the two call for
+                // different responses: a read that *failed* will fail again,
+                // while one that ran out of time may simply have been queued
+                // behind a slow rotation and succeed on the next attempt.
+                if (failure is java.util.concurrent.TimeoutException) {
+                    LauncherDebugLog.event(
+                        "debug log: earlier runs could not be read within %s ms",
+                        previousRunReadTimeoutMs,
+                    )
+                } else {
+                    LauncherDebugLog.event("debug log: earlier runs could not be read")
+                }
+                // `get()` clears the flag when it throws this, and swallowing it
+                // would strand a caller that is being asked to stop.
+                if (failure is InterruptedException) Thread.currentThread().interrupt()
+            }
+            .getOrNull()
+        // Published here, on receipt, and *unconditionally* — a read that came
+        // back with nothing leaves nothing to delete.
+        //
+        // Assigning only on success was itself a hole (Codex, PR #707): a share
+        // that read the files but failed to reach the clipboard leaves this list
+        // populated and the files on disk, and the next share's timed-out read
+        // would then have inherited that list and let its clear delete runs its
+        // own report never contained.
+        lastSurfaced = result?.files ?: emptyList()
+        return result?.text
+    }
 
-    private fun readPreviousRunOnWorker(): String? {
+    private fun readPreviousRunOnWorker(): PreviousRunRead {
         val files = previousFiles()
         val read = mutableListOf<File>()
         val lines = files.flatMap { file ->
@@ -259,22 +343,44 @@ internal class DebugFileSink internal constructor(
                 emptyList()
             }
         }.filter { it.isNotEmpty() }
-        lastSurfaced = read
-        if (lines.isEmpty()) return null
-        return boundedLogTail(lines, PERSIST_BUDGET_CHARS).joinToString("\n").takeIf { it.isNotBlank() }
+        if (lines.isEmpty()) return PreviousRunRead(null, read)
+        val text = boundedLogTail(lines, PERSIST_BUDGET_CHARS)
+            .joinToString("\n")
+            .takeIf { it.isNotBlank() }
+        return PreviousRunRead(text, read)
     }
 
     /**
-     * Deletes only the prior-run files that were surfaced by the last read. On the
-     * worker too, so it can't race the mirror's writes and reads/mutates
-     * [lastSurfaced] under the same single-threaded ordering as [readPreviousRun].
+     * Deletes only the prior-run files that were surfaced by the last read. The
+     * deletion itself runs on the worker, so it can't race the mirror's writes.
      */
     fun clearPreviousRun() {
+        // Taken here, on the calling thread, rather than read inside the task.
+        // The task can outlive its bound below, and a later timed-out read
+        // publishes an empty list from *its* caller thread -- so a task that
+        // read the live slot on a recovered worker would find it emptied and
+        // delete nothing, leaving a run that was already shared on disk with
+        // its crash banner still up (Codex, PR #707). What this caller is
+        // entitled to delete is what it was surfaced, and that is fixed now.
+        val surfaced = lastSurfaced
+        lastSurfaced = emptyList()
         runCatching {
-            worker.submit {
-                lastSurfaced.forEach { runCatching { it.delete() } }
-                lastSurfaced = emptyList()
-            }.get()
+            val pending = worker.submit {
+                surfaced.forEach { runCatching { it.delete() } }
+            }
+            try {
+                pending.get(previousRunReadTimeoutMs, TimeUnit.MILLISECONDS)
+            } catch (e: java.util.concurrent.TimeoutException) {
+                // Bounded for the same reason the read is: this runs on the same
+                // bug-report path, one line after it, so leaving it unbounded
+                // would reinstate exactly the park the read's bound removes
+                // (Codex, PR #707). The task is left queued rather than
+                // cancelled -- deleting files the caller *did* receive is the
+                // whole point of it, so it should still happen if the worker
+                // recovers.
+                LauncherDebugLog.event("debug log: clearing earlier runs did not complete within %s ms", previousRunReadTimeoutMs)
+                throw e
+            }
         }
     }
 
