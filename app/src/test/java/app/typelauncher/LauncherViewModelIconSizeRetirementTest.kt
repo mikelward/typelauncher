@@ -37,11 +37,11 @@ class LauncherViewModelIconSizeRetirementTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
     @Before
-    fun clearLog() = LauncherDebugLog.clearForTest()
+    fun clearLog() = LauncherDebugLog.resetForTest()
 
     @After
     fun tearDown() {
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         listOf("docked_apps", "dock_settings", "app_launch_stats", "widgets", "app_metadata")
             .forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
     }

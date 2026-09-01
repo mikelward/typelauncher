@@ -36,10 +36,10 @@ import org.robolectric.Shadows.shadowOf
 class PlayUpdateCheckerTest {
 
     @Before
-    fun setUp() = LauncherDebugLog.clearForTest()
+    fun setUp() = LauncherDebugLog.resetForTest()
 
     @After
-    fun tearDown() = LauncherDebugLog.clearForTest()
+    fun tearDown() = LauncherDebugLog.resetForTest()
 
     /**
      * Tapping Restart hands off to Play, and on success the app is restarted —

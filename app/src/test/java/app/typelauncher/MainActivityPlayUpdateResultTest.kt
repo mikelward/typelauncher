@@ -40,10 +40,10 @@ import org.robolectric.annotation.Config
 class MainActivityPlayUpdateResultTest {
 
     @Before
-    fun clearLog() = LauncherDebugLog.clearForTest()
+    fun clearLog() = LauncherDebugLog.resetForTest()
 
     @After
-    fun resetLog() = LauncherDebugLog.clearForTest()
+    fun resetLog() = LauncherDebugLog.resetForTest()
 
     /** Exactly what `ComponentActivity`'s registry dispatches on a failed launch. */
     private fun redeliveredLaunchFailure(): ActivityResult = ActivityResult(

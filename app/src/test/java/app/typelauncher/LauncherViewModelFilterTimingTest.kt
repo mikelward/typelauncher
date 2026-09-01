@@ -33,11 +33,11 @@ class LauncherViewModelFilterTimingTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
     @Before
-    fun clearLog() = LauncherDebugLog.clearForTest()
+    fun clearLog() = LauncherDebugLog.resetForTest()
 
     @After
     fun tearDown() {
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         listOf("docked_apps", "dock_settings", "app_launch_stats", "widgets", "app_metadata")
             .forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
     }
@@ -66,7 +66,7 @@ class LauncherViewModelFilterTimingTest {
             ioDispatcher = ParkingDispatcher(),
         )
         shadowOf(Looper.getMainLooper()).idle()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
 
         repeat(FILTER_TIMING_SAMPLE_INTERVAL) { viewModel.setQuery("typed") }
         shadowOf(Looper.getMainLooper()).idle()
@@ -89,7 +89,7 @@ class LauncherViewModelFilterTimingTest {
         // mirroring to telemetry on every keystroke would put the measurement onto the
         // path it is measuring.
         val viewModel = newViewModel()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
 
         repeat(FILTER_TIMING_SAMPLE_INTERVAL - 1) { index -> viewModel.setQuery("q".repeat(index % 4 + 1)) }
         assertTrue(
@@ -112,7 +112,7 @@ class LauncherViewModelFilterTimingTest {
         // typed matches and ranks -- so averaging them together would hide whichever
         // is the slow one, which is the only thing this measurement is for.
         val viewModel = newViewModel()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
 
         repeat(FILTER_TIMING_SAMPLE_INTERVAL) { viewModel.setQuery("typed") }
 
@@ -136,7 +136,7 @@ class LauncherViewModelFilterTimingTest {
         // device, logs included. `typed` is the only thing about the query worth
         // knowing here, and not even its length is recorded.
         val viewModel = newViewModel()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
 
         repeat(FILTER_TIMING_SAMPLE_INTERVAL) { viewModel.setQuery("secretquery") }
 

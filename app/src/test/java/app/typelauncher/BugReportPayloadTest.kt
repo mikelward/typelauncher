@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.ZoneId
@@ -28,7 +29,7 @@ class BugReportPayloadTest {
             isAgendaEnabled = true,
             dockedAppIds = listOf("0:com.example/.LaunchActivity", "0:com.example2/.LaunchActivity"),
             widgetPages = listOf(listOf(11), listOf(22)),
-            recentLog = listOf("11-04 09:00:00.000 D TypeLauncherDebug: hello"),
+            log = listOf("11-04 09:00:00.000 D TypeLauncherDebug: hello"),
         )
 
         assertTrue("includes header", payload.startsWith("Type Launcher bug report"))
@@ -54,8 +55,8 @@ class BugReportPayloadTest {
         assertTrue("includes docked app id", payload.contains("0:com.example/.LaunchActivity"))
         assertTrue("includes widgets summary", payload.contains("Widgets (2): 11, 22"))
         assertTrue("includes widget pages", payload.contains("Page 2: 22"))
-        assertTrue("includes recent log header", payload.contains("--- Recent log"))
-        assertTrue("includes recent log entry", payload.contains("hello"))
+        assertTrue("includes the log header", payload.contains("--- Log ("))
+        assertTrue("includes the log entry", payload.contains("hello"))
     }
 
     @Test
@@ -80,7 +81,7 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = emptyList(),
             widgetPages = listOf(emptyList()),
-            recentLog = emptyList(),
+            log = emptyList(),
         )
 
         assertTrue("notes empty dock", payload.contains("Docked apps (0):"))
@@ -102,7 +103,7 @@ class BugReportPayloadTest {
         assertTrue(withPrevious.contains("--- Previous run (ended without a clean exit) ---"))
         assertTrue(withPrevious.contains("Uncaught exception in thread main"))
         // The current run's log still follows the previous-run section.
-        assertTrue(withPrevious.contains("--- Recent log"))
+        assertTrue(withPrevious.contains("--- Log ("))
         assertTrue(withPrevious.contains("current hello"))
     }
 
@@ -142,16 +143,16 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = (0 until 2_000).map { "0:com.example.package$it/.LaunchActivity" },
             widgetPages = listOf(emptyList()),
-            recentLog = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
+            log = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
         )
 
         assertTrue("the settings section is truncated", payload.contains("details truncated"))
-        assertTrue("the recent log survives", payload.contains("current hello"))
+        assertTrue("the log survives", payload.contains("current hello"))
         assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
     }
 
     @Test
-    fun oversizedRecentLogKeepsItsNewestLines() {
+    fun anOversizedLogKeepsItsNewestLines() {
         val log = (0 until 300).map { "line-$it " + "x".repeat(600) } + "the newest event"
         val payload = buildBugReportPayload(
             nowMillis = 1_700_000_000_000L,
@@ -173,12 +174,15 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = emptyList(),
             widgetPages = listOf(emptyList()),
-            recentLog = log,
+            log = log,
         )
 
         assertTrue("the newest line survives", payload.contains("the newest event"))
         assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
-        assertTrue("and says so", payload.contains("older line(s) omitted"))
+        // The heading says older lines are dropped unconditionally, because
+        // whether any were is not knowable here: the log bounds itself before
+        // the report sees it.
+        assertTrue("and says so", payload.contains("older lines are dropped"))
         assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
     }
 
@@ -216,7 +220,7 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = (0 until 2_000).map { "0:com.example.package$it/.LaunchActivity" },
             widgetPages = listOf(emptyList()),
-            recentLog = (0 until 300).map { "line-$it " + "x".repeat(600) },
+            log = (0 until 300).map { "line-$it " + "x".repeat(600) },
             previousRun = (0 until 400).joinToString("\n") { "prev-$it " + "x".repeat(600) },
         )
 
@@ -224,56 +228,72 @@ class BugReportPayloadTest {
     }
 
     @Test
-    fun payloadCarriesTheProcessStartSectionBetweenTheTwoRuns() {
-        // The section exists because the ring buffer had already evicted these
-        // lines in every real report, so what matters is that it renders from
-        // the pinned list independently of the recent log — and that it sits
-        // where the transition reads in order: last run, then how this one
-        // began, then this run.
+    fun theLogIsOneSectionAndFollowsThePreviousRun() {
+        // Startup context used to get its own "Process start" section, because
+        // the ring buffer had always evicted those lines by the time a report
+        // was captured. The log restores them ahead of its kept tail now, in
+        // order, so the report reads as one sequence: last run, then this one
+        // from its start.
         val payload = basePayload(
-            previousRun = "11-04 08:59:59.000 D TypeLauncherDebug: home ready",
-            pinnedLog = listOf("11-04 09:00:00.000 D TypeLauncherDebug: processExit reason=packageUpdated"),
+            previousRun = "11-04 08:59:59.000 D home ready",
+            log = listOf(
+                "11-04 09:00:00.000 D processExit reason=packageUpdated",
+                "11-04 09:00:01.000 D current hello",
+            ),
         )
 
-        assertTrue(payload.contains("--- Process start (as of capture) ---"))
         assertTrue(payload.contains("processExit reason=packageUpdated"))
+        assertTrue(payload.contains("current hello"))
         assertTrue(
-            "sits after the previous run and before this run's log",
-            payload.indexOf("--- Previous run") <
-                payload.indexOf("--- Process start (as of capture) ---"),
+            "one log section, after the previous run",
+            payload.indexOf("--- Previous run") < payload.indexOf("--- Log ("),
+        )
+        assertEquals(
+            "one log section",
+            1,
+            Regex("--- Log \\(").findAll(payload).count(),
         )
         assertTrue(
-            payload.indexOf("--- Process start (as of capture) ---") < payload.indexOf("--- Recent log"),
+            "in order within it",
+            payload.indexOf("processExit reason=packageUpdated") < payload.indexOf("current hello"),
         )
     }
 
     @Test
-    fun processStartSectionIsLabelledASnapshotAndClaimsNothingMore() {
-        // These lines are written from background work, so the section is a
+    fun theLogHeadingNeverClaimsTheReportIsComplete() {
+        // The log bounds itself before the report sees it, so the list handed
+        // in is already the kept tail and nothing here can count what was
+        // dropped upstream. The heading used to read "N of M shown" with M the
+        // size of that list — "120 of 120 shown" on a report that had dropped
+        // 180 lines, which claims completeness exactly when it is absent
+        // (Codex on PR #706). It now counts what is present and says the log
+        // is bounded, with no total to be wrong about.
+        val payload = basePayload(
+            previousRun = null,
+            log = (0 until 120).map { "11-04 09:00:00.000 D line-$it" },
+        )
+
+        assertTrue(payload.contains("--- Log (120 lines, newest last"))
+        assertTrue("discloses the bound", payload.contains("older lines are dropped"))
+        assertTrue("claims no total", !payload.contains("120 of 120"))
+        assertTrue("nothing was dropped here", payload.contains("line-0"))
+    }
+
+    @Test
+    fun anEmptyLogSaysSoAndClaimsNothingMore() {
+        // The lines are written from background work, so an empty section is a
         // picture of the moment share was tapped and nothing more. An earlier
-        // version asserted an empty section meant the startup diagnostic had not
-        // run, and keeping that assertion true drew eight review findings in a
-        // row; the heading now says what the section actually is.
-        val payload = basePayload(previousRun = null, pinnedLog = emptyList())
+        // version read it as "the startup diagnostic never ran", and keeping
+        // that claim true drew eight review findings in a row.
+        val payload = basePayload(previousRun = null, log = emptyList())
 
-        assertTrue(payload.contains("--- Process start (as of capture) ---"))
-        assertTrue(payload.contains("(nothing captured)"))
+        assertTrue(payload.contains("--- Log (0 lines, newest last"))
+        assertTrue(payload.contains("(no captured log lines)"))
+        assertTrue(
+            "counts what is here and claims no total",
+            !payload.contains(" of ") || !payload.contains("shown"),
+        )
         assertTrue("claims nothing about why it is empty", !payload.contains("(nothing recorded)"))
-    }
-
-    @Test
-    fun oversizedProcessStartSectionKeepsItsNewestLines() {
-        // The section is truncated from its head, so its lines have to be
-        // chronological — the exit that explains this start is the newest one,
-        // and dropping it while labelling it "older" is the one outcome this
-        // section must not produce (Codex on PR #689).
-        val pinned = (0 until 40).map { "line-$it " + "x".repeat(600) } +
-            "11-04 09:00:00.000 D TypeLauncherDebug: processExit reason=packageUpdated"
-
-        val payload = basePayload(previousRun = null, pinnedLog = pinned)
-
-        assertTrue("the newest line survives", payload.contains("processExit reason=packageUpdated"))
-        assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
     }
 
     @Test
@@ -293,7 +313,7 @@ class BugReportPayloadTest {
 
     private fun basePayload(
         previousRun: String?,
-        pinnedLog: List<String> = emptyList(),
+        log: List<String> = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
         iconCache: AppIconLoader.CacheStats? = null,
     ): String = buildBugReportPayload(
         nowMillis = 1_700_000_000_000L,
@@ -315,9 +335,8 @@ class BugReportPayloadTest {
         isAgendaEnabled = false,
         dockedAppIds = emptyList(),
         widgetPages = listOf(emptyList()),
-        recentLog = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
+        log = log,
         previousRun = previousRun,
-        pinnedLog = pinnedLog,
         iconCache = iconCache,
     )
 }

@@ -1587,8 +1587,8 @@ class MainActivity : ComponentActivity() {
         // PackageManager and RoleManager IPC, and this runs on onCreate — the
         // cold-start path this repo never blocks. Off the main thread, and
         // nothing waits on the answer: a report captured before it lands simply
-        // does not carry the reading, and the Process start section says it is a
-        // snapshot rather than claiming to be complete.
+        // does not carry the reading, and the log's heading says how many lines
+        // it holds rather than claiming to be complete.
         lifecycleScope.launch(ioDispatcher) {
             HomeResolution.record(applicationContext, moment = "homeChooser")
         }

@@ -8,62 +8,24 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.Window
+import com.mikelward.androidlog.DebugLog
 import com.mikelward.androidlog.OFF_DEVICE_PLACEHOLDER
-import com.mikelward.androidlog.formatLogMessage
 import com.mikelward.androidlog.safe
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.ArrayDeque
 import java.util.Locale
-import java.util.concurrent.CopyOnWriteArrayList
 
-private const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
-internal const val LOG_BUFFER_MAX_ENTRIES = 300
+internal const val LAUNCHER_DEBUG_TAG = "TypeLauncherDebug"
 
 /**
- * Cap for the pinned buffer — the lines that say how *this* run began, which
- * the bug report renders in their own section instead of leaving them to the
- * ring buffer above.
- *
- * They are written once each, at process start and at the rare moments home
- * resolution changes under us, and the ring buffer holds 300 entries of a log
- * that a busy device fills in well under two hours — a package-change reload
- * alone costs several lines and can repeat every minute. So by the time a user
- * notices something and shares a report, the lines explaining how the run
- * started are routinely gone, which is exactly what the process-exit records
- * were added for. Pinning them costs a second reference to a handful of
- * strings and makes the report answer that question whenever it is asked.
- *
- * Bounded anyway, and oldest-evicted like the ring: a device where home
- * resolution genuinely flaps writes one line per flip, and the newest are the
- * ones worth keeping.
- */
-internal const val PINNED_BUFFER_MAX_ENTRIES = 32
-
-/**
- * Cap for a single buffer entry, so one pathological stack trace can't dominate
- * the 300-entry buffer — and, with it, the shareable report. The report's own
- * budget is enforced separately by total characters in [BugReport] (strings
- * parcel as UTF-16, so the Binder limit is about total bytes, not entry count);
- * this is what keeps the count-based buffer bound meaningful.
- */
-internal const val LOG_BUFFER_MAX_ENTRY_CHARS = 2_000
-
-/**
- * How many `at …` frames per Throwable in the cause chain an entry keeps. The
- * deep tail of a stack trace is platform plumbing (Looper / Choreographer /
- * ActivityThread, Compose recomposition internals) that tells you nothing, and
- * in a release build every frame is obfuscated anyway — while a single 80-frame
- * dump used to evict a quarter of the buffer the report exists to carry. Keep
- * the throw site and its immediate callers, and say how many were dropped.
- */
-private const val COMPACT_STACK_FRAMES = 8
-
-/**
- * The one timestamp format for everything a bug report carries — every log line
- * and the report's own header — so a reader compares like with like:
+ * The timestamp format for the bug report's own header:
  * `2026-08-26T14:03:11.482+10:00`.
+ *
+ * The log's lines are stamped by [DebugLog], which writes local time without
+ * the year and emits the UTC offset as its own marker entry rather than on
+ * every line. This one keeps the full form because the header is written once
+ * and is what a reader dates the whole report by.
  *
  * The UTC offset is the point. This log is mirrored to disk and survives the
  * process, so a report is routinely read days after the lines in it were
@@ -94,166 +56,56 @@ internal fun formatLogTimestamp(
     zone: ZoneId = ZoneId.systemDefault(),
 ): String = LOG_TIMESTAMP_FORMAT.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
 
-/** The two buffers of [LauncherDebugLog], read together; see [LauncherDebugLog.snapshots]. */
-internal data class LogSnapshots(val recent: List<String>, val pinned: List<String>)
-
-internal object LauncherDebugLog {
-    /**
-     * Guards both buffers below. One lock, not two, so a line is appended to
-     * the ring and to the pinned copy as a single step: with a lock each, two
-     * threads could interleave between the appends and leave the pinned lines
-     * in a different order than the ring's — a report whose start-up section
-     * reads out of sequence (Codex on PR #689).
-     */
-    private val bufferLock = Any()
-
-    private val buffer = ArrayDeque<String>(LOG_BUFFER_MAX_ENTRIES)
-
-    /**
-     * The subset of [buffer]'s lines that must outlive its eviction; see
-     * [PINNED_BUFFER_MAX_ENTRIES] and [pinnedEvent]. Holds the same rendered
-     * strings, so a pinned line still appears in the recent log too for as
-     * long as the ring keeps it — the pinned copy is what remains afterwards.
-     */
-    private val pinnedBuffer = ArrayDeque<String>(PINNED_BUFFER_MAX_ENTRIES)
-
-    /**
-     * A downstream consumer of every recorded line, in addition to the in-memory
-     * buffer — e.g. [DebugFileSink], which mirrors the buffer to disk so it
-     * survives the process ending. Registered by the [Application] at startup.
-     */
-    fun interface Sink {
-        fun log(line: String)
-    }
-
-    // Copy-on-write so [record] can fan out without holding a lock across the
-    // sink call (a sink must never be able to deadlock the buffer). Sinks are
-    // added once at startup and effectively never removed, so writes are rare.
-    private val sinks = CopyOnWriteArrayList<Sink>()
-
-    fun addSink(sink: Sink) {
-        sinks.addIfAbsent(sink)
-    }
-
-    fun removeSink(sink: Sink) {
-        sinks.remove(sink)
-    }
-
-    /** Test-only: drops every registered sink so tests don't leak into each other. */
-    internal fun clearSinksForTest() {
-        sinks.clear()
-    }
-
-    /**
-     * Records one line, and mirrors it into Crashlytics as a breadcrumb so the
-     * most recent lines ride along on any future crash report.
-     *
-     * [format] is a hard-coded format string — a source literal, never a value
-     * — with one `%s` per argument. That split is what keeps the mirror safe:
-     * the literal cannot name anything of the user's, and each argument is
-     * carried or withheld on its own by [logArgumentMayLeaveDevice]. The
-     * on-device copy always renders every argument in full.
-     *
-     * Passing a *built* string as [format] would defeat this. There is no way
-     * to enforce that in the type system, so it is a rule rather than a
-     * guarantee: interpolate nothing, pass values as arguments.
-     */
-    fun event(format: String, vararg args: Any?) {
-        val message = formatLogMessage(format, args, leavingDevice = false)
-        record('D', message, throwable = null)
-        Log.d(LAUNCHER_DEBUG_TAG, message)
-        LauncherTelemetry.log(formatLogMessage(format, args, leavingDevice = true))
-    }
-
-    /**
-     * Records one line exactly like [event], and additionally pins it so the
-     * bug report carries it however long the run goes on.
-     *
-     * For the handful of lines that explain how a run began — why the previous
-     * process ended, when this package was last updated, how the system was
-     * resolving Home — and that a report is read for hours or days later, by
-     * which time the ring buffer has long since evicted them. See
-     * [PINNED_BUFFER_MAX_ENTRIES].
-     *
-     * Same [format]-plus-arguments contract as [event]; see there. Reserve it:
-     * anything written more than a few times a run belongs in [event], where
-     * eviction is the correct behavior.
-     */
-    fun pinnedEvent(format: String, vararg args: Any?) {
-        val message = formatLogMessage(format, args, leavingDevice = false)
-        record('D', message, throwable = null, pinned = true)
-        Log.d(LAUNCHER_DEBUG_TAG, message)
-        LauncherTelemetry.log(formatLogMessage(format, args, leavingDevice = true))
-    }
+/**
+ * This launcher's debug log: the shared recorder from `mikelward/androidlog`,
+ * plus the handful of things only this app has.
+ *
+ * The buffer, the ring's bounds, the pinned reserve, the timestamps, the
+ * stack-trace compaction and the privacy floor all live in [DebugLog] now.
+ * What is left here is what a shared library cannot know: a logcat-only
+ * channel for per-icon detail, the lifecycle summary every Activity callback
+ * writes, and the crash handler's one entry point.
+ *
+ * **Where lines go is decided by the sinks, not here.** `TypeLauncherApp`
+ * registers a [Destination.DEVICE] logcat sink, a [Destination.DEVICE] file
+ * sink, and a [Destination.OFF_DEVICE] Crashlytics sink; the library hands
+ * each the rendering its destination may have. That replaces the fan-out this
+ * object used to write by hand at four call sites, which is where the two
+ * renderings could drift apart.
+ */
+internal object LauncherDebugLog : DebugLog() {
 
     /**
      * Logcat-only diagnostic for high-frequency, per-icon detail (icon-tile
      * composition, dynamic-calendar resolution). Goes to `adb logcat -s
-     * TypeLauncherDebug` like [event], but is deliberately kept *out* of the
-     * bug-report ring buffer and Crashlytics breadcrumbs: at one line per app
-     * icon per render size it would otherwise overflow the 300-entry buffer on
-     * a cold start and evict the lifecycle/state context the bug report exists
-     * to capture.
+     * TypeLauncherDebug` like an ordinary event, but is deliberately kept *out*
+     * of the buffer and the Crashlytics breadcrumbs: at one line per app icon
+     * per render size it would otherwise overflow the ring on a cold start and
+     * evict the lifecycle/state context the bug report exists to capture.
+     *
+     * Not a [DebugLog] level, because it is not one — the levels all record.
+     * This is the deliberate absence of recording, so it stays a separate name
+     * that says so.
      */
     fun trace(message: String) {
         Log.d(LAUNCHER_DEBUG_TAG, message)
     }
 
     /**
-     * A warning with no exception behind it. Same [format]-plus-arguments
-     * contract as [event]; see there.
+     * Records an uncaught exception for the crash handler, **without** the
+     * Crashlytics non-fatal that [failure] produces.
      *
-     * To report a warning that *does* have an exception, call [failure] — the
-     * throwable is a separate parameter on a separately-named function on
-     * purpose. An overload taking it alongside `vararg args` would accept every
-     * existing `warning(message, exception)` call unchanged and silently bind
-     * the exception as a formatting argument, so it would render into the text
-     * and never reach Crashlytics as a non-fatal. A distinct name makes the
-     * compiler find those instead of leaving them to be noticed in production.
+     * Crashlytics' own chained uncaught handler reports this same throwable as
+     * a fatal, so a non-fatal here would double-count it (Codex on PR #592).
+     * The level is what carries that: the off-device sink raises a non-fatal
+     * for `W` and not for `E`. It reads backwards — the more severe level
+     * reports less — and it is right for exactly this reason, which is why the
+     * sink says so at the branch.
      */
-    fun warning(format: String, vararg args: Any?) {
-        // Belt and braces for the hazard above: nothing stops a future call
-        // site passing a throwable as an argument, and losing a non-fatal that
-        // way would be invisible. Route it properly and say that it happened.
-        val throwable = args.filterIsInstance<Throwable>().firstOrNull()
-        if (throwable != null) {
-            failure(throwable, "$format [throwable passed to warning(); use failure()]", *args)
-            return
-        }
-        val message = formatLogMessage(format, args, leavingDevice = false)
-        record('W', message, throwable = null)
-        Log.w(LAUNCHER_DEBUG_TAG, message)
-        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, leavingDevice = true))
-    }
-
-    /**
-     * A warning with the exception that caused it, reported to Crashlytics as a
-     * non-fatal as well as a breadcrumb.
-     *
-     * The throwable is redacted too, not just the breadcrumb: Crashlytics
-     * uploads an exception's message verbatim, and a platform exception
-     * routinely quotes what failed — `ActivityNotFoundException` carries the
-     * intent, a `LauncherApps` `SecurityException` the package.
-     */
-    fun failure(throwable: Throwable, format: String, vararg args: Any?) {
-        val message = formatLogMessage(format, args, leavingDevice = false)
-        record('W', message, throwable)
-        Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
-        LauncherTelemetry.log("WARN " + formatLogMessage(format, args, leavingDevice = true))
-        LauncherTelemetry.recordException(throwable.redactedForTelemetry())
-    }
-
-    /**
-     * Records an uncaught exception to the buffer (and logcat) for the crash
-     * handler, **without** the Crashlytics non-fatal path. Crashlytics' own
-     * chained uncaught handler reports the same throwable as a fatal, so routing
-     * it through [warning]'s `recordException` too would double-count it as both
-     * a non-fatal and a fatal event (Codex on PR #592). The buffer record still
-     * fans out to the file sink, so the crash line is persisted for the report.
-     */
-    internal fun recordUncaught(message: String, throwable: Throwable) {
-        record('W', message, throwable)
-        Log.w(LAUNCHER_DEBUG_TAG, message, throwable)
+    internal fun recordUncaught(threadName: String, throwable: Throwable) {
+        // The thread's name is fixed vocabulary the platform chose, not
+        // anything of the user's, so it crosses the boundary tagged.
+        error(throwable, "Uncaught exception in thread %s", safe(threadName))
     }
 
     fun activityCallback(activity: Activity, callback: String, intent: Intent? = activity.intent) {
@@ -268,171 +120,7 @@ internal object LauncherDebugLog {
             intent.debugSummary(),
         )
     }
-
-    /**
-     * Returns the captured log lines, oldest first.
-     *
-     * Use [snapshots] when the pinned lines are wanted too — see there.
-     */
-    fun snapshot(): List<String> = synchronized(bufferLock) { buffer.toList() }
-
-    /**
-     * Returns the pinned lines ([pinnedEvent]), oldest first.
-     *
-     * Use [snapshots] when the ring's lines are wanted too — see there.
-     */
-    fun pinnedSnapshot(): List<String> = synchronized(bufferLock) { pinnedBuffer.toList() }
-
-    /**
-     * Both buffers as they stood at one instant, oldest first in each.
-     *
-     * One call rather than two, because reading them separately admits a line
-     * landing in between: it is then missing from [LogSnapshots.recent] and
-     * present in [LogSnapshots.pinned], and a caller that treats "pinned but
-     * not in the ring" as "older than everything in the ring" — which is how
-     * both callers order the two — puts that *newer* line ahead of older ones
-     * (Codex on PR #689). Taking both under one lock removes the way to get
-     * that wrong instead of asking each caller to remember it.
-     */
-    fun snapshots(): LogSnapshots = synchronized(bufferLock) {
-        LogSnapshots(recent = buffer.toList(), pinned = pinnedBuffer.toList())
-    }
-
-    /** Test-only: empties both in-memory buffers so tests start from a known state. */
-    internal fun clearForTest() {
-        synchronized(bufferLock) {
-            buffer.clear()
-            pinnedBuffer.clear()
-        }
-    }
-
-    private fun record(level: Char, message: String, throwable: Throwable?, pinned: Boolean = false) {
-        // Everything expensive happens before the lock; only stamping and
-        // appending happen inside it. A throwable's stack trace is the reason
-        // that split is worth having — rendering one under the lock would hold
-        // every other logging thread behind it.
-        val body = if (throwable == null) {
-            "$level $LAUNCHER_DEBUG_TAG: $message"
-        } else {
-            "$level $LAUNCHER_DEBUG_TAG: $message\n${compactStackTrace(throwable).trimEnd()}"
-        }
-        val bounded = synchronized(bufferLock) {
-            // Stamped here rather than on entry, so a line's timestamp and its
-            // position in the buffer are decided at the same instant. Read the
-            // clock first and two threads can be preempted between stamping and
-            // appending, landing the earlier-stamped line after the later one —
-            // and the pinned section, which reads oldest-first and truncates
-            // from its head, would then discard the newest evidence as "older"
-            // (Codex on PR #689).
-            val entry = "${formatLogTimestamp(System.currentTimeMillis())} $body"
-            val bounded = if (entry.length > LOG_BUFFER_MAX_ENTRY_CHARS) {
-                entry.take(LOG_BUFFER_MAX_ENTRY_CHARS) + "…(truncated)"
-            } else {
-                entry
-            }
-            if (buffer.size >= LOG_BUFFER_MAX_ENTRIES) buffer.removeFirst()
-            buffer.addLast(bounded)
-            // The pinned copy is appended in the same step, so the two orders
-            // can never diverge; see [bufferLock].
-            if (pinned) {
-                if (pinnedBuffer.size >= PINNED_BUFFER_MAX_ENTRIES) pinnedBuffer.removeFirst()
-                pinnedBuffer.addLast(bounded)
-            }
-            bounded
-        }
-        // Fan out to disk (and any other) sinks outside the buffer lock. Each is
-        // best-effort: a sink that throws must never lose the log line for the
-        // others or crash the caller (this runs on the app's own threads).
-        sinks.forEach { runCatching { it.log(bounded) } }
-    }
-
-    /**
-     * Formats [t] like [Throwable.printStackTrace] but keeps only the top
-     * [maxFrames] frames per Throwable in the cause chain, summarising the rest
-     * as `... N more` so a reader can tell frames were elided rather than
-     * absent. Replaces `Log.getStackTraceString`, which dumps every frame — the
-     * deep tail is platform plumbing, and one such entry used to crowd real
-     * events out of the buffer.
-     *
-     * Cyclic cause chains (`a.cause = b; b.cause = a`) are guarded via an
-     * identity set, as `printStackTrace` does, so a pathological Throwable can't
-     * spin the calling thread. Suppressed exceptions surface as a one-line
-     * summary per parent so `use { … }` close failures aren't silently lost;
-     * their frames are dropped to keep the entry tight. Not backed by
-     * `android.util.Log`, so it also works in plain JUnit tests. Visible for
-     * tests.
-     */
-    internal fun compactStackTrace(t: Throwable, maxFrames: Int = COMPACT_STACK_FRAMES): String =
-        buildString {
-            val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
-            var current: Throwable? = t
-            var depth = 0
-            while (current != null) {
-                val cur = current
-                if (!seen.add(cur)) {
-                    append("\n\t[CIRCULAR REFERENCE: ").append(cur.javaClass.name).append(']')
-                    break
-                }
-                if (depth > 0) append("\nCaused by: ")
-                append(cur.javaClass.name)
-                // A getMessage() override can throw, and this trace is rendered
-                // while already logging a failure — keep the type and frames
-                // rather than let a second throwable escape the logger.
-                runCatching { cur.message }.getOrNull()?.let { append(": ").append(it) }
-                val frames = cur.stackTrace
-                val keep = minOf(maxFrames, frames.size)
-                for (i in 0 until keep) append("\n\tat ").append(frames[i])
-                if (frames.size > keep) append("\n\t... ").append(frames.size - keep).append(" more")
-                for (suppressed in cur.suppressed) {
-                    append("\n\tSuppressed: ").append(suppressed.javaClass.name)
-                    runCatching { suppressed.message }.getOrNull()?.let { append(": ").append(it) }
-                }
-                current = cur.cause
-                depth++
-            }
-        }
 }
-
-/**
- * A telemetry-safe stand-in for [this]: the exception types and stack traces of
- * the whole cause chain, and **no messages at all**.
- *
- * Crashlytics uploads an exception's message verbatim, and a platform exception
- * routinely quotes what failed — `ActivityNotFoundException` embeds the intent,
- * so a contact's number or address can ride in it; `LauncherApps` failures name
- * the package. Two rounds of trying to *sanitize* those messages each turned up
- * another payload the sanitizer didn't know about (URIs after packages), which
- * is the signal to stop sanitizing and start omitting: the type and the stack
- * trace are what a non-fatal is read for, and they cannot carry a payload.
- * The full message stays in the on-device log, which the user reviews before
- * sharing.
- *
- * Iterative and identity-guarded rather than recursive, because a cause chain
- * can be cyclic (`a.initCause(b); b.initCause(a)`) — the same guard
- * [compactStackTrace] already keeps. A `StackOverflowError` raised while
- * *preparing* a log line would take out the caller it was logging for.
- */
-internal fun Throwable.redactedForTelemetry(): Throwable {
-    val chain = mutableListOf<Throwable>()
-    val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
-    var current: Throwable? = this
-    while (current != null && seen.add(current)) {
-        chain += current
-        current = current.cause
-    }
-    var redacted: Throwable? = null
-    for (link in chain.asReversed()) {
-        redacted = RedactedThrowable(link.javaClass.name, redacted).also { it.stackTrace = link.stackTrace }
-    }
-    return redacted ?: RedactedThrowable(javaClass.name, null).also { it.stackTrace = stackTrace }
-}
-
-/**
- * Stand-in produced by [redactedForTelemetry]. Its message is the original
- * exception's class name, so a Crashlytics report still says what was thrown
- * even though every report of this kind shares one type.
- */
-internal class RedactedThrowable(message: String, cause: Throwable?) : RuntimeException(message, cause)
 
 /**
  * Summarizes an intent for the log, deciding field by field what the

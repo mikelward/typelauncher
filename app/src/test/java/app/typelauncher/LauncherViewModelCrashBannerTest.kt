@@ -31,14 +31,13 @@ class LauncherViewModelCrashBannerTest {
     @Before
     fun setUp() {
         originalHandler = Thread.getDefaultUncaughtExceptionHandler()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     @After
     fun tearDown() {
         Thread.setDefaultUncaughtExceptionHandler(originalHandler)
-        LauncherDebugLog.clearForTest()
-        LauncherDebugLog.clearSinksForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     @Test

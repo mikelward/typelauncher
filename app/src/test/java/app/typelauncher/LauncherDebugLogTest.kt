@@ -24,7 +24,7 @@ class LauncherDebugLogTest {
 
     @Before
     fun resetBuffer() {
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         previousZone = TimeZone.getDefault()
     }
 
@@ -35,7 +35,7 @@ class LauncherDebugLogTest {
 
     @Test
     fun snapshotIsEmptyAfterReset() {
-        assertEquals(emptyList<String>(), LauncherDebugLog.snapshot())
+        assertEquals(emptyList<String>(), LauncherDebugLog.entriesForTest())
         assertEquals(emptyList<String>(), LauncherDebugLog.pinnedSnapshot())
     }
 
@@ -57,60 +57,17 @@ class LauncherDebugLogTest {
     }
 
     @Test
-    fun pinnedEventOutlivesTheRingBufferThatEvictsIt() {
-        // The whole reason pinning exists. Every real report has been captured
-        // hours into a run, by which time the ring has turned over several
-        // times and the lines explaining how the run started are gone — so the
-        // test that matters is that a pinned line is still there *after* the
-        // ring has evicted its own copy, not merely that it was recorded.
-        LauncherDebugLog.pinnedEvent("process started")
-        repeat(LOG_BUFFER_MAX_ENTRIES) { index -> LauncherDebugLog.event("filler %s", index) }
-
-        assertTrue(
-            "the ring evicted it",
-            LauncherDebugLog.snapshot().none { it.contains("process started") },
-        )
-        assertTrue(
-            "the pinned copy survived",
-            LauncherDebugLog.pinnedSnapshot().any { it.contains("process started") },
-        )
-    }
-
-    @Test
-    fun pinnedEventIsAlsoAnOrdinaryLogLine() {
-        // Pinning adds a second reference; it must not divert the line out of
-        // the chronology, or the log would read as though startup logged
-        // nothing at all.
-        LauncherDebugLog.event("before")
-        LauncherDebugLog.pinnedEvent("pinned line")
-        LauncherDebugLog.event("after")
-
-        val messages = LauncherDebugLog.snapshot().map { it.substringAfter("TypeLauncherDebug: ") }
-        assertEquals(listOf("before", "pinned line", "after"), messages)
-    }
-
-    @Test
-    fun pinnedBufferEvictsItsOwnOldestAndKeepsTheNewest() {
-        repeat(PINNED_BUFFER_MAX_ENTRIES + 1) { index -> LauncherDebugLog.pinnedEvent("pinned %s", index) }
-
-        val pinned = LauncherDebugLog.pinnedSnapshot()
-        assertEquals(PINNED_BUFFER_MAX_ENTRIES, pinned.size)
-        assertTrue("dropped the oldest", pinned.none { it.endsWith("pinned 0") })
-        assertTrue("kept the newest", pinned.last().endsWith("pinned $PINNED_BUFFER_MAX_ENTRIES"))
-    }
-
-    @Test
     fun eventsAndWarningsAreCapturedInOrder() {
         LauncherDebugLog.event("first event")
         LauncherDebugLog.warning("a warning", IllegalStateException("boom"))
         LauncherDebugLog.event("third event")
 
-        val snapshot = LauncherDebugLog.snapshot()
+        val snapshot = LauncherDebugLog.entriesForTest()
         assertEquals(3, snapshot.size)
-        assertTrue(snapshot[0].contains(" D TypeLauncherDebug: first event"))
-        assertTrue(snapshot[1].contains(" W TypeLauncherDebug: a warning"))
+        assertTrue(snapshot[0].contains(" D first event"))
+        assertTrue(snapshot[1].contains(" W a warning"))
         assertTrue(snapshot[1].contains("IllegalStateException: boom"))
-        assertTrue(snapshot[2].contains(" D TypeLauncherDebug: third event"))
+        assertTrue(snapshot[2].contains(" D third event"))
     }
 
     @Test
@@ -122,58 +79,9 @@ class LauncherDebugLogTest {
         // trace() is logcat-only: it must never reach the ring buffer the
         // bug report dumps, so the per-icon icon firehose can't evict the
         // lifecycle/state context that buffer exists to capture.
-        val snapshot = LauncherDebugLog.snapshot()
+        val snapshot = LauncherDebugLog.entriesForTest()
         assertEquals(1, snapshot.size)
-        assertTrue(snapshot[0].contains(" D TypeLauncherDebug: kept event"))
-    }
-
-    @Test
-    fun ringBufferEvictsOldestEntriesWhenAtCapacity() {
-        repeat(LOG_BUFFER_MAX_ENTRIES + 50) { index ->
-            LauncherDebugLog.event("event $index")
-        }
-
-        val snapshot = LauncherDebugLog.snapshot()
-        assertEquals(LOG_BUFFER_MAX_ENTRIES, snapshot.size)
-        assertTrue("oldest retained entry is event 50", snapshot.first().endsWith("event 50"))
-        assertTrue(
-            "newest entry is the last logged event",
-            snapshot.last().endsWith("event ${LOG_BUFFER_MAX_ENTRIES + 49}"),
-        )
-    }
-
-    @Test
-    fun oneHugeEntryCannotDominateTheBuffer() {
-        LauncherDebugLog.warning("a warning " + "x".repeat(50_000))
-
-        val entry = LauncherDebugLog.snapshot().single()
-        assertTrue(
-            "entry is capped",
-            entry.length <= LOG_BUFFER_MAX_ENTRY_CHARS + "…(truncated)".length,
-        )
-        assertTrue("and says it was cut", entry.endsWith("…(truncated)"))
-    }
-
-    @Test
-    fun stackTracesKeepTheirCauseChainAndDropTheDeepTail() {
-        val cause = IllegalArgumentException("the root cause")
-        LauncherDebugLog.warning("a warning", IllegalStateException("boom", cause))
-
-        val entry = LauncherDebugLog.snapshot().single()
-        assertTrue("keeps the thrown type", entry.contains("IllegalStateException: boom"))
-        assertTrue("keeps the cause chain", entry.contains("Caused by: java.lang.IllegalArgumentException: the root cause"))
-        assertTrue("keeps the throw site", entry.contains("\tat "))
-        assertTrue("says frames were elided", entry.contains(" more"))
-    }
-
-    @Test
-    fun aCyclicCauseChainTerminates() {
-        val first = IllegalStateException("first")
-        val second = IllegalStateException("second", first)
-        first.initCause(second)
-
-        val trace = LauncherDebugLog.compactStackTrace(second)
-        assertTrue("stops at the cycle", trace.contains("CIRCULAR REFERENCE"))
+        assertTrue(snapshot[0].contains(" D kept event"))
     }
 
     // A launcher builds SENDTO intents straight from a contact's phone number
@@ -322,46 +230,6 @@ class LauncherDebugLogTest {
         )
     }
 
-    // Crashlytics uploads an exception's message verbatim, and a platform
-    // exception routinely quotes the intent or package that failed — so the
-    // telemetry copy carries no message at all.
-    @Test
-    fun throwableMessagesAreDroppedForTelemetry() {
-        val redacted = IllegalStateException("could not launch smsto:+15550100").redactedForTelemetry()
-
-        assertEquals("java.lang.IllegalStateException", redacted.message)
-        assertTrue("no payload survives", !redacted.message.orEmpty().contains("5550100"))
-    }
-
-    @Test
-    fun throwableRedactionKeepsTheCauseChainAndStackTraces() {
-        val cause = IllegalArgumentException("bad package com.example.mail")
-        val original = IllegalStateException("launch failed", cause)
-
-        val redacted = original.redactedForTelemetry()
-
-        assertEquals("java.lang.IllegalArgumentException", redacted.cause?.message)
-        assertEquals(original.stackTrace.first(), redacted.stackTrace.first())
-        assertEquals(cause.stackTrace.first(), redacted.cause?.stackTrace?.first())
-    }
-
-    // A cyclic cause chain must not send the redactor into infinite recursion:
-    // a StackOverflowError raised while preparing a log line would take out the
-    // caller it was logging for.
-    @Test
-    fun throwableRedactionTerminatesOnACyclicCauseChain() {
-        val first = IllegalStateException("first")
-        val second = IllegalArgumentException("second")
-        first.initCause(second)
-        second.initCause(first)
-
-        val redacted = first.redactedForTelemetry()
-
-        assertEquals("java.lang.IllegalStateException", redacted.message)
-        assertEquals("java.lang.IllegalArgumentException", redacted.cause?.message)
-        assertEquals("stops at the cycle", null, redacted.cause?.cause)
-    }
-
     @Test
     fun timestampsAreIsoWithTheOffset() {
         // A fixed instant and an explicit zone: the format itself, with nothing
@@ -375,24 +243,5 @@ class LauncherDebugLogTest {
             "2023-11-14T17:13:20.000-05:00",
             formatLogTimestamp(1_700_000_000_000L, ZoneId.of("America/New_York")),
         )
-    }
-
-    // The bug this format exists to fix: the log outlives the process and is
-    // read days later, so a line stamped in a zone the device has since left
-    // has to say so. A formatter that captured the default zone when it was
-    // constructed kept stamping the old one — silently, with nothing in the
-    // file to reveal it.
-    @Test
-    fun aZoneChangeIsReflectedInLaterLines() {
-        TimeZone.setDefault(TimeZone.getTimeZone("GMT+10:00"))
-        LauncherDebugLog.event("before the flight")
-
-        TimeZone.setDefault(TimeZone.getTimeZone("GMT-05:00"))
-        LauncherDebugLog.event("after the flight")
-
-        val snapshot = LauncherDebugLog.snapshot()
-        assertEquals(2, snapshot.size)
-        assertTrue("first line carries the departure offset", snapshot[0].contains("+10:00 D "))
-        assertTrue("second line carries the arrival offset", snapshot[1].contains("-05:00 D "))
     }
 }

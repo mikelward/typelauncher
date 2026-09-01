@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import com.mikelward.androidlog.DebugLog
 import com.mikelward.androidlog.safe
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -25,14 +26,13 @@ class DebugFileSinkTest {
     @Before
     fun setUp() {
         original = Thread.getDefaultUncaughtExceptionHandler()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     @After
     fun tearDown() {
         Thread.setDefaultUncaughtExceptionHandler(original)
-        LauncherDebugLog.clearForTest()
-        LauncherDebugLog.clearSinksForTest()
+        LauncherDebugLog.resetForTest()
     }
 
     @Test
@@ -100,7 +100,7 @@ class DebugFileSinkTest {
         sink.start()
 
         LauncherDebugLog.pinnedEvent("homeStart via=%s", safe("chooser"))
-        repeat(LOG_BUFFER_MAX_ENTRIES + 1) { LauncherDebugLog.event("filler %s", it) }
+        repeat(DebugLog.DEFAULT_MAX_ENTRIES + 1) { LauncherDebugLog.event("filler %s", it) }
         assertFalse(
             "the ring must have evicted it for this to be testing anything",
             LauncherDebugLog.snapshot().any { it.contains("homeStart via=chooser") },
@@ -154,7 +154,7 @@ class DebugFileSinkTest {
         // Run B: a boring cold start, then Run C — without a share in between.
         val runB = DebugFileSink(dir)
         runB.start()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         LauncherDebugLog.event("boring startup (run B)")
         runB.log("x")
         runB.awaitIdleForTest()
@@ -243,7 +243,7 @@ class DebugFileSinkTest {
         // Run B then crashes too, leaving a newer crash file; the next start must
         // show the banner again. (runB.start() already installed runB's handler as
         // the default; triggering it records this crash.)
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
         LauncherDebugLog.event("run B")
         triggerCrash("run B boom")
 

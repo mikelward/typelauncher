@@ -1,6 +1,7 @@
 package app.typelauncher
 
 import android.content.Context
+import com.mikelward.androidlog.DebugLog
 import java.io.File
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -99,7 +100,7 @@ internal class DebugFileSink internal constructor(
     // Debounce for the continuous mirror. 0 in tests so a logged line persists
     // synchronously (deterministic); [WRITE_DEBOUNCE_MS] in production.
     private val writeDebounceMs: Long = 0L,
-) : LauncherDebugLog.Sink {
+) : DebugLog.Sink {
 
     // Production: resolve cacheDir lazily, so the (possibly dir-creating) I/O of
     // `getCacheDir()` runs on the worker at first use, not on the main thread in
@@ -203,25 +204,19 @@ internal class DebugFileSink internal constructor(
 
     private fun writeSnapshot() {
         runCatching {
-            // The ring's own tail first, then whichever pinned lines it no
-            // longer holds. A pinned line is missing from that tail only
-            // because newer lines pushed it out — of the ring, or of the
-            // budget — so every one of them is older than everything in the
-            // tail, and prepending them keeps the file chronological without
-            // having to compare timestamps across a device zone change.
-            // Both buffers in one read, so nothing can land between them and
-            // be classified as older than the tail it is in fact newer than.
-            val snapshots = LauncherDebugLog.snapshots()
-            val ring = boundedLogTail(
-                snapshots.recent,
-                PERSIST_BUDGET_CHARS - PINNED_PERSIST_BUDGET_CHARS,
-            )
-            val alreadyKept = ring.toHashSet()
-            val pinned = boundedLogTail(
-                snapshots.pinned.filterNot { it in alreadyKept },
-                PINNED_PERSIST_BUDGET_CHARS,
-            )
-            val text = (pinned + ring).joinToString("\n")
+            // One call, because the three steps do not commute and the
+            // library owns the order: trim the ring's tail, prepend whichever
+            // pinned lines that tail no longer holds, then synthesize the
+            // offset anchors. This app used to do it by hand here, and the
+            // hand version compared kept lines by equality — two entries a
+            // second apart can render identically, so a pinned line could be
+            // dropped because the tail held a look-alike.
+            val text = LauncherDebugLog
+                .boundedSnapshot(
+                    pinnedBudgetChars = PINNED_PERSIST_BUDGET_CHARS,
+                    recentBudgetChars = PERSIST_BUDGET_CHARS - PINNED_PERSIST_BUDGET_CHARS,
+                )
+                .joinToString("\n")
             // Atomic replace: write a temp file, then rename it over the current
             // one. A kill mid-write then leaves the prior *complete* snapshot
             // intact rather than a truncated/empty file — surviving exactly that
@@ -336,11 +331,14 @@ internal class DebugFileSink internal constructor(
             // snapshot intact. (Not installed under Robolectric, so this wait can't
             // stall the test harness's shared dispatcher threads.)
             runCatching {
-                // recordUncaught, not warning: Crashlytics' chained handler reports
-                // this throwable as a fatal, so warning()'s recordException would
+                // recordUncaught, not failure: Crashlytics' chained handler reports
+                // this throwable as a fatal, so failure()'s recordException would
                 // double-count it as a non-fatal too (Codex on PR #592). This still
                 // buffers + fans out to disk so the crash line is persisted.
-                LauncherDebugLog.recordUncaught("Uncaught exception in thread ${thread.name}", throwable)
+                // The name is passed as an argument rather than interpolated —
+                // the format string stays a source literal, which is what keeps
+                // the off-device rendering decidable.
+                LauncherDebugLog.recordUncaught(thread.name, throwable)
                 // The crash marker rides with the snapshot on the worker (bounded
                 // by the same deadline), so the next start rotates this run's log to
                 // a banner-raising crash-suffixed name. A graceful run never writes

@@ -118,7 +118,7 @@ class LauncherViewModelCalendarIconTest {
         seedApp("Mail", "com.example.mail")
         newViewModel()
         idle()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
 
         TimeZone.setDefault(TimeZone.getTimeZone("Europe/London"))
         context.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))
@@ -139,7 +139,7 @@ class LauncherViewModelCalendarIconTest {
         seedApp("Mail", "com.example.mail")
         newViewModel()
         idle()
-        LauncherDebugLog.clearForTest()
+        LauncherDebugLog.resetForTest()
 
         context.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))
         idle()
