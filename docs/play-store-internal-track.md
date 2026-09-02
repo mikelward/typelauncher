@@ -1,6 +1,6 @@
 # Play Store internal testing track
 
-CI uploads a signed release AAB to the Google Play Store **internal** testing track on every push to `main`. The upload is wired into the `build` job in `.github/workflows/ci.yml` using [`r0adkll/upload-google-play@v1`](https://github.com/r0adkll/upload-google-play). It is the only automated distribution channel: Firebase App Distribution was set up first and then retired, since both published on every push to `main` and reached the same testers, and the internal track is also the route to alpha/beta/production.
+CI uploads a signed release AAB to the Google Play Store **internal** testing track on a push to `main` that carries a release-worthy commit, from the `deploy` job in `.github/workflows/ci.yml` using [`r0adkll/upload-google-play@v1`](https://github.com/r0adkll/upload-google-play). That track is the only channel testers install from: Firebase App Distribution was set up first and then retired, since both published on every push to `main` and reached the same testers, and the internal track is also the route to alpha/beta/production. Every such upload is preceded by a GitHub prerelease of the same bundle — a record of what shipped rather than a channel, since nobody installs an AAB.
 
 ## What gets uploaded
 
@@ -51,7 +51,14 @@ alone does not resolve — it needs the `/overview` child.
 
 The first AAB for any new app must be uploaded through the Play Console UI; the API can only create subsequent releases. There are two ways to get a signed AAB:
 
-**Option A — let CI build it (recommended).** Add the four release-keystore secrets from the table below (everything except `PLAY_SERVICE_ACCOUNT_JSON`) and push to main. The workflow will build a signed AAB and skip the upload step (because the service-account secret isn't set yet), but the `Build release AAB` step is decoupled from the Play upload — it always uploads the result as a workflow artifact called `app-release-aab` you can download from the Actions UI. Grab that AAB and upload it through Play Console.
+**Option A — let CI build it (recommended).** Add the four release-keystore secrets from the table below (everything except `PLAY_SERVICE_ACCOUNT_JSON`), then run the workflow from the Actions tab: **CI → Run workflow**, against `main`. The build signs an AAB and skips the Play upload (the service-account secret isn't set yet), but the `Build the release AAB` job is decoupled from that upload, so you still get the bundle two ways:
+
+- attached to a [GitHub release](https://github.com/mikelward/typelauncher/releases), tagged `v` + the build's versionCode — permanent, and `gh release download <tag>` works against it. Take the one with the highest versionCode rather than the topmost: releases are ordered by when they were created, and two `deploy` runs queue rather than cancel, so an older build can publish last and sit on top;
+- as a workflow artifact called `app-release-aab`, which expires after 30 days.
+
+Take it from the release and upload that through Play Console.
+
+Use **Run workflow** rather than an ordinary push: a manual dispatch always publishes the current tip, falling back to a generic release note when nothing in range qualifies. A push guarantees neither — commits that are all prefixed (`ci:` / `docs:` / `internal:` / `refactor:` / `test:`) build and sign a bundle but publish no release, and a documentation-only push skips the signed build entirely, so there is not even an artifact to fall back on.
 
 **Option B — build locally:**
 
