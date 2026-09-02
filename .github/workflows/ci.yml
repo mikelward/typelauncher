@@ -346,6 +346,20 @@ jobs:
       # left for an assembleDebug step to exercise either. All it uniquely did
       # was dex and package an APK nobody installs.
 
+      - name: Test the release-publishing script
+        # The only coverage `scripts/publish-github-release.sh` can get:
+        # `deploy` is main-only, by `if:` and by `environment: production`, so
+        # the step that calls it never runs on a pull request and a regression
+        # there would first surface after reaching `main`. Drives the real
+        # script against a stubbed `gh` and a throwaway git repository, pinning
+        # each recovery branch and — the load-bearing part — that every path
+        # which uploads uploads before it publishes, so a release never
+        # becomes visible without its bundle.
+        #
+        # Ahead of the Gradle work because it takes about a second and needs
+        # nothing but the checkout.
+        run: python3 scripts/publish_github_release_test.py
+
       - name: Build release APK (runs the full R8 pipeline)
         # The only step in this lane that exercises R8 shrinking, optimization
         # and obfuscation together -- which is what the Play build ships.
@@ -1240,7 +1254,11 @@ jobs:
       # directly; the secret values stay scoped to the steps that use them.
       HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
     permissions:
-      contents: read
+      # Write, not read, for "Publish a GitHub release" below: it creates
+      # the release and the tag that carries it. Nothing else in this job
+      # writes to the repository, and the checkout below still discards
+      # its credentials.
+      contents: write
       # Used by "Build release notes" to walk recent main runs of this
       # workflow and find the last one whose deploy job succeeded.
       actions: read
@@ -1589,6 +1607,39 @@ jobs:
         with:
           name: app-release-aab
           path: app/build/outputs/bundle/release
+
+      - name: Publish a GitHub release
+        # Makes the signed bundle durable and the push's outcome legible.
+        # The run's own artifact expires in 30 days and is reachable only
+        # from that run's page, which is what made "did this push ship?"
+        # unanswerable from the Actions list: a push whose last commit is
+        # `docs:`-prefixed is titled by that commit and reads as
+        # housekeeping even when it built, signed and published. A
+        # release is permanent, linkable, listed on a page of its own,
+        # and `gh release download` works against it.
+        #
+        # Gated on a signed AAB existing and on the push having something
+        # release-worthy to say — the Play upload's condition minus the
+        # service account, so a repository with an upload keystore but no
+        # Play credentials still gets a discoverable build. Placed ahead
+        # of the upload for the same reason: a Play rejection (a
+        # versionCode already taken, say) is exactly when having the
+        # bundle to hand matters.
+        #
+        # Marked a prerelease because this pipeline only ever reaches
+        # Play's internal track — nothing here promotes a build to
+        # production, so nothing here should claim to.
+        if: |
+          needs.release-build.outputs.signed == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
+        # The body lives in `scripts/publish-github-release.sh`, which
+        # `scripts/publish_github_release_test.py` drives against a stubbed
+        # `gh` on every pull request. This job cannot run on one, so an
+        # inline body could only ever be verified by merging it.
+        run: scripts/publish-github-release.sh
 
       - name: Compose Play Store release notes
         # The upload-google-play action takes a directory of whatsnew-<locale>
