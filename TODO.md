@@ -772,6 +772,16 @@ Not blocking the PR: nothing in it changes what is transmitted.
   upgrading device would silently orphan them.
 
 ## Privacy
+- [ ] **Decide whether "we don't hold a user's data captive" belongs in this
+      file's quality bar, not only in `MONETIZATION.md`.** Recorded 2026-09-03
+      as the reason backup and restore of a user's own data is never paywalled —
+      the neighbor of "never lose the user's work": never withhold it either.
+      The 2027 platform mandate requiring backup and restore is the deadline,
+      not the justification, so the principle has to stand on its own. It
+      currently lives in the monetization page, which binds pricing decisions
+      only; if it is meant to bind design generally it wants promoting. Not
+      decided here.
+
 
 - [ ] **Align the four app repos' debug loggers.** `ProcessExitReasons.kt` was
       ported from here into clothescast, Snoozemo and Simmo as a deliberate
