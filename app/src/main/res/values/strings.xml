@@ -186,6 +186,12 @@
          opens. Separate from settings_about_version_value above, which carries
          the launcher\'s own version name and build number. -->
     <string name="settings_licenses_version">Version %1$s</string>
+    <!-- Who wrote one bundled component, shown under its version in the same
+         dialog. Apache-2.0 §4 asks that attribution travel with the code, so
+         the page names the authors rather than only the license they chose.
+         Omitted entirely when the component's own metadata names nobody. -->
+    <!-- TODO: translate -->
+    <string name="settings_licenses_authors" tools:ignore="MissingTranslation">By %1$s</string>
     <string name="settings_licenses_back_button">Back</string>
     <string name="settings_licenses_details_dismiss">Done</string>
     <string name="settings_manage_hidden_apps_button">Manage hidden apps</string>
