@@ -186,7 +186,7 @@ jobs:
     environment: lanes
     permissions: {}
     steps:
-      - uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
+      - uses: mikelward/lanes@main
         with:
           mode: init
           app-id: ${{ secrets.LANES_APP_ID }}
@@ -250,7 +250,7 @@ jobs:
       # CI is free and it has the screenshot-refresh push the lane is for.
       - name: Classify
         id: classify
-        uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
+        uses: mikelward/lanes@main
         with:
           mode: classify
           pr: ${{ github.event.pull_request.number || inputs.pr }}
@@ -835,7 +835,7 @@ jobs:
           ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
           persist-credentials: false
       - name: attest
-        uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
+        uses: mikelward/lanes@main
         with:
           mode: attest
           pr: ${{ github.event.pull_request.number || inputs.pr }}
@@ -1116,7 +1116,7 @@ jobs:
           ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
           persist-credentials: false
       - name: gate
-        uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
+        uses: mikelward/lanes@main
         with:
           mode: gate
           pr: ${{ github.event.pull_request.number || inputs.pr }}
