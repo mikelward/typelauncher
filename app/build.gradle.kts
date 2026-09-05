@@ -587,7 +587,33 @@ tasks.register("exportBundledLicenses") {
             .toSet()
         val root = groovy.json.JsonSlurper().parse(licensesFile) as MutableMap<String, Any?>
         val libraries = root["libraries"] as List<Map<String, Any?>>
-        val kept = libraries.filter { (it["uniqueId"] as String) in bundled }
+        // Artwork the app carries a copy of rather than a dependency on, which
+        // the classpath filter above therefore cannot see. LauncherIcons holds
+        // the 22 Material icons the launcher draws, copied out of
+        // androidx.compose.material's icon modules so the debug APK does not
+        // have to ship several thousand of them; dropping the dependency must
+        // not drop the attribution the copies still owe.
+        val vendored = listOf(
+            mapOf(
+                "uniqueId" to "androidx.compose.material:material-icons",
+                "name" to "Material Icons",
+                "description" to
+                    "Material Design icons drawn by the launcher. The vectors are held in the " +
+                    "app rather than pulled from androidx.compose.material's icon modules.",
+                "website" to "https://developer.android.com/jetpack/androidx/releases/compose-material",
+                "developers" to listOf(mapOf("name" to "The Android Open Source Project")),
+                "organization" to mapOf("name" to "The Android Open Source Project"),
+                "scm" to mapOf(
+                    "connection" to
+                        "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                    "url" to "https://cs.android.com/androidx/platform/frameworks/support",
+                ),
+                "licenses" to listOf("Apache-2.0"),
+                "funding" to emptyList<Any>(),
+            ),
+        )
+        val kept = libraries.filter { (it["uniqueId"] as String) in bundled } +
+            vendored.filterNot { entry -> libraries.any { it["uniqueId"] == entry["uniqueId"] } }
         root["libraries"] = kept
         // Prune any license no longer referenced by a kept library.
         val used = kept.flatMap { (it["licenses"] as? List<String>).orEmpty() }.toSet()
@@ -603,7 +629,6 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.foundation)
-    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)

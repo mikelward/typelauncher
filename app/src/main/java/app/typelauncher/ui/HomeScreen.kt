@@ -69,19 +69,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -1446,7 +1433,7 @@ private fun SearchCard(
                         ) {
                             Box {
                                 Icon(
-                                    Icons.Filled.Settings,
+                                    LauncherIcons.Settings,
                                     contentDescription = stringResource(R.string.settings_open_button_description),
                                 )
                                 // One badge slot, and three claims on it, ranked by
@@ -1464,7 +1451,7 @@ private fun SearchCard(
                                 if (showCrashBanner) {
                                     val badgeDescription = stringResource(R.string.crash_pending_badge_description)
                                     Icon(
-                                        Icons.Filled.Warning,
+                                        LauncherIcons.Warning,
                                         contentDescription = badgeDescription,
                                         tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier
@@ -2837,7 +2824,7 @@ private fun DockFolderCloseTile(
             .semantics { contentDescription = description },
         icon = {
             Icon(
-                imageVector = Icons.Filled.Clear,
+                imageVector = LauncherIcons.Clear,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size((dockIconSizeDp * 0.6f).dp),
@@ -3694,7 +3681,7 @@ private fun ScrollableIconRow(
         val chevronsEnabled = LocalScrollChevronsEnabled.current
         if (chevronsEnabled && showStartChevron) {
             OverflowScrollChevron(
-                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                icon = LauncherIcons.KeyboardArrowLeft,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterStart,
                 xEdgeOffset = -HorizontalScrollChevronEdgeOffset,
@@ -3707,7 +3694,7 @@ private fun ScrollableIconRow(
         }
         if (chevronsEnabled && showEndChevron) {
             OverflowScrollChevron(
-                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                icon = LauncherIcons.KeyboardArrowRight,
                 contentDescription = chevronContentDescription,
                 alignment = Alignment.CenterEnd,
                 xEdgeOffset = HorizontalScrollChevronEdgeOffset,
@@ -3806,7 +3793,7 @@ private fun BoxScope.AppListOverflowChevrons(
     if (!LocalScrollChevronsEnabled.current) return
     if (chevronsReady && canScrollUp()) {
         AppListOverflowChevron(
-            icon = Icons.Filled.KeyboardArrowUp,
+            icon = LauncherIcons.KeyboardArrowUp,
             contentDescription = topChevronContentDescription,
             alignment = Alignment.TopCenter,
             edgeOffset = -chevronEdgeOffset,
@@ -3816,7 +3803,7 @@ private fun BoxScope.AppListOverflowChevrons(
     }
     if (chevronsReady && canScrollDown()) {
         AppListOverflowChevron(
-            icon = Icons.Filled.KeyboardArrowDown,
+            icon = LauncherIcons.KeyboardArrowDown,
             contentDescription = bottomChevronContentDescription,
             alignment = Alignment.BottomCenter,
             edgeOffset = chevronEdgeOffset,
@@ -4109,7 +4096,7 @@ internal fun AppsCard(
             }
         } else if (apps.isEmpty() && contactResults.isEmpty() && eventResults.isEmpty()) {
             EmptyState(
-                icon = Icons.Filled.Search,
+                icon = LauncherIcons.Search,
                 title = stringResource(R.string.home_empty_title),
                 body = stringResource(R.string.home_empty_body),
                 modifier = Modifier.fillMaxWidth(),
@@ -4582,7 +4569,7 @@ private fun ContactResultRow(
         )
         if (contact.starred) {
             Icon(
-                imageVector = Icons.Filled.Star,
+                imageVector = LauncherIcons.Star,
                 contentDescription = stringResource(R.string.contact_result_starred_description),
                 tint = CONTACT_STARRED_STAR_COLOR,
                 modifier = Modifier
@@ -5783,7 +5770,7 @@ private fun DockAddButton(
                 color = MaterialTheme.colorScheme.surfaceVariant,
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = LauncherIcons.Add,
                     contentDescription = null,
                     modifier = Modifier.padding((dockIconSizeDp * 0.25f).dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -6555,7 +6542,7 @@ private fun PlayUpdateBanner(
                         .zIndex(1f),
                 ) {
                     Icon(
-                        Icons.Filled.Clear,
+                        LauncherIcons.Clear,
                         contentDescription = stringResource(R.string.play_update_banner_dismiss_description),
                     )
                 }
@@ -6621,7 +6608,7 @@ private fun AppListLayoutDropdown(
         ) {
             Text(stringResource(selectedLabelRes))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -6675,7 +6662,7 @@ private fun DockLayoutDropdown(
         ) {
             Text(stringResource(selectedLabelRes))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -6723,7 +6710,7 @@ private fun AppListSortOrderDropdown(
         ) {
             Text(stringResource(selectedLabelRes))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -6827,7 +6814,7 @@ private fun ThemeModeDropdown(
         ) {
             Text(stringResource(selectedLabelRes))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -6864,7 +6851,7 @@ private fun CallMethodDropdown(
         ) {
             Text(stringResource(selected.labelRes()))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -6928,7 +6915,7 @@ private fun IconShapeDropdown(
         ) {
             Text(stringResource(selected.labelRes()))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -6979,7 +6966,7 @@ private fun IconThemeDropdown(
         ) {
             Text(stringResource(selected.labelRes()))
             Icon(
-                Icons.Filled.ArrowDropDown,
+                LauncherIcons.ArrowDropDown,
                 contentDescription = null,
             )
         }
@@ -7090,7 +7077,7 @@ private fun SettingsOverflowMenu(
             modifier = Modifier.testTag(SETTINGS_OVERFLOW_BUTTON_TAG),
         ) {
             Icon(
-                Icons.Filled.MoreVert,
+                LauncherIcons.MoreVert,
                 contentDescription = stringResource(R.string.settings_overflow_button_description),
                 tint = iconTint,
             )
@@ -7247,7 +7234,7 @@ private fun HiddenAppRow(
             modifier = Modifier.testTag("$SETTINGS_HIDDEN_APPS_UNHIDE_TAG:${app.displayName}"),
         ) {
             Icon(
-                imageVector = Icons.Filled.Clear,
+                imageVector = LauncherIcons.Clear,
                 contentDescription = unhideDescription,
             )
         }

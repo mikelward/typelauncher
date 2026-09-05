@@ -7,9 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,7 +75,7 @@ internal fun LauncherFilterField(
                 visualTransformation = VisualTransformation.None,
                 interactionSource = interactionSource,
                 placeholder = { Text(placeholder) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(LauncherIcons.Search, contentDescription = null) },
                 trailingIcon = trailingIcon,
                 // Trim the vertical content padding (default 16dp) to 12dp so the
                 // 24dp icon/text row plus padding lands at the 48dp target height;
@@ -186,6 +183,6 @@ internal fun FilterClearButton(
     modifier: Modifier = Modifier,
 ) {
     IconButton(onClick = onClick, modifier = modifier) {
-        Icon(Icons.Filled.Clear, contentDescription = contentDescription)
+        Icon(LauncherIcons.Clear, contentDescription = contentDescription)
     }
 }
