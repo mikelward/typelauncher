@@ -641,8 +641,12 @@
 
 ## Dependency updates
 
-- [ ] **Adopt `mikelward/gradle-update`** — the weekly Gradle catalog updater.
-      Consumers get wired up one repo at a time; this batch was done by hand.
+- [x] **Adopt `mikelward/gradle-update`** — the weekly Gradle catalog updater.
+      Done: `.github/workflows/gradle-update.yml` is a thin caller into
+      `mikelward/gradle-update/.github/workflows/gradle-update.yml@main`, with
+      the credential in the `gradle-update` environment. Has since been
+      iterated on in place (the license-inventory rebuild, the environment
+      move), so the entry was simply never ticked.
 - [ ] **Drop `material-icons-extended` and vendor the 22 icons the app uses.**
       The library ships several thousand `ImageVector`s; `app/src/main`
       references 22. R8 strips the rest from the release APK, so the shipped
