@@ -15,6 +15,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -44,6 +45,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -77,6 +79,12 @@ internal class LauncherViewModel(
     private val debugFileSinkProvider: () -> DebugFileSink? = {
         (app as? TypeLauncherApp)?.debugFileSink
     },
+    // The `LauncherApps` enumeration itself. Injectable because the two
+    // failure shapes that matter here are shapes Robolectric cannot produce:
+    // a binder transaction that fails mid-parcel, and a second enumeration
+    // starting while the first is still on the wire.
+    private val enumerateLauncherActivities: (LauncherApps, UserHandle) -> List<LauncherActivityInfo> =
+        { launcherApps, user -> launcherApps.getActivityList(null, user) },
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -175,10 +183,17 @@ internal class LauncherViewModel(
     // launcher can be rebuilt from saved-instance after a full process
     // death while the document picker is foreground, and the rebuilt
     // session has no cached metadata to look the picked app up against.
-    // Drained inside the same fresh-load coroutine that publishes
-    // `isFreshAppLoadComplete = true`, so the override is applied as soon
-    // as the authoritative app list lands instead of being silently dropped.
-    private var pendingIconOverrideRequest: Pair<String, Uri>? = null
+    // Held until a load has read the *whole* inventory, and drained there —
+    // so the override is applied as soon as a list that can be vouched for
+    // lands, instead of being silently dropped against a partial one.
+    //
+    // A map rather than one slot, keyed by app id: a degraded read leaves the
+    // queue open until some later event brings a complete one, which is long
+    // enough for a second pick to arrive, and a single slot would drop the
+    // first one the user already confirmed. Latest wins per app — picking
+    // twice for the same app means the second choice — and insertion order is
+    // kept so the drain applies them as they were made.
+    private val pendingIconOverrideRequests = linkedMapOf<String, Uri>()
     private var agendaVersion = 0
     // Set the first time the UI signals that Home is fully drawn and the soft
     // keyboard is up (or a fallback timeout has elapsed). Gates the deferred
@@ -210,11 +225,47 @@ internal class LauncherViewModel(
     // instance and we never silently miss the unregister because the service
     // is null on a future `getSystemService` call.
     private val launcherAppsService: LauncherApps? = app.getSystemService<LauncherApps>()
-    // Most recently scheduled reload of the installed-app list. Held so a
-    // burst of package events (e.g. an upgrade firing PACKAGE_REMOVED then
-    // PACKAGE_ADDED) doesn't pile up redundant IO; the latest cancels its
-    // predecessor.
-    private var pendingReloadJob: Job? = null
+    // The reload of the installed-app list that is currently running, if any.
+    // Held so a burst of package events (e.g. an upgrade firing
+    // PACKAGE_REMOVED then PACKAGE_ADDED) doesn't pile up redundant IO.
+    //
+    // Canceling is not enough on its own and never was: the enumeration is a
+    // blocking `getActivityList` binder call, and cancellation is cooperative,
+    // so a canceled reload keeps its transaction in flight to completion. A
+    // carrier-update storm fired six package events inside a second and put
+    // six ~490-activity enumerations on the wire at once, which exhausted the
+    // process's binder buffer and killed the launcher with a
+    // BadParcelableException ("only received 332 of 490"). So a reload that
+    // arrives while one is running is *coalesced* into
+    // [coalescedReloadRequest] rather than started beside it: at most one
+    // enumeration is ever outstanding, and a burst of any size costs two
+    // reloads — the one already running and one more against the settled
+    // state afterwards.
+    private var runningReloadJob: Job? = null
+    // The one reload waiting for [runningReloadJob] to finish, latest wins.
+    // Read and written from the Main dispatcher only, like every other field
+    // here.
+    private var coalescedReloadRequest: ReloadRequest? = null
+    // The most recently published app list, and the lock that keeps two
+    // snapshot writes from interleaving. See [persistAppMetadata].
+    private val metadataWriteMutex = Mutex()
+
+    @Volatile
+    private var latestMetadataSnapshot: List<InstalledApp> = emptyList()
+    // True once a load has read the full inventory — every profile, no
+    // failed read. Distinct from `isFreshAppLoadComplete`, which only says
+    // cold start has published: a degraded cold start publishes (it must, or
+    // every package event would defer forever) while still not knowing what
+    // is installed, and the icon snapshot and trim treat "known" as license
+    // to drop everything absent from the list. Read and written from the
+    // Main dispatcher only.
+    private var isAppInventoryComplete = false
+    // True when the latest load could not read a work profile's paused state,
+    // so every app on the list carries a *guessed* `isQuietMode = false`. The
+    // work dock's seed is the one decision that turns on it, and that seed
+    // latches — see [maybePrefillWorkDock]. Read and written from the Main
+    // dispatcher only.
+    private var isQuietModeUnknown = false
     private val launcherAppsCallback = object : LauncherApps.Callback() {
         // Each of these puts the package name into the reload's reason string,
         // which is logged immediately — an *added* package is not in
@@ -562,37 +613,64 @@ internal class LauncherViewModel(
         }
         viewModelScope.launch {
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
-            val loadedApps = withContext(ioDispatcher) {
+            val loadResult = withContext(ioDispatcher) {
                 androidTrace("launcher.apps_load") {
                     traceBlock("installed_apps_load") { trace ->
-                        loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+                        loadInstalledApps()
+                            .also { trace.incrementMetric("app_count", it.apps.size.toLong()) }
                     }
                 }
+            }
+            // A degraded read that produced nothing must not be published:
+            // the cached metadata is already on screen and is the only list
+            // this launcher has, so replacing it would empty the app list
+            // *and* — through the snapshot write below — the next launch's
+            // too, precisely while the binder failure that caused it is
+            // still going on. Cold start cannot decline to publish outright
+            // (everything defers until it does), so it publishes the list it
+            // already had instead.
+            //
+            // Publishing a *partial* read is different and still happens: it
+            // is a real reading of the profiles that answered, and nothing
+            // here can tell how much a truncated one left out. What such a
+            // read may not do is anything irreversible — see below.
+            val loadedApps = if (loadResult.isDegraded && loadResult.apps.isEmpty()) {
+                LauncherDebugLog.event(
+                    "initial load degraded and empty, keeping cached=%s",
+                    installedApps.size,
+                )
+                installedApps
+            } else {
+                if (loadResult.isDegraded) {
+                    LauncherDebugLog.event(
+                        "initial load degraded, publishing apps=%s",
+                        loadResult.apps.size,
+                    )
+                }
+                loadResult.apps
             }
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
             initialLoadTrace.stop()
             installedApps = loadedApps
-            if (!dockedAppStore.hasBeenPrefilled) {
-                if (dockedAppStore.dockedAppIds.isEmpty()) {
-                    // Prefill against what this device can actually render (see
-                    // `deviceRenderableDockIconCount`) so a narrow phone that
-                    // clamps the rendered row keeps an empty cell for the "+".
-                    val deviceDockIconCount = deviceRenderableDockIconCount()
-                    // Reserve one slot for the "+" add-button hint.
-                    prefillDock(loadedApps, dockedAppStore, (deviceDockIconCount - 1).coerceAtLeast(0))
-                    // Order matters: `prefillDock` calls `dockedAppStore.dock`,
-                    // which clears the hint flag. Setting the flag here — after
-                    // prefill returns — means the flag survives any number of
-                    // prefill seeds and stays true until the first user dock.
-                    // Skipped on upgrade installs where `prefillDock` did not
-                    // run, so existing dock users never see the onboarding hint.
-                    dockedAppStore.setShowAddButtonHint(
-                        dockedAppStore.dockedAppIds.size < deviceDockIconCount,
-                    )
-                }
-                dockedAppStore.markPrefilled()
+            // Set with the list it came from, and before anything reads it:
+            // `maybePrefillWorkDock` consults this flag, so leaving the
+            // assignment further down would let the seed run against the
+            // previous load's answer — `false` on a cold start, which is
+            // exactly the guess the flag exists to refuse.
+            //
+            // A degraded read counts as unknown whatever the quiet-mode call
+            // returned: it vouches for nothing, and the flag's one job is to
+            // say whether the latest read vouches for the paused state.
+            isQuietModeUnknown = loadResult.isQuietModeUnknown || loadResult.isDegraded
+            // Not from a degraded read, and not while a package event that
+            // landed during the load is still to be replayed: seeding a dock
+            // is a once-ever decision no later reload can revisit, so it
+            // waits for a list that is both complete and settled. The
+            // deferred reload below does it instead.
+            if (!loadResult.isDegraded && !reloadPendingDuringColdStart) {
+                maybePrefillDock(loadedApps)
+                maybePrefillWorkDock(loadedApps)
             }
-            maybePrefillWorkDock(loadedApps)
             _uiState.update { state ->
                 val dockedIds = dockedAppIdsForState(state)
                 val workDockedIds = workDockedAppIdsForState(state)
@@ -632,7 +710,19 @@ internal class LauncherViewModel(
                     isFreshAppLoadComplete = true,
                 )
             }
-            launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+            // Only a read that saw every profile makes the inventory known;
+            // a degraded one publishes without licensing the icon trim.
+            if (!loadResult.isDegraded) {
+                isAppInventoryComplete = true
+            }
+            // Never written from a degraded read. The snapshot keeps
+            // personal-profile apps only, so a read that lost the personal
+            // profile would rewrite it as empty and carry this failure into
+            // the next launch — the one place the launcher could still
+            // recover from.
+            if (!loadResult.isDegraded) {
+                persistAppMetadata(loadedApps)
+            }
             runDeferredBackgroundTrim()
             // Replay any icon-pick that arrived during the cold-start window
             // (e.g. picker callback fired after a process-death recreation
@@ -903,10 +993,15 @@ internal class LauncherViewModel(
      * Re-reads the installed-app list from `LauncherApps` and republishes the
      * derived UI state. Called from the `LauncherApps.Callback` when a package
      * is installed, uninstalled, replaced, or otherwise changed across any
-     * available profile. Cancels any earlier in-flight reload so a burst of
-     * events (e.g. an upgrade's PACKAGE_REMOVED + PACKAGE_ADDED) collapses to
-     * a single IO read against the latest system state. While the cold-start
-     * fresh load is still in flight, the request is deferred (via
+     * available profile. A request arriving while a reload is running is
+     * *queued*, not started beside it, and never cancels it: the enumeration
+     * is a blocking binder call that canceling the coroutine cannot recall,
+     * so cancellation would leave both transactions on the wire — which is
+     * how a burst of package events exhausted the process's binder buffer and
+     * crashed the launcher. At most one enumeration is outstanding at a time,
+     * and a burst collapses to the reload already running plus one more
+     * against the settled state. While the cold-start fresh load is still in
+     * flight, the request is deferred instead (via
      * `reloadPendingDuringColdStart`) and replayed once cold-start publishes,
      * so the reload's state update can't lose a race with cold-start's.
      */
@@ -926,39 +1021,198 @@ internal class LauncherViewModel(
             return
         }
         LauncherDebugLog.event("scheduleReload reason=%s detail=%s", safe(reason), detail)
-        pendingReloadJob?.cancel()
-        pendingReloadJob = viewModelScope.launch {
-            val loadedApps = withContext(ioDispatcher) {
-                traceBlock("installed_apps_reload") { trace ->
-                    loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+        if (runningReloadJob?.isActive == true) {
+            // Latest wins: whatever the newest event is, it will be read
+            // against the system state after every event in this burst has
+            // landed, so an older queued request would only re-read the same
+            // thing under a staler name.
+            coalescedReloadRequest = ReloadRequest(reason, detail)
+            LauncherDebugLog.event("scheduleReload coalesced reason=%s detail=%s", safe(reason), detail)
+            return
+        }
+        runningReloadJob = viewModelScope.launch {
+            try {
+                // The queue is drained here rather than by re-entering
+                // `scheduleReload`: this job is still active until it returns,
+                // so a re-entrant call would coalesce right back into the slot
+                // it just read and the request would never run.
+                var request: ReloadRequest? = ReloadRequest(reason, detail)
+                while (request != null) {
+                    runReload(request)
+                    request = coalescedReloadRequest
+                    coalescedReloadRequest = null
                 }
+            } finally {
+                // A canceled or failed reload must not strand a request in
+                // the slot: the next package event starts a fresh job, and it
+                // would otherwise run someone else's queued reload before its
+                // own — or, if nothing else ever arrives, never run it at all.
+                coalescedReloadRequest = null
             }
-            installedApps = loadedApps
-            // The work-dock prefill skips (without latching) while the work
-            // profile is paused, promising a retry "on the next fresh load
-            // after the profile is resumed" — and resuming lands here via
-            // ACTION_MANAGED_PROFILE_AVAILABLE → scheduleReload, not via
-            // another cold start. Latched and guarded internally, so this is
-            // a no-op on every reload after the seed (or when the work dock
-            // is disabled).
-            maybePrefillWorkDock(loadedApps)
-            refreshLists()
-            // Replay any icon-pick that was queued because cold-start
-            // hadn't finished — `scheduleReload` runs both for ordinary
-            // package events post-load and for the deferred-during-cold-
-            // start replay. In the latter case the queued pick lands on
-            // the post-reload list rather than on the stale cold-start
-            // snapshot, which avoids writing an override file for a
-            // package the reload would have dropped.
-            drainPendingIconOverrideRequest()
-            launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
-            LauncherDebugLog.event(
-                "scheduleReload complete reason=%s detail=%s apps=%s",
-                safe(reason),
-                detail,
-                loadedApps.size,
+        }
+    }
+
+    /**
+     * Seeds the dock on a first run, once — and only from a list the launcher
+     * actually read.
+     *
+     * The latch is what makes the source matter: a degraded load that read
+     * nothing publishes the cached list, and on a first run there is no
+     * cache, so seeding from it would dock nothing and then record the dock
+     * as seeded forever. The user would be left with a permanently empty
+     * dock and no way back to the onboarding state. So a load with no
+     * inventory behind it skips this entirely and the first healthy reload
+     * does it instead — which is why this is called from the reload path
+     * too, alongside [maybePrefillWorkDock].
+     */
+    private fun maybePrefillDock(apps: List<InstalledApp>) {
+        if (dockedAppStore.hasBeenPrefilled) return
+        if (apps.isEmpty()) return
+        if (dockedAppStore.dockedAppIds.isEmpty()) {
+            // Prefill against what this device can actually render (see
+            // `deviceRenderableDockIconCount`) so a narrow phone that
+            // clamps the rendered row keeps an empty cell for the "+".
+            val deviceDockIconCount = deviceRenderableDockIconCount()
+            // Reserve one slot for the "+" add-button hint.
+            prefillDock(apps, dockedAppStore, (deviceDockIconCount - 1).coerceAtLeast(0))
+            // Order matters: `prefillDock` calls `dockedAppStore.dock`,
+            // which clears the hint flag. Setting the flag here — after
+            // prefill returns — means the flag survives any number of
+            // prefill seeds and stays true until the first user dock.
+            // Skipped on upgrade installs where `prefillDock` did not
+            // run, so existing dock users never see the onboarding hint.
+            dockedAppStore.setShowAddButtonHint(
+                dockedAppStore.dockedAppIds.size < deviceDockIconCount,
             )
         }
+        dockedAppStore.markPrefilled()
+    }
+
+    /**
+     * Writes [apps] to the metadata snapshot, off the main thread, in a way
+     * that cannot leave an older list on disk.
+     *
+     * Two writes can be in flight at once — cold start's and the first
+     * reload's, or two reloads' — and nothing orders their dispatch, so a
+     * stale one landing last would make the next launch paint apps that are
+     * gone or miss apps that are there. Each write takes the newest snapshot
+     * rather than the one its caller held, so which one lands last stops
+     * mattering: the disk ends up holding what was published last either
+     * way. The lock keeps two writes from interleaving inside the store.
+     */
+    private fun persistAppMetadata(apps: List<InstalledApp>) {
+        latestMetadataSnapshot = apps
+        viewModelScope.launch(ioDispatcher) {
+            metadataWriteMutex.withLock { appMetadataStore.save(latestMetadataSnapshot) }
+        }
+    }
+
+    /** One reload's identity, held while it waits for the running reload to finish. */
+    private data class ReloadRequest(
+        val reason: String,
+        val detail: Any?,
+    )
+
+    /**
+     * True while a reload is running or queued behind one. A test seam: a
+     * reload spans a worker and the main looper, so a test that hands the
+     * load a real dispatcher has no other way to know it has drained — and
+     * one that returns mid-reload leaks its worker into whatever runs next.
+     */
+    @get:VisibleForTesting
+    internal val isReloadInFlight: Boolean
+        get() = runningReloadJob?.isActive == true || coalescedReloadRequest != null
+
+    /**
+     * The body of one reload: re-read `LauncherApps`, republish, persist.
+     * Split out of [scheduleReload] so the coalescing above reads as the
+     * queue it is.
+     *
+     * A degraded read (see [loadInstalledApps]) publishes nothing: the
+     * previous list is the last one we know to be complete, and a stale list
+     * is a far smaller failure than a dock and app list that lose the apps a
+     * failed binder transaction couldn't enumerate. The next package event
+     * reloads, and the launcher converges then.
+     */
+    private suspend fun runReload(request: ReloadRequest) {
+        val reason = request.reason
+        val detail = request.detail
+        val loadResult = withContext(ioDispatcher) {
+            traceBlock("installed_apps_reload") { trace ->
+                loadInstalledApps()
+                    .also { trace.incrementMetric("app_count", it.apps.size.toLong()) }
+            }
+        }
+        // Ahead of the degraded return below, not after it: a degraded read
+        // vouches for the paused state no more than it vouches for the app
+        // list, and leaving the previous load's answer standing would let a
+        // later `setWorkDockEnabled` seed and latch the work dock on a
+        // reading this reload could not confirm.
+        isQuietModeUnknown = loadResult.isQuietModeUnknown || loadResult.isDegraded
+        if (loadResult.isDegraded) {
+            // Keep the list already on screen: it is the last one known to
+            // be complete, and a truncated read is indistinguishable from
+            // every app it could not return having been uninstalled. The
+            // next package event reloads and the launcher converges then.
+            // Not silent — the list is stale until that happens, and this
+            // line is the only record of why.
+            LauncherDebugLog.event(
+                "scheduleReload degraded: keeping previous list reason=%s detail=%s apps=%s",
+                safe(reason),
+                detail,
+                installedApps.size,
+            )
+            return
+        }
+        if (coalescedReloadRequest != null) {
+            // Another package event landed while this read was on the wire, so
+            // this list is a snapshot of the middle of a burst — an upgrade's
+            // removal without the add that follows it. Publishing it would be
+            // harmless if the queued read always answered, but a degraded one
+            // keeps whatever is on screen, which would strand the interim list
+            // until some unrelated event. Discard it and let the queued
+            // request read the settled state; that is what canceling the
+            // predecessor used to buy, before serializing made every reload
+            // run to completion.
+            LauncherDebugLog.event(
+                "scheduleReload superseded: discarding interim read reason=%s detail=%s apps=%s",
+                safe(reason),
+                detail,
+                loadResult.apps.size,
+            )
+            return
+        }
+        val loadedApps = loadResult.apps
+        installedApps = loadedApps
+        if (!isAppInventoryComplete) {
+            // The first healthy read after a degraded cold start. Same
+            // "latched rather than dropped" promise the cold-start path
+            // makes: whatever the trim deferred while the inventory was
+            // unknown runs now.
+            isAppInventoryComplete = true
+            runDeferredBackgroundTrim()
+        }
+        // The work-dock prefill skips (without latching) while the work
+        // profile is paused, promising a retry "on the next fresh load
+        // after the profile is resumed" — and resuming lands here via
+        // ACTION_MANAGED_PROFILE_AVAILABLE → scheduleReload, not via
+        // another cold start. Latched and guarded internally, so this is
+        // a no-op on every reload after the seed (or when the work dock
+        // is disabled).
+        maybePrefillDock(loadedApps)
+        maybePrefillWorkDock(loadedApps)
+        refreshLists()
+        // Replay any icon-pick queued because cold start hadn't finished. It
+        // lands on this list rather than the stale cold-start snapshot, so it
+        // cannot write an override file for a component this read dropped.
+        drainPendingIconOverrideRequest()
+        persistAppMetadata(loadedApps)
+        LauncherDebugLog.event(
+            "scheduleReload complete reason=%s detail=%s apps=%s",
+            safe(reason),
+            detail,
+            loadedApps.size,
+        )
     }
 
     override fun onCleared() {
@@ -993,7 +1247,7 @@ internal class LauncherViewModel(
         // unremoved listener would keep a torn-down view model reachable and
         // keep updating state nothing renders. One delivery may already be in
         // flight when this returns, by the library's design; the listener only
-        // launches on a scope that is already cancelled by then, so it is a
+        // launches on a scope that is already canceled by then, so it is a
         // no-op rather than a leak.
         debugFileSink?.removeCrashListener(crashListener)
         super.onCleared()
@@ -1383,7 +1637,7 @@ internal class LauncherViewModel(
      * the launcher is about to be backgrounded so the IO is not on a user-visible path.
      */
     fun persistIconSnapshot() {
-        if (!_uiState.value.isFreshAppLoadComplete) {
+        if (!isAppInventoryComplete) {
             // Not just "is the list empty": the metadata prefill populates
             // `installedApps` from `AppMetadataStore` before the fresh load runs,
             // and that store deliberately holds personal-profile apps only. So a
@@ -1391,6 +1645,10 @@ internal class LauncherViewModel(
             // priority set derived from it would omit them -- pruning their
             // restored icons off disk on the way past. An incomplete load means
             // "we don't know what's installed", not "nothing is worth keeping".
+            // A degraded load counts as incomplete for the same reason: it
+            // publishes a list that is missing whatever profile failed to
+            // enumerate, so pruning against it would drop that profile's
+            // icons on a failure the launcher is still recovering from.
             LauncherDebugLog.event("persistIconSnapshot skipped: fresh load incomplete")
             return
         }
@@ -1441,7 +1699,7 @@ internal class LauncherViewModel(
      * the same question, and two lists would drift apart.
      */
     fun trimIconCacheToPriority() {
-        if (!_uiState.value.isFreshAppLoadComplete ||
+        if (!isAppInventoryComplete ||
             installedApps.isEmpty() ||
             !iconSnapshotRestoreComplete
         ) {
@@ -1449,14 +1707,16 @@ internal class LauncherViewModel(
             // priority set is "we do not know yet", not "nothing matters", and
             // trimming to it would drop everything.
             //
-            // `isFreshAppLoadComplete` is the load-shaped one and it is not
+            // `isAppInventoryComplete` is the load-shaped one and it is not
             // redundant with the emptiness check. The metadata prefill fills
             // `installedApps` from a store that holds personal-profile apps only,
             // so in the window before the fresh load lands the list is non-empty
             // and every work app is missing from it -- and `priorityIconCacheIds`
             // filters through that list, so even a work-docked app's id drops out.
             // Trimming there would evict exactly the restored work icons the
-            // snapshot existed to keep warm.
+            // snapshot existed to keep warm. A degraded load leaves the same
+            // gap -- it publishes without the profile it could not read -- so
+            // it does not make the inventory known either.
             // Latched rather than dropped: whichever of the two initialization jobs
             // is outstanding retries this once it lands, so the saving is deferred
             // rather than lost. Leaving the launcher during its own startup is
@@ -1562,8 +1822,8 @@ internal class LauncherViewModel(
             // as possible, rather than at the call site: a check made before the hop is
             // exactly the stale one this is guarding against.
             //
-            // A re-check rather than cancelling the previous job: A -> B -> C retires
-            // A's sizes and then B's, and cancelling the first would leak A's for the
+            // A re-check rather than canceling the previous job: A -> B -> C retires
+            // A's sizes and then B's, and canceling the first would leak A's for the
             // life of the process.
             val evicted = withContext(ioDispatcher) {
                 val live = renderedIconSizes
@@ -1945,7 +2205,7 @@ internal class LauncherViewModel(
 
     /**
      * Leaves the contact-actions mode entirely, restoring the saved search query.
-     * A no-op (beyond cancelling any in-flight resolve) when the mode isn't open —
+     * A no-op (beyond canceling any in-flight resolve) when the mode isn't open —
      * a contact-result long-press routes here to cancel a pending resolve while it
      * opens the favorite menu, and must not clear the search the user has typed.
      */
@@ -3045,9 +3305,17 @@ internal class LauncherViewModel(
         // from being written for a now-defunct InstalledApp; the drain
         // resolves against the post-load list and either applies cleanly
         // or logs a "dropped" event.
-        if (!_uiState.value.isFreshAppLoadComplete) {
-            LauncherDebugLog.event("setAppIconOverride deferred: id=%s pending fresh load", appId)
-            pendingIconOverrideRequest = appId to sourceUri
+        // Keyed on whether the inventory is *known*, not on whether cold
+        // start has published. Those were the same question until a degraded
+        // read could publish a partial list: after one, `isFreshAppLoadComplete`
+        // is true while the list is missing whatever profile failed, and a
+        // pick arriving then — the picker returning after a process-death
+        // recreation — would resolve against that partial list and be dropped
+        // as uninstalled. Same predicate the drain uses, so both entry points
+        // ask the one question.
+        if (!isAppInventoryComplete) {
+            LauncherDebugLog.event("setAppIconOverride deferred: id=%s inventory incomplete", appId)
+            pendingIconOverrideRequests[appId] = sourceUri
             return
         }
         val app = installedApps.firstOrNull { it.id == appId }
@@ -3059,15 +3327,30 @@ internal class LauncherViewModel(
     }
 
     private fun drainPendingIconOverrideRequest() {
-        val request = pendingIconOverrideRequest ?: return
-        pendingIconOverrideRequest = null
-        val (appId, uri) = request
-        val app = installedApps.firstOrNull { it.id == appId }
-        if (app == null) {
-            LauncherDebugLog.event("setAppIconOverride drained dropped: id=%s not found in fresh load", appId)
+        if (pendingIconOverrideRequests.isEmpty()) return
+        if (!isAppInventoryComplete) {
+            // Dropping the request below turns "absent from the list" into
+            // "uninstalled", and that is only true of a read that saw every
+            // profile. A degraded one is missing whatever profile failed, so
+            // a pick for an app in it would be discarded for good — the
+            // user's choice, gone, with the picker already closed. Keep it
+            // queued instead; the first healthy load drains it, the same way
+            // the icon trim waits.
+            LauncherDebugLog.event("setAppIconOverride drain deferred: inventory incomplete")
             return
         }
-        setAppIconOverrideInternal(app, uri)
+        val requests = pendingIconOverrideRequests.toList()
+        pendingIconOverrideRequests.clear()
+        requests.forEach { (appId, uri) ->
+            val app = installedApps.firstOrNull { it.id == appId }
+            if (app == null) {
+                // Now a real answer rather than a guess: this list saw every
+                // profile, so an id it does not hold is genuinely gone.
+                LauncherDebugLog.event("setAppIconOverride drained dropped: id=%s not found in fresh load", appId)
+            } else {
+                setAppIconOverrideInternal(app, uri)
+            }
+        }
     }
 
     private fun setAppIconOverrideInternal(app: InstalledApp, sourceUri: Uri) {
@@ -3483,7 +3766,7 @@ internal class LauncherViewModel(
     /**
      * Drives the banner's in-flight status. Called when the user taps Update
      * (Starting). When [progress] is `Idle` the banner falls back to the
-     * original "Update" CTA — used to recover from a cancelled Play sheet or
+     * original "Update" CTA — used to recover from a canceled Play sheet or
      * a download failure.
      */
     fun setPlayUpdateProgress(progress: UpdateProgress) {
@@ -4218,6 +4501,14 @@ internal class LauncherViewModel(
     private fun maybePrefillWorkDock(loadedApps: List<InstalledApp>) {
         if (!_uiState.value.isWorkDockEnabled) return
         if (workDockedAppStore.hasBeenPrefilled) return
+        // The paused check below skips a paused profile and promises to seed
+        // on a later fresh load. A *guessed* "not paused" — the latest load
+        // could not read the flag — would break that promise permanently: it
+        // seeds a dock of apps the user cannot open and latches the real seed
+        // away for good. So an unreadable paused state defers this the same
+        // way an actually-paused profile does; resuming or the next reload
+        // brings it back with a readable flag.
+        if (isQuietModeUnknown) return
         if (workDockedAppStore.dockedAppIds.isNotEmpty()) {
             workDockedAppStore.markPrefilled()
             return
@@ -4555,7 +4846,31 @@ internal class LauncherViewModel(
         )
     }
 
-    private fun loadInstalledApps(): List<InstalledApp> {
+    /**
+     * The outcome of one [loadInstalledApps] call: the apps it read, and
+     * whether any profile's enumeration failed at the binder level.
+     *
+     * A degraded result's [apps] is the part that *did* come back, which is
+     * why it is never published on its own — a profile that failed to
+     * enumerate is indistinguishable from a profile whose apps were all
+     * uninstalled, and publishing it would silently drop apps that are still
+     * installed (dock entries included).
+     */
+    private data class AppLoadResult(
+        val apps: List<InstalledApp>,
+        val isDegraded: Boolean,
+        /**
+         * True when a work profile's paused state could not be read, so
+         * every app carries a *guessed* `isQuietMode = false`. Not degrading
+         * the read — the apps themselves came back fine — but the work
+         * dock's once-ever seed is gated on exactly that flag, so a guess
+         * here would seed it from a profile the user cannot open and latch
+         * the real seed away for good.
+         */
+        val isQuietModeUnknown: Boolean,
+    )
+
+    private fun loadInstalledApps(): AppLoadResult {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
         // Logcat-only, here and for the two lines below. A reload costs eight
@@ -4570,8 +4885,26 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
         val userManager = app.getSystemService<UserManager>()
-        val profiles = launcherApps?.profiles.orEmpty()
-            .also { profiles -> LauncherDebugLog.trace("loadInstalledApps profiles=${profiles.size}") }
+        // Set when a profile's enumeration fails for a reason that is *not*
+        // "this profile is going away" — see the RuntimeException catch below.
+        var degraded = false
+        // Listing the profiles is itself a binder transaction, and it runs
+        // before the per-profile guard below — so a full buffer or a dead
+        // system service here used to escape the load coroutine and take the
+        // launcher down, exactly the crash the per-profile guard exists to
+        // stop (Codex on PR #725).
+        val profiles = try {
+            launcherApps?.profiles.orEmpty()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: RuntimeException) {
+            // Every profile is unread, the personal one included, so this
+            // is as degraded as a read gets and the caller keeps the list it
+            // already has.
+            degraded = true
+            LauncherDebugLog.failure(exception, "loadInstalledApps profile discovery failed")
+            emptyList()
+        }.also { profiles -> LauncherDebugLog.trace("loadInstalledApps profiles=${profiles.size}") }
         // Per-profile counts for that completion line, in profile order.
         val profileSummaries = mutableListOf<String>()
         // Resolve quiet mode once per profile rather than per activity. The
@@ -4579,40 +4912,85 @@ internal class LauncherViewModel(
         // it. `isQuietModeEnabled` is documented since API 24 and requires no
         // permission for any profile in the calling user's profile group —
         // but a profile being removed can leave the group between the
-        // `profiles` snapshot and this call, so tolerate the rejection.
+        // `profiles` snapshot and this call, so tolerate the rejection, and
+        // the same binder failure the enumeration below tolerates can land
+        // here too. Not degrading the read on either: the profile's apps are
+        // still readable, and only the paused-badge state is guessed, so
+        // withholding the whole list over it would cost far more than it
+        // saves. The next reload resolves it.
+        var quietModeUnknown = false
         val quietByUser: Map<UserHandle, Boolean> = profiles.associateWith { user ->
             user != personalUser && try {
                 userManager?.isQuietModeEnabled(user) == true
-            } catch (_: SecurityException) {
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: RuntimeException) {
+                // The badge is guessed, and that is the cheap half. The
+                // expensive half is the work dock's once-ever seed, which is
+                // gated on this very flag — so record that it was guessed and
+                // let the caller hold that one decision back.
+                quietModeUnknown = true
+                LauncherDebugLog.failure(
+                    exception,
+                    // Which *kind* of profile failed, not which one: a
+                    // yes/no crosses the boundary by type, and personal
+                    // versus work is the whole of what a reader needs from
+                    // this line. The per-profile summary below keeps the
+                    // identifier itself, on device.
+                    "loadInstalledApps quiet mode unreadable work=%s",
+                    user != personalUser,
+                )
                 false
             }
         }
         val profileApps = profiles
             .flatMap { user ->
-                val activities = try {
-                    launcherApps
-                        ?.getActivityList(null, user)
-                        .orEmpty()
-                } catch (exception: SecurityException) {
-                    // The profile left the caller's profile group after the
-                    // `profiles` snapshot — the window during work-profile
-                    // removal where teardown's package events schedule
-                    // reloads while access is already revoked. Same race
-                    // `resolveProfileApplicationInfo` and AppIconLoader
-                    // tolerate; skip the dying profile instead of letting
-                    // the exception crash the launcher out of the load
-                    // coroutine. The removal's own callback triggers a
-                    // fresh reload that no longer lists this profile.
-                    LauncherDebugLog.failure(exception, "loadInstalledApps profile rejected user=%s", user.hashCode())
-                    emptyList()
-                }
-                val quiet = quietByUser[user] == true
-                profileSummaries += "${user.hashCode()}:${activities.size}" + if (quiet) "(quiet)" else ""
-                LauncherDebugLog.trace(
-                    "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} quiet=$quiet",
-                )
-                activities
-                    .map { activity ->
+                // Enumeration *and* mapping are inside the guard, not just
+                // the `getActivityList` call: reading each activity's label
+                // and its package's update time are binder transactions too,
+                // so a buffer that is full for the enumeration is full for
+                // them, and a guard drawn around one call leaves the others
+                // able to take the process down exactly when the load is
+                // trying to survive a buffer that has already overflowed.
+                try {
+                    // Only the enumeration's own rejection means "this
+                    // profile is going away" (the catch below). A
+                    // `SecurityException` from the per-app reads that follow
+                    // says the same word for a different thing — a package
+                    // gone mid-read, a profile locking — and cannot be told
+                    // apart from a profile that is simply still there, so it
+                    // belongs with the degraded failures rather than being
+                    // taken as proof the profile is dead. Hence the inner
+                    // try: it is drawn around the enumeration alone.
+                    val activities = try {
+                        launcherApps
+                            ?.let { service -> enumerateLauncherActivities(service, user) }
+                            .orEmpty()
+                    } catch (exception: SecurityException) {
+                        // The profile left the caller's profile group after
+                        // the `profiles` snapshot — the window during
+                        // work-profile removal where teardown's package
+                        // events schedule reloads while access is already
+                        // revoked. Same race `resolveProfileApplicationInfo`
+                        // and AppIconLoader tolerate; skip the dying profile
+                        // instead of letting the exception crash the launcher
+                        // out of the load coroutine. The removal's own
+                        // callback triggers a fresh reload that no longer
+                        // lists this profile.
+                        profileSummaries += "${user.hashCode()}:rejected"
+                        LauncherDebugLog.failure(
+                            exception,
+                            "loadInstalledApps profile rejected work=%s",
+                            user != personalUser,
+                        )
+                        return@flatMap emptyList()
+                    }
+                    val quiet = quietByUser[user] == true
+                    profileSummaries += "${user.hashCode()}:${activities.size}" + if (quiet) "(quiet)" else ""
+                    LauncherDebugLog.trace(
+                        "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} quiet=$quiet",
+                    )
+                    val mapped = activities.map { activity ->
                         val rawLabel = activity.label.toString()
                         val workApp = user != personalUser ||
                             activity.applicationInfo.packageName in workPackages
@@ -4624,42 +5002,108 @@ internal class LauncherViewModel(
                             isWorkApp = workApp,
                             launchWithLauncherApps = true,
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
-                            isQuietMode = quietByUser[user] == true,
+                            isQuietMode = quiet,
                             displayBase = workLabel(rawLabel, workApp),
                             unprefixedName = workSearchName(rawLabel, workApp),
                         )
                     }
+                    mapped
+                } catch (exception: CancellationException) {
+                    // Never a failed read: the load is being torn down, and
+                    // swallowing this would break structured concurrency.
+                    throw exception
+                } catch (exception: RuntimeException) {
+                    // The transaction itself failed rather than being refused:
+                    // DeadObjectException / BadParcelableException /
+                    // TransactionTooLargeException out of
+                    // `ILauncherApps$Stub$Proxy.getLauncherActivities` or out
+                    // of the per-app reads above, which is what a full binder
+                    // buffer looks like from this side — "Failure retrieving
+                    // array; only received 332 of 490". A `SecurityException`
+                    // raised by those per-app reads lands here too, and
+                    // deliberately: a read that lost half a profile is
+                    // degraded whatever it was refused by, and calling it a
+                    // removal instead would publish the remaining profiles
+                    // as the whole truth. This used to escape
+                    // the load coroutine and take the process down (a crash
+                    // the user only saw as the launcher having restarted).
+                    // The read is *incomplete*, not empty, so mark it
+                    // degraded and let the caller keep the list it already
+                    // has rather than publishing a list missing every app
+                    // this profile couldn't return.
+                    degraded = true
+                    profileSummaries += "${user.hashCode()}:failed"
+                    LauncherDebugLog.failure(
+                        exception,
+                        "loadInstalledApps profile read failed work=%s",
+                        user != personalUser,
+                    )
+                    emptyList()
+                }
             }
-        val collected = profileApps
-            .ifEmpty {
-                val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
-                LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=%s", resolveInfos.size)
-                resolveInfos
-                    .map { resolveInfo ->
-                        val activityInfo = resolveInfo.activityInfo
-                        val rawLabel = resolveInfo.loadLabel(app.packageManager).toString()
-                        val workApp = activityInfo.packageName in workPackages
-                        InstalledApp(
-                            name = rawLabel,
-                            packageName = activityInfo.packageName,
-                            launchIntent = Intent.makeMainActivity(
-                                ComponentName(activityInfo.packageName, activityInfo.name),
-                            ),
-                            user = personalUser,
-                            isWorkApp = workApp,
-                            launchWithLauncherApps = false,
-                            iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
-                            displayBase = workLabel(rawLabel, workApp),
-                            unprefixedName = workSearchName(rawLabel, workApp),
-                        )
-                    }
-            }
+        // Every launcher activity of the personal profile, read through
+        // `PackageManager` instead of `LauncherApps` — the fallback for a
+        // device whose `LauncherApps` yields nothing at all.
+        fun packageManagerApps(): List<InstalledApp> = try {
+            // Guarded end to end for the same reason as the profile read
+            // above: the query is the big transaction, but the label and
+            // package-timestamp reads per result are transactions too, and
+            // this runs precisely when the buffer has already overflowed.
+            val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
+            LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=%s", resolveInfos.size)
+            resolveInfos
+                .map { resolveInfo ->
+                    val activityInfo = resolveInfo.activityInfo
+                    val rawLabel = resolveInfo.loadLabel(app.packageManager).toString()
+                    val workApp = activityInfo.packageName in workPackages
+                    InstalledApp(
+                        name = rawLabel,
+                        packageName = activityInfo.packageName,
+                        launchIntent = Intent.makeMainActivity(
+                            ComponentName(activityInfo.packageName, activityInfo.name),
+                        ),
+                        user = personalUser,
+                        isWorkApp = workApp,
+                        launchWithLauncherApps = false,
+                        iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
+                        displayBase = workLabel(rawLabel, workApp),
+                        unprefixedName = workSearchName(rawLabel, workApp),
+                    )
+                }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: RuntimeException) {
+            degraded = true
+            LauncherDebugLog.failure(exception, "loadInstalledApps packageManagerFallback failed")
+            emptyList()
+        }
+
+        // The long-standing fallback for a device whose `LauncherApps`
+        // surfaces nothing at all (no profiles, no service). Taken on a
+        // degraded read too, unchanged from before the guards above existed:
+        // a cold start has to publish *something*, and this is the only path
+        // left when every profile failed to enumerate. It stays inside the
+        // degraded flag, so a reload still declines to publish what it
+        // returns — the flag says what the read knows, not where it came
+        // from.
+        val fallbackApps = if (profileApps.isEmpty()) packageManagerApps() else emptyList()
+        // `profileApps` first, so a component read through `LauncherApps`
+        // wins the dedup below over the same component read through
+        // `PackageManager` (the former launches through `LauncherApps`, which
+        // is the path that works across profiles).
+        val collected = (profileApps + fallbackApps)
             // Keying dedup on `id` (userHandle.hashCode():componentName) lets distinct
             // apps that happen to share a display name survive — e.g. Chase US
             // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
             // and the disambiguator pass below tags them with regional badges.
             .distinctBy { launcherApp -> launcherApp.id }
             .sortedWith(compareBy(displayNameOrder()) { launcherApp -> launcherApp.name })
+        if (degraded) {
+            LauncherDebugLog.event(
+                "loadInstalledApps degraded: profile enumeration incomplete, apps=%s",
+                collected.size,
+            )
+        }
         return collected
             .applyDisambiguators()
             .applyRenameOverrides()
@@ -4677,6 +5121,13 @@ internal class LauncherViewModel(
                     // on device; the app count beside it is the number that
                     // carries to the mirror.
                     profileSummaries.joinToString(separator = " ").ifEmpty { "(none)" },
+                )
+            }
+            .let { apps ->
+                AppLoadResult(
+                    apps = apps,
+                    isDegraded = degraded,
+                    isQuietModeUnknown = quietModeUnknown,
                 )
             }
     }
