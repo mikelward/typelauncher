@@ -647,32 +647,16 @@
       the credential in the `gradle-update` environment. Has since been
       iterated on in place (the license-inventory rebuild, the environment
       move), so the entry was simply never ticked.
-- [ ] **Extract the recovery merge into a pure function and test it there.**
-      The merge across recovery attempts produced three mirrored bugs on
-      PR #727, all in how the `PackageManager` fallback related to the
-      per-profile inventories: the fallback dropped when it still applied,
-      kept when it no longer did, and then kept again for a personal profile
-      that had been read and was genuinely empty. Each was a different
-      reading of one empty list, which cannot say whether a profile was
-      unread, read empty, or never asked.
+- [x] **Extract the recovery merge into a pure function and test it there.**
+      Done: the merge, the degradation derivation and the fallback
+      attribution live in `AppLoadMerge.kt` as internal top-level functions,
+      and `AppLoadMergeTest` covers all three of the mirrored fallback bugs
+      that shipped without coverage, plus the merge and degradation rules.
 
-      The mechanism is gone rather than patched a fourth time — where the
-      personal profile was enumerated, the fallback's apps are recorded as
-      that profile's inventory and travel under the ordinary merge rules, so
-      there is no separate carry and no predicate. What remains is that
-      **none of it is covered by a test.** Reaching any of those cases needs
-      an attempt whose profile inventory is non-empty, and Robolectric cannot
-      produce a non-empty `LauncherActivityInfo` list — the same limitation
-      that made the enumeration injectable in the first place, and why every
-      test in this area gets its apps from the fallback rather than a profile
-      read.
-
-      Two ways out: fabricate a `LauncherActivityInfo` (reflection, or
-      whatever `ShadowLauncherApps.addActivity` supports on the pinned
-      Robolectric), or lift the merge — inventories in, assembled list plus
-      degradation out — into a pure function testable with no Android types
-      at all. The second is the better answer: it is what would have caught
-      all three, and it overlaps with the decoupling below.
+      What made them untestable was never `UserHandle` — it was that reaching
+      a non-empty profile inventory through the view model needs a
+      `LauncherActivityInfo`, which Robolectric cannot produce. Handed
+      inventories directly, the merge is ordinary data in and data out.
 
 - [ ] **Decouple a profile's paused state from its inventory in the app load.**
       `ProfileInventory` bundles two facts that arrive from *separate* binder
