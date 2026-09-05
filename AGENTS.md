@@ -45,7 +45,7 @@ Android home screen launcher app (Kotlin, single `:app` module).
   - **Use a non-user-facing subject prefix to keep a commit out of "What's new".** A commit with no user-visible change should start with one of these prefixes, and CI then drops it from the release notes on the Play Store (it still runs the full build-and-test job — the prefix only suppresses the release-notes entry):
     - `ci:` — CI / workflow plumbing (e.g. snapshot regenerations, action bumps).
     - `docs:` — documentation only (`AGENTS.md`, `SPEC.md`, `README`, `docs/*`, `PRIVACY.md`). No exceptions: Play's "What's new" is a store-listing field a user installing an update never sees at update time, so a wording-only privacy-policy change shipping a bullet bought no real visibility.
-    - `internal:` — build configuration, dependency upgrades, and other plumbing with no user-visible effect (e.g. `internal: remove unused Material UI library`).
+    - `internal:` — build configuration and other plumbing with no user-visible effect (e.g. `internal: remove unused Material UI library`). A dependency the app ships is bare instead: the bump changes what the app runs, so it gets its own release. A test- or build-only bump you write stays prefixed; the weekly batch can't tell the two apart, so it lands bare either way.
     - `refactor:` — behavior-preserving code changes (renames, extractions, reorganizations).
     - `test:` (or `tests:`) — test-only changes (e.g. `test: add edge-case coverage for work-profile app sorting`).
 

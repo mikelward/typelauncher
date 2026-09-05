@@ -1370,8 +1370,9 @@ jobs:
         # the Play Store internal track (Play Console "What's new"):
         #   - skip commits whose subject starts with a non-user-facing
         #     prefix — `ci:` (CI plumbing, e.g. snapshot regenerations),
-        #     `docs:` (documentation), `internal:` (build config, deps,
-        #     and other plumbing with no user-visible effect), `refactor:`
+        #     `docs:` (documentation), `internal:` (build config and
+        #     other plumbing with no user-visible effect; a bump the app
+        #     ships is bare instead), `refactor:`
         #     (behavior-preserving code changes), and `test:` / `tests:`
         #     (test-only changes). None describe a user-visible change
         #     worth announcing;
