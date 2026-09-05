@@ -246,6 +246,21 @@ internal class LauncherViewModel(
     // Read and written from the Main dispatcher only, like every other field
     // here.
     private var coalescedReloadRequest: ReloadRequest? = null
+
+    // Attempts spent recovering the package event currently being served.
+    // The budget belongs to the event, not to a stretch of wall clock: a
+    // request from a real event starts the count over however many a
+    // previous event's sequence spent, so an event landing mid-recovery
+    // still gets its own attempts. One running counter shared across events
+    // would leave the last event of a storm — the one with nothing behind
+    // it to try again — with a single attempt and no retry.
+    private var degradedReloadAttempts = 0
+
+    // What this event's earlier attempts read, per profile, while recovery
+    // is in flight. Cleared the moment a read comes back complete, so it
+    // never carries a stale profile into an unrelated event's reload.
+    private var degradedReloadInventories: Map<UserHandle, ProfileInventory> = emptyMap()
+
     // The most recently published app list, and the lock that keeps two
     // snapshot writes from interleaving. See [persistAppMetadata].
     private val metadataWriteMutex = Mutex()
@@ -742,6 +757,36 @@ internal class LauncherViewModel(
             if (reloadPendingDuringColdStart) {
                 reloadPendingDuringColdStart = false
                 scheduleReload("coldStartCompletedWithPendingEvent")
+            } else if (isQuietModeUnknown) {
+                // `isQuietModeUnknown` rather than `isDegraded`: a read can
+                // come back with every app and still have guessed the work
+                // profile's paused state, and that guess holds back the work
+                // dock's once-ever seed just as firmly as a missing profile
+                // holds back everything else. Both are "this read could not
+                // vouch for something", and both want the same recovery.
+                // Recovery is a reload rather than a loop inside the cold
+                // start, and that is the whole point: cold start publishes
+                // its first read immediately, exactly as it did before any
+                // of this, so nothing is added to the time before the first
+                // usable app list. On a first launch there is no metadata
+                // snapshot to paint from, so the user is watching a loading
+                // state — holding it back through a backoff to hand them a
+                // better list would be the wrong trade even once, and this
+                // way it is not a trade at all.
+                //
+                // Going through `scheduleReload` also means one recovery
+                // mechanism instead of two: it is serialized against every
+                // other reload, so a retry can never run beside a package
+                // event's enumeration — which is the concurrency that
+                // crashed the launcher in the first place — and a real
+                // event arriving mid-recovery simply wins the slot.
+                //
+                // The partial read above is deliberately not carried into
+                // it. The reload re-reads everything and merges across its
+                // own attempts, so carrying it would buy one attempt's worth
+                // of coverage in exchange for a "is this read still current"
+                // question at every entry point.
+                scheduleReload("coldStartCouldNotVouch")
             }
         }
         registerLauncherAppsCallback()
@@ -1111,6 +1156,12 @@ internal class LauncherViewModel(
     private data class ReloadRequest(
         val reason: String,
         val detail: Any?,
+        /**
+         * True only for a request [runReload] queued for itself after a
+         * degraded read. It is what separates continuing one event's
+         * recovery from starting a fresh one's — see [degradedReloadAttempts].
+         */
+        val isRecoveryRetry: Boolean = false,
     )
 
     /**
@@ -1137,10 +1188,48 @@ internal class LauncherViewModel(
     private suspend fun runReload(request: ReloadRequest) {
         val reason = request.reason
         val detail = request.detail
+        if (!request.isRecoveryRetry) {
+            // A real package event: start this event's recovery over rather
+            // than inheriting a previous one's spent budget or its partial
+            // reads, which describe a system state one or more events old.
+            degradedReloadAttempts = 0
+            degradedReloadInventories = emptyMap()
+        }
+        // Read what this event's earlier attempts established *before*
+        // handing off, so the merge below can run on the IO dispatcher
+        // without touching the field from another thread.
+        val carriedInventories = degradedReloadInventories
+        // The merge and the assembly happen inside this block, not after it.
+        // `assembleApps` sorts the whole list and runs the disambiguator,
+        // rename, badge, icon-override and calendar passes over it; doing
+        // that once `withContext` has returned would put all of it on the
+        // main thread, so a recovery retry on a device with a large app
+        // inventory would cost dropped frames.
         val loadResult = withContext(ioDispatcher) {
             traceBlock("installed_apps_reload") { trace ->
-                loadInstalledApps()
+                val readResult = loadInstalledApps()
                     .also { trace.incrementMetric("app_count", it.apps.size.toLong()) }
+                if (carriedInventories.isEmpty()) {
+                    // Nothing accumulated, so this read is already the whole
+                    // answer — the ordinary case, which assembles once inside
+                    // `loadInstalledApps` and not again here.
+                    return@traceBlock readResult
+                }
+                // Fold this attempt onto whatever earlier attempts for the
+                // same package event established. A reload that failed on
+                // the work profile and then failed on the personal one has,
+                // between the two, read both — and a complete inventory is a
+                // complete inventory however many transactions it took to
+                // assemble.
+                val mergedInventories = carriedInventories.mergedUnder(readResult)
+                readResult.copy(
+                    // Merged raw and re-assembled, never stitched from
+                    // finished lists — see [assembleApps].
+                    apps = assembleApps(mergedInventories, readResult.fallbackApps),
+                    inventories = mergedInventories,
+                    isDegraded = degradedAfterMerge(readResult, mergedInventories),
+                    isQuietModeUnknown = mergedInventories.values.any { inventory -> !inventory.isQuietModeKnown },
+                )
             }
         }
         // Ahead of the degraded return below, not after it: a degraded read
@@ -1150,19 +1239,61 @@ internal class LauncherViewModel(
         // reading this reload could not confirm.
         isQuietModeUnknown = loadResult.isQuietModeUnknown || loadResult.isDegraded
         if (loadResult.isDegraded) {
+            degradedReloadInventories = loadResult.inventories
+            degradedReloadAttempts++
             // Keep the list already on screen: it is the last one known to
             // be complete, and a truncated read is indistinguishable from
-            // every app it could not return having been uninstalled. The
-            // next package event reloads and the launcher converges then.
-            // Not silent — the list is stale until that happens, and this
-            // line is the only record of why.
+            // every app it could not return having been uninstalled. Not
+            // silent — the list is stale until a later attempt or the next
+            // package event fixes it, and this line is the only record of why.
             LauncherDebugLog.event(
-                "scheduleReload degraded: keeping previous list reason=%s detail=%s apps=%s",
+                "scheduleReload degraded: keeping previous list reason=%s detail=%s apps=%s attempt=%s",
                 safe(reason),
                 detail,
                 installedApps.size,
+                degradedReloadAttempts,
             )
+            if (degradedReloadAttempts >= MAX_DEGRADED_RELOAD_ATTEMPTS) {
+                // Bounded, because the reloads are serial now: without a
+                // bound this would spin a failing enumeration for as long as
+                // the failure lasts, one transaction at a time, against the
+                // buffer it is failing on.
+                LauncherDebugLog.event(
+                    "scheduleReload degraded: giving up after %s attempts, list is stale",
+                    degradedReloadAttempts,
+                )
+                return
+            }
+            if (coalescedReloadRequest != null) {
+                // A real package event is already queued and re-reads exactly
+                // the state this retry would. Let it, and let it start its own
+                // budget — but keep what this event's attempts read, since a
+                // profile that answered two attempts ago is still the freshest
+                // answer anyone has for it.
+                return
+            }
+            coalescedReloadRequest = ReloadRequest(
+                reason = "degradedReloadRetry",
+                detail = detail,
+                isRecoveryRetry = true,
+            )
+            // Before the drain loop picks that up, and longer each time:
+            // retrying the instant a transaction failed spends another one on
+            // the same exhausted buffer.
+            delay(DEGRADED_LOAD_RETRY_MILLIS * degradedReloadAttempts)
             return
+        }
+        // Complete, whether this attempt read it all or a merge did — but
+        // only reset the budget when the *paused state* is known too. The
+        // tail of this function keeps recovering for a guessed paused state
+        // alone, and resetting here would hand it a fresh budget on every
+        // pass: the bound would never be reached and a work profile whose
+        // quiet-mode read keeps failing would schedule a full app-list read
+        // every 300 ms forever, adding to the binder pressure this path
+        // exists to contain.
+        if (!isQuietModeUnknown) {
+            degradedReloadAttempts = 0
+            degradedReloadInventories = emptyMap()
         }
         if (coalescedReloadRequest != null) {
             // Another package event landed while this read was on the wire, so
@@ -1213,6 +1344,55 @@ internal class LauncherViewModel(
             detail,
             loadedApps.size,
         )
+        // Published — and still not finished, when the paused state was
+        // guessed. The apps are all here, which is why this ran at all, but
+        // the work dock's once-ever seed is gated on a *readable* paused
+        // state, so stopping at "the inventory is complete" leaves that seed
+        // waiting on some unrelated later event: exactly the staleness this
+        // change exists to end, arrived at from the other direction.
+        //
+        // Queued after the publish rather than before it, so nothing about
+        // the list waits on this, and so the superseded check above still
+        // sees the slot as this read left it — setting it earlier would make
+        // the read discard itself as its own successor.
+        //
+        // The merged inventories go back into the accumulator because
+        // replacing that profile is what fixes the flag: the guess is baked
+        // into its apps as well as into the flag, so only a later read of
+        // that same profile clears it.
+        if (!isQuietModeUnknown) return
+        // Incremented before the comparison, exactly as the degraded branch
+        // above does it, so `MAX_DEGRADED_RELOAD_ATTEMPTS` counts the same
+        // thing on both paths — reads spent on this event, the first one
+        // included. Comparing before incrementing would quietly buy one more
+        // read here than there.
+        degradedReloadAttempts++
+        if (degradedReloadAttempts < MAX_DEGRADED_RELOAD_ATTEMPTS && coalescedReloadRequest == null) {
+            degradedReloadInventories = loadResult.inventories
+            LauncherDebugLog.event(
+                "scheduleReload quiet mode guessed: published, retrying attempt=%s",
+                degradedReloadAttempts,
+            )
+            coalescedReloadRequest = ReloadRequest(
+                reason = "quietModeRetry",
+                detail = detail,
+                isRecoveryRetry = true,
+            )
+            delay(DEGRADED_LOAD_RETRY_MILLIS * degradedReloadAttempts)
+        } else {
+            // Out of budget, or a real event is already queued and re-reads
+            // this anyway. Either way this event's recovery is over, so the
+            // budget goes back — and the seed stays deferred rather than
+            // being taken on a guess, which is the conservative direction: a
+            // work dock seeded from a profile the user cannot open latches
+            // for good.
+            LauncherDebugLog.event(
+                "scheduleReload quiet mode still guessed after %s attempts, seed stays deferred",
+                degradedReloadAttempts,
+            )
+            degradedReloadAttempts = 0
+            degradedReloadInventories = emptyMap()
+        }
     }
 
     override fun onCleared() {
@@ -4890,6 +5070,46 @@ internal class LauncherViewModel(
          * "gone" is something the read genuinely learned.
          */
         val inventories: Map<UserHandle, ProfileInventory>,
+        /**
+         * The `PackageManager` fallback's apps, kept out of [inventories]
+         * deliberately. They are not a profile read and must not stand in
+         * for one: the fallback sees only the personal profile and only what
+         * `queryIntentActivities` returns, so letting it fill the personal
+         * entry would let a failed enumeration look recovered — the read
+         * would claim to have vouched for a profile it never managed to
+         * enumerate. Re-derived per attempt rather than merged across them,
+         * since it is a property of the attempt, not of a profile.
+         */
+        val fallbackApps: List<InstalledApp>,
+        /**
+         * Every profile this read listed, or null when listing them was
+         * itself what failed — a real distinction, since "no profile called
+         * X exists" and "we could not ask" want opposite answers when a
+         * later attempt merges an earlier one's reads.
+         *
+         * What it buys is a merge that needs no special case for a healthy
+         * read: keeping only the earlier entries whose profile is still
+         * listed drops one that has since been removed, and a healthy read
+         * — which by construction has an entry for every profile it listed
+         * — then overwrites every entry that survived. So the one
+         * expression that recovers a degraded read leaves a healthy one
+         * authoritative, with nothing to branch on.
+         */
+        val listedProfiles: Set<UserHandle>?,
+        /**
+         * Profiles that were listed but whose read failed — the degradation
+         * a later attempt can actually undo, by reading one of them. Held
+         * apart from [degradedBeyondProfiles] because merging attempts fixes
+         * exactly this and nothing else.
+         */
+        val unreadProfiles: Set<UserHandle>,
+        /**
+         * Degraded for a reason no merge of profile reads can repair: the
+         * profile listing itself failed, or the `PackageManager` fallback
+         * did. Retrying may still fix it — the next attempt re-reads all of
+         * it — but no accumulation of earlier reads will.
+         */
+        val degradedBeyondProfiles: Boolean,
         val isDegraded: Boolean,
         /**
          * True when a work profile's paused state could not be read, so
@@ -4920,6 +5140,16 @@ internal class LauncherViewModel(
         // Set when a profile's enumeration fails for a reason that is *not*
         // "this profile is going away" — see the RuntimeException catch below.
         var degraded = false
+        // Distinct from `degraded`: it says the profile *list* is unknown,
+        // not merely that some profile's apps are. See
+        // [AppLoadResult.listedProfiles].
+        var profilesUnreadable = false
+        // Listed but unread — the recoverable half of degradation.
+        val unreadProfiles = mutableSetOf<UserHandle>()
+        // The other half: tracked separately rather than inferred from
+        // `unreadProfiles` being empty, since a read can fail both ways at
+        // once and inferring would then let the fallback's failure vanish.
+        var degradedBeyondProfiles = false
         // Listing the profiles is itself a binder transaction, and it runs
         // before the per-profile guard below — so a full buffer or a dead
         // system service here used to escape the load coroutine and take the
@@ -4934,6 +5164,8 @@ internal class LauncherViewModel(
             // is as degraded as a read gets and the caller keeps the list it
             // already has.
             degraded = true
+            profilesUnreadable = true
+            degradedBeyondProfiles = true
             LauncherDebugLog.failure(exception, "loadInstalledApps profile discovery failed")
             emptyList()
         }.also { profiles -> LauncherDebugLog.trace("loadInstalledApps profiles=${profiles.size}") }
@@ -5092,6 +5324,7 @@ internal class LauncherViewModel(
                     // empty, and the difference is the whole point of the
                     // map. An empty inventory here would read as "every app
                     // in this profile is gone" to anything merging reads.
+                    unreadProfiles += user
                 }
             }
         // Every launcher activity of the personal profile, read through
@@ -5127,6 +5360,9 @@ internal class LauncherViewModel(
             throw exception
         } catch (exception: RuntimeException) {
             degraded = true
+            // No profile read can stand in for this one: it is the path
+            // taken precisely because the profile reads produced nothing.
+            degradedBeyondProfiles = true
             LauncherDebugLog.failure(exception, "loadInstalledApps packageManagerFallback failed")
             emptyList()
         }
@@ -5139,19 +5375,36 @@ internal class LauncherViewModel(
         // degraded flag, so a reload still declines to publish what it
         // returns — the flag says what the read knows, not where it came
         // from.
-        if (inventories.values.all { inventory -> inventory.apps.isEmpty() }) {
-            // The personal profile's inventory, whatever the profile read
-            // left there: this path exists precisely because that read
-            // produced nothing usable.
-            val fallbackApps = packageManagerApps()
-            if (fallbackApps.isNotEmpty()) {
-                inventories[personalUser] = ProfileInventory(
-                    apps = fallbackApps,
-                    isQuietModeKnown = personalUser !in quietModeUnknownFor,
-                )
-            }
+        val rawFallbackApps = if (inventories.values.all { inventory -> inventory.apps.isEmpty() }) {
+            packageManagerApps()
+        } else {
+            emptyList()
         }
-        val apps = assembleApps(inventories)
+        // Where the personal profile *was* enumerated and simply returned
+        // nothing, the fallback's apps are that profile's inventory rather
+        // than something standing beside it, so they are recorded as such.
+        // That is what keeps them under the ordinary merge rules: a later
+        // attempt that enumerates the personal profile replaces them like
+        // any other profile read, and one that cannot read it leaves them
+        // standing. Held apart from the inventories instead, they needed a
+        // rule of their own for "does this still apply", and that rule was
+        // wrong in three different directions before this — an empty list
+        // cannot say whether the profile was unread, read empty, or never
+        // asked.
+        //
+        // When the personal read *failed*, it stays out: the profile is
+        // unknown, and the fallback vouching for it would let a failed
+        // enumeration look recovered. Such a read is degraded, so it never
+        // publishes a merged result on its own anyway.
+        val personalWasEnumerated = personalUser in inventories
+        if (rawFallbackApps.isNotEmpty() && personalWasEnumerated) {
+            inventories[personalUser] = ProfileInventory(
+                apps = rawFallbackApps,
+                isQuietModeKnown = personalUser !in quietModeUnknownFor,
+            )
+        }
+        val fallbackApps = if (personalWasEnumerated) emptyList() else rawFallbackApps
+        val apps = assembleApps(inventories, fallbackApps)
         if (degraded) {
             LauncherDebugLog.event(
                 "loadInstalledApps degraded: profile enumeration incomplete, apps=%s",
@@ -5172,9 +5425,53 @@ internal class LauncherViewModel(
         return AppLoadResult(
             apps = apps,
             inventories = inventories,
+            fallbackApps = fallbackApps,
+            listedProfiles = if (profilesUnreadable) null else profiles.toSet(),
+            unreadProfiles = unreadProfiles,
+            degradedBeyondProfiles = degradedBeyondProfiles,
             isDegraded = degraded,
             isQuietModeUnknown = inventories.values.any { inventory -> !inventory.isQuietModeKnown },
         )
+    }
+
+    /**
+     * Whether [read] still leaves something unknown once [merged] — what
+     * every attempt so far established between them — is taken into account.
+     *
+     * Only the recoverable half clears: a profile this attempt failed on but
+     * an earlier one read is no longer unknown. Degradation beyond the
+     * profiles (a failed listing, a failed `PackageManager` fallback) belongs
+     * to the latest attempt alone and no accumulation of earlier reads
+     * touches it.
+     */
+    private fun degradedAfterMerge(
+        read: AppLoadResult,
+        merged: Map<UserHandle, ProfileInventory>,
+    ): Boolean = read.degradedBeyondProfiles || read.unreadProfiles.any { user -> user !in merged }
+
+    /**
+     * Fold one attempt's reads onto what earlier attempts established.
+     *
+     * The whole of recovery's bookkeeping: an attempt replaces the profiles
+     * it vouched for and leaves the rest alone, so what comes out is the
+     * freshest answer available per profile rather than the freshest whole
+     * read. An entry for a profile this attempt listed and did *not* read is
+     * kept — that is the recovery — while one for a profile that has since
+     * left the listing is dropped, so a removed work profile's apps do not
+     * outlive it.
+     *
+     * A healthy attempt needs no special case: it has an entry for every
+     * profile it listed, so every survivor of the filter is overwritten and
+     * the result is exactly what it read.
+     */
+    private fun Map<UserHandle, ProfileInventory>.mergedUnder(
+        attempt: AppLoadResult,
+    ): Map<UserHandle, ProfileInventory> {
+        val listed = attempt.listedProfiles
+        // Null means the listing itself failed, so this attempt is in no
+        // position to say a profile is gone; keep everything.
+        val kept = if (listed == null) this else filterKeys { user -> user in listed }
+        return kept + attempt.inventories
     }
 
     /**
@@ -5188,9 +5485,15 @@ internal class LauncherViewModel(
      * from an earlier attempt is disambiguated against the current read
      * rather than carrying badges computed without it.
      */
-    private fun assembleApps(inventories: Map<UserHandle, ProfileInventory>): List<InstalledApp> =
-        inventories.values
-            .flatMap { inventory -> inventory.apps }
+    private fun assembleApps(
+        inventories: Map<UserHandle, ProfileInventory>,
+        fallbackApps: List<InstalledApp>,
+    ): List<InstalledApp> =
+        // Profile reads first, so a component read through `LauncherApps`
+        // wins the dedup below over the same component read through
+        // `PackageManager` (the former launches through `LauncherApps`,
+        // which is the path that works across profiles).
+        (inventories.values.flatMap { inventory -> inventory.apps } + fallbackApps)
             // Keying dedup on `id` (userHandle.hashCode():componentName) lets distinct
             // apps that happen to share a display name survive — e.g. Chase US
             // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
@@ -5684,6 +5987,24 @@ internal fun dynamicCalendarIconToken(packageName: String, baseToken: String?, t
  */
 internal fun isDynamicCalendarIconId(iconCacheId: String): Boolean =
     DYNAMIC_CALENDAR_PACKAGES.any { pkg -> iconCacheId.contains("$pkg/") }
+
+/**
+ * How many reads a reload spends on one package event before giving up and
+ * leaving the list stale until the next one — **counting the read that
+ * first came back degraded**, so three here is that read plus two retries.
+ *
+ * Three because this is the only recovery budget there is: a degraded cold
+ * start hands its recovery to a reload rather than looping, so anything
+ * spent here is what stands between a transient binder failure and a list
+ * that stays stale until the user happens to install something. It stays
+ * bounded because a reload always has a list already on screen — the cost
+ * of stopping is staleness, not a wrong list — and because a package storm
+ * brings its own next event along to try again.
+ */
+private const val MAX_DEGRADED_RELOAD_ATTEMPTS = 3
+
+/** Multiplied by the attempt number, so each retry waits longer. */
+private const val DEGRADED_LOAD_RETRY_MILLIS = 300L
 
 private const val SETTINGS_QUERY = "settings"
 private const val AGENDA_LOOKAHEAD_DAYS = 7L

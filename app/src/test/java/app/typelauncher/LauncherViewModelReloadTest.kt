@@ -10,10 +10,12 @@ import android.net.Uri
 import android.os.BadParcelableException
 import android.os.Looper
 import android.os.UserHandle
+import java.time.Duration
 import androidx.test.core.app.ApplicationProvider
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -253,7 +255,7 @@ class LauncherViewModelReloadTest {
             }
             emptyList()
         }
-        idle()
+        idleThroughRecovery()
         val beforeBurst = viewModel.uiState.value.filteredApps.map { it.name }
         assertTrue("Cold start must publish before the burst", beforeBurst.contains("Mail"))
 
@@ -263,21 +265,21 @@ class LauncherViewModelReloadTest {
         // the interim read this reload is about to take will not contain it.
         removeApp("com.example.mail")
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
         assertTrue(
             "The first reload's enumeration must reach the gate",
             firstEnumerationStarted.await(GATE_TIMEOUT_SECONDS, TimeUnit.SECONDS),
         )
         // The add half, queued behind it — and it will read degraded.
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
         failLater.set(true)
         releaseFirstEnumeration.countDown()
 
         var drained = false
         val deadline = System.nanoTime() + GATE_TIMEOUT_SECONDS * NANOS_PER_SECOND
         while (System.nanoTime() < deadline) {
-            idle()
+            idleThroughRecovery()
             if (!viewModel.isReloadInFlight && loadDispatcher.awaitIdle(DRAIN_POLL_MILLIS)) {
                 drained = true
                 break
@@ -306,13 +308,13 @@ class LauncherViewModelReloadTest {
             }
             launcherApps.getActivityList(null, user)
         }
-        idle()
+        idleThroughRecovery()
         val loadedNames = viewModel.uiState.value.filteredApps.map { it.name }
         assertTrue("Cold-start load surfaces the seeded app", loadedNames.contains("Mail"))
 
         failEnumeration = true
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
 
         assertEquals(
             "A degraded reload publishes nothing and leaves the list it had",
@@ -325,7 +327,7 @@ class LauncherViewModelReloadTest {
         failEnumeration = false
         seedApp("Chat", "com.example.chat")
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
 
         assertTrue(
             "The next healthy reload picks the list back up",
@@ -403,13 +405,13 @@ class LauncherViewModelReloadTest {
             }
             launcherApps.getActivityList(null, user)
         }
-        idle()
+        idleThroughRecovery()
 
         failEnumeration = true
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
         viewModel.setWorkDockEnabled(true)
-        idle()
+        idleThroughRecovery()
 
         assertTrue(
             "enabling the work dock after a degraded reload must not latch a seed",
@@ -419,7 +421,7 @@ class LauncherViewModelReloadTest {
         // Deferred, not lost: the next read that answers takes the seed.
         failEnumeration = false
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
 
         assertTrue(
             "the next read that answers seeds the work dock",
@@ -459,7 +461,7 @@ class LauncherViewModelReloadTest {
         var drained = false
         val deadline = System.nanoTime() + GATE_TIMEOUT_SECONDS * NANOS_PER_SECOND
         while (System.nanoTime() < deadline) {
-            idle()
+            idleThroughRecovery()
             if (viewModel.uiState.value.isFreshAppLoadComplete &&
                 !viewModel.isReloadInFlight &&
                 loadDispatcher.awaitIdle(DRAIN_POLL_MILLIS)
@@ -492,14 +494,14 @@ class LauncherViewModelReloadTest {
         val viewModel = newViewModel { _, _ ->
             throw BadParcelableException("Failure retrieving array; only received 332 of 490")
         }
-        idle()
+        idleThroughRecovery()
         assertTrue(
             "The degraded cold start must still publish",
             viewModel.uiState.value.isFreshAppLoadComplete,
         )
 
         viewModel.setAppIconOverride("10:com.example.work/.Main", Uri.parse("content://example/icon.png"))
-        idle()
+        idleThroughRecovery()
 
         assertTrue(
             "A pick after a degraded cold start must be queued: ${LauncherDebugLog.snapshot()}",
@@ -527,18 +529,18 @@ class LauncherViewModelReloadTest {
             }
             launcherApps.getActivityList(null, user)
         }
-        idle()
+        idleThroughRecovery()
 
         viewModel.setAppIconOverride("10:com.example.first/.Main", Uri.parse("content://example/one.png"))
         viewModel.setAppIconOverride("10:com.example.second/.Main", Uri.parse("content://example/two.png"))
-        idle()
+        idleThroughRecovery()
 
         // The first read that answers drains the queue. Neither id resolves
         // against it, so each is reported — one line per pick that survived.
         LauncherDebugLog.resetForTest()
         failEnumeration = false
         viewModel.reloadInstalledAppsForTest()
-        idle()
+        idleThroughRecovery()
 
         val drained = LauncherDebugLog.snapshot().filter { it.contains("drained dropped") }
         assertEquals(
@@ -559,7 +561,7 @@ class LauncherViewModelReloadTest {
         val viewModel = newViewModel { _, _ ->
             throw BadParcelableException("Failure retrieving array; only received 332 of 490")
         }
-        idle()
+        idleThroughRecovery()
 
         assertTrue(
             "Cold start completes even when every enumeration fails",
@@ -586,11 +588,11 @@ class LauncherViewModelReloadTest {
             // *non-empty* list: an empty one defers the trim on its own and
             // would make the assertion below pass for the wrong reason.
             newViewModel()
-            idle()
+            idleThroughRecovery()
 
             ThrowingPackageInfoShadow.failPackageInfo = true
             val viewModel = newViewModel()
-            idle()
+            idleThroughRecovery()
             assertTrue(
                 "The degraded cold start must still publish",
                 viewModel.uiState.value.isFreshAppLoadComplete,
@@ -612,7 +614,7 @@ class LauncherViewModelReloadTest {
             ThrowingPackageInfoShadow.failPackageInfo = false
             LauncherDebugLog.resetForTest()
             viewModel.reloadInstalledAppsForTest()
-            idle()
+            idleThroughRecovery()
             assertTrue(
                 "The healthy reload must retry the deferred trim: ${LauncherDebugLog.snapshot()}",
                 LauncherDebugLog.snapshot().any { it.contains("trimIconCacheToPriority priority=") },
@@ -634,7 +636,7 @@ class LauncherViewModelReloadTest {
         try {
             ThrowingPackageInfoShadow.failPackageInfo = true
             val viewModel = newViewModel()
-            idle()
+            idleThroughRecovery()
             assertTrue(
                 "The degraded cold start must still complete",
                 viewModel.uiState.value.isFreshAppLoadComplete,
@@ -647,7 +649,7 @@ class LauncherViewModelReloadTest {
             // The binder recovers and a package event lands.
             ThrowingPackageInfoShadow.failPackageInfo = false
             viewModel.reloadInstalledAppsForTest()
-            idle()
+            idleThroughRecovery()
 
             assertTrue(
                 "The first healthy reload must seed the dock the degraded load could not",
@@ -670,7 +672,7 @@ class LauncherViewModelReloadTest {
         try {
             // A first, healthy launch, so there is a metadata cache to lose.
             val healthy = newViewModel()
-            idle()
+            idleThroughRecovery()
             assertTrue(
                 "The first launch must read and cache the app list",
                 healthy.uiState.value.filteredApps.map { it.name }.contains("Mail"),
@@ -678,7 +680,7 @@ class LauncherViewModelReloadTest {
 
             ThrowingPackageInfoShadow.failPackageInfo = true
             val viewModel = newViewModel()
-            idle()
+            idleThroughRecovery()
 
             assertTrue(
                 "Cold start must complete rather than crash out of the load",
@@ -695,6 +697,79 @@ class LauncherViewModelReloadTest {
         } finally {
             ThrowingPackageInfoShadow.failPackageInfo = false
         }
+    }
+
+    @Test
+    fun aDegradedReloadRetriesItselfAndPublishesWhatTheRetryReads() {
+        // A degraded reload kept the list and waited for the *next* package
+        // event. On a quiet device that can be hours away, so a burst that
+        // failed the one reload it fired left the launcher stale until
+        // somebody happened to install something. It tries again now.
+        seedApp("Mail", "com.example.mail")
+        val failNextEnumeration = AtomicBoolean(false)
+        val viewModel = newViewModel { launcherApps, user ->
+            if (failNextEnumeration.compareAndSet(true, false)) {
+                throw BadParcelableException("Failure retrieving array; only received 332 of 490")
+            }
+            launcherApps.getActivityList(null, user)
+        }
+        idle()
+        assertTrue(
+            "Cold start must publish before the reload under test",
+            viewModel.uiState.value.filteredApps.map { it.name }.contains("Mail"),
+        )
+
+        seedApp("Chat", "com.example.chat")
+        failNextEnumeration.set(true)
+        viewModel.reloadInstalledAppsForTest()
+        idle()
+        assertFalse(
+            "The degraded read itself must still keep the previous list",
+            viewModel.uiState.value.filteredApps.map { it.name }.contains("Chat"),
+        )
+
+        idleThroughRecovery()
+        assertTrue(
+            "The retry must publish the app the degraded read could not",
+            viewModel.uiState.value.filteredApps.map { it.name }.contains("Chat"),
+        )
+    }
+
+    @Test
+    fun aDegradedReloadStopsRetryingOnceItsBudgetIsSpent() {
+        // The bound matters as much as the retry: reloads are serial, so an
+        // unbounded one would spin a failing enumeration against the buffer
+        // it is failing on for as long as the failure lasts.
+        seedApp("Mail", "com.example.mail")
+        val failEnumeration = AtomicBoolean(false)
+        val failedEnumerations = AtomicInteger(0)
+        val viewModel = newViewModel { launcherApps, user ->
+            if (failEnumeration.get()) {
+                failedEnumerations.incrementAndGet()
+                throw BadParcelableException("Failure retrieving array; only received 332 of 490")
+            }
+            launcherApps.getActivityList(null, user)
+        }
+        idle()
+
+        failEnumeration.set(true)
+        viewModel.reloadInstalledAppsForTest()
+        idleThroughRecovery()
+
+        assertEquals(
+            "A reload retries within a bound rather than spinning on a failing transaction",
+            // The read that came back degraded, plus its two retries.
+            3,
+            failedEnumerations.get(),
+        )
+        assertFalse(
+            "Giving up must leave nothing queued behind it",
+            viewModel.isReloadInFlight,
+        )
+        assertTrue(
+            "The list the launcher already had stands",
+            viewModel.uiState.value.filteredApps.map { it.name }.contains("Mail"),
+        )
     }
 
     private fun newViewModel(
@@ -782,6 +857,11 @@ class LauncherViewModelReloadTest {
 
     private companion object {
         /** Generous: it bounds a regression's hang, it isn't a timing assumption. */
+        // Past a whole recovery — a degraded read plus two retries, so
+        // 300ms + 600ms of backoff — with slack, so a test drains every
+        // attempt rather than a subset and then asserts on a half-finished
+        // recovery.
+        const val RECOVERY_DRAIN_MILLIS = 2_000L
         const val GATE_TIMEOUT_SECONDS = 10L
 
         /**
@@ -799,5 +879,15 @@ class LauncherViewModelReloadTest {
 
     private fun idle() {
         shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    /**
+     * Drains the main looper, advancing past the backoff a degraded read now
+     * schedules its retry behind. Robolectric fast-forwards virtual time
+     * rather than sleeping, so this stays deterministic: a clock the test
+     * advances, not a wait it hopes is long enough.
+     */
+    private fun idleThroughRecovery() {
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(RECOVERY_DRAIN_MILLIS))
     }
 }
