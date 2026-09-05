@@ -157,6 +157,21 @@
       both: the guard records whether it dropped a press and its offset from
       focus.
 
+- [ ] **Kept Material Icons in the Licenses page after vendoring them**
+      (autopilot, 2026-09-05, from a review finding on PR #730). Dropping
+      `material-icons-extended` takes both icon modules off the release runtime
+      classpath, so `exportBundledLicenses` — which filters the attribution list
+      by that classpath — removed *all* Material-icons attribution while the app
+      went on shipping the artwork. `exportBundledLicenses` now re-adds one
+      Apache-2.0 entry for the vendored vectors, credited to the Android Open
+      Source Project. **Alternative:** let the rows go, on the reading that a
+      copied vector needs no attribution once the dependency is gone. **Not
+      taken**, because it is the irreversible direction: a published release
+      that under-attributes cannot be unpublished, and re-adding a row later
+      costs nothing. **Reversible** by deleting the `vendored` list in
+      `app/build.gradle.kts` and regenerating. **Flagged for the maintainer**:
+      this is a licensing judgment, not an engineering one, and it is theirs.
+
 ## CI
 
 ### Decisions needing review
@@ -776,7 +791,7 @@
       touches how `isQuietMode` reaches the app list, so it wants its own PR
       and its own tests rather than a fourth round on #727.
 
-- [ ] **Drop `material-icons-extended` and vendor the 22 icons the app uses.**
+- [x] **Drop `material-icons-extended` and vendor the 22 icons the app uses.**
       The library ships several thousand `ImageVector`s; `app/src/main`
       references 22. R8 strips the rest from the release APK, so the shipped
       size is unaffected — but the debug APK, which never minifies, measured
@@ -813,6 +828,14 @@
       `-core` is the shape the siblings already settled on — which is an
       argument for checking how many of the 22 it covers before vendoring, even
       though vendoring all of them stays the more robust end state.
+
+      Done: `LauncherIcons` holds all 22, read out of the library itself by a
+      throwaway generator rather than transcribed, with helpers reproducing the
+      library's own `materialIcon` / `materialPath` defaults. Verified by
+      recording the three icon-dense screenshot classes on clean trees either
+      side of the change: 106 of 114 snapshots came back byte-identical, and
+      the 8 that moved differ only inside a 36-pixel row — the build cue, which
+      carries the commit SHA and cannot match across two commits.
 
 ## Not planned
 

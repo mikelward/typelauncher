@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -91,7 +89,7 @@ private fun PermissionCard(onRequestCalendarPermission: () -> Unit) {
 private fun EmptyAgendaCard() {
     SectionCard(Modifier.testTag(AGENDA_EMPTY_TAG)) {
         EmptyState(
-            icon = Icons.Filled.EventBusy,
+            icon = LauncherIcons.EventBusy,
             title = stringResource(R.string.agenda_empty_title),
             body = stringResource(R.string.agenda_empty_state),
             modifier = Modifier.fillMaxWidth(),

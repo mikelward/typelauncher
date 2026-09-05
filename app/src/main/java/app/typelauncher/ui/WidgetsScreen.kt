@@ -32,13 +32,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -244,7 +237,7 @@ private fun WidgetPickerCard(
             }
         } else if (availableWidgets.isEmpty()) {
             EmptyState(
-                icon = Icons.Filled.Widgets,
+                icon = LauncherIcons.Widgets,
                 title = stringResource(R.string.widgets_picker_empty_title),
                 body = stringResource(R.string.widgets_picker_empty_body),
                 modifier = Modifier.fillMaxWidth(),
@@ -305,7 +298,7 @@ private fun WidgetPickerCard(
                 }
             if (filteredGroups.isEmpty()) {
                 EmptyState(
-                    icon = Icons.Filled.Search,
+                    icon = LauncherIcons.Search,
                     title = stringResource(R.string.widgets_picker_no_matches_title),
                     body = stringResource(R.string.widgets_picker_no_matches_body),
                     modifier = Modifier.fillMaxWidth(),
@@ -402,7 +395,7 @@ private fun WidgetAppSection(
                     )
                 }
                 Icon(
-                    imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    imageVector = if (isExpanded) LauncherIcons.ExpandLess else LauncherIcons.ExpandMore,
                     contentDescription = if (isExpanded) {
                         stringResource(R.string.widgets_picker_collapse_app)
                     } else {
@@ -564,7 +557,7 @@ private fun WidgetPreview(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Filled.Widgets,
+                    LauncherIcons.Widgets,
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
                     tint = MaterialTheme.colorScheme.primary,
@@ -591,7 +584,7 @@ private fun WidgetAppIcon(appIcon: Drawable?) {
                 )
             } else {
                 Icon(
-                    Icons.Filled.Widgets,
+                    LauncherIcons.Widgets,
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = MaterialTheme.colorScheme.primary,
@@ -617,7 +610,7 @@ private fun WidgetIcon(provider: WidgetProvider) {
             )
         } else {
             Icon(
-                Icons.Filled.Widgets,
+                LauncherIcons.Widgets,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
                 tint = MaterialTheme.colorScheme.primary,
@@ -645,7 +638,7 @@ private fun AddWidgetCard(testTag: String, onAddWidget: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Filled.Add,
+                LauncherIcons.Add,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary,
@@ -1013,7 +1006,7 @@ private fun WidgetResizeHandle(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            Icons.Filled.DragHandle,
+            LauncherIcons.DragHandle,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

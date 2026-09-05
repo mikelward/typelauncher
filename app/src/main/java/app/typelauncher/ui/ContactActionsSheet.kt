@@ -15,13 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -179,7 +172,7 @@ private fun ContactActionsHeader(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = LauncherIcons.ArrowBack,
                     contentDescription = stringResource(R.string.contact_actions_choose_number),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
@@ -355,7 +348,7 @@ private fun ContactSheetRow(
         }
         if (trailingChevron) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = LauncherIcons.KeyboardArrowRight,
                 contentDescription = null,
                 tint = secondaryColor,
             )
@@ -371,7 +364,7 @@ private fun AppOrGlyphIcon(iconPackageName: String?, glyph: ContactChannelGlyph?
     // which has neither an app icon nor a channel glyph.
     val glyphIcon = glyph?.toIcon()
     if (iconPackageName == null) {
-        GlyphPlate(glyphIcon ?: Icons.Filled.Person)
+        GlyphPlate(glyphIcon ?: LauncherIcons.Person)
         return
     }
     // A channel with an app icon (a real integration, or a built-in channel's
@@ -460,8 +453,8 @@ private fun ContactAvatar(contact: ContactResult) {
 
 /** The built-in glyph for a channel, and the neutral fallback for app channels whose icon fails to load. */
 private fun ContactChannelGlyph?.toIcon(): ImageVector = when (this) {
-    ContactChannelGlyph.Call -> Icons.Filled.Call
-    ContactChannelGlyph.Message -> Icons.AutoMirrored.Filled.Message
-    ContactChannelGlyph.Email -> Icons.Filled.Email
-    null -> Icons.Filled.Person
+    ContactChannelGlyph.Call -> LauncherIcons.Call
+    ContactChannelGlyph.Message -> LauncherIcons.Message
+    ContactChannelGlyph.Email -> LauncherIcons.Email
+    null -> LauncherIcons.Person
 }
