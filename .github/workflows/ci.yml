@@ -186,7 +186,7 @@ jobs:
     environment: lanes
     permissions: {}
     steps:
-      - uses: mikelward/lanes@main
+      - uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
         with:
           mode: init
           app-id: ${{ secrets.LANES_APP_ID }}
@@ -205,11 +205,26 @@ jobs:
     name: Classify the diff
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `statuses: read` and the App credential are for the generated lane: a
+    # screenshot-refresh push carries the previous head's `lanes` status
+    # forward, and the engine reads that status back and accepts it only
+    # when the App itself posted it -- so this job needs the credential to
+    # know the App's login, and the environment that holds it (see
+    # .github/lanes.conf's `generated` rule and mikelward/lanes's README,
+    # "Carrying a verdict across generated files"). The engine is still the
+    # only thing this job runs; the checkout is data it reads.
+    environment: lanes
     permissions:
       contents: read
       pull-requests: read
+      statuses: read
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
+      # True when the run's event pushed only re-recorded screenshots onto a
+      # head the `lanes` status already vouched for -- the sync-screenshots
+      # commit below -- so the heavy jobs skip instead of redoing, on a head
+      # that differs only by their own output, everything they just did.
+      generated_only: ${{ steps.classify.outputs.generated_only }}
       # Feeds `finalize`'s dispatch-binding check below — a PR-bound
       # dispatch's gate needs the base as it stood before the heavy jobs
       # ran, and this is the only place that moment is ever observed.
@@ -229,18 +244,24 @@ jobs:
           # already correct.
           ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
           persist-credentials: false
+      # Piloting mikelward/lanes#28 (the generated lane) from its branch,
+      # here and in `init` and `finalize` so all three run one revision;
+      # back to @main once it merges. This repo is the pilot because its
+      # CI is free and it has the screenshot-refresh push the lane is for.
       - name: Classify
         id: classify
-        uses: mikelward/lanes@main
+        uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
         with:
           mode: classify
           pr: ${{ github.event.pull_request.number || inputs.pr }}
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
 
   build:
     name: Build and unit test
     runs-on: ubuntu-latest
     needs: classify
-    if: needs.classify.outputs.docs_only != 'true'
+    if: needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.generated_only != 'true'
     # Without this the job inherits GitHub's 6-hour default, so a unit test
     # that deadlocks (a latch that never releases, an await with no timeout)
     # burns hours before the runner is reclaimed instead of failing fast. The
@@ -550,7 +571,7 @@ jobs:
     name: Keyboard screenshot unit tests
     runs-on: ubuntu-latest
     needs: classify
-    if: needs.classify.outputs.docs_only != 'true'
+    if: needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.generated_only != 'true'
     timeout-minutes: 30
     # Read-only, deliberately: this job executes the PR's own Gradle build
     # and test code end to end, and under pull_request_target that code
@@ -785,6 +806,47 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+  # The heavy jobs' verdict on THIS head, published as `lanes-attest` before
+  # sync-screenshots pushes anything -- and the whole reason it exists. The
+  # push that job makes starts the next run, whose `classify` carries this
+  # head's verdict onto the refreshed head only if it is already published,
+  # and that run cancels this one (per-PR `cancel-in-progress`), so a
+  # verdict queued behind the push never lands. `finalize` -- the required
+  # `lanes` -- still waits for the push, on purpose: a green required check
+  # ahead of the push lets a merge land between the two with the refreshed
+  # PNGs never committed (Codex on #720, both halves). Same inputs as
+  # `finalize` minus sync-screenshots' result, which does not exist yet.
+  attest:
+    name: Attest the heavy jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [init, classify, build, connected-tests]
+    if: ${{ !cancelled() }}
+    environment: lanes
+    permissions:
+      pull-requests: read
+      contents: read
+      statuses: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          # The synthetic merge, as `classify` and `finalize` check out.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
+          persist-credentials: false
+      - name: attest
+        uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
+        with:
+          mode: attest
+          pr: ${{ github.event.pull_request.number || inputs.pr }}
+          classify-result: ${{ needs.classify.result }}
+          results: >-
+            build=${{ needs.build.result }}
+            connected-tests=${{ needs.connected-tests.result }}
+          base-sha: ${{ needs.classify.outputs.base_sha }}
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
+
   # Pushes any drift in `connected-tests`' regenerated screenshots back to a
   # same-repo PR branch. Delegated to mikelward/ci-commit-artifact's reusable
   # workflow rather than an inline job here (TODO.md tracked this as blocked
@@ -804,16 +866,24 @@ jobs:
   # bump PR.
   sync-screenshots:
     name: Sync recorded screenshots
-    needs: [classify, connected-tests]
+    # After `attest`, on purpose: the push this job makes starts the next
+    # run, whose `classify` carries THIS head's verdict onto the refreshed
+    # head only if it is already published -- see `attest` above.
+    # `!cancelled()` rather than a bare condition: `attest` may have refused
+    # the verdict (a base that moved mid-run), and the drift is still worth
+    # committing then -- the next run simply takes the full lane, as it
+    # would for any head with nothing to carry.
+    needs: [classify, connected-tests, attest]
     # Same-repo PRs only — fork branches aren't pushable with this token,
     # and pushing to main directly from CI is not this job's purpose. Runs
     # only when connected-tests actually succeeded (not skipped, not
     # failed): a docs-only PR has nothing to sync, and a failing suite must
     # not commit bogus images.
-    if: |
+    if: >-
+      ${{ !cancelled() &&
       needs.connected-tests.result == 'success' &&
       github.event_name == 'pull_request_target' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository }}
     uses: mikelward/ci-commit-artifact/.github/workflows/commit-artifact.yml@main
     permissions:
       contents: write
@@ -879,8 +949,16 @@ jobs:
   post-screenshot-diff:
     name: Post screenshot diffs as a PR comment
     runs-on: ubuntu-latest
-    needs: [sync-screenshots]
-    if: needs.sync-screenshots.result == 'success'
+    needs: [classify, sync-screenshots]
+    # Two ways in. After a sync that pushed (or found nothing to push), as
+    # before -- and on the generated lane, where the run this job would have
+    # posted from was canceled by the very push it made: the refreshed head
+    # is this run's own event head, so the diff is posted from here instead
+    # (Codex on #720). `!cancelled()` because sync-screenshots is skipped on
+    # that lane, and a skipped `needs` would otherwise skip this too.
+    if: >-
+      ${{ !cancelled() &&
+      (needs.sync-screenshots.result == 'success' || needs.classify.outputs.generated_only == 'true') }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -890,7 +968,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
-          ref: ${{ needs.sync-screenshots.outputs.commit-sha }}
+          # The hub's own account of the pushed head, or -- on the generated
+          # lane, where no sync ran -- the head this run was started for,
+          # which IS the refreshed commit.
+          ref: ${{ needs.sync-screenshots.outputs.commit-sha || github.event.pull_request.head.sha }}
           persist-credentials: false
 
       - name: Post screenshot diffs as a PR comment
@@ -1005,6 +1086,11 @@ jobs:
     name: Publish the lanes status
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Still after `sync-screenshots`, and that is load-bearing: this is the
+    # required check, so it must not go green until the refreshed PNGs are
+    # on the branch, or a merge could land between the verdict and the
+    # push. The verdict the NEXT run carries is `attest`'s, published
+    # before the push -- see that job.
     needs: [init, classify, build, connected-tests, sync-screenshots]
     if: ${{ !cancelled() }}
     environment: lanes
@@ -1013,10 +1099,12 @@ jobs:
     # never this job's own GITHUB_TOKEN. `contents: read` is for the
     # checkout below (`mode: gate` reads `.github/lanes.conf` from disk);
     # `pull-requests: read` is for the diff `mode: gate` re-derives the
-    # verdict from.
+    # verdict from; `statuses: read` is for the previous head's status a
+    # generated-only skip carries forward (see `classify`).
     permissions:
       pull-requests: read
       contents: read
+      statuses: read
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
@@ -1028,7 +1116,7 @@ jobs:
           ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
           persist-credentials: false
       - name: gate
-        uses: mikelward/lanes@main
+        uses: mikelward/lanes@claude/auto-pilot-simmo-c7tx2l
         with:
           mode: gate
           pr: ${{ github.event.pull_request.number || inputs.pr }}
@@ -1039,16 +1127,18 @@ jobs:
           # uniform all-success or all-skipped `results`, so its 'skipped'
           # has to read as whichever of those this run actually is. On the
           # docs lane build/connected-tests are 'skipped' too, so passing
-          # sync-screenshots' result through unchanged keeps them uniform.
-          # On the code lane build/connected-tests are 'success', so an
-          # intentional sync-screenshots skip is translated to 'success' —
-          # every skip reason it has there is non-blocking (see its own
-          # `if:`) — while a real 'failure' or 'cancelled' passes through
-          # untouched and correctly withholds the green status.
+          # sync-screenshots' result through unchanged keeps them uniform;
+          # the generated lane (a screenshot-refresh push) skips them the
+          # same way and reads the same. On the code lane
+          # build/connected-tests are 'success', so an intentional
+          # sync-screenshots skip is translated to 'success' — every skip
+          # reason it has there is non-blocking (see its own `if:`) — while
+          # a real 'failure' or 'cancelled' passes through untouched and
+          # correctly withholds the green status.
           results: >-
             build=${{ needs.build.result }}
             connected-tests=${{ needs.connected-tests.result }}
-            sync-screenshots=${{ needs.classify.outputs.docs_only == 'true' && needs.sync-screenshots.result || (needs.sync-screenshots.result == 'skipped' && 'success' || needs.sync-screenshots.result) }}
+            sync-screenshots=${{ (needs.classify.outputs.docs_only == 'true' || needs.classify.outputs.generated_only == 'true') && needs.sync-screenshots.result || (needs.sync-screenshots.result == 'skipped' && 'success' || needs.sync-screenshots.result) }}
           base-sha: ${{ needs.classify.outputs.base_sha }}
           app-id: ${{ secrets.LANES_APP_ID }}
           app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
