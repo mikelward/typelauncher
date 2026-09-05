@@ -4847,6 +4847,28 @@ internal class LauncherViewModel(
     }
 
     /**
+     * One profile's read, as [loadInstalledApps] found it.
+     *
+     * [apps] is *raw* — before the disambiguator, rename, badge, icon and
+     * dynamic-calendar passes, which are cross-profile and therefore have to
+     * run over the assembled list rather than over each profile separately.
+     * Two same-named apps in different profiles only earn their badges when
+     * the pass sees both, so anything that combines inventories has to
+     * combine these and re-run the passes, never stitch finished lists
+     * together.
+     */
+    private data class ProfileInventory(
+        val apps: List<InstalledApp>,
+        /**
+         * False when this profile's paused state could not be read, so its
+         * apps carry a *guessed* `isQuietMode = false`. Per profile rather
+         * than per load: the work dock's seed is gated on it, and one
+         * profile's unreadable flag says nothing about another's.
+         */
+        val isQuietModeKnown: Boolean,
+    )
+
+    /**
      * The outcome of one [loadInstalledApps] call: the apps it read, and
      * whether any profile's enumeration failed at the binder level.
      *
@@ -4858,6 +4880,16 @@ internal class LauncherViewModel(
      */
     private data class AppLoadResult(
         val apps: List<InstalledApp>,
+        /**
+         * What this read vouches for, per profile. A profile whose
+         * enumeration *failed* has no entry at all: absence is the whole of
+         * "we did not learn anything about this profile", so there is no
+         * flag to forget to check and no empty list to mistake for "this
+         * profile has no apps". A profile that was *refused* — one leaving
+         * the profile group — does get an entry, an empty one, because
+         * "gone" is something the read genuinely learned.
+         */
+        val inventories: Map<UserHandle, ProfileInventory>,
         val isDegraded: Boolean,
         /**
          * True when a work profile's paused state could not be read, so
@@ -4918,7 +4950,7 @@ internal class LauncherViewModel(
         // still readable, and only the paused-badge state is guessed, so
         // withholding the whole list over it would cost far more than it
         // saves. The next reload resolves it.
-        var quietModeUnknown = false
+        val quietModeUnknownFor = mutableSetOf<UserHandle>()
         val quietByUser: Map<UserHandle, Boolean> = profiles.associateWith { user ->
             user != personalUser && try {
                 userManager?.isQuietModeEnabled(user) == true
@@ -4928,8 +4960,11 @@ internal class LauncherViewModel(
                 // The badge is guessed, and that is the cheap half. The
                 // expensive half is the work dock's once-ever seed, which is
                 // gated on this very flag — so record that it was guessed and
-                // let the caller hold that one decision back.
-                quietModeUnknown = true
+                // let the caller hold that one decision back. Recorded
+                // against the profile rather than against the load: a later
+                // attempt that reads this profile cleanly should clear it
+                // without having to re-read every other profile too.
+                quietModeUnknownFor += user
                 LauncherDebugLog.failure(
                     exception,
                     // Which *kind* of profile failed, not which one: a
@@ -4943,8 +4978,12 @@ internal class LauncherViewModel(
                 false
             }
         }
-        val profileApps = profiles
-            .flatMap { user ->
+        // Built per profile rather than flat-mapped: which profile an app
+        // came from is what a later attempt needs in order to replace that
+        // profile's read and leave the rest standing.
+        val inventories = LinkedHashMap<UserHandle, ProfileInventory>()
+        profiles
+            .forEach { user ->
                 // Enumeration *and* mapping are inside the guard, not just
                 // the `getActivityList` call: reading each activity's label
                 // and its package's update time are binder transactions too,
@@ -4983,7 +5022,15 @@ internal class LauncherViewModel(
                             "loadInstalledApps profile rejected work=%s",
                             user != personalUser,
                         )
-                        return@flatMap emptyList()
+                        // Vouched, and empty: "this profile is going away"
+                        // is something the read established, so it must
+                        // clear whatever an earlier attempt held for it
+                        // rather than letting that stand as current.
+                        inventories[user] = ProfileInventory(
+                            apps = emptyList(),
+                            isQuietModeKnown = user !in quietModeUnknownFor,
+                        )
+                        return@forEach
                     }
                     val quiet = quietByUser[user] == true
                     profileSummaries += "${user.hashCode()}:${activities.size}" + if (quiet) "(quiet)" else ""
@@ -5007,7 +5054,10 @@ internal class LauncherViewModel(
                             unprefixedName = workSearchName(rawLabel, workApp),
                         )
                     }
-                    mapped
+                    inventories[user] = ProfileInventory(
+                        apps = mapped,
+                        isQuietModeKnown = user !in quietModeUnknownFor,
+                    )
                 } catch (exception: CancellationException) {
                     // Never a failed read: the load is being torn down, and
                     // swallowing this would break structured concurrency.
@@ -5038,7 +5088,10 @@ internal class LauncherViewModel(
                         "loadInstalledApps profile read failed work=%s",
                         user != personalUser,
                     )
-                    emptyList()
+                    // Deliberately no entry: this profile is *unknown*, not
+                    // empty, and the difference is the whole point of the
+                    // map. An empty inventory here would read as "every app
+                    // in this profile is gone" to anything merging reads.
                 }
             }
         // Every launcher activity of the personal profile, read through
@@ -5086,51 +5139,69 @@ internal class LauncherViewModel(
         // degraded flag, so a reload still declines to publish what it
         // returns — the flag says what the read knows, not where it came
         // from.
-        val fallbackApps = if (profileApps.isEmpty()) packageManagerApps() else emptyList()
-        // `profileApps` first, so a component read through `LauncherApps`
-        // wins the dedup below over the same component read through
-        // `PackageManager` (the former launches through `LauncherApps`, which
-        // is the path that works across profiles).
-        val collected = (profileApps + fallbackApps)
+        if (inventories.values.all { inventory -> inventory.apps.isEmpty() }) {
+            // The personal profile's inventory, whatever the profile read
+            // left there: this path exists precisely because that read
+            // produced nothing usable.
+            val fallbackApps = packageManagerApps()
+            if (fallbackApps.isNotEmpty()) {
+                inventories[personalUser] = ProfileInventory(
+                    apps = fallbackApps,
+                    isQuietModeKnown = personalUser !in quietModeUnknownFor,
+                )
+            }
+        }
+        val apps = assembleApps(inventories)
+        if (degraded) {
+            LauncherDebugLog.event(
+                "loadInstalledApps degraded: profile enumeration incomplete, apps=%s",
+                apps.size,
+            )
+        }
+        LauncherDebugLog.event(
+            "loadInstalledApps complete apps=%s profiles=%s activities=%s",
+            apps.size,
+            profiles.size,
+            // One argument rather than a line per profile, so a
+            // work-profile reload still costs one entry. A String, so
+            // the default-withhold rule keeps the profile identifiers
+            // on device; the app count beside it is the number that
+            // carries to the mirror.
+            profileSummaries.joinToString(separator = " ").ifEmpty { "(none)" },
+        )
+        return AppLoadResult(
+            apps = apps,
+            inventories = inventories,
+            isDegraded = degraded,
+            isQuietModeUnknown = inventories.values.any { inventory -> !inventory.isQuietModeKnown },
+        )
+    }
+
+    /**
+     * Flatten per-profile reads into the list the launcher publishes.
+     *
+     * The passes below are cross-profile — the disambiguator compares names
+     * across everything it is given — so they run here, over the assembled
+     * list, and never over one profile's inventory. That is what makes
+     * merging reads from different attempts safe: the merge happens on raw
+     * inventories and this runs once over the result, so an app recovered
+     * from an earlier attempt is disambiguated against the current read
+     * rather than carrying badges computed without it.
+     */
+    private fun assembleApps(inventories: Map<UserHandle, ProfileInventory>): List<InstalledApp> =
+        inventories.values
+            .flatMap { inventory -> inventory.apps }
             // Keying dedup on `id` (userHandle.hashCode():componentName) lets distinct
             // apps that happen to share a display name survive — e.g. Chase US
             // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
             // and the disambiguator pass below tags them with regional badges.
             .distinctBy { launcherApp -> launcherApp.id }
             .sortedWith(compareBy(displayNameOrder()) { launcherApp -> launcherApp.name })
-        if (degraded) {
-            LauncherDebugLog.event(
-                "loadInstalledApps degraded: profile enumeration incomplete, apps=%s",
-                collected.size,
-            )
-        }
-        return collected
             .applyDisambiguators()
             .applyRenameOverrides()
             .applyCustomBadges()
             .applyIconOverrides()
             .applyDynamicCalendarToken()
-            .also { apps ->
-                LauncherDebugLog.event(
-                    "loadInstalledApps complete apps=%s profiles=%s activities=%s",
-                    apps.size,
-                    profiles.size,
-                    // One argument rather than a line per profile, so a
-                    // work-profile reload still costs one entry. A String, so
-                    // the default-withhold rule keeps the profile identifiers
-                    // on device; the app count beside it is the number that
-                    // carries to the mirror.
-                    profileSummaries.joinToString(separator = " ").ifEmpty { "(none)" },
-                )
-            }
-            .let { apps ->
-                AppLoadResult(
-                    apps = apps,
-                    isDegraded = degraded,
-                    isQuietModeUnknown = quietModeUnknown,
-                )
-            }
-    }
 
     /**
      * Mirror persisted [CustomBadgeStore] entries onto each [InstalledApp]
