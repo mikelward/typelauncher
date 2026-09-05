@@ -15,6 +15,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -44,6 +45,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -77,6 +79,12 @@ internal class LauncherViewModel(
     private val debugFileSinkProvider: () -> DebugFileSink? = {
         (app as? TypeLauncherApp)?.debugFileSink
     },
+    // The `LauncherApps` enumeration itself. Injectable because the two
+    // failure shapes that matter here are shapes Robolectric cannot produce:
+    // a binder transaction that fails mid-parcel, and a second enumeration
+    // starting while the first is still on the wire.
+    private val enumerateLauncherActivities: (LauncherApps, UserHandle) -> List<LauncherActivityInfo> =
+        { launcherApps, user -> launcherApps.getActivityList(null, user) },
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -210,11 +218,68 @@ internal class LauncherViewModel(
     // instance and we never silently miss the unregister because the service
     // is null on a future `getSystemService` call.
     private val launcherAppsService: LauncherApps? = app.getSystemService<LauncherApps>()
-    // Most recently scheduled reload of the installed-app list. Held so a
-    // burst of package events (e.g. an upgrade firing PACKAGE_REMOVED then
-    // PACKAGE_ADDED) doesn't pile up redundant IO; the latest cancels its
-    // predecessor.
-    private var pendingReloadJob: Job? = null
+    // The reload of the installed-app list that is currently running, if any.
+    // Held so a burst of package events (e.g. an upgrade firing
+    // PACKAGE_REMOVED then PACKAGE_ADDED) doesn't pile up redundant IO.
+    //
+    // Canceling is not enough on its own and never was: the enumeration is a
+    // blocking `getActivityList` binder call, and cancellation is cooperative,
+    // so a canceled reload keeps its transaction in flight to completion. A
+    // carrier-update storm fired six package events inside a second and put
+    // six ~490-activity enumerations on the wire at once, which exhausted the
+    // process's binder buffer and killed the launcher with a
+    // BadParcelableException ("only received 332 of 490"). So a reload that
+    // arrives while one is running is *coalesced* into
+    // [coalescedReloadRequest] rather than started beside it: at most one
+    // enumeration is ever outstanding, and a burst of any size costs two
+    // reloads — the one already running and one more against the settled
+    // state afterwards.
+    /**
+     * Whether the list [installedApps] currently holds came from a read sound
+     * enough to base each dock's once-ever seed on — see
+     * [AppLoadResult.canSeedPersonalDock] and [AppLoadResult.canSeedWorkDock].
+     * Kept per dock rather than as one verdict so a work-profile uncertainty
+     * gates only the work dock; the personal dock has no stake in a paused
+     * state, and leaving a first run's dock empty over one would be a worse
+     * failure than the seed it is protecting.
+     *
+     * Read by the prefills rather than by their callers, because the one call
+     * site with no load result in hand is the one this exists for: enabling
+     * the work dock seeds it from whatever the last load left behind. False
+     * until the first load publishes, which is also when the first prefill
+     * becomes possible.
+     */
+    private var latestLoadCanSeedPersonalDock = false
+    private var latestLoadCanSeedWorkDock = false
+
+    private var runningReloadJob: Job? = null
+    // The one reload waiting for [runningReloadJob] to finish, latest wins.
+    // Read and written from the Main dispatcher only, like every other field
+    // here.
+    private var coalescedReloadRequest: ReloadRequest? = null
+    // The most recently published app list, and the lock that keeps two
+    // snapshot writes from interleaving. See [persistAppMetadata].
+    private val metadataWriteMutex = Mutex()
+
+    @Volatile
+    private var latestMetadataSnapshot: List<InstalledApp> = emptyList()
+    // True once a load has read the full inventory — every profile, no
+    // failed read. Distinct from `isFreshAppLoadComplete`, which only says
+    // cold start has published: a degraded cold start publishes (it must, or
+    // every package event would defer forever) while still not knowing what
+    // is installed, and the icon snapshot and trim treat "known" as license
+    // to drop everything absent from the list. Read and written from the
+    // Main dispatcher only.
+    private var isAppInventoryComplete = false
+    // Recovery attempts made for the package event currently being served —
+    // the bound on the retries in [runReload]. A request from a real event
+    // starts it over; only a retry continues it. One counter across both
+    // kinds of incomplete read on purpose: a device that alternates between
+    // them would otherwise reset each budget every time the failure changed
+    // shape, and the chain would reissue the very IPC it is recovering from
+    // for as long as the failure lasted. Zeroed only by a read that is
+    // whole.
+    private var recoveryAttempts = 0
     private val launcherAppsCallback = object : LauncherApps.Callback() {
         // Each of these puts the package name into the reload's reason string,
         // which is logged immediately — an *added* package is not in
@@ -562,37 +627,131 @@ internal class LauncherViewModel(
         }
         viewModelScope.launch {
             val initialLoadTrace = LauncherTelemetry.startTrace("launcher_initial_load")
-            val loadedApps = withContext(ioDispatcher) {
+            // Cold start has to publish: everything defers until it does, so
+            // there is no "keep the previous list" here the way there is on a
+            // reload (see [runReload]) — the previous list is the cached
+            // metadata already on screen, and it is what a failed load would
+            // strand there forever. So a degraded read is retried, and the
+            // last attempt takes the PackageManager fallback rather than
+            // publishing a list a binder failure truncated.
+            var attempt = 1
+            // What earlier attempts managed to read, by app id. A retry is a
+            // fresh read, not a better one: a device whose failure moves
+            // between profiles can enumerate the work profile on the first
+            // attempt and lose it on the third, and overwriting the result
+            // each time would publish a launcher with no work apps at all
+            // despite having just read them. Nothing else can fill that gap
+            // — the metadata cache holds personal apps only — so a degraded
+            // read carries forward what its predecessors saw.
+            val readInEarlierAttempts = LinkedHashMap<String, InstalledApp>()
+            var loadResult = withContext(ioDispatcher) {
                 androidTrace("launcher.apps_load") {
                     traceBlock("installed_apps_load") { trace ->
-                        loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+                        loadInstalledApps(recoverDegradedWithPackageManager = false)
+                            .also { trace.incrementMetric("app_count", it.apps.size.toLong()) }
                     }
                 }
+            }
+            while (loadResult.isDegraded && attempt < MAX_COLD_START_LOAD_ATTEMPTS) {
+                attempt++
+                LauncherDebugLog.event("initial load degraded, retrying attempt=%s", attempt)
+                // Enough for the transaction that failed to have been reaped
+                // and its buffer released; short enough that a cold start
+                // hitting this still puts apps on screen in well under a
+                // second. The cached-metadata render is already on screen
+                // throughout, so this delays the fresh list, not the frame.
+                // Replace, don't accumulate: a profile this attempt could
+                // vouch for has just been read in full, so its apps as of now
+                // are the truth for it — keeping an earlier attempt's extras
+                // would republish one uninstalled in between if a later
+                // attempt loses that profile again.
+                readInEarlierAttempts.values.removeAll { it.user in loadResult.vouchedProfiles }
+                loadResult.apps.forEach { readInEarlierAttempts[it.id] = it }
+                delay(DEGRADED_LOAD_RETRY_MILLIS)
+                loadResult = withContext(ioDispatcher) {
+                    loadInstalledApps(
+                    recoverDegradedWithPackageManager = attempt >= MAX_COLD_START_LOAD_ATTEMPTS,
+                )
+                }
+            }
+            if (loadResult.isDegraded) {
+                LauncherDebugLog.event(
+                    "initial load degraded after %s attempts, publishing apps=%s",
+                    attempt,
+                    loadResult.apps.size,
+                )
+            }
+            // A degraded read that produced nothing must not be published:
+            // the cached metadata is already on screen and is the only list
+            // this launcher has, so replacing it would empty the app list
+            // *and* — through the snapshot write below — the next launch's
+            // too, precisely while the binder failure that caused it is
+            // still going on. Publishing a partial read is different and
+            // still happens: it is a real reading of the profiles that
+            // answered, and the cache covers the personal profile only.
+            // A degraded read is *added to* what is already on screen where
+            // the cache can cover the gap, never substituted for it: a
+            // work-profile device whose personal enumeration failed would
+            // otherwise lose every personal app and dock entry while its work
+            // apps came through fine. The cached list — `installedApps`,
+            // already through the rename, icon and dynamic-calendar passes,
+            // and what the screen is showing — fills the ids the read didn't
+            // return.
+            //
+            // Only when the personal profile is the gap, though. The cache
+            // holds personal apps only, so with the personal read healthy it
+            // is authoritative and merging the cache into it would resurrect
+            // apps uninstalled while the launcher was stopped — and their
+            // dock entries — on the strength of an unrelated work-profile
+            // failure. A failed work profile has no filler here and the read
+            // goes out as it stands, still degraded.
+            //
+            // An earlier attempt's apps are added on the same terms, and
+            // before the cache: they came from this launch's own reads, so
+            // they are fresher than the snapshot and cover profiles the
+            // snapshot cannot. A healthy final read takes neither — it is
+            // authoritative, and adding to it would revive apps uninstalled
+            // since.
+            val loadedApps = if (loadResult.isDegraded) {
+                val readIds = loadResult.apps.mapTo(HashSet()) { it.id }
+                // Only for the profiles this read could not vouch for; see
+                // [AppLoadResult.vouchedProfiles]. Everything it did read is
+                // authoritative for its own profile, including a personal
+                // profile the `PackageManager` recovery stood in for.
+                val vouchedProfiles = loadResult.vouchedProfiles
+                val keptFromEarlierAttempts = readInEarlierAttempts.values
+                    .filterNot { it.id in readIds }
+                    .filterNot { it.user in vouchedProfiles }
+                val coveredIds = readIds + keptFromEarlierAttempts.map { it.id }
+                val keptFromCache = if (loadResult.personalProfileIncomplete) {
+                    installedApps.filterNot { it.id in coveredIds }
+                } else {
+                    emptyList()
+                }
+                LauncherDebugLog.event(
+                    "initial load degraded, publishing read=%s plus earlier=%s plus cached=%s",
+                    loadResult.apps.size,
+                    keptFromEarlierAttempts.size,
+                    keptFromCache.size,
+                )
+                loadResult.apps + keptFromEarlierAttempts + keptFromCache
+            } else {
+                loadResult.apps
             }
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
             initialLoadTrace.stop()
             installedApps = loadedApps
-            if (!dockedAppStore.hasBeenPrefilled) {
-                if (dockedAppStore.dockedAppIds.isEmpty()) {
-                    // Prefill against what this device can actually render (see
-                    // `deviceRenderableDockIconCount`) so a narrow phone that
-                    // clamps the rendered row keeps an empty cell for the "+".
-                    val deviceDockIconCount = deviceRenderableDockIconCount()
-                    // Reserve one slot for the "+" add-button hint.
-                    prefillDock(loadedApps, dockedAppStore, (deviceDockIconCount - 1).coerceAtLeast(0))
-                    // Order matters: `prefillDock` calls `dockedAppStore.dock`,
-                    // which clears the hint flag. Setting the flag here — after
-                    // prefill returns — means the flag survives any number of
-                    // prefill seeds and stays true until the first user dock.
-                    // Skipped on upgrade installs where `prefillDock` did not
-                    // run, so existing dock users never see the onboarding hint.
-                    dockedAppStore.setShowAddButtonHint(
-                        dockedAppStore.dockedAppIds.size < deviceDockIconCount,
-                    )
-                }
-                dockedAppStore.markPrefilled()
+            latestLoadCanSeedPersonalDock = loadResult.canSeedPersonalDock
+            latestLoadCanSeedWorkDock = loadResult.canSeedWorkDock
+            // Not while a package event that landed during the load is still
+            // to be replayed: seeding a dock is a once-ever decision no later
+            // reload can revisit, so it waits for a list that is settled as
+            // well as sound (the prefills check soundness themselves). The
+            // deferred reload below does it instead.
+            if (!reloadPendingDuringColdStart) {
+                maybePrefillDock(loadedApps)
+                maybePrefillWorkDock(loadedApps)
             }
-            maybePrefillWorkDock(loadedApps)
             _uiState.update { state ->
                 val dockedIds = dockedAppIdsForState(state)
                 val workDockedIds = workDockedAppIdsForState(state)
@@ -632,7 +791,19 @@ internal class LauncherViewModel(
                     isFreshAppLoadComplete = true,
                 )
             }
-            launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+            // Only a read that saw every profile makes the inventory known;
+            // a degraded one publishes without licensing the icon trim.
+            if (!loadResult.isDegraded) {
+                isAppInventoryComplete = true
+            }
+            // Never written from a degraded read. The snapshot keeps
+            // personal-profile apps only, so a read that lost the personal
+            // profile would rewrite it as empty and carry this failure into
+            // the next launch — the one place the launcher could still
+            // recover from.
+            if (!loadResult.isDegraded) {
+                persistAppMetadata(loadedApps)
+            }
             runDeferredBackgroundTrim()
             // Replay any icon-pick that arrived during the cold-start window
             // (e.g. picker callback fired after a process-death recreation
@@ -652,6 +823,13 @@ internal class LauncherViewModel(
             if (reloadPendingDuringColdStart) {
                 reloadPendingDuringColdStart = false
                 scheduleReload("coldStartCompletedWithPendingEvent")
+            } else if (loadResult.quietModeIncomplete) {
+                // Published, but with a guessed paused state, so the
+                // work-dock seed was deferred on a reading nothing else will
+                // repeat. The reload path carries the bounded retry from
+                // here; a pending package event is the better reason to
+                // reload and re-reads the same state anyway.
+                scheduleReload("coldStartQuietModeUnreadable")
             }
         }
         registerLauncherAppsCallback()
@@ -903,10 +1081,15 @@ internal class LauncherViewModel(
      * Re-reads the installed-app list from `LauncherApps` and republishes the
      * derived UI state. Called from the `LauncherApps.Callback` when a package
      * is installed, uninstalled, replaced, or otherwise changed across any
-     * available profile. Cancels any earlier in-flight reload so a burst of
-     * events (e.g. an upgrade's PACKAGE_REMOVED + PACKAGE_ADDED) collapses to
-     * a single IO read against the latest system state. While the cold-start
-     * fresh load is still in flight, the request is deferred (via
+     * available profile. A request arriving while a reload is running is
+     * *queued*, not started beside it, and never cancels it: the enumeration
+     * is a blocking binder call that canceling the coroutine cannot recall,
+     * so cancellation would leave both transactions on the wire — which is
+     * how a burst of package events exhausted the process's binder buffer and
+     * crashed the launcher. At most one enumeration is outstanding at a time,
+     * and a burst collapses to the reload already running plus one more
+     * against the settled state. While the cold-start fresh load is still in
+     * flight, the request is deferred instead (via
      * `reloadPendingDuringColdStart`) and replayed once cold-start publishes,
      * so the reload's state update can't lose a race with cold-start's.
      */
@@ -926,38 +1109,296 @@ internal class LauncherViewModel(
             return
         }
         LauncherDebugLog.event("scheduleReload reason=%s detail=%s", safe(reason), detail)
-        pendingReloadJob?.cancel()
-        pendingReloadJob = viewModelScope.launch {
-            val loadedApps = withContext(ioDispatcher) {
-                traceBlock("installed_apps_reload") { trace ->
-                    loadInstalledApps().also { trace.incrementMetric("app_count", it.size.toLong()) }
+        if (runningReloadJob?.isActive == true) {
+            // Latest wins: whatever the newest event is, it will be read
+            // against the system state after every event in this burst has
+            // landed, so an older queued request would only re-read the same
+            // thing under a staler name.
+            coalescedReloadRequest = ReloadRequest(reason, detail)
+            LauncherDebugLog.event("scheduleReload coalesced reason=%s detail=%s", safe(reason), detail)
+            return
+        }
+        runningReloadJob = viewModelScope.launch {
+            try {
+                // The queue is drained here rather than by re-entering
+                // `scheduleReload`: this job is still active until it returns,
+                // so a re-entrant call would coalesce right back into the slot
+                // it just read and the request would never run.
+                var request: ReloadRequest? = ReloadRequest(reason, detail)
+                while (request != null) {
+                    runReload(request)
+                    request = coalescedReloadRequest
+                    coalescedReloadRequest = null
                 }
+            } finally {
+                // A canceled or failed reload must not strand a request in
+                // the slot: the next package event starts a fresh job, and it
+                // would otherwise run someone else's queued reload before its
+                // own — or, if nothing else ever arrives, never run it at all.
+                coalescedReloadRequest = null
             }
-            installedApps = loadedApps
-            // The work-dock prefill skips (without latching) while the work
-            // profile is paused, promising a retry "on the next fresh load
-            // after the profile is resumed" — and resuming lands here via
-            // ACTION_MANAGED_PROFILE_AVAILABLE → scheduleReload, not via
-            // another cold start. Latched and guarded internally, so this is
-            // a no-op on every reload after the seed (or when the work dock
-            // is disabled).
-            maybePrefillWorkDock(loadedApps)
-            refreshLists()
-            // Replay any icon-pick that was queued because cold-start
-            // hadn't finished — `scheduleReload` runs both for ordinary
-            // package events post-load and for the deferred-during-cold-
-            // start replay. In the latter case the queued pick lands on
-            // the post-reload list rather than on the stale cold-start
-            // snapshot, which avoids writing an override file for a
-            // package the reload would have dropped.
-            drainPendingIconOverrideRequest()
-            launch(ioDispatcher) { appMetadataStore.save(loadedApps) }
+        }
+    }
+
+    /**
+     * Seeds the dock on a first run, once — and only from a list the launcher
+     * actually read.
+     *
+     * The latch is what makes the source matter: a degraded load that read
+     * nothing publishes the cached list, and on a first run there is no
+     * cache, so seeding from it would dock nothing and then record the dock
+     * as seeded forever. The user would be left with a permanently empty
+     * dock and no way back to the onboarding state. So a load with no
+     * inventory behind it skips this entirely and the first healthy reload
+     * does it instead — which is why this is called from the reload path
+     * too, alongside [maybePrefillWorkDock].
+     */
+    private fun maybePrefillDock(apps: List<InstalledApp>) {
+        if (dockedAppStore.hasBeenPrefilled) return
+        if (!latestLoadCanSeedPersonalDock) {
+            LauncherDebugLog.event("maybePrefillDock skipped: latest load is not a sound basis")
+            return
+        }
+        if (apps.isEmpty()) return
+        if (dockedAppStore.dockedAppIds.isEmpty()) {
+            // Prefill against what this device can actually render (see
+            // `deviceRenderableDockIconCount`) so a narrow phone that
+            // clamps the rendered row keeps an empty cell for the "+".
+            val deviceDockIconCount = deviceRenderableDockIconCount()
+            // Reserve one slot for the "+" add-button hint.
+            prefillDock(apps, dockedAppStore, (deviceDockIconCount - 1).coerceAtLeast(0))
+            // Order matters: `prefillDock` calls `dockedAppStore.dock`,
+            // which clears the hint flag. Setting the flag here — after
+            // prefill returns — means the flag survives any number of
+            // prefill seeds and stays true until the first user dock.
+            // Skipped on upgrade installs where `prefillDock` did not
+            // run, so existing dock users never see the onboarding hint.
+            dockedAppStore.setShowAddButtonHint(
+                dockedAppStore.dockedAppIds.size < deviceDockIconCount,
+            )
+        }
+        dockedAppStore.markPrefilled()
+    }
+
+    /**
+     * Writes [apps] to the metadata snapshot, off the main thread, in a way
+     * that cannot leave an older list on disk.
+     *
+     * Two writes can be in flight at once — cold start's and the first
+     * reload's, or two reloads' — and nothing orders their dispatch, so a
+     * stale one landing last would make the next launch paint apps that are
+     * gone or miss apps that are there. Each write takes the newest snapshot
+     * rather than the one its caller held, so which one lands last stops
+     * mattering: the disk ends up holding what was published last either
+     * way. The lock keeps two writes from interleaving inside the store.
+     */
+    private fun persistAppMetadata(apps: List<InstalledApp>) {
+        latestMetadataSnapshot = apps
+        viewModelScope.launch(ioDispatcher) {
+            metadataWriteMutex.withLock { appMetadataStore.save(latestMetadataSnapshot) }
+        }
+    }
+
+    /**
+     * One reload's identity, held while it waits for the running reload to
+     * finish. [isRecoveryRetry] marks the reloads this class queues for
+     * itself — after a degraded read, or after a publishable one whose
+     * paused state had to be guessed — which is what makes the attempt
+     * budget below belong to one package event rather than to a stretch of
+     * time: a request that came from a real event starts the count over, a
+     * retry of either kind continues it.
+     */
+    private data class ReloadRequest(
+        val reason: String,
+        val detail: Any?,
+        val isRecoveryRetry: Boolean = false,
+    )
+
+    /**
+     * True while a reload is running or queued behind one. A test seam: a
+     * reload spans a worker and the main looper, so a test that hands the
+     * load a real dispatcher has no other way to know it has drained — and
+     * one that returns mid-reload leaks its worker into whatever runs next.
+     */
+    @get:VisibleForTesting
+    internal val isReloadInFlight: Boolean
+        get() = runningReloadJob?.isActive == true || coalescedReloadRequest != null
+
+    /**
+     * The body of one reload: re-read `LauncherApps`, republish, persist.
+     * Split out of [scheduleReload] so the coalescing above reads as the
+     * queue it is.
+     *
+     * A degraded read (see [loadInstalledApps]) publishes nothing: the
+     * previous list is the last one we know to be complete, and a stale list
+     * is a far smaller failure than a dock and app list that lose the apps a
+     * failed binder transaction couldn't enumerate. The event that triggered
+     * this reload is re-requested so the list still converges once the system
+     * settles.
+     */
+    private suspend fun runReload(request: ReloadRequest) {
+        val reason = request.reason
+        val detail = request.detail
+        val loadResult = withContext(ioDispatcher) {
+            traceBlock("installed_apps_reload") { trace ->
+                // Never the PackageManager recovery: a degraded reload
+                // publishes nothing, so the recovery's result would be
+                // discarded and its transaction spent for nothing on the
+                // buffer that just overflowed.
+                loadInstalledApps(recoverDegradedWithPackageManager = false)
+                    .also { trace.incrementMetric("app_count", it.apps.size.toLong()) }
+            }
+        }
+        if (loadResult.isDegraded) {
+            // The budget belongs to the package event, not to a stretch of
+            // wall clock: a request from a real event starts the count at
+            // one however many attempts a previous event's sequence spent,
+            // so an event that lands mid-sequence still gets its own
+            // attempts. Sharing one running counter across events is what
+            // left the last event of a storm — the one with nothing behind
+            // it to try again — with a single attempt and no retry.
+            // The list on screen is still the last complete one, so the
+            // personal dock's basis is untouched — but a read that just
+            // failed is exactly the state a work profile pausing, going
+            // away, or changing looks like from here, and the work-dock
+            // seed latches. So it waits for a read that answered, rather
+            // than being taken from a pre-event list during the window
+            // where enabling the dock would latch it for good. Nothing is
+            // lost: the prefill skips without latching, and the retry
+            // below (or the next event) restores the basis.
+            latestLoadCanSeedWorkDock = false
+            recoveryAttempts = if (request.isRecoveryRetry) recoveryAttempts + 1 else 1
             LauncherDebugLog.event(
-                "scheduleReload complete reason=%s detail=%s apps=%s",
+                "scheduleReload degraded: keeping previous list reason=%s detail=%s apps=%s attempt=%s",
                 safe(reason),
                 detail,
-                loadedApps.size,
+                installedApps.size,
+                recoveryAttempts,
             )
+            // Retry, but a bounded number of times: the reloads are serial
+            // now, so a retry is a fresh transaction against a binder buffer
+            // the previous attempt has already released. Retrying without a
+            // bound would spin a failing enumeration for as long as the
+            // failure lasts. Queue it only if nothing else is waiting — a
+            // real package event is the better reason to reload, and it
+            // re-reads exactly the same state.
+            if (recoveryAttempts < MAX_DEGRADED_LOAD_ATTEMPTS) {
+                if (coalescedReloadRequest == null) {
+                    coalescedReloadRequest = ReloadRequest(
+                        reason = "degradedReloadRetry",
+                        detail = detail,
+                        isRecoveryRetry = true,
+                    )
+                }
+                // Pause before the drain loop picks that up, longer each
+                // time. Retrying the instant a transaction failed just spends
+                // another one on the same exhausted buffer, and the storm
+                // that caused it is measured in seconds, so the last attempt
+                // wants to land well after the first.
+                delay(DEGRADED_LOAD_RETRY_MILLIS * recoveryAttempts)
+            } else {
+                // Not silent: the list is now stale until the next package
+                // event or the next cold start, and this line is the only
+                // record of why.
+                LauncherDebugLog.event(
+                    "scheduleReload degraded: giving up after %s attempts, list is stale",
+                    recoveryAttempts,
+                )
+                // Nothing to reset here: the next request from a real event
+                // starts its own count, and only a retry continues this one.
+            }
+            // Publishing is declined, but a seed this read *can* vouch for
+            // is not: a package event landing during a first-run cold start
+            // defers the personal dock's seed to the reload, and if that
+            // reload only loses a work profile the seed would otherwise wait
+            // for an unrelated event that may never come. The list it seeds
+            // from is the one on screen — the last complete read — and
+            // `maybePrefillDock` still applies that read's own verdict.
+            if (loadResult.canSeedPersonalDock) {
+                maybePrefillDock(installedApps)
+            }
+            return
+        }
+        // The same budget the degraded path spends, not a second one beside
+        // it: this read published, so the list is fine, but the work dock's
+        // seed is still waiting on a paused state nothing else will re-read,
+        // and a device whose failure alternates between the two shapes must
+        // not get an unbounded chain out of the transition. Only a read with
+        // nothing missing clears it.
+        recoveryAttempts = when {
+            !loadResult.quietModeIncomplete -> 0
+            request.isRecoveryRetry -> recoveryAttempts + 1
+            else -> 1
+        }
+        val loadedApps = loadResult.apps
+        installedApps = loadedApps
+        latestLoadCanSeedPersonalDock = loadResult.canSeedPersonalDock
+        latestLoadCanSeedWorkDock = loadResult.canSeedWorkDock
+        if (!isAppInventoryComplete) {
+            // The first healthy read after a degraded cold start. Same
+            // "latched rather than dropped" promise the cold-start path
+            // makes: whatever the trim deferred while the inventory was
+            // unknown runs now.
+            isAppInventoryComplete = true
+            runDeferredBackgroundTrim()
+        }
+        // The work-dock prefill skips (without latching) while the work
+        // profile is paused, promising a retry "on the next fresh load
+        // after the profile is resumed" — and resuming lands here via
+        // ACTION_MANAGED_PROFILE_AVAILABLE → scheduleReload, not via
+        // another cold start. Latched and guarded internally, so this is
+        // a no-op on every reload after the seed (or when the work dock
+        // is disabled).
+        // Everything one-shot waits for the queue to settle. This list
+        // predates any request queued behind this reload, and each of these
+        // writes a decision no later reload can revisit: a dock seeded from
+        // a pre-event list can hold an id the settled read drops, and the
+        // queued icon pick — replayed here for a pick that arrived during
+        // cold start — could write an override file for a component it
+        // drops. The settled reload runs them a moment later instead.
+        val settled = coalescedReloadRequest == null
+        if (settled) {
+            maybePrefillDock(loadedApps)
+            maybePrefillWorkDock(loadedApps)
+        }
+        refreshLists()
+        if (settled) {
+            drainPendingIconOverrideRequest()
+        }
+        persistAppMetadata(loadedApps)
+        LauncherDebugLog.event(
+            "scheduleReload complete reason=%s detail=%s apps=%s",
+            safe(reason),
+            detail,
+            loadedApps.size,
+        )
+        if (loadResult.quietModeIncomplete) {
+            // Publishing was right — the apps are all here — but the
+            // work-dock seed is deferred on a state nobody re-reads: the
+            // load wasn't degraded, so no retry follows it, and toggling
+            // the dock later only re-reads this same latched verdict. So
+            // the read that guessed queues its own bounded retry, exactly
+            // as a degraded one does, and the seed converges once the
+            // binder buffer recovers instead of waiting for an unrelated
+            // package or profile event.
+            if (recoveryAttempts < MAX_DEGRADED_LOAD_ATTEMPTS) {
+                if (coalescedReloadRequest == null) {
+                    coalescedReloadRequest = ReloadRequest(
+                        reason = "quietModeReloadRetry",
+                        detail = detail,
+                        isRecoveryRetry = true,
+                    )
+                }
+                delay(DEGRADED_LOAD_RETRY_MILLIS * recoveryAttempts)
+            } else {
+                // Not silent: the work dock stays unseeded until the next
+                // package or profile event, and this is the only record of
+                // why.
+                LauncherDebugLog.event(
+                    "scheduleReload quiet mode unreadable: giving up after %s attempts",
+                    recoveryAttempts,
+                )
+            }
         }
     }
 
@@ -993,7 +1434,7 @@ internal class LauncherViewModel(
         // unremoved listener would keep a torn-down view model reachable and
         // keep updating state nothing renders. One delivery may already be in
         // flight when this returns, by the library's design; the listener only
-        // launches on a scope that is already cancelled by then, so it is a
+        // launches on a scope that is already canceled by then, so it is a
         // no-op rather than a leak.
         debugFileSink?.removeCrashListener(crashListener)
         super.onCleared()
@@ -1383,7 +1824,7 @@ internal class LauncherViewModel(
      * the launcher is about to be backgrounded so the IO is not on a user-visible path.
      */
     fun persistIconSnapshot() {
-        if (!_uiState.value.isFreshAppLoadComplete) {
+        if (!isAppInventoryComplete) {
             // Not just "is the list empty": the metadata prefill populates
             // `installedApps` from `AppMetadataStore` before the fresh load runs,
             // and that store deliberately holds personal-profile apps only. So a
@@ -1391,6 +1832,10 @@ internal class LauncherViewModel(
             // priority set derived from it would omit them -- pruning their
             // restored icons off disk on the way past. An incomplete load means
             // "we don't know what's installed", not "nothing is worth keeping".
+            // A degraded load counts as incomplete for the same reason: it
+            // publishes a list that is missing whatever profile failed to
+            // enumerate, so pruning against it would drop that profile's
+            // icons on a failure the launcher is still recovering from.
             LauncherDebugLog.event("persistIconSnapshot skipped: fresh load incomplete")
             return
         }
@@ -1441,7 +1886,7 @@ internal class LauncherViewModel(
      * the same question, and two lists would drift apart.
      */
     fun trimIconCacheToPriority() {
-        if (!_uiState.value.isFreshAppLoadComplete ||
+        if (!isAppInventoryComplete ||
             installedApps.isEmpty() ||
             !iconSnapshotRestoreComplete
         ) {
@@ -1449,14 +1894,16 @@ internal class LauncherViewModel(
             // priority set is "we do not know yet", not "nothing matters", and
             // trimming to it would drop everything.
             //
-            // `isFreshAppLoadComplete` is the load-shaped one and it is not
+            // `isAppInventoryComplete` is the load-shaped one and it is not
             // redundant with the emptiness check. The metadata prefill fills
             // `installedApps` from a store that holds personal-profile apps only,
             // so in the window before the fresh load lands the list is non-empty
             // and every work app is missing from it -- and `priorityIconCacheIds`
             // filters through that list, so even a work-docked app's id drops out.
             // Trimming there would evict exactly the restored work icons the
-            // snapshot existed to keep warm.
+            // snapshot existed to keep warm. A degraded load leaves the same
+            // gap -- it publishes without the profile it could not read -- so
+            // it does not make the inventory known either.
             // Latched rather than dropped: whichever of the two initialization jobs
             // is outstanding retries this once it lands, so the saving is deferred
             // rather than lost. Leaving the launcher during its own startup is
@@ -1562,8 +2009,8 @@ internal class LauncherViewModel(
             // as possible, rather than at the call site: a check made before the hop is
             // exactly the stale one this is guarding against.
             //
-            // A re-check rather than cancelling the previous job: A -> B -> C retires
-            // A's sizes and then B's, and cancelling the first would leak A's for the
+            // A re-check rather than canceling the previous job: A -> B -> C retires
+            // A's sizes and then B's, and canceling the first would leak A's for the
             // life of the process.
             val evicted = withContext(ioDispatcher) {
                 val live = renderedIconSizes
@@ -1945,7 +2392,7 @@ internal class LauncherViewModel(
 
     /**
      * Leaves the contact-actions mode entirely, restoring the saved search query.
-     * A no-op (beyond cancelling any in-flight resolve) when the mode isn't open —
+     * A no-op (beyond canceling any in-flight resolve) when the mode isn't open —
      * a contact-result long-press routes here to cancel a pending resolve while it
      * opens the favorite menu, and must not clear the search the user has typed.
      */
@@ -3483,7 +3930,7 @@ internal class LauncherViewModel(
     /**
      * Drives the banner's in-flight status. Called when the user taps Update
      * (Starting). When [progress] is `Idle` the banner falls back to the
-     * original "Update" CTA — used to recover from a cancelled Play sheet or
+     * original "Update" CTA — used to recover from a canceled Play sheet or
      * a download failure.
      */
     fun setPlayUpdateProgress(progress: UpdateProgress) {
@@ -4217,6 +4664,10 @@ internal class LauncherViewModel(
      */
     private fun maybePrefillWorkDock(loadedApps: List<InstalledApp>) {
         if (!_uiState.value.isWorkDockEnabled) return
+        if (!latestLoadCanSeedWorkDock) {
+            LauncherDebugLog.event("maybePrefillWorkDock skipped: latest load is not a sound basis")
+            return
+        }
         if (workDockedAppStore.hasBeenPrefilled) return
         if (workDockedAppStore.dockedAppIds.isNotEmpty()) {
             workDockedAppStore.markPrefilled()
@@ -4555,7 +5006,83 @@ internal class LauncherViewModel(
         )
     }
 
-    private fun loadInstalledApps(): List<InstalledApp> {
+    /**
+     * The outcome of one [loadInstalledApps] call: the apps it read, and
+     * whether any profile's enumeration failed at the binder level.
+     *
+     * A degraded result's [apps] is the part that *did* come back, which is
+     * why it is never published on its own — a profile that failed to
+     * enumerate is indistinguishable from a profile whose apps were all
+     * uninstalled, and publishing it would silently drop apps that are still
+     * installed (dock entries included).
+     */
+    private data class AppLoadResult(
+        val apps: List<InstalledApp>,
+        val isDegraded: Boolean,
+        /**
+         * Whether this read is missing personal-profile apps — because that
+         * profile's enumeration failed and nothing recovered it, or because
+         * the `PackageManager` read that *was* its source failed. The
+         * personal profile is the only one the metadata cache can fill, so
+         * this is what decides whether a degraded read is worth merging the
+         * cache into.
+         */
+        val personalProfileIncomplete: Boolean = false,
+        /**
+         * Whether any profile's quiet-mode state had to be guessed. The apps
+         * still published — a wrong paused badge is not worth withholding an
+         * app list over — but a guess is not a basis for a decision nothing
+         * can revisit; see [canSeedWorkDock].
+         */
+        val quietModeIncomplete: Boolean = false,
+        /**
+         * Which profiles this read can speak for — enumerated here, or
+         * recovered through `PackageManager`. A cold-start retry carries an
+         * earlier attempt's apps forward for every *other* profile: those
+         * are the gaps, and nothing else can fill them. Over a profile named
+         * here an earlier copy would revive an app uninstalled between the
+         * two reads. A failed profile listing simply names none of them,
+         * which is what "no idea what exists" should mean.
+         */
+        val vouchedProfiles: Set<UserHandle> = emptySet(),
+    ) {
+        /**
+         * Whether this read is a sound basis for seeding the personal dock —
+         * a once-ever decision that latches and is never retried. The
+         * question is exactly [personalProfileIncomplete], because
+         * `prefillDock` seeds from personal-profile apps only: a work
+         * profile that failed to enumerate changes nothing it would pick,
+         * and gating on the aggregate [isDegraded] would leave a first run's
+         * dock empty over a profile the dock never reads. Once cold start's
+         * bounded attempts are spent nothing retries a degraded read, so
+         * "it will seed on the next healthy load" is not an answer.
+         */
+        val canSeedPersonalDock: Boolean get() = !personalProfileIncomplete
+
+        /**
+         * The work dock's version, which is stricter on both counts: its
+         * apps exist only behind `LauncherApps`, so any degraded read may be
+         * missing them, and the paused state it was read with has to be real
+         * — the seed is deliberately deferred while a work profile is
+         * paused, so a guessed "not paused" would seed a dock of apps the
+         * user cannot open and latch the real seed away for good. Publishing
+         * is a separate question — the apps go out either way.
+         */
+        val canSeedWorkDock: Boolean get() = !isDegraded && !quietModeIncomplete
+    }
+
+    /**
+     * [recoverDegradedWithPackageManager] lets a *degraded* read fall back to
+     * `PackageManager` for the personal profile. Only the cold-start load's
+     * last attempt passes true: everything defers until it publishes, so a
+     * partial list is better than none. A reload passes false — its result is
+     * discarded when degraded anyway, so a second full launcher-activity
+     * query would spend another large transaction on the binder buffer that
+     * just overflowed, which is the failure this whole path exists to relieve.
+     * It does not govern the long-standing fallback for a device whose
+     * `LauncherApps` simply yields nothing; that one still runs either way.
+     */
+    private fun loadInstalledApps(recoverDegradedWithPackageManager: Boolean): AppLoadResult {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val personalUser = Process.myUserHandle()
         // Logcat-only, here and for the two lines below. A reload costs eight
@@ -4570,8 +5097,51 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("loadInstalledApps begin")
         val launcherApps = app.getSystemService<LauncherApps>()
         val userManager = app.getSystemService<UserManager>()
-        val profiles = launcherApps?.profiles.orEmpty()
-            .also { profiles -> LauncherDebugLog.trace("loadInstalledApps profiles=${profiles.size}") }
+        // Set when a profile's enumeration fails for a reason that is *not*
+        // "this profile is going away" — see the RuntimeException catch below.
+        var degraded = false
+        // Tracked separately because the personal profile is the one a
+        // `PackageManager` query can enumerate instead; a work profile's apps
+        // exist only behind `LauncherApps`.
+        var personalProfileFailed = false
+        // How many profiles' reads failed, so the recovery below can tell
+        // "the personal profile is the only gap" — which `PackageManager` can
+        // fill — from "a work profile failed too", which nothing here can.
+        var failedProfileCount = 0
+        // Set when a profile's paused state had to be guessed — the apps are
+        // still published, but no once-ever decision may rest on the guess.
+        var quietModeUnreadable = false
+        // The profiles this read can speak for: it enumerated them, or (for
+        // the personal one) `PackageManager` did. Everything else is a gap,
+        // and a cold-start retry carries an earlier attempt's apps forward
+        // for gaps only — over a profile this read *can* vouch for, an
+        // earlier copy would revive an app uninstalled between the two
+        // reads, and a first-run dock can latch that id for good.
+        val vouchedProfiles = mutableSetOf<UserHandle>()
+        // Set when the profile list itself couldn't be read, which is the one
+        // failure that leaves the *number* of profiles unknown — so no later
+        // recovery can claim every profile is accounted for.
+        var profileDiscoveryFailed = false
+        // Listing the profiles is itself a binder transaction, and it runs
+        // before the per-profile guard below — so a full buffer or a dead
+        // system service here used to escape the load coroutine and take the
+        // launcher down, exactly the crash the per-profile guard exists to
+        // stop (Codex on PR #725).
+        val profiles = try {
+            launcherApps?.profiles.orEmpty()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: RuntimeException) {
+            // Every profile is unread, the personal one included, so this is
+            // as degraded as a read gets: the caller keeps the list it has,
+            // and only a last cold-start attempt falls back to
+            // `PackageManager` for the personal apps.
+            degraded = true
+            personalProfileFailed = true
+            profileDiscoveryFailed = true
+            LauncherDebugLog.failure(exception, "loadInstalledApps profile discovery failed")
+            emptyList()
+        }.also { profiles -> LauncherDebugLog.trace("loadInstalledApps profiles=${profiles.size}") }
         // Per-profile counts for that completion line, in profile order.
         val profileSummaries = mutableListOf<String>()
         // Resolve quiet mode once per profile rather than per activity. The
@@ -4579,40 +5149,79 @@ internal class LauncherViewModel(
         // it. `isQuietModeEnabled` is documented since API 24 and requires no
         // permission for any profile in the calling user's profile group —
         // but a profile being removed can leave the group between the
-        // `profiles` snapshot and this call, so tolerate the rejection.
+        // `profiles` snapshot and this call, so tolerate the rejection, and
+        // the same binder failure the enumeration below tolerates can land
+        // here too. Not degrading the read on either: the profile's apps are
+        // still readable, and only the paused-badge state is guessed, so
+        // withholding the whole list over it would cost far more than it
+        // saves. The next reload resolves it.
         val quietByUser: Map<UserHandle, Boolean> = profiles.associateWith { user ->
             user != personalUser && try {
                 userManager?.isQuietModeEnabled(user) == true
-            } catch (_: SecurityException) {
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: RuntimeException) {
+                quietModeUnreadable = true
+                LauncherDebugLog.failure(
+                    exception,
+                    "loadInstalledApps quiet mode unreadable user=%s",
+                    user.hashCode(),
+                )
                 false
             }
         }
         val profileApps = profiles
             .flatMap { user ->
-                val activities = try {
-                    launcherApps
-                        ?.getActivityList(null, user)
-                        .orEmpty()
-                } catch (exception: SecurityException) {
-                    // The profile left the caller's profile group after the
-                    // `profiles` snapshot — the window during work-profile
-                    // removal where teardown's package events schedule
-                    // reloads while access is already revoked. Same race
-                    // `resolveProfileApplicationInfo` and AppIconLoader
-                    // tolerate; skip the dying profile instead of letting
-                    // the exception crash the launcher out of the load
-                    // coroutine. The removal's own callback triggers a
-                    // fresh reload that no longer lists this profile.
-                    LauncherDebugLog.failure(exception, "loadInstalledApps profile rejected user=%s", user.hashCode())
-                    emptyList()
-                }
-                val quiet = quietByUser[user] == true
-                profileSummaries += "${user.hashCode()}:${activities.size}" + if (quiet) "(quiet)" else ""
-                LauncherDebugLog.trace(
-                    "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} quiet=$quiet",
-                )
-                activities
-                    .map { activity ->
+                // Enumeration *and* mapping are inside the guard, not just
+                // the `getActivityList` call: reading each activity's label
+                // and its package's update time are binder transactions too,
+                // so a buffer that is full for the enumeration is full for
+                // them, and a guard drawn around one call leaves the others
+                // able to take the process down exactly when the recovery is
+                // supposed to be running.
+                try {
+                    // Only the enumeration's own rejection means "this
+                    // profile is going away" (the catch below). A
+                    // `SecurityException` from the per-app reads that follow
+                    // says the same word for a different thing — a package
+                    // gone mid-read, a profile locking — and cannot be told
+                    // apart from a profile that is simply still there, so it
+                    // belongs with the degraded failures rather than being
+                    // taken as proof the profile is dead. Hence the inner
+                    // try: it is drawn around the enumeration alone.
+                    val activities = try {
+                        launcherApps
+                            ?.let { service -> enumerateLauncherActivities(service, user) }
+                            .orEmpty()
+                    } catch (exception: SecurityException) {
+                        // The profile left the caller's profile group after
+                        // the `profiles` snapshot — the window during
+                        // work-profile removal where teardown's package
+                        // events schedule reloads while access is already
+                        // revoked. Same race `resolveProfileApplicationInfo`
+                        // and AppIconLoader tolerate; skip the dying profile
+                        // instead of letting the exception crash the launcher
+                        // out of the load coroutine. The removal's own
+                        // callback triggers a fresh reload that no longer
+                        // lists this profile.
+                        // Not a gap to fill either: the profile is leaving,
+                        // so carrying its apps forward would put a departing
+                        // profile's launcher entries back on screen.
+                        vouchedProfiles += user
+                        profileSummaries += "${user.hashCode()}:rejected"
+                        LauncherDebugLog.failure(
+                            exception,
+                            "loadInstalledApps profile rejected user=%s",
+                            user.hashCode(),
+                        )
+                        return@flatMap emptyList()
+                    }
+                    val quiet = quietByUser[user] == true
+                    profileSummaries += "${user.hashCode()}:${activities.size}" + if (quiet) "(quiet)" else ""
+                    LauncherDebugLog.trace(
+                        "loadInstalledApps profile=${user.hashCode()} activities=${activities.size} quiet=$quiet",
+                    )
+                    val mapped = activities.map { activity ->
                         val rawLabel = activity.label.toString()
                         val workApp = user != personalUser ||
                             activity.applicationInfo.packageName in workPackages
@@ -4624,42 +5233,177 @@ internal class LauncherViewModel(
                             isWorkApp = workApp,
                             launchWithLauncherApps = true,
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
-                            isQuietMode = quietByUser[user] == true,
+                            isQuietMode = quiet,
                             displayBase = workLabel(rawLabel, workApp),
                             unprefixedName = workSearchName(rawLabel, workApp),
                         )
                     }
+                    // Only now: the enumeration returning is not the same as
+                    // the profile having been read. Every per-app label and
+                    // timestamp above is its own binder call, and one of them
+                    // failing discards this whole list — vouching before that
+                    // would tell a cold-start retry the profile needs no
+                    // carry, and drop apps an earlier attempt had already read.
+                    vouchedProfiles += user
+                    mapped
+                } catch (exception: CancellationException) {
+                    // Never a failed read: the load is being torn down, and
+                    // swallowing this would break structured concurrency.
+                    throw exception
+                } catch (exception: RuntimeException) {
+                    // The transaction itself failed rather than being refused:
+                    // DeadObjectException / BadParcelableException /
+                    // TransactionTooLargeException out of
+                    // `ILauncherApps$Stub$Proxy.getLauncherActivities` or out
+                    // of the per-app reads above, which is what a full binder
+                    // buffer looks like from this side — "Failure retrieving
+                    // array; only received 332 of 490". A `SecurityException`
+                    // raised by those per-app reads lands here too, and
+                    // deliberately: a read that lost half a profile is
+                    // degraded whatever it was refused by, and calling it a
+                    // removal instead would publish the remaining profiles
+                    // as the whole truth. This used to escape
+                    // the load coroutine and take the process down (a crash
+                    // the user only saw as the launcher having restarted).
+                    // The read is *incomplete*, not empty, so mark it
+                    // degraded and let the caller keep the list it already
+                    // has rather than publishing a list missing every app
+                    // this profile couldn't return.
+                    degraded = true
+                    failedProfileCount++
+                    if (user == personalUser) personalProfileFailed = true
+                    profileSummaries += "${user.hashCode()}:failed"
+                    LauncherDebugLog.failure(
+                        exception,
+                        "loadInstalledApps profile read failed user=%s",
+                        user.hashCode(),
+                    )
+                    emptyList()
+                }
             }
-        val collected = profileApps
-            .ifEmpty {
-                val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
-                LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=%s", resolveInfos.size)
-                resolveInfos
-                    .map { resolveInfo ->
-                        val activityInfo = resolveInfo.activityInfo
-                        val rawLabel = resolveInfo.loadLabel(app.packageManager).toString()
-                        val workApp = activityInfo.packageName in workPackages
-                        InstalledApp(
-                            name = rawLabel,
-                            packageName = activityInfo.packageName,
-                            launchIntent = Intent.makeMainActivity(
-                                ComponentName(activityInfo.packageName, activityInfo.name),
-                            ),
-                            user = personalUser,
-                            isWorkApp = workApp,
-                            launchWithLauncherApps = false,
-                            iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
-                            displayBase = workLabel(rawLabel, workApp),
-                            unprefixedName = workSearchName(rawLabel, workApp),
-                        )
+        var packageManagerFallbackFailed = false
+        // Every launcher activity of the personal profile, read through
+        // `PackageManager` instead of `LauncherApps`. Two callers below: a
+        // device whose `LauncherApps` yields nothing at all, and the last
+        // cold-start attempt recovering a personal profile whose enumeration
+        // failed.
+        fun packageManagerApps(): List<InstalledApp> = try {
+            // Guarded end to end for the same reason as the profile read
+            // above: the query is the big transaction, but the label and
+            // package-timestamp reads per result are transactions too, and
+            // this runs precisely when the buffer has already overflowed.
+            val resolveInfos = app.packageManager.queryIntentActivities(launcherIntent, 0)
+            LauncherDebugLog.event("loadInstalledApps packageManagerFallback activities=%s", resolveInfos.size)
+            resolveInfos
+                .map { resolveInfo ->
+                    val activityInfo = resolveInfo.activityInfo
+                    val rawLabel = resolveInfo.loadLabel(app.packageManager).toString()
+                    val workApp = activityInfo.packageName in workPackages
+                    InstalledApp(
+                        name = rawLabel,
+                        packageName = activityInfo.packageName,
+                        launchIntent = Intent.makeMainActivity(
+                            ComponentName(activityInfo.packageName, activityInfo.name),
+                        ),
+                        user = personalUser,
+                        isWorkApp = workApp,
+                        launchWithLauncherApps = false,
+                        iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
+                        displayBase = workLabel(rawLabel, workApp),
+                        unprefixedName = workSearchName(rawLabel, workApp),
+                    )
+                }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: RuntimeException) {
+            degraded = true
+            packageManagerFallbackFailed = true
+            LauncherDebugLog.failure(exception, "loadInstalledApps packageManagerFallback failed")
+            emptyList()
+        }
+
+        val fallbackApps = when {
+            // The long-standing case: `LauncherApps` surfaced nothing at all
+            // (no profiles, no service). Unrelated to a binder failure, so it
+            // runs on every load, degraded or not.
+            profileApps.isEmpty() && !degraded -> packageManagerApps()
+            !degraded -> emptyList()
+            // A degraded read on a path that can afford to wait — a reload,
+            // or a cold-start attempt with retries left. Publishing is
+            // declined either way, so don't spend a transaction here. What
+            // the profiles that *did* answer returned is still carried out
+            // of the function: a reload discards it, but a cold-start retry
+            // keeps it, and a later attempt that loses one of those profiles
+            // would otherwise publish without apps this launch had already
+            // read. Returning empty here is what made that carry inert.
+            !recoverDegradedWithPackageManager -> emptyList()
+            // Last cold-start attempt with the personal profile among the
+            // failures. Without this the launcher publishes the profiles that
+            // *did* enumerate — on a work-profile device that means every
+            // personal app disappearing until some later reload succeeds.
+            personalProfileFailed -> packageManagerApps().also { recovered ->
+                // A recovery this complete is not a degraded read at all:
+                // `PackageManager` enumerates the personal profile
+                // authoritatively, so if that was the only profile that
+                // failed, every profile is now accounted for. Saying
+                // otherwise would cost the things a degraded read gives up —
+                // the snapshot write, the first-run dock seeding — and would
+                // merge in cached ids, reviving apps uninstalled since the
+                // snapshot was written.
+                // Success is the call not failing, not the count it came
+                // back with: a device (or a profile) with no launchable
+                // personal apps really does answer with an empty list, and
+                // reading that as "no recovery" merges the cache back in
+                // and keeps a ghost of the last app that was uninstalled.
+                if (!packageManagerFallbackFailed) {
+                    // The personal gap is filled whatever else failed — this
+                    // list *is* the personal profile, read authoritatively —
+                    // so the cache has nothing left to contribute and merging
+                    // it would resurrect apps uninstalled while the launcher
+                    // was stopped.
+                    personalProfileFailed = false
+                    // `PackageManager` enumerated it, so the read speaks for
+                    // the personal profile after all — even when the profile
+                    // listing itself failed and nothing else here does.
+                    vouchedProfiles += personalUser
+                    // The read as a whole is only undegraded when that was
+                    // the sole gap; a work profile that failed too is still
+                    // missing, and nothing here can enumerate it. A failed
+                    // profile *listing* can never clear it either: the count
+                    // it would be compared against is the one thing that read
+                    // was supposed to produce.
+                    if (failedProfileCount == 1 && !profileDiscoveryFailed) {
+                        degraded = false
                     }
+                    LauncherDebugLog.event(
+                        "loadInstalledApps recovered the personal profile through PackageManager apps=%s degraded=%s",
+                        recovered.size,
+                        degraded,
+                    )
+                }
             }
+            // A work profile failed and nothing here can enumerate it. Cold
+            // start still has to publish, so the personal apps it did read go
+            // out, degraded, rather than nothing at all.
+            else -> emptyList()
+        }
+        // `profileApps` first, so a component read through `LauncherApps`
+        // wins the dedup below over the same component read through
+        // `PackageManager` (the former launches through `LauncherApps`, which
+        // is the path that works across profiles).
+        val collected = (profileApps + fallbackApps)
             // Keying dedup on `id` (userHandle.hashCode():componentName) lets distinct
             // apps that happen to share a display name survive — e.g. Chase US
             // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
             // and the disambiguator pass below tags them with regional badges.
             .distinctBy { launcherApp -> launcherApp.id }
             .sortedWith(compareBy(displayNameOrder()) { launcherApp -> launcherApp.name })
+        if (degraded) {
+            LauncherDebugLog.event(
+                "loadInstalledApps degraded: profile enumeration incomplete, apps=%s",
+                collected.size,
+            )
+        }
         return collected
             .applyDisambiguators()
             .applyRenameOverrides()
@@ -4677,6 +5421,21 @@ internal class LauncherViewModel(
                     // on device; the app count beside it is the number that
                     // carries to the mirror.
                     profileSummaries.joinToString(separator = " ").ifEmpty { "(none)" },
+                )
+            }
+            .let { apps ->
+                AppLoadResult(
+                    apps = apps,
+                    isDegraded = degraded,
+                    // Either source of personal apps failing leaves the same
+                    // gap: the profile's own enumeration, or the
+                    // `PackageManager` read that stands in for it. The first
+                    // is cleared by a successful recovery even when the read
+                    // stays degraded over some other profile.
+                    quietModeIncomplete = quietModeUnreadable,
+                    vouchedProfiles = vouchedProfiles.toSet(),
+                    personalProfileIncomplete = degraded &&
+                        (personalProfileFailed || packageManagerFallbackFailed),
                 )
             }
     }
@@ -4885,6 +5644,26 @@ internal class LauncherViewModel(
         }
 
     companion object {
+        /**
+         * How many degraded reads (see [loadInstalledApps]) one package event
+         * is worth before the list is left stale until the next event. Three,
+         * with a pause that grows between them, spans about a second — enough
+         * for a binder buffer momentarily exhausted by a package-update storm,
+         * without spinning against a failure that is going to last.
+         */
+        private const val MAX_DEGRADED_LOAD_ATTEMPTS = 3
+
+        /**
+         * How many times the cold-start load re-reads `LauncherApps` before
+         * publishing whatever it has. Unlike a reload it cannot decline to
+         * publish, so the last attempt also takes the PackageManager
+         * fallback.
+         */
+        private const val MAX_COLD_START_LOAD_ATTEMPTS = 3
+
+        /** Pause between a degraded cold-start read and the next attempt. */
+        private const val DEGRADED_LOAD_RETRY_MILLIS = 300L
+
         fun factory(app: Application, workPackages: Set<String>): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
