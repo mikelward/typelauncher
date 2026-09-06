@@ -16,12 +16,10 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.os.SystemClock
 import android.os.UserHandle
 import android.os.UserManager
 import android.provider.Settings
 import android.view.KeyEvent
-import android.view.MotionEvent
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Toast
@@ -73,12 +71,6 @@ private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
 // mistaken for an orphan by the startup sweep, and so the configure-result
 // fallback can still recover the ID when the result intent omits the extra.
 private const val KEY_PENDING_WIDGET_ID = "app.typelauncher.PENDING_WIDGET_ID"
-
-// The home entry the tail guard was armed by, so a configuration change
-// between that entry and the gesture's touch does not throw the handoff away
-// with the activity instance. Written only while the entry is still in
-// flight; absent means there was no handoff to carry.
-private const val KEY_HOME_GESTURE_ANCHOR = "app.typelauncher.HOME_GESTURE_ANCHOR"
 // Persists the stranded widget ID a restore-placeholder tap is re-binding, so
 // an in-place swap survives a configuration change during the provider's
 // configure activity (mirrors KEY_PENDING_WIDGET_ID).
@@ -123,14 +115,6 @@ class MainActivity : ComponentActivity() {
     private var appliedPlayUpdateRefresh = 0
 
     private var hasSeenInitialWindowFocus = false
-
-    /**
-     * Drops the touch that ends the system's swipe-up-to-home gesture, so
-     * the icon it lands on does not launch. Fed from
-     * [onWindowFocusChanged] and consulted in [dispatchTouchEvent], both on
-     * the main thread.
-     */
-    private val homeGestureTailGuard = HomeGestureTailGuard()
 
     // True from the moment `bindWidget` accepts a tap until its allocate/bind
     // IPCs finish (or fail). `WidgetAddFlow.isAddInFlight` only turns true once
@@ -389,21 +373,6 @@ class MainActivity : ComponentActivity() {
         // the activity against the same Intent object, and re-reading its flags
         // would report a second chooser hand-off that never happened.
         if (savedInstanceState == null) recordHomeEntryFromChooser(intent)
-        // The other half of the entry intent: a task that is not alive yet gets
-        // it here rather than through onNewIntent. Fresh starts only, for the
-        // same reason as above — a configuration change re-reads the same
-        // Intent and is not a new entry.
-        if (savedInstanceState == null && intent.isLauncherEntryIntent()) {
-            homeGestureTailGuard.onEnteredAsHome(SystemClock.uptimeMillis())
-        } else if (savedInstanceState?.containsKey(KEY_HOME_GESTURE_ANCHOR) == true) {
-            // A recreation mid-handoff — a rotation while returning from a
-            // landscape app. The entry already happened and will not be
-            // redelivered, so the armed state comes across in the saved state
-            // rather than being inferred from the retained base intent.
-            homeGestureTailGuard.restoreEntryInProgress(
-                savedInstanceState.getLong(KEY_HOME_GESTURE_ANCHOR),
-            )
-        }
         // Wraps onCreate → first pre-draw so Firebase Performance shows the
         // launcher's own cold-start time alongside the SDK's auto-instrumented
         // app_start trace. The auto trace covers Application.onCreate +
@@ -605,10 +574,6 @@ class MainActivity : ComponentActivity() {
 
     internal fun handleLauncherIntent(intent: Intent) {
         if (!intent.isLauncherEntryIntent()) return
-        // The entry intent is the whole arming signal: it is what the system
-        // delivers when the launcher is entered as home, and it says so whether
-        // or not the activity restarted around it.
-        homeGestureTailGuard.onEnteredAsHome(SystemClock.uptimeMillis())
         recordHomeEntryFromChooser(intent)
         LauncherDebugLog.event("handleLauncherIntent returning to launcher home")
         viewModel.returnToLauncherHome()
@@ -1258,9 +1223,6 @@ class MainActivity : ComponentActivity() {
         // Carry the in-flight add ID across recreation; see KEY_PENDING_WIDGET_ID.
         outState.putInt(KEY_PENDING_WIDGET_ID, widgetAddFlow.pendingWidgetId)
         outState.putInt(KEY_RESTORE_TARGET_WIDGET_ID, restoreTargetWidgetId)
-        homeGestureTailGuard.entryInProgressAnchor(SystemClock.uptimeMillis())?.let { anchor ->
-            outState.putLong(KEY_HOME_GESTURE_ANCHOR, anchor)
-        }
         super.onSaveInstanceState(outState)
         LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=%s", outState.debugSummary())
     }
@@ -1295,14 +1257,6 @@ class MainActivity : ComponentActivity() {
             hasFocus,
             window.debugSummary(),
         )
-        // Before the view-model check: the guard has to track focus even on
-        // the cold start that has no view model yet, since that window is
-        // reached by the same gesture.
-        if (hasFocus) {
-            homeGestureTailGuard.onWindowFocusGained(SystemClock.uptimeMillis())
-        } else {
-            homeGestureTailGuard.onWindowFocusLost()
-        }
         if (hasFocus && ::viewModel.isInitialized) {
             if (hasSeenInitialWindowFocus) {
                 viewModel.requestShowKeyboardOnHomeResume()
@@ -1310,27 +1264,6 @@ class MainActivity : ComponentActivity() {
                 hasSeenInitialWindowFocus = true
             }
         }
-    }
-
-    /**
-     * Swallows the tail of the system's home gesture before it reaches the
-     * view hierarchy, so the app row or dock icon under the lifting finger
-     * does not launch the app the user was just leaving.
-     */
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (!homeGestureTailGuard.shouldSwallow(ev.actionMasked, ev.downTime)) {
-            return super.dispatchTouchEvent(ev)
-        }
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            LauncherDebugLog.event(
-                "MainActivity.dispatchTouchEvent dropped home-gesture tail hadFocus=%s afterEntryMs=%s",
-                homeGestureTailGuard.hasWindowFocus,
-                ev.downTime - homeGestureTailGuard.graceAnchorUptimeMillis,
-            )
-        }
-        // Reported as handled so the gesture ends here rather than being
-        // retried anywhere else.
-        return true
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
