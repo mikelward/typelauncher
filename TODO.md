@@ -13,7 +13,7 @@
   - **Distribute the row's actual pixel width across N cells the way `Adaptive` does.** A custom `Layout` (or a `Row` with `weight(1f)` per cell, modulo wrapping) would give each cell `(rowPx - spacingPx*(N-1)) / N` and centre the AppIcon inside it. That removes the rounding accumulation entirely at any density — at the cost of dropping the FlowRow primitive and re-implementing the wrap and drag-reorder slot-centre tracking against the new layout.
   - If neither path reclaims the dp, leave the slack in place — the visual delta (43 → 42 dp on six slots) is invisible and the trade is correctness for 1 dp.
 
-- [x] **A tap can fire on Home from the tail of the system's home gesture.** In a
+- [ ] **A tap can fire on Home from the tail of the system's home gesture.** In a
       user bug report, three of four returns to Home ended with an app launching
       straight back 21 ms, 33 ms and 611 ms after
       `MainActivity.onWindowFocusChanged hasFocus=true`. The first two are far too
@@ -34,21 +34,49 @@
       on the down rather than the up, so no gesture is left half-consumed, and
       keep the predicate a pure function so it is unit-testable without a device.
 
-      Shipped as `HomeGestureTailGuard`: armed by the launcher entry intent,
-      `MainActivity.dispatchTouchEvent` swallows the whole gesture when its
-      press arrives while the window is unfocused, or lands within 50 ms of the
-      launcher's content arriving — measured from the entry or the focus gain,
-      whichever came later, so a swipe home from Widgets or Agenda, which never
-      loses focus, is covered too. Still not reproduced on a device, so both the grace window
-      and what arms the guard are judgment calls — see *Decisions needing
-      review* below.
+      Not reproduced on a device yet, and that gap matters: whether the stray
+      input is a stale `ACTION_UP` or a fresh down/up pair delivered after the
+      transition hands the window over decides whether the guard also needs a
+      short grace window for a down landing in the same frame as focus.
 
       Has not recurred since the foreground icon warm-up was removed, including
       under deliberate stress-testing of swipes and transitions. The fastest
       focus-to-launch gap in that run was 391 ms, against 20 ms on the build
       before it. A starved transition would explain both this and a home swipe
       that appears to do nothing, so the warm-up is the suspected cause of both.
-      Kept open: the guard was never written, and one run is not proof.
+      Kept open: one run is not proof.
+
+      **Tried once and reverted** (PR #729, merged 27aed278, reverted 2026-09-06).
+      A `dispatchTouchEvent` guard shipped and the maintainer hit a regression the
+      same day: a dock icon tapped quickly after entering Home — while the
+      keyboard was still animating — did nothing. Cause: the guard had two
+      rules, and the second had no time bound. Touch is not gated on window
+      focus, so a press can be dispatched before `onWindowFocusChanged` runs;
+      to cover that, an armed guard swallowed any gesture arriving *before*
+      focus, limited to one gesture but not limited in time. Window focus does
+      not arrive until the home transition completes, which is the same span as
+      the keyboard animation — so a deliberate early tap fell inside it and was
+      dropped silently. The 50 ms timing window was not the problem and is
+      imperceptible; the unbounded pre-focus rule was.
+
+      What a second attempt should keep: arm on the launcher entry intent
+      (`Intent.isLauncherEntryIntent()`), not on the lifecycle — four review
+      rounds each found a hole in a lifecycle proxy, and the entry intent is
+      what they were all standing in for. Judge on `ACTION_DOWN`, never the
+      release, and swallow the whole gesture once its press is rejected.
+      What it must not repeat: any rule that swallows a press with no time
+      bound. Bounding the pre-focus case to the same grace window measured from
+      the entry (`downTime < entry + grace`, focus or no focus) keeps the stale
+      press — whose `downTime` predates the entry — and stops eating taps that
+      arrive later. That is the narrowest version of the fix and is what to
+      build if the bug is ever seen again.
+
+      **Confirm the bug exists before rebuilding anything.** It has still never
+      been reproduced on a device, it has not recurred since the foreground icon
+      warm-up was removed, and the reverted guard cost a real tap to defend
+      against it. The evidence to collect first is a debug log showing a launch
+      shortly after `onWindowFocusChanged hasFocus=true` with no `launchActiveApp`
+      line before it.
 
 - Revisit two carousel-gesture hardening items if either becomes user-visible. Both currently sit at "theoretical bug, no real trigger today, defensive fix introduces complexity worse than the symptom." Revisit if telemetry / bug reports show the trigger actually firing, or if a future code path (async widget reload, programmatic agenda toggle, dispatch path that returns early) makes either reachable.
 
@@ -68,94 +96,6 @@
      The right answer probably combines (4) for known-unreachable cases with (1) or (2) as the safety net for genuinely unexpected races.
 
 ### Decisions needing review
-
-- [ ] **The home-gesture tail guard takes a 50 ms grace window, not a strict
-      "press predates focus" test** (autopilot, 2026-09-05). The bug was never
-      reproduced on a device, so which of two readings is right is unknown: a
-      stale press carrying its original pre-focus timestamp, which a strict
-      test catches, or one replayed after the transition hands the window over,
-      which carries a fresh timestamp and which a strict test would miss
-      entirely. **Alternative:** the strict test, which can never eat a real
-      tap. **Not taken**, because it would leave the bug in place under the
-      second reading, and the reported launches landed 21 ms and 33 ms after
-      focus — inside a 50 ms window and far outside what a person can produce
-      by lifting a finger from the swipe and putting it back down. **Reversible**
-      in one constant: `HOME_GESTURE_TAIL_GRACE_MILLIS = 0` is the strict test,
-      and the tests are written so that boundary is the only thing that moves.
-      Worth settling with a device log the next time this is seen — the guard
-      logs the press's offset from focus when it drops one, which is the number
-      that decides it.
-
-- [ ] **The home-gesture tail guard arms on the launcher entry intent, which is
-      a design change review converged on** (autopilot, 2026-09-05). Four review
-      rounds each found a hole in a *proxy* for "the launcher was entered as
-      home": timing alone missed a press dispatched before the focus callback;
-      focus alone swallowed the deliberate tap that hands focus back to a
-      launcher left visible in split-screen; `onStart` alone missed a
-      `singleTask` re-entry from under a translucent activity, which arrives
-      through `onNewIntent` with no restart; and arming on *every* `onStart`
-      swallowed the first tap after a Back out of an ordinary activity, which
-      restarts the launcher without entering it as home. The last two point in
-      opposite directions on the same signal, which is what settled it.
-
-      What every one of them stands in for is the **entry intent itself**, which
-      the system delivers on a home entry however the activity is or is not
-      restarted, and which this app already depends on elsewhere —
-      `handleLauncherIntent` uses it to reset the carousel to Home. The guard
-      now arms there and in `onCreate` for a task that is not alive yet, and
-      the lifecycle arming is gone.
-
-      A fifth round then found that the brick-safety valve inside the predicate
-      — "only treat an unfocused press as a tail once a focus gain has been seen
-      at all" — left the cold-start race open, which matters because a swipe
-      home after process death *is* a cold start. That valve is gone; what
-      bounds it now is that the before-focus half swallows exactly **one**
-      gesture, since the tail is one gesture and a second press with focus still
-      absent says the callback is not coming.
-
-      A sixth and seventh round then found the two concrete costs of *not*
-      gating on the extra.
-      `stateNotNeeded="true"` (SPEC.md, and it is there for a good reason) lets
-      the system recreate the retained task with a **null** bundle *and* the
-      original `ACTION_MAIN`/`CATEGORY_HOME` base intent — so on the
-      process-death-then-Back path, `onCreate` cannot tell a restoration from a
-      fresh home entry, arms, and swallows the user's first tap if it beats the
-      focus callback. Accepted: it costs exactly one tap, once, on a narrow
-      path, bounded by the one-gesture rule above. The alternatives are worse —
-      dropping the `onCreate` arming reopens the cold-start race (a P1 in
-      review), and gating it on the extra is the design change below.
-
-      The seventh found the other one: a **three-button Home press** delivers
-      the same intent, and there is no swipe whose tail needs suppressing, so
-      arming there is pure cost — again one tap, again bounded. Also accepted,
-      for the reason below.
-
-      **Flagged rather than settled**, because the repo rule makes a design
-      change the maintainer's call even under autopilot. Two things to weigh.
-      **`gesture_nav_contract_v1`**, the extra the system puts on that intent,
-      is the precise form — it says the entry *is* a gesture-nav home
-      transition, where the plain intent also covers a Home button press, and it
-      is the only thing that separates a fresh entry from a task restoration.
-      Not gated on, since it is undocumented, absent under three-button
-      navigation and not guaranteed across OEMs, so it would silently disarm the
-      guard where it is missing; it could join the predicate rather than replace
-      it. The argument *for* gating the cold-start arming on it is stronger than
-      it first looks: three-button navigation has no swipe-up-to-home gesture,
-      so there is no tail to miss there — the only real loss would be an OEM
-      running gesture navigation without the extra. The argument against is that
-      that loss is unmeasured, while what it buys is one tap — and that the two
-      failure modes are not symmetric. As it stands the guard always covers the
-      gesture return this exists to fix, and over-arming costs a tap. Gated, it
-      covers that return only where the extra is present, and where it is not
-      the guard silently does nothing and the original bug comes back whole.
-      Trading "sometimes costs a tap" for "might not fix it at all, silently" is
-      the wrong direction while the extra's presence is unverified; a device log
-      is what would change that.
-      And **a return through recents is deliberately not armed** — no entry
-      intent, so no tail — which is right if the tail only follows a home
-      gesture, and a gap if it can follow any transition. A device log settles
-      both: the guard records whether it dropped a press and its offset from
-      focus.
 
 - [ ] **Kept Material Icons in the Licenses page after vendoring them**
       (autopilot, 2026-09-05, from a review finding on PR #730). Dropping
