@@ -119,6 +119,7 @@ class IconOnlyGridOrderScreenshotTest {
                         onResetRank = {},
                         onRenameApp = { _, _ -> },
                         onHideApp = {},
+                        onUninstallApp = {},
                     )
                 }
             }

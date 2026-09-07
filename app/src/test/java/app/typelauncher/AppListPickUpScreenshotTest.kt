@@ -103,6 +103,7 @@ class AppListPickUpScreenshotTest {
                         onResetRank = {},
                         onRenameApp = { _, _ -> },
                         onHideApp = {},
+                        onUninstallApp = {},
                         appDrag = noOpDrag,
                         draggedAppId = draggedAppId,
                     )

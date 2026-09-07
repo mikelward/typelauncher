@@ -84,6 +84,7 @@ class WidgetScrollCarouselTest {
                     onResetRank = {},
                     onRenameApp = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onUnhideApp = {},
                     onOpenSettings = {},
                     onCloseSettings = {},

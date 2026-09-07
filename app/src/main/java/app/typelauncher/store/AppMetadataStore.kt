@@ -38,6 +38,12 @@ internal class AppMetadataStore(context: Context) {
                             isWorkApp = obj.optBoolean(KEY_IS_WORK_APP, false),
                             launchWithLauncherApps = obj.optBoolean(KEY_LAUNCH_WITH_LAUNCHER_APPS, true),
                             iconCacheToken = obj.optString(KEY_ICON_CACHE_TOKEN).takeIf { it.isNotEmpty() },
+                            // Defaults to true for a snapshot written before
+                            // this key existed: the app list it came from is
+                            // mostly ordinary apps, and the worst a wrong
+                            // optimistic value costs is one Uninstall item on
+                            // a system app until the live load replaces it.
+                            isUninstallable = obj.optBoolean(KEY_IS_UNINSTALLABLE, true),
                             disambiguator = obj.optString(KEY_DISAMBIGUATOR).takeIf { it.isNotEmpty() },
                         ),
                     )
@@ -60,6 +66,7 @@ internal class AppMetadataStore(context: Context) {
                 put(KEY_COMPONENT, component.flattenToString())
                 put(KEY_IS_WORK_APP, app.isWorkApp)
                 put(KEY_LAUNCH_WITH_LAUNCHER_APPS, app.launchWithLauncherApps)
+                put(KEY_IS_UNINSTALLABLE, app.isUninstallable)
                 app.iconCacheToken?.let { put(KEY_ICON_CACHE_TOKEN, it) }
                 app.disambiguator?.takeIf { it.isNotEmpty() }?.let { put(KEY_DISAMBIGUATOR, it) }
             }
@@ -78,6 +85,7 @@ internal class AppMetadataStore(context: Context) {
         const val KEY_COMPONENT = "component"
         const val KEY_IS_WORK_APP = "isWorkApp"
         const val KEY_LAUNCH_WITH_LAUNCHER_APPS = "launchWithLauncherApps"
+        const val KEY_IS_UNINSTALLABLE = "isUninstallable"
         const val KEY_ICON_CACHE_TOKEN = "iconCacheToken"
         const val KEY_DISAMBIGUATOR = "disambiguator"
     }

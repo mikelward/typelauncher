@@ -234,6 +234,7 @@ internal fun HomeScreen(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     onDismissRecent: (InstalledApp) -> Unit,
     onOpenSettings: () -> Unit,
     // Typed-search content sections (contacts / calendar events): open the
@@ -834,6 +835,7 @@ internal fun HomeScreen(
                         onClearAppIconOverride = onClearAppIconOverride,
                         onSetAppBadge = onSetAppBadge,
                         onHideApp = onHideApp,
+                        onUninstallApp = onUninstallApp,
                         onDragStateChanged = onDockDragChanged,
                         homeReturnToken = state.homeReturnToken,
                         showAddButtonHint = state.shouldShowDockAddHint,
@@ -910,6 +912,7 @@ internal fun HomeScreen(
                         onClearAppIconOverride = onClearAppIconOverride,
                         onSetAppBadge = onSetAppBadge,
                         onHideApp = onHideApp,
+                        onUninstallApp = onUninstallApp,
                         onDragStateChanged = onDockDragChanged,
                         tags = DockTestTags.Work,
                         homeReturnToken = state.homeReturnToken,
@@ -1066,6 +1069,7 @@ internal fun HomeScreen(
                     onClearAppIconOverride = onClearAppIconOverride,
                     onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
+                    onUninstallApp = onUninstallApp,
                     onAppListBoundsChanged = onAppListBoundsChanged,
                     // Undock targets the whole card (present even when the list is
                     // empty), so drag-to-undock works when every app is docked.
@@ -1602,6 +1606,7 @@ private fun DockCard(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     onDragStateChanged: (Boolean) -> Unit = {},
     tags: DockTestTags = DockTestTags.Personal,
     // Changes whenever the launcher returns to a fresh Home (see
@@ -1899,6 +1904,7 @@ private fun DockCard(
                             onClearAppIconOverride = onClearAppIconOverride,
                             onSetAppBadge = onSetAppBadge,
                             onHideApp = onHideApp,
+                            onUninstallApp = onUninstallApp,
                             onReportSlotCenter = { center ->
                                 slotCenters[position] = center
                                 reportDockGeometry()
@@ -1988,6 +1994,7 @@ private fun DockCard(
                     onClearAppIconOverride = onClearAppIconOverride,
                     onSetAppBadge = onSetAppBadge,
                     onHideApp = onHideApp,
+                    onUninstallApp = onUninstallApp,
                     onReorderFolderMember = { appId, targetMemberId ->
                         onReorderFolderMember(inPlaceFolder.id, appId, targetMemberId)
                     },
@@ -2381,6 +2388,7 @@ internal fun DockFolderInPlace(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     onReorderFolderMember: (appId: String, targetMemberId: String) -> Unit = { _, _ -> },
     onMemberDragStateChanged: (Boolean) -> Unit = {},
     dockBoundsInRoot: Rect? = null,
@@ -2452,6 +2460,7 @@ internal fun DockFolderInPlace(
                 onClearAppIconOverride = onClearAppIconOverride,
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
                 onReorderFolderMember = onReorderFolderMember,
                 onMemberDragStateChanged = onMemberDragStateChanged,
                 dockBoundsInRoot = dockBoundsInRoot,
@@ -2507,6 +2516,7 @@ internal fun DockFolderGrid(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     // Moves the member [appId] onto the cell of another member, named by id
     // rather than display index so hidden members in the persisted order can't
     // skew the position (the store resolves the id in its unfiltered list).
@@ -2707,6 +2717,7 @@ internal fun DockFolderGrid(
                                 onClearAppIconOverride = onClearAppIconOverride,
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
+                                onUninstallApp = onUninstallApp,
                                 isDragged = draggedMemberId == member.id,
                                 dragOffset = if (draggedMemberId == member.id) dragOffset else Offset.Zero,
                                 onDragStart = { onMemberDragStart(member.id) },
@@ -2860,6 +2871,7 @@ private fun DockFolderMemberTile(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     // Optional drag-to-reorder (used by the Overlay folder card). When
     // [onDragStart] is non-null the tile uses the dock's long-press gesture —
     // long-press then move reorders, long-press then release opens the menu — and
@@ -3007,6 +3019,7 @@ private fun DockFolderMemberTile(
                 onClearAppIconOverride = onClearAppIconOverride,
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
             )
         },
     )
@@ -3026,6 +3039,7 @@ private fun DockFolderMemberActionsMenu(
     onClearAppIconOverride: (InstalledApp) -> Unit,
     onSetAppBadge: (InstalledApp, String?) -> Unit,
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
 ) {
     // rememberSaveable (keyed on app.id) so an in-progress Edit survives a
     // configuration change — same rationale as AppActionsMenu.
@@ -3072,6 +3086,17 @@ private fun DockFolderMemberActionsMenu(
                 onHideApp(app)
             },
         )
+        // Same placement and same omission rule as AppActionsMenu.
+        if (app.isUninstallable) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_uninstall)) },
+                modifier = Modifier.testTag("$UNINSTALL_APP_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onUninstallApp(app)
+                },
+            )
+        }
     }
     if (editDialogVisible) {
         EditAppDialog(
@@ -4037,6 +4062,7 @@ internal fun AppsCard(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     onAppListBoundsChanged: (Rect?) -> Unit = {},
     // The whole apps card's bounds in root coordinates, reported even in the
     // loading / empty state (unlike [onAppListBoundsChanged], which is the
@@ -4164,6 +4190,7 @@ internal fun AppsCard(
                         onClearAppIconOverride = onClearAppIconOverride,
                         onSetAppBadge = onSetAppBadge,
                         onHideApp = onHideApp,
+                        onUninstallApp = onUninstallApp,
                         appDrag = appDrag,
                         draggedAppId = draggedAppId,
                     )
@@ -4223,6 +4250,7 @@ internal fun AppsCard(
                                 onClearAppIconOverride = onClearAppIconOverride,
                                 onSetAppBadge = onSetAppBadge,
                                 onHideApp = onHideApp,
+                                onUninstallApp = onUninstallApp,
                                 appDrag = appDrag,
                                 isDragged = appDrag != null && app.id == draggedAppId,
                             )
@@ -4298,6 +4326,7 @@ internal fun IconOnlyAppGrid(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     appDrag: AppDragHandlers? = null,
     // The app currently being dragged out of the list, if any; its tile renders
     // empty so the icon reads as picked up into the floating drag overlay.
@@ -4338,6 +4367,7 @@ internal fun IconOnlyAppGrid(
                 onClearAppIconOverride = onClearAppIconOverride,
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
                 appDrag = appDrag,
                 isDragged = appDrag != null && app.id == draggedAppId,
             )
@@ -4769,6 +4799,7 @@ private fun IconOnlyAppButton(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     appDrag: AppDragHandlers? = null,
     // True while this app is being dragged out of the list: its content hides
     // (alpha 0, layout slot preserved) so the icon reads as picked up into the
@@ -4860,6 +4891,7 @@ private fun IconOnlyAppButton(
             onClearAppIconOverride = onClearAppIconOverride,
             onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
+            onUninstallApp = onUninstallApp,
             isFlatSurface = true,
         )
     }
@@ -4879,6 +4911,7 @@ private fun AppRow(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     appDrag: AppDragHandlers? = null,
     // True while this app is being dragged out of the list: its content hides
     // (alpha 0, layout slot preserved) so the icon reads as picked up into the
@@ -4951,6 +4984,7 @@ private fun AppRow(
             onClearAppIconOverride = onClearAppIconOverride,
             onSetAppBadge = onSetAppBadge,
             onHideApp = onHideApp,
+            onUninstallApp = onUninstallApp,
             isFlatSurface = true,
         )
     }
@@ -4970,6 +5004,7 @@ private fun AppActionsMenu(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     // True on the flat app list / recents, where a folder member should not
     // offer a dock toggle (folder membership is managed in the folder popup).
     // Dock tiles pass false so a tile always toggles its own dock, even when
@@ -5044,6 +5079,19 @@ private fun AppActionsMenu(
                 onHideApp(app)
             },
         )
+        // Last, because it is the one destructive action here — and left out
+        // entirely for an app Android won't let go of (a never-updated system
+        // app), rather than offering a tap the system would refuse.
+        if (app.isUninstallable) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_uninstall)) },
+                modifier = Modifier.testTag("$UNINSTALL_APP_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onUninstallApp(app)
+                },
+            )
+        }
     }
     if (editDialogVisible) {
         EditAppDialog(
@@ -5447,6 +5495,7 @@ private fun DockedAppButton(
     onClearAppIconOverride: (InstalledApp) -> Unit = {},
     onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
     onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
     onReportSlotCenter: (Offset) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
@@ -5698,6 +5747,7 @@ private fun DockedAppButton(
                 onClearAppIconOverride = onClearAppIconOverride,
                 onSetAppBadge = onSetAppBadge,
                 onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
             )
         },
     )
@@ -7420,6 +7470,7 @@ private fun SettingsPreview(
                     onClearAppIconOverride = {},
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                 )
             }
             if (state.isDockEnabled) {
@@ -7441,6 +7492,7 @@ private fun SettingsPreview(
                     onClearAppIconOverride = {},
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                 )
             }
             // Mirror Home: recents is always a secondary bar, independent of the dock.

@@ -73,6 +73,7 @@ class SearchDockRevealScreenshotTest {
                     onResetRank = {},
                     onRenameApp = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onUnhideApp = {},
                     onOpenSettings = {},
                     onCloseSettings = {},

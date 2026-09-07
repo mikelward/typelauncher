@@ -232,6 +232,7 @@ class ContentSearchScreenshotTest {
                         onResetRank = {},
                         onRenameApp = { _, _ -> },
                         onHideApp = {},
+                        onUninstallApp = {},
                     )
                 }
             }
@@ -277,6 +278,7 @@ class ContentSearchScreenshotTest {
                         onResetRank = {},
                         onRenameApp = { _, _ -> },
                         onHideApp = {},
+                        onUninstallApp = {},
                     )
                 }
             }

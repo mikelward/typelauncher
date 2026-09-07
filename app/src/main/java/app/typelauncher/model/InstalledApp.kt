@@ -55,6 +55,13 @@ internal data class InstalledApp(
     // correct value for personal apps and for the common work app whose own
     // label has no leading work token), so non-VM constructors needn't set it.
     val unprefixedName: String = name,
+    // False for a system app the user has never updated: Android refuses to
+    // uninstall one, so the long-press menu leaves the item out rather than
+    // offering an action the system declines. An *updated* system app stays
+    // true — uninstalling it reverts to the factory version, which is a real
+    // outcome the user may want. Defaults to true so the common case (an
+    // ordinary installed app) needs no argument.
+    val isUninstallable: Boolean = true,
 ) {
     val id: String
         get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
@@ -154,6 +161,23 @@ internal data class InstalledApp(
     val appInfoIntent: Intent
         get() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             .setData(Uri.parse("package:$packageName"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+
+    // Hands the package off to the system uninstaller, which puts up its own
+    // confirmation dialog — the launcher deliberately doesn't add a second one.
+    //
+    // EXTRA_USER is what makes a work-profile app uninstall the work copy: the
+    // `package:` URI resolves against the current user only, exactly as
+    // [appInfoIntent] does, and unlike App info there is no LauncherApps call
+    // that dispatches an uninstall cross-profile.
+    //
+    // FLAG_ACTIVITY_NEW_TASK because this is started from an application
+    // context; CLEAR_TASK for the same reason as [appInfoIntent] — so a
+    // package installer already sitting on another page can't swallow it.
+    val uninstallIntent: Intent
+        get() = Intent(Intent.ACTION_DELETE)
+            .setData(Uri.fromParts("package", packageName, null))
+            .putExtra(Intent.EXTRA_USER, user)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
 
     override fun toString(): String = name

@@ -67,6 +67,7 @@ class WallpaperPullGestureTest {
                     onResetRank = {},
                     onRenameApp = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onUnhideApp = {},
                     onOpenSettings = {},
                     onCloseSettings = {},
