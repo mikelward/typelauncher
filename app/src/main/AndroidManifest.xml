@@ -22,6 +22,14 @@
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <!-- Backs the long-press menu's Uninstall action, which starts the system
+         uninstaller. A normal permission — granted at install with no prompt,
+         and it grants no ability to remove anything silently: the system still
+         shows its own confirmation and does the removal. Declared because the
+         uninstaller intent family requires it from targetSdk 28 on, and
+         without it the action can only ever end in a SecurityException and the
+         failure toast. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <queries>
         <intent>

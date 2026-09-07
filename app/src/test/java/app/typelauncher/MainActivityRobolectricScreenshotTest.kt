@@ -2161,6 +2161,30 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun appActionsMenuUninstall_handsThePackageToTheSystemUninstaller() {
+        // The system uninstaller puts up its own confirmation, so the launcher
+        // starts the flow and nothing more: the app is still installed, still
+        // listed, and still docked until the package-removed broadcast says
+        // otherwise.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calendar")
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calendar").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$UNINSTALL_APP_ACTION_TAG:Calendar").performClick()
+        composeRule.waitForIdle()
+
+        val startedIntent = shadowOf(composeRule.activity).nextStartedActivity
+        assertEquals(Intent.ACTION_DELETE, startedIntent.action)
+        assertEquals(android.net.Uri.parse("package:app.typelauncher.fake2"), startedIntent.data)
+        // Carries the profile so a work-profile app uninstalls the work copy
+        // rather than resolving the package against the personal user.
+        assertEquals(
+            Process.myUserHandle(),
+            startedIntent.getParcelableExtra(Intent.EXTRA_USER, UserHandle::class.java),
+        )
+        assertTrue(startedIntent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
+        assertTrue(composeRule.activity.viewModel.uiState.value.filteredApps.any { it.name == "Calendar" })
+    }
+
+    @Test
     fun hidingApp_removesItFromAppListAndAllOtherSurfaces() {
         val viewModel = composeRule.activity.viewModel
         // Pin Calculator to the dock and launch it once so it would appear in

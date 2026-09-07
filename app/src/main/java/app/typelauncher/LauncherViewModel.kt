@@ -2954,6 +2954,49 @@ internal class LauncherViewModel(
     }
 
     /**
+     * Hands the app off to the system uninstaller. The platform puts up its own
+     * "Do you want to uninstall this app?" confirmation and does the removal, so
+     * the launcher adds no dialog of its own — this only starts the flow.
+     *
+     * Nothing is removed from the dock or the launch counts here either: the
+     * user can still back out at the system prompt, and if they do go through
+     * with it the package-removed broadcast reloads the list, which is what
+     * drops the app from every surface.
+     *
+     * Guarded because both ways of missing the uninstaller throw rather than
+     * no-opping — a build with no package installer to handle ACTION_DELETE
+     * (`ActivityNotFoundException`), and a managed profile whose policy blocks
+     * uninstalls (`SecurityException`) — the same pair [openAppInfo] and the
+     * wallpaper picker already catch. Either way the user gets a toast saying
+     * it didn't start, rather than a tap that goes nowhere.
+     */
+    fun uninstallApp(app: InstalledApp) {
+        LauncherDebugLog.event(
+            "uninstallApp package=%s work=%s uninstallable=%s",
+            app.packageName,
+            app.isWorkApp,
+            app.isUninstallable,
+        )
+        try {
+            startActivity(app.uninstallIntent)
+        } catch (exception: ActivityNotFoundException) {
+            reportUninstallUnavailable("no activity for ACTION_DELETE", exception)
+        } catch (exception: SecurityException) {
+            reportUninstallUnavailable("not permitted to start ACTION_DELETE", exception)
+        }
+    }
+
+    // Logs the miss and tells the user, deliberately without handing the
+    // throwable to LauncherDebugLog.warning — a SecurityException from
+    // startActivity carries the resolved component in its message, and
+    // PRIVACY.md keeps app names out of anything leaving the device. Same
+    // reasoning as reportWallpaperPickerUnavailable below.
+    private fun reportUninstallUnavailable(reason: String, exception: Exception) {
+        LauncherDebugLog.warning("uninstallApp %s (%s)", safe(reason), safe(exception.javaClass.simpleName))
+        Toast.makeText(app, R.string.app_menu_uninstall_unavailable, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
      * Opens Android's app-info screen for Type Launcher itself, used by the settings
      * overflow "App info" action. From there the user can tap "Storage & cache" →
      * "Clear storage" to wipe launch counts, the metadata snapshot, persisted icon
@@ -5267,6 +5310,7 @@ internal class LauncherViewModel(
                             launchWithLauncherApps = true,
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
                             isQuietMode = quiet,
+                            isUninstallable = activity.applicationInfo.isUninstallable,
                             displayBase = workLabel(rawLabel, workApp),
                             unprefixedName = workSearchName(rawLabel, workApp),
                         )
@@ -5337,6 +5381,7 @@ internal class LauncherViewModel(
                         isWorkApp = workApp,
                         launchWithLauncherApps = false,
                         iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
+                        isUninstallable = activityInfo.applicationInfo.isUninstallable,
                         displayBase = workLabel(rawLabel, workApp),
                         unprefixedName = workSearchName(rawLabel, workApp),
                     )
@@ -5784,6 +5829,17 @@ internal fun AppWidgetProviderInfo.toWidgetProvider(
 
 private fun estimateCellSpan(sizeDp: Int): Int =
     ((sizeDp + WIDGET_CELL_ESTIMATE_DP - 1) / WIDGET_CELL_ESTIMATE_DP).coerceAtLeast(1)
+
+// Whether Android will let the user uninstall this app. A preinstalled app
+// that has never been updated cannot be removed, so the long-press menu leaves
+// the item out; one that *has* been updated can, and uninstalling it reverts
+// to the factory version. Reads two flag bits already in hand — no binder call,
+// so it costs nothing on the load path.
+//
+// Internal so unit tests can exercise it directly.
+internal val ApplicationInfo.isUninstallable: Boolean
+    get() = flags and ApplicationInfo.FLAG_SYSTEM == 0 ||
+        flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
 
 // Internal (not private) so unit tests can exercise the work-only fallback
 // directly — building a cross-profile LauncherActivityInfo under Robolectric

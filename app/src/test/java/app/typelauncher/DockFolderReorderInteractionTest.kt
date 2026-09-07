@@ -94,6 +94,7 @@ class DockFolderReorderInteractionTest {
                     onClearAppIconOverride = {},
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onMemberDragStateChanged = { if (it) armedEver = true },
                 )
             }
@@ -137,6 +138,7 @@ class DockFolderReorderInteractionTest {
                     onClearAppIconOverride = {},
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onReorderFolderMember = { appId, target -> order = reorder(order, appId, target) },
                 )
             }

@@ -80,6 +80,7 @@ class HomeGearBadgeScreenshotTest {
                     onResetRank = {},
                     onRenameApp = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onDismissRecent = {},
                     onOpenSettings = {},
                 )

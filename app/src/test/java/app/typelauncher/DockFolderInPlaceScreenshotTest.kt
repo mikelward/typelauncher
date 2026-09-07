@@ -105,6 +105,7 @@ class DockFolderInPlaceScreenshotTest {
             onClearAppIconOverride = {},
             onSetAppBadge = { _, _ -> },
             onHideApp = {},
+            onUninstallApp = {},
             modifier = modifier,
         )
     }

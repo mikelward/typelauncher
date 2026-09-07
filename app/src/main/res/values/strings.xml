@@ -42,6 +42,10 @@
     <string name="app_menu_reset_rank">Reset rank</string>
     <string name="app_menu_edit">Edit</string>
     <string name="app_menu_hide">Hide</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_uninstall" tools:ignore="MissingTranslation">Uninstall</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_uninstall_unavailable" tools:ignore="MissingTranslation">Can\'t uninstall this app</string>
     <string name="app_menu_move_out">Move out</string>
     <string name="app_menu_open_folder">Open folder</string>
     <!-- TODO: rename the "explode" code symbols (app_menu_explode, explodeFolder,

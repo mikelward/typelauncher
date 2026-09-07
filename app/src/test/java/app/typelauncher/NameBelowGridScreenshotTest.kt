@@ -70,6 +70,7 @@ class NameBelowGridScreenshotTest {
                         onResetRank = {},
                         onRenameApp = { _, _ -> },
                         onHideApp = {},
+                        onUninstallApp = {},
                     )
                 }
             }
@@ -117,6 +118,7 @@ class NameBelowGridScreenshotTest {
                         onResetRank = {},
                         onRenameApp = { _, _ -> },
                         onHideApp = {},
+                        onUninstallApp = {},
                     )
                 }
             }

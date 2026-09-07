@@ -42,6 +42,7 @@ class SwipeDownNotificationShadeTest {
                 onResetRank = {},
                 onRenameApp = { _, _ -> },
                 onHideApp = {},
+                onUninstallApp = {},
                 onUnhideApp = {},
                 onOpenSettings = {},
                 onCloseSettings = {},

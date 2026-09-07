@@ -81,6 +81,7 @@ class DockFolderDragOutDropTest {
                     onClearAppIconOverride = {},
                     onSetAppBadge = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     dockBoundsInRoot = dockBounds,
                     dockSlotCenters = slotCenters,
                     // The dock's live lattice is a single row of four columns;

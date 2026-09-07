@@ -68,6 +68,7 @@ class LandscapeDockDragTest {
                     onResetRank = {},
                     onRenameApp = { _, _ -> },
                     onHideApp = {},
+                    onUninstallApp = {},
                     onUnhideApp = {},
                     onOpenSettings = {},
                     onCloseSettings = {},
