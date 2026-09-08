@@ -46,6 +46,15 @@ internal object ContactPhotoLoader {
     private const val CACHE_BYTE_BUDGET = 2 * 1024 * 1024
     private const val ARGB_8888_BYTES_PER_PIXEL = 4
 
+    // Ceiling on the compressed blob buffered in [decodePhoto]. A
+    // PHOTO_THUMBNAIL_URI blob is a few KB and even a full-resolution photo
+    // from a sync adapter is a small number of MB, so this rejects nothing
+    // real; what it bounds is a provider — third-party sync adapters supply
+    // photos too — handing back something arbitrarily large. Sized well under
+    // any modern app heap, and independent of the decode, which inSampleSize
+    // now bounds on its own.
+    private const val MAX_PHOTO_BYTES = 16 * 1024 * 1024
+
     private data class CacheKey(val photoUri: String, val sizePx: Int)
 
     private val cache = object : LruCache<CacheKey, ImageBitmap>(CACHE_BYTE_BUDGET) {
@@ -118,20 +127,65 @@ internal object ContactPhotoLoader {
      * truncated blob, and a missing photo must degrade to the monogram, never
      * crash the launcher.
      */
-    private fun decodePhoto(context: Context, photoUri: String, sizePx: Int): ImageBitmap? = try {
-        val raw = context.contentResolver.openInputStream(Uri.parse(photoUri))
-            ?.use { stream -> BitmapFactory.decodeStream(stream) }
-        raw?.let { cropScaleToSquare(it, sizePx).asImageBitmap() }
-    } catch (exception: Exception) {
-        // Message only, no URI and no throwable: warnings mirror into
-        // Crashlytics breadcrumbs (and recordException uploads the throwable),
-        // and both the photo URI and a provider exception's own message can
-        // identify a contact — PRIVACY.md promises breadcrumbs carry no
-        // contact data. The exception class is the useful non-identifying
-        // signal; the full stack still lands in logcat for local debugging.
-        LauncherDebugLog.warning("ContactPhotoLoader decode failed: %s", exception.javaClass.simpleName)
-        LauncherDebugLog.trace("ContactPhotoLoader decode failure detail: $exception")
-        null
+    private fun decodePhoto(context: Context, photoUri: String, sizePx: Int): ImageBitmap? {
+        return try {
+            // Read the blob once, then decode it twice: a bounds-only pass to
+            // learn the source's size, and a real pass sampled down to roughly
+            // [sizePx]. Decoding straight off the stream would allocate the
+            // source's full pixel count before [cropScaleToSquare] could shrink
+            // it — small today, since the caller passes PHOTO_THUMBNAIL_URI,
+            // but an unbounded decode the moment anything hands this a
+            // full-size photo instead.
+            //
+            // Re-opening the stream is the other way to get two passes; it
+            // spends a second provider round trip on the path that renders a
+            // search result, and only a fresh-stream provider supports it.
+            // Buffering instead means the buffer needs its own ceiling, so the
+            // read is capped rather than trusting the provider to stop — one
+            // byte over is enough to tell "too large" from "exactly at the
+            // limit" without reading the rest. A provider that blocks without
+            // ever delivering EOF still blocks here, but it did under the old
+            // decodeStream too, and the IO dispatcher is where that has always
+            // been absorbed.
+            val bytes = context.contentResolver.openInputStream(Uri.parse(photoUri))
+                ?.use { stream -> stream.readNBytes(MAX_PHOTO_BYTES + 1) }
+                ?: return null
+            if (bytes.size > MAX_PHOTO_BYTES) {
+                // No URI and no size: PRIVACY.md keeps contact identifiers out
+                // of the log, and which contact it was is not the diagnostic —
+                // that the ceiling fired at all is.
+                LauncherDebugLog.warning("ContactPhotoLoader photo over the size ceiling; using the monogram")
+                return null
+            }
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            val opts = BitmapFactory.Options().apply {
+                inSampleSize = computeInSampleSize(bounds.outWidth, bounds.outHeight, sizePx)
+            }
+            val raw = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+            raw?.let { cropScaleToSquare(it, sizePx).asImageBitmap() }
+        } catch (error: OutOfMemoryError) {
+            // Not a blanket Throwable catch — this names the one Error a photo
+            // decode realistically raises, so CancellationException and the
+            // rest still propagate. A contact photo is the least important
+            // pixel on the screen, so it degrades to the monogram rather than
+            // taking the launcher down with it. Still reachable with the buffer
+            // capped above: inSampleSize bounds the decode's allocation but
+            // does not make it free.
+            LauncherDebugLog.warning("ContactPhotoLoader decode ran out of memory")
+            null
+        } catch (exception: Exception) {
+            // Message only, no URI and no throwable: warnings mirror into
+            // Crashlytics breadcrumbs (and recordException uploads the throwable),
+            // and both the photo URI and a provider exception's own message can
+            // identify a contact — PRIVACY.md promises breadcrumbs carry no
+            // contact data. The exception class is the useful non-identifying
+            // signal; the full stack still lands in logcat for local debugging.
+            LauncherDebugLog.warning("ContactPhotoLoader decode failed: %s", exception.javaClass.simpleName)
+            LauncherDebugLog.trace("ContactPhotoLoader decode failure detail: $exception")
+            null
+        }
     }
 
     private fun cropScaleToSquare(raw: Bitmap, sizePx: Int): Bitmap {

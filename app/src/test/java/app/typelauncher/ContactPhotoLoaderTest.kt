@@ -76,6 +76,43 @@ class ContactPhotoLoaderTest {
     }
 
     @Test
+    fun largePhotoStillDecodesToTheRequestedSquare() {
+        // The decode is sampled down before the crop now, so a source far
+        // larger than the target takes a different path through decodePhoto
+        // than the near-target one above. It must still land on an exact
+        // center-cropped square — the sampling is an allocation bound, not a
+        // change to what the row draws.
+        registerPhoto(PHOTO_URI, width = 512, height = 384)
+        runBlocking {
+            val loaded = ContactPhotoLoader.load(context, contact(PHOTO_URI), sizePx = 40)
+            assertNotNull("large photo must decode", loaded)
+            assertEquals(40, loaded!!.width)
+            assertEquals(40, loaded.height)
+        }
+    }
+
+    @Test
+    fun photoOverTheSizeCeilingDegradesToNull() {
+        // A provider handing back something arbitrarily large must not be
+        // buffered whole. The stream here never ends, so reaching the assert
+        // at all proves the read is capped rather than running to EOF — and
+        // the row falls back to the monogram instead of the launcher dying.
+        val endless = object : java.io.InputStream() {
+            override fun read(): Int = 0x00
+
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                java.util.Arrays.fill(b, off, off + len, 0.toByte())
+                return len
+            }
+        }
+        shadowOf(context.contentResolver).registerInputStream(Uri.parse(PHOTO_URI), endless)
+
+        runBlocking {
+            assertNull(ContactPhotoLoader.load(context, contact(PHOTO_URI), sizePx = 40))
+        }
+    }
+
+    @Test
     fun photolessContactResolvesToNull() {
         runBlocking {
             assertNull(ContactPhotoLoader.load(context, contact(null), sizePx = 40))
