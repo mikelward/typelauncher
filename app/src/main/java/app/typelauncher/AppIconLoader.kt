@@ -458,18 +458,6 @@ internal object AppIconLoader {
         return scaled
     }
 
-    private fun computeInSampleSize(srcWidth: Int, srcHeight: Int, targetPx: Int): Int {
-        if (targetPx <= 0) return 1
-        var sample = 1
-        // Halve until both axes are within ~2× of the target. Powers-of-two
-        // keep `BitmapFactory`'s decoder on its fast path; any residual
-        // mismatch is cleaned up by `createScaledBitmap` afterwards.
-        while ((srcHeight / sample) > targetPx * 2 && (srcWidth / sample) > targetPx * 2) {
-            sample *= 2
-        }
-        return sample
-    }
-
     fun put(id: String, sizePx: Int, bitmap: ImageBitmap) {
         cache.put(CacheKey(id, sizePx), bitmap)
     }
