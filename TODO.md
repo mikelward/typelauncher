@@ -1,0 +1,1269 @@
+# TODO
+
+- Decide whether empty-query Enter/Search should continue opening Type Launcher settings or do something else.
+- Revisit cached Home keyboard geometry after adding a permanent bottom reservation for the recents bar. Today `keyboard_reservation_bottom_px` keeps Home in typing-height geometry even after the user dismisses the IME with Back; that is intentional for the current hot path, but it should become redundant once the app list and dock reserve stable bottom space independent of keyboard visibility.
+- Decide the secondary-tray behavior when `Show keyboard automatically` is disabled. The current tray is coupled to cached keyboard geometry from the type-first path; keyboard-opt-out users may need a stable bottom reservation that is not derived from IME auto-show.
+- Design keyboard access for launching docked apps.
+- Consider work-profile surfacing that is only visible when a managed work profile is provisioned and currently active (i.e. not paused / quiet-mode). Two shapes worth weighing:
+  - **A separate work dock.** Sits alongside the personal dock — open questions: replace the personal dock, render as a secondary row, or expose via a swipe target?
+  - **A whole separate page for work-profile stuff.** A dedicated page (sibling to Home / Widgets in the carousel) that hosts the work app list, work dock, and any work-only widgets, so personal and work surfaces never mix on a single screen. Likely the cleaner mental model if Android's quiet-mode toggle is meant to make the entire work surface disappear at once.
+  - Cross-cutting open questions for either shape: how to enumerate work-profile apps via `LauncherApps` for the secondary `UserHandle`, how to react to `ACTION_MANAGED_PROFILE_AVAILABLE` / `ACTION_MANAGED_PROFILE_UNAVAILABLE` / `ACTION_MANAGED_PROFILE_ADDED` / `ACTION_MANAGED_PROFILE_REMOVED` so the surface appears and disappears without a relaunch, whether dock slot and rename / icon-override persistence should be per-profile, and how the work badge interacts with the existing regional disambiguator badge.
+- Try to recover the 1 dp the dock formula gives back to pixel-rounding slack. PR #281 shipped `DOCK_PIXEL_ROUNDING_SLACK_PER_SLOT_DP = 1` so the `FlowRow` would actually fit `dockIconCount` items per row at 411dp/420dpi (six slots dropped icons from 43 → 42 dp). The slack is a workaround for `Modifier.padding(4.dp) + AppIcon(iconSize.dp)` rounding three `Dp` values independently in `Density.roundToPx`; rounding `(iconSize+8).dp` *once* per item undershoots the dp logical width, which is what the apps-list `LazyVerticalGrid.Adaptive` relies on. Worth trying:
+  - **Render dock items at a single fixed cell width.** Replace the per-item `padding(4.dp)` with `Modifier.size((iconSize + DOCK_ITEM_HORIZONTAL_PADDING_DP).dp)` so each cell is one `roundToPx` instead of three. Should let the formula drop the slack at densities ≥ 2.0; verify density 1.5 (240 dpi) still fits — earlier scratch math showed it overruns by 1 px on a 411 dp / 6 slot row even with the size approach, so the slack may still need to apply at low densities.
+  - **Distribute the row's actual pixel width across N cells the way `Adaptive` does.** A custom `Layout` (or a `Row` with `weight(1f)` per cell, modulo wrapping) would give each cell `(rowPx - spacingPx*(N-1)) / N` and centre the AppIcon inside it. That removes the rounding accumulation entirely at any density — at the cost of dropping the FlowRow primitive and re-implementing the wrap and drag-reorder slot-centre tracking against the new layout.
+  - If neither path reclaims the dp, leave the slack in place — the visual delta (43 → 42 dp on six slots) is invisible and the trade is correctness for 1 dp.
+
+- [ ] **A tap can fire on Home from the tail of the system's home gesture.** In a
+      user bug report, three of four returns to Home ended with an app launching
+      straight back 21 ms, 33 ms and 611 ms after
+      `MainActivity.onWindowFocusChanged hasFocus=true`. The first two are far too
+      fast to be a deliberate tap, and no `launchActiveApp` line precedes any of
+      them — so they arrived through an app row or dock icon's `onClick`, not
+      through Enter (which, on an empty query, opens settings anyway). The read:
+      the finger lift that ends the swipe-up-to-home gesture reaches the launcher
+      once its window is touchable, and whatever icon sits under it launches.
+      When that icon is the app the user just left, the swipe reads as having
+      done nothing.
+
+      There is no guard today. `MainActivity` does not override
+      `dispatchTouchEvent`, does not read the `gesture_nav_contract_v1` extra the
+      system puts on the home intent, and the rows are plain `clickable`s that
+      fire on the first `ACTION_UP` they see. Fix shape: record the uptime when
+      the window gains focus (`hasSeenInitialWindowFocus` is already there to
+      hang it off) and drop any gesture whose `ACTION_DOWN` predates it. Reject
+      on the down rather than the up, so no gesture is left half-consumed, and
+      keep the predicate a pure function so it is unit-testable without a device.
+
+      Not reproduced on a device yet, and that gap matters: whether the stray
+      input is a stale `ACTION_UP` or a fresh down/up pair delivered after the
+      transition hands the window over decides whether the guard also needs a
+      short grace window for a down landing in the same frame as focus.
+
+      Has not recurred since the foreground icon warm-up was removed, including
+      under deliberate stress-testing of swipes and transitions. The fastest
+      focus-to-launch gap in that run was 391 ms, against 20 ms on the build
+      before it. A starved transition would explain both this and a home swipe
+      that appears to do nothing, so the warm-up is the suspected cause of both.
+      Kept open: one run is not proof.
+
+      **Tried once and reverted** (PR #729, merged 27aed278, reverted 2026-09-06).
+      A `dispatchTouchEvent` guard shipped and the maintainer hit a regression the
+      same day: a dock icon tapped quickly after entering Home — while the
+      keyboard was still animating — did nothing. Cause: the guard had two
+      rules, and the second had no time bound. Touch is not gated on window
+      focus, so a press can be dispatched before `onWindowFocusChanged` runs;
+      to cover that, an armed guard swallowed any gesture arriving *before*
+      focus, limited to one gesture but not limited in time. Window focus does
+      not arrive until the home transition completes, which is the same span as
+      the keyboard animation — so a deliberate early tap fell inside it and was
+      dropped silently. The 50 ms timing window was not the problem and is
+      imperceptible; the unbounded pre-focus rule was.
+
+      What a second attempt should keep: arm on the launcher entry intent
+      (`Intent.isLauncherEntryIntent()`), not on the lifecycle — four review
+      rounds each found a hole in a lifecycle proxy, and the entry intent is
+      what they were all standing in for. Judge on `ACTION_DOWN`, never the
+      release, and swallow the whole gesture once its press is rejected.
+      What it must not repeat: any rule that swallows a press with no time
+      bound. Bounding the pre-focus case to the same grace window measured from
+      the entry (`downTime < entry + grace`, focus or no focus) keeps the stale
+      press — whose `downTime` predates the entry — and stops eating taps that
+      arrive later. That is the narrowest version of the fix and is what to
+      build if the bug is ever seen again.
+
+      **Confirm the bug exists before rebuilding anything.** It has still never
+      been reproduced on a device, it has not recurred since the foreground icon
+      warm-up was removed, and the reverted guard cost a real tap to defend
+      against it. The evidence to collect first is a debug log showing a launch
+      shortly after `onWindowFocusChanged hasFocus=true` with no `launchActiveApp`
+      line before it.
+
+- Revisit two carousel-gesture hardening items if either becomes user-visible. Both currently sit at "theoretical bug, no real trigger today, defensive fix introduces complexity worse than the symptom." Revisit if telemetry / bug reports show the trigger actually firing, or if a future code path (async widget reload, programmatic agenda toggle, dispatch path that returns early) makes either reachable.
+
+  1. **Mid-gesture `widgetPageCount` / `isAgendaEnabled` change cancels the swipe.** The horizontal `pointerInput` in `SwipeNavigationBox` is keyed on both values. Compose tears down the `awaitEachGesture` coroutine when any key changes, so a recomposition with a new value mid-swipe drops the gesture. Today the trigger isn't reachable: Settings is a separate screen (no overlap with swipes), widget add/remove fires from the long-press menu (the user has to release before tapping). Defensive fix shape: capture both values via `rememberUpdatedState` and drop them from the keys list. **Caveat (PR #298 first revision found this):** the defensive fix on its own is worse — the gesture survives the recomposition but `claimGestureStartPage` was captured in the old `visibleCarouselPages` modulo space, while the post-change config has a different `visiblePages` size, so `targetPage = claimGestureStartPage + dragDirection` translated through the new config can land on the wrong `LauncherPage`. To do this safely also requires re-anchoring `claimGestureStartPage` (via `LauncherScreen.reanchoredCarouselPage`) at release if the snapshot config differs from the live config.
+
+  2. **`allowSwipeWithUnackedScreen` permissive flag on ack timeout.** When upstream never acks a swipe within `CAROUSEL_ACK_TIMEOUT_MS` (1.5 s), the carousel re-dispatches the screen change, sets `allowSwipeWithUnackedScreen = true`, and forces `Idle`. The flag lets the user keep swiping even though `currentLauncherPage != candidateLauncherPage` — carousel and `state.destination` stay in disagreement, and any UI driven by `state.destination` (keyboard auto-show, secondary trays, etc.) behaves inconsistently with what's visually on screen. Bugs in the dispatch path become invisible to the user.
+
+     An attempt to fix this (PR #298 first revision) replaced the flag with an active resync — `currentPage = closestCarouselPage(currentPage, currentLauncherPage, …)` on timeout — so carousel and state always agree once `Idle`. That worked for hygiene but produced a worse UX: a 1.5 s pause followed by a visible snap-back undoes the user's expressed intent, and against a permanently-broken dispatch path the user can never reach their target page (every swipe times out, snaps back). The trade-off favours diagnostic clarity over the user, which is the wrong default.
+
+     **Options worth weighing:**
+
+     1. **Re-dispatch + keep the flag.** Closest to current behaviour. The re-dispatch is the user-helpful action (try again in case of a transient miss); the flag is the safety valve when re-dispatch also fails. Hygiene cost: state and carousel stay in disagreement under permanent failure. Recommended baseline if no one reports the disagreement biting other UI.
+     2. **Re-dispatch + N retries before resync.** Try the dispatch a few times (each on a short timer, e.g. 500 ms) before giving up and resyncing. Preserves the user's intent through transient races, surfaces the bug on permanent failure. More state machine surface; need to bound retries so we don't loop forever.
+     3. **Re-dispatch + show a one-shot "navigation didn't take" indicator instead of silently snapping back.** Resyncs hygiene but tells the user explicitly rather than just yanking the carousel back. Adds UI surface (toast / snackbar / inline indicator).
+     4. **Treat ack failure as "unreachable destination" and let the user navigate around it.** If `showAgenda()` returns early because agenda is disabled, the right answer is probably to remove Agenda from `visibleCarouselPages` so the swipe can't target it in the first place — not to time out after the fact. Audit the dispatch entry points (`showHome`, `showWidgets(N)`, `showAgenda`) for "returns early" conditions and gate them at the page-list level instead.
+
+     The right answer probably combines (4) for known-unreachable cases with (1) or (2) as the safety net for genuinely unexpected races.
+
+### Decisions needing review
+
+- [ ] **Kept Material Icons in the Licenses page after vendoring them**
+      (autopilot, 2026-09-05, from a review finding on PR #730). Dropping
+      `material-icons-extended` takes both icon modules off the release runtime
+      classpath, so `exportBundledLicenses` — which filters the attribution list
+      by that classpath — removed *all* Material-icons attribution while the app
+      went on shipping the artwork. `exportBundledLicenses` now re-adds one
+      Apache-2.0 entry for the vendored vectors, credited to the Android Open
+      Source Project. **Alternative:** let the rows go, on the reading that a
+      copied vector needs no attribution once the dependency is gone. **Not
+      taken**, because it is the irreversible direction: a published release
+      that under-attributes cannot be unpublished, and re-adding a row later
+      costs nothing. **Reversible** by deleting the `vendored` list in
+      `app/build.gradle.kts` and regenerating. **Flagged for the maintainer**:
+      this is a licensing judgment, not an engineering one, and it is theirs.
+
+## CI
+
+### Decisions needing review
+
+- **`play/README.md` is now code, not docs** (autopilot, 2026-08-30).
+  Narrowing `.github/lanes.conf` from `docs **/*.md` to `docs *.md` +
+  `docs docs/**/*.md` — the standard lanes' README now states — moves the one
+  markdown file that is neither at the root nor under `docs/` onto the code
+  lane. **Alternative:** add a `docs play/*.md` rule to keep it on the docs
+  lane. **Not taken**, because a per-path exception list is exactly what
+  lanes' README warns decays: it drifts silently, and `play/` holds Play
+  listing input, so erring toward code is the safe direction. **Reversible**
+  by adding that one line if editing it turns out to cost a full lane often
+  enough to matter.
+
+- [x] **Gave `deploy` its own concurrency group, and ported snoozemo's
+      superseded-run guard.** Both halves landed together, as the analysis
+      below required. `main` runs used to share one `ci-main-deploy` group at
+      the WORKFLOW level, so they serialized and the newest pending run won —
+      but the evicted one lost its **tests** as well as its release, for a
+      commit that is on `main` either way. `main` now keys per commit SHA, so
+      no two `main` runs share a group and none evicts another; serialization
+      moved to `deploy`'s own group, because a Play upload is the only thing
+      that must not overlap. The per-PR group is unchanged and still
+      cancelable, for the reason recorded below.
+
+      **Classifying a push made this load-bearing rather than merely
+      wasteful** (Codex, #700). Before, an evicted code run was self-healing:
+      the run that evicted it checked out `main`'s tip, which contains the
+      evicted commits, so the code was still built. A docs-only push now
+      starts a run where it previously started none, evicts a pending code
+      run, and then skips every heavy job — because its range is only its own
+      commits. The evicted push's code is then on `main` with no main-lane
+      build and no release until the next push. Bounded (that code was
+      already validated on its PR against a merge with `main`, and the
+      release-notes base is the last run that actually *published*, so its
+      subjects ship next time intact) and it needs three pushes inside one
+      run's window — but it is coverage this repo had and now doesn't.
+
+      **Land the two halves together.** The split lets `main` runs validate
+      in parallel instead of queuing, so more deploys can reach Play close
+      together, and queued-job order is by when each started waiting rather
+      than by push order. The superseded-run guard is what makes an
+      out-of-order publish safe. Doing the split first would be the risky
+      half without its safety net.
+
+      **Add the deploy group, do not MOVE the workflow one** (Codex, #699).
+      The per-PR half of the workflow group is load-bearing here and must
+      stay cancelable: an `edited` event reruns the same head SHA, and this
+      repo publishes its `lanes` verdict from an App, so without cancellation
+      an older `Publish the lanes status` job can land a stale verdict after
+      the newer run — leaving the required status inconsistent with the
+      current base. Take clothescast's shape (#1172), which splits rather
+      than moves: PR branches keep one cancelable group, `main` keys per
+      commit SHA so no two `main` runs share a group, and `deploy` gets
+      `deploy-main-release` with `cancel-in-progress: false` — never cancel a
+      Play upload in flight.
+      Separately, group ordering is arbitrary, so an older push's deploy can
+      reach the upload after a newer one published a higher `versionCode` and
+      Play rejects the stale upload — a failed billed run. snoozemo's guard
+      (`deploy` skips when the head of a run that actually published already
+      descends from this run's head) fixes that; this repo lacks it. Check
+      `$prev_sha`, never `main`'s raw tip — `main` can advance with nothing
+      having published, and skipping on that strands this run's releasable
+      commits. No ordered release queue: the maintainer accepted the eviction
+      (2026-08-30), and no repo in this fleet has one.
+
+- **Fixed: `MainActivityRobolectricScreenshotTest`'s intermittent failures.**
+  Three assertions kept failing at random, one per run, always green on the
+  next: `performMeasureAndLayout called during measure layout`, `removeObserver
+  must be called on the main thread`, and an `assertIsDisplayed()` on a tag
+  every passing run has. One cause — this is the only suite that launches the
+  real `MainActivity`, so it was the only one whose view model took the
+  production `Dispatchers.IO`, and those threads raced Robolectric's single
+  main looper and outlived the test that started them. Both defaults now read
+  `LauncherDispatchers.io`, which the suite overrides with a main-looper
+  dispatcher before the activity launches;
+  `suiteConfinesLauncherIoToTheMainLooper` guards the wiring. Watch for a
+  recurrence: the rate here was too low to demonstrate a fix by absence, so the
+  argument is structural.
+
+  **It has recurred.** On PR #689, on a tree carrying this fix,
+  `resetRankAction_resetsLaunchCountAndReordersApps` failed with
+  `IllegalArgumentException` from `InlineClassHelper.kt:36` — a fourth
+  assertion, in the same class, in the same shape: exactly one failure in a
+  full run, and green on the next full run plus three isolated runs of the
+  class with nothing changed. So the dispatcher was one cause and not the
+  only one: something in this suite still leaves work crossing a test
+  boundary. The next step is to find what outlives a test here rather than
+  what dispatches it — the class is the unit that flakes, never a single
+  method, which points at state carried between tests rather than at any
+  one test's own setup.
+
+- **Reconcile the docs-lane classifier with the release-notes-skip classifier
+  for `PRIVACY.md`, and reconsider forcing it onto the code lane at all.**
+  `.github/lanes.conf`'s `code PRIVACY.md` rule means a PRIVACY.md-only
+  change always runs the full build/test/lint pipeline, even a pure wording
+  fix that changes nothing about the app — but PRIVACY.md isn't actually
+  code, so that's a heavier CI cost than the change needs; being release-
+  worthy and needing heavy CI are two separate questions the lane rule
+  currently conflates. Separately, the deploy job's release-notes generator
+  has two *independent* skip conditions — a non-user-facing subject prefix
+  skips a commit regardless of what it touched, and a housekeeping-path
+  check (which PRIVACY.md is carved out of) skips a commit whose diff is
+  all `.md`/dotfiles. A commit like `docs: clarify data retention wording`
+  touching only PRIVACY.md would still be dropped by the prefix check, even
+  though the lane rule's whole point is that PRIVACY.md is never "just
+  docs." The two classifiers can silently diverge on this one case.
+- **Require a PRIVACY.md update in the same commit as the practice change it
+  documents** (mirroring how the sibling repos keep SPEC.md in sync), and
+  stop treating every PRIVACY.md touch as automatically release-worthy — a
+  pure wording/typo fix with no actual change in practice shouldn't force a
+  release the way a genuine new disclosure should. Needs a real distinction
+  between "the policy text changed" and "what the policy describes
+  changed," which the current mechanism can't make on its own.
+- Add an AGPL license gate to `ci.yml`: fail if a dependency declares
+  an AGPL license, catching one added by hand in a normal PR, not just ones
+  the weekly bot bumps. Likely the `com.github.jk1.dependency-license-report`
+  Gradle plugin. GPL/LGPL undecided. Independent of `gradle-update`, and
+  independent of the AboutLibraries export behind the Licenses page — that one
+  reports what is bundled, it does not gate on what a license says. Work out
+  placement, gating, and coverage (release vs. debug classpath, etc.) when
+  actually building this.
+- **Reconcile `SPEC.md` and `docs/play-store-internal-track.md` with the release
+  keystore now being required** (Codex, PR #674; deferred there deliberately, at
+  the maintainer's instruction). Two records still describe the old behavior:
+  - `SPEC.md` says the AAB build "is gated only on `RELEASE_KEYSTORE_BASE64`
+    being present", and that the build job's release APK is always produced. On
+    a non-fork push to `main` the keystore is now required rather than a gate —
+    `deploy`'s `Require a release keystore` step fails the run without it — and
+    the build job skips its release APK for any non-fork `main` push.
+  - `docs/play-store-internal-track.md` still promises fresh clones without
+    secrets get a green run. That now holds for **forks** only.
+
+  Left for the maintainer because the same document also states the release
+  secrets are environment-scoped, which does not describe their current state
+  (they are repository-scoped, with the move planned), so rewriting the setup
+  contract means asserting facts about infrastructure that need checking rather
+  than inferring. The CI behavior itself does not depend on the answer: the skip
+  gates on fork status, not on the secret, so it holds under either scope.
+
+- **Scale the retained icon count by device RAM tier.** The background trim added
+  2026-08-27 keeps the same set — dock plus the top 50 apps — whether the phone
+  has 4GB or 16GB. That is backwards relative to how the threshold works: Play
+  grades its memory and bitmap-memory thresholds **by device RAM tier**, so the
+  cheapest device, where the limit is tightest, currently gets exactly the same
+  footprint as a flagship.
+
+  Scaling the count off `ActivityManager.getMemoryClass()` (or `isLowRamDevice`
+  as the coarse signal) would put the app clearly under where it is tight and
+  keep full warmth where there is headroom, at no cost on a high-tier device.
+
+  Two things to settle when doing it. What the low-tier floor should be — one
+  screenful is the obvious candidate, but a 42-icon screen is 4.5MB at xxhdpi
+  and 8.0MB at xxxhdpi, and a cheap phone can still be high-density, so the
+  floor wants deriving from icon size rather than fixing as a count. And whether
+  to scale the **foreground** budget too: the 24MB cache is also unscaled, and
+  on a 4GB device it is a larger share of what the app is allowed. That is the
+  riskier half — the foreground budget is what keeps scrolling free of
+  re-rasterization — so it wants a device to test on before being touched.
+
+  `minSdk = 34` does not cover this. It raises the OS floor, not the RAM floor:
+  entry-level phones ship with current Android, so a new Android 14/15 device
+  with 4GB is in scope, and Android Go targets that segment specifically. The
+  low RAM tier is exactly where the threshold is tightest, and minSdk excludes
+  none of it.
+
+  Nothing blocks doing this — `getMemoryClass()` and `isLowRamDevice` are
+  ordinary runtime reads. What is blocked is *verifying* it: Play vitals has no
+  data for this app and no handset is available, so the effect can be reasoned
+  about but not measured.
+
+  Worth knowing before sizing any of this: launchers likely fall under Play's
+  **Personalization** category, alongside wallpaper and theme apps, which hold
+  far less resident state and have no reason to stay warm. If thresholds are set
+  against that comparison set, a launcher's usage shape is unfavorable and the
+  margin matters more, not less. Unverified — Play vitals reports "not enough
+  data" for this app, so every figure here is arithmetic rather than
+  measurement, and the first real signal is vitals once there are enough
+  installs to report.
+
+- **Bring the icon-cache bullet in `SPEC.md` back up to spec altitude.** Codex
+  flagged it on PR #678 and the flag is fair: that one bullet carries concrete
+  class names, a byte budget, cache-key shape, dispatcher names, and the
+  in-flight coalescing mechanism — all facts that live in the code and change
+  with it, which is exactly what the "product and architecture decisions, not
+  low-level implementation detail" rule excludes.
+
+  Not done in #678 deliberately: the offending text is almost entirely
+  pre-existing, so rewriting the paragraph around a memory fix would turn that
+  PR into a spec refactor and land the rewrite unreviewed as a side effect of
+  something unrelated. Worth its own change, where the diff is the point.
+
+  The test to apply, bullet by bullet: would this still be true and worth
+  stating if the implementation were rewritten? Keep the decisions — lazy icon
+  loading with a placeholder, per-size rasterization, one budget rather than an
+  entry count, background trimming and what it keeps, the trade a dropped icon
+  costs. Drop the rest into the code, where it already lives.
+
+- **Decide whether the icon warm-up should know about an in-progress drag.**
+  Raised by Codex on #683 and correct on the mechanism, declined there pending a
+  call from the maintainer. The warm-up's 150 ms trailing debounce measures quiet
+  between *reorder events*, not gesture completion: `handleDockDrag` calls
+  `onReorder` only when the dragged icon crosses a slot, so a user who holds an
+  icon still mid-drag lets the timer expire and a sweep starts while the gesture
+  is live.
+
+  What that actually costs is small. The next slot crossing cancels the sweep
+  immediately (`scheduleIconWarmUp` cancels `iconWarmUpJob`), and the drop itself
+  schedules the real one, so the residue is the handful of icon loads already
+  handed to `AppIconLoader` — which finish in its own scope regardless — running on
+  IO and Default while the drag resumes on Main. Not the whole sweep racing the
+  gesture; that part is closed.
+
+  What closing it would cost is the open question, and it is why this is not a
+  judgment to make unilaterally. There is no drag state in the view model today, so
+  it means the UI pushing drag start/end for every drag surface (the dock, an opened
+  folder, and anything added later) — with a new failure mode where a missed drag-end
+  suppresses warming for the rest of the session. There is precedent both ways:
+  `setDockSuppressedByKeyboard` and `onRenderedIconSizes` are already UI-pushed
+  state, but the standing rule from #679 is that questions whose answer lives in the
+  composable go stale anywhere else, and five review rounds were lost to exactly that.
+
+  Cheaper alternatives if it is worth closing at all: raise the debounce (trades
+  responsiveness on every other trigger for this one case), or have the sweep check
+  a drag flag only at its yield points rather than gating the schedule.
+
+- **Reprioritize the warm-up when the rendered order changes.** Changing "Sort apps
+  by", or rotating into or out of the Compact landscape tier, changes which apps head
+  the warm-up plan without changing the set. The `refreshLists` funnel (landed
+  2026-08-28) now fires for the sort-order case, but firing is not enough: on a device
+  already at the 75% ceiling the re-sweep exits on its first iteration, because the
+  ceiling is checked before any load -- the cache is full of the *old* head and the new
+  one never warms. The tier case does not even fire, since `setHomeLandscapeTier` goes
+  through `refreshFilteredApps` (the keystroke path, deliberately not hooked) rather
+  than `refreshLists`.
+
+  The list still paints either way -- the visible rows miss and load on demand, as
+  every row did before any warm-up existed -- so this is a lost optimization, not a
+  stuck first page. Closing it means making room for the new head, which is the same
+  reservation the item below needs. Do the two together.
+
+- **Reserve the first screenful of the app list against live eviction.** The 75%
+  ceiling bounds the *warm-up*, not rendering: the UI fills the cache to 100% and
+  the LRU evicts freely. And `rememberAppIconResolution` reads the cache only in
+  its `remember` initializer, so an icon's recency is set once when its row
+  composes and never refreshed while it stays on screen — which makes the rows the
+  user has been looking at longest the *first* the LRU reclaims.
+
+  So on a large app set — roughly 425 apps at xxhdpi, 245 at xxxhdpi before a
+  40dp list icon's ~58KB/~102KB fills 24MB — scrolling to the bottom of the list
+  can evict the top of it, and scrolling back up pays one async load per row. The
+  dock is unaffected: it never leaves composition, so Compose holds its bitmaps
+  whatever the LRU does.
+
+  Closing it means pinning (or reserving budget for) the rows at the head of the
+  current sort order. Two things to settle. How many rows is "a screenful" — that
+  is layout knowledge the view model does not have and must not guess at, since
+  every wrong guess about what the UI draws cost a review round in #679; the UI
+  would have to report it the way it already reports rendered sizes. And whether
+  a reservation is a pinned set or a second, smaller `LruCache` — a pinned set
+  cannot be evicted under pressure, which is the point and also the risk.
+
+  Pairs with the reorder half of the item above: both need the same reservation.
+
+- **Give the icon cache a disk-backed miss path, so a trimmed icon comes back
+  cheaply.** The background trim added 2026-08-27 drops everything outside the
+  priority set when the launcher goes off screen. Coming back, each dropped icon
+  is re-resolved through `LauncherApps` and re-rasterized from scratch, with its
+  row painting the placeholder until that lands — the trim's real cost, and the
+  reason the retained set cannot simply be made small.
+
+  `IconSnapshotStore` already writes pre-rasterized tiles as raw pixel buffers,
+  and a read of one is a plain file read with no decoder cost — far cheaper than
+  a resolve plus a rasterize. But it does not help here, for two reasons. It is
+  read exactly once, in `LauncherViewModel`'s init block, so nothing consults it
+  after startup. And it persists only the priority set — precisely the ids the
+  trim *keeps* — so even a lookup would miss on every icon the trim dropped.
+
+  Two changes, and they are separable. Have `AppIconLoader` consult the snapshot
+  on a miss before falling back to a resolve, which alone helps any icon still on
+  disk. And widen what is persisted beyond the priority set, so the trimmed icons
+  are actually there to be found — that one trades disk for warmth and needs a
+  cap, since the whole app list at two sizes is not a small directory.
+
+  Sizing matters more than it looks: at 4 bytes/px a 56dp tile is 110KB at xxhdpi
+  and 196KB at xxxhdpi, so persisting a couple of hundred at two sizes is tens of
+  megabytes of storage to save tens of milliseconds of resolve. Worth measuring
+  what a resolve-plus-rasterize actually costs on a handset before assuming the
+  trade is good.
+- **Derive the icon-cache priority set from what is actually on the home screen,
+  rather than from launch counts.** The background trim added 2026-08-27 keeps
+  the dock (folder members included) plus the top 50 apps by launch count, which
+  is a proxy: it is the set `IconSnapshotStore` already persists, so reusing it
+  meant one definition instead of two drifting apart. The ideal is the real
+  thing — infer the visible set from the layout settings (grid size, rows and
+  columns, current sort order) so the retained icons are exactly the ones the
+  next foreground frame paints, no more and no fewer. Maintainer's call
+  (2026-08-27): top-N plus the dock is good enough until that inference exists.
+
+  Two things to weigh when doing it. Launch count and screen position disagree
+  for an app that is displayed but rarely opened; the count-based set misses it,
+  and it is on screen. And `priorityIconCacheIds()` filters `launchCount > 0`,
+  which is only harmless because newly installed apps do not bubble to the top
+  of the list — if that ever changes, a new app on the home screen becomes the
+  one icon that reloads.
+
+  Numbers to size it against, measured 2026-08-27 at ARGB_8888, 4 bytes/px:
+  a 56dp icon is 110KB at xxhdpi and 196KB at xxxhdpi, so a 42-icon home screen
+  is 4.5MB / 8.0MB respectively, against a 24MB cache budget. An app rendered
+  at two sizes (docked and in the list) holds two entries.
+
+- **Cover the release-keystore configuration guard with an automated test**
+  (Codex, PR #674; applies to all four repos, which now share the guard). The
+  all-or-none check and the signing-config attachment are build-script logic
+  with no test behind them: the only evidence they work is a Gradle invocation
+  run by hand. That gap is not theoretical — review caught a real defect in the
+  first version, where the guard normalized blank to absent but the build type
+  tested the raw string, so a whitespace-only `RELEASE_KEYSTORE_FILE` slipped
+  past the guard and then attached an empty signing config. A test over the
+  none / whitespace / partial / complete cases would have caught it. Not done
+  here because nothing in any of the four repos can test build logic today —
+  no `buildSrc`, no `build-logic`, no Gradle TestKit — so this is a new harness
+  in four places, and the cheaper alternative (a CI step asserting the guard
+  fires) adds a second Gradle invocation to every pull-request run, which cuts
+  against what #674 was for. Worth doing the first time any of these repos
+  grows a `buildSrc` for another reason.
+- Stop searching for the screenshot-diff comment altogether. The lookup now paginates (`gh api --paginate`), which is correct at any comment count but is still a search costing O(comments) API calls per run on a long PR. Stashing the comment id somewhere stable — a workflow-run output, a branch note, the check-run summary — would make the upsert a direct PATCH. Not urgent; this is about cost and simplicity, not correctness.
+
+## Layout, caching, rendering, and recomposition follow-ups
+
+- [ ] **The icon-size retirement re-check is still not atomic with the eviction.**
+      `onRenderedIconSizes` re-reads the live size tuple inside the dispatcher hop
+      before calling `AppIconLoader.evictSizes`, which closes the large window (a
+      queued job evicting sizes that came back while it waited — covered by
+      `LauncherViewModelIconSizeRetirementTest.aSizeThatBecameCurrentAgainIsNotEvicted`).
+      A sub-millisecond check-then-act gap remains: the read is outside
+      `evictSizes`'s `synchronized(inFlightLock)`, and Main never takes that lock
+      when publishing a new tuple, so Main can publish size A between the IO job
+      reading B and the eviction running. Raised by Codex on #692.
+
+      Left as-is deliberately, because the obvious fixes are worse than the
+      residue:
+
+      - **A generation counter** — the form Codex proposed — has the identical
+        gap. Comparing a generation and then evicting is still check-then-act, so
+        it would look like a fix while changing nothing.
+      - **Making publication, check and eviction atomic** means Main takes
+        `inFlightLock` to publish, while IO holds it to scan a cache of hundreds
+        of entries. That puts a lock-wait on the main thread during an icon-size
+        slider drag, which is the exact jank the off-main hop exists to prevent.
+      - **Evicting everything outside the live tuple**, computed under the lock,
+        is wrong: other surfaces (a menu icon, a folder merge preview) render
+        sizes of their own that retirement has no business evicting.
+
+      The residue is also self-limiting: an evicted current-size icon re-resolves
+      on demand within a frame or two, so the visible cost is a brief placeholder,
+      and it only outlives the moment if an `onStop` lands inside the same
+      sub-millisecond window and snapshots the gap.
+
+      Worth revisiting only alongside the larger question of whether size
+      retirement should exist at all. Dead-size entries are by definition not being
+      read, so the LRU would evict them first under pressure without any of this
+      machinery; retirement exists to reclaim the budget sooner. If that turns out
+      not to be worth a race, deleting the mechanism removes the bug class rather
+      than narrowing it.
+
+- [ ] **The Settings scroll chevron can land between the consent card's two
+      actions.** The chevron is a screen-level overlay pinned bottom-center;
+      `TelemetryConsentCard` arranges **Don't allow** and **Allow** at opposite
+      ends, so the empty middle is exactly where the chevron sits when the card
+      is at the bottom of a scrollable viewport — and it then reads as a third
+      consent choice. Visible in
+      `compose_telemetry_consent_settings_placement_robolectric.png`.
+
+      Left as-is deliberately: the card normally sits at the *top* of Settings
+      with the chevron at the bottom of the screen, so it takes a short viewport
+      or a large font scale to collide, and the buttons stay labeled either way.
+      Worth fixing if it shows up on a real device — reserve bottom clearance in
+      the row rather than abandoning the edge-to-edge arrangement, which is
+      deliberate (a two-way choice with no default should not read as an action
+      plus an escape hatch). Raised by Codex on #668.
+
+- Split `LauncherUiState` consumption into smaller screen/subtree projections so typing, widget, and settings updates do not invalidate broad composition scopes. Candidate slices: theme, home/search/results, keyboard tray, carousel, widgets, and settings.
+- Move query filtering and ranking off the main thread, or pre-index enough app search metadata to keep per-keystroke work cheap. Keep query text updates immediate, make result computation cancellable with `mapLatest`, and publish only the latest filtered list.
+- Revisit offscreen carousel composition so non-current widget and agenda pages stay lightweight. Prefer composing the current page plus the active drag/animation target, and avoid creating hosted widget `AndroidView`s for pages that are only preloaded for swipe readiness.
+- Cache the widget picker's app-icon and widget-icon bitmaps, keyed by drawable
+  and requested size. The preview half of this is done — the fetch was already
+  off the main thread and the rasterization now happens on the same IO hop. The
+  icons still rasterize in composition, deliberately (see `Decisions needing
+  review`), but `remember(appIcon)` only caches for as long as that row stays
+  composed, and the picker emits rows positionally — so filtering re-rasterizes
+  every visible icon on each keystroke. A cache keyed by the drawable would cost
+  nothing at first paint and remove the repeat work.
+- Use lazy or otherwise bounded rendering inside the widget picker list. The picker currently materializes matching app groups in a regular `Column`; flattening into the outer lazy list or using a bounded nested lazy list would scale better on devices with many widget providers.
+- Decide whether to persist more than priority icons only after telemetry shows first-scroll icon misses are hurting startup or scroll performance. If needed, persist a bounded first screenful for the active empty-query sort order and icon size.
+- Add lightweight debug-only recomposition/performance instrumentation around hot composables and interactions: search, app list rows/grid buttons, keyboard tray, widgets, first query keystroke, backspace, Home ↔ Widgets swipe, and widget-picker expansion.
+
+## Process death and restart
+
+- [ ] **Consider sampling home resolution around app reloads too.** Today it is
+      read at process start and at a chooser hand-off only. Reading it around a
+      package install/remove as well would put a sample inside the window where
+      the platform re-evaluates home resolution — the one place a launcher is
+      awake for an ambiguous reading it did not cause. It was built that way on
+      PR #689 and removed: getting the ordering right (sample before the reload,
+      not cancelled by the next event of a burst, not overtaken by the reload it
+      is meant to precede) drew five review findings in a row, each caused by the
+      previous fix, and every one of them was in that sampling and nowhere else.
+      Worth revisiting only with a design that does not depend on two coroutines
+      racing.
+
+- [ ] **Consider making the bug report's `Process start` section say whether it
+      is complete.** It is a plain snapshot today: an empty one says "nothing
+      captured" and nothing about why. Knowing the difference between "the
+      startup diagnostic did not run" and "it had not finished yet" would be
+      worth having on a report shared seconds after launch — a post-crash one,
+      most plausibly — where an empty section is currently unreadable. It is not
+      worth having at the price already paid once: keeping that claim true means
+      every background producer of a pinned line being awaited, which drew eight
+      review findings in a row on PR #689 before the claim was dropped. If it is
+      revisited, the version worth building is one where producers register
+      themselves so a caller cannot start an untracked one, a cancelled producer
+      pins its own `reason=canceled` line rather than disappearing, and the
+      chooser probe moves off `lifecycleScope` — a configuration change there
+      cancels it before it runs, which is what makes a missing reading likely in
+      the first place.
+
+- [x] **Declare `android:stateNotNeeded` on the home activity.** Done, and the
+      flag turns out to cost nothing — the reasoning that removed it in
+      `50165c1b` rested on the documentation's cautious wording rather than on
+      what the platform does.
+
+      AOSP reads the flag in exactly one place, `ActivityRecord.handleAppDied`:
+
+      ```java
+      } else if ((!mHaveState && !stateNotNeeded
+              && !isState(State.RESTARTING_PROCESS)) || finishing) {
+          remove = true;   // "Force removing ...: app died, no saved state"
+      }
+      ```
+
+      `mHaveState` follows `mIcicle != null` (`setSavedState`), so it is false
+      precisely while the activity is resumed and visible. Without the flag, a
+      launcher killed while on screen has its activity record force-removed
+      from history — and stays removed until started by hand, which is
+      *Failure A*'s signature exactly.
+
+      In current AOSP it does not suppress state saving: `ActivityThread` gates
+      `onSaveInstanceState` on `saveState && !mFinished && r.state == null &&
+      !isPreHoneycomb()` and never reads the flag, and `Activity.java` has no
+      reference to it. But the *documented* contract is wider — it permits the
+      system to skip the save and pass `onCreate` a null bundle — and an OEM
+      framework may do so (Codex, PR #686). So the flag is taken on the trade
+      rather than on an assurance, and the trade is one-sided three ways: the
+      exposure is a single icon-pick or widget-configure result the user simply
+      repeats; a skipping implementation would break AOSP's own Launcher3,
+      which declares this flag and keeps its pending widget-add args in
+      instance state, so one is unlikely to be shipping; and in the case the
+      flag actually changes the outcome the bundle is null either way, with the
+      activity lost as well when the flag is absent.
+
+      Which is what `50165c1b` weighed wrongly — it traded the launcher's
+      survival for a recovery the same process death breaks regardless. AOSP's
+      Launcher3 declares the flag beside the same `launchMode="singleTask"` and
+      `clearTaskOnLaunch="true"`.
+
+- [ ] **Confirm which failure the revert-to-other-launcher symptom actually is.**
+      There appear to be **two distinct failures**, not one, and the
+      `stateNotNeeded` flag above addresses at most the first.
+
+      **A — silent fallback.** After a batch of app updates, a Home press goes
+      straight to the other launcher with no prompt, and stays that way until
+      Type Launcher is opened by hand from that launcher. The home role is
+      still held throughout. Seen repeatedly, roughly weekly.
+
+      **B — the resolver sheet.** Android's "which launcher app would you like
+      to use" sheet appears. Left unanswered, so nothing was revoked; opening
+      Type Launcher afterwards confirms it still holds the role. Seen once,
+      separately from A.
+
+      Both are consistent with the home activity not being resolvable at the
+      moment Home was pressed, differing in whether the system fell back
+      silently or asked — but A *persisting* until a manual launch is what the
+      momentary install window does not explain, and is the part the
+      saved-state flag would. A dropped home activity does not produce the
+      sheet: the system would re-resolve to the role holder and start it. A
+      sheet means home resolution could not reach an unambiguous target *while
+      the role still named us*, which is what the installer swapping the APK
+      looks like — during the replace there is no home activity to resolve to,
+      and nothing has been revoked. No activity attribute reaches B; it is a
+      role-resolution problem, not a saved-state one.
+
+      The evidence that separates them is a bug report carrying the
+      `processExit` records, the `ownPackage lastUpdateTime`, and the home-role
+      line. A previous run ending in `packageUpdated` whose timestamp sits
+      beside this package's own update time confirms the install window (B).
+      One ending in `lowMemory` or `crash` at foreground importance points at
+      the saved-state case (A). The **gap** between that exit timestamp and
+      this run's first log line tells them apart even when the reason matches:
+      seconds means a momentary window, hours means the launcher stayed
+      unreachable until it was started by hand, which is A's signature.
+
+      With the flag now declared, a report still showing A is the signal that
+      the flag was not the cause and the search reopens.
+
+      **B has now been observed with a report, and the APK-swap explanation
+      above does not survive it** (2026-08-29). The sheet appeared, the user
+      picked Type Launcher, and the report was captured eleven seconds later.
+      Three things it establishes:
+
+      - It really was the system's chooser, and the choice was made. The intent
+        that created the replacement activity carried `FORWARD_RESULT |
+        PREVIOUS_IS_TOP | CLEAR_TASK` against the plain `NEW_TASK |
+        EXCLUDE_FROM_RECENTS | BROUGHT_TO_FRONT` on every other Home press in
+        the same log — the resolver forwarding to its chosen target.
+      - The launcher did not raise it. `requestDefaultLauncher` never logged,
+        and the process had been backgrounded and silent for the preceding half
+        hour.
+      - **No APK was being swapped.** The old activity's `onDestroy` and the
+        replacement's `onCreate` are nine milliseconds apart *in the same
+        in-memory ring buffer*, which does not survive a process death — so the
+        process lived through it, nothing was replacing our package, and
+        `homeRoleHeld=true` read back twenty milliseconds later. Home
+        resolution went ambiguous while the process, the activity record and
+        the role were all intact.
+
+      So the open question is no longer "A or B" but what makes resolution
+      ambiguous under those conditions. The report could not say: the
+      `processExit` and `ownPackage` lines had been written hours earlier and
+      the ring buffer had long since evicted them, with roughly four fifths of
+      its window taken by package-change reload blocks and icon-cache counters.
+      Both halves of that are now addressed — the startup lines are pinned into
+      the report's own `Process start` section, and the two noisy sources are
+      logcat-only — and `homeResolution` records what a Home press would
+      resolve to at process start and at a chooser hand-off, so the next
+      occurrence should arrive with the evidence attached. See `SPEC.md`.
+
+      What to look for in the next report: a `homeResolution` line reading
+      `resolvesTo=chooser` (or `none`) says resolution was ambiguous and names
+      the moment it was read at. One reading `self` beside a `homeStart
+      via=chooser` says the ambiguity was momentary and healed before the
+      launcher was asked, which points at the platform's own preferred-home
+      bookkeeping during an install rather than at anything of ours.
+
+- [ ] **In-flight picks still don't survive a death while the launcher is
+      resumed.** Independent of `stateNotNeeded` — equally true before and
+      after it — and low priority, but worth recording since it was mistakenly
+      believed to be a cost of that flag.
+
+      If the process dies while a widget-configure or icon-pick activity is
+      foreground, `onCreate` is handed a null bundle and the answer never
+      lands. The obvious fix does not work: `ActivityResultRegistry` assigns
+      each registered launcher a **random** request code
+      (`generateRandomNumber`, from `0x00010000`) and rebuilds `rcToKey` only
+      from `onRestoreInstanceState`, so with a null bundle `dispatchResult`
+      returns `false` and the callback never fires. Persisting our own pending
+      id buys nothing — the *routing* is what was lost, not the payload.
+
+      Recovering these flows therefore means fixed request codes and an
+      `onActivityResult` override, which is what Launcher3 does throughout and
+      what the widget **configure** leg here already does of necessity
+      (`CONFIGURE_WIDGET_REQUEST_CODE`, since
+      `startAppWidgetConfigureActivityForResult` reports nowhere else). That
+      leg keeps its routing across a null bundle and would need only its
+      `pendingWidgetId` persisted; the bind leg (`registerForActivityResult`)
+      and the icon picker (`rememberLauncherForActivityResult`, whose
+      `pendingIconPickAppId` is a Compose `rememberSaveable`) would need the
+      move. If it is ever done, note that persisting `pendingWidgetId`
+      asynchronously races the orphan sweep, which `MainActivity`'s `onCreate`
+      requires be re-seeded before it can act on a stale `INVALID` — so the
+      sweep has to be gated on that load.
+
+      AOSP accepts the identical loss, and both flows recover on the next
+      attempt, so there is no urgency here.
+
+## Dependency updates
+
+- [x] **Adopt `mikelward/gradle-update`** — the weekly Gradle catalog updater.
+      Done: `.github/workflows/gradle-update.yml` is a thin caller into
+      `mikelward/gradle-update/.github/workflows/gradle-update.yml@main`, with
+      the credential in the `gradle-update` environment. Has since been
+      iterated on in place (the license-inventory rebuild, the environment
+      move), so the entry was simply never ticked.
+- [x] **Extract the recovery merge into a pure function and test it there.**
+      Done: the merge, the degradation derivation and the fallback
+      attribution live in `AppLoadMerge.kt` as internal top-level functions,
+      and `AppLoadMergeTest` covers all three of the mirrored fallback bugs
+      that shipped without coverage, plus the merge and degradation rules.
+
+      What made them untestable was never `UserHandle` — it was that reaching
+      a non-empty profile inventory through the view model needs a
+      `LauncherActivityInfo`, which Robolectric cannot produce. Handed
+      inventories directly, the merge is ordinary data in and data out.
+
+- [ ] **Decouple a profile's paused state from its inventory in the app load.**
+      `ProfileInventory` bundles two facts that arrive from *separate* binder
+      calls — the profile's apps, from the enumeration, and its paused state,
+      from `isQuietModeEnabled` — and the recovery merge moves them as one
+      unit. So an attempt that reads the paused state successfully but fails
+      that profile's enumeration cannot contribute what it learned: the
+      merge keeps the earlier attempt's entry, guess and all.
+
+      Raised by Codex on PR #727 and answered there with the cheap fix:
+      recovery keeps retrying while the paused state is guessed, on the same
+      budget, publishing first so nothing about the list waits. That closes
+      the case whenever a later attempt lands cleanly, and leaves the seed
+      deferred (never latched wrong) when none does.
+
+      The structural version would make the paused state its own per-profile
+      map on `AppLoadResult`, merged independently, and apply it when
+      `assembleApps` builds the list rather than baking it into each
+      `InstalledApp` during the read. A later attempt's successful read would
+      then correct the apps an earlier attempt recovered, which the current
+      shape cannot do — the guess is baked into those apps as well as into
+      the flag. That deletes the class rather than the instance, and it
+      touches how `isQuietMode` reaches the app list, so it wants its own PR
+      and its own tests rather than a fourth round on #727.
+
+- [x] **Drop `material-icons-extended` and vendor the 22 icons the app uses.**
+      The library ships several thousand `ImageVector`s; `app/src/main`
+      references 22. R8 strips the rest from the release APK, so the shipped
+      size is unaffected — but the debug APK, which never minifies, measured
+      **76.57 MiB (73.44 MiB of it dex)** against a 4.83 MiB release APK on
+      2026-08-27. That is the APK `installDebug` puts on a phone.
+
+      Copy **all 22**, rather than taking what `material-icons-core` happens to
+      cover and hand-vectoring the remainder. One mechanism beats two: a split
+      leaves no way to tell by looking whether a given icon came from the
+      library or the local set, and the next icon someone adds silently pulls
+      the dependency back in. Vendoring the lot makes adding a 23rd a
+      deliberate act.
+
+      The 22, as of `4c4d08b0`:
+
+      ```
+      AutoMirrored.Filled: ArrowBack, KeyboardArrowLeft, KeyboardArrowRight, Message
+      Filled: Add, ArrowDropDown, Call, Clear, DragHandle, Email, EventBusy,
+              ExpandLess, ExpandMore, KeyboardArrowDown, KeyboardArrowUp,
+              MoreVert, Person, Search, Settings, Star, Warning, Widgets
+      ```
+
+      Re-derive the list before starting rather than trusting this one:
+      `grep -rhoE "Icons\.(Filled|Outlined|Rounded|TwoTone|Sharp|Default|AutoMirrored)[A-Za-z.]*\.[A-Za-z]+" app/src/main --include="*.kt" | sort -u`
+
+      Icons are visual, so this needs screenshot-test coverage to prove nothing
+      shifted: several of the 22 already appear in recorded snapshots, and a
+      vendored vector that differs by a pixel will show up there. Check the
+      Roborazzi diff rather than assuming a copy is a copy.
+
+      This is typelauncher-only: simmo (8 icons) and clothescast (15) already
+      depend on `material-icons-core`, and snoozemo has no material-icons
+      dependency at all. So there is no fleet-wide version of this change, and
+      `-core` is the shape the siblings already settled on — which is an
+      argument for checking how many of the 22 it covers before vendoring, even
+      though vendoring all of them stays the more robust end state.
+
+      Done: `LauncherIcons` holds all 22, read out of the library itself by a
+      throwaway generator rather than transcribed, with helpers reproducing the
+      library's own `materialIcon` / `materialPath` defaults. Verified by
+      recording the three icon-dense screenshot classes on clean trees either
+      side of the change: 106 of 114 snapshots came back byte-identical, and
+      the 8 that moved differ only inside a 36-pixel row — the build cue, which
+      carries the commit SHA and cannot match across two commits.
+
+## Not planned
+
+- **Showing work-profile calendar events on the agenda.** Investigated 2026-07: not feasible in practice, because access is gated by MDM admin policy that neither the user nor the app can grant. Findings, in case the policy landscape changes:
+  - The agenda's `CalendarContract.Instances` query reads only the personal profile's calendar provider; the work profile runs an isolated provider instance under a separate Android user, and `READ_CALENDAR` does not cross that boundary.
+  - Android 10+ has a purpose-built mechanism — `CalendarContract.Calendars/Events/Instances.ENTERPRISE_CONTENT_URI` — letting a personal-profile app query the work profile's calendar. Three gates must all be open: (1) the work profile's device policy controller must allowlist the calling package via `DevicePolicyManager.setCrossProfileCalendarPackages()` — the default is an **empty** allowlist, only the org's MDM admin can change it, and there is no user-side or app-side way to self-grant; (2) the user must enable the work profile's cross-profile calendar setting; (3) the personal-profile app needs `READ_CALENDAR` (we have it). Gate (1) is the showstopper: admins commonly allowlist Google Calendar, not arbitrary launchers, so shipping this would light up for approximately no one.
+  - If it ever becomes worth doing, the shape is small: issue the same instances query a second time against `Instances.ENTERPRISE_CONTENT_URI` in `loadAgendaEvents` and merge before organizing (the search index inherits it via the same function); tag rows with an `isWorkEvent` flag so the tap path uses `CalendarContract.startViewCalendarEventInManagedProfile()` instead of the personal `ACTION_VIEW` intent (which cannot open a work event). Constraints: the cross-profile provider only permits an allowlisted projection (our current columns appear to be on it — verify against a real managed profile) and returns an empty cursor rather than throwing when access is disallowed or no work profile exists, so the query can run unconditionally. `minSdk = 34` means no API-level guard is needed.
+  - The `INTERACT_ACROSS_PROFILES` / connected-apps route does not help — it grants no cross-profile content-provider access, and full cross-user provider queries need system-only permissions a launcher cannot hold.
+  - **User workarounds (no code needed):** (1) add the work calendar app's widget to a widget page — the launcher already hosts work-profile widgets, so this works today and is the recommendation to give users; (2) share the work calendar with the personal account server-side so it syncs into the personal provider — but many orgs block sharing work calendars with non-work accounts, so this one often isn't available either.
+
+## Play policy question — approximate location from Analytics (PR #702)
+
+**For the maintainer, not for autopilot.** The same question is open on snoozemo
+(its `TODO.md` carries the fuller write-up); both apps should be answered the same way,
+and both are owed before a Play build carrying Analytics is submitted.
+
+**The finding** (Codex, PR #702, P1): Firebase Analytics derives a coarse region — country
+— from the network address a report arrives on, which Play may classify as **Approximate
+location**. Removing `AD_ID` does not switch that off.
+
+**What is settled and already done**: `PRIVACY.md` now discloses it under **Coarse region**
+rather than letting "no location" stand as a flat claim, and the "what the app does not do"
+bullet points at it. Type Launcher holds no location permission and never asks Android
+where the device is, so nothing here *collects* a location; the region is inferred by the
+service from the connection, as it would be for any site.
+
+**What is not settled**: whether the Data Safety form wants processor-side IP derivation
+declared as Approximate location when the app collects none. That turns on Play's current
+wording, not on anything in this diff.
+
+- **Declare it** — safest against review; puts a Location row on the listing of an app that
+  reads nothing about where the user is, which is the least accurate impression available
+  to a privacy-minded reader.
+- **Leave it undeclared** — matches what the app does; risks a rejection if Play reads
+  processor-side derivation as collection.
+
+Not blocking the PR: nothing in it changes what is transmitted.
+
+## Deferred review findings (Codex, PR #702)
+
+- [ ] **A failed Analytics opt-out has no in-process retry, only the next launch's.** Needs a
+  maintainer decision, because three Codex findings on the same function point in different
+  directions and the third would undo the second.
+
+  **Where it stands.** `applySdkFlags` returns `SdkFlags(crashlytics, all)`. The unsent-report
+  deletion discharges on `.crashlytics` alone, since Crashlytics is what writes the reports the
+  debt promises to discard. A failed Analytics or Performance disable is logged; the retry is the
+  stored preference, which already reads off and which the startup re-assert re-applies on the
+  next launch.
+
+  **What is still flagged.** Between the failed setter and that next launch, Analytics can keep
+  recording its automatic events while the switch and the stored preference both read off.
+  Bounded by the process lifetime, and no data the user declined is *sent* that they were not
+  already exposed to by the throw itself — but the window is real.
+
+  **Why it was not closed here.** The proposed fix is a second piece of retry state, and this
+  file's own history is the argument against it: the deletion debt exists precisely because four
+  independent mechanisms that were each correct alone did not compose. Worse, a retry *flag*
+  buys almost nothing, because nothing triggers a retry inside the process — no transition runs
+  unless the user toggles the switch again, which is the same trigger the stored preference
+  already has. Actually closing the window needs a *scheduled* retry, which is new machinery on a
+  path that has just absorbed three consecutive review rounds.
+
+  **The decision.** Either (a) accept the window, as now, with the log naming it; or (b) add a
+  scheduled retry — a `WorkManager` one-shot, or a re-assert on the next foreground — which is
+  its own PR with its own tests, and which reopens the question of what happens when *that*
+  retry fails too. Not settled here.
+
+## Deferred review findings (Codex, PR #707)
+
+- [x] **Migrate `app.typelauncher.DebugFileSink` to the shared library's sink.**
+  Done. The launcher's own 514-line sink is deleted; `TypeLauncherApp` builds
+  `com.mikelward.androidlog.android.DebugFileSink`.
+
+  **What it fixed.** `readPreviousRun()` now returns a `PreviousRun` handle and
+  `clearPreviousRun(run)` consumes the one the caller was given, so a share
+  deletes exactly the runs its own report carried. The single process-wide
+  `lastSurfaced` slot is gone, and with it the race Codex found: two overlapping
+  shares could cross, one attempt's clipboard write deleting the other's files.
+  `BugReport`'s `carriesPriorRun` flag went with it — the fallback path simply
+  has no handle, which cannot fall out of step with what the report contains.
+
+  **What it also removed.** A duplicated `boundedLogTail`, and a crash-banner
+  derivation the launcher was re-implementing: `LauncherViewModel` now observes
+  the sink's `addCrashListener` / `requestCrashRecompute` instead of polling a
+  blocking `hasUnacknowledgedCrash()` on the IO dispatcher.
+
+  **What it cost.** The library hard-codes its file names, so prior runs written
+  under the old ones had to be carried over (`LegacyDebugLogFiles.kt`) or every
+  upgrading device would silently orphan them.
+
+## Privacy
+- [ ] **Decide whether "we don't hold a user's data captive" belongs in this
+      file's quality bar, not only in `MONETIZATION.md`.** Recorded 2026-09-03
+      as the reason backup and restore of a user's own data is never paywalled —
+      the neighbor of "never lose the user's work": never withhold it either.
+      The 2027 platform mandate requiring backup and restore is the deadline,
+      not the justification, so the principle has to stand on its own. It
+      currently lives in the monetization page, which binds pricing decisions
+      only; if it is meant to bind design generally it wants promoting. Not
+      decided here.
+
+
+- [ ] **Align the four app repos' debug loggers.** `ProcessExitReasons.kt` was
+      ported from here into clothescast, Snoozemo and Simmo as a deliberate
+      copy — same file name, function names, log-line format and field names —
+      so the four logs read identically and a future unification is a
+      lift-and-share rather than a reconciliation. The loggers underneath
+      them are what differ, and the divergence is real. The other three repos
+      each carry this same inventory; this is the copy for the repo the others
+      treat as the reference.
+      - **Type Launcher** (here) has the *default-safe type rule*
+        (`LogValue`): a log call is a literal format string plus arguments,
+        and an argument reaches the Crashlytics breadcrumb mirror only if its
+        type cannot name anything of the user's, with `safe(...)` /
+        `sensitive(...)` overriding per value. This is the strictest of the
+        four and the one worth converging on.
+      - **clothescast's `DiagLog`** takes a pre-built `String` and writes to
+        disk only — no breadcrumb mirror — so redaction is whatever the call
+        site remembered, and the port needed no wrappers.
+      - **Snoozemo's `SnoozeDebugLog`** is also a pre-built `String`, an
+        in-memory buffer plus a file sink with no off-device mirror, gated on
+        a recording preference that is on by default.
+      - **Simmo's `SimmoDebugLog`** redacts whole lines with `scrubPii` and
+        *does* fan out to Crashlytics breadcrumbs on opted-in installs — the
+        combination that made the port omit the exit `description` there and
+        render timestamps in a spelled-month format, since `scrubPii` masks a
+        raw epoch as a phone number.
+
+      Unifying them is a bigger piece of work than any one port and was
+      explicitly out of scope for the ports (maintainer, 2026-08-28: *"the
+      loggers should be aligned, that's likely a bigger thing, but don't
+      diverge them further"*). This entry exists so whoever picks it up starts
+      from an inventory rather than rediscovering the differences. The floor
+      stays per-repo regardless: uniformity must not loosen any repo's privacy
+      rules.
+
+- [x] **Hold Crashlytics off before it auto-starts.** Done, and since extended
+      to Analytics: every Firebase SDK defaults off in the manifest —
+      `firebase_crashlytics_collection_enabled`,
+      `firebase_performance_collection_enabled` and
+      `firebase_analytics_collection_enabled` — and only an explicit yes turns
+      them on. The consent gate is what forced it: with
+      `PRIVACY.md` promising nothing is sent until the user says yes, an SDK
+      that auto-initializes already collecting made that claim false. The
+      runtime setters persist an override, so an install that has consented
+      still collects from auto-initialization — the default governs only the
+      un-consented case, which is the one that needed it.
+
+      What this does *not* fix is the other half of the same root cause: a
+      flag write that throws, or our own preference write that throws, still
+      leaves the launcher's belief and the SDK's state disagreeing. The
+      remaining step is to stop treating the SDK flag as the record at all —
+      keep it derived from ours, and re-assert rather than assume. Codex found
+      six instances of this across #662, #666 and #668; the manifest default
+      closes the widest one.
+
+- [ ] **Take over Firebase initialization, if a persisted opt-in ever exists.**
+      Not currently reachable, and recorded so it is not rediscovered as a bug.
+      A runtime `setCrashlyticsCollectionEnabled(true)` persists an override that
+      beats the manifest default, and `FirebaseInitProvider` runs before
+      `Application.onCreate` — so an install carrying such an override would have
+      a window on each launch, provider start to the startup coroutine, in which
+      a queued report could upload before the gate is applied.
+
+      No shipped build has ever enabled collection, so no install carries that
+      override, and the consent gate means none can acquire one without its user
+      asking for it. If that changes — a build ships collecting, or the trial is
+      reverted and later re-applied — this becomes live, and closing it means
+      removing `FirebaseInitProvider` from the merged manifest
+      (`tools:node="remove"`) and initializing Firebase ourselves after a
+      synchronous read of the stored choice, which needs care against the
+      cold-start budget.
+
+- [ ] **A failed consent `commit()` leaves the in-memory preferences claiming
+      consent.** `SharedPreferences.Editor.commit()` applies the edit to the
+      process's live map *before* returning `false` for a disk write that never
+      landed. `setTelemetryEnabled` returns early on that `false`, so nothing is
+      gated and no transition is enqueued — but the in-memory map now reads
+      `enabled/answered = true`, and if `TypeLauncherApp`'s startup transition is
+      still pending it would read those values and enable Firebase's persisted
+      flags. Disk then says unanswered while the SDKs auto-start enabled.
+
+      Left as-is. It needs a failing disk write *and* the startup transition
+      still pending — which, since it runs at `Application.onCreate`, means the
+      user is tapping Allow in Settings within the first moments of a process
+      start — *and* a process death after. Closing it means snapshotting both
+      preference values before the write and restoring them on failure, which
+      cannot be a blanket `false/false` (that would erase a previous decline),
+      so it is state-snapshot machinery in the function this review reshaped
+      repeatedly. Raised by Codex on #668; noted rather than fixed because the
+      cost is real and the reachability is not.
+
+- [ ] **Stop treating the SDK flags as the record of the user's choice.**
+      The manifest defaults above close the auto-start hole, but not the rest
+      of the same root cause: our record can fail to take, and something then
+      re-reads state that contradicts what the user actually chose.
+
+      Three shapes of it, all found by Codex and all real:
+      - `applySdkFlags` logs a throw from either SDK and carries on, so a failed
+        *disable* leaves collection on while the discharge runs, and the durable
+        marker is then cleared anyway — no debt left for a later transition.
+      - If the opt-out's own preference write *throws*, the stored choice stays
+        `true` while only the in-memory state says otherwise; the queued
+        transition re-reads the store, discharges, and re-enables collection in
+        the same process, with the Settings switch still showing off.
+      - More generally, a write that did not take cannot record that it did not
+        take, so no ordering *inside* the transition repairs it.
+
+      The fix is to make the launcher's own record authoritative and derive the
+      SDK state from it — re-assert on every transition rather than assume the
+      last write landed, and refuse to clear a debt unless the disable it
+      depends on actually succeeded. That is knowable under this design and is
+      not under today's.
+
+### Decisions needing review
+
+- [ ] **`debugSummary()` passes its `full` form untagged, not `safe(mirrored)` —
+  the written plan predates the boundary rule** (autopilot, 2026-08-31).
+  `mikelward/androidlog`'s migration plan says `Intent.debugSummary()` →
+  `safe(mirrored)`, "losing component and package", called "a window, not a
+  decision" pending the `either(full, reduced)` tag. That was written while the
+  library reduced at **ingestion**, where there was one rendering and
+  `safe(mirrored)` was therefore free. The boundary rule (androidlog #24)
+  restored the second rendering, which changes what each option costs:
+  - `safe(mirrored)` now degrades the **on-device** log too — `component=•••`
+    in the bug report the user actually reads, which is not what it does today.
+  - Passing `full` **untagged** keeps the on-device log exactly as it is, and
+    withholds the whole summary off device.
+  Taken the second. It matches the library's own principle — the device's copy
+  is whole, the reduction applies to what leaves — and it is the more
+  conservative of the two for privacy, since strictly less leaves. What it
+  costs is the action, categories and URI scheme that reach Crashlytics
+  breadcrumbs today; the on-device report, which is the primary diagnostic
+  surface, is unchanged.
+  Reversible in one line per overload. The `mirroredVocabulary` /
+  `mirroredScheme` machinery is **kept, not deleted**, so `either(...)` can
+  restore the off-device half without rebuilding it.
+
+- [x] **The bug report's two log sections became one** — approved by the
+  maintainer, 2026-09-01: separate sections were something that needed further
+  design before implementing, so collapsing to one is the right default until
+  that design exists. A report used to carry a **Process start** section and a
+  **Recent log** section, the first rendered from a separately-retained pinned
+  list. The library's `boundedSnapshot(pinnedBudgetChars, recentBudgetChars)`
+  does that merge itself — it restores the pinned lines the ring has since
+  evicted ahead of the tail it still holds, in order and without duplicating
+  one the ring still carries — so the report renders **one** chronological
+  `--- Log ---` section. Reversible in `BugReport.kt` alone if the two-section
+  design is ever taken up: both library calls are still public.
+
+- [x] **Stack traces in the log drop to 6 frames per cause link, from 8** — put
+  to the maintainer 2026-09-01, who had no opinion either way, so the shared
+  default stands. The library's `DEFAULT_MAX_TRACE_FRAMES` is 6 and the app
+  takes it; every other bound already matched (300 entries, 32 pinned, 2,000
+  chars per entry). A per-app deviation needs a reason and there was no
+  recorded one for 8 — it predates the library. Reversible by one constructor
+  argument if a real trace turns out to be cut above the frame that mattered.
+
+- [ ] **Two jobs now enter `environment: production` on a main run.**
+      `release-build` declares it because the upload keystore lives there, and
+      `deploy` keeps it for the Play service account. Today that costs nothing:
+      the environment carries no required-reviewer or wait-timer rule, and
+      every recent `deploy` started within ~3s of its `needs:` completing. If a
+      reviewer rule is ever added — which this workflow's own comments suggest
+      doing — a release would pause for approval twice, and the second pause is
+      easy to miss because reviewers assume their first approval covered the
+      run. The alternative is to drop `environment:` from `release-build`, but
+      that removes the environment-enforced deployment-branch restriction from
+      the job that actually holds the keystore, which is the protection those
+      comments argue for. Flagged by Codex; the same shape is already merged in
+      clothescast with the maintainer's approval.
+
+- **"Default" / "Undefault" needs reconciling with its translations.** The
+  long-press menu on a contact's number toggles whether that number is the
+  default, and the English labels are `Default` and `Undefault` — the second is
+  not a word, and neither says what it acts on. The translations landed as the
+  *sense* rather than the letter ("Set as default" / "Remove as default", per
+  locale idiom), so 63 locales now read better than the source they came from.
+
+  Candidates for the English, none yet chosen: **Set default / Unset default**
+  (shortest, symmetric, mildly technical), **Set as default / Remove as
+  default** (Android-standard), **Use by default / Don't use by default**
+  (warmest, mirrors the consent card's Allow / Don't allow — rejected as too
+  long). Changing it is English-only and needs no re-translation, since the
+  locales already say the right thing.
+
+- **Fan out the telemetry consent copy to the 63 locales.** Five keys are
+  approved English waiting on translation, all reworded existing keys — so
+  `MissingTranslation` never fires and nothing goes red: `telemetry_consent_title`,
+  `_body`, `_allow`, `_deny`, `telemetry_consent_badge_description`, and
+  `settings_analytics_title`. Each carries a `TODO: translate` comment, which is
+  the only record that its locales are stale.
+
+  **The cost while they are stale is real and worth naming** (raised by Codex,
+  PR #705): `PRIVACY.md`'s revoke path names the English row title, every locale
+  links to that same English policy, and every `values-*` still supplies the old
+  translated label — French shows `Statistiques`. So a French user following the
+  opt-out instructions cannot match the control by name. That mismatch is not new
+  (the policy said `Analytics`, French said `Statistiques`), but the rename does
+  not close it either, and only the fan-out will.
+
+  **Rejected**: describing the switch by function in `PRIVACY.md` instead. The
+  rename exists so the card, the row and the policy say the same words, and
+  genericizing the policy trades a permanent loss of that for a temporary gap.
+
+- **The Yoruba SMS label is `SMS`, not a Yoruba word.** `contact_action_message`
+  first shipped as `Iṣẹ́`, which is "work"; the Yoruba for a message is `ìṣẹ́`,
+  differing only by the tone mark on the first vowel. Correcting the mark would
+  have left the label's whole meaning resting on one diacritic, in a font stack
+  that doesn't always render Yoruba tone marks — one mark away from saying
+  "Work" again. `SMS` is accurate (the action launches `smsto:`), unambiguous,
+  and short. Replacing it with a fully Yoruba term needs a native speaker; the
+  alternative is reversible in one string.
+
+- **Analytics is opt-in now, as a trial.** Nothing is collected until the user
+  taps **Allow** on the Settings consent card; an unanswered question behaves as
+  a refusal. The repo owner asked for this explicitly and called it a trial —
+  "I think it's fine but I don't know if it's the permanent I just want to try
+  it" — so it is recorded here rather than treated as settled.
+
+  What it costs: every existing install stops reporting crashes on the update
+  that carries it, until its user answers. Expect crash volume to fall and stay
+  down for whatever fraction never opens Settings. That is the point of the
+  change, but it is also the thing to watch before deciding whether to keep it.
+
+  Reversing it is **three edits, not one**, and this note exists because the
+  constant's name suggests otherwise: flip `TELEMETRY_REQUIRES_CONSENT` to
+  `false`, flip `DockSettingsStore.isTelemetryEnabled`'s default back to `true`,
+  and remove **every** `firebase_*_collection_enabled` meta-data entry from the
+  manifest. There are three of them — Crashlytics, Performance and Analytics —
+  and the count is written as "every" rather than a number on purpose: this
+  line said "the two" until Analytics landed and made it wrong, silently, in a
+  way a reader following it would only discover as Analytics staying dead after
+  a rollback that looked complete. `ManifestUnitTest` asserts the set, so the
+  manifest is the list. The constant alone leaves the preference defaulting off
+  and every SDK starting disabled, which is not the old behavior — it is the
+  new behavior with the card hidden, which would be worse than either. `PRIVACY.md`'s "Nothing is
+  sent until you say yes" section reverts with the three — it is written to be
+  removable as a block.
+
+- **The opt-out's durable write blocks the main thread, on purpose.**
+  `setCollectionGate(false, …)` reaches `SharedPreferences.commit()` before
+  returning, from Compose's `onCheckedChange`. Codex asked for it to be moved
+  off the UI thread (#666, round 2) having asked on round 1 for it to be
+  written *before the asynchronous gap* — the two cannot both hold, since the
+  gap is the boundary between the tap and any background work.
+
+  Kept on the main thread. AGENTS.md L15 aims at cold-start, first-frame,
+  scroll and transition paths, and a Settings switch is none of them; the cost
+  is one boolean into an already-loaded instance, on the opt-out branch only;
+  and the alternative is either losing durability — reopening the hole #666
+  exists to close — or a second durable channel written asynchronously, which
+  is more machinery than the thing it protects, with the same failure mode.
+
+  Reversible: moving the write later is a one-line change if a real frame trace
+  ever shows it. What is *not* cheap to undo is a report uploaded after the user
+  asked for it to be deleted.
+
+- [x] **Make the debug log default-safe, so a new call site can't send user
+      data off device.** Done. A log call is now a hard-coded format string
+      plus arguments (`LauncherDebugLog.event` / `warning` / `failure`), and an
+      argument reaches the Crashlytics mirror only if its type cannot name
+      anything of the user's — numbers, booleans, chars, enums. Every `String`
+      is withheld by default, which is what closes the categories nobody
+      anticipates: the on-device log is unchanged and still renders everything
+      in full. `TelemetryRedaction` and the three call sites that had to seed
+      it are deleted.
+
+      **Correction to what this entry used to claim.** It said a `contactId`
+      "is a `String` argument, so it would be redacted with no rule written for
+      it". That was wrong — `contactId`, `eventId` and `dataId` are all `Long`,
+      so the type rule would have *carried* them. They are tagged
+      `sensitive(...)` at their nine call sites instead. The lesson is the one
+      the repo owner had already drawn: the type is the default, not the
+      verdict, and each value still gets a judgment.
+
+      Two things the conversion turned up that were leaking and are now fixed:
+      `KeyEvent.debugSummary()` mirrored `keyCode`, which on a type-to-search
+      launcher reconstructs what the user typed; and `Intent.debugSummary()`
+      mirrored the component and package. Both now split their fields — the
+      identifying ones stay on device, the action, flags, timing and URI scheme
+      still ride along, so a failed launch is still diagnosable.
+
+      Still worth doing: nothing enforces that the format string is a literal
+      rather than a built string. The property is a rule the call sites keep by
+      convention, and one interpolation reintroduces the whole class of leak
+      this design removed.
+
+      **Decided approach** (repo owner): a plain unit test that parses
+      `app/src/main` and asserts the first argument of `LauncherDebugLog.event`
+      / `warning` / `failure` is a string literal with no interpolation. No new
+      tooling — it runs in the `./gradlew test` CI already has. A custom Android
+      Lint detector would be semantic rather than textual but needs its own
+      Gradle module and tracks an API that breaks across AGP versions; `detekt`
+      has friendlier rule authoring but is a whole plugin, config and CI step
+      the repo does not otherwise want. Either remains an upgrade path if the
+      test proves too blunt.
+
+      **Open question to settle while building it**: a textual check can prove
+      the argument is a literal, and can reject an interpolated one (a `"…"`
+      containing `${` or `$name` is detectable). What it *cannot* prove is that
+      a bare identifier is a `const val` we own rather than a `var` or a
+      parameter — `logState`'s forwarded `reason` is exactly that shape, and it
+      is legitimate. So the test needs a position on identifiers: reject them
+      outright and require every format string be spelled at the call site, or
+      allow a named constant and find some way to establish it really is one.
+      Worth deciding deliberately rather than falling out of whatever the parser
+      happens to do.
+
+- [x] **Rework the Analytics opt-out so its pieces compose.** Done. The four
+      mechanisms — an in-process gate, two persisted SDK flags, a lock that
+      re-read the preference, and an edge-triggered deletion — are now one
+      ordered transition in `LauncherTelemetry.applyCollectionPreference`,
+      which owns the flags and the deletion together.
+
+      Two changes carry it. The gate became a **tri-state**
+      (`Unknown` / `Enabled` / `Disabled`), so an unread preference is no longer
+      indistinguishable from an opt-out: breadcrumbs and keys are withheld in
+      both, but traces run while unknown and stop once the user has actually
+      said no. And the report deletion became a **sticky debt** recorded when an
+      opt-out happens and cleared only when a delete succeeds, rather than
+      recomputed from the latest preference.
+
+      That closes both defects recorded here. A rapid off→on can no longer lose
+      the deletion, because the debt is an event rather than a value and the
+      transition discharges it *before* re-enabling upload. And a failed
+      Performance opt-out can no longer leave traces flowing, because
+      `startTrace` now refuses on a known opt-out — the case the old two-state
+      gate could not express without also dropping every cold-start trace on a
+      slow start.
+
+      **The deletion debt now survives process death.** Closed in the
+      follow-up. `DockSettingsStore.isReportDiscardOwed` records the promise
+      beside the preference on opt-out and is cleared only once a discard
+      succeeds, so a run that dies before servicing it hands the obligation to
+      the next one. The preference seam widened from `() -> Boolean?` to
+      `TelemetryPreferences`, which can read and clear that record, and the
+      startup re-assert therefore services a debt it never incurred.
+
+      Two readings fail toward *not* collecting: an unreadable choice changes
+      nothing (assuming a value would let a corrupt file overwrite a stored
+      opt-out), and an unreadable discard record counts as owed, because not
+      knowing whether a promise was kept is not a reason to resume.
+
+      This is also what retires the residual class below. Each of those windows
+      is a moment where the flags could be left enabled with a discard still
+      owed; with the debt durable, the next transition — or the next process —
+      sees the obligation and services it, so they are repairable after the
+      fact rather than needing to be prevented one gap at a time.
+
+      The SDK side effects sit behind a small interface so the transition's
+      ordering and failure semantics are unit-testable without Firebase — every
+      defect this subsystem produced lived in the ordering rather than in the
+      Firebase calls, and none of it was reachable from a JVM test while those
+      calls were inlined. What still needs a device carrying the Firebase
+      config is only whether the real SDKs honor the flags.
+
+- **The widget picker's 36dp icons still rasterize during composition; only the
+  preview image moved off it.** The follow-up asked for both. Moving the icons
+  too would mean a `produceState` hop each, and their drawables are already in
+  memory — `provider.icon()` is a field read, not IPC — so the cost being moved
+  is a small `toBitmap` and the cost being added is a visible pop-in on the
+  picker's opening frame, against the quality bar's "prefer showing the real
+  thing instantly when it's already in memory". The preview image is the
+  opposite case: whatever size the app shipped, and already progressive, so
+  rasterizing it on the existing IO hop changes nothing a user sees.
+  *Alternative:* make the icons async too and accept the pop-in, or cache the
+  rasterized bitmaps (queued above) which removes the repeat cost without one.
+  *Reversible:* the conversion is one line in each of two composables.
+
+## Review and merge gates
+
+- [x] Add `codex-review-check.yml` (mikelward/codex-review's consumer
+      check): Codex reviews run here, but nothing verifies the workflow
+      pin the ruleset should require.
+- [ ] Verify the settings half of the fleet's bar: a ruleset on the
+      default branch requiring the `lanes` commit status (App-published
+      by `init`/`finalize`, `mikelward/lanes` migration stage 2 — `gate`
+      is retired, it could never work as a required check under
+      `pull_request_target`) and the `codex` status, plus conversation
+      resolution and up-to-date branches, with the auto-merge setting
+      enabled.
+- [ ] **Add `zizmor` to the ruleset's required set** once it has reported
+      on a pull request: the new `.github/workflows/zizmor.yml` runs
+      unfiltered on every PR precisely so it can be required (a
+      paths-filtered workflow creates no check run at all on a
+      non-matching PR, which a ruleset waits on forever) — the posture
+      piloted in mikelward/lanes and mikelward/ci-commit-artifact and
+      rolled out fleet-wide. Add it alongside `lanes` and `codex` in the
+      same ruleset update as the item above.

@@ -1,0 +1,7697 @@
+package app.typelauncher
+
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.view.KeyEvent
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.zIndex
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+@Composable
+internal fun HomeScreen(
+    state: LauncherUiState,
+    innerPadding: PaddingValues,
+    bodyReady: Boolean,
+    // Reports the pixel size each surface renders icons at, so the foreground
+    // warm-up fills sizes that will actually be read back. Defaulted so previews
+    // and screenshot tests need no extra argument.
+    onRenderedIconSizes: (listPx: Int, dockPx: Int, folderPx: Int) -> Unit = { _, _, _ -> },
+    // True when this Home page is the carousel's settled page *or* the page a
+    // carousel transition is animating toward — i.e. Home is on screen or
+    // sliding into view. Drives the wallpaper presentation so it leads the
+    // `state.destination` commit (which only lands after the settle animation
+    // finishes): without it, swiping Widgets→Home would render the opaque app
+    // list for the whole slide-in and only swap to the wallpaper at commit,
+    // flashing the app list. Defaults true so direct callers (previews, unit
+    // tests that compose Home alone) behave as the live page.
+    isVisibleHomePage: Boolean = true,
+    landscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
+    // Whether the search box, the raised keyboard, and one result row fit
+    // together (see HomeLandscapeMetrics.searchBoxFitsWithKeyboard). When
+    // false the box is never shown — tapping it would raise a keyboard that
+    // clips the result list to a sliver — except while a retained query keeps
+    // the filtered list on screen, which must stay clearable.
+    searchBoxFitsWithKeyboard: Boolean = true,
+    searchRevealed: Boolean = false,
+    primaryBottomPadding: Dp = 0.dp,
+    // True while the keyboard is up in the DockNoKeyboard landscape tier; the
+    // dock yields its space then (see `isDockSlotPresent`). Passed directly
+    // (not via state) so the dock hides on the same frame the keyboard rises.
+    dockSuppressedByKeyboard: Boolean = false,
+    searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
+    keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
+    onQueryChanged: (String) -> Unit,
+    onClearQuery: () -> Unit,
+    onLaunchActiveApp: () -> Unit,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
+    onReorderDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onReorderWorkDock: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onMergeDock: (String, String) -> Unit = { _, _ -> },
+    onMergeWorkDock: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromDockFolder: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromDockFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromWorkDockFolder: (String, String) -> Unit = { _, _ -> },
+    onReorderDockFolderMember: (String, String, String) -> Unit = { _, _, _ -> },
+    // Drag-a-member-out-of-the-folder drops (folder ids are unique across the two
+    // docks, so the ViewModel routes each by id — one callback serves both docks).
+    onMoveDockFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
+    onMergeDockFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
+    // The floating dragged-out member icon, rendered as a top-level overlay above
+    // the app list; (null, Zero) hides it.
+    onFolderMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    // Drag an app from the app list onto the (personal) dock: dock it at a slot,
+    // or merge it onto an existing occupant.
+    onDockAppAtPosition: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onDockAppIntoOccupant: (String, String) -> Unit = { _, _ -> },
+    // Same, for the work dock. Only routed here when the dragged app is a work app
+    // released over the work dock, so the work dock stays work-apps-only.
+    onDockAppAtWorkDockPosition: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onDockAppIntoWorkDockOccupant: (String, String) -> Unit = { _, _ -> },
+    onExplodeDockFolder: (String) -> Unit = {},
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+    onOpenSettings: () -> Unit,
+    // Typed-search content sections (contacts / calendar events): open the
+    // tapped result in its owning app. Defaults keep direct callers (previews,
+    // tests that compose Home alone) compiling.
+    onOpenContact: (ContactResult) -> Unit = {},
+    onToggleStarred: (ContactResult) -> Unit = {},
+    onContactLongPress: () -> Unit = {},
+    // In-list contact-actions mode (rendered in the app-list slot in place of the
+    // apps while `state.contactActionsMode` is set): fire a channel/action row, set
+    // a number's default, and pop the mode on Back.
+    onContactRowSelected: (ContactActionRow) -> Unit = {},
+    onSetNumberDefault: (dataId: Long, makeDefault: Boolean) -> Unit = { _, _ -> },
+    onContactActionsBack: () -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
+    onAppListBoundsChanged: (Rect?) -> Unit = {},
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    onDockDragChanged: (Boolean) -> Unit = {},
+    // Search-time dock reveal: true when a long-press on a list app with an
+    // active query hides the keyboard and shows the dock as a drop target,
+    // false when the reveal ends. The host pins the keyboard-space reservation
+    // while this is true so the home layout doesn't reflow mid-drag.
+    onSearchDockRevealChanged: (Boolean) -> Unit = {},
+    // Raises the soft keyboard again (routed to the search field's focus +
+    // show request) when a search-time reveal ends without docking anything.
+    onRequestShowKeyboard: () -> Unit = {},
+) {
+    val configuration = LocalConfiguration.current
+    // Size the dock from the short screen edge (the portrait width), so rotating
+    // to landscape keeps the icons at their size instead of ballooning to fill
+    // the wider row; the dock row is centered at that size (see `DockCard`),
+    // leaving even margins in landscape.
+    //
+    // `dockIconSizing` takes the persisted target icon size (dp) and returns the
+    // rendered per-row count (how many fit) plus the grown-to-fill size. Because
+    // the icon is a fixed dp, it honors the system "Display size" setting for
+    // free (a dp grows in pixels as density grows) and is immune to screen-
+    // resolution changes — the dp-width simply shrinks as Display size grows, so
+    // fewer, bigger icons render.
+    //
+    // TODO: the short edge still moves under width changes that grow both
+    // dimensions; revisit for foldable unfold, free-form / multi-window
+    // resize, narrow split-screen panes, and connected-display setups.
+    val dockReferenceWidthDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+    val dockSizing = dockIconSizing(dockReferenceWidthDp, state.dockIconSizeDp)
+    val dockIconCount = dockSizing.slotCount
+    val dockIconSizeDp = dockSizing.iconSizeDp
+    // Each surface's rendered size, reported to the view model for the icon warm-up.
+    // Computed here rather than there because the dock size is clamped to fit the row
+    // and the list size follows the layout setting -- recomputing either off-screen
+    // could name a size nothing draws, and warming a size nothing reads warms nothing.
+    val iconWarmUpDensity = LocalDensity.current
+    val dockFolderCellSizeDp = (
+        (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp -
+            (DOCK_FOLDER_TILE_PADDING_DP * 2 + DOCK_FOLDER_MINI_GAP_DP).dp
+        ) / 2
+    val appListIconSizeDp = if (state.appListLayout == AppListLayout.NameBeside) {
+        APP_ROW_ICON_SIZE_DP.dp
+    } else {
+        dockIconSizeDp.dp
+    }
+    LaunchedEffect(appListIconSizeDp, dockIconSizeDp, dockFolderCellSizeDp, iconWarmUpDensity) {
+        with(iconWarmUpDensity) {
+            onRenderedIconSizes(
+                appListIconSizeDp.roundToPx().coerceAtLeast(1),
+                dockIconSizeDp.dp.roundToPx().coerceAtLeast(1),
+                dockFolderCellSizeDp.roundToPx().coerceAtLeast(1),
+            )
+        }
+    }
+    // In a wider-than-portrait window (landscape) the dock flattens into a
+    // single reading-order row — the top portrait row first, then the next row
+    // appended on the right — so a two-row portrait dock collapses to one row
+    // and the saved vertical space goes to the app list. The flattened row
+    // needs as many columns as the busiest dock has occupants, capped to what
+    // actually fits the landscape width at the (rotation-stable) icon size;
+    // any overflow wraps to a second row, exactly as the portrait grid would.
+    // The portrait positions in state are never rewritten; this is a pure
+    // render-time reflow (rotating back restores the grid).
+    val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    val personalDockOccupantIds = state.dockedApps.map { app -> app.id } +
+        state.dockFolders.map { folder -> folder.id }
+    val workDockOccupantIds = state.workDockedApps.map { app -> app.id } +
+        state.workDockFolders.map { folder -> folder.id }
+    val dockColumnCount = if (isWiderThanPortrait) {
+        landscapeDockColumnCount(
+            isPersonalDockEnabled = state.isDockEnabled,
+            personalDockOccupantCount = personalDockOccupantIds.size,
+            isWorkDockVisible = state.isWorkDockEnabled && state.isWorkProfileActive,
+            workDockOccupantCount = workDockOccupantIds.size,
+            dockIconCount = dockIconCount,
+            landscapeFitColumns = dockSlotCountForIconSize(configuration.screenWidthDp, dockIconSizeDp),
+        )
+    } else {
+        dockIconCount
+    }
+    val personalDockRenderPositions = if (isWiderThanPortrait) {
+        landscapeDockPositions(personalDockOccupantIds, state.dockPositions, dockIconCount, dockColumnCount)
+    } else {
+        state.dockPositions
+    }
+    val workDockRenderPositions = if (isWiderThanPortrait) {
+        landscapeDockPositions(workDockOccupantIds, state.workDockPositions, dockIconCount, dockColumnCount)
+    } else {
+        state.workDockPositions
+    }
+    // In the landscape reflow a rendered `(row, column)` is a flattened view of
+    // the portrait grid, so a coordinate-carrying drop (app-list → dock, folder
+    // member → dock) must not write the rendered cell back into portrait
+    // storage. These hold the first open *portrait* cell of each dock instead;
+    // non-null only in landscape, where every such drop is redirected to it.
+    val landscapeSafePersonalDockCell by rememberUpdatedState(
+        if (isWiderThanPortrait) {
+            nextAvailableDockPosition(personalDockOccupantIds, state.dockPositions, dockIconCount)
+        } else {
+            null
+        },
+    )
+    val landscapeSafeWorkDockCell by rememberUpdatedState(
+        if (isWiderThanPortrait) {
+            nextAvailableDockPosition(workDockOccupantIds, state.workDockPositions, dockIconCount)
+        } else {
+            null
+        },
+    )
+
+    val showWorkDock = state.isWorkDockEnabled && state.isWorkProfileActive
+    // --- Search-time dock reveal (long-press with an active query). ---
+    // Typing hides the dock (see `isDockSlotPresent`), which leaves a filtered
+    // search hit with no drag-to-dock target. Arming a long-press on a list app
+    // while the query is non-blank hides the soft keyboard and shows the dock
+    // in the space the keyboard reserved, so the user can search, long-press,
+    // and drag to the dock in one motion. The keyboard reservation stays
+    // applied for the whole reveal (the host pins it via
+    // `onSearchDockRevealChanged`) so the search card and app list keep their
+    // exact geometry: the drag gesture lives in the pressed list item's
+    // modifier node, and a mid-drag reflow that scrolled the item out of the
+    // lazy list's composition would dispose the gesture under the finger.
+    //
+    // End of the reveal: a successful dock drop clears the query — the
+    // blank-query home, dock included, is the confirmation — and leaves the
+    // keyboard down; any other end (canceled drag, missed drop, dismissing the
+    // long-press menu) asks the keyboard back so an accidental long-press
+    // costs nothing. While the item's long-press menu is open the reveal is
+    // held — raising the keyboard under an open popup would be odd — and it
+    // ends when the menu closes.
+    var searchDockRevealActive by remember { mutableStateOf(false) }
+    // Set when the current reveal's gesture opened the item menu / landed a
+    // dock drop; written and read only from gesture-driven callbacks.
+    var searchDockRevealMenuOpen by remember { mutableStateOf(false) }
+    var searchDockRevealDropLanded by remember { mutableStateOf(false) }
+    val latestKeyboardController by rememberUpdatedState(LocalSoftwareKeyboardController.current)
+    val latestQueryIsBlank by rememberUpdatedState(state.query.isBlank())
+    // Mirrors `isDockSlotPresent`'s gates minus the blank-query requirement
+    // (the reveal exists precisely because the query is non-blank) and minus
+    // the keyboard suppression (the reveal hides the keyboard itself). Gated
+    // per app — hiding the keyboard for a dock that can't accept the drop
+    // would be pure churn: the personal dock takes any app but the work dock
+    // is work-apps-only (so a work-dock-only configuration reveals only for
+    // work apps), and a folder member is already docked inside its folder
+    // (the store's dock() no-ops for it; moving it out stays the folder
+    // popup's explicit action).
+    val latestSearchDockRevealAvailable by rememberUpdatedState<(InstalledApp) -> Boolean>(
+        { app ->
+            landscapeTier != HomeLandscapeTier.Compact &&
+                !app.isInFolder &&
+                (state.isDockEnabled || (showWorkDock && app.isWorkApp))
+        },
+    )
+    val latestOnSearchDockRevealChanged by rememberUpdatedState(onSearchDockRevealChanged)
+    val latestOnRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
+    val latestOnClearQuery by rememberUpdatedState(onClearQuery)
+    val latestDockFolders by rememberUpdatedState(state.dockFolders)
+    val latestWorkDockFolders by rememberUpdatedState(state.workDockFolders)
+    // --- App-list → dock drag (long-press a list app, drop it on the dock). ---
+    // The personal dock publishes its drop geometry here (it's a sibling of the
+    // list), the list items report their cell centers, and on release the drop is
+    // resolved against the dock with the same `resolveFolderMemberDrop` the folder
+    // drag-out uses (an empty source-folder id means it can only land as a loose
+    // dock icon or a merge, never "keep in folder").
+    var personalDockDropTarget by remember { mutableStateOf<DockDropTarget?>(null) }
+    // The work dock publishes its own drop geometry here. A list app released over
+    // it docks/merges into the work store, but only when it's a work app — the
+    // work dock holds work apps only (see the drop resolution in onDragEnd).
+    var workDockDropTarget by remember { mutableStateOf<DockDropTarget?>(null) }
+    // The apps card's bounds in root coordinates, so a dock icon dragged up only
+    // undocks when released over the card (not the search field / margins / other
+    // dock). Fed by the card itself (not the scrollable list), so it stays valid
+    // even when every app is docked and the list shows its empty state.
+    var appListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var listDragOffset by remember { mutableStateOf(Offset.Zero) }
+    // The app currently being dragged out of the list, if any. The list item for
+    // this app hides itself (its content goes to alpha 0 while keeping its layout
+    // slot) so the icon reads as "picked up" into the floating drag overlay rather
+    // than left duplicated in place.
+    var draggingListAppId by remember { mutableStateOf<String?>(null) }
+    val listAppCenters = remember { mutableStateMapOf<String, Offset>() }
+    val latestPersonalDockDropTarget by rememberUpdatedState(personalDockDropTarget)
+    val latestWorkDockDropTarget by rememberUpdatedState(workDockDropTarget)
+    val latestOnFolderMemberDragFloat by rememberUpdatedState(onFolderMemberDragFloat)
+    val latestOnDockAppAtPosition by rememberUpdatedState(onDockAppAtPosition)
+    val latestOnDockAppIntoOccupant by rememberUpdatedState(onDockAppIntoOccupant)
+    val latestOnDockAppAtWorkDockPosition by rememberUpdatedState(onDockAppAtWorkDockPosition)
+    val latestOnDockAppIntoWorkDockOccupant by rememberUpdatedState(onDockAppIntoWorkDockOccupant)
+    val latestOnDockDragChanged by rememberUpdatedState(onDockDragChanged)
+    // Remembered so the instance survives recomposition: HomeScreen re-executes
+    // on every frame of any vertical layout shift (the dock/list geometry
+    // rects above are written from onGloballyPositioned and read in
+    // composition) and on every search keystroke, and this object is threaded
+    // into every visible AppRow / IconOnlyAppButton — a fresh instance per
+    // pass would fail their skipping comparison and recompose the whole list
+    // each frame. Safe to remember with no keys: every capture below is a
+    // remembered snapshot-state holder or a rememberUpdatedState wrapper, so
+    // the lambdas always read current values.
+    val appListDragHandlers = remember {
+        fun endSearchDockReveal(restoreKeyboard: Boolean) {
+            if (!searchDockRevealActive) return
+            searchDockRevealActive = false
+            searchDockRevealMenuOpen = false
+            latestOnSearchDockRevealChanged(false)
+            if (restoreKeyboard) latestOnRequestShowKeyboard()
+        }
+        AppDragHandlers(
+            onDragStart = { app ->
+                listDragOffset = Offset.Zero
+                draggingListAppId = app.id
+            },
+            onDrag = { app, delta ->
+                listDragOffset += delta
+                listAppCenters[app.id]?.let { origin ->
+                    latestOnFolderMemberDragFloat(app, origin + listDragOffset)
+                }
+            },
+            onDragEnd = { app, canceled ->
+                latestOnFolderMemberDragFloat(null, Offset.Zero)
+                draggingListAppId = null
+                val origin = listAppCenters[app.id]
+                // Folder members never resolve a drop: the store's dock() and
+                // merge are no-ops for an app already inside a folder, so
+                // dispatching would report a landed drop that changed nothing
+                // (and, mid-reveal, clear the query for it). The drag simply
+                // ends as a miss; moving a member out of its folder stays the
+                // folder popup's explicit flow.
+                if (!canceled && origin != null && !app.isInFolder) {
+                    val center = origin + listDragOffset
+                    // Resolve the drop against whichever dock the release point is
+                    // over. The two dock cards never overlap (personal above work), so
+                    // at most one bounds-contains check passes. An empty source-folder
+                    // id never matches a dock occupant, so the result is DockSlot /
+                    // MergeWith / (off-dock) Undock — the latter and KeepInFolder are
+                    // no-ops here (the app stays in the list). Returns true only when
+                    // a dock/merge action was actually dispatched: a merge the
+                    // ViewModel would refuse (target folder at member cap) reports
+                    // false, so the search-time reveal doesn't clear the query for a
+                    // drop that didn't land.
+                    fun dropOnto(
+                        target: DockDropTarget,
+                        folders: List<ResolvedDockFolder>,
+                        onAtPosition: (String, Int, Int) -> Unit,
+                        onIntoOccupant: (String, String) -> Unit,
+                    ): Boolean {
+                        if (target.bounds?.contains(center) != true) return false
+                        val pitch = dockSlotPitch(target.slotCenters)
+                        val mergeRadiusPx = if (pitch.isFinite()) {
+                            pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                        } else {
+                            Float.POSITIVE_INFINITY
+                        }
+                        when (
+                            val drop = resolveFolderMemberDrop(
+                                dropCenter = center,
+                                sourceFolderId = "",
+                                dockBounds = target.bounds,
+                                dockSlotCenters = target.slotCenters,
+                                occupantByPosition = target.occupants,
+                                mergeRadiusPx = mergeRadiusPx,
+                            )
+                        ) {
+                            is FolderMemberDropTarget.DockSlot ->
+                                onAtPosition(app.id, drop.row, drop.column)
+                            is FolderMemberDropTarget.MergeWith -> {
+                                // A merge onto the app's own loose dock icon
+                                // (an already-docked app dragged from the
+                                // filtered list back onto itself) is a store
+                                // no-op, as is a merge into a folder at member
+                                // cap — neither counts as landed.
+                                if (drop.occupantId == app.id ||
+                                    !canMergeIntoDockOccupant(drop.occupantId, folders)
+                                ) {
+                                    return false
+                                }
+                                onIntoOccupant(app.id, drop.occupantId)
+                            }
+                            FolderMemberDropTarget.Undock, FolderMemberDropTarget.KeepInFolder ->
+                                return false
+                        }
+                        return true
+                    }
+    
+                    val landedOnPersonal = latestPersonalDockDropTarget?.let { target ->
+                        dropOnto(
+                            target,
+                            latestDockFolders,
+                            { appId, row, column ->
+                                // Landscape renders a flattened view of the portrait
+                                // grid, so the rendered cell is redirected to the
+                                // first open portrait cell (see the holder above).
+                                val safeCell = landscapeSafePersonalDockCell
+                                if (safeCell != null) {
+                                    latestOnDockAppAtPosition(appId, safeCell.row, safeCell.column)
+                                } else {
+                                    latestOnDockAppAtPosition(appId, row, column)
+                                }
+                            },
+                            latestOnDockAppIntoOccupant,
+                        )
+                    } ?: false
+                    // The work dock is work-apps-only: a personal app released over it
+                    // falls through (no-op), staying in the list.
+                    val landedOnWork = if (!landedOnPersonal && app.isWorkApp) {
+                        latestWorkDockDropTarget?.let { target ->
+                            dropOnto(
+                                target,
+                                latestWorkDockFolders,
+                                { appId, row, column ->
+                                    val safeCell = landscapeSafeWorkDockCell
+                                    if (safeCell != null) {
+                                        latestOnDockAppAtWorkDockPosition(appId, safeCell.row, safeCell.column)
+                                    } else {
+                                        latestOnDockAppAtWorkDockPosition(appId, row, column)
+                                    }
+                                },
+                                latestOnDockAppIntoWorkDockOccupant,
+                            )
+                        } ?: false
+                    } else {
+                        false
+                    }
+                    // A drop that landed during a search-time reveal clears the
+                    // query: the blank-query home (dock included) is the
+                    // confirmation, so the keyboard stays down at the disarm
+                    // that follows.
+                    if ((landedOnPersonal || landedOnWork) && searchDockRevealActive) {
+                        searchDockRevealDropLanded = true
+                        latestOnClearQuery()
+                    }
+                }
+                listDragOffset = Offset.Zero
+            },
+            onReportCenter = { app, center -> listAppCenters[app.id] = center },
+            onLongPressArmed = { app, armed ->
+                latestOnDockDragChanged(armed)
+                if (armed) {
+                    if (!latestQueryIsBlank && latestSearchDockRevealAvailable(app)) {
+                        searchDockRevealDropLanded = false
+                        searchDockRevealMenuOpen = false
+                        searchDockRevealActive = true
+                        latestOnSearchDockRevealChanged(true)
+                        latestKeyboardController?.hide()
+                    }
+                } else if (searchDockRevealActive && !searchDockRevealMenuOpen) {
+                    // A release that opened the item menu holds the reveal
+                    // (ended by onMenuVisibilityChanged below); a landed dock
+                    // drop ends it with the keyboard down; anything else
+                    // restores the keyboard.
+                    endSearchDockReveal(restoreKeyboard = !searchDockRevealDropLanded)
+                }
+            },
+            onMenuVisibilityChanged = { visible ->
+                if (visible) {
+                    if (searchDockRevealActive) searchDockRevealMenuOpen = true
+                } else if (searchDockRevealActive && searchDockRevealMenuOpen) {
+                    endSearchDockReveal(restoreKeyboard = true)
+                }
+            },
+        )
+    }
+    // Once the window is wider than portrait (landscape), the fixed-size dock
+    // no longer fills the row. Narrow the dock card to the width its icons
+    // occupy and center it (see the dock slot below) so the gray card sits as
+    // an island with the screen background showing in the margins, instead of
+    // a bar stretched edge-to-edge. Portrait keeps the full-width card.
+    //
+    // Card width = the icon row's footprint + the card's own padding + a small
+    // slack. The slack matters: `Modifier.weight(1f)` only avoids the
+    // pixel-rounding wrap (the v403 regression) when the row has a little room
+    // beyond the icons' rounded-up pixel widths. The full-width portrait card
+    // gets this for free — the slot-count math reserves DOCK_HORIZONTAL_PADDING_DP
+    // (64) of chrome while the real chrome is only ~48 — so mirror that ~16dp
+    // here, otherwise the last icon wraps to a second row at exact-fit widths.
+    // The flattened landscape row is wider (`dockColumnCount`), so the centered
+    // island grows to match.
+    val dockRowSlackDp = DOCK_ITEM_SPACING_DP * 2
+    val dockCardWidthDp = (
+        dockRowContentWidthDp(dockColumnCount, dockIconSizeDp) +
+            dockRowSlackDp + SECTION_CARD_PADDING_DP * 2
+        ).dp
+    // Custom Layout (not Column) so the dock's max-height constraint is
+    // derived from the actual measured search-card height in the same
+    // measurement pass. A `Column { weight(1f) }` plus state-tracked search
+    // height would either jitter for a frame or rely on Compose's
+    // state-batching to update both `bodyReady` and the height in time. The
+    // measurement order here — search → dock-with-cap → apps-with-remainder —
+    // makes the apps-list minimum a hard constraint that the dock can never
+    // squeeze, regardless of how many apps the user has docked.
+    // The dock slot is reserved whenever *either* dock has content to render,
+    // but only while the search field is empty. Typing a query hides both
+    // docks so the freed space goes to the filtered results the user is
+    // actually scanning — the docked apps surface in that list instead (the
+    // ViewModel stops deduping them out of `filteredApps` once the query is
+    // non-blank, so they stay reachable while the dock row is gone).
+    // A user who turns off "Show dock" but keeps "Show work dock" on (with
+    // an active work profile) still gets a dock surface — the work card
+    // simply renders on its own without the personal card above it.
+    //
+    // In the cramped-landscape Compact state the dock(s) are dropped entirely:
+    // the viewport can't fit the full experience, so rather than clip the dock
+    // off the bottom of the screen we give the whole area to the app list. The
+    // dock renders in Full (which includes all of portrait) and in
+    // DockNoKeyboard — the landscape state that fits the flattened single-row
+    // dock with the keyboard down, the common case on phones. Revealing the
+    // search box in Compact does not bring the dock back.
+    //
+    // In DockNoKeyboard the dock shows with the keyboard down; once the user
+    // raises the keyboard there is no room for both, so the dock yields its
+    // space (the app list keeps its floor and the docked apps resurface in the
+    // list — see `excludedFromAppList`). `dockSuppressedByKeyboard` is only
+    // ever true in DockNoKeyboard, so Full and portrait keep the dock with the
+    // IME up.
+    val isDockSlotPresent =
+        bodyReady && state.query.isBlank() &&
+            // The contact-actions mode clears the query but is a focused
+            // "acting on this contact" surface like an active search, so the dock
+            // stays hidden — otherwise it would reappear and take height from the
+            // app-list slot the moment a contact opens, reflowing the layout the
+            // in-list actions are meant to slot into cleanly.
+            state.contactActionsMode == null &&
+            landscapeTier != HomeLandscapeTier.Compact &&
+            !dockSuppressedByKeyboard &&
+            (state.isDockEnabled || showWorkDock)
+    // The search-time reveal renders the dock as a bottom overlay instead of
+    // the in-layout slot (typing keeps the slot absent); both surfaces publish
+    // the same drop geometry, so presence below keys on either being composed.
+    val isSearchDockRevealShowing = searchDockRevealActive && !isDockSlotPresent
+    // The personal dock is the only app-list → dock drop target. Drop its stale
+    // geometry whenever the dock leaves composition (typing, Compact landscape,
+    // or Show dock off), so a list drag over the old bounds can't dock into a
+    // dock that isn't on screen. It republishes when the dock returns.
+    val isPersonalDockPresent = (isDockSlotPresent || isSearchDockRevealShowing) && state.isDockEnabled
+    LaunchedEffect(isPersonalDockPresent) {
+        if (!isPersonalDockPresent) personalDockDropTarget = null
+    }
+    // Same presence-based clearing for the work dock: `showWorkDock` stays true
+    // while typing or in Compact landscape (which hide the dock card without
+    // flipping the flag), so key the clear on the actual rendered presence — not
+    // on `showWorkDock` alone — to drop stale geometry a list drag could resolve
+    // against an off-screen work dock. It republishes when the dock returns.
+    val isWorkDockPresent = (isDockSlotPresent || isSearchDockRevealShowing) && showWorkDock
+    LaunchedEffect(isWorkDockPresent) {
+        if (!isWorkDockPresent) workDockDropTarget = null
+    }
+    val isHome = state.destination is LauncherDestination.Home
+    // The search box is hidden in the cramped-landscape Compact state (it
+    // doesn't fit alongside the keyboard and an app row; a pull-up reveals it
+    // where typing has headroom), and in any landscape window without typing
+    // headroom — where the box + the raised keyboard + one result row can't
+    // fit, a visible box would be a promise the layout can't keep, so it never
+    // shows and search stays a portrait affordance. Full (and all of portrait)
+    // keeps it visible. It also stays visible whenever a query is active —
+    // hiding the box would otherwise leave the list filtered with no way to
+    // see or clear the query (e.g. after a rotation / resume resets the reveal
+    // while the query is still retained).
+    val showSearchCard = homeShowsSearchCard(
+        state = state,
+        landscapeTier = landscapeTier,
+        searchBoxFitsWithKeyboard = searchBoxFitsWithKeyboard,
+        searchRevealed = searchRevealed,
+    )
+    // `wallpaperActive` keeps the wallpaper as Home's backdrop for the whole
+    // Home experience while the setting is on — empty query *and* while typing
+    // — so the search box, dock, and app list render as opaque cards on top of
+    // it rather than the wallpaper being torn down the instant the user types.
+    // Gated on the search box being visible: in the cramped-landscape Compact
+    // state (and any landscape without typing headroom) the list is the only
+    // launch surface, so we never hand the background to the wallpaper there.
+    // Uses `isVisibleHomePage` (carousel current-or-incoming) rather than
+    // `isHome` (the committed destination) so the wallpaper is already in place
+    // as Home slides into view, instead of the app list flashing for the whole
+    // Widgets→Home settle before the destination commits at the end of it.
+    val wallpaperActive = isVisibleHomePage && state.isWallpaperShown && showSearchCard
+    // `showWallpaperSlot` is the empty-query case: the app-list slot itself is
+    // left transparent so the wallpaper shows through it. Typing brings the
+    // opaque `AppsCard` back into that slot, over the same wallpaper backdrop.
+    // Not while the contact-actions mode owns the app-list slot: it clears the
+    // query but renders its own (opaque, SectionCard-wrapped) card there, so the
+    // wallpaper slot is not what's showing.
+    val showWallpaperSlot = wallpaperActive && state.query.isBlank() && state.contactActionsMode == null
+    // In the empty-query slot the transparent [HomeWallpaper] replaces
+    // `AppsCard`, which then leaves composition
+    // without emitting a final `onAppListBoundsChanged(null)` (its clear-on-
+    // empty effect is cancelled, not run, on the way out). Clear the last
+    // published *scrollable-list* bounds ourselves so the carousel's "started
+    // in the Home app list" reservation — which returns early instead of
+    // dispatching the vertical pull — doesn't treat pull-up/pull-down over the
+    // wallpaper as list scrolling and swallow the recents / notification-shade
+    // gestures. `AppsCard` republishes these when it re-enters composition
+    // (typing, or turning the setting off). The *card* bounds
+    // (`appListBoundsInRoot`) are deliberately NOT cleared here — they are the
+    // drag-to-undock drop target, and the wallpaper slot republishes its own
+    // bounds into them below so dragging a docked app onto the wallpaper still
+    // undocks it.
+    LaunchedEffect(showWallpaperSlot) {
+        if (showWallpaperSlot) {
+            onAppListBoundsChanged(null)
+        }
+    }
+    val context = LocalContext.current
+    // The window *background* is owned by `TypeLauncherApp` (transparent
+    // whenever "Show wallpaper" is on, opaque otherwise) — it is deliberately
+    // NOT flipped per screen. Per-screen DisposableEffects that handed the
+    // background back and forth between Home and Settings left Settings sitting
+    // on an opaque background on-device, so the launcher keeps a single owner
+    // keyed on the persisted setting instead. The status/navigation-bar icon
+    // contrast likewise has a single carousel-level owner
+    // ([WallpaperBarContrast] in `TypeLauncherApp`), fed by the per-page
+    // wallpaper-reveal reports there — Home only computes `wallpaperActive`
+    // for its own backdrop and card treatment.
+    // Auto-show the keyboard only when it fits (Full), or when the user explicitly
+    // revealed the box in a landscape state that keeps the keyboard down
+    // (Compact or DockNoKeyboard) — a pull-up is an explicit request, so it
+    // shows the keyboard even with auto-show off.
+    val autoShowKeyboard = isHome && (
+        (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.Full) ||
+            (searchRevealed && landscapeTier != HomeLandscapeTier.Full)
+        )
+    // The dock cards (personal above work), shared between the in-layout
+    // dock slot (blank query) and the search-time reveal (active query +
+    // long-press) — only ever composed in one of the two places at a time.
+    val homeDockCards: @Composable () -> Unit = {
+        // In a wider-than-portrait window, narrow the dock card(s) to
+        // the width their icons occupy and center them, so the gray
+        // card sits as an island with the screen background showing in
+        // the margins instead of a bar stretched edge-to-edge. The
+        // SectionCard always fills its parent's width, so the narrowing
+        // is applied to this wrapping Column (the card can't size
+        // itself); the surrounding Box centers it. Portrait fills the
+        // width exactly as before.
+        val dockColumnModifier = if (isWiderThanPortrait) {
+            Modifier.width(dockCardWidthDp)
+        } else {
+            Modifier.fillMaxWidth()
+        }
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            Column(
+                modifier = dockColumnModifier,
+                verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
+            ) {
+                if (state.isDockEnabled) {
+                    DockCard(
+                        dockedApps = state.dockedApps,
+                        dockPositions = personalDockRenderPositions,
+                        dockFolders = state.dockFolders,
+                        dockIconSizeDp = dockIconSizeDp,
+                        dockIconCount = dockColumnCount,
+                        dockLayout = state.dockLayout,
+                        modifier = Modifier.weight(1f, fill = false),
+                        reorderEnabled = !isWiderThanPortrait,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onReorderDock = onReorderDock,
+                        onMergeDock = onMergeDock,
+                        onRemoveFromFolder = onRemoveFromDockFolder,
+                        onUndockFromFolder = onUndockFromDockFolder,
+                        onReorderFolderMember = onReorderDockFolderMember,
+                        onMoveFolderMemberToDock = { folderId, appId, row, column ->
+                            // Landscape renders a flattened view of the
+                            // portrait grid, so a member dragged out of a
+                            // folder lands in the first open portrait cell
+                            // rather than writing the rendered cell back.
+                            val safeCell = landscapeSafePersonalDockCell
+                            if (safeCell != null) {
+                                onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                            } else {
+                                onMoveDockFolderMemberToDock(folderId, appId, row, column)
+                            }
+                        },
+                        onMergeFolderMemberInto = onMergeDockFolderMemberInto,
+                        onFolderMemberDragFloat = onFolderMemberDragFloat,
+                        onDockGeometryChanged = { geometry ->
+                            personalDockDropTarget = geometry
+                        },
+                        appListBoundsInRoot = appListBoundsInRoot,
+                        onExplodeFolder = onExplodeDockFolder,
+                        onResetRank = onResetRank,
+                        onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
+                        onSetAppBadge = onSetAppBadge,
+                        onHideApp = onHideApp,
+                        onUninstallApp = onUninstallApp,
+                        onDragStateChanged = onDockDragChanged,
+                        homeReturnToken = state.homeReturnToken,
+                        showAddButtonHint = state.shouldShowDockAddHint,
+                    )
+                }
+                if (showWorkDock) {
+                    // Match `DockCard`'s own row-count calculation (which
+                    // is `maxOccupiedRow + 1` over the resolved-positions
+                    // map, not just `ceil(size / dockIconCount)`) so a
+                    // sparse persisted layout — e.g. four apps with one
+                    // pinned at row 1 — gets the two-row cap it actually
+                    // needs. Then clamp at `MAX_WORK_DOCK_ROWS`, and at
+                    // 1 on very short viewports where a two-row work
+                    // dock would crowd the personal dock out of the
+                    // slot. Every supported Android phone in normal
+                    // portrait is taller than the threshold; foldable
+                    // narrow modes and old compact phones fall back to
+                    // the previous single-row behaviour.
+                    val maxWorkRows = if (
+                        configuration.screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP
+                    ) {
+                        MAX_WORK_DOCK_ROWS
+                    } else {
+                        1
+                    }
+                    val workRows = dockRowCount(
+                        workDockOccupantIds,
+                        workDockRenderPositions,
+                        dockColumnCount,
+                    ).coerceAtMost(maxWorkRows)
+                    val workRowHeightDp = dockSlotHeightDp(
+                        dockIconSizeDp,
+                        state.dockLayout,
+                        LocalDensity.current.fontScale,
+                    )
+                    val workMaxHeightDp = workRows * workRowHeightDp +
+                        (workRows - 1) * DOCK_ITEM_SPACING_DP +
+                        SECTION_CARD_PADDING_DP * 2
+                    DockCard(
+                        dockedApps = state.workDockedApps,
+                        dockPositions = workDockRenderPositions,
+                        dockFolders = state.workDockFolders,
+                        dockIconSizeDp = dockIconSizeDp,
+                        dockIconCount = dockColumnCount,
+                        dockLayout = state.dockLayout,
+                        modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
+                        reorderEnabled = !isWiderThanPortrait,
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleWorkDock,
+                        onReorderDock = onReorderWorkDock,
+                        onMergeDock = onMergeWorkDock,
+                        onRemoveFromFolder = onRemoveFromWorkDockFolder,
+                        onUndockFromFolder = onUndockFromWorkDockFolder,
+                        onReorderFolderMember = onReorderDockFolderMember,
+                        onMoveFolderMemberToDock = { folderId, appId, row, column ->
+                            val safeCell = landscapeSafeWorkDockCell
+                            if (safeCell != null) {
+                                onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                            } else {
+                                onMoveDockFolderMemberToDock(folderId, appId, row, column)
+                            }
+                        },
+                        onMergeFolderMemberInto = onMergeDockFolderMemberInto,
+                        onFolderMemberDragFloat = onFolderMemberDragFloat,
+                        onDockGeometryChanged = { geometry ->
+                            workDockDropTarget = geometry
+                        },
+                        appListBoundsInRoot = appListBoundsInRoot,
+                        onExplodeFolder = onExplodeDockFolder,
+                        onResetRank = onResetRank,
+                        onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
+                        onSetAppBadge = onSetAppBadge,
+                        onHideApp = onHideApp,
+                        onUninstallApp = onUninstallApp,
+                        onDragStateChanged = onDockDragChanged,
+                        tags = DockTestTags.Work,
+                        homeReturnToken = state.homeReturnToken,
+                        showAddButtonHint = state.shouldShowWorkDockAddHint,
+                    )
+                }
+            }
+        }
+    }
+    Layout(
+        modifier = Modifier
+            .fillMaxSize()
+            // Transparent while the wallpaper is showing so the system wallpaper
+            // (drawn behind the window by `FLAG_SHOW_WALLPAPER`, see the window
+            // effect above) shows through the empty Home; the search box and
+            // dock are opaque cards that float on it. Opaque otherwise, so
+            // ordinary Home is unchanged.
+            .background(if (wallpaperActive) Color.Transparent else MaterialTheme.colorScheme.background)
+            .padding(bottom = primaryBottomPadding)
+            .padding(innerPadding)
+            .padding(
+                horizontal = HOME_CONTENT_HORIZONTAL_INSET_DP.dp,
+                vertical = HOME_CONTENT_HORIZONTAL_INSET_DP.dp,
+            )
+            .testTag(HOME_SCREEN_TAG),
+        content = {
+            // Index 0: search card, or a zero-size spacer when the cramped
+            // landscape Compact state hides it. The slot is always emitted so the
+            // layout's measurable indices below stay stable.
+            if (showSearchCard) {
+                SearchCard(
+                    query = state.query,
+                    autoShowKeyboard = autoShowKeyboard,
+                    showPlayUpdateBadge = state.playUpdate.showBadge,
+                    showCrashBanner = state.isCrashBannerVisible,
+                    showTelemetryConsentBadge = state.isTelemetryConsentPending,
+                    placeholderSuffix = searchPlaceholderSuffix,
+                    // The inline preview must name whatever Enter fires. In the
+                    // contact-actions mode Enter fires the first visible channel/
+                    // action row, so the suggestion follows those rows there —
+                    // otherwise typing a channel filter like "mess" would preview
+                    // the Messages app while Enter sent this contact's Message
+                    // action. Everywhere else it previews the first app (or the
+                    // first content result when zero apps match).
+                    suggestion = if (state.contactActionsMode != null) {
+                        searchInlineSuggestion(
+                            query = state.query,
+                            topMatch = null,
+                            fallbackName = state.contactActionsMode.actions
+                                .visibleRows(
+                                    selectedChannelId = state.contactActionsMode.selectedChannelId,
+                                    query = state.query,
+                                    openContactLabel = stringResource(R.string.contact_actions_open_contact),
+                                )
+                                .firstOrNull()
+                                ?.label,
+                        )
+                    } else {
+                        searchInlineSuggestion(
+                            query = state.query,
+                            topMatch = state.filteredApps.firstOrNull(),
+                            fallbackName = state.contactResults.firstOrNull()?.displayName
+                                ?: state.eventResults.firstOrNull()?.title,
+                        )
+                    },
+                    keyboardShowRequests = keyboardShowRequests,
+                    onQueryChanged = onQueryChanged,
+                    onClearQuery = onClearQuery,
+                    onOpenSettings = onOpenSettings,
+                    onLaunchActiveApp = onLaunchActiveApp,
+                )
+            } else {
+                Spacer(modifier = Modifier.size(0.dp))
+            }
+            // Index 1: apps card OR a placeholder spacer that fills the
+            // remaining space during the cold-start holdback so the search
+            // card stays pinned to the top.
+            // `bodyReady` flips one frame after TypeLauncherApp first
+            // composes and stays true for the lifetime of the activity
+            // composition; the holdback is a cold-start optimisation, not
+            // a per-mount one. See the comment on `homeBodyReady` in
+            // TypeLauncherApp for the why.
+            val contactActionsMode = state.contactActionsMode
+            if (bodyReady && contactActionsMode != null) {
+                // A contact is open: the app-list slot renders the contact's
+                // channels/actions in place of the apps (same slot, so the search
+                // box and dock don't reflow), filterable by the live query and
+                // Enter-launchable exactly like the app list. Wrapped in the same
+                // SectionCard the apps use so it sits on the opaque/faded card
+                // surface (and honors the wallpaper card-opacity treatment) rather
+                // than floating unreadable directly over the wallpaper.
+                SectionCard(
+                    Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coords ->
+                            appListBoundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize())
+                        },
+                ) {
+                    ContactActionsCard(
+                        actions = contactActionsMode.actions,
+                        selectedChannelId = contactActionsMode.selectedChannelId,
+                        query = state.query,
+                        onRowSelected = onContactRowSelected,
+                        onSetNumberDefault = onSetNumberDefault,
+                        onBack = onContactActionsBack,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else if (bodyReady && showWallpaperSlot) {
+                // Same slot as the apps card (index 1, measured to `appHeight`),
+                // so swapping wallpaper ↔ list when the query flips never
+                // reflows the search box or dock above/below it. The slot
+                // publishes its bounds into `appListBoundsInRoot` (the same
+                // drag-to-undock drop target the apps card feeds), so dragging a
+                // docked app up onto the wallpaper still undocks it, and the
+                // target tracks the slot as the layout shifts (e.g. recents
+                // opening) instead of relying on the apps card's last value.
+                HomeWallpaper(
+                    modifier = Modifier.fillMaxSize(),
+                    onBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
+                )
+            } else if (bodyReady) {
+                AppsCard(
+                    apps = state.filteredApps,
+                    isLoading = state.isLoadingApps,
+                    overflowChevronsReady = state.isFreshAppLoadComplete,
+                    dockLimit = Int.MAX_VALUE,
+                    // Every state honors the persisted "App list" layout — the
+                    // landscape tiers no longer force an icon grid, so names-below
+                    // or text rows carry over when the phone rotates. The
+                    // cramped-landscape Compact tier still sorts by usage with the
+                    // most-used app at the visual bottom, overriding the persisted
+                    // "Sort apps by" choice — the list is the only launch surface
+                    // there, so it favors thumb-reach. The sort reads the live
+                    // `landscapeTier` param (which can lead the
+                    // `state.homeLandscapeTier` snapshot by a frame on rotation).
+                    layout = state.appListLayout,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = state.query.isNotBlank(),
+                    reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
+                    contactResults = state.contactResults,
+                    eventResults = state.eventResults,
+                    onOpenContact = onOpenContact,
+                    onToggleStarred = onToggleStarred,
+                    onContactLongPress = onContactLongPress,
+                    onOpenEvent = onOpenEvent,
+                    scrollResetKey = state.query,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onResetRank = onResetRank,
+                    onRenameApp = onRenameApp,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
+                    onHideApp = onHideApp,
+                    onUninstallApp = onUninstallApp,
+                    onAppListBoundsChanged = onAppListBoundsChanged,
+                    // Undock targets the whole card (present even when the list is
+                    // empty), so drag-to-undock works when every app is docked.
+                    onCardBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
+                    appDrag = appListDragHandlers,
+                    draggedAppId = draggingListAppId,
+                )
+            } else {
+                Spacer(modifier = Modifier.fillMaxSize())
+            }
+            // Index 2: dock card OR a zero-size spacer when neither dock is
+            // visible. The wrapping `Column` lays both dock cards out with
+            // the shared `HOME_CARD_SPACING_DP` gap between them, matching
+            // the gap the outer Layout uses between every other pair of
+            // home cards.
+            //
+            // The work dock is capped at a content-driven row count via
+            // `Modifier.heightIn`: one row when `workApps <= dockIconCount`,
+            // two rows once the user has docked more than `dockIconCount`
+            // work apps, and never taller than `MAX_WORK_DOCK_ROWS`
+            // regardless of how many apps land in the work dock — extra
+            // work apps scroll inside the card. The row count is derived
+            // from the work dock's own content only (not the personal dock,
+            // the apps list, or the viewport), so the work card never
+            // resizes in response to anything but the user adding or
+            // removing a work app.
+            //
+            // The personal dock carries `Modifier.weight(1f, fill = false)`,
+            // so Compose measures the work dock first (against its capped
+            // height) and gives the personal dock whatever the slot has
+            // left, falling back to the personal dock's natural height when
+            // there is slack. A heavily-docked personal can therefore never
+            // starve the work card to zero height, and a small personal
+            // dock does not stretch to fill the slot and crowd the apps
+            // list above. The personal dock's own `verticalScroll` handles
+            // the rare case where its natural content exceeds the remaining
+            // budget.
+            if (isDockSlotPresent) {
+                homeDockCards()
+            } else {
+                Spacer(modifier = Modifier.size(0.dp))
+            }
+            // Index 3: the bottom bar (recents). Always emitted so the
+            // measurable count is stable; the card collapses to zero height
+            // when closed, so a closed bar lays out identically to having no
+            // bar at all. When the bar opens it takes the bottom-most slot and
+            // the search / apps / dock above it all shift up to make room —
+            // "everything moves up".
+            HomeBottomBar(
+                state = state,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onDismissRecent = onDismissRecent,
+                onBarScrollRegionChanged = onBarScrollRegionChanged,
+            )
+            // Index 4: the search-time dock reveal — the same dock cards the
+            // slot above renders, floated over the space the hidden keyboard
+            // reserved (below this layout's bottom edge; see the placement in
+            // the measure block). A zero-size spacer keeps the measurable
+            // indices stable while no reveal is up.
+            if (isSearchDockRevealShowing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(SEARCH_DOCK_REVEAL_TAG),
+                ) {
+                    homeDockCards()
+                }
+            } else {
+                Spacer(modifier = Modifier.size(0.dp))
+            }
+        },
+    ) { measurables, constraints ->
+        val spacingPx = HOME_CARD_SPACING_DP.dp.roundToPx()
+        // Reserve at least APP_LIST_MIN_VISIBLE_ROWS rows for the apps list;
+        // see [appListMinVisibleRowsHeightDp] for the per-row floor.
+        val appListMinPx = appListMinVisibleRowsHeightDp(
+            dockIconSizeDp,
+            state.appListLayout,
+            fontScale,
+        ).dp.roundToPx()
+
+        val search = measurables[0].measure(
+            constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
+        )
+        // No card-gap below a hidden (zero-height) search box, so the app grid
+        // sits flush at the top in the cramped-landscape Compact state.
+        val searchSpacingPx = if (search.height > 0) spacingPx else 0
+        val belowSearch = (constraints.maxHeight - search.height - searchSpacingPx).coerceAtLeast(0)
+
+        // Bottom bar first: it owns the bottom-most slot, so the dock and apps
+        // list lay out against whatever it leaves. Capped — like the dock — so
+        // it can never squeeze the apps list below its minimum visible rows.
+        // Closed bars measure to zero, collapsing this back to the no-bar layout.
+        val barMaxPx = (belowSearch - appListMinPx - spacingPx).coerceAtLeast(0)
+        val bar = measurables[3].measure(
+            constraints.copy(minHeight = 0, maxHeight = barMaxPx),
+        )
+        val barSpacingPx = if (bar.height > 0) spacingPx else 0
+        val belowBar = (belowSearch - bar.height - barSpacingPx).coerceAtLeast(0)
+
+        val dockMaxPx = if (isDockSlotPresent) {
+            (belowBar - appListMinPx - spacingPx).coerceAtLeast(0)
+        } else {
+            0
+        }
+        val dock = measurables[2].measure(
+            constraints.copy(minHeight = 0, maxHeight = dockMaxPx),
+        )
+        val dockSpacingPx = if (dock.height > 0) spacingPx else 0
+        val appHeight = (belowBar - dock.height - dockSpacingPx).coerceAtLeast(0)
+        val apps = measurables[1].measure(
+            constraints.copy(minHeight = appHeight, maxHeight = appHeight),
+        )
+        // The search-time dock reveal measures loose (natural height): it is
+        // placed *outside* this layout's bounds, in the band the hidden
+        // keyboard reserved, so it takes no space from the cards above — the
+        // whole point of the reveal is that the search card and apps list keep
+        // their exact geometry while a drag is in flight.
+        val reveal = measurables[4].measure(
+            constraints.copy(minWidth = 0, minHeight = 0),
+        )
+
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            search.place(0, 0)
+            apps.place(0, search.height + searchSpacingPx)
+            var y = search.height + searchSpacingPx + apps.height
+            if (dock.height > 0) {
+                dock.place(0, y + spacingPx)
+                y += spacingPx + dock.height
+            }
+            if (bar.height > 0) {
+                bar.place(0, y + spacingPx)
+            }
+            if (reveal.height > 0) {
+                // Below the layout's bottom edge the padding chain is: one
+                // content inset, then the nav inset (innerPadding), then the
+                // keyboard reservation down to the screen edge. Nothing here
+                // clips descendants, so the reveal draws in that band.
+                reveal.place(
+                    x = (constraints.maxWidth - reveal.width) / 2,
+                    y = searchDockRevealTopPx(
+                        layoutHeightPx = constraints.maxHeight,
+                        contentInsetPx = HOME_CONTENT_HORIZONTAL_INSET_DP.dp.roundToPx(),
+                        keyboardReservationPx = primaryBottomPadding.roundToPx(),
+                        dockHeightPx = reveal.height,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Top position (in home-layout coordinates) for the search-time dock reveal.
+ * The dock's top edge sits where the hidden keyboard's top edge was — one
+ * content inset below the layout's bottom edge, then [keyboardReservationPx]
+ * of reserved band down to the nav inset — so hiding the keyboard reads as
+ * uncovering a dock that was behind it. When the band is shorter than the dock
+ * (the keyboard was already dismissed, so nothing is reserved), the dock
+ * floats up until its bottom rests at the top of the nav inset, becoming a
+ * temporary drop shelf over the bottom of the list.
+ */
+internal fun searchDockRevealTopPx(
+    layoutHeightPx: Int,
+    contentInsetPx: Int,
+    keyboardReservationPx: Int,
+    dockHeightPx: Int,
+): Int = minOf(
+    layoutHeightPx + contentInsetPx,
+    layoutHeightPx + contentInsetPx + keyboardReservationPx - dockHeightPx,
+).coerceAtLeast(0)
+
+/**
+ * Whether Home's search box renders in the current window state — the gate the
+ * wallpaper backdrop and the keyboard/search affordances share. Extracted so
+ * `TypeLauncherApp`'s carousel-level wallpaper-reveal computation and
+ * [HomeScreen]'s own copy can never drift: in the cramped-landscape Compact
+ * state (and any landscape without typing headroom) the box is hidden, unless
+ * the user explicitly revealed it, retains a non-blank query, or the
+ * type-to-filter contact-actions mode needs it to take input.
+ */
+internal fun homeShowsSearchCard(
+    state: LauncherUiState,
+    landscapeTier: HomeLandscapeTier,
+    searchBoxFitsWithKeyboard: Boolean,
+    searchRevealed: Boolean,
+): Boolean = (landscapeTier != HomeLandscapeTier.Compact && searchBoxFitsWithKeyboard) ||
+    searchRevealed ||
+    state.query.isNotBlank() ||
+    // The contact-actions mode clears the query but is type-to-filter, so the
+    // search box must stay to take that input. (Unreachable in Compact, which
+    // has no content search to open a contact from.)
+    state.contactActionsMode != null
+
+/**
+ * The app-list slot when "Show wallpaper" is on and the query is empty (see
+ * `showWallpaperSlot` in [HomeScreen]). Rather than reading the wallpaper bitmap
+ * (unsupported on API 34+ without permissions a launcher can't hold), the slot
+ * is simply left transparent: Home's background is transparent while the
+ * wallpaper is showing, so the system wallpaper — drawn behind the window by
+ * `FLAG_SHOW_WALLPAPER`, see the window effect in [HomeScreen] — shows through
+ * here (and everywhere else the opaque search box and dock don't cover). The
+ * slot still reports its bounds so the carousel undock drop target tracks it.
+ */
+@Composable
+private fun HomeWallpaper(
+    modifier: Modifier = Modifier,
+    onBoundsChanged: (Rect?) -> Unit = {},
+) {
+    Box(
+        modifier = modifier
+            .testTag(HOME_WALLPAPER_TAG)
+            .onGloballyPositioned { coords ->
+                onBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+            },
+    )
+}
+
+/**
+ * The height (dp) the home layout reserves for the apps list: one
+ * [appListFloorRowHeightDp] row — the larger of the [appListLayout]'s grid row
+ * (icon + spacing, plus the NameBelow label strip) and the fixed 56dp text row
+ * — times [APP_LIST_MIN_VISIBLE_ROWS], so no layout mode can be squeezed below
+ * its guaranteed visible rows by the dock and the recents bar. Without the
+ * text-row floor, a small icon size (32dp → 96dp reserved) under-reserved the
+ * 112dp two text rows need; without the label strip, a NameBelow grid's two
+ * labeled rows were taller than the reserve.
+ */
+internal fun appListMinVisibleRowsHeightDp(
+    dockIconSizeDp: Int,
+    appListLayout: AppListLayout = AppListLayout.NameBeside,
+    fontScale: Float = 1f,
+): Int =
+    APP_LIST_MIN_VISIBLE_ROWS * appListFloorRowHeightDp(dockIconSizeDp, appListLayout, fontScale)
+
+/**
+ * The home screen's bottom bar: the recents bar (revealed by a pull-up). The
+ * card animates itself open/closed via its own `AnimatedVisibility`; when
+ * closed the bar collapses to zero height and the home layout above it fills
+ * the space.
+ */
+@Composable
+internal fun HomeBottomBar(
+    state: LauncherUiState,
+    dockIconSizeDp: Int,
+    modifier: Modifier = Modifier,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(HOME_BOTTOM_BAR_TAG),
+    ) {
+        RecentsCard(
+            recentApps = state.recentApps,
+            isVisible = state.isRecentsOpen,
+            dockIconSizeDp = dockIconSizeDp,
+            onLaunchApp = onLaunchApp,
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onDismissRecent = onDismissRecent,
+            onBarScrollRegionChanged = onBarScrollRegionChanged,
+        )
+    }
+}
+
+@Composable
+private fun SearchCard(
+    query: String,
+    autoShowKeyboard: Boolean,
+    showPlayUpdateBadge: Boolean,
+    showCrashBanner: Boolean,
+    showTelemetryConsentBadge: Boolean,
+    placeholderSuffix: String,
+    suggestion: InlineSearchSuggestion?,
+    keyboardShowRequests: SharedFlow<Unit>,
+    onQueryChanged: (String) -> Unit,
+    onClearQuery: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onLaunchActiveApp: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    // The auto-focus / show pair is the launcher's "type immediately on Home"
+    // behavior. Gating both on the user setting is what actually keeps the IME
+    // down. MainActivity also applies stateAlwaysHidden when the setting is off
+    // so a retained TextField focus cannot re-show the IME on launcher resume.
+    LaunchedEffect(autoShowKeyboard) {
+        if (autoShowKeyboard) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
+    // Pull-up second-stage trigger: when the carousel decides the user wants
+    // the IME back (recents already open, gesture continues), it emits on this
+    // flow. Focus has to be re-grabbed too because the back gesture that
+    // dismissed the keyboard typically also dropped focus from the TextField.
+    LaunchedEffect(keyboardShowRequests) {
+        keyboardShowRequests.collect {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
+    SectionCard(
+        // Sides stay 16dp to match the apps and dock cards. Top/bottom are 12dp:
+        // tighter than the cards' 16dp (the field draws its own outline, so it
+        // needs less of a second frame) but not so tight that the field crowds
+        // the card edge.
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Box {
+            LauncherFilterField(
+                value = query,
+                onValueChange = onQueryChanged,
+                placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
+                modifier = Modifier
+                    .focusRequester(focusRequester)
+                    // Swallow held-Enter key repeats before they reach the text
+                    // field core: the core maps a hardware Enter ACTION_DOWN to
+                    // the IME Search action (-> onSearch -> onLaunchActiveApp)
+                    // and does so for *every* repeat, so a held key fired one
+                    // launch per repeat — and once the first launch cleared the
+                    // query, the next repeat shoved the user into settings. The
+                    // preview phase runs ancestors-first, so this filter sees
+                    // the event before the core consumes it. This restores the
+                    // key-repeat filtering the legacy editor-action path had
+                    // before the Compose rewrite.
+                    .onPreviewKeyEvent { event ->
+                        event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
+                            event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                            event.nativeKeyEvent.repeatCount > 0
+                    }
+                    .onKeyEvent { event ->
+                        // Fallback for hosts whose text-field core doesn't map
+                        // Enter to the IME action; repeats never get here (the
+                        // preview filter above consumed them).
+                        if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_ENTER &&
+                            event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN
+                        ) {
+                            onLaunchActiveApp()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    .testTag(SEARCH_FIELD_TAG),
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        FilterClearButton(
+                            onClick = onClearQuery,
+                            contentDescription = stringResource(R.string.app_search_clear_button_description),
+                        )
+                    } else {
+                        IconButton(
+                            onClick = onOpenSettings,
+                            modifier = Modifier.testTag(SETTINGS_BUTTON_TAG),
+                        ) {
+                            Box {
+                                Icon(
+                                    LauncherIcons.Settings,
+                                    contentDescription = stringResource(R.string.settings_open_button_description),
+                                )
+                                // One badge slot, and three claims on it, ranked by
+                                // what missing them costs and by how long each
+                                // waits. A possible crash is first: it may cost a
+                                // fix. A pending Play update is next — not because
+                                // it matters more than the Analytics question, but
+                                // because it is *transient*, so letting it take the
+                                // slot briefly costs the question nothing, while the
+                                // reverse would hide every update on an install
+                                // whose question is never answered. The consent dot
+                                // is last and can afford to be: nothing is collected
+                                // while it stands, so leaving it unanswered is
+                                // already the outcome the dot would ask for.
+                                if (showCrashBanner) {
+                                    val badgeDescription = stringResource(R.string.crash_pending_badge_description)
+                                    Icon(
+                                        LauncherIcons.Warning,
+                                        contentDescription = badgeDescription,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            // Same off-grid 2dp nudge as the update dot
+                                            // below, so either badge seats identically
+                                            // into the gear's top-right corner.
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                            .testTag(CRASH_PENDING_BADGE_TAG),
+                                    )
+                                } else if (showPlayUpdateBadge) {
+                                    val badgeDescription = stringResource(R.string.play_update_badge_description)
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            // Off-grid 2dp: an optical nudge that
+                                            // seats the notification dot into the
+                                            // gear's top-right corner (matching
+                                            // Android's standard dot placement)
+                                            // rather than aligning to the 4dp grid.
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                            .semantics { contentDescription = badgeDescription }
+                                            .testTag(PLAY_UPDATE_BADGE_TAG),
+                                    )
+                                } else if (showTelemetryConsentBadge) {
+                                    val badgeDescription =
+                                        stringResource(R.string.telemetry_consent_badge_description)
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            // Same 2dp optical nudge as the badges
+                                            // above, so whichever one wins the slot
+                                            // seats identically into the corner.
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(PLAY_UPDATE_BADGE_SIZE_DP.dp)
+                                            // Error red, not the update dot's primary:
+                                            // this one asks for a decision about the
+                                            // user's data, and should not read as the
+                                            // same routine "something's available" as
+                                            // an app update.
+                                            .background(MaterialTheme.colorScheme.error, CircleShape)
+                                            .semantics { contentDescription = badgeDescription }
+                                            .testTag(TELEMETRY_CONSENT_BADGE_TAG),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        focusManager.clearFocus(force = false)
+                        onLaunchActiveApp()
+                    },
+                ),
+            )
+            if (suggestion != null) {
+                // Overlay the inline autocomplete suggestion on the field's right
+                // edge. A plain Text consumes no pointer events, so tap-to-focus
+                // still reaches the field underneath.
+                SearchSuggestionOverlay(
+                    suggestion = suggestion,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .testTag(SEARCH_SUGGESTION_TAG),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Set of test tags applied to the dock card and its slot contents.
+ * Two pre-defined values: [Personal] for the home dock and [Work] for the
+ * work-apps dock rendered below it. Lets a single [DockCard] implementation
+ * back both surfaces while keeping their screenshot tests addressable
+ * independently.
+ */
+internal data class DockTestTags(
+    val cardTag: String,
+    val listTag: String,
+    val appTag: String,
+    val appIconTag: String,
+    val addButtonTag: String,
+    val folderTag: String,
+) {
+    companion object {
+        val Personal = DockTestTags(
+            cardTag = DOCK_CARD_TAG,
+            listTag = DOCK_LIST_TAG,
+            appTag = DOCK_APP_TAG,
+            appIconTag = DOCK_APP_ICON_TAG,
+            addButtonTag = DOCK_ADD_BUTTON_TAG,
+            folderTag = DOCK_FOLDER_TAG,
+        )
+        val Work = DockTestTags(
+            cardTag = WORK_DOCK_CARD_TAG,
+            listTag = WORK_DOCK_LIST_TAG,
+            appTag = WORK_DOCK_APP_TAG,
+            appIconTag = WORK_DOCK_APP_ICON_TAG,
+            addButtonTag = WORK_DOCK_ADD_BUTTON_TAG,
+            folderTag = WORK_DOCK_FOLDER_TAG,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DockCard(
+    dockedApps: List<InstalledApp>,
+    dockPositions: Map<String, DockPosition>,
+    dockIconSizeDp: Int,
+    dockIconCount: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    dockFolders: List<ResolvedDockFolder> = emptyList(),
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onReorderDock: (String, Int, Int) -> Unit,
+    onMergeDock: (String, String) -> Unit = { _, _ -> },
+    onRemoveFromFolder: (String, String) -> Unit = { _, _ -> },
+    onUndockFromFolder: (String, String) -> Unit = { _, _ -> },
+    onReorderFolderMember: (String, String, String) -> Unit = { _, _, _ -> },
+    // Drag-a-member-out-of-the-folder drops: move it loose to a dock slot, merge
+    // it into another dock occupant, or (via [onUndockFromFolder]) undock it.
+    onMoveFolderMemberToDock: (String, String, Int, Int) -> Unit = { _, _, _, _ -> },
+    onMergeFolderMemberInto: (String, String, String) -> Unit = { _, _, _ -> },
+    // Reports the floating, dragged-out member icon up to the host (which renders
+    // it as a top-level overlay above the app list); (null, Zero) hides it.
+    onFolderMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    // Publishes this dock's live drop geometry (bounds + slot lattice + occupancy)
+    // up to the host so an app dragged out of the app list can be hit-tested
+    // against the dock. Only the personal dock wires this today.
+    onDockGeometryChanged: (DockDropTarget) -> Unit = {},
+    // The app list's bounds in root coordinates. A loose dock app dragged off the
+    // dock only undocks when released *over the app list* — releasing over the
+    // search field, the margins, or the other dock (the deferred cross-dock move)
+    // is ignored so the pinned icon isn't lost.
+    appListBoundsInRoot: Rect? = null,
+    onExplodeFolder: (String) -> Unit = {},
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    onDragStateChanged: (Boolean) -> Unit = {},
+    tags: DockTestTags = DockTestTags.Personal,
+    // Changes whenever the launcher returns to a fresh Home (see
+    // `LauncherUiState.homeReturnToken`); an open folder closes when it does, so
+    // launching an app and pressing Home — or any other return to Home — never
+    // carries a stale open folder back. Defaults to a constant for inert callsites
+    // (Settings preview, screenshot-only renders) that never return to Home.
+    homeReturnToken: Int = 0,
+    // Defaults to false so inert callsites (Settings preview, future
+    // screenshot-only renders) never advertise the onboarding affordance.
+    // The Home callsites pass `state.shouldShowDockAddHint` /
+    // `state.shouldShowWorkDockAddHint` explicitly.
+    showAddButtonHint: Boolean = false,
+    // Drag-to-reorder is disabled in the landscape reflow because the rendered
+    // positions are a flattened single-row view of the portrait grid, not the
+    // persisted grid (see `DockedAppButton.reorderEnabled`). Portrait keeps it.
+    reorderEnabled: Boolean = true,
+) {
+    // Drag-to-reorder state is hoisted here so the pointer loop can compare
+    // the dragged icon's center against every rendered slot, including empty
+    // cells. This keeps sparse dock locations addressable instead of forcing
+    // the icons through a packed list. `draggedAppId` holds the occupant being
+    // dragged — an app id *or* a folder id.
+    var draggedAppId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    // When folders are enabled, the occupant id the dragged icon is hovering
+    // over for a merge (null = no merge pending; on release the dragged icon
+    // joins this target's folder). Always null when folders are disabled, so
+    // the dock keeps its pre-folders reorder/swap physics.
+    var hoveredMergeTargetId by remember { mutableStateOf<String?>(null) }
+    // The dock card's bounds in root coordinates and whether a member dragged out
+    // of the open folder has left them. Together they drive the collapse-on-exit:
+    // the hidden dock grid is revealed and the folder overlay hidden so the dock
+    // shows through while the dragged icon floats above (see the open-folder block).
+    var dockBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var memberDragExited by remember { mutableStateOf(false) }
+    // Latched once a *loose dock app* is dragged off the dock card (up into the
+    // app list): the reorder/merge stops and a release outside the card undocks
+    // it. Folders never set this — dragging a folder out is not an undock.
+    var occupantDragExited by remember { mutableStateOf(false) }
+    // The folder whose grid is open, or null. Cleared on rotation / recomposition
+    // reset like the actions menu, and whenever the launcher returns to a fresh
+    // Home (see `homeReturnToken`) so leaving and re-entering Home never carries a
+    // stale open folder back.
+    var openFolderId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(homeReturnToken) { openFolderId = null }
+    val slotCenters = remember { mutableStateMapOf<DockPosition, Offset>() }
+    // Occupant id list = loose docked apps + folders. Both flow through the
+    // same grid machinery; `resolvedDockPositions` keys by id regardless.
+    val occupantIds = dockedApps.map { app -> app.id } + dockFolders.map { folder -> folder.id }
+    val latestOccupantIds by rememberUpdatedState(occupantIds.toSet())
+    val resolvedPositions = resolvedDockPositions(occupantIds, dockPositions, dockIconCount)
+    val occupantByPosition = resolvedPositions.entries.associate { (id, position) -> position to id }
+    val latestOnReorderDock by rememberUpdatedState(onReorderDock)
+    val latestOnMergeDock by rememberUpdatedState(onMergeDock)
+    val latestOnDragStateChanged by rememberUpdatedState(onDragStateChanged)
+    val scrollState = rememberScrollState()
+    val columns = dockIconCount.coerceAtLeast(1)
+    val occupiedPositions = resolvedPositions.values.toSet()
+    val maxOccupiedRow = occupiedPositions.maxOfOrNull { position -> position.row } ?: 0
+    val rowCount = (maxOccupiedRow + 1).coerceAtLeast(1)
+    val appByPosition = dockedApps.mapNotNull { app ->
+        resolvedPositions[app.id]?.let { position -> position to app }
+    }.toMap()
+    val folderByPosition = dockFolders.mapNotNull { folder ->
+        resolvedPositions[folder.id]?.let { position -> position to folder }
+    }.toMap()
+    val firstEmptyPosition = (0 until rowCount)
+        .asSequence()
+        .flatMap { row -> (0 until columns).asSequence().map { column -> DockPosition(row, column) } }
+        .firstOrNull { position -> position !in occupiedPositions }
+    val showAddButton = showAddButtonHint &&
+        draggedAppId == null &&
+        rowCount == 1 &&
+        firstEmptyPosition != null
+
+    // Shared drag handlers for both app and folder slots, keyed by occupant id.
+    val onOccupantDragStart: (String) -> Unit = { occupantId ->
+        draggedAppId = occupantId
+        dragOffset = Offset.Zero
+        hoveredMergeTargetId = null
+        occupantDragExited = false
+    }
+    val onOccupantDrag: (String, Offset) -> Unit = { occupantId, delta ->
+        if (occupantDragExited) {
+            // Off the dock: track the finger raw and float the icon — no reorder.
+            dragOffset += delta
+        } else {
+            val visibleCenters = slotCenters.filterKeys { slot ->
+                slot.row in 0 until rowCount && slot.column in 0 until columns
+            }
+            // The slot pitch drives the folder merge/swap thresholds.
+            val pitch = dockSlotPitch(visibleCenters)
+            val mergeRadiusPx =
+                if (pitch.isFinite()) pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION else Float.POSITIVE_INFINITY
+            val swapBufferPx = if (pitch.isFinite()) pitch * DOCK_SWAP_BUFFER_FRACTION else 0f
+            handleDockDrag(
+                delta = delta,
+                draggedAppId = occupantId,
+                currentOccupantIds = latestOccupantIds,
+                currentDockPositions = resolvedPositions,
+                slotCenters = visibleCenters,
+                onReorder = latestOnReorderDock,
+                currentOffset = dragOffset,
+                setOffset = { dragOffset = it },
+                mergeEnabled = true,
+                occupantByPosition = occupantByPosition,
+                mergeRadiusPx = mergeRadiusPx,
+                swapBufferPx = swapBufferPx,
+                onMergeTarget = { hoveredMergeTargetId = it },
+            )
+        }
+        // A loose dock app dragged off the card lifts into the floating overlay so
+        // it can be released over the app list to undock. Folders are exempt.
+        val origin = resolvedPositions[occupantId]?.let { position -> slotCenters[position] }
+        if (origin != null) {
+            val center = origin + dragOffset
+            val draggedApp = dockedApps.firstOrNull { app -> app.id == occupantId }
+            if (!occupantDragExited && draggedApp != null &&
+                dockBoundsInRoot?.contains(center) == false
+            ) {
+                occupantDragExited = true
+                hoveredMergeTargetId = null
+            }
+            if (occupantDragExited) {
+                onFolderMemberDragFloat(draggedApp, center)
+            }
+        }
+    }
+    // [canceled] is true when the gesture ended abnormally (the system stole the
+    // pointer stream, the tracked pointer vanished, or the gesture coroutine was
+    // canceled). Swaps are already persisted live, so a cancel just drops the
+    // icon; but a pending *merge* must NOT commit on an abnormal end — that would
+    // create a folder the user never released onto. So merge commits on a clean
+    // release only.
+    val onOccupantDragEnd: (String, Boolean) -> Unit = { occupantId, canceled ->
+        if (occupantDragExited) {
+            onFolderMemberDragFloat(null, Offset.Zero)
+            val draggedApp = dockedApps.firstOrNull { app -> app.id == occupantId }
+            val origin = resolvedPositions[occupantId]?.let { position -> slotCenters[position] }
+            val center = origin?.let { it + dragOffset }
+            // Undock only when released *over the app list* (toggleDock removes a
+            // docked app). Released over the dock, the search field, the margins,
+            // or the other dock (the deferred cross-dock move) is ignored — the
+            // lifted icon just drops home, so a pinned icon is never lost.
+            if (!canceled && draggedApp != null && center != null &&
+                appListBoundsInRoot?.contains(center) == true
+            ) {
+                onToggleDock(draggedApp, Int.MAX_VALUE)
+            }
+        } else {
+            val mergeTarget = hoveredMergeTargetId
+            if (!canceled && mergeTarget != null && mergeTarget != occupantId) {
+                latestOnMergeDock(occupantId, mergeTarget)
+            }
+        }
+        draggedAppId = null
+        dragOffset = Offset.Zero
+        hoveredMergeTargetId = null
+        occupantDragExited = false
+    }
+
+    // The folder whose grid is open in place of the dock, or null. Opening swaps
+    // the dock card's content to the folder's apps with no animation; closing
+    // swaps it straight back.
+    val inPlaceFolder = dockFolders.firstOrNull { folder -> folder.id == openFolderId }
+    // Publishes the dock's drop geometry up for app-list → dock drops. Called both
+    // when the card is positioned (bounds) and as each slot reports its center,
+    // since slot-center updates don't recompose the card. While a folder is open
+    // the dock grid is hidden behind the folder overlay, so it publishes an empty
+    // target (null bounds) — a list app released over the open folder must not
+    // dock/merge into the invisible top-level slots behind it.
+    val latestOnDockGeometryChanged by rememberUpdatedState(onDockGeometryChanged)
+    val reportDockGeometry = {
+        latestOnDockGeometryChanged(
+            if (inPlaceFolder != null) {
+                DockDropTarget(null, emptyMap(), emptyMap())
+            } else {
+                // Only currently-visible cells: `slotCenters` is remembered and
+                // never pruned, so after the grid shrinks (e.g. two rows to one)
+                // it still holds stale row-1 centers. Filtering to the live grid
+                // (as the reorder path does) keeps a drop in the lower padding
+                // from resolving to a phantom row.
+                val visibleCenters = slotCenters.filterKeys { slot ->
+                    slot.row in 0 until rowCount && slot.column in 0 until columns
+                }
+                DockDropTarget(dockBoundsInRoot, visibleCenters, occupantByPosition)
+            },
+        )
+    }
+    // Republish when a folder opens or closes (no layout event fires on its own),
+    // so the suppressed/restored target lands in the host immediately.
+    LaunchedEffect(inPlaceFolder != null) { reportDockGeometry() }
+    SectionCard(
+        modifier
+            .testTag(tags.cardTag)
+            .onGloballyPositioned { coords ->
+                dockBoundsInRoot = coords.boundsInRoot()
+                reportDockGeometry()
+            },
+    ) {
+        // The dock grid and the open-folder grid share one Box so the card keeps
+        // the dock's exact footprint when a folder opens — the folder takes the
+        // dock's place with no reflow of anything else on screen. The dock grid
+        // stays composed (just hidden + non-interactive via the opaque overlay)
+        // so it still defines the card's size; the folder overlay matches that
+        // size and scrolls internally when the folder has more apps than fit.
+        Box(modifier = Modifier.fillMaxWidth()) {
+        // Every dock slot is a direct sibling under one parent so each
+        // `key(slotKey)` movable group lives in the same Compose
+        // slot-table parent. That preserves per-icon `pointerInput`
+        // modifier nodes across mid-drag swaps: when an icon's keyed
+        // group moves to a different position in the grid, Compose
+        // recognises it as a sibling move and the in-flight gesture
+        // coroutine survives.
+        //
+        // Three layout details have to hold simultaneously for that
+        // sibling-move invariant to apply, and dropping any one of them
+        // re-introduces the "drag drops after one cell" bug:
+        //   1. `key()` wraps the whole `if/else` block, not just the
+        //      `if (app != null)` branch. With `key()` inside the
+        //      branch, the keyed group is parented to the per-iteration
+        //      replaceable group of the conditional, so any swap that
+        //      flips a slot between occupied and empty would be a
+        //      cross-parent move.
+        //   2. The for-loop is flat (one `for (slotIndex …)`), not
+        //      nested. The Compose compiler wraps each iteration of
+        //      the outer `for (row …)` loop in its own group, so
+        //      nested loops put row-0 keys and row-1 keys in different
+        //      parents and a cross-row drag falls back to remove + add.
+        //   3. The container is a single `FlowRow(maxItemsInEachRow =
+        //      columns)`, not `Column { for (row) Row { … } }`. Per-row
+        //      `Row` composables are also separate parents — same
+        //      cross-row breakage as (2).
+        //
+        // Empty slots use a position-keyed sentinel so the dragged
+        // icon's `app.id` key can never collide with a freshly-empty
+        // slot at the same iteration index.
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                // Kept composed while a folder is open so it still sizes the card
+                // (no reflow), but hidden and made inert: alpha(0f) hides it, the
+                // opaque folder overlay above intercepts touches, and
+                // clearAndSetSemantics strips the dock slots' descendant semantics
+                // so TalkBack / keyboard / D-pad focus can't reach or activate the
+                // hidden dock items behind the folder.
+                .then(
+                    // Hidden while the folder is open — unless a member has been
+                    // dragged out, when the folder collapses and the dock is
+                    // revealed underneath so the user can see the drop targets.
+                    if (inPlaceFolder != null && !memberDragExited) {
+                        Modifier
+                            .alpha(0f)
+                            .clearAndSetSemantics {}
+                    } else {
+                        Modifier
+                    },
+                )
+                .testTag(tags.listTag),
+            horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            maxItemsInEachRow = columns,
+        ) {
+            for (slotIndex in 0 until rowCount * columns) {
+                val row = slotIndex / columns
+                val column = slotIndex % columns
+                val position = DockPosition(row, column)
+                val app = appByPosition[position]
+                val folder = folderByPosition[position]
+                // The key wraps the whole `when` (invariant 1) and every slot
+                // is a flat sibling of the one FlowRow (invariants 2 + 3); a
+                // folder occupant keys by its `folder:`-prefixed id, which can
+                // never collide with an app id or the empty-slot sentinel.
+                val slotKey = app?.id ?: folder?.id ?: "dock-empty-${position.row}-${position.column}"
+                key(slotKey) {
+                    when {
+                        app != null -> DockedAppButton(
+                            app = app,
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
+                            isDragged = draggedAppId == app.id,
+                            isMergeTarget = hoveredMergeTargetId == app.id,
+                            dragOffset = if (draggedAppId == app.id) dragOffset else Offset.Zero,
+                            modifier = Modifier.weight(1f),
+                            appTag = tags.appTag,
+                            appIconTag = tags.appIconTag,
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onUninstallApp = onUninstallApp,
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
+                            onDragStart = { onOccupantDragStart(app.id) },
+                            onDrag = { delta -> onOccupantDrag(app.id, delta) },
+                            onDragEnd = { canceled -> onOccupantDragEnd(app.id, canceled) },
+                            onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                            reorderEnabled = reorderEnabled,
+                        )
+                        folder != null -> DockFolderButton(
+                            folder = folder,
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
+                            isDragged = draggedAppId == folder.id,
+                            isMergeTarget = hoveredMergeTargetId == folder.id,
+                            dragOffset = if (draggedAppId == folder.id) dragOffset else Offset.Zero,
+                            modifier = Modifier.weight(1f),
+                            folderTag = tags.folderTag,
+                            appIconTag = tags.appIconTag,
+                            onOpen = { openFolderId = folder.id },
+                            onExplode = { onExplodeFolder(folder.id) },
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
+                            onDragStart = { onOccupantDragStart(folder.id) },
+                            onDrag = { delta -> onOccupantDrag(folder.id, delta) },
+                            onDragEnd = { canceled -> onOccupantDragEnd(folder.id, canceled) },
+                            onLongPressArmed = { armed -> latestOnDragStateChanged(armed) },
+                            reorderEnabled = reorderEnabled,
+                        )
+                        showAddButton && position == firstEmptyPosition -> DockAddButton(
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
+                            modifier = Modifier.weight(1f),
+                            addButtonTag = tags.addButtonTag,
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
+                        )
+                        else -> EmptyDockSlot(
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
+                            modifier = Modifier.weight(1f),
+                            onReportSlotCenter = { center ->
+                                slotCenters[position] = center
+                                reportDockGeometry()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+            // The open folder, in the dock's exact footprint. matchParentSize
+            // ties it to the (hidden) dock grid's size, so the card never reflows
+            // when a folder opens; the folder scrolls internally if it has more
+            // apps than the dock had slots.
+            if (inPlaceFolder != null) {
+                DockFolderInPlace(
+                    folder = inPlaceFolder,
+                    dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = dockIconCount,
+                    dockLayout = dockLayout,
+                    appIconTag = tags.appIconTag,
+                    // Hidden (but kept composed, so the dragged tile's gesture
+                    // survives) once a member is dragged out: the dock shows
+                    // through and the dragged icon floats above at the host level.
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(if (memberDragExited) Modifier.alpha(0f) else Modifier),
+                    onClose = {
+                        openFolderId = null
+                        memberDragExited = false
+                    },
+                    onLaunchApp = { app ->
+                        openFolderId = null
+                        onLaunchApp(app)
+                    },
+                    onOpenAppInfo = onOpenAppInfo,
+                    onRemoveFromFolder = { appId -> onRemoveFromFolder(inPlaceFolder.id, appId) },
+                    onUndockFromFolder = { appId -> onUndockFromFolder(inPlaceFolder.id, appId) },
+                    onRenameApp = onRenameApp,
+                    onResetRank = onResetRank,
+                    onSetAppIconOverride = onSetAppIconOverride,
+                    onClearAppIconOverride = onClearAppIconOverride,
+                    onSetAppBadge = onSetAppBadge,
+                    onHideApp = onHideApp,
+                    onUninstallApp = onUninstallApp,
+                    onReorderFolderMember = { appId, targetMemberId ->
+                        onReorderFolderMember(inPlaceFolder.id, appId, targetMemberId)
+                    },
+                    onMemberDragStateChanged = { armed -> latestOnDragStateChanged(armed) },
+                    dockBoundsInRoot = dockBoundsInRoot,
+                    dockSlotCenters = slotCenters,
+                    dockRowCount = rowCount,
+                    dockColumnCount = columns,
+                    occupantByPosition = occupantByPosition,
+                    onMemberDragExitedChanged = { exited -> memberDragExited = exited },
+                    onMemberDragFloat = onFolderMemberDragFloat,
+                    onMoveMemberToDock = { appId, row, column ->
+                        onMoveFolderMemberToDock(inPlaceFolder.id, appId, row, column)
+                    },
+                    onMergeMemberInto = { appId, targetId ->
+                        onMergeFolderMemberInto(inPlaceFolder.id, appId, targetId)
+                    },
+                    onUndockMember = { appId -> onUndockFromFolder(inPlaceFolder.id, appId) },
+                )
+            }
+        }
+    }
+}
+
+// Corner radius of a folder tile / merge-preview background, on the 4dp grid.
+private const val DOCK_FOLDER_CORNER_RADIUS_DP = 12
+
+// Width of the accent outline drawn around a merge/drop target. This is an
+// emphasis stroke, not layout spacing, so it is exempt from the 4dp grid; 2dp
+// reads clearly without crowding the 2×2 sub-icons. The fill alone
+// (secondaryContainer) can be tonally close to the dock card under light /
+// dynamic color schemes, so the primary-colored outline is what guarantees the
+// drop target is visible in both light and dark mode.
+private const val DOCK_FOLDER_EMPHASIS_BORDER_DP = 2
+
+// Tile padding stays on the 4dp grid. The 2dp inter-cell gap is intentionally
+// off-grid: it is the *intra-glyph* gap between the four sub-icons of one
+// composite folder tile, not layout spacing between sibling elements (the 4dp
+// grid governs the latter). The folder tile fills the full dock slot
+// (`dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP`), so at the default 43dp
+// icon the tile is 51dp, its inner area (minus 4dp padding per side) is ~43dp,
+// and each sub-icon is ~20dp; two sub-icons plus a 4dp gap would overflow that
+// area, so 2dp keeps the 2x2 reading as a single folder mark.
+private const val DOCK_FOLDER_MINI_GAP_DP = 2
+// The app list's row-layout icon size. Hoisted so the warm-up's reported size and
+// the rendered one cannot drift apart.
+private const val APP_ROW_ICON_SIZE_DP = 40
+
+private const val DOCK_FOLDER_TILE_PADDING_DP = 4
+// Horizontal (and vertical) inset around the Home content column, so the dock and
+// app-list cards sit as islands rather than edge-to-edge.
+private const val HOME_CONTENT_HORIZONTAL_INSET_DP = 8
+
+/**
+ * A folder occupying one dock slot. Renders a 2×2 mini-icon (the first four
+ * members, one per corner) inside a rounded tile; a tap opens the folder popup,
+ * a long-press arms the same drag the apps use (so a folder reorders or merges
+ * like any occupant), and a long-press-release opens a small folder menu.
+ *
+ * The outer `Box` mirrors [DockedAppButton]'s contract exactly — same
+ * `onReportSlotCenter` via `positionInRoot`, same `zIndex` / `graphicsLayer`
+ * lift — so the drag hit-testing in [DockCard] treats a folder slot
+ * identically to an app slot.
+ */
+@Composable
+private fun DockFolderButton(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    isDragged: Boolean,
+    dragOffset: Offset,
+    modifier: Modifier = Modifier,
+    isMergeTarget: Boolean = false,
+    folderTag: String = DOCK_FOLDER_TAG,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    onOpen: () -> Unit,
+    onExplode: () -> Unit = {},
+    onReportSlotCenter: (Offset) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    // [Boolean] = canceled: true when the gesture ended abnormally (system
+    // cancel, tracked pointer vanished, or gesture coroutine canceled) rather
+    // than on a clean lift.
+    onDragEnd: (Boolean) -> Unit,
+    onLongPressArmed: (Boolean) -> Unit = {},
+    // Same gate as `DockedAppButton.reorderEnabled`: false in the landscape
+    // reflow so a folder drag can't write flattened-grid columns back into
+    // portrait storage. The folder menu still opens on release.
+    reorderEnabled: Boolean = true,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val slopPx = with(density) { 8.dp.toPx() }
+    val slotMinHeight = dockSlotHeightDp(dockIconSizeDp, dockLayout, density.fontScale).dp
+    val folderName = folder.name
+    val contentDescription = folderName ?: stringResource(R.string.dock_folder_content_description)
+    val latestOnReportSlotCenter by rememberUpdatedState(onReportSlotCenter)
+    val latestOnOpen by rememberUpdatedState(onOpen)
+    val latestOnExplode by rememberUpdatedState(onExplode)
+    val latestOnDragStart by rememberUpdatedState(onDragStart)
+    val latestOnDrag by rememberUpdatedState(onDrag)
+    val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    // See `DockedAppButton`'s equivalent: the `pointerInput` key is
+    // `folder.id`, so a live flip to the landscape reflow must reach the
+    // already-running gesture coroutine.
+    val latestReorderEnabled by rememberUpdatedState(reorderEnabled)
+    Box(
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                latestOnReportSlotCenter(
+                    Offset(pos.x + coords.size.width / 2f, pos.y + coords.size.height / 2f),
+                )
+            }
+            .zIndex(if (isDragged) 1f else 0f)
+            .graphicsLayer {
+                if (isDragged) {
+                    translationX = dragOffset.x
+                    translationY = dragOffset.y
+                    scaleX = 1.1f
+                    scaleY = 1.1f
+                    alpha = 0.85f
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .semantics { this.contentDescription = contentDescription }
+                .defaultMinSize(minHeight = slotMinHeight)
+                .testTag("$folderTag:${folder.id}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            DockFolderMiniIcon(
+                folder = folder,
+                dockIconSizeDp = dockIconSizeDp,
+                appIconTag = appIconTag,
+                emphasized = isMergeTarget,
+            )
+            if (dockLayout == DockLayout.TitleBelow && folderName != null) {
+                Text(
+                    folderName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { latestOnOpen() },
+                )
+                // Same gesture skeleton as DockedAppButton: long-press arms a
+                // drag (so a folder can be reordered or merged), and a
+                // release without crossing slop opens the folder menu rather
+                // than launching.
+                .pointerInput(folder.id) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val longPress = awaitLongPressOrCancellation(down.id)
+                            ?: return@awaitEachGesture
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longPress.consume()
+                        latestOnLongPressArmed(true)
+                        var dragging = false
+                        var totalDelta = Offset.Zero
+                        // Stays false unless we see an unconsumed up — a clean
+                        // user lift. A consumed up (system cancel), the pointer
+                        // vanishing, or coroutine cancellation all leave it
+                        // false, so a pending merge is not committed.
+                        var releasedCleanly = false
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                    ?: break
+                                if (!change.pressed) {
+                                    if (!dragging && !change.isConsumed) {
+                                        menuExpanded = true
+                                    }
+                                    releasedCleanly = !change.isConsumed
+                                    change.consume()
+                                    break
+                                }
+                                if (dragging && !latestReorderEnabled) {
+                                    // Reordering flipped off mid-drag (live
+                                    // window-size change into the landscape
+                                    // reflow); end the drag before another
+                                    // reflowed-slot dispatch can persist.
+                                    break
+                                }
+                                val delta = change.positionChange()
+                                totalDelta += delta
+                                if (latestReorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
+                                    dragging = true
+                                    latestOnDragStart()
+                                    latestOnDrag(totalDelta)
+                                } else if (dragging) {
+                                    latestOnDrag(delta)
+                                }
+                                change.consume()
+                            }
+                        } finally {
+                            if (dragging) {
+                                latestOnDragEnd(!releasedCleanly)
+                            }
+                            latestOnLongPressArmed(false)
+                        }
+                    }
+                }
+                .semantics {
+                    role = Role.Button
+                    this.contentDescription = contentDescription
+                    onLongClick(label = null) {
+                        menuExpanded = true
+                        true
+                    }
+                },
+        )
+        DockFolderActionsMenu(
+            expanded = menuExpanded,
+            onDismiss = { menuExpanded = false },
+            onOpenFolder = latestOnOpen,
+            onExplodeFolder = latestOnExplode,
+        )
+    }
+}
+
+/**
+ * The 2×2 mini-icon for a folder tile: the first four members, one per corner,
+ * inside a rounded tile. Unused corners stay blank; members past four appear
+ * only in the open popup.
+ *
+ * The tile fills the full dock slot — the same `dockIconSizeDp +
+ * DOCK_ITEM_VERTICAL_PADDING_DP` footprint a loose app's box occupies, and the
+ * same size as the closed-folder merge preview in [DockedAppButton] — so a
+ * folder reads at least as large as a sibling app icon rather than as a small
+ * cluster floating in its slot. The four sub-icons are sized to fill the tile's
+ * inner area (tile minus padding on both sides and the inter-cell gap).
+ */
+@Composable
+internal fun DockFolderMiniIcon(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    emphasized: Boolean = false,
+) {
+    val tileSizeDp = (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp
+    val cellSizeDp =
+        (tileSizeDp - (DOCK_FOLDER_TILE_PADDING_DP * 2 + DOCK_FOLDER_MINI_GAP_DP).dp) / 2
+    val corners = folder.members.take(4)
+    // At rest the folder reads as the bare 2×2 mini-icon: no background plate.
+    // The rounded tile appears only while the folder is a merge/drop target,
+    // where the primary outline keeps it visible against the dock card in both
+    // light and dark mode (the secondaryContainer fill alone washes out in light
+    // schemes). This mirrors the loose-app merge preview in DockedAppButton.
+    val tileDecoration = if (emphasized) {
+        Modifier
+            .border(
+                DOCK_FOLDER_EMPHASIS_BORDER_DP.dp,
+                MaterialTheme.colorScheme.primary,
+                RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+            )
+            .background(
+                MaterialTheme.colorScheme.secondaryContainer,
+                RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+            )
+    } else {
+        Modifier
+    }
+    Box(
+        modifier = Modifier.size(tileSizeDp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(tileSizeDp)
+                .then(tileDecoration)
+                .padding(DOCK_FOLDER_TILE_PADDING_DP.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(DOCK_FOLDER_MINI_GAP_DP.dp)) {
+                for (rowIndex in 0 until 2) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(DOCK_FOLDER_MINI_GAP_DP.dp)) {
+                        for (columnIndex in 0 until 2) {
+                            val member = corners.getOrNull(rowIndex * 2 + columnIndex)
+                            if (member != null) {
+                                AppIcon(
+                                    app = member,
+                                    size = cellSizeDp,
+                                    testTag = appIconTag,
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(cellSizeDp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DockFolderActionsMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onOpenFolder: () -> Unit,
+    onExplodeFolder: () -> Unit,
+) {
+    LauncherDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        properties = AppActionsMenuPopupProperties,
+    ) {
+        DockFolderActionsMenuContent(
+            onOpenFolder = onOpenFolder,
+            onExplodeFolder = onExplodeFolder,
+            onDismiss = onDismiss,
+        )
+    }
+}
+
+/**
+ * The body of [DockFolderActionsMenu] — the menu items only, without the
+ * [LauncherDropdownMenu] popup wrapper. Factored out so a screenshot test can
+ * render the items inside an activity-hosted Compose tree rather than the popup
+ * window: Roborazzi can't capture a [androidx.compose.ui.window.Popup]'s own
+ * window, and composing the popup under Robolectric risks the cascade
+ * documented in CLAUDE.md. Mirrors the EditAppDialog / EditAppDialogContent
+ * split. Production keeps the popup wrapper; only the items live here.
+ */
+@Composable
+internal fun DockFolderActionsMenuContent(
+    onOpenFolder: () -> Unit,
+    onExplodeFolder: () -> Unit,
+    onDismiss: () -> Unit = {},
+) {
+    DropdownMenuItem(
+        text = { LauncherMenuItemText(stringResource(R.string.app_menu_open_folder)) },
+        onClick = {
+            onDismiss()
+            onOpenFolder()
+        },
+    )
+    DropdownMenuItem(
+        text = { LauncherMenuItemText(stringResource(R.string.app_menu_explode)) },
+        onClick = {
+            onDismiss()
+            onExplodeFolder()
+        },
+    )
+}
+
+/**
+ * The open folder, rendered *in place of the dock* inside the same [SectionCard].
+ * [modifier] is `matchParentSize()` tying this overlay to the (hidden) dock grid's
+ * bounds, so the card keeps the dock's exact footprint and nothing on screen
+ * reflows when a folder opens. The folder's apps use the dock's own tile/grid
+ * ([DockFolderGrid]); if the folder holds more apps than the dock had slots the
+ * grid scrolls within this footprint, otherwise it simply uses the space.
+ *
+ * The overlay intercepts touches so the hidden dock grid beneath stays inert, a
+ * tap on empty space closes the folder, and the system back gesture closes it
+ * too. An explicit close tile in the grid is the primary dismiss affordance.
+ */
+@Composable
+internal fun DockFolderInPlace(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    dockIconCount: Int,
+    dockLayout: DockLayout,
+    appIconTag: String,
+    onClose: () -> Unit,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: (String) -> Unit,
+    onUndockFromFolder: (String) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    onReorderFolderMember: (appId: String, targetMemberId: String) -> Unit = { _, _ -> },
+    onMemberDragStateChanged: (Boolean) -> Unit = {},
+    dockBoundsInRoot: Rect? = null,
+    dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
+    // Live extent of the dock's slot lattice; slots outside it are stale
+    // leftovers in the never-pruned center map (see [DockFolderGrid]).
+    dockRowCount: Int = Int.MAX_VALUE,
+    dockColumnCount: Int = Int.MAX_VALUE,
+    occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    onMemberDragExitedChanged: (Boolean) -> Unit = {},
+    onMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    onMoveMemberToDock: (appId: String, row: Int, column: Int) -> Unit = { _, _, _ -> },
+    onMergeMemberInto: (appId: String, targetId: String) -> Unit = { _, _ -> },
+    onUndockMember: (appId: String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    BackHandler(enabled = true, onBack = onClose)
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    // Same top/bottom scroll chevrons the apps list uses: shown only while there
+    // is more folder to scroll to, and a tap pages by one viewport.
+    //
+    // derivedStateOf, unlike the lazy states below: `ScrollState`'s two
+    // properties are plain comparisons against `value`, so reading either one
+    // subscribes to the scroll offset itself and invalidates on every frame of
+    // a drag or fling. Deriving them collapses that to the one flip the
+    // chevrons actually care about.
+    val canScrollUp = remember(scrollState) { derivedStateOf { scrollState.canScrollBackward } }
+    val canScrollDown = remember(scrollState) { derivedStateOf { scrollState.canScrollForward } }
+    AppListOverflowChevronBox(
+        canScrollUp = { canScrollUp.value },
+        canScrollDown = { canScrollDown.value },
+        chevronsReady = true,
+        topChevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
+        bottomChevronContentDescription = stringResource(R.string.apps_list_scroll_more_hint),
+        onScrollPageUp = {
+            scope.launch { scrollState.animateScrollBy(-scrollState.viewportSize.toFloat()) }
+        },
+        onScrollPageDown = {
+            scope.launch { scrollState.animateScrollBy(scrollState.viewportSize.toFloat()) }
+        },
+        topChevronTestTag = DOCK_FOLDER_SCROLL_TOP_CHEVRON_TAG,
+        bottomChevronTestTag = DOCK_FOLDER_SCROLL_BOTTOM_CHEVRON_TAG,
+        modifier = modifier
+            // A tap on empty space (between/around the tiles, or below a short
+            // folder) closes — and this also stops taps from reaching the hidden
+            // dock grid underneath.
+            .pointerInput(folder.id) { detectTapGestures { onClose() } },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+        ) {
+            DockFolderGrid(
+                folder = folder,
+                dockIconSizeDp = dockIconSizeDp,
+                dockIconCount = dockIconCount,
+                dockLayout = dockLayout,
+                appIconTag = appIconTag,
+                onClose = onClose,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onRemoveFromFolder = onRemoveFromFolder,
+                onUndockFromFolder = onUndockFromFolder,
+                onRenameApp = onRenameApp,
+                onResetRank = onResetRank,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
+                onReorderFolderMember = onReorderFolderMember,
+                onMemberDragStateChanged = onMemberDragStateChanged,
+                dockBoundsInRoot = dockBoundsInRoot,
+                dockSlotCenters = dockSlotCenters,
+                dockRowCount = dockRowCount,
+                dockColumnCount = dockColumnCount,
+                occupantByPosition = occupantByPosition,
+                onMemberDragExitedChanged = onMemberDragExitedChanged,
+                onMemberDragFloat = onMemberDragFloat,
+                onMoveMemberToDock = onMoveMemberToDock,
+                onMergeMemberInto = onMergeMemberInto,
+                onUndockMember = onUndockMember,
+            )
+        }
+    }
+}
+
+/**
+ * The open folder's body: the member apps laid out in the *same* grid the dock
+ * uses — [dockIconCount] columns of equal-width tiles at [dockIconSizeDp] — so an
+ * open folder reads as if its apps were the docked apps. The members pack from
+ * the top-left in rank order with a close tile (an X) last as an explicit dismiss
+ * affordance (see [dockFolderSlots]). The final row is padded with empty cells so
+ * every tile keeps its `1 / columns` width instead of a lone trailing tile
+ * stretching across the row.
+ *
+ * The caller ([DockFolderInPlace]) wraps this in a fixed-height, scrollable box
+ * sized to the dock's footprint, so the grid itself just lays the tiles out at
+ * their natural height — when the folder has more apps than the dock had slots
+ * the caller's scroll takes over.
+ *
+ * Factored out of [DockFolderInPlace] so the screenshot test renders it directly
+ * (the [DockFolderMemberTile]s and their long-press menus are all the snapshot
+ * needs).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun DockFolderGrid(
+    folder: ResolvedDockFolder,
+    dockIconSizeDp: Int,
+    dockIconCount: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    onClose: () -> Unit = {},
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: (String) -> Unit,
+    onUndockFromFolder: (String) -> Unit = {},
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    // Moves the member [appId] onto the cell of another member, named by id
+    // rather than display index so hidden members in the persisted order can't
+    // skew the position (the store resolves the id in its unfiltered list).
+    // Default no-op keeps inert callsites (screenshot renders) reorder-free.
+    onReorderFolderMember: (appId: String, targetMemberId: String) -> Unit = { _, _ -> },
+    // Latched true while a member long-press is armed so the Home carousel stops
+    // claiming the same horizontal motion (see [DockFolderMemberTile]).
+    onMemberDragStateChanged: (Boolean) -> Unit = {},
+    // --- Drag a member out of the folder onto the dock / app list. ---
+    // The hosting dock card's bounds and its live slot lattice / occupancy, used
+    // to detect when the drag leaves the folder and to resolve the drop. The
+    // folder itself appears in [occupantByPosition] under its own id.
+    dockBoundsInRoot: Rect? = null,
+    dockSlotCenters: Map<DockPosition, Offset> = emptyMap(),
+    // Live extent of the dock's slot lattice. [dockSlotCenters] comes from the
+    // dock's remembered, never-pruned center map, so after the dock shrinks
+    // (e.g. two rows to one) it still holds stale row-1 centers; slots outside
+    // this extent are filtered out of the drop search so a release in the
+    // card's lower padding can't resolve to a phantom row.
+    dockRowCount: Int = Int.MAX_VALUE,
+    dockColumnCount: Int = Int.MAX_VALUE,
+    occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    // Fires true the first time the dragged member leaves the dock card (so the
+    // host collapses the folder to reveal the dock), false when the drag ends.
+    onMemberDragExitedChanged: (Boolean) -> Unit = {},
+    // Reports the floating, dragged-out icon (app + center in root coordinates),
+    // or (null, Zero) to hide it. The host renders it as a top-level overlay so it
+    // can float over the app list, unclipped by the dock card.
+    onMemberDragFloat: (InstalledApp?, Offset) -> Unit = { _, _ -> },
+    // Drop resolutions for a member dragged out of the folder.
+    onMoveMemberToDock: (appId: String, row: Int, column: Int) -> Unit = { _, _, _ -> },
+    onMergeMemberInto: (appId: String, targetId: String) -> Unit = { _, _ -> },
+    onUndockMember: (appId: String) -> Unit = {},
+) {
+    val columns = dockIconCount.coerceAtLeast(1)
+    // Assign the members + close tile to grid cells: the members pack from the
+    // top-left in rank order with the close tile last. `slots` is row-major, so
+    // the FlowRow lays it out directly.
+    val slots = dockFolderSlots(folder.members.size, columns)
+
+    // Drag-to-reorder state, keyed by folder id so it survives the recompositions
+    // a live reorder triggers (the member list changes, the folder id does not)
+    // and resets when a different folder opens. `memberCenters` is the per-member
+    // cell-center lattice the drag handler settles against; the close/empty cells
+    // never report into it, so they are not drop targets.
+    var draggedMemberId by remember(folder.id) { mutableStateOf<String?>(null) }
+    var dragOffset by remember(folder.id) { mutableStateOf(Offset.Zero) }
+    // Latched once the dragged member leaves the dock card: the within-folder
+    // reorder stops and the drag becomes a drag-out (collapse + float + drop).
+    var memberDragExited by remember(folder.id) { mutableStateOf(false) }
+    val memberCenters = remember(folder.id) { mutableStateMapOf<String, Offset>() }
+    val memberIds = folder.members.map { member -> member.id }
+    val appById = folder.members.associateBy { member -> member.id }
+    val latestMemberIds by rememberUpdatedState(memberIds)
+    val latestOnReorderFolderMember by rememberUpdatedState(onReorderFolderMember)
+    val latestDockBounds by rememberUpdatedState(dockBoundsInRoot)
+    val latestDockSlotCenters by rememberUpdatedState(dockSlotCenters)
+    val latestDockRowCount by rememberUpdatedState(dockRowCount)
+    val latestDockColumnCount by rememberUpdatedState(dockColumnCount)
+    val latestOccupantByPosition by rememberUpdatedState(occupantByPosition)
+    val latestOnMemberDragExitedChanged by rememberUpdatedState(onMemberDragExitedChanged)
+    val latestOnMemberDragFloat by rememberUpdatedState(onMemberDragFloat)
+    val latestOnMoveMemberToDock by rememberUpdatedState(onMoveMemberToDock)
+    val latestOnMergeMemberInto by rememberUpdatedState(onMergeMemberInto)
+    val latestOnUndockMember by rememberUpdatedState(onUndockMember)
+    val latestOnClose by rememberUpdatedState(onClose)
+    val onMemberDragStart: (String) -> Unit = { id ->
+        draggedMemberId = id
+        dragOffset = Offset.Zero
+        memberDragExited = false
+    }
+    val onMemberDrag: (String, Offset) -> Unit = { id, delta ->
+        if (memberDragExited) {
+            // Out of the folder: track the finger raw — no within-folder reorder.
+            dragOffset += delta
+        } else {
+            handleFolderDrag(
+                delta = delta,
+                draggedAppId = id,
+                memberIds = latestMemberIds,
+                memberCenters = memberCenters,
+                onReorder = { appId, targetMemberId -> latestOnReorderFolderMember(appId, targetMemberId) },
+                currentOffset = dragOffset,
+                setOffset = { dragOffset = it },
+            )
+        }
+        val origin = memberCenters[id]
+        if (origin != null) {
+            val center = origin + dragOffset
+            if (!memberDragExited) {
+                val bounds = latestDockBounds
+                if (bounds != null && !bounds.contains(center)) {
+                    memberDragExited = true
+                    latestOnMemberDragExitedChanged(true)
+                }
+            }
+            if (memberDragExited) {
+                latestOnMemberDragFloat(appById[id], center)
+            }
+        }
+    }
+    val onMemberDragEnd: (String, Boolean) -> Unit = { id, canceled ->
+        if (memberDragExited) {
+            latestOnMemberDragFloat(null, Offset.Zero)
+            latestOnMemberDragExitedChanged(false)
+            val origin = memberCenters[id]
+            // A clean release routes the member by where it landed; a cancel
+            // (system stole the gesture) just drops the drag with no change.
+            if (!canceled && origin != null) {
+                val center = origin + dragOffset
+                // Only currently-visible dock cells: the passed-in center map is
+                // remembered and never pruned (see the dockRowCount param doc),
+                // so a stale row's center could otherwise win the nearest-slot
+                // search and move the member onto a phantom row.
+                val liveDockCenters = latestDockSlotCenters.filterKeys { slot ->
+                    slot.row in 0 until latestDockRowCount &&
+                        slot.column in 0 until latestDockColumnCount
+                }
+                val pitch = dockSlotPitch(liveDockCenters)
+                val mergeRadiusPx = if (pitch.isFinite()) {
+                    pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                } else {
+                    Float.POSITIVE_INFINITY
+                }
+                val target = resolveFolderMemberDrop(
+                    dropCenter = center,
+                    sourceFolderId = folder.id,
+                    dockBounds = latestDockBounds,
+                    dockSlotCenters = liveDockCenters,
+                    occupantByPosition = latestOccupantByPosition,
+                    mergeRadiusPx = mergeRadiusPx,
+                )
+                when (target) {
+                    FolderMemberDropTarget.KeepInFolder -> {}
+                    is FolderMemberDropTarget.DockSlot ->
+                        latestOnMoveMemberToDock(id, target.row, target.column)
+                    is FolderMemberDropTarget.MergeWith ->
+                        latestOnMergeMemberInto(id, target.occupantId)
+                    FolderMemberDropTarget.Undock -> latestOnUndockMember(id)
+                }
+                // Dragging a member out closes the folder.
+                latestOnClose()
+            }
+        }
+        draggedMemberId = null
+        dragOffset = Offset.Zero
+        memberDragExited = false
+    }
+
+    Column(
+        modifier = modifier.testTag(DOCK_FOLDER_POPUP_TAG),
+        verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+    ) {
+        folder.name?.let { name ->
+            Text(
+                name,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            verticalArrangement = Arrangement.spacedBy(DOCK_ITEM_SPACING_DP.dp),
+            maxItemsInEachRow = columns,
+        ) {
+            // Every slot is a keyed sibling of the one FlowRow, keyed by the app
+            // id for members (a stable per-app namespace, distinct from the close /
+            // empty sentinels). A live reorder shuffles which member each cell
+            // renders, so without the key Compose would reuse the cell's group
+            // positionally and tear down the dragged tile's `pointerInput(app.id)`
+            // mid-drag — ending the gesture after one move. Keying by app id makes
+            // the reorder a sibling *move*, so the in-flight gesture coroutine
+            // survives, exactly as the dock's `key(app.id)` slots do.
+            slots.forEachIndexed { slotIndex, slot ->
+                val slotKey = when (slot) {
+                    is FolderSlot.Member -> folder.members[slot.index].id
+                    FolderSlot.Close -> "dock-folder-close"
+                    FolderSlot.Empty -> "dock-folder-empty-$slotIndex"
+                }
+                key(slotKey) {
+                    when (slot) {
+                        is FolderSlot.Member -> {
+                            val member = folder.members[slot.index]
+                            DockFolderMemberTile(
+                                app = member,
+                                dockIconSizeDp = dockIconSizeDp,
+                                dockLayout = dockLayout,
+                                modifier = Modifier.weight(1f),
+                                appIconTag = appIconTag,
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onRemoveFromFolder = { onRemoveFromFolder(member.id) },
+                                onUndockFromFolder = { onUndockFromFolder(member.id) },
+                                onRenameApp = onRenameApp,
+                                onResetRank = onResetRank,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
+                                onHideApp = onHideApp,
+                                onUninstallApp = onUninstallApp,
+                                isDragged = draggedMemberId == member.id,
+                                dragOffset = if (draggedMemberId == member.id) dragOffset else Offset.Zero,
+                                onDragStart = { onMemberDragStart(member.id) },
+                                onDrag = { delta -> onMemberDrag(member.id, delta) },
+                                onDragEnd = { canceled -> onMemberDragEnd(member.id, canceled) },
+                                onReportCenter = { center -> memberCenters[member.id] = center },
+                                onLongPressArmed = onMemberDragStateChanged,
+                            )
+                        }
+                        FolderSlot.Close -> DockFolderCloseTile(
+                            dockIconSizeDp = dockIconSizeDp,
+                            dockLayout = dockLayout,
+                            modifier = Modifier.weight(1f),
+                            onClose = onClose,
+                        )
+                        FolderSlot.Empty -> Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shared visual + hit-target skeleton for a dock-style icon cell, used by
+ * [DockedAppButton], [DockFolderMemberTile], and [DockFolderCloseTile] so their
+ * sizing, slot footprint, and hit target can't drift apart (which is exactly how
+ * the folder tile once ended up with a smaller tap target than the dock).
+ *
+ * It lays out a centered [icon] box of the dock slot footprint
+ * (`dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP`) with an optional [title]
+ * beneath it (only in [DockLayout.TitleBelow]), and a `matchParentSize()` overlay
+ * that owns the gesture and semantics ([overlayModifier]) so the *whole* cell —
+ * not just the centered content — is the hit target. The caller supplies its own
+ * gesture, menu, and decoration; this composable owns only the layout.
+ */
+@Composable
+private fun DockTileScaffold(
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    title: String?,
+    overlayModifier: Modifier,
+    modifier: Modifier = Modifier,
+    visualModifier: Modifier = Modifier,
+    iconBoxModifier: Modifier = Modifier,
+    titleTestTag: String? = null,
+    titleColor: Color = MaterialTheme.colorScheme.onBackground,
+    menu: @Composable () -> Unit = {},
+    icon: @Composable () -> Unit,
+) {
+    // Honor the system font scale so a larger accessibility font lifts the floor
+    // and the `labelSmall` line never clips against the next row.
+    val slotMinHeight = dockSlotHeightDp(dockIconSizeDp, dockLayout, LocalDensity.current.fontScale).dp
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .defaultMinSize(minHeight = slotMinHeight)
+                .then(visualModifier),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp)
+                    .then(iconBoxModifier),
+                contentAlignment = Alignment.Center,
+            ) {
+                icon()
+            }
+            if (dockLayout == DockLayout.TitleBelow && title != null) {
+                Text(
+                    title,
+                    modifier = if (titleTestTag != null) Modifier.testTag(titleTestTag) else Modifier,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = titleColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(modifier = Modifier.matchParentSize().then(overlayModifier))
+        menu()
+    }
+}
+
+/**
+ * The close affordance inside the open folder: an X icon occupying one grid cell
+ * (the same footprint as a member tile) so it reads as "the cell that closes the
+ * folder." A faint circular background distinguishes it from the square app
+ * icons. Back and a tap outside the grid also dismiss the folder; this is the
+ * explicit in-grid affordance. Shares [DockTileScaffold], so its hit target spans
+ * the whole weighted cell like the member tiles and the dock's own slots.
+ */
+@Composable
+private fun DockFolderCloseTile(
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+) {
+    val description = stringResource(R.string.dock_folder_close_description)
+    DockTileScaffold(
+        dockIconSizeDp = dockIconSizeDp,
+        dockLayout = dockLayout,
+        title = null,
+        modifier = modifier,
+        iconBoxModifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+        overlayModifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = onClose,
+            )
+            .semantics { contentDescription = description },
+        icon = {
+            Icon(
+                imageVector = LauncherIcons.Clear,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size((dockIconSizeDp * 0.6f).dp),
+            )
+        },
+    )
+}
+
+/**
+ * One member app inside the open folder, rendered to match [DockedAppButton] via
+ * the shared [DockTileScaffold]: the icon in the dock slot footprint with the
+ * title below only in [DockLayout.TitleBelow], so a folder member is visually
+ * indistinguishable from a docked app. A tap launches it (and closes the folder
+ * via [onLaunchApp]); a long-press opens the member actions menu. The scaffold's
+ * `matchParentSize()` overlay makes the *whole* weighted cell the hit target — so
+ * on a wide dock (or `dockIconCount == 1`) the user can tap the same spot twice
+ * (open, then launch) without the cell's sides going dead.
+ */
+@Composable
+private fun DockFolderMemberTile(
+    app: InstalledApp,
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: () -> Unit,
+    onUndockFromFolder: () -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    // Optional drag-to-reorder (used by the Overlay folder card). When
+    // [onDragStart] is non-null the tile uses the dock's long-press gesture —
+    // long-press then move reorders, long-press then release opens the menu — and
+    // [isDragged] / [dragOffset] drive the lifted-tile visual. When null the tile
+    // keeps the plain tap-to-launch / long-press-menu `combinedClickable`.
+    isDragged: Boolean = false,
+    dragOffset: Offset = Offset.Zero,
+    onDragStart: (() -> Unit)? = null,
+    onDrag: (Offset) -> Unit = {},
+    onDragEnd: (Boolean) -> Unit = {},
+    // Reports the tile's static (un-translated) center in root coordinates so the
+    // parent grid's drag handler can compare the dragged icon against every
+    // member cell. Inert unless drag-to-reorder is wired ([onDragStart] non-null).
+    onReportCenter: (Offset) -> Unit = {},
+    // Fires `true` the instant the long-press arms (before any slop accounting)
+    // and `false` when the gesture ends, exactly like DockedAppButton — the open
+    // folder sits on the Home carousel page, so without this the carousel's raw
+    // gesture surface could page Home → Widgets/Agenda during a member reorder.
+    onLongPressArmed: (Boolean) -> Unit = {},
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val slopPx = with(LocalDensity.current) { 8.dp.toPx() }
+    val latestOnDragStart by rememberUpdatedState(onDragStart)
+    val latestOnDrag by rememberUpdatedState(onDrag)
+    val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnReportCenter by rememberUpdatedState(onReportCenter)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    val tileModifier = modifier
+        // Outside the graphicsLayer below so it reports the slot's static center,
+        // not the lifted tile's translated one — the same split DockedAppButton
+        // uses. positionInRoot() keeps every cell in one window-wide space so the
+        // handler can tell rows apart when the folder wraps.
+        .onGloballyPositioned { coords ->
+            val pos = coords.positionInRoot()
+            latestOnReportCenter(
+                Offset(pos.x + coords.size.width / 2f, pos.y + coords.size.height / 2f),
+            )
+        }
+        .zIndex(if (isDragged) 1f else 0f)
+        .graphicsLayer {
+            if (isDragged) {
+                translationX = dragOffset.x
+                translationY = dragOffset.y
+                scaleX = 1.1f
+                scaleY = 1.1f
+                alpha = 0.85f
+            }
+        }
+    val gestureModifier = if (onDragStart != null) {
+        Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = { onLaunchApp(app) },
+            )
+            // Same skeleton as DockFolderButton: long-press arms a reorder drag
+            // once the finger crosses slop, and a release without crossing slop
+            // opens the member menu instead.
+            .pointerInput(app.id) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    longPress.consume()
+                    latestOnLongPressArmed(true)
+                    var dragging = false
+                    var totalDelta = Offset.Zero
+                    var releasedCleanly = false
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                if (!dragging && !change.isConsumed) {
+                                    menuExpanded = true
+                                }
+                                releasedCleanly = !change.isConsumed
+                                change.consume()
+                                break
+                            }
+                            val delta = change.positionChange()
+                            totalDelta += delta
+                            if (!dragging && totalDelta.getDistance() > slopPx) {
+                                dragging = true
+                                latestOnDragStart?.invoke()
+                                latestOnDrag(totalDelta)
+                            } else if (dragging) {
+                                latestOnDrag(delta)
+                            }
+                            change.consume()
+                        }
+                    } finally {
+                        if (dragging) {
+                            latestOnDragEnd(!releasedCleanly)
+                        }
+                        latestOnLongPressArmed(false)
+                    }
+                }
+            }
+            .semantics {
+                role = Role.Button
+                contentDescription = app.displayName
+                onLongClick(label = null) {
+                    menuExpanded = true
+                    true
+                }
+            }
+    } else {
+        Modifier
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = { onLaunchApp(app) },
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    menuExpanded = true
+                },
+            )
+            .semantics { contentDescription = app.displayName }
+    }
+    DockTileScaffold(
+        dockIconSizeDp = dockIconSizeDp,
+        dockLayout = dockLayout,
+        title = app.displayName,
+        modifier = tileModifier,
+        visualModifier = Modifier.testTag("$DOCK_FOLDER_POPUP_TAG:${app.displayName}"),
+        overlayModifier = gestureModifier,
+        icon = {
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = appIconTag)
+        },
+        menu = {
+            DockFolderMemberActionsMenu(
+                expanded = menuExpanded,
+                app = app,
+                onDismiss = { menuExpanded = false },
+                onOpenAppInfo = onOpenAppInfo,
+                onRemoveFromFolder = onRemoveFromFolder,
+                onUndockFromFolder = onUndockFromFolder,
+                onRenameApp = onRenameApp,
+                onResetRank = onResetRank,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
+            )
+        },
+    )
+}
+
+@Composable
+private fun DockFolderMemberActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    onDismiss: () -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onRemoveFromFolder: () -> Unit,
+    onUndockFromFolder: () -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit,
+    onClearAppIconOverride: (InstalledApp) -> Unit,
+    onSetAppBadge: (InstalledApp, String?) -> Unit,
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+) {
+    // rememberSaveable (keyed on app.id) so an in-progress Edit survives a
+    // configuration change — same rationale as AppActionsMenu.
+    var editDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
+    LauncherDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        properties = AppActionsMenuPopupProperties,
+    ) {
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+            onClick = {
+                onDismiss()
+                onOpenAppInfo(app)
+            },
+        )
+        // "Move out" pops the app back to a loose dock icon; "Undock" takes it
+        // off the dock entirely. Both leave the folder.
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_move_out)) },
+            onClick = {
+                onDismiss()
+                onRemoveFromFolder()
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_undock)) },
+            onClick = {
+                onDismiss()
+                onUndockFromFolder()
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_edit)) },
+            onClick = {
+                onDismiss()
+                editDialogVisible = true
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_hide)) },
+            onClick = {
+                onDismiss()
+                onHideApp(app)
+            },
+        )
+        // Same placement and same omission rule as AppActionsMenu.
+        if (app.isUninstallable) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_uninstall)) },
+                modifier = Modifier.testTag("$UNINSTALL_APP_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onUninstallApp(app)
+                },
+            )
+        }
+    }
+    if (editDialogVisible) {
+        EditAppDialog(
+            app = app,
+            onSave = { newName ->
+                onRenameApp(app, newName)
+                editDialogVisible = false
+            },
+            onRestoreDefaults = {
+                onRenameApp(app, "")
+                editDialogVisible = false
+            },
+            onPickIcon = { onSetAppIconOverride(app) },
+            onClearIcon = { onClearAppIconOverride(app) },
+            onSetBadge = { glyph -> onSetAppBadge(app, glyph) },
+            onDismiss = { editDialogVisible = false },
+        )
+    }
+}
+
+/**
+ * Moves the dragged icon to the nearest rendered dock slot, including empty
+ * cells. After each persisted move the visual offset is rebased from the old
+ * slot center to the new slot center so the lifted icon stays under the finger
+ * while the grid recomposes around it.
+ *
+ * When [mergeEnabled] is true (folders on), an occupied neighbor splits the
+ * gesture by *how far onto it* the dragged center has reached, measured along
+ * the approach axis, with a deadzone and a far-side buffer that reserve the
+ * neighbor's center for merging:
+ *  - **Pushed more than [swapBufferPx] past the neighbor's center**: a live
+ *    *swap* — [onReorder] fires immediately and the loop keeps going, so
+ *    reordering across the dock feels exactly like the folders-off path. Drag
+ *    back through to undo. The buffer means a swap takes a deliberate push
+ *    through the center, not a hair's-breadth crossing.
+ *  - **Within [mergeRadiusPx] of the center (and not yet past the swap
+ *    buffer)**: arms a *merge*, reported via [onMergeTarget]; the drag holds
+ *    position (no swap) so the neighbor stays put and the merge commits on
+ *    release.
+ *  - **In between** (past the reorder boundary but short of the merge radius):
+ *    holds with nothing armed, so a release there just drops the icon back.
+ *
+ * An empty nearest slot always reorders live. [onMergeTarget] is called once per
+ * invocation with the current merge target (or null) so the caller can render /
+ * clear the closed-folder preview; swaps leave it null because they have already
+ * been persisted via [onReorder].
+ */
+// Merge zone reach: a drag settled within this fraction of the slot pitch from
+// an occupied neighbor's center folds the two icons into a folder. ~0.4 puts the
+// near edge of the zone about one icon-radius from the center ("you're on the
+// neighbor"), leaving a thin deadzone back to the reorder boundary at 0.5·pitch.
+private const val DOCK_MERGE_CENTER_RADIUS_FRACTION = 0.4f
+
+// Swap buffer: how far past the neighbor's center (as a fraction of the slot
+// pitch) the dragged center must travel before a live swap fires. A small buffer
+// keeps a merge from flipping to a swap on a hair's-breadth overshoot at the
+// center, while staying well short of having to drag a full slot over.
+private const val DOCK_SWAP_BUFFER_FRACTION = 0.15f
+
+/**
+ * Smallest center-to-center distance between any two dock slots — the dock's
+ * slot pitch. Used to size the merge hit-radius relative to the icon spacing so
+ * the center/edge split scales with the dock's icon size and density. Returns
+ * `+∞` when fewer than two slot centers are known (nothing to merge against).
+ */
+internal fun dockSlotPitch(slotCenters: Map<DockPosition, Offset>): Float {
+    val centers = slotCenters.values.toList()
+    var pitch = Float.POSITIVE_INFINITY
+    for (i in centers.indices) {
+        for (j in i + 1 until centers.size) {
+            val distance = (centers[i] - centers[j]).getDistance()
+            if (distance > 0f && distance < pitch) {
+                pitch = distance
+            }
+        }
+    }
+    return pitch
+}
+
+internal fun handleDockDrag(
+    delta: Offset,
+    draggedAppId: String?,
+    // Occupant ids currently in the dock — app ids *and* folder ids. A folder
+    // is dragged exactly like an app, so the guard accepts any live occupant.
+    currentOccupantIds: Set<String>,
+    currentDockPositions: Map<String, DockPosition>,
+    slotCenters: Map<DockPosition, Offset>,
+    onReorder: (String, Int, Int) -> Unit,
+    currentOffset: Offset,
+    setOffset: (Offset) -> Unit,
+    mergeEnabled: Boolean = false,
+    occupantByPosition: Map<DockPosition, String> = emptyMap(),
+    // Radius in pixels around an occupied neighbor's center within which the
+    // drag arms a folder merge. Pushing more than [swapBufferPx] past the center
+    // swaps live regardless of this radius. Defaults to +∞, which makes the whole
+    // approaching side a merge zone (no deadzone) up to the swap buffer.
+    mergeRadiusPx: Float = Float.POSITIVE_INFINITY,
+    // Distance in pixels past an occupied neighbor's center, along the approach
+    // axis, before a live swap fires. Defaults to 0 (swap the instant the center
+    // is crossed).
+    swapBufferPx: Float = 0f,
+    onMergeTarget: (String?) -> Unit = {},
+) {
+    if (draggedAppId == null) return
+    if (draggedAppId !in currentOccupantIds) return
+    var newOffset = currentOffset + delta
+    var currentPosition = currentDockPositions[draggedAppId] ?: run {
+        onMergeTarget(null)
+        setOffset(newOffset)
+        return
+    }
+    var currentCenter = slotCenters[currentPosition] ?: run {
+        onMergeTarget(null)
+        setOffset(newOffset)
+        return
+    }
+    var mergeTarget: String? = null
+    while (true) {
+        val draggedCenter = currentCenter + newOffset
+        val nearest = slotCenters.minByOrNull { (_, center) -> (center - draggedCenter).getDistance() }
+            ?: break
+        val targetPosition = nearest.key
+        if (targetPosition == currentPosition) {
+            break
+        }
+        val targetCenter = nearest.value
+        if ((targetCenter - draggedCenter).getDistance() >= (currentCenter - draggedCenter).getDistance()) {
+            break
+        }
+        val occupant = occupantByPosition[targetPosition]
+        if (mergeEnabled && occupant != null && occupant != draggedAppId) {
+            // Crossed the reorder boundary onto an occupied neighbor. How far is
+            // the dragged center past that neighbor's center, along the approach
+            // axis? Beyond the swap buffer it's a live swap — fall through to the
+            // reorder below. Short of that, the center is still reachable: settle
+            // within the merge radius to arm a folder (committed on release),
+            // otherwise hold with nothing armed. The deadzone before the merge
+            // radius and the buffer past the center are what let the user park on
+            // the neighbor to merge instead of shoving it away on a tiny drift.
+            val axisX = targetCenter.x - currentCenter.x
+            val axisY = targetCenter.y - currentCenter.y
+            val axisLength = kotlin.math.hypot(axisX, axisY)
+            val pastCenterPx = if (axisLength > 0f) {
+                ((draggedCenter.x - targetCenter.x) * axisX +
+                    (draggedCenter.y - targetCenter.y) * axisY) / axisLength
+            } else {
+                0f
+            }
+            if (pastCenterPx <= swapBufferPx) {
+                if ((targetCenter - draggedCenter).getDistance() <= mergeRadiusPx) {
+                    mergeTarget = occupant
+                }
+                break
+            }
+        }
+        onReorder(draggedAppId, targetPosition.row, targetPosition.column)
+        newOffset += currentCenter - targetCenter
+        currentPosition = targetPosition
+        currentCenter = targetCenter
+    }
+    onMergeTarget(mergeTarget)
+    setOffset(newOffset)
+}
+
+/**
+ * Live drag-to-reorder for an opened folder's member tiles. Same "settle toward
+ * the nearest cell, commit only while it is strictly closer than the current one"
+ * physics as [handleDockDrag], but the drop targets are the member tiles alone —
+ * the close (✕) tile and empty filler cells never report a center, so a drag past
+ * them simply holds. The dragged member moves onto the cell of whichever member
+ * its center is now nearest — reported by that member's *id*, because the display
+ * grid is a filtered view (hidden apps, quiet-profile work apps) of the folder's
+ * persisted order and a display index would land in the wrong persisted slot
+ * whenever an invisible member sits before the target. The lifted-tile offset is
+ * rebased onto that cell so the icon keeps tracking the finger without a jump.
+ *
+ * [memberIds] is the members' display order and [memberCenters] maps each member's
+ * id to its cell center in root coordinates; both are captured at the start of the
+ * gesture event, exactly like [handleDockDrag]'s position snapshot.
+ */
+internal fun handleFolderDrag(
+    delta: Offset,
+    draggedAppId: String?,
+    memberIds: List<String>,
+    memberCenters: Map<String, Offset>,
+    onReorder: (appId: String, targetMemberId: String) -> Unit,
+    currentOffset: Offset,
+    setOffset: (Offset) -> Unit,
+) {
+    if (draggedAppId == null) return
+    var newOffset = currentOffset + delta
+    val memberIdSet = memberIds.toHashSet()
+    if (draggedAppId !in memberIdSet) {
+        setOffset(newOffset)
+        return
+    }
+    // Only current members are drop targets. A member removed (moved out /
+    // undocked / hidden) while the folder stays open leaves a stale center in the
+    // remembered, folder-id-keyed map; without this filter that disposed id could
+    // win the nearest-cell search below and break the loop early, blocking
+    // reorders through its old slot until the folder is reopened.
+    val liveCenters = memberCenters.filterKeys { it in memberIdSet }
+    var currentCenter = liveCenters[draggedAppId] ?: run {
+        setOffset(newOffset)
+        return
+    }
+    while (true) {
+        val draggedCenter = currentCenter + newOffset
+        val nearest = liveCenters.minByOrNull { (_, center) -> (center - draggedCenter).getDistance() }
+            ?: break
+        if (nearest.key == draggedAppId) break
+        val targetCenter = nearest.value
+        if ((targetCenter - draggedCenter).getDistance() >= (currentCenter - draggedCenter).getDistance()) {
+            break
+        }
+        onReorder(draggedAppId, nearest.key)
+        newOffset += currentCenter - targetCenter
+        currentCenter = targetCenter
+    }
+    setOffset(newOffset)
+}
+
+/**
+ * Where a folder member ends up when it is dragged *out* of the open folder and
+ * released. The open folder occupies the dock card's footprint, so the release
+ * point is hit-tested against the dock's own slot lattice (still reported even
+ * while the folder hides it) plus the dock card bounds:
+ *
+ *  - released off the dock card entirely (the app list, search field, empty space)
+ *    → [Undock];
+ *  - released on the source folder's own slot → [KeepInFolder] (the member stays);
+ *  - settled within [mergeRadiusPx] of another occupant's center → [MergeWith]
+ *    (forms / joins a folder, the dock's own center-drop behavior);
+ *  - released anywhere else on the dock → [DockSlot], i.e. a loose icon at that
+ *    slot (the store's `move` swaps any occupant aside, matching a dock drag).
+ */
+internal sealed interface FolderMemberDropTarget {
+    object KeepInFolder : FolderMemberDropTarget
+
+    data class DockSlot(val row: Int, val column: Int) : FolderMemberDropTarget
+
+    data class MergeWith(val occupantId: String) : FolderMemberDropTarget
+
+    object Undock : FolderMemberDropTarget
+}
+
+/**
+ * The personal dock's live drop geometry, lifted up to `HomeScreen` so an app
+ * dragged out of the app list can be hit-tested against the dock (a sibling of
+ * the list). [bounds] is the dock card in root coordinates; [slotCenters] and
+ * [occupants] are its slot lattice and occupancy. Captured by the dock and read
+ * on release — the dock doesn't move during an app-list drag, so a snapshot is
+ * enough.
+ */
+internal data class DockDropTarget(
+    val bounds: Rect?,
+    val slotCenters: Map<DockPosition, Offset>,
+    val occupants: Map<DockPosition, String>,
+)
+
+/**
+ * Drag callbacks an app-list item invokes once it is long-press-dragged. Bundled
+ * into one object so the gesture can be threaded through the list rendering as a
+ * single nullable parameter; null means the item keeps its plain tap / long-press
+ * menu behavior (e.g. the hidden-apps list, previews).
+ */
+internal class AppDragHandlers(
+    val onDragStart: (InstalledApp) -> Unit,
+    val onDrag: (InstalledApp, Offset) -> Unit,
+    val onDragEnd: (InstalledApp, Boolean) -> Unit,
+    val onReportCenter: (InstalledApp, Offset) -> Unit,
+    // Armed/disarmed with the pressed app, so the search-time dock reveal can
+    // gate on whether any visible dock can accept it (see [HomeScreen]).
+    val onLongPressArmed: (InstalledApp, Boolean) -> Unit,
+    // Open/close of the pressed item's actions menu. The open call is made
+    // synchronously by the release that opened the menu, because it is read
+    // by the long-press disarm that immediately follows — see the search-time
+    // dock reveal in [HomeScreen].
+    val onMenuVisibilityChanged: (Boolean) -> Unit = {},
+)
+
+/**
+ * Whether a list-app drop may merge into dock occupant [occupantId]: an app
+ * occupant always accepts (the merge creates a two-member folder), a folder
+ * occupant accepts only below [MAX_DOCK_FOLDER_MEMBERS]. Mirrors the
+ * `LauncherViewModel.dockAppIntoDockOccupant` guard, so the UI never treats a
+ * merge the ViewModel will refuse as a landed drop (which would, e.g., clear
+ * the query at the end of a search-time reveal for a drop that did nothing).
+ */
+internal fun canMergeIntoDockOccupant(
+    occupantId: String,
+    folders: List<ResolvedDockFolder>,
+): Boolean =
+    folders.firstOrNull { folder -> folder.id == occupantId }
+        // The persisted count, not the rendered members: hidden/uninstalled
+        // members still occupy store capacity, and the store's guard counts
+        // them.
+        ?.let { folder -> folder.persistedMemberCount < MAX_DOCK_FOLDER_MEMBERS }
+        ?: true
+
+/**
+ * Resolves the drop of a folder member dragged out of [sourceFolderId], given the
+ * release point [dropCenter] in root coordinates. See [FolderMemberDropTarget] for
+ * the rules. [dockBounds] is the hosting dock card's bounds; [dockSlotCenters] and
+ * [occupantByPosition] are the dock's live slot lattice and occupancy (the folder
+ * itself appears in both as its `folder:`-prefixed occupant id).
+ */
+internal fun resolveFolderMemberDrop(
+    dropCenter: Offset,
+    sourceFolderId: String,
+    dockBounds: Rect?,
+    dockSlotCenters: Map<DockPosition, Offset>,
+    occupantByPosition: Map<DockPosition, String>,
+    mergeRadiusPx: Float,
+): FolderMemberDropTarget {
+    if (dockBounds == null || !dockBounds.contains(dropCenter)) {
+        return FolderMemberDropTarget.Undock
+    }
+    val nearest = dockSlotCenters.minByOrNull { (_, center) -> (center - dropCenter).getDistance() }
+        ?: return FolderMemberDropTarget.Undock
+    val occupant = occupantByPosition[nearest.key]
+    return when {
+        occupant == sourceFolderId -> FolderMemberDropTarget.KeepInFolder
+        occupant != null &&
+            (nearest.value - dropCenter).getDistance() <= mergeRadiusPx ->
+            FolderMemberDropTarget.MergeWith(occupant)
+        else -> FolderMemberDropTarget.DockSlot(nearest.key.row, nearest.key.column)
+    }
+}
+
+/**
+ * Recents card is a secondary bar in the keyboard tray once a keyboard-height
+ * reservation exists. The old in-column Show recents setting has been removed;
+ * pull-up now asks for the keyboard because recents is already part of the tray.
+ */
+@Composable
+private fun RecentsCard(
+    recentApps: List<InstalledApp>,
+    isVisible: Boolean,
+    dockIconSizeDp: Int,
+    modifier: Modifier = Modifier,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut(),
+    ) {
+        SectionCard(modifier.testTag(DOCK_RECENTS_CARD_TAG)) {
+            RecentsRow(
+                recentApps = recentApps,
+                dockIconSizeDp = dockIconSizeDp,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onDismissRecent = onDismissRecent,
+                onBarScrollRegionChanged = onBarScrollRegionChanged,
+            )
+        }
+    }
+}
+
+// Internal so the regression test for per-app menu state can render the row
+// directly, without the AnimatedVisibility wrapper above it.
+@Composable
+internal fun RecentsRow(
+    recentApps: List<InstalledApp>,
+    dockIconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+) {
+    if (recentApps.isEmpty()) {
+        Text(
+            text = stringResource(R.string.dock_recents_empty_hint),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .testTag(DOCK_RECENTS_HINT_TAG),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    val description = stringResource(R.string.dock_recents_description)
+    ScrollableIconRow(
+        onBarScrollRegionChanged = onBarScrollRegionChanged,
+        rowModifier = Modifier
+            .semantics { contentDescription = description }
+            .testTag(DOCK_RECENTS_LIST_TAG),
+        startChevronTestTag = DOCK_RECENTS_SCROLL_START_CHEVRON_TAG,
+        endChevronTestTag = DOCK_RECENTS_SCROLL_END_CHEVRON_TAG,
+        chevronContentDescription = stringResource(R.string.dock_recents_scroll_more_hint),
+        // Keep the freshest recent app (rightmost) visible after every launch.
+        pinToEndKey = recentApps.map { it.id },
+    ) {
+        recentApps.forEach { app ->
+            // Keyed so per-app state (the open long-press menu) stays pinned to
+            // its app when a background reload mutates the recents list —
+            // unkeyed, the state is positional and an open menu would silently
+            // retarget to whichever app slides into that slot.
+            key(app.id) {
+                RecentAppButton(
+                    app = app,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onDismissRecent = onDismissRecent,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentAppButton(
+    app: InstalledApp,
+    dockIconSizeDp: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        Column(
+            modifier = Modifier
+                .semantics { contentDescription = app.displayName }
+                .padding(4.dp)
+                .testTag("$DOCK_RECENTS_APP_TAG:${app.displayName}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppIcon(app = app, size = dockIconSizeDp.dp, testTag = DOCK_RECENTS_APP_ICON_TAG)
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { onLaunchApp(app) },
+                    onLongClick = { menuExpanded = true },
+                )
+                .semantics {
+                    role = Role.Button
+                    contentDescription = app.displayName
+                },
+        )
+        RecentAppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            onDismissMenu = { menuExpanded = false },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onDismissRecent = onDismissRecent,
+        )
+    }
+}
+
+/**
+ * Wraps a horizontally scrollable row of icons (the dock or the recents row) and
+ * overlays start/end chevrons on whichever edge has more content scrolled past.
+ * The chevron uses an auto-mirrored icon and start/end alignment so it points
+ * the right direction under RTL.
+ *
+ * When [pinToEndKey] is non-null, the row scrolls to its end whenever the key
+ * (or the row's own measured `maxValue`) changes. The recents row uses this so
+ * the most-recently-launched app — which sits at the right edge — stays
+ * visible when the recents list overflows the row width; the dock leaves it
+ * null and stays anchored at the start.
+ */
+@Composable
+private fun ScrollableIconRow(
+    startChevronTestTag: String,
+    endChevronTestTag: String,
+    chevronContentDescription: String,
+    rowModifier: Modifier = Modifier,
+    pinToEndKey: Any? = null,
+    onBarScrollRegionChanged: (BarScrollRegion?) -> Unit = {},
+    content: @Composable RowScope.() -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    val isScrollRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    DisposableEffect(Unit) {
+        onDispose { onBarScrollRegionChanged(null) }
+    }
+    var hasMeasuredContent by remember { mutableStateOf(false) }
+    var overflowSlopPx by remember { mutableStateOf(0) }
+    // The carousel reserves a horizontal drag for this strip when it starts on
+    // the strip and the strip can still scroll that way. The decision reuses the
+    // same overflowSlopPx the chevrons and pin-to-end apply, so a row that only
+    // overflows by a rounding pixel pages normally instead of reserving a drag
+    // it can barely move. Remembered so the reported region carries a stable
+    // lambda; it reads scrollState/overflowSlopPx live at call time.
+    val canScrollInDirection = remember(scrollState, isScrollRtl) {
+        { rawDragX: Float ->
+            barStripCanScrollInDirection(
+                rawDragX = rawDragX,
+                scrollValue = scrollState.value,
+                scrollMaxValue = scrollState.maxValue,
+                overflowSlopPx = overflowSlopPx,
+                isRtl = isScrollRtl,
+            )
+        }
+    }
+    if (pinToEndKey != null) {
+        LaunchedEffect(pinToEndKey, scrollState.maxValue, hasMeasuredContent, overflowSlopPx) {
+            if (hasMeasuredContent) {
+                val target = if (scrollState.maxValue > overflowSlopPx) scrollState.maxValue else 0
+                scrollState.scrollTo(target)
+            }
+        }
+    }
+    val showEndChevron by remember(scrollState) {
+        derivedStateOf {
+            hasMeasuredContent &&
+                scrollState.maxValue > overflowSlopPx &&
+                scrollState.value < scrollState.maxValue - overflowSlopPx
+        }
+    }
+    val showStartChevron by remember(scrollState) {
+        derivedStateOf {
+            hasMeasuredContent &&
+                scrollState.maxValue > overflowSlopPx &&
+                scrollState.value > overflowSlopPx
+        }
+    }
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            // Report the *viewport* (the visible icon strip) in root
+            // coordinates, not the scrolled content — so it stays put under the
+            // finger as the row scrolls. The strip excludes the card's 16dp
+            // padding, which keeps that padding as page-swipe territory.
+            .onGloballyPositioned { coords ->
+                onBarScrollRegionChanged(
+                    BarScrollRegion(
+                        boundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize()),
+                        canScrollInDirection = canScrollInDirection,
+                    ),
+                )
+            },
+    ) {
+        // Stretch the row to at least the viewport width so the centered
+        // arrangement has space to distribute when the icons fit on one
+        // screen, but use the raw px from `BoxWithConstraints.constraints`
+        // (not `maxWidth.dp`) — the Dp round-trip can land 1 px above the
+        // viewport on non-integer densities and trip a spurious overflow
+        // chevron when the row content actually fits.
+        val viewportPx = constraints.maxWidth
+        val scope = rememberCoroutineScope()
+        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        val pageBack: () -> Unit = {
+            scope.launch { scrollState.scrollOneHorizontalPage(backward = true, viewportPx = viewportPx) }
+        }
+        val pageForward: () -> Unit = {
+            scope.launch { scrollState.scrollOneHorizontalPage(backward = false, viewportPx = viewportPx) }
+        }
+        Row(
+            modifier = rowModifier
+                .pointerInput(showStartChevron, showEndChevron, viewportPx, isRtl) {
+                    detectTapGestures { offset ->
+                        val overhang = HorizontalScrollChevronIconRowOverhang.toPx()
+                        // Pointer x is physical (left origin) while the
+                        // chevron flags and Alignment.CenterStart/CenterEnd
+                        // placement are logical, so under RTL the start
+                        // chevron renders at the physical right. Compare in
+                        // logical space or the two tap bands act inverted
+                        // (and the lone end chevron's band does nothing).
+                        val logicalX = if (isRtl) size.width - offset.x else offset.x
+                        when {
+                            showStartChevron && logicalX <= overhang -> pageBack()
+                            showEndChevron && logicalX >= size.width - overhang -> pageForward()
+                        }
+                    }
+                }
+                .horizontalScroll(scrollState)
+                .layout { measurable, childConstraints ->
+                    val placeable = measurable.measure(
+                        childConstraints.copy(minWidth = viewportPx),
+                    )
+                    // Allow a 1.dp slop before declaring overflow: each child
+                    // does its own dp→px rounding for padding/spacing, and on
+                    // non-integer densities those errors can compound into a
+                    // 1–2 px row width above the viewport even when the icons
+                    // visibly fit. Without this, `pinToEndKey` rows (recents)
+                    // auto-scroll to that 1 px maxValue, lift
+                    // `scrollState.value` above 0, and show the start chevron
+                    // for content the user has no way to actually scroll.
+                    overflowSlopPx = 1.dp.roundToPx()
+                    hasMeasuredContent = true
+                    layout(placeable.width, placeable.height) {
+                        placeable.place(0, 0)
+                    }
+                },
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            content = content,
+        )
+        val chevronsEnabled = LocalScrollChevronsEnabled.current
+        if (chevronsEnabled && showStartChevron) {
+            OverflowScrollChevron(
+                icon = LauncherIcons.KeyboardArrowLeft,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.CenterStart,
+                xEdgeOffset = -HorizontalScrollChevronEdgeOffset,
+                testTag = startChevronTestTag,
+                tapTargetWidth = HorizontalScrollChevronEdgeOffset,
+                tapTargetHeight = HorizontalScrollChevronTapTargetSize,
+                iconRequiredSize = HorizontalScrollChevronTapTargetSize,
+                onClick = pageBack,
+            )
+        }
+        if (chevronsEnabled && showEndChevron) {
+            OverflowScrollChevron(
+                icon = LauncherIcons.KeyboardArrowRight,
+                contentDescription = chevronContentDescription,
+                alignment = Alignment.CenterEnd,
+                xEdgeOffset = HorizontalScrollChevronEdgeOffset,
+                testTag = endChevronTestTag,
+                tapTargetWidth = HorizontalScrollChevronEdgeOffset,
+                tapTargetHeight = HorizontalScrollChevronTapTargetSize,
+                iconRequiredSize = HorizontalScrollChevronTapTargetSize,
+                onClick = pageForward,
+            )
+        }
+    }
+}
+
+private suspend fun ScrollState.scrollOneHorizontalPage(backward: Boolean, viewportPx: Int) {
+    val delta = if (backward) -viewportPx else viewportPx
+    scrollTo((value + delta).coerceIn(0, maxValue))
+}
+
+/**
+ * Wraps a vertically scrollable apps list (the `LazyColumn` text rows or the
+ * `LazyVerticalGrid` icon-only grid) and overlays top/bottom chevrons on
+ * whichever edge has more content scrolled past, mirroring the dock and
+ * recents-bar overflow treatment so a long list is discoverable as
+ * scrollable instead of relying on the user guessing.
+ */
+@Composable
+private fun AppListOverflowChevronBox(
+    // Lambdas, not booleans: whether an edge can still scroll is read inside
+    // [AppListOverflowChevrons] rather than here, so the state subscription
+    // lands on the two small icons instead of on this Box — whose scope also
+    // holds `content()`, the whole list or folder grid. Passing the value
+    // would put every flip through the list's own composition.
+    canScrollUp: () -> Boolean,
+    canScrollDown: () -> Boolean,
+    chevronsReady: Boolean,
+    // One description per direction: the two chevrons are separate buttons to a
+    // screen reader, so a single shared string leaves a user partway down the
+    // list unable to tell which one pages back and which pages on. The apps
+    // list and the open folder still pass their existing per-surface hint for
+    // both — swapping them to directional copy retires a string translated into
+    // every locale the launcher ships, which belongs in its own change.
+    topChevronContentDescription: String,
+    bottomChevronContentDescription: String,
+    // Null on both makes the pair indicators rather than controls — see
+    // [AppListOverflowChevron].
+    onScrollPageUp: (() -> Unit)?,
+    onScrollPageDown: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    // How far outside the scrolling area the chevrons hang. The default suits a
+    // list inside a card, where that band is page background. A caller whose
+    // scrolling area reaches the window edge passes 0 instead, putting the
+    // icons and their tap bands just inside it: beyond such an edge lie only
+    // the system bars, which eat the touch and clip the icon away wherever the
+    // inset is shorter than the overhang.
+    chevronEdgeOffset: Dp = VerticalScrollChevronEdgeOffset,
+    topChevronTestTag: String = APPS_LIST_SCROLL_TOP_CHEVRON_TAG,
+    bottomChevronTestTag: String = APPS_LIST_SCROLL_BOTTOM_CHEVRON_TAG,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        content()
+        AppListOverflowChevrons(
+            canScrollUp = canScrollUp,
+            canScrollDown = canScrollDown,
+            chevronsReady = chevronsReady,
+            topChevronContentDescription = topChevronContentDescription,
+            bottomChevronContentDescription = bottomChevronContentDescription,
+            chevronEdgeOffset = chevronEdgeOffset,
+            onScrollPageUp = onScrollPageUp,
+            onScrollPageDown = onScrollPageDown,
+            topChevronTestTag = topChevronTestTag,
+            bottomChevronTestTag = bottomChevronTestTag,
+        )
+    }
+}
+
+/**
+ * The chevron pair on its own, so the scroll-state reads below invalidate
+ * only this composable. Separate from [AppListOverflowChevronBox] because a
+ * read in that function's scope would drag the scrolling list it wraps
+ * through recomposition too.
+ */
+@Composable
+private fun BoxScope.AppListOverflowChevrons(
+    canScrollUp: () -> Boolean,
+    canScrollDown: () -> Boolean,
+    chevronsReady: Boolean,
+    topChevronContentDescription: String,
+    bottomChevronContentDescription: String,
+    onScrollPageUp: (() -> Unit)?,
+    onScrollPageDown: (() -> Unit)?,
+    chevronEdgeOffset: Dp,
+    topChevronTestTag: String,
+    bottomChevronTestTag: String,
+) {
+    if (!LocalScrollChevronsEnabled.current) return
+    if (chevronsReady && canScrollUp()) {
+        AppListOverflowChevron(
+            icon = LauncherIcons.KeyboardArrowUp,
+            contentDescription = topChevronContentDescription,
+            alignment = Alignment.TopCenter,
+            edgeOffset = -chevronEdgeOffset,
+            testTag = topChevronTestTag,
+            onClick = onScrollPageUp,
+        )
+    }
+    if (chevronsReady && canScrollDown()) {
+        AppListOverflowChevron(
+            icon = LauncherIcons.KeyboardArrowDown,
+            contentDescription = bottomChevronContentDescription,
+            alignment = Alignment.BottomCenter,
+            edgeOffset = chevronEdgeOffset,
+            testTag = bottomChevronTestTag,
+            onClick = onScrollPageDown,
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.AppListOverflowChevron(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    alignment: Alignment,
+    edgeOffset: Dp,
+    testTag: String,
+    // Null makes this chevron an indicator rather than a control: no tap band at
+    // all, and the description rides the icon instead. That is the only honest
+    // option for a caller with no free band outside its scrolling area — a
+    // pointer-input box placed *over* the content would swallow presses meant
+    // for whatever sits under it, and Settings has full-width buttons whose
+    // horizontal center is exactly where the chevron sits.
+    onClick: (() -> Unit)?,
+) {
+    // The visible icon straddles the list edge but must not intercept touches:
+    // this Box carries no pointer-input modifier, so presses on the in-list half
+    // of the icon fall through to the app row / tile underneath (launch,
+    // long-press menu, drag) instead of being swallowed. Same overlap rule the
+    // horizontal chevrons follow in [OverflowScrollChevron] — Compose dispatches
+    // a position's pointer events to the topmost overlapping sibling only, so a
+    // full-size tappable chevron here would create a dead band on the first /
+    // last visible row (long-press did nothing and a tap paged the list).
+    Box(
+        modifier = Modifier
+            .align(alignment)
+            .offset(y = edgeOffset)
+            .size(VerticalScrollChevronTapTargetSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        ChevronIcon(
+            icon = icon,
+            // As an indicator the icon is the whole affordance, so it carries
+            // the tag as well as the description — one node, one focus stop.
+            modifier = if (onClick == null) Modifier.testTag(testTag) else Modifier,
+            // Decorative wherever the tap band below carries the description
+            // and the button role: two nodes with the same description are two
+            // TalkBack focus stops for one affordance.
+            contentDescription = if (onClick == null) contentDescription else null,
+        )
+    }
+    if (onClick == null) return
+    // The tap target covers only the icon's overhang band outside the list edge
+    // (VerticalScrollChevronTapTargetSize wide × VerticalScrollChevronEdgeOffset
+    // tall), so paging taps still work while every pixel inside the list belongs
+    // to the row under it.
+    Box(
+        modifier = Modifier
+            .align(alignment)
+            .offset(y = edgeOffset)
+            .size(
+                width = VerticalScrollChevronTapTargetSize,
+                // Magnitude, not the signed offset: the top chevron's is
+                // negative (it hangs above the edge), and a negative height
+                // collapses the band to nothing.
+                height = if (edgeOffset < 0.dp) -edgeOffset else edgeOffset,
+            )
+            .pointerInput(onClick) {
+                detectTapGestures(onTap = { onClick() })
+            }
+            .semantics {
+                role = Role.Button
+                this.contentDescription = contentDescription
+                onClick {
+                    onClick()
+                    true
+                }
+            }
+            .testTag(testTag),
+    )
+}
+
+@Composable
+private fun BoxScope.OverflowScrollChevron(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    alignment: Alignment,
+    testTag: String,
+    xEdgeOffset: Dp = 0.dp,
+    yEdgeOffset: Dp = 0.dp,
+    tapTargetWidth: Dp? = null,
+    tapTargetHeight: Dp? = tapTargetWidth,
+    iconRequiredSize: Dp? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    if (onClick != null && tapTargetWidth != null && tapTargetHeight != null) {
+        // The chevron's tap target must not overlap the sibling scrollable's
+        // hit area. Compose dispatches pointer events at any given position to
+        // the topmost overlapping sibling only, so a chevron Box sitting on
+        // top of the Row will swallow a swipe that started on it — even when
+        // the chevron's pointerInput never consumes the down. Sizing the Box
+        // to just the chevron's overhang area (e.g. 18 dp wide for horizontal
+        // chevrons positioned at xEdgeOffset = ±18.dp) keeps it fully outside
+        // the row, while `iconRequiredSize` lets the visible chevron icon
+        // overflow back over the row's edge so the affordance still looks
+        // anchored on the icon strip. Taps on the visible part of the icon
+        // that lands inside the row fall through to the row's own pointerInput
+        // (which already pages on first/last 32.dp taps).
+        Box(
+            modifier = Modifier
+                .align(alignment)
+                .offset(x = xEdgeOffset, y = yEdgeOffset)
+                .size(width = tapTargetWidth, height = tapTargetHeight)
+                .pointerInput(onClick) {
+                    detectTapGestures(onTap = { onClick() })
+                }
+                .semantics {
+                    role = Role.Button
+                    this.contentDescription = contentDescription
+                    onClick {
+                        onClick()
+                        true
+                    }
+                }
+                .testTag(testTag),
+            contentAlignment = alignment,
+        ) {
+            ChevronIcon(
+                icon = icon,
+                contentDescription = contentDescription,
+                modifier = if (iconRequiredSize != null) {
+                    Modifier.requiredSize(iconRequiredSize)
+                } else {
+                    Modifier
+                },
+            )
+        }
+        return
+    }
+    ChevronIcon(
+        icon = icon,
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .align(alignment)
+            .offset(x = xEdgeOffset, y = yEdgeOffset)
+            .testTag(testTag),
+    )
+}
+
+@Composable
+private fun ChevronIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        tint = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier
+            .background(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                shape = CircleShape,
+            )
+            // Off-grid 2dp: a hairline inset between the chevron glyph and its
+            // translucent circular plate, sized to the plate rather than the
+            // 4dp layout grid so the affordance stays inside the 32dp tap
+            // target and its ±18dp edge offset (see the chevron geometry below).
+            .padding(2.dp),
+    )
+}
+
+/**
+ * Whether scroll-overflow chevrons may draw at all.
+ *
+ * False inside Settings' dock preview, which renders the real cards purely to
+ * show what Home will look like: nothing in it scrolls or responds, so an
+ * affordance offering to page it is a promise the preview cannot keep.
+ */
+internal val LocalScrollChevronsEnabled = staticCompositionLocalOf { true }
+
+private val HorizontalScrollChevronEdgeOffset = 18.dp
+private val HorizontalScrollChevronTapTargetSize = 32.dp
+// The chevron's own Box sits at offset(±HorizontalScrollChevronEdgeOffset)
+// and is HorizontalScrollChevronEdgeOffset wide, so it stays fully outside
+// the row. The visible icon uses requiredSize(HorizontalScrollChevronTapTargetSize)
+// and overflows back over the row's edge by (TapTargetSize − EdgeOffset) dp
+// on each side, anchoring the affordance to the icon strip. The row's own
+// pointerInput pages back/forward only when a tap lands in that overflow
+// band — past it, the tap is on an app icon, not on the chevron, and the
+// row leaves it alone so the app's own click handler can take it.
+private val HorizontalScrollChevronIconRowOverhang =
+    HorizontalScrollChevronTapTargetSize - HorizontalScrollChevronEdgeOffset
+private val VerticalScrollChevronEdgeOffset = 18.dp
+private val VerticalScrollChevronTapTargetSize = 32.dp
+
+@Composable
+internal fun AppsCard(
+    apps: List<InstalledApp>,
+    isLoading: Boolean = false,
+    overflowChevronsReady: Boolean = true,
+    dockLimit: Int,
+    layout: AppListLayout,
+    iconSizeDp: Int,
+    highlightFirst: Boolean,
+    reverseLayout: Boolean = false,
+    // The typed-search content sections, appended after the apps in data order
+    // (contacts, then events) so reverseLayout keeps them beyond the apps in
+    // the scroll direction. Empty lists render nothing.
+    contactResults: List<ContactResult> = emptyList(),
+    eventResults: List<AgendaEvent> = emptyList(),
+    onOpenContact: (ContactResult) -> Unit = {},
+    onToggleStarred: (ContactResult) -> Unit = {},
+    onContactLongPress: () -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
+    // Anything that should yank the list back to the natural top (item 0). The
+    // search query is the canonical caller: `rememberLazyListState` /
+    // `rememberLazyGridState` survives query changes, so without this reset a
+    // user who scrolled down to find a substring match and then typed another
+    // character would stay at the old offset — likely past the end of the new
+    // shorter result set, showing blank space. Launching an app clears the
+    // query too, so this also resets the scroll for the next time the user
+    // returns to Home.
+    scrollResetKey: Any? = null,
+    modifier: Modifier = Modifier,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    onAppListBoundsChanged: (Rect?) -> Unit = {},
+    // The whole apps card's bounds in root coordinates, reported even in the
+    // loading / empty state (unlike [onAppListBoundsChanged], which is the
+    // scrollable list and goes null when empty). Used as the drag-to-undock drop
+    // target so undock still works when every app is docked and the list is empty.
+    onCardBoundsChanged: (Rect?) -> Unit = {},
+    appDrag: AppDragHandlers? = null,
+    // The app currently being dragged out of the list, if any. Its list item
+    // renders empty (content at alpha 0, layout slot preserved) so the icon reads
+    // as picked up into the floating drag overlay instead of duplicated in place.
+    draggedAppId: String? = null,
+) {
+    // "No results" means no apps AND no content sections: a content-only
+    // result set still renders the scrollable list, whose bounds must stay
+    // published so the carousel keeps reserving in-list vertical gestures for
+    // list scrolling (clearing them here would let a pull over the results
+    // open recents / the notification shade instead).
+    val hasAnyResults = apps.isNotEmpty() || contactResults.isNotEmpty() || eventResults.isNotEmpty()
+    LaunchedEffect(isLoading, hasAnyResults) {
+        if (isLoading || !hasAnyResults) {
+            onAppListBoundsChanged(null)
+        }
+    }
+    // NameBelow and IconOnly both render the grid; only NameBeside renders rows.
+    val isGrid = layout != AppListLayout.NameBeside
+    val showLabels = layout == AppListLayout.NameBelow
+    val chevronLayoutKey = remember(apps, contactResults, eventResults, layout, reverseLayout) {
+        AppListChevronLayoutKey(
+            // Content sections change the scrollable extent just like apps do,
+            // so their keys join the measured-layout fingerprint the chevrons
+            // wait on.
+            appIds = apps.map { it.id } +
+                contactResults.map { "contact:${it.contactId}" } +
+                eventResults.map { "event:${it.eventId}:${it.beginMillis}" },
+            layout = layout,
+            reverseLayout = reverseLayout,
+        )
+    }
+    var measuredChevronLayoutKey by remember { mutableStateOf<AppListChevronLayoutKey?>(null) }
+    val isCurrentAppSetMeasured = measuredChevronLayoutKey == chevronLayoutKey
+    SectionCard(
+        modifier
+            .testTag(APPS_CARD_TAG)
+            .onGloballyPositioned { coords ->
+                onCardBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+            },
+    ) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                    .testTag(APPS_LOADING_TAG),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (apps.isEmpty() && contactResults.isEmpty() && eventResults.isEmpty()) {
+            EmptyState(
+                icon = LauncherIcons.Search,
+                title = stringResource(R.string.home_empty_title),
+                body = stringResource(R.string.home_empty_body),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
+            if (isGrid) {
+                val gridState = rememberLazyGridState()
+                LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
+                // In reverseLayout, the visual top is at the END of the data,
+                // so the chevron predicate that asks "can we scroll visually
+                // up / down" swaps to canScrollForward / canScrollBackward
+                // respectively.
+                val canScrollUp = { if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward }
+                val canScrollDown = { if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward }
+                // layoutInfo is state rewritten after every measure pass, so
+                // reading it directly in composition subscribes this whole
+                // card scope to every frame of a fling. derivedStateOf
+                // confines the invalidation to the measured/not-measured flip.
+                val viewportMeasured by remember(gridState) {
+                    derivedStateOf { gridState.layoutInfo.viewportSize.height > 0 }
+                }
+                val chevronsReady = overflowChevronsReady &&
+                    isCurrentAppSetMeasured &&
+                    viewportMeasured
+                val scope = rememberCoroutineScope()
+                AppListOverflowChevronBox(
+                    canScrollUp = canScrollUp,
+                    canScrollDown = canScrollDown,
+                    chevronsReady = chevronsReady,
+                    topChevronContentDescription = chevronDescription,
+                    bottomChevronContentDescription = chevronDescription,
+                    onScrollPageUp = {
+                        scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                    },
+                    onScrollPageDown = {
+                        scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    IconOnlyAppGrid(
+                        apps = apps,
+                        dockLimit = dockLimit,
+                        iconSizeDp = iconSizeDp,
+                        showLabel = showLabels,
+                        highlightFirst = highlightFirst,
+                        reverseLayout = reverseLayout,
+                        contactResults = contactResults,
+                        eventResults = eventResults,
+                        onOpenContact = onOpenContact,
+                        onToggleStarred = onToggleStarred,
+                        onContactLongPress = onContactLongPress,
+                        onOpenEvent = onOpenEvent,
+                        state = gridState,
+                        onBoundsChanged = { bounds ->
+                            onAppListBoundsChanged(bounds)
+                            measuredChevronLayoutKey = chevronLayoutKey
+                        },
+                        onLaunchApp = onLaunchApp,
+                        onOpenAppInfo = onOpenAppInfo,
+                        onToggleDock = onToggleDock,
+                        onResetRank = onResetRank,
+                        onRenameApp = onRenameApp,
+                        onSetAppIconOverride = onSetAppIconOverride,
+                        onClearAppIconOverride = onClearAppIconOverride,
+                        onSetAppBadge = onSetAppBadge,
+                        onHideApp = onHideApp,
+                        onUninstallApp = onUninstallApp,
+                        appDrag = appDrag,
+                        draggedAppId = draggedAppId,
+                    )
+                }
+            } else {
+                val listState = rememberLazyListState()
+                LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
+                val canScrollUp = { if (reverseLayout) listState.canScrollForward else listState.canScrollBackward }
+                val canScrollDown = { if (reverseLayout) listState.canScrollBackward else listState.canScrollForward }
+                // Same derivedStateOf rationale as the icon-only branch above:
+                // don't subscribe this scope to every-frame layoutInfo writes.
+                val viewportMeasured by remember(listState) {
+                    derivedStateOf { listState.layoutInfo.viewportSize.height > 0 }
+                }
+                val chevronsReady = overflowChevronsReady &&
+                    isCurrentAppSetMeasured &&
+                    viewportMeasured
+                val scope = rememberCoroutineScope()
+                AppListOverflowChevronBox(
+                    canScrollUp = canScrollUp,
+                    canScrollDown = canScrollDown,
+                    chevronsReady = chevronsReady,
+                    topChevronContentDescription = chevronDescription,
+                    bottomChevronContentDescription = chevronDescription,
+                    onScrollPageUp = {
+                        scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                    },
+                    onScrollPageDown = {
+                        scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        reverseLayout = reverseLayout,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onGloballyPositioned { coords ->
+                                onAppListBoundsChanged(
+                                    Rect(coords.positionInRoot(), coords.size.toSize()),
+                                )
+                                measuredChevronLayoutKey = chevronLayoutKey
+                            }
+                            .testTag(APPS_LIST_TAG),
+                    ) {
+                        itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
+                            AppRow(
+                                app = app,
+                                isActive = highlightFirst && index == 0,
+                                dockLimit = dockLimit,
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onToggleDock = onToggleDock,
+                                onResetRank = onResetRank,
+                                onRenameApp = onRenameApp,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
+                                onHideApp = onHideApp,
+                                onUninstallApp = onUninstallApp,
+                                appDrag = appDrag,
+                                isDragged = appDrag != null && app.id == draggedAppId,
+                            )
+                        }
+                        contentSearchSectionItems(
+                            contactResults = contactResults,
+                            eventResults = eventResults,
+                            appsEmpty = apps.isEmpty(),
+                            highlightFirst = highlightFirst,
+                            onOpenContact = onOpenContact,
+                            onToggleStarred = onToggleStarred,
+                            onContactLongPress = onContactLongPress,
+                            onOpenEvent = onOpenEvent,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class AppListChevronLayoutKey(
+    val appIds: List<String>,
+    val layout: AppListLayout,
+    val reverseLayout: Boolean,
+)
+
+private suspend fun LazyGridState.scrollOneVisualPage(up: Boolean, reverseLayout: Boolean) {
+    val direction = visualPageScrollDirection(up = up, reverseLayout = reverseLayout)
+    animateScrollBy(direction * layoutInfo.viewportSize.height.toFloat())
+}
+
+private suspend fun LazyListState.scrollOneVisualPage(
+    up: Boolean,
+    reverseLayout: Boolean,
+) {
+    val direction = visualPageScrollDirection(up = up, reverseLayout = reverseLayout)
+    animateScrollBy(direction * layoutInfo.viewportSize.height.toFloat())
+}
+
+private fun visualPageScrollDirection(up: Boolean, reverseLayout: Boolean): Float =
+    when {
+        up && reverseLayout -> 1f
+        up -> -1f
+        reverseLayout -> -1f
+        else -> 1f
+    }
+
+@Composable
+internal fun IconOnlyAppGrid(
+    apps: List<InstalledApp>,
+    dockLimit: Int,
+    iconSizeDp: Int,
+    highlightFirst: Boolean,
+    state: LazyGridState,
+    showLabel: Boolean = false,
+    reverseLayout: Boolean = false,
+    // Content sections hosted as full-span name-beside rows below the icon
+    // tiles — see `contentSearchSectionItems` for why grids don't tile them.
+    contactResults: List<ContactResult> = emptyList(),
+    eventResults: List<AgendaEvent> = emptyList(),
+    onOpenContact: (ContactResult) -> Unit = {},
+    onToggleStarred: (ContactResult) -> Unit = {},
+    onContactLongPress: () -> Unit = {},
+    onOpenEvent: (AgendaEvent) -> Unit = {},
+    onBoundsChanged: (Rect?) -> Unit = {},
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    appDrag: AppDragHandlers? = null,
+    // The app currently being dragged out of the list, if any; its tile renders
+    // empty so the icon reads as picked up into the floating drag overlay.
+    draggedAppId: String? = null,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive((iconSizeDp + 8).dp),
+        state = state,
+        reverseLayout = reverseLayout,
+        modifier = Modifier
+            .fillMaxSize()
+            .heightIn(min = iconSizeDp.dp)
+            .onGloballyPositioned { coords ->
+                onBoundsChanged(
+                    Rect(coords.positionInRoot(), coords.size.toSize()),
+                )
+            }
+            .testTag(APPS_LIST_TAG),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(
+            8.dp,
+            if (reverseLayout) Alignment.Bottom else Alignment.Top,
+        ),
+    ) {
+        itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
+            IconOnlyAppButton(
+                app = app,
+                isActive = highlightFirst && index == 0,
+                dockLimit = dockLimit,
+                iconSizeDp = iconSizeDp,
+                showLabel = showLabel,
+                onLaunchApp = onLaunchApp,
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onRenameApp = onRenameApp,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
+                appDrag = appDrag,
+                isDragged = appDrag != null && app.id == draggedAppId,
+            )
+        }
+        contentSearchSectionItems(
+            contactResults = contactResults,
+            eventResults = eventResults,
+            appsEmpty = apps.isEmpty(),
+            highlightFirst = highlightFirst,
+            onOpenContact = onOpenContact,
+            onToggleStarred = onToggleStarred,
+            onContactLongPress = onContactLongPress,
+            onOpenEvent = onOpenEvent,
+        )
+    }
+}
+
+/**
+ * The typed-search content sections (contacts, then calendar events), appended
+ * after the app items in the same lazy surface so `reverseLayout` places them
+ * beyond the apps in the scroll direction under both sort directions. A
+ * hairline divider separates adjacent non-empty sections only — a section
+ * never opens with a leading divider when nothing renders above it. Content
+ * rows are always name-beside rows, even when the app list is a grid: events
+ * have no tile representation, and a nameless contact tile is useless, so the
+ * grid hosts them as full-span items.
+ */
+private fun LazyListScope.contentSearchSectionItems(
+    contactResults: List<ContactResult>,
+    eventResults: List<AgendaEvent>,
+    appsEmpty: Boolean,
+    highlightFirst: Boolean,
+    onOpenContact: (ContactResult) -> Unit,
+    onToggleStarred: (ContactResult) -> Unit,
+    onContactLongPress: () -> Unit,
+    onOpenEvent: (AgendaEvent) -> Unit,
+) {
+    if (contactResults.isNotEmpty()) {
+        if (!appsEmpty) {
+            item(key = CONTACTS_SECTION_DIVIDER_KEY) { ContentSectionDivider() }
+        }
+        itemsIndexed(contactResults, key = { _, contact -> "contact:${contact.contactId}" }) { index, contact ->
+            ContactResultRow(
+                contact = contact,
+                // Content only takes the active-row highlight (the Enter
+                // target) when zero apps match — see `launchActiveApp`.
+                isActive = highlightFirst && appsEmpty && index == 0,
+                onOpenContact = onOpenContact,
+                onToggleStarred = onToggleStarred,
+                onContactLongPress = onContactLongPress,
+            )
+        }
+    }
+    if (eventResults.isNotEmpty()) {
+        if (!appsEmpty || contactResults.isNotEmpty()) {
+            item(key = EVENTS_SECTION_DIVIDER_KEY) { ContentSectionDivider() }
+        }
+        itemsIndexed(
+            eventResults,
+            // One row per occurrence of a recurring event, so the key needs
+            // beginMillis alongside eventId (same rule as the agenda list).
+            key = { _, event -> "event:${event.eventId}:${event.beginMillis}" },
+        ) { index, event ->
+            EventResultRow(
+                event = event,
+                isActive = highlightFirst && appsEmpty && contactResults.isEmpty() && index == 0,
+                onOpenEvent = onOpenEvent,
+            )
+        }
+    }
+}
+
+/** Grid twin of the [LazyListScope] version: identical rows, hosted full-span. */
+private fun LazyGridScope.contentSearchSectionItems(
+    contactResults: List<ContactResult>,
+    eventResults: List<AgendaEvent>,
+    appsEmpty: Boolean,
+    highlightFirst: Boolean,
+    onOpenContact: (ContactResult) -> Unit,
+    onToggleStarred: (ContactResult) -> Unit,
+    onContactLongPress: () -> Unit,
+    onOpenEvent: (AgendaEvent) -> Unit,
+) {
+    if (contactResults.isNotEmpty()) {
+        if (!appsEmpty) {
+            item(key = CONTACTS_SECTION_DIVIDER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                ContentSectionDivider()
+            }
+        }
+        itemsIndexed(
+            contactResults,
+            key = { _, contact -> "contact:${contact.contactId}" },
+            span = { _, _ -> GridItemSpan(maxLineSpan) },
+        ) { index, contact ->
+            ContactResultRow(
+                contact = contact,
+                isActive = highlightFirst && appsEmpty && index == 0,
+                onOpenContact = onOpenContact,
+                onToggleStarred = onToggleStarred,
+                onContactLongPress = onContactLongPress,
+            )
+        }
+    }
+    if (eventResults.isNotEmpty()) {
+        if (!appsEmpty || contactResults.isNotEmpty()) {
+            item(key = EVENTS_SECTION_DIVIDER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                ContentSectionDivider()
+            }
+        }
+        itemsIndexed(
+            eventResults,
+            key = { _, event -> "event:${event.eventId}:${event.beginMillis}" },
+            span = { _, _ -> GridItemSpan(maxLineSpan) },
+        ) { index, event ->
+            EventResultRow(
+                event = event,
+                isActive = highlightFirst && appsEmpty && contactResults.isEmpty() && index == 0,
+                onOpenEvent = onOpenEvent,
+            )
+        }
+    }
+}
+
+private const val CONTACTS_SECTION_DIVIDER_KEY = "contacts_section_divider"
+private const val EVENTS_SECTION_DIVIDER_KEY = "events_section_divider"
+
+@Composable
+private fun ContentSectionDivider() {
+    HorizontalDivider(
+        modifier = Modifier
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .testTag(CONTENT_SECTION_DIVIDER_TAG),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
+}
+
+/**
+ * A contacts-section row: photo-or-monogram circle + name, mirroring [AppRow]'s
+ * geometry (40dp leading visual, 12dp gap, 4/8dp padding, 8dp-rounded
+ * highlight) so mixed app/contact results read as one list. A contact with a
+ * photo shows its thumbnail circle-cropped; everyone else gets their first
+ * letter on a secondary-container plate. The photo decodes asynchronously off
+ * the main thread ([rememberContactPhotoResolution]) with the monogram as the
+ * placeholder, so the keystroke path never blocks on image IO — the row is
+ * fully usable before (and without) the swap-in. A starred contact
+ * ([ContactResult.starred] — the ranking signal, see `ContentSearch.kt`) shows
+ * a small trailing star after the name, at the row's fixed far edge — the
+ * same position Gmail and the Contacts app use for a favorite indicator — so
+ * the star reads as a row-level badge rather than name punctuation.
+ */
+@Composable
+private fun ContactResultRow(
+    contact: ContactResult,
+    isActive: Boolean,
+    onOpenContact: (ContactResult) -> Unit,
+    onToggleStarred: (ContactResult) -> Unit,
+    onContactLongPress: () -> Unit,
+) {
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val textColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowColor, RoundedCornerShape(8.dp))
+            // Long-press mirrors the app rows' menu affordance: tap opens the
+            // quick actions, long-press offers the favorite toggle. Opening the
+            // menu also cancels any in-flight tap-resolve (the same token bump
+            // dismiss and second-tap do), so a slow resolve for a contact tapped
+            // a moment ago can't pop its quick-actions sheet over this menu.
+            .combinedClickable(
+                onClick = { onOpenContact(contact) },
+                onLongClick = {
+                    onContactLongPress()
+                    menuExpanded = true
+                },
+            )
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .testTag("$CONTACT_RESULT_ROW_TAG:${contact.displayName}")
+            .semantics { selected = isActive },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        val initial = remember(contact.displayName) {
+            val trimmed = contact.displayName.trim()
+            // First code point, not first char, so a surrogate-pair initial
+            // (emoji contact names exist) doesn't render as half a character.
+            String(Character.toChars(trimmed.codePointAt(0))).uppercase()
+        }
+        val photoResolution = rememberContactPhotoResolution(contact, 40.dp)
+        val photo = photoResolution.bitmap
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .then(
+                    // Same settling contract as AppIcon: tagged only while the
+                    // async photo decode is in flight, so screenshot tests can
+                    // wait for every row's photo-or-monogram to be final.
+                    if (photoResolution.isResolved) Modifier else Modifier.testTag(APP_ICON_LOADING_TAG),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (photo != null) {
+                Image(
+                    bitmap = photo,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Text(
+                    text = initial,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
+        Text(
+            contact.displayName,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            color = textColor,
+        )
+        if (contact.starred) {
+            Icon(
+                imageVector = LauncherIcons.Star,
+                contentDescription = stringResource(R.string.contact_result_starred_description),
+                tint = CONTACT_STARRED_STAR_COLOR,
+                modifier = Modifier
+                    .size(20.dp)
+                    .testTag("$CONTACT_RESULT_STARRED_TAG:${contact.displayName}"),
+            )
+        }
+    }
+        LauncherDropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            // Non-focusable like the app-row menus: a focusable popup steals
+            // focus from the search field and collapses the IME, which would
+            // jump the layout the moment you long-press a contact while typing.
+            properties = AppActionsMenuPopupProperties,
+        ) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (contact.starred) {
+                                R.string.contact_action_unfavorite
+                            } else {
+                                R.string.contact_action_favorite
+                            },
+                        ),
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onToggleStarred(contact)
+                },
+                modifier = Modifier.testTag("$CONTACT_RESULT_FAVORITE_ACTION_TAG:${contact.displayName}"),
+            )
+        }
+    }
+}
+
+// The traditional Material/Android "favorite" gold (Material Amber 500),
+// fixed rather than derived from the dynamic color scheme — same rationale
+// as selectionHighlightColor: a star only reads as "starred" at a glance if
+// it keeps the color people already associate with the concept (Gmail,
+// Contacts), which the dynamic per-wallpaper palette can't guarantee. Unlike
+// that highlight it does not need a separate dark-mode value: this amber has
+// enough contrast against both the light and dark card surface.
+private val CONTACT_STARRED_STAR_COLOR = Color(0xFFFFC107)
+
+/**
+ * A calendar-events-section row: the agenda row's time-column + title
+ * treatment (fixed-width time column) inside the app list's row geometry, so
+ * the event is recognizable as an event without a section header while still
+ * aligning with the rows around it.
+ */
+@Composable
+private fun EventResultRow(
+    event: AgendaEvent,
+    isActive: Boolean,
+    onOpenEvent: (AgendaEvent) -> Unit,
+) {
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val titleColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowColor, RoundedCornerShape(8.dp))
+            .clickable { onOpenEvent(event) }
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .testTag("$EVENT_RESULT_ROW_TAG:${event.eventId}:${event.beginMillis}")
+            .semantics { selected = isActive },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = formatTimeForRow(event.displayTime),
+            // bodySmall so a stacked range's widest half ("12:30 PM") fits
+            // the 64dp column; at bodyMedium it breaks mid-word and maxLines
+            // drops the tail.
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Visible,
+            modifier = Modifier.width(64.dp),
+        )
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = titleColor,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/**
+ * Long-press-to-pick-up gesture for an app-list item, mirroring the dock / folder
+ * tile: a tap launches; a long-press fires haptics and arms the carousel
+ * suppression; crossing 8 dp of slop starts dragging the app toward the dock; and
+ * a long-press release without crossing slop opens the actions menu. The list
+ * scroll still wins a pre-long-press swipe (the gesture consumes nothing until the
+ * long-press fires), so flings are unaffected. The item also reports its cell
+ * center (in root coordinates) so the floating drag icon can anchor to the finger.
+ */
+@Composable
+private fun Modifier.appPickUpGesture(
+    app: InstalledApp,
+    appDrag: AppDragHandlers,
+    onLaunch: () -> Unit,
+    onOpenMenu: () -> Unit,
+): Modifier {
+    val haptics = LocalHapticFeedback.current
+    val slopPx = with(LocalDensity.current) { 8.dp.toPx() }
+    val latestOnDragStart by rememberUpdatedState(appDrag.onDragStart)
+    val latestOnDrag by rememberUpdatedState(appDrag.onDrag)
+    val latestOnDragEnd by rememberUpdatedState(appDrag.onDragEnd)
+    val latestOnReportCenter by rememberUpdatedState(appDrag.onReportCenter)
+    val latestOnLongPressArmed by rememberUpdatedState(appDrag.onLongPressArmed)
+    val latestOnLaunch by rememberUpdatedState(onLaunch)
+    val latestOnOpenMenu by rememberUpdatedState(onOpenMenu)
+    // The item's top-left in root coordinates, so the drag can anchor to the
+    // *actual* press point (top-left + the down position), not the item's
+    // geometric center. A full-width `AppRow` is much wider than its icon, so a
+    // center anchor would shift every drop by the press-to-center offset.
+    var itemTopLeftInRoot by remember { mutableStateOf(Offset.Zero) }
+    return this
+        .onGloballyPositioned { coords -> itemTopLeftInRoot = coords.positionInRoot() }
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            role = Role.Button,
+            onClick = { latestOnLaunch() },
+        )
+        .pointerInput(app.id) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                longPress.consume()
+                latestOnLongPressArmed(app, true)
+                var dragging = false
+                var totalDelta = Offset.Zero
+                var releasedCleanly = false
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            if (!dragging && !change.isConsumed) latestOnOpenMenu()
+                            releasedCleanly = !change.isConsumed
+                            change.consume()
+                            break
+                        }
+                        val delta = change.positionChange()
+                        totalDelta += delta
+                        if (!dragging && totalDelta.getDistance() > slopPx) {
+                            dragging = true
+                            // Anchor to the press point in root coordinates; the
+                            // host adds the running offset to track the finger.
+                            latestOnReportCenter(app, itemTopLeftInRoot + down.position)
+                            latestOnDragStart(app)
+                            latestOnDrag(app, totalDelta)
+                        } else if (dragging) {
+                            latestOnDrag(app, delta)
+                        }
+                        change.consume()
+                    }
+                } finally {
+                    if (dragging) latestOnDragEnd(app, !releasedCleanly)
+                    latestOnLongPressArmed(app, false)
+                }
+            }
+        }
+        .semantics {
+            role = Role.Button
+            onLongClick(label = null) {
+                latestOnOpenMenu()
+                true
+            }
+        }
+}
+
+@Composable
+private fun IconOnlyAppButton(
+    app: InstalledApp,
+    isActive: Boolean,
+    dockLimit: Int,
+    iconSizeDp: Int,
+    showLabel: Boolean = false,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    appDrag: AppDragHandlers? = null,
+    // True while this app is being dragged out of the list: its content hides
+    // (alpha 0, layout slot preserved) so the icon reads as picked up into the
+    // floating drag overlay rather than duplicated in place.
+    isDragged: Boolean = false,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val containerColor = if (isActive) highlightColor else Color.Transparent
+    Box {
+        Column(
+            modifier = Modifier
+                // Only the dragged item gets a layer; applying graphicsLayer to
+                // every item would composite a render layer per app on the hot
+                // scroll path even when nothing is being dragged.
+                .then(if (isDragged) Modifier.graphicsLayer { alpha = 0f } else Modifier)
+                .background(containerColor, RoundedCornerShape(8.dp))
+                .semantics {
+                    contentDescription = app.displayName
+                    selected = isActive
+                }
+                .padding(4.dp)
+                .testTag("$APP_ICON_ONLY_BUTTON_TAG:${app.displayName}"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppIcon(
+                app = app,
+                size = iconSizeDp.dp,
+                testTag = APP_ICON_ONLY_ICON_TAG,
+                backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
+            )
+            if (showLabel) {
+                Text(
+                    app.displayName,
+                    modifier = Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    // Single line so every tile is the same height and the grid
+                    // rows stay even; longer names ellipsize rather than wrap.
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .then(
+                    if (appDrag != null) {
+                        Modifier.appPickUpGesture(
+                            app = app,
+                            appDrag = appDrag,
+                            onLaunch = { onLaunchApp(app) },
+                            onOpenMenu = {
+                                menuExpanded = true
+                                appDrag.onMenuVisibilityChanged(true)
+                            },
+                        )
+                    } else {
+                        Modifier.combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            role = Role.Button,
+                            onClick = { onLaunchApp(app) },
+                            onLongClick = { menuExpanded = true },
+                        )
+                    },
+                )
+                .semantics {
+                    contentDescription = app.displayName
+                    selected = isActive
+                },
+        )
+        AppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            dockLimit = dockLimit,
+            onDismiss = {
+                menuExpanded = false
+                appDrag?.onMenuVisibilityChanged(false)
+            },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
+            onHideApp = onHideApp,
+            onUninstallApp = onUninstallApp,
+            isFlatSurface = true,
+        )
+    }
+}
+
+@Composable
+private fun AppRow(
+    app: InstalledApp,
+    isActive: Boolean,
+    dockLimit: Int,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    appDrag: AppDragHandlers? = null,
+    // True while this app is being dragged out of the list: its content hides
+    // (alpha 0, layout slot preserved) so the icon reads as picked up into the
+    // floating drag overlay rather than duplicated in place.
+    isDragged: Boolean = false,
+) {
+    val highlightColor = selectionHighlightColor()
+    val highlightOnColor = selectionHighlightOnColor()
+    val rowColor = if (isActive) highlightColor else Color.Transparent
+    val textColor = if (isActive) highlightOnColor else MaterialTheme.colorScheme.onBackground
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Only the dragged item gets a layer; applying graphicsLayer to
+                // every item would composite a render layer per app on the hot
+                // scroll path even when nothing is being dragged.
+                .then(if (isDragged) Modifier.graphicsLayer { alpha = 0f } else Modifier)
+                .background(rowColor, RoundedCornerShape(8.dp))
+                .semantics { selected = isActive }
+                .then(
+                    if (appDrag != null) {
+                        Modifier.appPickUpGesture(
+                            app = app,
+                            appDrag = appDrag,
+                            onLaunch = { onLaunchApp(app) },
+                            onOpenMenu = {
+                                menuExpanded = true
+                                appDrag.onMenuVisibilityChanged(true)
+                            },
+                        )
+                    } else {
+                        Modifier.combinedClickable(
+                            onClick = { onLaunchApp(app) },
+                            onLongClick = { menuExpanded = true },
+                        )
+                    },
+                )
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+                .testTag("$APP_ROW_TAG:${app.displayName}"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AppIcon(
+                app = app,
+                size = APP_ROW_ICON_SIZE_DP.dp,
+                backgroundColor = if (isActive) highlightColor else MaterialTheme.colorScheme.surfaceVariant,
+            )
+            Text(
+                app.displayName,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                color = textColor,
+            )
+        }
+        AppActionsMenu(
+            expanded = menuExpanded,
+            app = app,
+            dockLimit = dockLimit,
+            onDismiss = {
+                menuExpanded = false
+                appDrag?.onMenuVisibilityChanged(false)
+            },
+            onOpenAppInfo = onOpenAppInfo,
+            onToggleDock = onToggleDock,
+            onResetRank = onResetRank,
+            onRenameApp = onRenameApp,
+            onSetAppIconOverride = onSetAppIconOverride,
+            onClearAppIconOverride = onClearAppIconOverride,
+            onSetAppBadge = onSetAppBadge,
+            onHideApp = onHideApp,
+            onUninstallApp = onUninstallApp,
+            isFlatSurface = true,
+        )
+    }
+}
+
+@Composable
+private fun AppActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    dockLimit: Int,
+    onDismiss: () -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    // True on the flat app list / recents, where a folder member should not
+    // offer a dock toggle (folder membership is managed in the folder popup).
+    // Dock tiles pass false so a tile always toggles its own dock, even when
+    // the same app is foldered on the other dock (the cross-dock case).
+    isFlatSurface: Boolean = false,
+) {
+    // Boolean rather than the InstalledApp itself so dialog visibility doesn't
+    // re-evaluate identity-based equality on every parent recomposition; the
+    // dialog reads `app` directly from this composable's parameter.
+    // rememberSaveable (keyed on app.id) so the dialog — and the half-typed
+    // rename its EditAppDialogContent holds in its own rememberSaveable —
+    // survives a configuration change (rotation, dark-mode toggle, font-scale)
+    // instead of vanishing with the recreated activity. The activity declares
+    // no android:configChanges, so a plain remember resets to false on
+    // recreation and the saveable text below could never be shown again.
+    var editDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
+    LauncherDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        properties = AppActionsMenuPopupProperties,
+    ) {
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismiss()
+                onOpenAppInfo(app)
+            },
+        )
+        // A folder member on a flat surface (app list / recents) gets no dock
+        // toggle: re-docking it no-ops in the store and folder membership is
+        // managed in the folder popup (Move out / Undock). Dock tiles still
+        // show the toggle for their own dock.
+        if (!(isFlatSurface && app.isInFolder)) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (app.isDocked || app.isWorkDocked) R.string.app_menu_undock
+                            else R.string.app_menu_dock,
+                        ),
+                    )
+                },
+                modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onToggleDock(app, dockLimit)
+                },
+            )
+        }
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_reset_rank)) },
+            modifier = Modifier.testTag("$RESET_RANK_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismiss()
+                onResetRank(app)
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_edit)) },
+            modifier = Modifier.testTag("$EDIT_APP_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismiss()
+                editDialogVisible = true
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_hide)) },
+            modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismiss()
+                onHideApp(app)
+            },
+        )
+        // Last, because it is the one destructive action here — and left out
+        // entirely for an app Android won't let go of (a never-updated system
+        // app), rather than offering a tap the system would refuse.
+        if (app.isUninstallable) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_uninstall)) },
+                modifier = Modifier.testTag("$UNINSTALL_APP_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onUninstallApp(app)
+                },
+            )
+        }
+    }
+    if (editDialogVisible) {
+        EditAppDialog(
+            app = app,
+            onSave = { newName ->
+                onRenameApp(app, newName)
+                editDialogVisible = false
+            },
+            onRestoreDefaults = {
+                onRenameApp(app, "")
+                editDialogVisible = false
+            },
+            onPickIcon = {
+                // Keep the dialog open while the system picker is up so the
+                // user lands back here after choosing — and once the new
+                // icon flows through `markVisibility`, the preview at the
+                // top of the dialog refreshes to show it.
+                onSetAppIconOverride(app)
+            },
+            onClearIcon = {
+                onClearAppIconOverride(app)
+            },
+            onSetBadge = { glyph -> onSetAppBadge(app, glyph) },
+            onDismiss = { editDialogVisible = false },
+        )
+    }
+}
+
+/**
+ * Dialog that lets the user override an app's display label and launcher
+ * icon, and review the publisher's shipped values (system label + Android
+ * package name). Submits the trimmed text via [onSave]; an empty string is
+ * forwarded so the ViewModel can drop the rename override consistently with
+ * [onRestoreDefaults], which also fires when the user taps the inline
+ * "Restore defaults" action — only shown when a rename override is currently
+ * in effect.
+ *
+ * Tapping [onPickIcon] kicks off the system file picker for an SVG/PNG/
+ * JPEG/WEBP image. The picker activity runs outside this composable; the
+ * chosen URI flows back through `LauncherViewModel.setAppIconOverride` and
+ * the next markVisibility pass mirrors the new `customIconPath` onto every
+ * `InstalledApp` instance — including the `app` parameter passed in here
+ * the next time the parent recomposes — so the preview at the top of the
+ * dialog refreshes without the dialog needing to close. [onClearIcon]
+ * drops the icon override and is hidden until one is in effect, mirroring
+ * the rename-restore behaviour.
+ *
+ * The button slots stay single-button (Material3 AlertDialog assumes one
+ * widget per slot); the rename Restore + the icon controls live in the body
+ * so they do not contend with Save / Cancel for the slot.
+ */
+@Composable
+internal fun EditAppDialog(
+    app: InstalledApp,
+    onSave: (String) -> Unit,
+    onRestoreDefaults: () -> Unit,
+    onPickIcon: () -> Unit,
+    onClearIcon: () -> Unit,
+    onSetBadge: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Low-level `Dialog` + custom `Surface` rather than `AlertDialog`: the
+    // material `AlertDialog`'s `text` slot wraps its content in a vertically
+    // scrollable `Column` with unbounded height constraints, and any
+    // `TextField` / `OutlinedTextField` placed inside it measures itself
+    // recursively against those constraints under Robolectric, causing
+    // `composeRule.waitForIdle` to spin past 60 s. Hand-rolling the layout
+    // keeps the same visual structure (title + body + buttons) without the
+    // scrollable wrapper, breaking the loop.
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(EDIT_APP_DIALOG_TAG),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+        ) {
+            EditAppDialogContent(
+                app = app,
+                onSave = onSave,
+                onRestoreDefaults = onRestoreDefaults,
+                onPickIcon = onPickIcon,
+                onClearIcon = onClearIcon,
+                onSetBadge = onSetBadge,
+                onDismiss = onDismiss,
+            )
+        }
+    }
+}
+
+/**
+ * The dialog body, factored out of [EditAppDialog] so a Robolectric
+ * screenshot test can compose just the content without the surrounding
+ * `Dialog` popup window. A `TextField` rendered inside Compose's
+ * `Dialog` window does not settle on Robolectric (`waitForIdle` blows
+ * past 60 s during initial composition), so the test renders this
+ * content directly inside an activity-hosted Compose tree instead.
+ * The visual layout matches what the user sees inside the popup
+ * because [EditAppDialog] wraps exactly this content in a `Dialog` +
+ * `Surface`.
+ */
+@Composable
+internal fun EditAppDialogContent(
+    app: InstalledApp,
+    onSave: (String) -> Unit,
+    onRestoreDefaults: () -> Unit,
+    onPickIcon: () -> Unit,
+    onClearIcon: () -> Unit,
+    onSetBadge: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // rememberSaveable so a configuration change (rotation, dark-mode toggle,
+    // font-scale change) while the dialog is open keeps the user's typed text
+    // instead of resetting it to the app's current name. Keyed on app.id so
+    // reusing the slot for a different app still resets to that app's name.
+    var text by rememberSaveable(app.id) { mutableStateOf(app.customName ?: app.name) }
+    // Saveable so the badge picker re-opens over the restored Edit dialog after
+    // a configuration change, rather than silently collapsing back to it.
+    var badgePickerVisible by rememberSaveable(app.id) { mutableStateOf(false) }
+    val hasOverride = !app.customName.isNullOrBlank()
+    val hasIconOverride = app.customIconPath != null
+    Column(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.edit_app_dialog_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(EDIT_APP_DIALOG_ICON_ROW_TAG),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Render the icon at 48 dp so the user sees roughly what the app
+            // list will display. `AppIcon` honours `customIconPath` via the
+            // shared `AppIconLoader.load` path, so it shows the live override
+            // when one is set without any extra plumbing.
+            AppIcon(
+                app = app,
+                size = 48.dp,
+                testTag = EDIT_APP_DIALOG_ICON_TAG,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                TextButton(
+                    onClick = onPickIcon,
+                    modifier = Modifier.testTag(EDIT_APP_DIALOG_CHOOSE_ICON_TAG),
+                ) {
+                    Text(stringResource(R.string.edit_app_dialog_choose_icon))
+                }
+                if (hasIconOverride) {
+                    TextButton(
+                        onClick = onClearIcon,
+                        modifier = Modifier.testTag(EDIT_APP_DIALOG_CLEAR_ICON_TAG),
+                    ) {
+                        Text(stringResource(R.string.edit_app_dialog_clear_icon))
+                    }
+                }
+            }
+        }
+        EditAppDialogBadgeRow(
+            app = app,
+            onChooseBadge = { badgePickerVisible = true },
+        )
+        TextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            label = { Text(stringResource(R.string.edit_app_dialog_label)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSave(text) }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(EDIT_APP_DIALOG_FIELD_TAG),
+        )
+        Text(
+            text = stringResource(R.string.edit_app_dialog_original, app.name),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(R.string.edit_app_dialog_package, app.packageName),
+            modifier = Modifier.testTag(EDIT_APP_DIALOG_PACKAGE_TAG),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (hasOverride) {
+            TextButton(
+                onClick = onRestoreDefaults,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .testTag(EDIT_APP_DIALOG_RESTORE_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_restore))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_CANCEL_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_cancel))
+            }
+            TextButton(
+                onClick = { onSave(text) },
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_SAVE_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_save))
+            }
+        }
+    }
+    if (badgePickerVisible) {
+        BadgePickerDialog(
+            currentBadge = app.customBadge,
+            onPickBadge = { glyph ->
+                onSetBadge(glyph)
+            },
+            onDismiss = { badgePickerVisible = false },
+        )
+    }
+}
+
+/**
+ * Single row inside [EditAppDialogContent] that previews the app's current
+ * corner badge (or a "Default" placeholder when none is set) and exposes a
+ * "Choose badge" button. Tapping the button opens [BadgePickerDialog]. The
+ * row sits below the icon row so the user reads "icon, then badge, then
+ * label" — the same top-to-bottom order as the corner-badge stacking on
+ * the rendered launcher tile.
+ */
+@Composable
+private fun EditAppDialogBadgeRow(
+    app: InstalledApp,
+    onChooseBadge: () -> Unit,
+) {
+    val customBadgeGlyph = app.customBadge?.takeIf { it.isNotEmpty() }
+    val previewGlyph = customBadgeGlyph
+        ?: app.effectiveDisambiguator
+            ?.takeIf { it.isNotEmpty() }
+            ?.let(::disambiguatorBadge)
+            ?.glyph
+    val defaultLabel = stringResource(R.string.edit_app_dialog_badge_default_label)
+    val previewLabel = previewGlyph ?: defaultLabel
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(EDIT_APP_DIALOG_BADGE_ROW_TAG),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            // Match the 48 dp icon footprint in the row above so the "Badge" /
+            // "Choose badge" column lines up vertically with the "Choose icon"
+            // column (both start at 48 + 12 = 60 dp from the row's start). A
+            // narrower box left the badge column 16 dp to the left of the icon
+            // column and clipped the "Default" placeholder to "Defa…".
+            modifier = Modifier
+                .size(48.dp)
+                .testTag(EDIT_APP_DIALOG_BADGE_PREVIEW_TAG)
+                .semantics {
+                    contentDescription =
+                        "${app.displayName} badge: $previewLabel"
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (previewGlyph != null) {
+                Text(
+                    text = previewGlyph,
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Text(
+                    text = defaultLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.edit_app_dialog_badge_label),
+                // Indent by the TextButton's horizontal content padding so the
+                // "Badge" header lines up with the "Choose badge" button text
+                // directly below it (and "Choose icon" in the row above), rather
+                // than jutting 12 dp to the left as a plain Text with no padding.
+                modifier = Modifier.padding(start = 12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            TextButton(
+                onClick = onChooseBadge,
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_CHOOSE_BADGE_TAG),
+            ) {
+                Text(stringResource(R.string.edit_app_dialog_choose_badge))
+            }
+        }
+    }
+}
+
+/**
+ * Long-press menu for the recents row. The recents bar is launch history, not
+ * a curated list, so Reset rank (a usage-count concept) and Hide (which
+ * removes from every surface) don't belong here — Reset rank is orthogonal
+ * since recents isn't ranked, and Hide is incoherent on an icon you just
+ * launched. Dismiss is the per-icon equivalent of swiping a notification away
+ * — drops just this entry off the bar without touching launch counts.
+ */
+@Composable
+private fun RecentAppActionsMenu(
+    expanded: Boolean,
+    app: InstalledApp,
+    onDismissMenu: () -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onDismissRecent: (InstalledApp) -> Unit,
+) {
+    LauncherDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissMenu,
+        properties = AppActionsMenuPopupProperties,
+    ) {
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismissMenu()
+                onOpenAppInfo(app)
+            },
+        )
+        // A folder member has no plain dock toggle here: re-docking a foldered
+        // app no-ops in the store, so the item would be a dead button. Folder
+        // membership is managed in the folder popup (Move out / Undock).
+        if (!app.isInFolder) {
+            DropdownMenuItem(
+                text = {
+                    LauncherMenuItemText(
+                        stringResource(
+                            if (app.isDocked || app.isWorkDocked) {
+                                R.string.app_menu_undock
+                            } else {
+                                R.string.app_menu_dock
+                            },
+                        ),
+                    )
+                },
+                modifier = Modifier.testTag("$TOGGLE_DOCK_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismissMenu()
+                    onToggleDock(app, Int.MAX_VALUE)
+                },
+            )
+        }
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_menu_dismiss)) },
+            modifier = Modifier.testTag("$DISMISS_RECENT_ACTION_TAG:${app.displayName}"),
+            onClick = {
+                onDismissMenu()
+                onDismissRecent(app)
+            },
+        )
+    }
+}
+
+// Keep app-action menus out of Android window focus so opening them does not
+// clear the focused search field and collapse the IME. The menu content still
+// renders as Compose semantics, but this popup should stay scoped to app
+// actions where keyboard preservation is more important than modal focus.
+private val AppActionsMenuPopupProperties = PopupProperties(focusable = false)
+
+@Composable
+private fun DockedAppButton(
+    app: InstalledApp,
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    isDragged: Boolean,
+    dragOffset: Offset,
+    modifier: Modifier = Modifier,
+    // True while another icon is being dragged onto this one: the slot morphs
+    // into a closed-folder preview tile (the existing app shown inside a folder
+    // background) so a release here reads as "drop to put these in a folder."
+    isMergeTarget: Boolean = false,
+    appTag: String = DOCK_APP_TAG,
+    appIconTag: String = DOCK_APP_ICON_TAG,
+    onLaunchApp: (InstalledApp) -> Unit,
+    onOpenAppInfo: (InstalledApp) -> Unit,
+    onToggleDock: (InstalledApp, Int) -> Unit,
+    onResetRank: (InstalledApp) -> Unit,
+    onRenameApp: (InstalledApp, String) -> Unit,
+    onSetAppIconOverride: (InstalledApp) -> Unit = {},
+    onClearAppIconOverride: (InstalledApp) -> Unit = {},
+    onSetAppBadge: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onHideApp: (InstalledApp) -> Unit,
+    onUninstallApp: (InstalledApp) -> Unit,
+    onReportSlotCenter: (Offset) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    // [Boolean] = canceled: true when the gesture ended abnormally (system
+    // cancel, tracked pointer vanished, or gesture coroutine canceled) rather
+    // than on a clean lift.
+    onDragEnd: (Boolean) -> Unit,
+    onLongPressArmed: (Boolean) -> Unit = {},
+    // Whether crossing the touch slop promotes the long-press into a reorder
+    // drag. False in the landscape reflow, where the rendered grid is a
+    // flattened single-row view of the persisted portrait grid: a drag there
+    // would emit columns the portrait store can't represent and corrupt the
+    // saved arrangement. The long-press menu still opens on release;
+    // reordering stays a portrait-only action.
+    reorderEnabled: Boolean = true,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val slopPx = with(density) { 8.dp.toPx() }
+    // Wrap the parent's drag callbacks in updated-state holders so the
+    // long-running pointerInput coroutine always invokes the freshest
+    // closure (recompositions reallocate the lambdas every frame).
+    val latestOnReportSlotCenter by rememberUpdatedState(onReportSlotCenter)
+    val latestOnDragStart by rememberUpdatedState(onDragStart)
+    val latestOnDrag by rememberUpdatedState(onDrag)
+    val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+    val latestOnLongPressArmed by rememberUpdatedState(onLongPressArmed)
+    // Read through updated-state too: the `pointerInput` key is `app.id`, so a
+    // live window-size change that flips reordering off (entering the
+    // landscape reflow) without remounting this node must reach the
+    // already-running gesture coroutine, or a long-press could still promote
+    // into a drag and write a flattened-grid column back into portrait storage.
+    val latestReorderEnabled by rememberUpdatedState(reorderEnabled)
+    DockTileScaffold(
+        dockIconSizeDp = dockIconSizeDp,
+        dockLayout = dockLayout,
+        title = app.displayName,
+        titleTestTag = "$DOCK_APP_TITLE_TAG:${app.displayName}",
+        // onGloballyPositioned sits outside the graphicsLayer so it
+        // reports the icon's static slot centre, not its translated
+        // visual centre — that's what the parent compares against.
+        // positionInRoot() (not positionInParent()) puts every slot in
+        // one window-wide coordinate space; with the dock's slots laid
+        // out by FlowRow as siblings of one parent, positionInParent()
+        // would lose the per-row vertical offset and the drag handler
+        // could not tell rows apart on multi-row docks.
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                val center = Offset(
+                    pos.x + coords.size.width / 2f,
+                    pos.y + coords.size.height / 2f,
+                )
+                latestOnReportSlotCenter(center)
+            }
+            .zIndex(if (isDragged) 1f else 0f)
+            .graphicsLayer {
+                if (isDragged) {
+                    translationX = dragOffset.x
+                    translationY = dragOffset.y
+                    scaleX = 1.1f
+                    scaleY = 1.1f
+                    alpha = 0.85f
+                }
+            },
+        // The scaffold supplies the `defaultMinSize` floor (so the `labelSmall`
+        // line can grow past the 20 dp default-scale floor at large accessibility
+        // font sizes); here we add only the icon's content description and tag.
+        visualModifier = Modifier
+            .semantics { contentDescription = app.displayName }
+            .testTag("$appTag:${app.displayName}"),
+        // Tint the slot into a forming-folder preview while another icon is
+        // dragged onto it (the icon itself shrinks to read as sitting inside).
+        // The primary outline matches the folder's own drop affordance and keeps
+        // the target visible against the dock card in light / dynamic schemes.
+        iconBoxModifier = if (isMergeTarget) {
+            Modifier
+                .border(
+                    width = DOCK_FOLDER_EMPHASIS_BORDER_DP.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+                )
+                .background(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(DOCK_FOLDER_CORNER_RADIUS_DP.dp),
+                )
+        } else {
+            Modifier
+        },
+        overlayModifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Button,
+                onClick = { onLaunchApp(app) },
+            )
+            // Long-press fires haptic feedback and arms the dock for
+            // either a reorder (if the finger crosses 8 dp slop) or for
+            // opening the AppActionsMenu (if the user releases without
+            // crossing slop). The menu is intentionally not opened at
+            // the long-press timeout: `DropdownMenu` uses a `Popup` whose
+            // window remains touch-modal within its own bounds even with
+            // `focusable = false`, so the moment the user dragged their
+            // finger into the popup region Android would send the
+            // original window an `ACTION_CANCEL` and the drag would
+            // drop one slot in. Deferring the menu until release means
+            // the popup never exists while a reorder is in flight, so
+            // the drag survives until the finger actually lifts.
+            //
+            // `latestOnLongPressArmed(true)` runs the moment the
+            // long-press fires (before any slop accounting) so the
+            // carousel's gesture surface is suppressed from then on:
+            // small pre-long-press drift within the long-press touch
+            // slop can already push the carousel's accumulated rawDragX
+            // above its own 8 dp claim threshold, and without the early
+            // signal a small post-long-press move would let the carousel
+            // page Home → Widgets/Agenda before the dock's own slop
+            // accounting (which restarts at zero after long-press) had a
+            // chance to set the suppression latch.
+            //
+            // The pointerInput is attached per-icon (not at the
+            // DockCard level) on purpose: the parent dock is a single
+            // FlowRow with every slot's `key(app.id)` keyed group as a
+            // direct sibling, so a slot swap mid-drag is recognised by
+            // Compose as a sibling move and this pointerInput modifier
+            // node — and its in-flight gesture coroutine — survive the
+            // recomposition. Hoisting drag detection up the tree
+            // would force a slot-centre hit-test on every press
+            // (problematic for taps in card padding or near empty
+            // cells); keeping it on the icon means the icon's
+            // `clickable` hit region is the natural press boundary.
+            .pointerInput(app.id) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val longPress = awaitLongPressOrCancellation(down.id)
+                        ?: return@awaitEachGesture
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    longPress.consume()
+                    latestOnLongPressArmed(true)
+                    var dragging = false
+                    var totalDelta = Offset.Zero
+                    // Only an unconsumed up flips this true — the same
+                    // clean-lift signal the menu check below uses. A consumed
+                    // up (system cancel), pointer vanishing, or coroutine
+                    // cancellation leaves it false so a pending merge is not
+                    // committed on an abnormal end.
+                    var releasedCleanly = false
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: break
+                            if (!change.pressed) {
+                                // A release that arrives already consumed
+                                // is the framework's cancel signal (the
+                                // system stole the gesture), not a user
+                                // lift — the same convention
+                                // waitForUpOrCancellation uses. A canceled
+                                // long-press must not pop the actions
+                                // menu.
+                                if (!dragging && !change.isConsumed) {
+                                    menuExpanded = true
+                                }
+                                releasedCleanly = !change.isConsumed
+                                change.consume()
+                                break
+                            }
+                            if (dragging && !latestReorderEnabled) {
+                                // Reordering was disabled mid-drag — a live
+                                // window-size change (foldable/freeform)
+                                // entered the landscape reflow before the
+                                // finger lifted. End the drag here so the
+                                // active gesture can't keep dispatching
+                                // against the reflowed slot table and persist
+                                // a flattened-grid column into the portrait
+                                // store. The `finally` runs `onDragEnd`, so
+                                // the icon snaps back to its slot.
+                                break
+                            }
+                            val delta = change.positionChange()
+                            totalDelta += delta
+                            if (latestReorderEnabled && !dragging && totalDelta.getDistance() > slopPx) {
+                                dragging = true
+                                latestOnDragStart()
+                                // Carry the full pre-slop displacement into
+                                // the first dispatch so the icon snaps to
+                                // where the finger actually is, not back to
+                                // its slot centre.
+                                latestOnDrag(totalDelta)
+                            } else if (dragging) {
+                                latestOnDrag(delta)
+                            }
+                            change.consume()
+                        }
+                    } finally {
+                        // Runs on every exit: clean release, the tracked
+                        // pointer vanishing from the stream, and
+                        // cancellation of the gesture coroutine (activity
+                        // pause mid-drag, node detach). Ending the drag
+                        // only on the clean-release path left DockCard's
+                        // draggedAppId/dragOffset latched, so the icon
+                        // kept rendering lifted at its last offset until
+                        // some new drag overwrote the state. The canceled
+                        // flag (true on any non-clean exit) tells DockCard not
+                        // to commit a pending folder merge.
+                        if (dragging) {
+                            latestOnDragEnd(!releasedCleanly)
+                        }
+                        latestOnLongPressArmed(false)
+                    }
+                }
+            }
+            .semantics {
+                role = Role.Button
+                contentDescription = app.displayName
+                // The pointerInput drag detector above only fires on
+                // touch, so accessibility services / keyboard / switch
+                // input would otherwise have no path to the long-press
+                // menu. Re-expose it as a SemanticsAction so TalkBack's
+                // "long press" gesture and equivalent non-touch entry
+                // points still surface App info / Undock / Reset rank /
+                // Hide on dock icons.
+                onLongClick(label = null) {
+                    menuExpanded = true
+                    true
+                }
+            },
+        icon = {
+            // Shrink the icon when it becomes a merge target so it reads as
+            // sitting *inside* the forming folder tile.
+            AppIcon(
+                app = app,
+                size = (if (isMergeTarget) (dockIconSizeDp * 0.6f) else dockIconSizeDp.toFloat()).dp,
+                testTag = appIconTag,
+            )
+        },
+        menu = {
+            AppActionsMenu(
+                expanded = menuExpanded,
+                app = app,
+                dockLimit = Int.MAX_VALUE,
+                onDismiss = { menuExpanded = false },
+                onOpenAppInfo = onOpenAppInfo,
+                onToggleDock = onToggleDock,
+                onResetRank = onResetRank,
+                onRenameApp = onRenameApp,
+                onSetAppIconOverride = onSetAppIconOverride,
+                onClearAppIconOverride = onClearAppIconOverride,
+                onSetAppBadge = onSetAppBadge,
+                onHideApp = onHideApp,
+                onUninstallApp = onUninstallApp,
+            )
+        },
+    )
+}
+
+@Composable
+private fun EmptyDockSlot(
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    onReportSlotCenter: (Offset) -> Unit,
+) {
+    val fontScale = LocalDensity.current.fontScale
+    Box(
+        modifier = modifier
+            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale).dp)
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                onReportSlotCenter(
+                    Offset(
+                        pos.x + coords.size.width / 2f,
+                        pos.y + coords.size.height / 2f,
+                    ),
+                )
+            },
+    )
+}
+
+@Composable
+private fun DockAddButton(
+    dockIconSizeDp: Int,
+    dockLayout: DockLayout,
+    modifier: Modifier = Modifier,
+    addButtonTag: String = DOCK_ADD_BUTTON_TAG,
+    onReportSlotCenter: ((Offset) -> Unit)? = null,
+) {
+    val context = LocalContext.current
+    val hint = stringResource(R.string.dock_add_button_hint)
+    val description = stringResource(R.string.dock_add_button_description)
+    val fontScale = LocalDensity.current.fontScale
+    Box(
+        modifier = modifier
+            .height(dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale).dp)
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                onReportSlotCenter?.invoke(
+                    Offset(
+                        pos.x + coords.size.width / 2f,
+                        pos.y + coords.size.height / 2f,
+                    ),
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .testTag(addButtonTag)
+                .size((dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier = Modifier
+                    .size(dockIconSizeDp.dp)
+                    .semantics {
+                        contentDescription = description
+                        role = Role.Button
+                    }
+                    .clickable { Toast.makeText(context, hint, Toast.LENGTH_LONG).show() },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Icon(
+                    imageVector = LauncherIcons.Add,
+                    contentDescription = null,
+                    modifier = Modifier.padding((dockIconSizeDp * 0.25f).dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * "Show work dock" settings row. Visible whenever a managed profile is
+ * present on the device (`isWorkProfileConfigured`). The switch is only
+ * interactable when the profile is currently unpaused — tapping or
+ * long-pressing the row while the profile is in quiet mode shows a transient
+ * "Work profile is off" toast instead of toggling, so the user can see the
+ * option exists but understands why it can't change right now.
+ */
+@Composable
+private fun WorkDockSettingsRow(
+    isWorkDockEnabled: Boolean,
+    isWorkProfileActive: Boolean,
+    onWorkDockEnabledChanged: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val disabledHint = stringResource(R.string.settings_work_dock_disabled_toast)
+    val showDisabledHint = {
+        Toast.makeText(context, disabledHint, Toast.LENGTH_SHORT).show()
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                enabled = !isWorkProfileActive,
+                onClick = { showDisabledHint() },
+                onLongClick = { showDisabledHint() },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_work_dock_enabled_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Switch(
+            checked = isWorkDockEnabled,
+            onCheckedChange = onWorkDockEnabledChanged,
+            enabled = isWorkProfileActive,
+            modifier = Modifier.testTag(WORK_DOCK_ENABLED_SWITCH_TAG),
+        )
+    }
+}
+
+/**
+ * The wallpaper pair in the settings card: the "Show wallpaper" switch, and the
+ * hand-off to the system wallpaper picker beneath it.
+ *
+ * They sit together because neither makes much sense alone — the launcher can
+ * only ever *reveal* the wallpaper, never read, draw, or edit it (its bitmap is
+ * off-limits on API 34+, which is why "Show wallpaper" is a window flag rather
+ * than an image), so "change it" can only mean handing the user to the app that
+ * owns the wallpaper, right next to the switch that decides whether they ever
+ * see the result.
+ *
+ * Extracted from [SettingsScreen] so a screenshot test can render the pair on
+ * its own: they are far enough down a scrolling page that a whole-page capture
+ * would not show them.
+ */
+@Composable
+internal fun WallpaperSettingsRows(
+    isWallpaperShown: Boolean,
+    onWallpaperShownChanged: (Boolean) -> Unit,
+    onChangeWallpaper: () -> Unit,
+) {
+    val changeWallpaperDescription = stringResource(R.string.settings_change_wallpaper_button_description)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_show_wallpaper_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Switch(
+            checked = isWallpaperShown,
+            onCheckedChange = onWallpaperShownChanged,
+            modifier = Modifier.testTag(WALLPAPER_SHOWN_SWITCH_TAG),
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_wallpaper_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        // A TextButton rather than a filled one, matching the dropdowns this
+        // card already uses as trailing controls — a filled button would read
+        // as the page's primary action next to a row of switches.
+        //
+        // The visible label is just "Change" because the row's own label
+        // supplies the noun, but that context is visual only: the label is a
+        // separate semantics node, so a screen reader landing on the button
+        // would hear "Change, button" and no more. The content description
+        // carries the whole action for that case, and takes precedence over
+        // the child text rather than reading alongside it.
+        TextButton(
+            onClick = onChangeWallpaper,
+            modifier = Modifier
+                .testTag(CHANGE_WALLPAPER_BUTTON_TAG)
+                .semantics { contentDescription = changeWallpaperDescription },
+        ) {
+            Text(stringResource(R.string.settings_change_wallpaper_button))
+        }
+    }
+}
+
+@Composable
+internal fun SettingsScreen(
+    state: LauncherUiState,
+    innerPadding: PaddingValues,
+    onCloseSettings: () -> Unit,
+    onRequestDefaultLauncher: () -> Unit,
+    onDockEnabledChanged: (Boolean) -> Unit,
+    onAppListLayoutChanged: (AppListLayout) -> Unit,
+    onDockLayoutChanged: (DockLayout) -> Unit = {},
+    onDockVisibleIconCountChanged: (Int) -> Unit,
+    onWorkDockEnabledChanged: (Boolean) -> Unit = {},
+    onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
+    onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
+    onWallpaperShownChanged: (Boolean) -> Unit = {},
+    onChangeWallpaper: () -> Unit = {},
+    onAgendaEnabledChanged: (Boolean) -> Unit = {},
+    // "Search contacts" / "Search calendar events". Enabling routes through
+    // MainActivity's permission request first; the persisted flag (and this
+    // switch) only flips on once the permission is granted.
+    onContactSearchEnabledChanged: (Boolean) -> Unit = {},
+    onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
+    onTelemetryEnabledChanged: (Boolean) -> Unit = {},
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
+    onIconShapeChanged: (IconShape) -> Unit = {},
+    onCallMethodChanged: (CallMethod) -> Unit = {},
+    onIconThemeChanged: (IconTheme) -> Unit = {},
+    onUnhideApp: (InstalledApp) -> Unit,
+    onOpenLauncherAppInfo: () -> Unit,
+    onOpenPlayUpdate: () -> Unit,
+    onCompletePlayUpdate: () -> Unit,
+    onDismissPlayUpdate: () -> Unit,
+    showCrashBanner: Boolean = false,
+    onShareCrash: () -> Unit = {},
+    onDismissCrash: () -> Unit = {},
+) {
+    // Settings → About → Licenses replaces this page rather than stacking over
+    // it: the attribution list is a long scroll of its own, and Settings is
+    // already an overlay, so a third layer would leave two Back affordances
+    // (its own, and Settings' Done) fighting for the same corner. Saved rather
+    // than remembered so a rotation partway down the list doesn't drop the user
+    // back into Settings.
+    var licensesVisible by rememberSaveable { mutableStateOf(false) }
+    if (licensesVisible) {
+        LicensesScreen(innerPadding = innerPadding, onBack = { licensesVisible = false })
+        return
+    }
+    val configuration = LocalConfiguration.current
+    // Derive the slider's range, value, and the preview's icon size from the
+    // short screen edge and the persisted target icon size, so Settings shows
+    // exactly what Home draws. `dockIconCount` is the *rendered* per-row count
+    // (`dockIconSizing(...).slotCount`) — re-derived here rather than stored, so
+    // the slider self-heals to the real number that fits this device / Display
+    // size on every open.
+    val liveReferenceWidthDp = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
+    val slotCountRange = dockSlotCountRange(liveReferenceWidthDp)
+    val dockSizing = dockIconSizing(liveReferenceWidthDp, state.dockIconSizeDp)
+    val dockIconCount = dockSizing.slotCount
+    val dockIconSizeDp = dockSizing.iconSizeDp
+    var hiddenAppsDialogVisible by remember { mutableStateOf(false) }
+    // --- Wallpaper backdrop, exactly like Home ---
+    // With "Show wallpaper" on, Settings adopts Home's backdrop model wholesale:
+    // the page background is simply transparent, so the composited
+    // `FLAG_SHOW_WALLPAPER` wallpaper shows through everywhere the opaque cards
+    // and buttons don't cover — the page margins, the gaps between cards, and
+    // the preview's wallpaper slot. This is the exact absence-of-drawing reveal
+    // Home's slot uses (the wallpaper can only be revealed, never drawn: its
+    // bitmap is off-limits on API 34+), and it is the only mechanism verified
+    // working on-device. Two scoped-cutout variants were tried and both left
+    // the region gray on real devices while passing under Robolectric's
+    // software canvas: painting the hole with `BlendMode.Clear`, and painting
+    // the backdrop with the hole clipped out (clip-difference). Do not
+    // reintroduce a partial backdrop here — keep Settings byte-for-byte on
+    // Home's mechanism. Off the wallpaper path this is a plain opaque fill and
+    // Settings is unchanged.
+    val settingsBackgroundColor = MaterialTheme.colorScheme.background
+    val context = LocalContext.current
+    val view = LocalView.current
+    // While the wallpaper backs Settings (same backdrop as Home), refine the
+    // status/navigation-bar icon contrast from the wallpaper's own colors,
+    // exactly as Home does — the surface-based contrast left by the theme or
+    // by Home's bar effect stands until the off-main-thread lookup resolves.
+    // Home re-applies its own contrast when Settings closes, so nothing needs
+    // restoring on the way out. The resolved hint is also kept for the page's
+    // bare (uncarded) texts below.
+    var wallpaperDarkText by remember { mutableStateOf<Boolean?>(null) }
+    // Keyed on the wallpaper's colors as well as the setting: Settings can send
+    // the user to the system picker and back (the Wallpaper row below), so the
+    // hint resolved on the way in can be stale by the time they return — the
+    // page's bare texts and the bars would keep the old wallpaper's contrast
+    // until Settings was closed.
+    val wallpaperColorsGeneration = rememberWallpaperColorsGeneration(state.isWallpaperShown)
+    LaunchedEffect(state.isWallpaperShown, wallpaperColorsGeneration) {
+        if (!state.isWallpaperShown) {
+            wallpaperDarkText = null
+            return@LaunchedEffect
+        }
+        // Assigned even when the lookup comes back null, which resets the page
+        // to its theme-derived color: on a refresh, holding the old value
+        // would draw this wallpaper's bare text in the *previous* wallpaper's
+        // contrast, which can be exactly inverted.
+        val darkIcons = withContext(Dispatchers.IO) { wallpaperSupportsDarkText(context) }
+        wallpaperDarkText = darkIcons
+        // The bars fall back to the page surface's own luminance for the same
+        // reason, rather than being left on the old wallpaper's value.
+        val barIconsAreDark = darkIcons ?: (settingsBackgroundColor.luminance() > 0.5f)
+        context.findActivity()?.window?.let { window ->
+            val bars = WindowInsetsControllerCompat(window, view)
+            bars.isAppearanceLightStatusBars = barIconsAreDark
+            bars.isAppearanceLightNavigationBars = barIconsAreDark
+        }
+    }
+    // The page title and the "Preview" label sit directly on the wallpaper
+    // while the setting is on (no card behind them), so the theme's
+    // onBackground can land on a clashing wallpaper. Follow the wallpaper's
+    // own dark-text hint — the same signal the system-bar icons use, resolved
+    // by the effect above — and fall back to the theme color until it
+    // resolves (or whenever the wallpaper is off).
+    val bareTextColor = when (if (state.isWallpaperShown) wallpaperDarkText else null) {
+        null -> MaterialTheme.colorScheme.onBackground
+        true -> Color.Black
+        false -> Color.White
+    }
+    // Settings is a long page on every device, and its last visible row used to
+    // sit flush against the bottom edge with nothing to say more followed. Same
+    // top/bottom chevrons the apps list, the open dock folder, and the recents
+    // row use: shown only while there is more to scroll to in that direction,
+    // and a tap pages by one viewport.
+    //
+    // derivedStateOf: `ScrollState`'s two properties are plain comparisons
+    // against `value`, so reading either subscribes to the scroll offset itself
+    // and invalidates on every frame of a drag or fling. Deriving them collapses
+    // that to the one flip the chevrons actually care about — and the lambdas
+    // keep even that read inside the two icons rather than in the scope holding
+    // the whole page.
+    val settingsScrollState = rememberScrollState()
+    val canScrollUp = remember(settingsScrollState) {
+        derivedStateOf { settingsScrollState.canScrollBackward }
+    }
+    val canScrollDown = remember(settingsScrollState) {
+        derivedStateOf { settingsScrollState.canScrollForward }
+    }
+    AppListOverflowChevronBox(
+        canScrollUp = { canScrollUp.value },
+        canScrollDown = { canScrollDown.value },
+        // No fresh-load gate here: unlike the apps list, Settings' content is
+        // present from the first composition, so the chevrons are correct as
+        // soon as the page measures.
+        chevronsReady = true,
+        topChevronContentDescription = stringResource(R.string.scroll_up_for_more_hint),
+        bottomChevronContentDescription = stringResource(R.string.scroll_down_for_more_hint),
+        // Indicators, not controls. The apps list can page on tap because its
+        // band sits outside the list, on page background; Settings has no such
+        // band — see `chevronEdgeOffset` below — so a tap target here would
+        // overlay the page's own content and swallow presses meant for it,
+        // including the full-width buttons whose center is exactly where the
+        // chevron sits. Signalling that the page scrolls is the job; paging is
+        // the apps list's bonus, not this one's.
+        onScrollPageUp = null,
+        onScrollPageDown = null,
+        topChevronTestTag = SETTINGS_SCROLL_TOP_CHEVRON_TAG,
+        bottomChevronTestTag = SETTINGS_SCROLL_BOTTOM_CHEVRON_TAG,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                if (state.isWallpaperShown) Color.Transparent else settingsBackgroundColor,
+            )
+            .padding(innerPadding),
+        // Chevrons inside the viewport's edges rather than hanging outside them.
+        // The apps list can overhang because its band is page background around
+        // a card; Settings scrolls to the window edge, where the only thing
+        // beyond is the system bars — which eat the tap and clip the icon away
+        // wherever the inset is shorter than the overhang. Reserving a band by
+        // padding the page instead would cost 36dp of a page that is already
+        // long enough to need this affordance in the first place, so the icons
+        // ride just inside the edge. They overlap the page's own content there,
+        // which is safe on this page and not in the apps list: a Settings row
+        // puts its control on the right and nothing in the horizontal center,
+        // where the chevron sits, whereas every apps-list row is a launch
+        // target across its full width.
+        chevronEdgeOffset = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(settingsScrollState)
+                // Asymmetric top (8) vs bottom (16): the header row below leads with
+                // a Material Button whose own content padding already adds optical
+                // top space, so a full 16dp here would sit the header too low; the
+                // bottom keeps the standard 16dp before the scroll ends.
+                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+                .testTag(SETTINGS_SCREEN_TAG),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_title),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag(SETTINGS_TITLE_TAG),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = bareTextColor,
+                )
+                SettingsOverflowMenu(
+                    onOpenLauncherAppInfo = onOpenLauncherAppInfo,
+                    onOpenLicenses = { licensesVisible = true },
+                    iconTint = bareTextColor,
+                )
+                Button(
+                    onClick = onCloseSettings,
+                    modifier = Modifier.testTag(SETTINGS_DONE_BUTTON_TAG),
+                ) {
+                    Text(stringResource(R.string.settings_done_button))
+                }
+            }
+            if (showCrashBanner) {
+                CrashBannerCard(
+                    onShare = onShareCrash,
+                    onDismiss = onDismissCrash,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // Below the crash prompt: that one is about something that already
+            // went wrong and may cost the user a fix if they miss it, while this
+            // is a standing question whose unanswered state is already the safe
+            // one. Both answers route through the same callback the Analytics
+            // switch uses, so the durable opt-out transaction runs either way.
+            if (state.isTelemetryConsentPending) {
+                TelemetryConsentCard(
+                    onAllow = { onTelemetryEnabledChanged(true) },
+                    onDeny = { onTelemetryEnabledChanged(false) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            SettingsBuildBannerSlot(
+                playUpdate = state.playUpdate,
+                playUpdateRestartFailed = state.playUpdateRestartFailed,
+                buildSourceInfo = rememberBuildSourceInfo(),
+                onOpenPlayUpdate = onOpenPlayUpdate,
+                onCompletePlayUpdate = onCompletePlayUpdate,
+                onDismissPlayUpdate = onDismissPlayUpdate,
+            )
+            Button(
+                onClick = onRequestDefaultLauncher,
+                enabled = !state.isDefaultLauncher,
+                // Material's default disabled colors are translucent (12% fill /
+                // 38% text over the page surface), which reads fine on an opaque
+                // page but all but vanishes over the wallpaper backdrop. Give the
+                // disabled "Already default launcher" state an opaque surface so
+                // it stays readable on any wallpaper — consistent with the opaque
+                // cards around it, and unchanged in meaning (still visibly muted
+                // next to the filled enabled buttons).
+                colors = ButtonDefaults.buttonColors(
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(DEFAULT_LAUNCHER_BUTTON_TAG),
+            ) {
+                Text(
+                    stringResource(
+                        if (state.isDefaultLauncher) R.string.settings_already_default_launcher_button
+                        else R.string.settings_default_launcher_button,
+                    ),
+                )
+            }
+            SectionCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_app_list_layout_title), style = MaterialTheme.typography.titleMedium)
+                    }
+                    AppListLayoutDropdown(
+                        selected = state.appListLayout,
+                        onLayoutChanged = onAppListLayoutChanged,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_app_list_sort_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    AppListSortOrderDropdown(
+                        selected = state.appListSortOrder,
+                        onSortOrderChanged = onAppListSortOrderChanged,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Slider(
+                    value = dockIconCount.toFloat(),
+                    onValueChange = { value -> onDockVisibleIconCountChanged(value.roundToInt()) },
+                    valueRange = slotCountRange.first.toFloat()..slotCountRange.last.toFloat(),
+                    steps = (slotCountRange.last - slotCountRange.first - 1).coerceAtLeast(0),
+                    modifier = Modifier.testTag(DOCK_ICON_COUNT_SLIDER_TAG),
+                )
+                Text(
+                    text = stringResource(R.string.settings_dock_icon_size_value, dockIconSizeDp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_dock_layout_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    DockLayoutDropdown(
+                        selected = state.dockLayout,
+                        onLayoutChanged = onDockLayoutChanged,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_dock_enabled_title), style = MaterialTheme.typography.titleMedium)
+                    }
+                    Switch(
+                        checked = state.isDockEnabled,
+                        onCheckedChange = onDockEnabledChanged,
+                        modifier = Modifier.testTag(DOCK_ENABLED_SWITCH_TAG),
+                    )
+                }
+                if (state.isWorkProfileConfigured) {
+                    WorkDockSettingsRow(
+                        isWorkDockEnabled = state.isWorkDockEnabled,
+                        isWorkProfileActive = state.isWorkProfileActive,
+                        onWorkDockEnabledChanged = onWorkDockEnabledChanged,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_keyboard_auto_show_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isKeyboardAutoShown,
+                        onCheckedChange = onKeyboardAutoShownChanged,
+                        modifier = Modifier.testTag(KEYBOARD_AUTO_SHOW_SWITCH_TAG),
+                    )
+                }
+                WallpaperSettingsRows(
+                    isWallpaperShown = state.isWallpaperShown,
+                    onWallpaperShownChanged = onWallpaperShownChanged,
+                    onChangeWallpaper = onChangeWallpaper,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_show_agenda_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isAgendaEnabled,
+                        onCheckedChange = onAgendaEnabledChanged,
+                        modifier = Modifier.testTag(SHOW_AGENDA_SWITCH_TAG),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_search_contacts_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isContactSearchEnabled,
+                        onCheckedChange = onContactSearchEnabledChanged,
+                        modifier = Modifier.testTag(CONTACT_SEARCH_SWITCH_TAG),
+                    )
+                }
+                // Only meaningful once contacts are searchable, since a contact's
+                // Call action is the launcher's only calling surface — shown as a
+                // sub-setting of the switch above rather than as a permanent row
+                // every user scrolls past, the same conditional treatment the work
+                // dock row gets.
+                if (state.isContactSearchEnabled) {
+                    SettingsDropdownRow(
+                        title = stringResource(R.string.settings_call_using_title),
+                        titleTag = CALL_METHOD_TITLE_TAG,
+                    ) { dropdownModifier ->
+                        CallMethodDropdown(
+                            selected = state.callMethod,
+                            onCallMethodChanged = onCallMethodChanged,
+                            modifier = dropdownModifier,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_search_calendar_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isCalendarSearchEnabled,
+                        onCheckedChange = onCalendarSearchEnabledChanged,
+                        modifier = Modifier.testTag(CALENDAR_SEARCH_SWITCH_TAG),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_analytics_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    Switch(
+                        checked = state.isTelemetryEnabled,
+                        onCheckedChange = onTelemetryEnabledChanged,
+                        modifier = Modifier.testTag(ANALYTICS_SWITCH_TAG),
+                    )
+                }
+                SettingsDropdownRow(
+                    title = stringResource(R.string.settings_theme_title),
+                    titleTag = THEME_MODE_TITLE_TAG,
+                ) { dropdownModifier ->
+                        ThemeModeDropdown(
+                            selected = state.themeMode,
+                            onThemeModeChanged = onThemeModeChanged,
+                            modifier = dropdownModifier,
+                        )
+                }
+                SettingsDropdownRow(
+                    title = stringResource(R.string.settings_icon_shape_title),
+                    titleTag = ICON_SHAPE_TITLE_TAG,
+                ) { dropdownModifier ->
+                        IconShapeDropdown(
+                            selected = state.iconShape,
+                            onIconShapeChanged = onIconShapeChanged,
+                            modifier = dropdownModifier,
+                        )
+                }
+                SettingsDropdownRow(
+                    title = stringResource(R.string.settings_icon_theme_title),
+                    titleTag = ICON_THEME_TITLE_TAG,
+                ) { dropdownModifier ->
+                        IconThemeDropdown(
+                            selected = state.iconTheme,
+                            onIconThemeChanged = onIconThemeChanged,
+                            modifier = dropdownModifier,
+                        )
+                }
+            }
+            Button(
+                onClick = { hiddenAppsDialogVisible = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(SETTINGS_MANAGE_HIDDEN_APPS_BUTTON_TAG),
+            ) {
+                Text(stringResource(R.string.settings_manage_hidden_apps_button))
+            }
+            Text(
+                text = stringResource(R.string.settings_dock_preview_label),
+                style = MaterialTheme.typography.titleMedium,
+                color = bareTextColor,
+            )
+            SettingsPreview(
+                state = state,
+                dockIconSizeDp = dockIconSizeDp,
+                dockIconCount = dockIconCount,
+            )
+        }
+    }
+    if (hiddenAppsDialogVisible) {
+        HiddenAppsDialog(
+            hiddenApps = state.hiddenApps,
+            onUnhideApp = onUnhideApp,
+            onDismiss = { hiddenAppsDialogVisible = false },
+        )
+    }
+}
+
+@Composable
+private fun SettingsBuildBannerSlot(
+    playUpdate: PlayUpdateState,
+    playUpdateRestartFailed: Boolean,
+    buildSourceInfo: BuildSourceInfo?,
+    onOpenPlayUpdate: () -> Unit,
+    onCompletePlayUpdate: () -> Unit,
+    onDismissPlayUpdate: () -> Unit,
+) {
+    val update = playUpdate as? PlayUpdateState.Available
+    if (update?.shouldPrompt == true) {
+        PlayUpdateBanner(
+            progress = update.progress,
+            restartFailed = playUpdateRestartFailed,
+            onOpenPlayUpdate = onOpenPlayUpdate,
+            onCompletePlayUpdate = onCompletePlayUpdate,
+            onDismissPlayUpdate = onDismissPlayUpdate,
+        )
+    } else if (buildSourceInfo != null) {
+        LocalBuildBanner(buildSourceInfo = buildSourceInfo)
+    }
+}
+
+@Composable
+private fun PlayUpdateBanner(
+    progress: UpdateProgress,
+    onOpenPlayUpdate: () -> Unit,
+    onCompletePlayUpdate: () -> Unit,
+    onDismissPlayUpdate: () -> Unit,
+    restartFailed: Boolean = false,
+) {
+    val isInFlight = progress is UpdateProgress.Starting || progress is UpdateProgress.Downloading
+    val isDownloaded = progress is UpdateProgress.Downloaded
+    val cardOnClick: () -> Unit = when {
+        isDownloaded -> onCompletePlayUpdate
+        isInFlight -> ({})
+        else -> onOpenPlayUpdate
+    }
+    val titleRes = when (progress) {
+        UpdateProgress.Starting, UpdateProgress.Downloading -> R.string.play_update_banner_updating_title
+        UpdateProgress.Downloaded -> R.string.play_update_banner_downloaded_title
+        UpdateProgress.Idle -> R.string.play_update_banner_title
+    }
+    val bodyRes = when (progress) {
+        UpdateProgress.Starting, UpdateProgress.Downloading -> R.string.play_update_banner_updating_body
+        UpdateProgress.Downloaded -> R.string.play_update_banner_downloaded_body
+        UpdateProgress.Idle -> R.string.play_update_banner_body
+    }
+    SectionCard(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(PLAY_UPDATE_BANNER_TAG)
+            .semantics { role = Role.Button }
+            .clickable(enabled = !isInFlight, onClick = cardOnClick),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(titleRes),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(bodyRes),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                // A failed Restart tap would otherwise look like it did
+                // nothing — the only outcome that comes back from
+                // completeFlexibleUpdate, since a success restarts the app.
+                if (isDownloaded && restartFailed) {
+                    Text(
+                        text = stringResource(R.string.play_update_banner_restart_failed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            when {
+                isInFlight -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .testTag(PLAY_UPDATE_BANNER_PROGRESS_TAG),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                isDownloaded -> {
+                    TextButton(
+                        onClick = onCompletePlayUpdate,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        modifier = Modifier.testTag(PLAY_UPDATE_BANNER_RESTART_TAG),
+                    ) {
+                        Text(stringResource(R.string.play_update_banner_restart_button))
+                    }
+                }
+                else -> {
+                    TextButton(
+                        onClick = onOpenPlayUpdate,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        modifier = Modifier.testTag(PLAY_UPDATE_BANNER_UPDATE_TAG),
+                    ) {
+                        Text(stringResource(R.string.play_update_banner_update_button))
+                    }
+                }
+            }
+            if (!isInFlight) {
+                IconButton(
+                    onClick = onDismissPlayUpdate,
+                    modifier = Modifier
+                        .testTag(PLAY_UPDATE_BANNER_DISMISS_TAG)
+                        .zIndex(1f),
+                ) {
+                    Icon(
+                        LauncherIcons.Clear,
+                        contentDescription = stringResource(R.string.play_update_banner_dismiss_description),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalBuildBanner(buildSourceInfo: BuildSourceInfo) {
+    SectionCard(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(LOCAL_BUILD_BANNER_TAG),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = buildSourceInfo.displayBranch(),
+                modifier = Modifier.weight(1f, fill = false),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = buildSourceInfo.displaySuffix(),
+                maxLines = 1,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun rememberBuildSourceInfo(): BuildSourceInfo? =
+    remember {
+        buildSourceInfoFromConfig()
+    }
+
+@Composable
+private fun AppListLayoutDropdown(
+    selected: AppListLayout,
+    onLayoutChanged: (AppListLayout) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = when (selected) {
+        AppListLayout.NameBeside -> R.string.settings_app_list_layout_option_name_beside
+        AppListLayout.NameBelow -> R.string.settings_app_list_layout_option_name_below
+        AppListLayout.IconOnly -> R.string.settings_app_list_layout_option_icon_only
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(APP_LIST_LAYOUT_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(APP_LIST_LAYOUT_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_beside)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_NAME_BESIDE_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(AppListLayout.NameBeside)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_below)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_NAME_BELOW_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(AppListLayout.NameBelow)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icon_only)) },
+                modifier = Modifier.testTag(APP_LIST_LAYOUT_OPTION_ICON_ONLY_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(AppListLayout.IconOnly)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DockLayoutDropdown(
+    selected: DockLayout,
+    onLayoutChanged: (DockLayout) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = when (selected) {
+        DockLayout.IconOnly -> R.string.settings_app_list_layout_option_icon_only
+        DockLayout.TitleBelow -> R.string.settings_app_list_layout_option_name_below
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(DOCK_LAYOUT_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(DOCK_LAYOUT_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_icon_only)) },
+                modifier = Modifier.testTag(DOCK_LAYOUT_OPTION_ICON_ONLY_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(DockLayout.IconOnly)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_layout_option_name_below)) },
+                modifier = Modifier.testTag(DOCK_LAYOUT_OPTION_TITLE_BELOW_TAG),
+                onClick = {
+                    expanded = false
+                    onLayoutChanged(DockLayout.TitleBelow)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppListSortOrderDropdown(
+    selected: AppListSortOrder,
+    onSortOrderChanged: (AppListSortOrder) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = when (selected) {
+        AppListSortOrder.Usage -> R.string.settings_app_list_sort_option_usage
+        AppListSortOrder.UsageReversed -> R.string.settings_app_list_sort_option_usage_reversed
+        AppListSortOrder.Alphabetical -> R.string.settings_app_list_sort_option_name
+        AppListSortOrder.AlphabeticalReversed -> R.string.settings_app_list_sort_option_name_reversed
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(APP_LIST_SORT_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(APP_LIST_SORT_DROPDOWN_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_usage)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_USAGE_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.Usage)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_usage_reversed)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_USAGE_REVERSED_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.UsageReversed)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_name)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.Alphabetical)
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_list_sort_option_name_reversed)) },
+                modifier = Modifier.testTag(APP_LIST_SORT_OPTION_NAME_REVERSED_TAG),
+                onClick = {
+                    expanded = false
+                    onSortOrderChanged(AppListSortOrder.AlphabeticalReversed)
+                },
+            )
+        }
+    }
+}
+
+/**
+ * A Settings row whose title sits to the left of a dropdown, with the dropdown
+ * capped at half the row.
+ *
+ * The cap is a **max width, not a weight**, and both halves of that matter.
+ * `Row` measures its unweighted children before dividing what is left among the
+ * weighted ones, so an unconstrained dropdown takes whatever width it wants and
+ * the weighted title makes do — which in the locales with the longest option
+ * labels left the title a couple of glyphs wide. Giving the dropdown an equal
+ * weight fixes that and introduces the opposite bug: `fill = false` lets it
+ * measure smaller than its half, but the slack stays empty instead of returning
+ * to the title, so a short label like "System" would shrink a title that fit
+ * perfectly well before.
+ *
+ * Measuring the dropdown against half the row gets both: it takes only what it
+ * needs, and the title's weight collects everything left over. `BoxWithConstraints`
+ * subcomposes to read that width, which is affordable on Settings and is why this
+ * pattern stays here rather than spreading to the carousel.
+ */
+@Composable
+private fun SettingsDropdownRow(
+    title: String,
+    titleTag: String,
+    dropdown: @Composable (Modifier) -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val dropdownMaxWidth = maxWidth / 2
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.testTag(titleTag),
+                )
+            }
+            dropdown(Modifier.widthIn(max = dropdownMaxWidth))
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeDropdown(
+    selected: ThemeMode,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabelRes = selected.labelRes()
+    Box(modifier) {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(THEME_MODE_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selectedLabelRes))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(THEME_MODE_DROPDOWN_MENU_TAG),
+        ) {
+            ThemeMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(mode.labelRes())) },
+                    modifier = Modifier.testTag(mode.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onThemeModeChanged(mode)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CallMethodDropdown(
+    selected: CallMethod,
+    onCallMethodChanged: (CallMethod) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(CALL_METHOD_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(CALL_METHOD_DROPDOWN_MENU_TAG),
+        ) {
+            CallMethod.entries.forEach { method ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(method.labelRes())) },
+                    modifier = Modifier.testTag(method.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onCallMethodChanged(method)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun CallMethod.labelRes(): Int =
+    when (this) {
+        CallMethod.PhoneApp -> R.string.settings_call_using_option_phone_app
+        CallMethod.AskWhichApp -> R.string.settings_call_using_option_ask
+    }
+
+private fun CallMethod.optionTag(): String =
+    when (this) {
+        CallMethod.PhoneApp -> CALL_METHOD_OPTION_PHONE_APP_TAG
+        CallMethod.AskWhichApp -> CALL_METHOD_OPTION_ASK_TAG
+    }
+
+private fun ThemeMode.labelRes(): Int =
+    when (this) {
+        ThemeMode.System -> R.string.settings_theme_option_system
+        ThemeMode.Light -> R.string.settings_theme_option_light
+        ThemeMode.Dark -> R.string.settings_theme_option_dark
+    }
+
+private fun ThemeMode.optionTag(): String =
+    when (this) {
+        ThemeMode.System -> THEME_MODE_OPTION_SYSTEM_TAG
+        ThemeMode.Light -> THEME_MODE_OPTION_LIGHT_TAG
+        ThemeMode.Dark -> THEME_MODE_OPTION_DARK_TAG
+    }
+
+
+@Composable
+private fun IconShapeDropdown(
+    selected: IconShape,
+    onIconShapeChanged: (IconShape) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(ICON_SHAPE_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(ICON_SHAPE_DROPDOWN_MENU_TAG),
+        ) {
+            IconShape.entries.forEach { shape ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(shape.labelRes())) },
+                    modifier = Modifier.testTag(shape.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onIconShapeChanged(shape)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun IconShape.labelRes(): Int =
+    when (this) {
+        IconShape.System -> R.string.settings_icon_shape_option_system
+        IconShape.Circle -> R.string.settings_icon_shape_option_circle
+        IconShape.Squircle -> R.string.settings_icon_shape_option_squircle
+    }
+
+private fun IconShape.optionTag(): String =
+    when (this) {
+        IconShape.System -> ICON_SHAPE_OPTION_SYSTEM_TAG
+        IconShape.Circle -> ICON_SHAPE_OPTION_CIRCLE_TAG
+        IconShape.Squircle -> ICON_SHAPE_OPTION_SQUIRCLE_TAG
+    }
+
+@Composable
+private fun IconThemeDropdown(
+    selected: IconTheme,
+    onIconThemeChanged: (IconTheme) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(ICON_THEME_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(selected.labelRes()))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(ICON_THEME_DROPDOWN_MENU_TAG),
+        ) {
+            IconTheme.entries.forEach { theme ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(theme.labelRes())) },
+                    modifier = Modifier.testTag(theme.optionTag()),
+                    onClick = {
+                        expanded = false
+                        onIconThemeChanged(theme)
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun IconTheme.labelRes(): Int =
+    when (this) {
+        IconTheme.Default -> R.string.settings_icon_theme_option_default
+        IconTheme.Monochrome -> R.string.settings_icon_theme_option_monochrome
+    }
+
+private fun IconTheme.optionTag(): String =
+    when (this) {
+        IconTheme.Default -> ICON_THEME_OPTION_DEFAULT_TAG
+        IconTheme.Monochrome -> ICON_THEME_OPTION_MONOCHROME_TAG
+    }
+
+/**
+ * A reusable "start a bug report" trigger that gates on the one-time consent
+ * dialog. Returns a lambda to invoke — from the Settings overflow menu or the
+ * post-crash banner — that shares immediately when consent was previously
+ * suppressed, else shows [BugReportConsentDialog] first. [onShared] runs after
+ * the share hand-off returns, so the caller can react (the crash banner
+ * re-checks whether the share consumed the crash and hides itself).
+ *
+ * Hosts the consent dialog itself, so each caller only holds the returned
+ * trigger. Keeping the consent gate in one place means the overflow menu and the
+ * banner can never drift apart on what the user is told before a report is sent.
+ */
+@Composable
+internal fun rememberBugReportTrigger(onShared: () -> Unit = {}): () -> Unit {
+    val context = LocalContext.current
+    val compositionScope = rememberCoroutineScope()
+    // The share runs on the application scope, not the composition's: the
+    // hand-off suspends (payload build, screenshot capture) and the menu or
+    // banner that started it leaves composition as soon as it's tapped, which on
+    // a composition-bound scope cancels the share partway through — the report
+    // never reaches the sheet or the clipboard, and the crash log it would have
+    // carried is silently left behind. Falls back to the composition scope only
+    // where there is no TypeLauncherApp (tests).
+    val scope = remember(context) {
+        (context.applicationContext as? TypeLauncherApp)?.appScope ?: compositionScope
+    }
+    val dockSettings = remember(context) { DockSettingsStore(context) }
+    var consentVisible by remember { mutableStateOf(false) }
+    fun startBugReport() {
+        // Held only for the duration of the hand-off (a screenshot capture plus
+        // the chooser launch, both of which need the live window), then dropped.
+        val activity = context.findActivity() ?: return
+        scope.launch {
+            BugReport.share(activity)
+            onShared()
+        }
+    }
+    if (consentVisible) {
+        BugReportConsentDialog(
+            onDismiss = { consentVisible = false },
+            onConfirm = { suppressFuture ->
+                consentVisible = false
+                if (suppressFuture) {
+                    dockSettings.isBugReportConsentSuppressed = true
+                }
+                startBugReport()
+            },
+        )
+    }
+    return {
+        if (dockSettings.isBugReportConsentSuppressed) {
+            startBugReport()
+        } else {
+            consentVisible = true
+        }
+    }
+}
+
+@Composable
+private fun SettingsOverflowMenu(
+    onOpenLauncherAppInfo: () -> Unit,
+    onOpenLicenses: () -> Unit,
+    // The icon sits in Settings' bare (uncarded) header row, so over the
+    // wallpaper it needs the same wallpaper-hint contrast color as the title
+    // next to it; the theme color stands when the wallpaper is off.
+    iconTint: Color,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var aboutVisible by remember { mutableStateOf(false) }
+    val startBugReport = rememberBugReportTrigger()
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(SETTINGS_OVERFLOW_BUTTON_TAG),
+        ) {
+            Icon(
+                LauncherIcons.MoreVert,
+                contentDescription = stringResource(R.string.settings_overflow_button_description),
+                tint = iconTint,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.testTag(SETTINGS_OVERFLOW_MENU_TAG),
+        ) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_about_action)) },
+                modifier = Modifier.testTag(SETTINGS_ABOUT_ACTION_TAG),
+                onClick = {
+                    expanded = false
+                    aboutVisible = true
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_app_info_action)) },
+                modifier = Modifier.testTag(SETTINGS_APP_INFO_ACTION_TAG),
+                onClick = {
+                    expanded = false
+                    onOpenLauncherAppInfo()
+                },
+            )
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.settings_report_bug_action)) },
+                modifier = Modifier.testTag(SETTINGS_REPORT_BUG_ACTION_TAG),
+                onClick = {
+                    expanded = false
+                    startBugReport()
+                },
+            )
+        }
+    }
+    if (aboutVisible) {
+        AboutDialog(onDismiss = { aboutVisible = false }, onOpenLicenses = onOpenLicenses)
+    }
+}
+
+@Composable
+internal fun BugReportConsentDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (suppressFuture: Boolean) -> Unit,
+) {
+    var dontShowAgain by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(BUG_REPORT_CONSENT_DIALOG_TAG),
+        title = { Text(stringResource(R.string.bug_report_consent_dialog_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.bug_report_consent_dialog_body))
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { dontShowAgain = !dontShowAgain }
+                        .testTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_ROW_TAG),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = dontShowAgain,
+                        onCheckedChange = { dontShowAgain = it },
+                        modifier = Modifier.testTag(BUG_REPORT_CONSENT_DONT_SHOW_AGAIN_CHECKBOX_TAG),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.bug_report_consent_dialog_dont_show_again))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(dontShowAgain) },
+                modifier = Modifier.testTag(BUG_REPORT_CONSENT_CONFIRM_TAG),
+            ) {
+                Text(stringResource(R.string.bug_report_consent_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(BUG_REPORT_CONSENT_CANCEL_TAG),
+            ) {
+                Text(stringResource(R.string.bug_report_consent_dialog_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun HiddenAppsDialog(
+    hiddenApps: List<InstalledApp>,
+    onUnhideApp: (InstalledApp) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(SETTINGS_HIDDEN_APPS_DIALOG_TAG),
+        title = { Text(stringResource(R.string.settings_hidden_apps_dialog_title)) },
+        text = {
+            if (hiddenApps.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.settings_hidden_apps_dialog_empty),
+                    modifier = Modifier.testTag(SETTINGS_HIDDEN_APPS_EMPTY_TAG),
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .testTag(SETTINGS_HIDDEN_APPS_LIST_TAG),
+                ) {
+                    itemsIndexed(hiddenApps, key = { _, app -> app.id }) { _, app ->
+                        HiddenAppRow(app = app, onUnhideApp = onUnhideApp)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(SETTINGS_HIDDEN_APPS_DIALOG_DISMISS_TAG),
+            ) {
+                Text(stringResource(R.string.settings_hidden_apps_dialog_dismiss))
+            }
+        },
+    )
+}
+
+@Composable
+private fun HiddenAppRow(
+    app: InstalledApp,
+    onUnhideApp: (InstalledApp) -> Unit,
+) {
+    val unhideDescription = stringResource(R.string.settings_hidden_apps_unhide_description, app.displayName)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag("$SETTINGS_HIDDEN_APPS_ROW_TAG:${app.displayName}"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AppIcon(app = app, size = 32.dp)
+        Text(
+            text = app.displayName,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        IconButton(
+            onClick = { onUnhideApp(app) },
+            modifier = Modifier.testTag("$SETTINGS_HIDDEN_APPS_UNHIDE_TAG:${app.displayName}"),
+        ) {
+            Icon(
+                imageVector = LauncherIcons.Clear,
+                contentDescription = unhideDescription,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit, onOpenLicenses: () -> Unit) {
+    val context = LocalContext.current
+    val privacyPolicyUrl = stringResource(R.string.settings_about_privacy_policy_url)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(SETTINGS_ABOUT_DIALOG_TAG),
+        title = { Text(stringResource(R.string.settings_about_dialog_title)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(
+                        R.string.settings_about_version_value,
+                        BuildConfig.VERSION_NAME,
+                        BuildConfig.VERSION_CODE,
+                    ),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_about_privacy_policy),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .testTag(SETTINGS_ABOUT_PRIVACY_POLICY_TAG)
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(privacyPolicyUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try {
+                                context.startActivity(intent)
+                            } catch (exception: ActivityNotFoundException) {
+                                LauncherDebugLog.failure(
+                                    exception,
+                                    "privacy policy link: no activity for %s",
+                                    privacyPolicyUrl,
+                                )
+                            }
+                        },
+                )
+                // Opens a full page rather than nesting a second dialog: the
+                // list runs to well over a hundred rows.
+                //
+                // A bare `Text` is only clickable within its own glyph box —
+                // about 20dp for bodyMedium — so this is a full-width row with
+                // Android's 48dp minimum height, with the label centered in it.
+                // That min height also supplies the separation from the link
+                // above, which is why there is no `Spacer` here.
+                Text(
+                    text = stringResource(R.string.settings_about_licenses),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .testTag(SETTINGS_ABOUT_LICENSES_TAG)
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onOpenLicenses()
+                        }
+                        .heightIn(min = 48.dp)
+                        .wrapContentHeight(Alignment.CenterVertically),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag(SETTINGS_ABOUT_DIALOG_DISMISS_TAG),
+            ) {
+                Text(stringResource(R.string.settings_about_dialog_dismiss))
+            }
+        },
+    )
+}
+
+@Composable
+private fun SettingsPreview(
+    state: LauncherUiState,
+    dockIconSizeDp: Int,
+    dockIconCount: Int,
+    modifier: Modifier = Modifier,
+) {
+    val previewHeight = (dockIconSizeDp + SETTINGS_PREVIEW_CARD_CHROME_DP).dp
+    // The dock preview tracks the live `state.dockLayout`: `TitleBelow` adds a
+    // `labelSmall` strip beneath each icon, so a fixed `previewHeight` would
+    // clip the title in the preview the moment the user picks the option from
+    // the dropdown sitting just above. `SETTINGS_PREVIEW_CARD_CHROME_DP` is
+    // exactly `DOCK_ITEM_VERTICAL_PADDING_DP + SECTION_CARD_PADDING_DP * 2`,
+    // so adding the slot delta on top keeps the chrome math consistent.
+    val dockPreviewHeight = previewHeight +
+        (dockSlotHeightDp(dockIconSizeDp, state.dockLayout, LocalDensity.current.fontScale) -
+            (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP)).dp
+    // Total preview footprint is fixed at SETTINGS_PREVIEW_BAR_COUNT bars so the
+    // user can see the space reserved for secondary bars and the dock.
+    val totalPreviewHeight =
+        previewHeight * SETTINGS_PREVIEW_BAR_COUNT +
+            SETTINGS_PREVIEW_SPACING_DP.dp * (SETTINGS_PREVIEW_BAR_COUNT - 1)
+    val dockPreviewBudget = if (state.isDockEnabled) {
+        dockPreviewHeight + SETTINGS_PREVIEW_SPACING_DP.dp
+    } else {
+        0.dp
+    }
+    val appListHeight = totalPreviewHeight -
+        (previewHeight + SETTINGS_PREVIEW_SPACING_DP.dp) -
+        dockPreviewBudget
+    // The preview is visual-only on every interaction surface:
+    //   - clearAndSetSemantics on the wrapper strips the cards' descendant
+    //     semantics from the MERGED tree, so TalkBack, Switch Access,
+    //     keyboard / D-pad navigation, and tests calling performClick()
+    //     against the merged tree can't reach the descendants' click /
+    //     long-press / combinedClickable actions at all. This also blocks
+    //     long-press menus and the Edit-app dialog from being armed via
+    //     accessibility, which the no-op-callback approach alone could
+    //     not — the long-press handlers in AppsCard / DockedAppButton
+    //     set local state (menuExpanded, editDialogVisible) before any
+    //     callback fires, so blocking the callback isn't enough.
+    //   - The descendants still exist in the UNMERGED tree, which is what
+    //     the existing settings-preview screenshot tests rely on — they
+    //     query APPS_CARD_TAG, DOCK_CARD_TAG, DOCK_RECENTS_CARD_TAG,
+    //     DOCK_APP_ICON_TAG with useUnmergedTree = true. Future preview
+    //     tests must follow that same convention.
+    //   - Every card callback is also wired to a no-op as defense in
+    //     depth: a test that opts into the unmerged tree and calls
+    //     performClick() still hits a no-op rather than the live
+    //     launcher state.
+    //   - The transparent overlay sibling below claims the touch hit path
+    //     on top of the cards so their inner LazyColumns / clickables /
+    //     long-press handlers never see pointer events at all. The overlay
+    //     never consumes, which lets the settings page's outer
+    //     verticalScroll still drive vertical drags that start inside the
+    //     preview region.
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            // The tag is set inside clearAndSetSemantics (not via testTag before
+            // it) so it survives the wipe: tests locate the preview's footprint
+            // through it while the cards' descendant semantics stay stripped.
+            .clearAndSetSemantics { testTag = SETTINGS_PREVIEW_TAG },
+    ) {
+        // No overflow chevrons anywhere inside the preview: it renders the real
+        // cards, but nothing in it scrolls or responds, so a chevron there
+        // offers to page a list that will not move — and on the recents row it
+        // is the horizontal pair, on the app list and dock the vertical one.
+        CompositionLocalProvider(LocalScrollChevronsEnabled provides false) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
+        ) {
+            if (state.isWallpaperShown) {
+                // Mirror Home's empty-query state exactly: with "Show
+                // wallpaper" on, Home replaces the app list with a
+                // transparent wallpaper slot, so the preview does the same —
+                // the backdrop cutout behind this strip reveals the real
+                // wallpaper through this slot, which is both what Home
+                // actually looks like and what makes the wallpaper clearly
+                // visible in the preview. The cards below keep exactly the
+                // widths and sizes Home uses (no inset), so the dock preview
+                // is true to the real dock.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(appListHeight)
+                        .testTag(SETTINGS_PREVIEW_WALLPAPER_SLOT_TAG),
+                )
+            } else {
+                AppsCard(
+                    apps = state.filteredApps,
+                    dockLimit = Int.MAX_VALUE,
+                    layout = state.appListLayout,
+                    iconSizeDp = dockIconSizeDp,
+                    highlightFirst = state.query.isNotBlank(),
+                    reverseLayout = state.appListSortOrder.isReversed,
+                    scrollResetKey = state.query,
+                    modifier = Modifier.height(appListHeight),
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onSetAppIconOverride = {},
+                    onClearAppIconOverride = {},
+                    onSetAppBadge = { _, _ -> },
+                    onHideApp = {},
+                    onUninstallApp = {},
+                )
+            }
+            if (state.isDockEnabled) {
+                DockCard(
+                    dockedApps = state.dockedApps,
+                    dockPositions = state.dockPositions,
+                    dockFolders = state.dockFolders,
+                    dockIconSizeDp = dockIconSizeDp,
+                    dockIconCount = dockIconCount,
+                    dockLayout = state.dockLayout,
+                    modifier = Modifier.height(dockPreviewHeight),
+                    onLaunchApp = {},
+                    onOpenAppInfo = {},
+                    onToggleDock = { _, _ -> },
+                    onReorderDock = { _, _, _ -> },
+                    onResetRank = {},
+                    onRenameApp = { _, _ -> },
+                    onSetAppIconOverride = {},
+                    onClearAppIconOverride = {},
+                    onSetAppBadge = { _, _ -> },
+                    onHideApp = {},
+                    onUninstallApp = {},
+                )
+            }
+            // Mirror Home: recents is always a secondary bar, independent of the dock.
+            RecentsCard(
+                recentApps = state.recentApps,
+                isVisible = true,
+                dockIconSizeDp = dockIconSizeDp,
+                modifier = Modifier.height(previewHeight),
+                onLaunchApp = {},
+                onOpenAppInfo = {},
+                onToggleDock = { _, _ -> },
+                onDismissRecent = {},
+            )
+        }
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        do {
+                            val event = awaitPointerEvent()
+                        } while (event.changes.any { it.pressed })
+                    }
+                },
+        )
+    }
+}
+
+// Internal (not private) so the corner-badge font-scale regression test can
+// compose the icon directly under a fontScale-overridden Density.
+@Composable
+internal fun AppIcon(
+    app: InstalledApp,
+    size: androidx.compose.ui.unit.Dp,
+    testTag: String = APP_ICON_TAG,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+) {
+    val resolution = rememberAppIconResolution(app, size)
+    val bitmap = resolution.bitmap
+    val shape = LocalAppIconShape.current.toComposeShape()
+    Box(
+        modifier = Modifier
+            .size(size)
+            .testTag("$testTag:${app.displayName}"),
+    ) {
+        // Only the Surface clips to the icon shape, not the parent Box —
+        // otherwise the corner badge (aligned BottomStart, below) would be
+        // clipped by the shape and the flag/globe glyph cut off at the corner.
+        // While the icon load is still in flight the placeholder carries a
+        // test tag so screenshot tests can wait for every visible icon to
+        // settle before capturing; a load that resolved to "no icon" drops
+        // the tag (same placeholder pixels, but nothing left to wait for).
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (resolution.isResolved) Modifier else Modifier.testTag(APP_ICON_LOADING_TAG),
+                ),
+            shape = shape,
+            color = backgroundColor,
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            }
+        }
+        // The work-profile badge (briefcase) rides on top of the icon but
+        // OUTSIDE the shape clip, so the system-placed corner badge is never
+        // sliced off where the icon corner falls beyond a round/squircle clip.
+        // Drawn as its own full-size overlay rather than baked into the icon
+        // bitmap for exactly that reason.
+        rememberWorkBadgeOverlay(app, size)?.let { workBadge ->
+            Image(
+                bitmap = workBadge,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("$APP_ICON_WORK_BADGE_TAG:${app.displayName}"),
+                contentScale = ContentScale.Fit,
+            )
+        }
+        appCornerBadge(app)?.let { badge ->
+            val badgeDp = (size.value * APP_ICON_CORNER_BADGE_FRACTION).dp
+            // Convert through the density so the glyph stays locked to the
+            // dp-sized badge box. A bare `.sp` of the same number scales
+            // with the user's font-scale setting, so at accessibility font
+            // sizes the flag/emoji rendered up to 2x the unclipped box and
+            // spilled across the app icon.
+            val flagSp = with(LocalDensity.current) { (badgeDp - 2.dp).toSp() }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .size(badgeDp)
+                    .semantics { contentDescription = "${app.displayName} ${badge.contentDescription}" }
+                    .testTag("$APP_ICON_DISAMBIGUATOR_TAG:${app.displayName}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = badge.glyph,
+                    fontSize = flagSp,
+                    lineHeight = flagSp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+private data class DisambiguatorBadge(
+    val glyph: String,
+    val contentDescription: String,
+)
+
+// Picks the corner-badge glyph to render for [app]: a user-chosen
+// [InstalledApp.customBadge] always wins (so a flag the user picked from the
+// badge picker overrides whatever the auto-disambiguator computed), and the
+// fallback runs the existing `effectiveDisambiguator` -> `disambiguatorBadge`
+// pipeline so the auto-detected country / regional badges still render for
+// apps the user hasn't customised. Composable because the custom-badge
+// branch resolves a localized accessibility label per device locale.
+@Composable
+private fun appCornerBadge(app: InstalledApp): DisambiguatorBadge? {
+    app.customBadge?.takeIf { it.isNotEmpty() }?.let { glyph ->
+        return DisambiguatorBadge(glyph, customBadgeContentDescription(glyph))
+    }
+    return app.effectiveDisambiguator?.takeIf { it.isNotEmpty() }?.let(::disambiguatorBadge)
+}
+
+// Builds a TalkBack-friendly content description for a user-chosen custom
+// badge so the screen reader announces "Home"/"Work"/"World"/"United
+// States" alongside the app's display name, instead of the generic word
+// "badge". The auto-disambiguator path (effectiveDisambiguator ->
+// disambiguatorBadge) keeps its existing "flag"/"globe" text — auto-
+// detection's output is intentionally coarse (no country lookup at that
+// stage), and changing it would also rewrite the existing disambiguator
+// screenshot test's expectations.
+@Composable
+private fun customBadgeContentDescription(glyph: String): String {
+    BUILT_IN_BADGE_OPTIONS.firstOrNull { it.glyph == glyph }?.labelRes?.let { res ->
+        return stringResource(res)
+    }
+    if (glyph == WORLD_BADGE_OPTION.glyph) {
+        WORLD_BADGE_OPTION.labelRes?.let { res -> return stringResource(res) }
+    }
+    decodeRegionalIndicatorPair(glyph)?.let { code ->
+        val locale = LocalConfiguration.current.locales[0]
+        val countryName = java.util.Locale.Builder().setRegion(code).build().getDisplayCountry(locale)
+        if (countryName.isNotEmpty()) return countryName
+    }
+    // Fallback for an unrecognised glyph. The curated picker shipping
+    // today never reaches this branch; it exists so a future free-form
+    // entry path or a stale persisted value doesn't render an empty
+    // accessibility label.
+    return stringResource(R.string.edit_app_dialog_badge_label)
+}
+
+private fun disambiguatorBadge(label: String): DisambiguatorBadge? {
+    val normalized = label.trim().uppercase()
+    return when (normalized) {
+        "INTL" -> DisambiguatorBadge(INTL_GLOBE, "globe")
+        "UK" -> DisambiguatorBadge(countryFlag("GB"), "flag")
+        else -> normalized.takeIf { code ->
+            code.length == 2 && code.all { it in 'A'..'Z' }
+        }?.let { code -> DisambiguatorBadge(countryFlag(code), "flag") }
+    }
+}
+
+// The highlight palette must follow the launcher's selected theme, not the
+// device night mode: the Settings `Theme` override is applied purely by
+// TypeLauncherTheme's color-scheme choice (Configuration.uiMode is never
+// touched), so `isSystemInDarkTheme()` would paint the light-palette
+// highlight into a forced-dark app list and vice versa. Deriving dark-ness
+// from the active scheme's background tracks whatever theme is actually
+// rendered. Internal (not private) so the theme-mismatch regression test can
+// read the resolved colors.
+@Composable
+internal fun selectionHighlightColor(): Color =
+    if (isDarkColorScheme()) Color(0xFF274C7A) else Color(0xFFCFE2FF)
+
+@Composable
+internal fun selectionHighlightOnColor(): Color =
+    if (isDarkColorScheme()) Color(0xFFE6EEFA) else Color(0xFF0B2A5B)
+
+@Composable
+private fun isDarkColorScheme(): Boolean =
+    MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+private const val SETTINGS_PREVIEW_CARD_CHROME_DP = 40
+private const val SETTINGS_PREVIEW_BAR_COUNT = 3
+// The preview mirrors the home screen's stacked cards, so its bar-to-bar gap
+// tracks the same shared constant that drives every home card-to-card margin.
+private const val SETTINGS_PREVIEW_SPACING_DP = HOME_CARD_SPACING_DP
+
+// Play update badge dot — a "presence" dot (no count or number), matching
+// Android's standard notification dot, scaled down for the smaller
+// search-field gear icon.
+private const val PLAY_UPDATE_BADGE_SIZE_DP = 8

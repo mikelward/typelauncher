@@ -1,0 +1,1780 @@
+name: ci
+
+on:
+  # pull_request_target, not pull_request: this trigger loads the job
+  # DEFINITION from the base branch (main) regardless of what the pull
+  # request itself contains, so a PR touching this very file can no longer
+  # rewrite classify/build/connected-tests/finalize to forge a green
+  # required check — the exact self-modifying-workflow hole
+  # mikelward/lanes's design exists to close. No paths filter, deliberately:
+  # a required check that never reports blocks the PR forever, which is
+  # exactly what a path-filtered-out workflow produces. Housekeeping-only
+  # PRs skip the heavy jobs via `classify` instead.
+  #
+  # Every job below that reads PR content (classify, build,
+  # connected-tests, finalize) explicitly checks out the synthetic merge
+  # (refs/pull/<pr>/merge), never the default resolution — under this
+  # trigger the default is the BASE branch's tip, not the pull request's.
+  # And no job that executes PR-supplied code (build, connected-tests) may
+  # reference `secrets.*` anywhere: the fork-only secret withholding
+  # `pull_request` relies on does not apply here, so a same-repo-only
+  # assumption is not a safety net this design leans on.
+  #
+  # types: explicit, not the bare default (Codex review) -- the bare
+  # default is opened/synchronize/reopened only, and retargeting a PR's
+  # base fires `edited` instead (confirmed against the pull_request webhook
+  # payload schema: an edited event's `changes.base` records the previous
+  # ref/sha), which that default never listens for. `lanes` is a commit
+  # status on the unchanged head SHA, so without this a PR could be
+  # validated docs-only against a crafted base, retargeted to main where
+  # the real diff is not, and merge on a green status nothing ever
+  # re-derived against the base that now matters. `edited` also fires on a
+  # plain title/body edit -- a full re-verification then is unnecessary
+  # cost, not an unsound one, and correctness on the security-relevant path
+  # comes first; narrowing it to base-only edits is a possible follow-up,
+  # not a blocking one.
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches:
+      - main
+    # No paths filter. There was one here restating .github/lanes.conf by
+    # hand, and it disagreed with it in three places: it skipped
+    # `app/README.md`, which `code app/**` matches first and calls code, and
+    # it skipped `.gitignore` and `.claude/**`, which match no rule and are
+    # therefore code too. Nothing checked the two against each other.
+    # `push classify` in lanes.conf now decides that question from the policy
+    # itself, and every heavy job plus `deploy` is already gated on
+    # `docs_only`, so a docs-only push starts a run and skips inside it
+    # rather than never starting one.
+    #
+    # The engine refuses the range rather than guessing whenever it cannot
+    # prove the push added it: a force-push, a first push, a branch deletion
+    # (where the payload's `after` is all zeros but GITHUB_SHA is main's
+    # tip), a comparison that is not `ahead`, or a file list at the API's
+    # 300-file page cap. Every refusal takes the code lane.
+  # Manual override for the `deploy` job: lets a maintainer force an
+  # internal-track release from the GitHub web UI (works from a phone
+  # browser — no local build tooling needed) when `main`'s tip is stuck
+  # behind the "no release-worthy commits" skip (see "Build release
+  # notes" in the `deploy` job) but a tester needs the current tip on
+  # their device anyway — e.g. to read diagnostic logging that hasn't
+  # shipped because every commit since the last release was `internal:`
+  # (or `ci:` / `docs:` / `refactor:` / `test:` / `tests:`) prefixed. Also
+  # the escape hatch for a PR-bound dispatch: `dispatch-without-pr
+  # allow-on-default-branch` in `.github/lanes.conf` allows a PR-less
+  # dispatch only here, verified live against the repository's own default
+  # branch, never against anything a dispatched branch's own content could
+  # claim.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: >-
+          Pull request number this run reports for. Leave empty only for a
+          deploy-force on main — a PR-bound dispatch cannot safely validate
+          a same-repository PR (dispatching against the PR's own branch
+          runs that branch's own, possibly-tampered workflow copy;
+          dispatching against a trusted ref instead can never bind back to
+          the PR's head). `sync-screenshots` below no longer uses this path
+          — it pushes with a token that starts a fresh pull_request_target
+          run on its own instead.
+        required: false
+
+# Cancels a superseded run before its terminal write can land after a newer
+# run's and stand as the latest verdict for a commit nobody re-validated —
+# the retarget/title-edit race mikelward/lanes's design flags as needing a
+# concurrency group. Not for a run that can reach `deploy`: canceling one
+# mid-flight could interrupt a Play upload, a worse outcome than
+# the staleness this guards.
+#
+# Every run that can reach `deploy` shares ONE non-cancelling group,
+# `main-deploy` — not just `push`, and not each other's own ref (Codex
+# review, twice over). First pass gave `push` its own group so a PR-less
+# "deploy-force" dispatch against main (documented above as a supported,
+# ordinary maintainer action) couldn't cancel an in-progress push deploy —
+# true, but it also put the two in DIFFERENT groups, so nothing serializes
+# them against EACH OTHER any more: both could now run `deploy` at once,
+# and an older push's Play upload landing after a newer dispatch's would
+# get rejected (Play requires each upload to raise the versionCode) or the
+# reverse. `workflow_dispatch` only reaches `deploy` when dispatched
+# against main itself (deploy's own `if:` requires github.ref ==
+# 'refs/heads/main'), which is also the one shape `dispatch-without-pr
+# allow-on-default-branch` in .github/lanes.conf treats as a real
+# deploy-force regardless of any `inputs.pr` a caller sets alongside it
+# (mikelward/lanes's own dispatch-binding check refuses a PR-bound
+# verification against a trusted ref either way) — so grouping every
+# workflow_dispatch against main with every push introduces no new
+# behavior for a case that was already non-functional as PR validation.
+# Everything else (a PR's own pull_request_target runs, a PR-bound
+# dispatch against its own branch) keeps the per-PR cancelable group.
+concurrency:
+  # A concurrency group is a runtime key, not a name, so renaming the prefix
+  # is only safe while NO run of the old `android-ci-` identity is still in
+  # flight — PR runs included, not just main deploys. Two ways it bites:
+  #
+  #   - main: `cancel-in-progress` is false there, so an old-key deploy and
+  #     a new-key one sit in different groups, neither yields, and both
+  #     upload.
+  #   - a PR: `edited` is in this workflow's `types:` and an edit leaves the
+  #     head SHA unchanged, so an old-key run and the new-key run it should
+  #     have cancelled both survive. `finalize` is `if: !cancelled()`, so
+  #     the older one still publishes — and if it lands last it overwrites
+  #     the newer `lanes` verdict on a required check.
+  #
+  # Merging with nothing in flight at all is what makes this safe; the diff
+  # cannot enforce it. See the PR. Raised by Codex on #651.
+  #
+  # SPLIT, not moved (clothescast #1172's shape). `main` runs used to share
+  # one `main-deploy` group here, which serialized them — and because a group
+  # holds only ONE pending run, a third arrival evicted the second, losing its
+  # TESTS as well as its release. Classifying a push made that load-bearing
+  # rather than merely wasteful: a docs-only push now starts a run where it
+  # previously started none, so it can evict a pending code run and then skip
+  # every heavy job, since its range is only its own commits. The evicted
+  # push's code then sits on `main` with no main-lane build at all. An evicted
+  # CODE run was self-healing — the run that evicted it builds `main`'s tip,
+  # which contains the evicted commits — and a docs one is not.
+  #
+  # So `main` now keys per commit SHA: no two `main` runs share a group, none
+  # evicts another, and every push gets its own build. Serialization moves to
+  # where it is actually needed — `deploy`'s own group, below — because the
+  # only thing that must not overlap is a Play upload.
+  #
+  # The per-PR half stays exactly as it was, and must: `edited` is in this
+  # workflow's `types:` and an edit leaves the head SHA unchanged, so without
+  # cancellation an older run survives alongside the newer one — and
+  # `finalize` is `if: !cancelled()`, so the older one still publishes. This
+  # repo publishes its `lanes` verdict from an App, so a stale verdict landing
+  # last would overwrite the newer one on a required check.
+  group: ci-${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && format('main-{0}', github.sha) || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
+
+# Explicitly empty, not omitted — each job below declares the least-privilege
+# scope it needs; a workflow-level `pull-requests: write` would also leak
+# into the screenshot job and the deploy job, neither of which posts back to
+# the PR. The empty block still matters: it's what a future job that forgets
+# its own block falls back to, instead of the repository's default
+# GITHUB_TOKEN permission.
+permissions: {}
+
+jobs:
+  # First in the graph, no `needs:` — posts a `pending` `lanes` status via a
+  # dedicated App before anything else runs, so the status exists (and is
+  # attributed to the right commit) for the whole run's duration rather than
+  # only appearing once `finalize` completes. `lanes` is the ruleset's one
+  # required check now that `gate`/scripts/docs-lane.sh are retired — see
+  # the "Renaming an existing consumer's check" section of
+  # mikelward/lanes's README for the sequencing that got here. Errors here
+  # (a revoked App, a missing secret) fail this job's own Actions check-run
+  # AND leave the PR's head with no fresh `lanes` status, which blocks the
+  # merge rather than waving it through — the safe direction for a
+  # credential failure on the one thing standing between a PR and `main`.
+  #
+  # No `statuses: write` here even though the job posts a commit status: the
+  # write goes out on the App's own installation token (minted from
+  # app-id/app-private-key), never on this job's ambient GITHUB_TOKEN, so the
+  # permission would be dead weight -- and this repository's
+  # codex-review-check refuses any *other* workflow declaring it, since a
+  # second writer racing the codex-review sweep's own status writes is
+  # exactly the hazard that check exists to catch. This job's writes go to
+  # a different context (`lanes`, not `codex`) over a different credential,
+  # so nothing here can race that sweep either way.
+  init:
+    name: Initialize lanes status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: lanes
+    permissions: {}
+    steps:
+      - uses: mikelward/lanes@main
+        with:
+          mode: init
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
+
+  # Decides whether the heavy jobs may skip: true only when every changed
+  # file in the diff is housekeeping under .github/lanes.conf. Pushes to
+  # main and PR-less deploy-force dispatches are always classified as code,
+  # so they run everything; a dispatch that names a PR classifies that PR's
+  # real diff, exactly as the PR run would. mikelward/lanes now the sole
+  # authority: `gate`/scripts/docs-lane.sh are retired (this stage's PR
+  # removed both), so nothing independently re-derives this classification
+  # any more — a translation bug in .github/lanes.conf is no longer
+  # safety-netted the way it was during the shadow period.
+  classify:
+    name: Classify the diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # `statuses: read` and the App credential are for the generated lane: a
+    # screenshot-refresh push carries the previous head's `lanes` status
+    # forward, and the engine reads that status back and accepts it only
+    # when the App itself posted it -- so this job needs the credential to
+    # know the App's login, and the environment that holds it (see
+    # .github/lanes.conf's `generated` rule and mikelward/lanes's README,
+    # "Carrying a verdict across generated files"). The engine is still the
+    # only thing this job runs; the checkout is data it reads.
+    environment: lanes
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      # True when the run's event pushed only re-recorded screenshots onto a
+      # head the `lanes` status already vouched for -- the sync-screenshots
+      # commit below -- so the heavy jobs skip instead of redoing, on a head
+      # that differs only by their own output, everything they just did.
+      generated_only: ${{ steps.classify.outputs.generated_only }}
+      # Feeds `finalize`'s dispatch-binding check below — a PR-bound
+      # dispatch's gate needs the base as it stood before the heavy jobs
+      # ran, and this is the only place that moment is ever observed.
+      base_sha: ${{ steps.classify.outputs.base_sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          # The synthetic merge, not the default pull_request_target
+          # resolution (the base branch's tip) and not the head alone:
+          # .github/lanes.conf is read from this checkout, while the diff
+          # itself is computed against the base independently via the API,
+          # and only the merge snapshot keeps the two from disagreeing
+          # about what "the base" is. Also what a normal PR run already
+          # tests against, and empty for push / a PR-less dispatch, where
+          # the default resolution (the pushed or dispatched commit) is
+          # already correct.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
+          persist-credentials: false
+      # Piloting mikelward/lanes#28 (the generated lane) from its branch,
+      # here and in `init` and `finalize` so all three run one revision;
+      # back to @main once it merges. This repo is the pilot because its
+      # CI is free and it has the screenshot-refresh push the lane is for.
+      - name: Classify
+        id: classify
+        uses: mikelward/lanes@main
+        with:
+          mode: classify
+          pr: ${{ github.event.pull_request.number || inputs.pr }}
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
+
+  build:
+    name: Build and unit test
+    runs-on: ubuntu-latest
+    needs: classify
+    if: needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.generated_only != 'true'
+    # Without this the job inherits GitHub's 6-hour default, so a unit test
+    # that deadlocks (a latch that never releases, an await with no timeout)
+    # burns hours before the runner is reclaimed instead of failing fast. The
+    # full build + test + lint finishes well under this cap; the screenshot
+    # job below already sets the same limit.
+    timeout-minutes: 30
+    env:
+      # Secret *presence* flags, evaluated at job level. A step's `if:`
+      # cannot read a variable defined in that same step's `env:` block, so
+      # a gate like `if: env.GOOGLE_SERVICES_JSON != ''` that declared the
+      # secret in the same step always saw an empty string and skipped even
+      # when the secret was configured. Job-level env IS visible to a step's
+      # `if:`, and exposing only a boolean keeps the secret value scoped to
+      # the step that actually uses it instead of widening it to every step.
+      #
+      # `github.event_name == 'push' &&` is load-bearing, not redundant with
+      # the secret-presence check: this job builds and tests the PR's own
+      # code on every run, and `github.event_name` is the one condition
+      # nothing in that code can influence. Neither secret is needed for a
+      # PR's own validation -- they exist so a build a TESTER installs
+      # (main-branch pushes, the only source `deploy` promotes from) shares
+      # a signing identity with earlier ones and ships telemetry. Short-circuit
+      # evaluation means the right-hand secrets.* comparison never runs at all
+      # when the event isn't push, so the boolean is the only thing that ever
+      # reaches this job either way -- the step below that would materialize
+      # the real value stays additionally gated on it. This used to be a
+      # defensive margin ("this repo takes no fork PRs now, but nothing here
+      # should depend on that staying true"); under pull_request_target it is
+      # the ONLY thing standing between any pull request -- fork or same-repo
+      # -- and these secrets, since that trigger hands every job the full
+      # `secrets` context regardless of fork status, unlike plain
+      # `pull_request`'s fork withholding.
+      HAS_GOOGLE_SERVICES: ${{ github.event_name == 'push' && secrets.GOOGLE_SERVICES_JSON != '' }}
+    # contents: read only — this job checks out and executes the PR's own
+    # Gradle code (assembleRelease, test, lint all run PR-controlled build
+    # scripts and plugins). A `pull-requests: write` token in this job would
+    # be reachable by that code even with persist-credentials: false below:
+    # an earlier step can poison $GITHUB_PATH/$GITHUB_ENV for the later
+    # "Print failing test details" step to pick up, the same class of gap
+    # already closed for connected-tests by splitting off sync-screenshots.
+    # The PR-comment write moves to report-build-failure, a job that runs no
+    # PR-controlled code at all.
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # The synthetic merge, not the default pull_request_target
+          # resolution — under that trigger the default is the BASE
+          # branch's tip, not the pull request's, which would build and
+          # test the wrong tree entirely. A PR-bound dispatch builds the
+          # same merge ref, for the same reason (a dispatch could
+          # otherwise green the check without compiling the PR-merged
+          # tree); a PR-less (deploy-force) dispatch and a push keep the
+          # default resolution, which is already correct for both.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
+          # This job's own token has no pull-requests: write to leak, but
+          # the checkout itself still runs before any PR-controlled code —
+          # no reason to leave any token on disk longer than nothing needs.
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+        with:
+          # Every PR now runs under pull_request_target, which protects the
+          # job DEFINITION but not the cache: PR-controlled Gradle code
+          # still executes here and could try to write a poisoned cache
+          # entry that a later main-branch run (holding real secrets) might
+          # restore and execute. cache-read-only unconditionally forbids any
+          # write outside a push, independent of whatever branch-scoping
+          # GitHub's own cache restore/save rules would otherwise allow —
+          # the read-only flag is what actually closes this, not the
+          # trigger.
+          cache-read-only: ${{ github.event_name != 'push' }}
+
+      - name: Materialize google-services.json
+        # Drops the Firebase project config into app/google-services.json so
+        # the google-services + crashlytics gradle plugins activate (see
+        # app/build.gradle.kts). Nothing installs this job's APK, so the point
+        # is the plugin path itself: a stale or malformed config fails here on
+        # the push that introduced it rather than in `deploy`, where it would
+        # block the release. Skipped on forks / PRs without the secret — the
+        # build still finishes, just without telemetry.
+        if: env.HAS_GOOGLE_SERVICES == 'true'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
+
+      # No assembleDebug step, deliberately. Nothing distributes a debug APK, and
+      # everything that step verified is already covered: `Run unit tests` below
+      # pulls in compileDebugKotlin, mergeDebugResources and processDebugManifest,
+      # so a debug compile break or a broken manifest placeholder still fails
+      # here. Debug runs no R8 at all now (see the debug build type in
+      # app/build.gradle.kts), so there is no debug-only shrinker configuration
+      # left for an assembleDebug step to exercise either. All it uniquely did
+      # was dex and package an APK nobody installs.
+
+      - name: Test the release-publishing script
+        # The only coverage `scripts/publish-github-release.sh` can get:
+        # `deploy` is main-only, by `if:` and by `environment: production`, so
+        # the step that calls it never runs on a pull request and a regression
+        # there would first surface after reaching `main`. Drives the real
+        # script against a stubbed `gh` and a throwaway git repository, pinning
+        # each recovery branch and — the load-bearing part — that every path
+        # which uploads uploads before it publishes, so a release never
+        # becomes visible without its bundle.
+        #
+        # Ahead of the Gradle work because it takes about a second and needs
+        # nothing but the checkout.
+        run: python3 scripts/publish_github_release_test.py
+
+      - name: Build release APK (runs the full R8 pipeline)
+        # The only step in this lane that exercises R8 shrinking, optimization
+        # and obfuscation together -- which is what the Play build ships.
+        # Without it, a release-only R8 failure (a keep rule that misses a
+        # reflective lookup, an optimizer crash) passes every required check and
+        # surfaces after merge, when the deploy job's bundleRelease is the first
+        # thing to run it.
+        #
+        # Pull requests only. On main `deploy` runs bundleRelease, which
+        # --dry-run confirms pulls in minifyReleaseWithR8 and lintVitalRelease
+        # itself, so running both meant R8 ran twice per push -- and unlike a
+        # parallel job this one is in series with the tests, so its ~2m50s sat
+        # squarely on the critical path into deploy. The Gradle build cache does
+        # not save it: gradle/actions/setup-gradle keys its cache per job, so
+        # deploy restores its own entry from the PREVIOUS run and never sees
+        # what this job just built.
+        #
+        # bundleRelease does NOT pull in optimizeReleaseResources or
+        # convertShrunkResourcesToBinaryRelease -- that is the APK resource
+        # path, and the AAB shrinks resources its own way. So main does leave
+        # those unrun. Deliberate: they are not what ships on main, and the pull
+        # request for the same commit already ran them.
+        #
+        # The condition is `deploy`'s `if:` verbatim. If that changes, change
+        # this with it, or the release check silently stops running somewhere.
+        #
+        # Unsigned here: the release signingConfig attaches only when all four
+        # RELEASE_KEYSTORE_* variables are set, which the deploy job does and
+        # this job does not. That also means no Crashlytics mapping upload from
+        # this job, and on a PR no Crashlytics at all -- google-services.json is
+        # materialized on `push` only, so the plugin never applies here.
+        # Build-time only; runtime reflection still needs a device check.
+        #
+        # Skipped on main only where `deploy` is guaranteed to build a release
+        # variant in this run's place. On this repo that guarantee comes from
+        # deploy's "Require a release keystore" step: with the secret present it
+        # builds the AAB, and without it the run fails outright, so a green main
+        # push always ran R8 somewhere.
+        #
+        # Forks get no such guarantee -- they are exempt from that step and
+        # deploy's build steps skip on their own conditions -- so they keep
+        # building the release APK here, and their unsigned no-keystore state
+        # stays covered exactly as before.
+        #
+        # Fork status rather than the keystore secret, deliberately: this job
+        # declares no `environment`, so whether it can see that secret at all
+        # depends on where the secret is scoped -- a repository secret is
+        # visible here, an environment one is not. Gating on it would then work
+        # or silently stop working depending on that scope, skipping nothing and
+        # quietly keeping the duplicate R8 build this change exists to remove.
+        # Fork status comes from the `github` context and holds either way.
+        if: |
+          !(github.ref == 'refs/heads/main' &&
+            (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+            github.event.repository.fork != true)
+        run: ./gradlew assembleRelease
+
+      - name: Check licenses export is up to date
+        # The open-source attribution list is committed to res/raw (AGP 9 can't
+        # auto-generate it into the app -- see app/build.gradle.kts). Regenerate
+        # and fail on drift so a dependency bump can't ship a stale or
+        # inaccurate Licenses page while CI stays green.
+        run: |
+          ./gradlew :app:exportBundledLicenses --rerun
+          git diff --exit-code app/src/main/res/raw/aboutlibraries.json
+
+      - name: Run unit tests
+        run: ./gradlew test
+
+      - name: Print failing test details
+        # When `gradlew test` fails the JUnit XML still contains the failure
+        # messages and stack traces. Dump them to the job log so they're
+        # visible without unzipping the artifact — no credential involved,
+        # so this can stay in the job that runs the PR's own Gradle code.
+        # The PR-comment version of this (needing pull-requests: write)
+        # moved to report-build-failure below, which runs no PR-controlled
+        # code and reads the uploaded artifact instead of the live tree.
+        if: failure()
+        run: |
+          shopt -s nullglob globstar
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Upload unit test reports
+        # Always upload so a failed test run leaves the JUnit XMLs and HTML
+        # reports for inspection. Without this, diagnosing a CI-only test
+        # failure means re-running locally — and "fix it blindly" loops
+        # waste an iteration each time.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: unit-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Run lint
+        run: ./gradlew lint
+
+  # Holds the PR-comment write token `build` used to have; runs no
+  # PR-controlled code at all — only `gh api`, over an artifact `build`
+  # already produced. See the read-only comment on `build`'s own
+  # `permissions:` above for why that token can't live in the same job as
+  # the Gradle execution it would otherwise sit beside.
+  report-build-failure:
+    name: Report build failure
+    runs-on: ubuntu-latest
+    needs: build
+    # !cancelled() is load-bearing, not decoration (Codex review): GitHub
+    # implicitly ANDs a bare `success()` onto a job's `if:` unless the
+    # expression itself calls one of success()/failure()/cancelled()/
+    # always() -- a plain `needs.build.result == 'failure'` comparison
+    # doesn't count as calling one (GitHub's own docs: "you must still
+    # include failure() to override the default status check of success()
+    # that is automatically applied to if conditions that don't contain a
+    # status check function"), so without this the implicit check already
+    # evaluates false the moment `build` fails and the job never runs at
+    # all -- the exact opposite of its purpose. `!cancelled()`, not
+    # `always()`, for the same reason `finalize` below uses it: `always()`
+    # also starts a brand-new job during a user-cancelled run, which
+    # GitHub's own docs warn can hang a job that touches sources until it
+    # times out; `!cancelled()` skips that case while still covering
+    # `build` genuinely failing on its own (a single job failing is not
+    # the same event as the run being cancelled).
+    if: ${{ !cancelled() && needs.build.result == 'failure' }}
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download unit test reports
+        id: download
+        # A compile/lint failure in `build` never reaches `./gradlew test`,
+        # so there may be no JUnit XML to upload at all -- `upload-artifact`
+        # already tolerates that (if-no-files-found: ignore) by never
+        # creating the artifact, and `download-artifact` has no matching
+        # tolerate-missing input, so it fails outright here instead.
+        # continue-on-error, plus the next step's `if:`, is what makes a
+        # missing artifact a no-op rather than failing this job pointlessly
+        # for every non-test build failure.
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: unit-test-reports
+          path: test-results/
+
+      - name: Post failing test comment
+        if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+        run: |
+          shopt -s nullglob globstar
+          summary=""
+          for xml in test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              summary+=$'\n\n'"### \`$xml\`"$'\n```xml\n'"$(cat "$xml")"$'\n```'
+            fi
+          done
+          if [ -n "$PR_NUMBER" ] && [ -n "$summary" ]; then
+            body=$'<!-- ci-failure -->'$'\n'"**build failed.** Failing test reports:"$'\n'"$summary"
+            # GitHub rejects comments over 65536 characters, and a wide failure
+            # can produce more XML than that. Trim to fit rather than losing the
+            # whole comment; the artifact still has everything.
+            if [ "${#body}" -gt 60000 ]; then
+              body="${body:0:60000}"$'\n```\n\n_Truncated — the full reports are in the `unit-test-reports` artifact._'
+            fi
+            # `gh api`, not `curl`: it exits non-zero on a 4xx/5xx and prints
+            # the response itself, where a bare `curl -sS` exits 0 and the
+            # comment silently never appears. That matters more here than
+            # usual, because AGENTS.md reads "no PR comment" as evidence the
+            # failure happened *before* the tests ran — so a dropped comment
+            # doesn't just lose data, it points the next reader at the wrong
+            # stage.
+            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$body" > /dev/null; then
+              echo "::warning::Could not post the failing-test comment; the reports are in build's job log and in the unit-test-reports artifact."
+            fi
+          fi
+
+  connected-tests:
+    name: Keyboard screenshot unit tests
+    runs-on: ubuntu-latest
+    needs: classify
+    if: needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.generated_only != 'true'
+    timeout-minutes: 30
+    # Read-only, deliberately: this job executes the PR's own Gradle build
+    # and test code end to end, and under pull_request_target that code
+    # gets the full `secrets` context regardless of fork status. No secret,
+    # no write scope, and no push credential belongs anywhere in a job that
+    # runs PR-supplied code — see `sync-screenshots` below, which holds the
+    # write token instead and runs no PR code at all. A step-scoped `env:`
+    # in the *same* job was the old mitigation (the write token was never
+    # exposed until every suite had already passed) but that only closes
+    # off one channel: a step *earlier* in this same job, running arbitrary
+    # PR-controlled Gradle/plugin code, can still write to $GITHUB_PATH or
+    # $GITHUB_ENV and have a *later* step in the same job execute or read
+    # through the planted value — the runner's environment is shared across
+    # steps within one job, poisoned or not. Only a genuinely separate job,
+    # on its own fresh runner, closes that.
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # A same-repo PR checks out the head *branch* (not the merge
+          # ref) so the recorded PNGs reflect the PR's own UI, not a
+          # preview of merging with main's latest — a merge-ref recording
+          # would bake main's unmerged UI into images `sync-screenshots`
+          # below might commit back to this branch. Merge-interaction
+          # breakage is still caught on the merge ref: the build job's
+          # `gradlew test` runs these same *ScreenshotTest classes'
+          # assertions there (capture is gated on -Proborazzi.test.record,
+          # the tests themselves are ordinary unit tests). A non-same-repo
+          # PR (fork) falls back to the merge snapshot instead of the
+          # (now wrong, under pull_request_target) default resolution, so
+          # its own code is still what gets rendered and tested here —
+          # this repo takes none today, but nothing here should depend on
+          # that staying true. Read-only regardless of which branch this
+          # resolves to: this job holds no write credential at all.
+          ref: ${{ (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref) || (github.event.pull_request.number && format('refs/pull/{0}/merge', github.event.pull_request.number)) || '' }}
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+        with:
+          cache-read-only: ${{ github.event_name != 'push' }}
+
+      - name: Clear committed snapshots before recording
+        # Recording only overwrites files the suites still produce: a PNG
+        # whose test was removed or renamed would survive checkout untouched,
+        # read as "in sync" to the drift check in "Commit refreshed
+        # screenshots", and stay committed (and re-published in the artifact)
+        # forever. Start from an empty directory so the refresh commit also
+        # stages deletions for anything no longer recorded. Side effect, by
+        # design: a screenshot class missing from the --tests allow-list
+        # below records nothing, so its committed PNGs show up as deletions
+        # in the refresh commit — a loud PR diff instead of the silent
+        # staleness CLAUDE.md's testing expectations warn about.
+        run: |
+          rm -rf app/src/test/snapshots/images
+          mkdir -p app/src/test/snapshots/images
+
+      - name: Run Robolectric keyboard screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.MainActivityRobolectricScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run launcher icon snapshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.LauncherIconScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run app-icon disambiguator screenshot tests
+        # Renders the regional-disambiguator badge ("US"/"UK"/"INTL") on
+        # representative app icons so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the badge.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconDisambiguatorScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run edit-app dialog screenshot tests
+        # Renders EditAppDialogContent in the no-override and
+        # with-override states so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the rename dialog.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.EditAppDialogScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run badge picker dialog screenshot tests
+        # Renders BadgePickerDialogContent so the PR `roborazzi-screenshots`
+        # artifact captures visual changes to the badge tiles (e.g. their
+        # corner radius).
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.BadgePickerDialogScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run search suggestion screenshot tests
+        # Renders SearchSuggestionOverlay so the PR `roborazzi-screenshots`
+        # artifact captures the inline in-field autocomplete suggestion's styling
+        # (bolded prefix, faint package-only match, end-ellipsis truncation).
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SearchSuggestionScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run icon normalization screenshot tests
+        # Renders the normalized full-bleed app-icon tiles (adaptive, colored
+        # shape with padding, sparse logo, plain colored) so the PR
+        # `roborazzi-screenshots` artifact captures the tile treatment.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconNormalizationScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run icon shape screenshot tests
+        # Renders the selectable icon shapes (system / circle / squircle) so the
+        # PR `roborazzi-screenshots` artifact captures the shape options.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconShapeScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run work-badge screenshot tests
+        # Renders a work-profile app icon so the PR `roborazzi-screenshots`
+        # artifact shows the system briefcase badge riding outside the
+        # circular icon clip instead of being sliced off at the corner.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppIconWorkBadgeScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run icon-only grid order screenshot tests
+        # Renders the icon-only app grid in forward and reversed sort so the
+        # PR `roborazzi-screenshots` artifact shows the highest-rank tile in
+        # the bottom-left (reversed) / top-left (forward) corner, matching the
+        # dock's bottom-left icon when the dock is hidden.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.IconOnlyGridOrderScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run name-below grid screenshot tests
+        # Renders the "Name below" app-list layout (icon grid with each app's
+        # name centered beneath its icon) so the PR `roborazzi-screenshots`
+        # artifact shows the labeled tiles, including a long name truncating to
+        # two lines.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.NameBelowGridScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run wallpaper-on-all-screens screenshot tests
+        # Renders the Widgets and Agenda pages with the wallpaper backdrop
+        # active (transparent page background over a bright gradient standing
+        # in for the wallpaper) so the PR `roborazzi-screenshots` artifact
+        # shows the all-pages treatment "Show wallpaper" now implies, plus the
+        # settings card's wallpaper pair (the switch and the "Change" hand-off
+        # to the system picker) in light and dark.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.WallpaperAllPagesScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run dock folder screenshot tests
+        # Renders the dock folder mini-icon (2x2 corners) and the open folder
+        # grid so the PR `roborazzi-screenshots` artifact shows the folder UI.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run dock folder in-place screenshot tests
+        # Renders the open folder occupying the dock's footprint — the
+        # fewer-than-slots (fits, no reflow) and more-than-slots (scrolls) cases.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.DockFolderInPlaceScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run app list pick-up screenshot tests
+        # Renders an app being dragged out of the list: its tile hides its icon
+        # (picked up into the floating drag overlay) while keeping its layout
+        # slot, so the PR `roborazzi-screenshots` artifact shows the empty gap.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.AppListPickUpScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run search dock reveal screenshot tests
+        # Renders the search-time dock reveal mid-drag: query active, a list
+        # app picked up, and the dock floated in at the bottom as the drop
+        # target while the list above holds its geometry.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SearchDockRevealScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run content search sections screenshot tests
+        # Renders the typed-search contacts / calendar-events sections appended
+        # below the app results (and above them under a reversed sort) so the
+        # PR `roborazzi-screenshots` artifact shows the divider, monogram
+        # contact rows, and time+title event rows.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContentSearchScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run contact quick-actions sheet screenshot tests
+        # Renders the compact contact quick-actions sheet — the channel list
+        # (Phone, Message, installed-app actions, Email, Open contact) and the
+        # number picker after drilling into a multi-number channel — so the PR
+        # `roborazzi-screenshots` artifact shows both steps.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.ContactActionsSheetScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run crash banner screenshot tests
+        # Renders the post-crash card (the prompt that offers to send a bug
+        # report after a crash) in isolation, in light and dark, and again in
+        # place at the top of Settings, so the PR `roborazzi-screenshots`
+        # artifact shows the error-container treatment, the [Dismiss] [Share]
+        # actions, and the Settings placement's spacing.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.CrashBannerScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run Home gear badge screenshot tests
+        # Renders HomeScreen directly with no/Play-update/crash pending, so the
+        # PR `roborazzi-screenshots` artifact shows the gear's single badge
+        # slot: nothing, the Play-update dot, and the crash warning triangle
+        # (which takes the slot over the dot when both are pending).
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.HomeGearBadgeScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run settings scroll chevron screenshot tests
+        # Renders Settings at the top of its scroll (bottom chevron showing that
+        # more of the page follows) and at the end (only the top chevron left),
+        # so the PR `roborazzi-screenshots` artifact shows the affordance
+        # appearing and retiring.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.SettingsScrollChevronScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run licenses screenshot tests
+        # Renders the Settings -> About -> Licenses page from the committed
+        # res/raw/aboutlibraries.json, so the PR `roborazzi-screenshots`
+        # artifact shows the name-only list — and moves whenever the bundled
+        # dependency set does.
+        run: ./gradlew :app:testDebugUnitTest --tests "app.typelauncher.LicensesScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Print failing test details
+        if: failure()
+        run: |
+          shopt -s nullglob globstar
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Upload Roborazzi screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: roborazzi-screenshots
+          path: app/src/test/snapshots/images/
+
+      - name: Upload screenshot test reports
+        # JUnit XMLs and HTML reports for the screenshot suite — uploaded
+        # even on failure so a CI-only crash leaves diagnostic output
+        # behind. Pairs with the same step in the build job.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: screenshot-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # The heavy jobs' verdict on THIS head, published as `lanes-attest` before
+  # sync-screenshots pushes anything -- and the whole reason it exists. The
+  # push that job makes starts the next run, whose `classify` carries this
+  # head's verdict onto the refreshed head only if it is already published,
+  # and that run cancels this one (per-PR `cancel-in-progress`), so a
+  # verdict queued behind the push never lands. `finalize` -- the required
+  # `lanes` -- still waits for the push, on purpose: a green required check
+  # ahead of the push lets a merge land between the two with the refreshed
+  # PNGs never committed (Codex on #720, both halves). Same inputs as
+  # `finalize` minus sync-screenshots' result, which does not exist yet.
+  attest:
+    name: Attest the heavy jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [init, classify, build, connected-tests]
+    if: ${{ !cancelled() }}
+    environment: lanes
+    permissions:
+      pull-requests: read
+      contents: read
+      statuses: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          # The synthetic merge, as `classify` and `finalize` check out.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
+          persist-credentials: false
+      - name: attest
+        uses: mikelward/lanes@main
+        with:
+          mode: attest
+          pr: ${{ github.event.pull_request.number || inputs.pr }}
+          classify-result: ${{ needs.classify.result }}
+          results: >-
+            build=${{ needs.build.result }}
+            connected-tests=${{ needs.connected-tests.result }}
+          base-sha: ${{ needs.classify.outputs.base_sha }}
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
+
+  # Pushes any drift in `connected-tests`' regenerated screenshots back to a
+  # same-repo PR branch. Delegated to mikelward/ci-commit-artifact's reusable
+  # workflow rather than an inline job here (TODO.md tracked this as blocked
+  # until that workflow grew graceful handling for branch-ref vanishing
+  # mid-run — merged/closed while this job was still going — which its own
+  # `checkout-guard` step now does, the same shape this job's own inline
+  # version used to carry). A reusable-workflow job can only ever be a bare
+  # `uses:` — it can't mix in extra steps of its own — so the visual
+  # before/after PR comment moved to its own downstream job below rather
+  # than staying inline here.
+  #
+  # The @main reference is deliberate, not an unpinned third-party action —
+  # same reasoning as gradle-update.yml's own call: this is this account's
+  # own repo, gated behind its own CI and Codex review rather than direct
+  # pushes to main, and the whole point of a shared reusable workflow is
+  # that a fix there reaches every consumer's next run without a per-repo
+  # bump PR.
+  sync-screenshots:
+    name: Sync recorded screenshots
+    # After `attest`, on purpose: the push this job makes starts the next
+    # run, whose `classify` carries THIS head's verdict onto the refreshed
+    # head only if it is already published -- see `attest` above.
+    # `!cancelled()` rather than a bare condition: `attest` may have refused
+    # the verdict (a base that moved mid-run), and the drift is still worth
+    # committing then -- the next run simply takes the full lane, as it
+    # would for any head with nothing to carry.
+    needs: [classify, connected-tests, attest]
+    # Same-repo PRs only — fork branches aren't pushable with this token,
+    # and pushing to main directly from CI is not this job's purpose. Runs
+    # only when connected-tests actually succeeded (not skipped, not
+    # failed): a docs-only PR has nothing to sync, and a failing suite must
+    # not commit bogus images.
+    if: >-
+      ${{ !cancelled() &&
+      needs.connected-tests.result == 'success' &&
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name == github.repository }}
+    uses: mikelward/ci-commit-artifact/.github/workflows/commit-artifact.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    with:
+      artifact-name: roborazzi-screenshots
+      dest-path: app/src/test/snapshots/images
+      commit-message: 'ci: refresh recorded screenshots'
+      # The tested SHA, not the branch name: the artifact was rendered
+      # against github.event.pull_request.head.sha specifically, at event
+      # time, and expected-head-sha is what lets the hub workflow tell a
+      # genuine lost race (branch-ref advanced past this since) apart from
+      # an ordinary no-op — see that workflow's own README.
+      branch-ref: ${{ github.event.pull_request.head.ref }}
+      expected-head-sha: ${{ github.event.pull_request.head.sha }}
+      # comment-marker and dispatch-workflow are both left unset ('', the
+      # default) on purpose:
+      # - comment-marker: this repo posts its own richer visual diff
+      #   comment instead (post-screenshot-diff below), not the hub's plain
+      #   status line.
+      # - dispatch-workflow: unnecessary here specifically because
+      #   push-token (below) authenticates as a real user, and GitHub's own
+      #   pull_request_target trigger fires again on an authenticated push
+      #   the same way it would on any other push to the PR branch — no
+      #   manual re-dispatch needed. dispatch-workflow exists for callers
+      #   that push with the job's own GITHUB_TOKEN instead, which starts no
+      #   workflow run on its own.
+    # `inherit`, not a `secrets:` block naming CI_COMMIT_ARTIFACT_TOKEN: the
+    # hub's commit job declares the `ci-commit-artifact` environment and
+    # reads the token from it, and an environment secret reaches a called
+    # workflow no other way. A repository-level token passed by name here
+    # would also reach every job of every workflow that inherits this
+    # repository's secrets, the weekly batch's untrusted update job
+    # included. The token itself is still what it was: GitHub's documented
+    # recursion prevention means a GITHUB_TOKEN-authored push starts no
+    # workflow run at all, so the refreshed head would carry no check of its
+    # own and the required `lanes` status would never report on it; a
+    # fine-grained PAT (contents: write, this repository only) pushes as an
+    # ordinary authenticated push, which DOES fire a fresh
+    # pull_request_target run on the new commit. The corresponding zizmor
+    # finding (secrets-inherit) is excused inline on that one line, with
+    # the same reason; .github/zizmor.yml says why the inline form rather
+    # than a file entry.
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+
+  # Embeds every snapshot this PR adds or changes, pinned to commit SHAs,
+  # into a single auto-updated PR comment (marker: <!-- screenshot-diff -->)
+  # so reviewers see the visual delta inline without downloading the
+  # artifact. Split out of sync-screenshots into its own job because a
+  # reusable-workflow job can't carry extra steps of its own (see the
+  # comment on that job above) — this job's only input from it is
+  # commit-sha, the resulting head of branch-ref after that job ran
+  # (documented on the hub workflow's own `commit-sha` output: the new
+  # commit if one was pushed, its unchanged current head if there was
+  # nothing to commit, or the last head actually observed if branch-ref
+  # vanished mid-run). Checking out that SHA directly, rather than the local
+  # commit this job made itself the way the old inline version did, means
+  # this never diffs against content that was never actually pushed — the
+  # inline version's own comment used to warn the pinned images could
+  # briefly 404 after a lost race; using the hub's own authoritative output
+  # instead removes that gap entirely.
+  post-screenshot-diff:
+    name: Post screenshot diffs as a PR comment
+    runs-on: ubuntu-latest
+    needs: [classify, sync-screenshots]
+    # Two ways in. After a sync that pushed (or found nothing to push), as
+    # before -- and on the generated lane, where the run this job would have
+    # posted from was canceled by the very push it made: the refreshed head
+    # is this run's own event head, so the diff is posted from here instead
+    # (Codex on #720). `!cancelled()` because sync-screenshots is skipped on
+    # that lane, and a skipped `needs` would otherwise skip this too.
+    if: >-
+      ${{ !cancelled() &&
+      (needs.sync-screenshots.result == 'success' || needs.classify.outputs.generated_only == 'true') }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # The hub's own account of the pushed head, or -- on the generated
+          # lane, where no sync ran -- the head this run was started for,
+          # which IS the refreshed commit.
+          ref: ${{ needs.sync-screenshots.outputs.commit-sha || github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Post screenshot diffs as a PR comment
+        # Posted from CI's own token because agent-side tooling can't post
+        # working image embeds.
+        #
+        # continue-on-error: this is a convenience comment, not a gate. A
+        # transient GitHub API hiccup (a non-JSON response breaking the
+        # comment lookup has been seen here) must not turn the whole job
+        # red — the snapshots are already committed and in the
+        # roborazzi-screenshots artifact regardless. Every API call below
+        # still checks its own status and raises a ::warning::, so "no
+        # comment appeared" always has a reason in the job log rather than
+        # being swallowed by continue-on-error.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          BASE_SHA=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")
+          HEAD_SHA=$(git rev-parse HEAD)
+          mapfile -t entries < <(git diff --name-status "$BASE_SHA" HEAD -- app/src/test/snapshots/images/ | grep -E '^[AM]' || true)
+          if [ ${#entries[@]} -eq 0 ]; then
+            echo "No added or changed screenshots vs merge-base; skipping comment."
+            exit 0
+          fi
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}"
+          body="<!-- screenshot-diff -->"$'\n'"## Screenshot diffs"$'\n\n'"Auto-posted by CI. Images pinned to \`${HEAD_SHA:0:7}\` (before images to the merge-base \`${BASE_SHA:0:7}\`)."$'\n'
+          count=0
+          for entry in "${entries[@]}"; do
+            status="${entry%%$'\t'*}"
+            path="${entry#*$'\t'}"
+            name=$(basename "$path")
+            count=$((count+1))
+            # GitHub caps comment bodies at 65536 chars; 20 embeds stays well
+            # under it. The artifact still carries everything.
+            if [ "$count" -gt 20 ]; then
+              body+=$'\n'"_…truncated: more than 20 added/changed screenshots; see the roborazzi-screenshots artifact._"
+              break
+            fi
+            if [ "$status" = "A" ]; then
+              body+=$'\n'"**Added — \`${name}\`**"$'\n\n'"<img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\">"$'\n'
+            else
+              body+=$'\n'"**Changed — \`${name}\`**"$'\n\n'"| Before | After |"$'\n'"| --- | --- |"$'\n'"| <img src=\"${raw}/${BASE_SHA}/${path}\" width=\"320\"> | <img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\"> |"$'\n'
+            fi
+          done
+          # The lookup can't fail open the way the PATCH/POST below can. Its
+          # result picks update-vs-create, so an error swallowed into an empty
+          # id doesn't lose the comment — it posts a *duplicate* one, and every
+          # later run duplicates again. `gh api` collapses what that needed
+          # into one check: it exits non-zero on an HTTP error *and* on a body
+          # jq can't parse, where `curl -sS | jq` turned either into an empty
+          # id indistinguishable from a genuine no-match and so needed the
+          # status and the parse checked by hand. Either way the answer is
+          # skip, not guess.
+          #
+          # --paginate for the same reason: reading only the first page meant
+          # that past 100 issue comments the marker fell off it and the step
+          # posted a duplicate — the same symptom as a swallowed error, from a
+          # different cause. With --paginate the jq filter runs once per page,
+          # so it emits matching ids as lines and this takes the first rather
+          # than indexing into a single page's array.
+          if ! ids=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '.[] | select((.body // "") | startswith("<!-- screenshot-diff -->")) | .id'); then
+            echo "::warning::Could not list PR comments; skipping the screenshot-diff comment rather than risking a duplicate. The snapshots are in the roborazzi-screenshots artifact."
+            exit 0
+          fi
+          existing="${ids%%$'\n'*}"
+          # A failed PATCH/POST can fail open — nothing is duplicated, the
+          # comment just doesn't appear — but it must still say why. `gh api`
+          # exits non-zero and prints the response on a 4xx/5xx (a missing
+          # `pull-requests: write`, a deleted comment id, an over-long body),
+          # so the warning is all this has left to add.
+          if [ -n "$existing" ]; then
+            if gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+              -f body="$body" > /dev/null; then
+              echo "Updated screenshot-diff comment ${existing}."
+            else
+              echo "::warning::Could not update screenshot-diff comment ${existing}; the snapshots are in the roborazzi-screenshots artifact."
+            fi
+          else
+            if gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$body" > /dev/null; then
+              echo "Posted new screenshot-diff comment."
+            else
+              echo "::warning::Could not post the screenshot-diff comment; the snapshots are in the roborazzi-screenshots artifact."
+            fi
+          fi
+
+  # The one check the main ruleset requires. Renders the verdict —
+  # green only when every heavy job succeeded, or when they were skipped and
+  # the skip is INDEPENDENTLY re-derived as justified — and publishes it as
+  # the `lanes` commit status via the dedicated App `init` also uses, never
+  # trusting this job's own ambient Actions check-run: under
+  # pull_request_target that check-run always attributes to the BASE
+  # branch's tip, never the pull request's head, so it could never satisfy
+  # a PR's required check even if the ruleset asked for it (see
+  # mikelward/lanes's README on why requiring `finalize` by name would be
+  # wrong). The App-published status is what a PR's head actually sees, and
+  # `docs-lane.sh`/`gate`'s independent-re-derivation safety net is gone —
+  # retired in the same change that removed `gate`, now that this is the
+  # sole authority.
+  # `deploy` is not in the needs list on purpose: it only runs on main
+  # pushes and deploy-force dispatches, never on a PR, so including it
+  # would read as a permanent skip and wedge every code-lane verdict.
+  # `!cancelled()` rather than `always()`: a run cancelled mid-flight (e.g. a
+  # superseding push, see the workflow-level `concurrency` group) should not
+  # still post a terminal verdict for a diff that never finished being
+  # checked.
+  finalize:
+    name: Publish the lanes status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Still after `sync-screenshots`, and that is load-bearing: this is the
+    # required check, so it must not go green until the refreshed PNGs are
+    # on the branch, or a merge could land between the verdict and the
+    # push. The verdict the NEXT run carries is `attest`'s, published
+    # before the push -- see that job.
+    needs: [init, classify, build, connected-tests, sync-screenshots]
+    if: ${{ !cancelled() }}
+    environment: lanes
+    # No `statuses: write` — see the comment on `init` above; this job's
+    # `lanes` status write also goes out on the App's installation token,
+    # never this job's own GITHUB_TOKEN. `contents: read` is for the
+    # checkout below (`mode: gate` reads `.github/lanes.conf` from disk);
+    # `pull-requests: read` is for the diff `mode: gate` re-derives the
+    # verdict from; `statuses: read` is for the previous head's status a
+    # generated-only skip carries forward (see `classify`).
+    permissions:
+      pull-requests: read
+      contents: read
+      statuses: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          # Same reasoning as `classify`'s checkout: the synthetic merge is
+          # what keeps this re-derivation reading the same .github/lanes.conf
+          # `classify` read, rather than the base branch's copy the default
+          # pull_request_target resolution would otherwise silently swap in.
+          ref: ${{ (github.event.pull_request.number || inputs.pr) && format('refs/pull/{0}/merge', github.event.pull_request.number || inputs.pr) || '' }}
+          persist-credentials: false
+      - name: gate
+        uses: mikelward/lanes@main
+        with:
+          mode: gate
+          pr: ${{ github.event.pull_request.number || inputs.pr }}
+          classify-result: ${{ needs.classify.result }}
+          # sync-screenshots has a skip reason build/connected-tests don't:
+          # it also sits out a fork PR, a push/dispatch run, or a docs-only
+          # diff's own connected-tests skip. `gate` only tolerates a
+          # uniform all-success or all-skipped `results`, so its 'skipped'
+          # has to read as whichever of those this run actually is. On the
+          # docs lane build/connected-tests are 'skipped' too, so passing
+          # sync-screenshots' result through unchanged keeps them uniform;
+          # the generated lane (a screenshot-refresh push) skips them the
+          # same way and reads the same. On the code lane
+          # build/connected-tests are 'success', so an intentional
+          # sync-screenshots skip is translated to 'success' — every skip
+          # reason it has there is non-blocking (see its own `if:`) — while
+          # a real 'failure' or 'cancelled' passes through untouched and
+          # correctly withholds the green status.
+          results: >-
+            build=${{ needs.build.result }}
+            connected-tests=${{ needs.connected-tests.result }}
+            sync-screenshots=${{ (needs.classify.outputs.docs_only == 'true' || needs.classify.outputs.generated_only == 'true') && needs.sync-screenshots.result || (needs.sync-screenshots.result == 'skipped' && 'success' || needs.sync-screenshots.result) }}
+          base-sha: ${{ needs.classify.outputs.base_sha }}
+          app-id: ${{ secrets.LANES_APP_ID }}
+          app-private-key: ${{ secrets.LANES_APP_PRIVATE_KEY }}
+
+  release-build:
+    name: Build the release AAB
+    # The signed AAB, built in parallel with `build` and `connected-tests`
+    # rather than after them.
+    #
+    # This used to be a run of steps inside `deploy`, which needs both of those
+    # jobs — so on every push to main the release compile and R8 started only
+    # once the slower of them had finished, adding its full ~3.5 min to the
+    # critical path for work that depends on nothing they produce. Splitting the
+    # build from the publish lets it overlap them; `deploy` still needs both, so
+    # nothing reaches Play until the tests and screenshots are green.
+    #
+    # Gated as `deploy` is — main-only by `if:`, `environment: production`
+    # because the upload keystore lives there — plus `docs_only`, which `deploy`
+    # gets transitively from its `needs:` and this job would otherwise miss: a
+    # docs-only push would build and sign an AAB that nothing then publishes.
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.classify.outputs.docs_only != 'true'
+    needs: classify
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HAS_GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+      HAS_RELEASE_KEYSTORE_SECRET: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
+    outputs:
+      # Whether a signed AAB was actually produced. `deploy` gates its publish
+      # steps on this: they used to read `env.RELEASE_KEYSTORE_FILE`, which the
+      # keystore decode writes into *this* job's environment and cannot cross a
+      # job boundary — left as-is, every publish step would have silently
+      # skipped, which is exactly the failure `Require a release keystore`
+      # below exists to make impossible.
+      signed: ${{ steps.bundle.outputs.signed }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # No later step in this job needs to push, and nothing here
+          # checks out PR-controlled content either (deploy only runs on
+          # push/workflow_dispatch against main) — but the token has no
+          # reason to sit in .git/config for the run's duration regardless,
+          # matching every other checkout in this workflow.
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+
+      - name: Materialize google-services.json
+        if: env.HAS_GOOGLE_SERVICES == 'true'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
+
+      - name: Require a release keystore
+        # A push to main must end in a signed AAB. Without the keystore secret
+        # every step below skips on its own condition and the job goes green
+        # having built and published nothing -- indistinguishable, from the
+        # outside, from a release that worked. Fail here instead, naming what
+        # is missing, so a secret that was renamed, expired, or lost in a move
+        # to the `production` environment is caught on the push that broke it
+        # rather than the next time someone looks for a build that never came.
+        #
+        # Forks are exempt. They have no secrets by design, and building
+        # unsigned is a supported state here -- failing their main pushes would
+        # turn that into a red build. The `build` job keeps its release compile
+        # in exactly that case, so R8 still runs for them.
+        if: env.HAS_RELEASE_KEYSTORE_SECRET != 'true' && github.event.repository.fork != true
+        run: |
+          echo "::error::A push to main must produce a signed AAB, but RELEASE_KEYSTORE_BASE64 is unset or empty. Set it together with RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD, or this release would publish nothing."
+          exit 1
+
+      - name: Materialize release keystore
+        # Decoded whenever the keystore secret is present, independent of the
+        # Play upload secrets. This lets the user populate the keystore secrets
+        # first and download the resulting signed AAB from CI artifacts to do
+        # the manual seed upload Play Console requires for new listings, then
+        # add PLAY_SERVICE_ACCOUNT_JSON later to enable the automated upload.
+        # See docs/play-store-internal-track.md.
+        if: env.HAS_RELEASE_KEYSTORE_SECRET == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        # `deploy` job: writes `RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore`,
+        # same job, same gate, same fixed-path reasoning as the debug keystore above.
+        run: |  # zizmor: ignore[github-env]
+          # Same early validation as the debug keystore above: fail with a
+          # clear message on missing companion secrets, wrong base64, or a
+          # wrong password rather than at bundleRelease signing time.
+          missing=""
+          [ -z "$RELEASE_KEYSTORE_PASSWORD" ] && missing="$missing RELEASE_KEYSTORE_PASSWORD"
+          [ -z "$RELEASE_KEY_PASSWORD" ]      && missing="$missing RELEASE_KEY_PASSWORD"
+          [ -z "$RELEASE_KEY_ALIAS" ]         && missing="$missing RELEASE_KEY_ALIAS"
+          if [ -n "$missing" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
+          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/release.keystore" -storepass "$RELEASE_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded release keystore is not a valid keystore or RELEASE_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
+          echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
+
+      - name: Build release AAB
+        # Gated only on the keystore being present — a signed AAB is useful on
+        # its own (downloadable artifact for the seed upload, even before the
+        # Play service account is set up). Release signing config only attaches
+        # when all four RELEASE_KEYSTORE_* / RELEASE_KEY_* variables are set
+        # (see app/build.gradle.kts), which the decode step above guarantees
+        # whenever it sets RELEASE_KEYSTORE_FILE — it fails first if any of the
+        # other three is empty. Without them Play would reject the AAB anyway.
+        id: bundle
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: |
+          ./gradlew bundleRelease
+          # Read by `deploy` as needs.release-build.outputs.signed. Set
+          # after the build, so it means "a signed AAB exists" rather
+          # than "the keystore decoded".
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed AAB as workflow artifact
+        # Lets us download the signed AAB from the Actions UI for the one-time
+        # manual seed upload to Play Console. Useful indefinitely afterwards
+        # too if a release ever needs to be inspected or re-uploaded by hand.
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
+
+
+  deploy:
+    name: Distribute and release
+    # Production deployment job. Gated three ways:
+    #   1. `if:` — only runs on a push to main or a manual workflow_dispatch
+    #      explicitly targeting main (the dispatch UI defaults the ref
+    #      selector to main, but a maintainer could pick another branch,
+    #      so this re-checks `github.ref` rather than trusting that
+    #      default) — never on PRs.
+    #   2. `environment: production` — secrets used here
+    #      (RELEASE_KEYSTORE_*, PLAY_SERVICE_ACCOUNT_JSON,
+    #      GOOGLE_SERVICES_JSON) live in the `production`
+    #      environment with deployment protection rules. Configure the
+    #      environment in repo Settings → Environments → production:
+    #      restrict deployment branches to `main` and optionally
+    #      require a reviewer. This makes the boundary enforced by
+    #      GitHub, not just by the `if:` above (a malicious workflow
+    #      edit on an internal branch can change `if:` but cannot
+    #      bypass an environment protection rule).
+    #   3. `needs:` — only runs after build and connected-tests
+    #      both pass. A failing screenshot test on main now blocks the
+    #      release; the previous setup would have shipped anyway.
+    #
+    # The one thing that must never overlap is a Play upload: two deploys
+    # running at once race to publish, and Play rejects whichever arrives
+    # with a versionCode no higher than one already taken. Every run that can
+    # reach here shares ONE group — pushes and main dispatches alike, which
+    # is what the workflow-level group used to provide before it split so
+    # that `main` runs could validate in parallel.
+    #
+    # `cancel-in-progress: false` queues the second run rather than canceling
+    # the first: canceling mid-upload is the one thing this must never do.
+    # That means an older push's deploy can still reach the upload after a
+    # newer one published, since group order is by when each job started
+    # waiting rather than by push order — which is exactly what the
+    # superseded-run guard in "Build release notes" catches, skipping instead
+    # of failing on a rejected upload.
+    concurrency:
+      group: deploy-main-release
+      cancel-in-progress: false
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [build, connected-tests, release-build]
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      # Secret *presence* flags — see the note on the `build` job's env.
+      # A step's `if:` can't read that same step's `env:`, so the gates
+      # below evaluate these job-level booleans instead of the secrets
+      # directly; the secret values stay scoped to the steps that use them.
+      HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    permissions:
+      # Write, not read, for "Publish a GitHub release" below: it creates
+      # the release and the tag that carries it. Nothing else in this job
+      # writes to the repository, and the checkout below still discards
+      # its credentials.
+      contents: write
+      # Used by "Build release notes" to walk recent main runs of this
+      # workflow and find the last one whose deploy job succeeded.
+      actions: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # No later step in this job needs to push, and nothing here
+          # checks out PR-controlled content either (deploy only runs on
+          # push/workflow_dispatch against main) — but the token has no
+          # reason to sit in .git/config for the run's duration regardless,
+          # matching every other checkout in this workflow.
+          persist-credentials: false
+
+      - name: Build release notes
+        # Walks every commit in this push oldest-first and collects the
+        # subject line of each one worth shipping as a release note to
+        # the Play Store internal track (Play Console "What's new"):
+        #   - skip commits whose subject starts with a non-user-facing
+        #     prefix — `ci:` (CI plumbing, e.g. snapshot regenerations),
+        #     `docs:` (documentation), `internal:` (build config and
+        #     other plumbing with no user-visible effect; a bump the app
+        #     ships is bare instead), `refactor:`
+        #     (behavior-preserving code changes), and `test:` / `tests:`
+        #     (test-only changes). None describe a user-visible change
+        #     worth announcing;
+        #   - skip commits whose every changed path is repo housekeeping —
+        #     a `.md` file (CLAUDE.md / SPEC.md / docs/*) or any dotfile /
+        #     dotdir at the repo root (`.github/` workflows + templates +
+        #     dependabot config, `.claude/` Claude Code workspace state,
+        #     `.gitignore`, `.editorconfig`, etc.). `PRIVACY.md` is
+        #     ordinary docs here too: Play's "What's new" is a
+        #     store-listing field a user installing an update never sees
+        #     at update time, so a wording-only policy change shipping a
+        #     bullet bought no real visibility.
+        # The qualifying subjects are emitted as a "• "-bulleted list,
+        # oldest-first — always bulleted, even when there's only one
+        # qualifying commit, so the Play "What's new" card renders with a
+        # consistent shape. If no commit in the push qualifies, sets
+        # RELEASE_NOTES_SKIP=true and the Play upload steps below skip —
+        # so a push of only prefixed (ci: / docs: / internal: /
+        # refactor: / test: / tests:) or docs / dotfile commits doesn't
+        # ship a redundant Play release.
+        #
+        # A manual workflow_dispatch is the one exception: it's an
+        # explicit "publish the current tip anyway" request (see the
+        # workflow_dispatch trigger's doc), so it never sets
+        # RELEASE_NOTES_SKIP — falling back to a generic note instead of
+        # skipping when nothing qualifies.
+        #
+        # The range base is the head SHA of the most recent main run of
+        # this workflow whose deploy job succeeded, queried from the
+        # Actions API (ported from clothescast). `github.event.before`
+        # is only a fallback: if a prior main push failed before
+        # distributing, `before` would be that failed push's tip and the
+        # next run's notes would silently omit the unreleased commits
+        # from the failed range. The base must be a run that actually
+        # *published* — its Play upload step concluded success — not
+        # merely a green deploy job: with publication secrets
+        # missing, every publish step skips and the deploy still
+        # concludes success, and counting such a run as released would
+        # drop its range's commits from the first real release after the
+        # secrets are fixed (see the walk below). This also gives a
+        # manual workflow_dispatch a real range — it previously only
+        # ever considered the single HEAD commit.
+        #
+        # Engineering detail lives in the commit body, which neither
+        # surface shows — see the "Commit messages" section in CLAUDE.md
+        # for the wording convention. Play's documented per-language
+        # cap is 500 Unicode characters for the entered "What's new"
+        # text, so the truncation budget here is measured against the
+        # full formatted output — bullet ("• "), newline separators,
+        # and the "\n…" truncation marker all count toward MAX. If the
+        # budget overflows we drop trailing subjects (oldest-first
+        # preserved at the head) until it fits and append "\n…" so the
+        # user knows the tail was cut. If a single subject alone
+        # exceeds the cap (unlikely — subjects are conventionally ≤
+        # ~70 chars) we hard-truncate the bullet line to 499 chars
+        # and append "…".
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Walk recent main runs of this workflow (newest first) and take
+          # as the range base the head SHA of the first one whose deploy
+          # job succeeded AND actually published — i.e. its Play upload
+          # *step* concluded success, not just the job. A
+          # deploy concludes green while publishing nothing whenever its
+          # publication secrets are missing (every step skips), and also
+          # when RELEASE_NOTES_SKIP suppressed a housekeeping-only push;
+          # treating such a run as "released" would permanently drop its
+          # range's commits from the next real release's notes. Skipped
+          # housekeeping runs are fine to re-walk: their commits re-enter
+          # the range and the prefix/path filter drops them again. The
+          # job and step names below must match the `name:` values in
+          # this workflow verbatim; rename them together. The current
+          # run and re-runs of the same head SHA are skipped. The
+          # retired `Distribute via Firebase App Distribution` step name
+          # is deliberately not accepted here: these notes are Play's
+          # `whatsnew-en-US`, so a historical run that distributed
+          # through Firebase while the Play upload skipped never put its
+          # commits in front of a Play reader, and treating it as the
+          # base would drop them from Play's record for good. Requiring
+          # a Play upload can only repeat a bullet instead — the trade
+          # this pipeline has always preferred.
+          prev_sha=""
+          while IFS=$'\t' read -r run_id run_head; do
+            [ -z "$run_id" ] && continue
+            [ "$run_head" = "$AFTER_SHA" ] && continue
+            published=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
+              --jq '[.jobs[]
+                     | select(.name == "Distribute and release")
+                     | select(.conclusion == "success")
+                     | .steps[]
+                     | select(.name == "Upload to Play Store internal track")
+                     | .conclusion]
+                    | any(. == "success")' \
+              2>/dev/null || true)
+            if [ "$published" = "true" ]; then
+              prev_sha="$run_head"
+              break
+            fi
+          done < <(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&per_page=100" \
+            --jq '.workflow_runs[]? | [.id, .head_sha] | @tsv' \
+            2>/dev/null || true)
+          # per_page=100 (the API max) keeps this a single call while
+          # covering a 100-run red streak; --paginate would fetch the
+          # workflow's entire run history on every deploy. If the last
+          # success is somehow deeper than 100 runs, the BEFORE_SHA
+          # fallback below still applies.
+
+          # Fallbacks: BEFORE_SHA when the API yielded nothing usable
+          # (first adoption run, API hiccup), except when it's all-zeros
+          # or unreachable (first push to a branch, force-reset orphaning
+          # the old tip); then HEAD alone — walking the entire history
+          # would be both slow and meaningless. The range walk itself is
+          # deliberately uncapped: `git log --max-count` limits commits
+          # BEFORE `--reverse` applies (git documents --reverse as
+          # reversing the commits already chosen), so a pre-walk cap
+          # would keep the newest N and silently drop the oldest — the
+          # exact commits the oldest-first notes must preserve. The cap
+          # lives on qualifying subjects inside the filter loop below
+          # instead; the per-commit diff-tree cost on a pathologically
+          # long range (release outage) is the accepted trade.
+          # A later push already published everything this run would ship,
+          # so there is nothing left to release and uploading would only
+          # re-use a versionCode Play has already taken.
+          #
+          # This is reachable because `main` runs no longer queue behind one
+          # another: each keys its own concurrency group, so two can validate
+          # at once, and only `deploy` serializes. Group order is arbitrary —
+          # by when each job started waiting, not by push order — so an older
+          # push's deploy can reach the upload after a newer one published a
+          # higher versionCode, and Play rejects it. That failure costs a
+          # billed run and reads as a broken release rather than a race.
+          #
+          # Checks $prev_sha, never main's raw current tip. `main` can advance
+          # past this run's SHA with nothing having published — the later push
+          # may be docs-only and skip every heavy job, or its build may fail
+          # before `deploy` runs — and skipping on that would strand this
+          # run's releasable commits with nothing left to ship them. The only
+          # signal that this run's work is genuinely already covered is
+          # $prev_sha, the head of a run that actually published, descending
+          # from $AFTER_SHA. `git cat-file -e` first because a shallow or
+          # pruned clone may not hold that object, and `merge-base` on a
+          # missing commit answers no rather than erroring.
+          if [ -n "$prev_sha" ] \
+             && git cat-file -e "$prev_sha" 2>/dev/null \
+             && git merge-base --is-ancestor "$AFTER_SHA" "$prev_sha" 2>/dev/null; then
+            echo "A later push already published (last published SHA ${prev_sha} already includes this run's ${AFTER_SHA}); skipping."
+            echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          base_sha=""
+          if [ -n "$prev_sha" ] && git cat-file -e "$prev_sha" 2>/dev/null; then
+            base_sha="$prev_sha"
+          elif [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] \
+             && git rev-parse --quiet --verify "$BEFORE_SHA^{commit}" >/dev/null; then
+            base_sha="$BEFORE_SHA"
+          fi
+
+          if [ -n "$base_sha" ]; then
+            shas=$(git log --reverse --no-merges --format=%H "$base_sha..$AFTER_SHA")
+          else
+            shas=""
+          fi
+          if [ -z "$shas" ]; then
+            shas=$(git log -1 --format=%H "$AFTER_SHA")
+          fi
+
+          subjects=()
+          while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
+            # Safety net for unusually long ranges, applied AFTER
+            # oldest-first ordering so the head of the list is never
+            # dropped; in practice the 500-char Play cap truncates far
+            # sooner.
+            if [ "${#subjects[@]}" -ge 50 ]; then
+              echo "Reached 50 qualifying subjects; ignoring the rest of the range."
+              break
+            fi
+            s=$(git log -1 --format=%s "$sha")
+            case "$s" in
+              ci:*)       continue ;;
+              docs:*)     continue ;;
+              internal:*) continue ;;
+              refactor:*) continue ;;
+              test:*)     continue ;;
+              tests:*)    continue ;;
+            esac
+            relevant=false
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              # `case` patterns match `*` against `/` too, so `.*` skips
+              # any path whose first component starts with `.` — covers
+              # `.github/`, `.claude/`, `.gitignore`, `.editorconfig` etc.
+              # in one pattern.
+              case "$f" in
+                .*)    ;;
+                *.md)  ;;
+                *)     relevant=true; break ;;
+              esac
+            done < <(git diff-tree --no-commit-id --name-only -r "$sha")
+            if [ "$relevant" = "false" ]; then
+              continue
+            fi
+            subjects+=("$s")
+          done <<< "$shas"
+
+          if [ "${#subjects[@]}" -eq 0 ]; then
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "No release-worthy commits, but this is a manual workflow_dispatch — publishing the current tip anyway with a generic note."
+              subjects+=("Internal test build")
+            else
+              echo "No release-worthy commits in this push (all ci: / docs: / internal: / refactor: / test: / tests: prefixed or docs / dotfile housekeeping); skipping the Play upload."
+              echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          fi
+
+          MAX=500
+          TRUNC_MARK=$'\n…'
+
+          # `wc -m` counts characters under a UTF-8 locale; pin it so
+          # the bullet ("• ", 1 visible char) and the ellipsis ("…", 1
+          # char) are scored as Play sees them, not as raw bytes.
+          export LC_ALL=C.UTF-8
+
+          # Always emit a "• "-bulleted line per subject — even for a
+          # single qualifying commit — so the Play "What's new" card
+          # always renders as a list.
+          format_notes() {
+            local first=1
+            for s in "$@"; do
+              if [ "$first" -eq 1 ]; then
+                printf '%s' "• $s"
+                first=0
+              else
+                printf '\n• %s' "$s"
+              fi
+            done
+          }
+
+          char_len() {
+            printf '%s' "$1" | wc -m
+          }
+
+          # Truncate against the full formatted output — bullet ("• "),
+          # newline separator, and the "\n…" truncation marker all
+          # count toward MAX. Play's documented per-language cap is
+          # 500 Unicode characters for the *entered* "What's new"
+          # text, so measuring anything less risks writing
+          # whatsnew-en-US over the cap and having the Play upload
+          # reject the release.
+          #
+          # Two-phase: (1) greedy-add subjects until the formatted
+          # output (no marker yet) would exceed MAX, then (2) if any
+          # subject was dropped, append the "\n…" marker so the user
+          # can tell the list was cut. The marker is load-bearing —
+          # a truncated list must always end in it — so if the
+          # marker pushes us back over MAX we drop trailing subjects
+          # until there is room. In the rare edge case where the
+          # very first subject is 499-500 chars formatted and cannot
+          # coexist with the marker, hard-truncate it.
+          kept=()
+          truncated=false
+          for s in "${subjects[@]}"; do
+            candidate=$(format_notes "${kept[@]}" "$s")
+            if [ "$(char_len "$candidate")" -gt "$MAX" ]; then
+              truncated=true
+              break
+            fi
+            kept+=("$s")
+          done
+
+          if [ "${#kept[@]}" -eq 0 ]; then
+            # First subject alone exceeds the cap; hard-truncate the
+            # bullet line to 499 chars and append "…".
+            notes=$(printf '%s' "• ${subjects[0]}" | cut -c 1-499)
+            notes="${notes}…"
+          else
+            notes=$(format_notes "${kept[@]}")
+            if [ "$truncated" = true ]; then
+              # Drop trailing subjects until the marker fits.
+              while [ "$(char_len "${notes}${TRUNC_MARK}")" -gt "$MAX" ] \
+                && [ "${#kept[@]}" -gt 0 ]; do
+                unset 'kept[${#kept[@]}-1]'
+                notes=$(format_notes "${kept[@]}")
+              done
+              if [ "${#kept[@]}" -eq 0 ]; then
+                # Subject 0 was 499-500 chars formatted on its own —
+                # it fit in the greedy phase but couldn't coexist
+                # with the marker. Hard-truncate the bullet line so
+                # the marker still has room.
+                notes=$(printf '%s' "• ${subjects[0]}" | cut -c 1-498)
+              fi
+              notes="${notes}${TRUNC_MARK}"
+            fi
+          fi
+
+          # Use a random heredoc terminator so a crafted commit subject
+          # can't include the literal terminator on a line of its own
+          # and inject arbitrary entries into $GITHUB_ENV. `openssl` is
+          # preinstalled on ubuntu-latest. See
+          # https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+          delim="RELEASE_NOTES_EOF_$(openssl rand -hex 16)"
+          {
+            printf 'RELEASE_NOTES<<%s\n' "$delim"
+            printf '%s\n' "$notes"
+            printf '%s\n' "$delim"
+          } >> "$GITHUB_ENV"
+
+      - name: Download the release AAB
+        # Built by `release-build`, in parallel with the tests rather than after
+        # them. Restored to the path Gradle would have written it to, so the
+        # publish step's `releaseFiles` is unchanged.
+        if: needs.release-build.outputs.signed == 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release
+
+      - name: Publish a GitHub release
+        # Makes the signed bundle durable and the push's outcome legible.
+        # The run's own artifact expires in 30 days and is reachable only
+        # from that run's page, which is what made "did this push ship?"
+        # unanswerable from the Actions list: a push whose last commit is
+        # `docs:`-prefixed is titled by that commit and reads as
+        # housekeeping even when it built, signed and published. A
+        # release is permanent, linkable, listed on a page of its own,
+        # and `gh release download` works against it.
+        #
+        # Gated on a signed AAB existing and on the push having something
+        # release-worthy to say — the Play upload's condition minus the
+        # service account, so a repository with an upload keystore but no
+        # Play credentials still gets a discoverable build. Placed ahead
+        # of the upload for the same reason: a Play rejection (a
+        # versionCode already taken, say) is exactly when having the
+        # bundle to hand matters.
+        #
+        # Marked a prerelease because this pipeline only ever reaches
+        # Play's internal track — nothing here promotes a build to
+        # production, so nothing here should claim to.
+        if: |
+          needs.release-build.outputs.signed == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
+        # The body lives in `scripts/publish-github-release.sh`, which
+        # `scripts/publish_github_release_test.py` drives against a stubbed
+        # `gh` on every pull request. This job cannot run on one, so an
+        # inline body could only ever be verified by merging it.
+        run: scripts/publish-github-release.sh
+
+      - name: Compose Play Store release notes
+        # The upload-google-play action takes a directory of whatsnew-<locale>
+        # files. The bulleted list of commit subjects was already built
+        # upstream by "Build release notes" (and truncated to Play's
+        # 500-byte per-locale cap); this step just writes it to disk in
+        # the layout the action expects. When that earlier step set
+        # RELEASE_NOTES_SKIP=true (every commit in the push was ci: /
+        # docs / dotfile housekeeping) the gate below skips this and the
+        # upload step.
+        if: |
+          needs.release-build.outputs.signed == 'true' &&
+          env.HAS_PLAY_SA == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        # `deploy` job: writes `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew`. The
+        # release-notes text itself goes to a file, never through $GITHUB_ENV;
+        # the env write is only the fixed directory path.
+        run: |  # zizmor: ignore[github-env]
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/whatsnew"
+          printf '%s' "${RELEASE_NOTES}" \
+            > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
+          echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
+
+      - name: Upload to Play Store internal track
+        # Gated so it only runs with both the upload key and service account
+        # configured. Also skipped when "Build release notes" set
+        # RELEASE_NOTES_SKIP=true because every commit in this push was
+        # either prefixed (`ci:` / `docs:` / `internal:` / `refactor:` /
+        # `test:` / `tests:`) or pure docs / dotfile housekeeping
+        # (`.github/`, `.claude/`, …) — no Play-worthy
+        # "What's new" entry exists, so shipping a release would be
+        # redundant. See docs/play-store-internal-track.md for the Play
+        # Console / service-account setup the upload depends on.
+        if: |
+          needs.release-build.outputs.signed == 'true' &&
+          env.HAS_PLAY_SA == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        uses: r0adkll/upload-google-play@a80b0bcdcfdfcc2d026f2bc73f726760b2cbc967  # post-v1.1.5: fixes DEP0040/DEP0169 Node.js deprecation warnings
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.typelauncher
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          tracks: internal
+          status: completed
+          whatsNewDirectory: ${{ env.PLAY_WHATSNEW_DIR }}
+

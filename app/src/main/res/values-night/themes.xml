@@ -1,0 +1,14 @@
+<resources>
+    <style name="Theme.TypeLauncher" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">@color/type_launcher_dark_background</item>
+        <!-- See values/themes.xml: FLAG_SHOW_WALLPAPER and the translucent
+             surface format are toggled at runtime from the "Show wallpaper"
+             setting, not requested here. -->
+    </style>
+</resources>

@@ -1,0 +1,253 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">Type Launcher</string>
+    <string name="app_search_hint">Type an app name%1$s</string>
+    <string name="app_search_clear_button_description">Clear search text</string>
+    <string name="settings_open_button_description">Open settings</string>
+    <string name="play_update_badge_description">New version available</string>
+    <string name="play_update_banner_title">New version available</string>
+    <string name="play_update_banner_body">Tap to update from Google Play.</string>
+    <string name="play_update_banner_update_button">Update</string>
+    <string name="play_update_banner_updating_title">Updating…</string>
+    <string name="play_update_banner_updating_body">Downloading from Google Play.</string>
+    <string name="play_update_banner_downloaded_title">Update ready</string>
+    <string name="play_update_banner_downloaded_body">Tap to restart and install.</string>
+    <string name="play_update_banner_restart_button">Restart</string>
+    <string name="play_update_banner_dismiss_description">Dismiss update banner</string>
+    <string name="play_update_banner_restart_failed">Couldn\'t restart to install</string>
+    <string name="installed_apps_list_label">Installed apps</string>
+    <string name="dock_apps_list_label">Dock</string>
+    <string name="dock_apps_hint">Long press apps to dock</string>
+    <string name="dock_add_button_description">Add app to dock</string>
+    <string name="dock_add_button_hint">Find an app in the list above,\nlong press then tap Dock</string>
+    <string name="dock_recents_empty_hint">No recent apps yet</string>
+    <string name="dock_recents_description">Recent apps</string>
+    <string name="dock_recents_scroll_more_hint">Scroll for more recent apps</string>
+    <string name="apps_list_scroll_more_hint">Scroll for more apps</string>
+    <string name="scroll_up_for_more_hint">Scroll up for more</string>
+    <string name="scroll_down_for_more_hint">Scroll down for more</string>
+    <string name="agenda_title">Agenda</string>
+    <string name="agenda_events_list_label">Calendar agenda events</string>
+    <string name="agenda_permission_message">Allow calendar access to show your agenda.</string>
+    <string name="agenda_permission_button">Allow calendar</string>
+    <string name="agenda_empty_state">No all-day or upcoming events right now.</string>
+    <string name="agenda_all_day_label">All day</string>
+    <string name="agenda_day_today">Today</string>
+    <string name="agenda_day_tomorrow">Tomorrow</string>
+    <string name="agenda_event_untitled">Untitled event</string>
+    <string name="agenda_swipe_hint">Swipe right to return home</string>
+    <string name="app_label_with_work_prefix">Work %1$s</string>
+    <string name="app_menu_app_info">App info</string>
+    <string name="app_menu_dock">Dock</string>
+    <string name="app_menu_undock">Undock</string>
+    <string name="app_menu_reset_rank">Reset rank</string>
+    <string name="app_menu_edit">Edit</string>
+    <string name="app_menu_hide">Hide</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_uninstall" tools:ignore="MissingTranslation">Uninstall</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_uninstall_unavailable" tools:ignore="MissingTranslation">Can\'t uninstall this app</string>
+    <string name="app_menu_move_out">Move out</string>
+    <string name="app_menu_open_folder">Open folder</string>
+    <!-- TODO: rename the "explode" code symbols (app_menu_explode, explodeFolder,
+         explodeDockFolder, onExplodeDockFolder, onExplodeFolder, onExplode) to "ungroup"
+         to match this user-facing label. -->
+    <string name="app_menu_explode">Ungroup</string>
+    <string name="dock_folder_content_description">Folder</string>
+    <string name="dock_folder_close_description">Close folder</string>
+    <string name="app_menu_dismiss">Dismiss</string>
+    <string name="app_menu_settings">Settings</string>
+    <string name="edit_app_dialog_title">Edit app</string>
+    <string name="edit_app_dialog_label">Display name</string>
+    <string name="edit_app_dialog_original">Original name: %1$s</string>
+    <string name="edit_app_dialog_package">Package: %1$s</string>
+    <string name="edit_app_dialog_save">Save</string>
+    <string name="edit_app_dialog_cancel">Cancel</string>
+    <string name="edit_app_dialog_restore">Restore defaults</string>
+    <string name="edit_app_dialog_choose_icon">Choose icon</string>
+    <string name="edit_app_dialog_clear_icon">Use default icon</string>
+    <string name="edit_app_dialog_pick_icon_unavailable">No app available to pick an icon</string>
+    <string name="edit_app_dialog_badge_label">Badge</string>
+    <string name="edit_app_dialog_choose_badge">Choose badge</string>
+    <string name="edit_app_dialog_badge_default_label">Default</string>
+    <string name="badge_picker_title">Choose badge</string>
+    <string name="badge_picker_default">Default</string>
+    <string name="badge_preset_home">Home</string>
+    <string name="badge_preset_work">Work</string>
+    <string name="badge_preset_school">School</string>
+    <string name="badge_preset_travel">Travel</string>
+    <string name="badge_preset_world">World</string>
+    <string name="widgets_add_button_description">Add widget</string>
+    <string name="widgets_picker_title">Add widget</string>
+    <string name="widgets_picker_subtitle">Choose a widget for the home screen</string>
+    <string name="widgets_picker_loading">Loading widgets…</string>
+    <string name="widgets_picker_expand_app">Expand</string>
+    <string name="widgets_picker_collapse_app">Collapse</string>
+    <string name="widgets_picker_done">Done</string>
+    <string name="widgets_picker_empty_title">No widgets available</string>
+    <string name="widgets_picker_empty_body">Install apps with widgets to add them here.</string>
+    <string name="widgets_picker_no_matches_title">No matching widgets</string>
+    <string name="widgets_picker_no_matches_body">Try a shorter name or clear the filter.</string>
+    <string name="widgets_picker_filter_hint">Type an app or widget name</string>
+    <string name="widgets_picker_filter_clear_description">Clear filter</string>
+    <string name="widgets_picker_size_label">%1$dx%2$d</string>
+    <string name="widgets_picker_padded_note">Very small, will be padded</string>
+    <plurals name="widgets_picker_widget_count">
+        <item quantity="one">%d widget</item>
+        <item quantity="other">%d widgets</item>
+    </plurals>
+    <string name="widgets_preview_unavailable">Preview unavailable</string>
+    <string name="widgets_picker_unavailable">Widget picker unavailable</string>
+    <string name="widgets_unavailable">Widget unavailable</string>
+    <string name="widgets_restore_action">Tap to restore %1$s widget</string>
+    <string name="widget_menu_resize">Resize</string>
+    <string name="widget_menu_move_up">Move up</string>
+    <string name="widget_menu_move_down">Move down</string>
+    <string name="widget_menu_remove">Remove</string>
+    <string name="widget_resize_handle_description">Drag to resize widget</string>
+    <string name="navigate_to_agenda">Open agenda</string>
+    <string name="navigate_to_home">Back to home</string>
+    <string name="calendar_permission_required_title">Calendar permission required</string>
+    <string name="calendar_permission_status">Action required</string>
+    <string name="agenda_empty_title">Your agenda is clear</string>
+    <string name="home_search_title">Find an app</string>
+    <string name="dock_title">Dock</string>
+    <string name="dock_subtitle">Up to %1$d apps fit here</string>
+    <string name="home_empty_title">No matches</string>
+    <string name="home_empty_body">Try a shorter app name or clear the search.</string>
+    <string name="agenda_permission_title">Show calendar events</string>
+    <string name="navigate_home_description">Return to launcher search</string>
+    <string name="app_actions_description">App actions</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_done_button">Done</string>
+    <string name="settings_default_launcher_button">Set as default launcher</string>
+    <string name="settings_already_default_launcher_button">Already default launcher</string>
+    <string name="settings_app_list_layout_title">App list/grid style</string>
+    <string name="settings_app_list_layout_option_name_beside">Name beside</string>
+    <string name="settings_app_list_layout_option_name_below">Name below</string>
+    <string name="settings_app_list_layout_option_icon_only">Icon only</string>
+    <string name="settings_dock_layout_title">Dock style</string>
+    <string name="settings_app_list_sort_title">Sort apps by</string>
+    <string name="settings_app_list_sort_option_usage">Usage ↓</string>
+    <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>
+    <string name="settings_app_list_sort_option_name">Name ↓</string>
+    <string name="settings_app_list_sort_option_name_reversed">Name ↑</string>
+    <string name="settings_dock_enabled_title">Show dock</string>
+    <string name="settings_work_dock_enabled_title">Show work dock</string>
+    <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
+    <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
+    <string name="settings_show_wallpaper_title">Show wallpaper</string>
+    <string name="settings_wallpaper_title">Wallpaper</string>
+    <string name="settings_change_wallpaper_button">Change</string>
+    <string name="settings_change_wallpaper_button_description">Change wallpaper</string>
+    <string name="settings_wallpaper_picker_unavailable">Wallpaper picker unavailable</string>
+    <string name="settings_show_agenda_title">Show agenda</string>
+    <string name="settings_search_contacts_title">Search contacts</string>
+    <string name="settings_search_calendar_title">Search calendar events</string>
+    <string name="settings_call_using_title">Call using</string>
+    <string name="settings_call_using_option_phone_app">Phone app</string>
+    <string name="settings_call_using_option_ask">Ask which app</string>
+    <string name="contact_result_starred_description">Starred contact</string>
+    <string name="contact_action_call">Call</string>
+    <string name="contact_action_message">Message</string>
+    <string name="contact_action_email">Email</string>
+    <string name="contact_actions_open_contact">Open contact</string>
+    <string name="contact_actions_choose_number">Choose a number</string>
+    <!-- Long-press menu on a contact search result: toggles the platform favorite. -->
+    <string name="contact_action_favorite">Favorite</string>
+    <string name="contact_action_unfavorite">Unfavorite</string>
+    <!-- Long-press menu on a number in the quick-actions picker: set / clear it as the default. -->
+    <string name="contact_action_make_default">Default</string>
+    <string name="contact_action_clear_default">Undefault</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_option_system">System</string>
+    <string name="settings_theme_option_light">Light</string>
+    <string name="settings_theme_option_dark">Dark</string>
+    <string name="settings_icon_shape_title">Icon shape</string>
+    <string name="settings_icon_shape_option_system">System</string>
+    <string name="settings_icon_shape_option_circle">Circle</string>
+    <string name="settings_icon_shape_option_squircle">Squircle</string>
+    <string name="settings_icon_theme_title">Icon theme</string>
+    <string name="settings_icon_theme_option_default">Default</string>
+    <string name="settings_icon_theme_option_monochrome">Monochrome</string>
+    <string name="settings_dock_icon_count_label">Icons per row: %1$d</string>
+    <string name="settings_dock_icon_size_value">Icon size: %1$d dp</string>
+    <string name="settings_dock_preview_label">Preview</string>
+    <string name="settings_overflow_button_description">More settings actions</string>
+    <string name="settings_report_bug_action">Report bug</string>
+    <string name="settings_app_info_action">App info</string>
+    <string name="settings_about_action">About</string>
+    <string name="settings_about_dialog_title">About Type Launcher</string>
+    <string name="settings_about_version_value">Version %1$s (build %2$d)</string>
+    <string name="settings_about_privacy_policy">Privacy policy</string>
+    <string name="settings_about_privacy_policy_url">https://mikelward.github.io/typelauncher/PRIVACY</string>
+    <string name="settings_about_dialog_dismiss">OK</string>
+    <!-- Open-source attribution, reached from the About dialog. The row reads
+         "Licenses" because the About dialog it sits in already sets the
+         context; the page it opens spells out which licenses these are. -->
+    <string name="settings_about_licenses">Licenses</string>
+    <string name="settings_licenses_title">Open source licenses</string>
+    <!-- Version of one bundled component, shown in the dialog a component row
+         opens. Separate from settings_about_version_value above, which carries
+         the launcher\'s own version name and build number. -->
+    <string name="settings_licenses_version">Version %1$s</string>
+    <!-- Who wrote one bundled component, shown under its version in the same
+         dialog. Apache-2.0 §4 asks that attribution travel with the code, so
+         the page names the authors rather than only the license they chose.
+         Omitted entirely when the component's own metadata names nobody. -->
+    <!-- TODO: translate -->
+    <string name="settings_licenses_authors" tools:ignore="MissingTranslation">By %1$s</string>
+    <string name="settings_licenses_back_button">Back</string>
+    <string name="settings_licenses_details_dismiss">Done</string>
+    <string name="settings_manage_hidden_apps_button">Manage hidden apps</string>
+    <string name="settings_hidden_apps_dialog_title">Hidden apps</string>
+    <string name="settings_hidden_apps_dialog_empty">No hidden apps. Long-press an app and choose Hide to add one here.</string>
+    <string name="settings_hidden_apps_dialog_dismiss">Done</string>
+    <string name="settings_hidden_apps_unhide_description">Unhide %1$s</string>
+    <string name="bug_report_chooser_title">Share bug report</string>
+    <string name="bug_report_share_failed">Couldn\'t share the bug report</string>
+    <string name="bug_report_consent_dialog_title">Send bug report?</string>
+    <string name="bug_report_consent_dialog_body">This report includes a screenshot of the current screen plus your launcher settings, list of installed apps, and recent in-app activity to help diagnose the issue. You\'ll be able to review and edit it before sending.</string>
+    <string name="bug_report_consent_dialog_dont_show_again">Don\'t show this again</string>
+    <string name="bug_report_consent_dialog_confirm">Continue</string>
+    <string name="bug_report_consent_dialog_cancel">Cancel</string>
+    <string name="crash_banner_title">Did Type Launcher crash?</string>
+    <string name="crash_banner_body">If it did, share a bug report to help us fix it</string>
+    <string name="crash_banner_share">Share</string>
+    <string name="crash_banner_dismiss">Dismiss</string>
+    <string name="crash_pending_badge_description">Possible crash detected</string>
+    <!--
+      Reworded to the fleet's shared shape (maintainer, 2026-08-31): a
+      question, one line of what it buys, and two answers that answer it.
+      simmo and ClothesCast already ask exactly this, and Snoozemo now does
+      too, so the four apps read alike.
+
+      The old copy was a statement — "Anonymous analytics" over Allow /
+      Don't allow — which reads as a setting being operated rather than a
+      question being answered. The words "anonymous" and "so bugs get found
+      and fixed" both survive the move, so nothing about what is sent or why
+      is lost.
+
+      TODO: translate — all four are reworded existing keys, so every one of
+      the 63 locales is stale until the approved copy is fanned out. No
+      `tools:ignore` needed: MissingTranslation fires on a key absent from a
+      locale, and none of these is absent.
+    -->
+    <string name="telemetry_consent_title">Help make Type Launcher better?</string>
+    <string name="telemetry_consent_body">Send crash reports and anonymous usage stats so bugs get found and fixed?</string>
+    <string name="telemetry_consent_allow">Yes please</string>
+    <string name="telemetry_consent_deny">No thanks</string>
+    <!-- TODO: translate — reworded to follow the same rename as the row below
+         (maintainer, 2026-08-31): the badge sits on the gear that opens that
+         row, so naming the thing by a name neither the card nor the row uses
+         was the one place "Analytics" survived. Reworded existing key, so
+         MissingTranslation does not fire and no tools:ignore is needed; the
+         63 locales are stale until the approved copy is fanned out. -->
+    <string name="telemetry_consent_badge_description">Help make Type Launcher better — needs an answer</string>
+    <!-- TODO: translate — reworded to match the consent card's title, minus the
+         question mark: the card asks and the row labels, and one thing the user
+         agreed to once should not carry two names (maintainer, 2026-08-31). The
+         key is not new, so MissingTranslation does not fire and no tools:ignore
+         is needed; this comment is the only record that all 63 locales now hold
+         stale copy for it. -->
+    <string name="settings_analytics_title">Help make Type Launcher better</string>
+</resources>

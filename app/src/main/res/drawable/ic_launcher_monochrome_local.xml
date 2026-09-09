@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <vector xmlns:android="http://schemas.android.com/apk/res/android"
+        android:width="108dp"
+        android:height="108dp"
+        android:viewportWidth="108"
+        android:viewportHeight="108">
+        <!-- Same geometry as the DEV badge (ic_launcher_foreground_local): the T mark
+             is scaled down and lifted into the upper safe zone so the badge below it
+             stays inside the central 72dp the adaptive-icon mask is guaranteed to
+             show. -->
+    <group
+            android:pivotX="54"
+            android:pivotY="54"
+            android:scaleX="0.7"
+            android:scaleY="0.7"
+            android:translateY="-12">
+            <!-- Hollow rectangle above the T, stylised as a search/filter bar -->
+            <path
+                android:fillColor="#00000000"
+                android:strokeColor="#FF000000"
+                android:strokeWidth="1.5"
+                android:pathData="M34,27 H74 V35 H34 Z" />
+            <!-- Caret inside the rectangle -->
+            <path
+                android:fillColor="#FF000000"
+                android:pathData="M39,29.5 H40 V32.5 H39 Z" />
+            <!-- Letter T -->
+            <path
+                android:fillColor="#FF000000"
+                android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
+        </group>
+    <!-- Android themed icons tint the whole monochrome layer one glyph color, so
+             the lettering can't be a second opaque color — it would be recolored to
+             match the bar and collapse into a solid block. Instead the bar and the
+             letters are one even-odd path: the bar fills, the letters are transparent
+             cut-outs, so the tinted bar shows the plate color through readable
+             "DEBUG". The bar rectangle is expressed in the letter group's local space
+             so it still bleeds to the icon edge while the mask shapes its corners. -->
+    <group
+        android:scaleX="1.5"
+        android:scaleY="1.5"
+        android:translateX="42.610"
+        android:translateY="68.5">
+        <path
+            android:fillColor="#FF000000"
+            android:fillType="evenOdd"
+            android:pathData="M-28.41,-3 H43.59 V26.333 H-28.41 Z M1.75 7.83Q2.78 7.83 3.18 7.33Q3.59 6.82 3.59 5.51Q3.59 4.18 3.18 3.67Q2.78 3.17 1.75 3.17H1.37V7.83ZM1.77 2.50Q3.14 2.50 3.79 3.23Q4.44 3.96 4.44 5.51Q4.44 7.04 3.79 7.77Q3.14 8.50 1.77 8.50H0.55V2.50Z M5.75 2.50H9.31V3.18H6.56V4.96H9.19V5.64H6.56V7.82H9.38V8.50H5.75Z M12.39 7.82 13.80 2.50H14.64L12.88 8.50H11.90L10.14 2.50H10.98Z" />
+    </group>
+</vector>

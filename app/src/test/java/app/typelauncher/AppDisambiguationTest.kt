@@ -1,0 +1,594 @@
+package app.typelauncher
+
+import android.content.ComponentName
+import android.content.Intent
+import android.os.Process
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+class AppDisambiguationTest {
+
+    @Test
+    fun brandKeyStripsCommonEtldPrefixes() {
+        assertEquals("americanexpress", brandKey("com.americanexpress.android.acctsvcs.us"))
+        assertEquals("chase", brandKey("com.chase.sig.android"))
+        assertEquals("fdroid", brandKey("org.fdroid.fdroid"))
+        assertEquals("dwd", brandKey("de.dwd.warnapp"))
+        assertEquals("typelauncher", brandKey("app.typelauncher.fake0"))
+    }
+
+    @Test
+    fun brandKeyHandlesMultiComponentEtlds() {
+        assertEquals("bigbank", brandKey("co.uk.bigbank.app"))
+        assertEquals("acme", brandKey("com.au.acme.client"))
+    }
+
+    @Test
+    fun brandKeyFallsBackToFirstComponentForUnknownEtld() {
+        assertEquals("xyzzy", brandKey("xyzzy.something.weird"))
+    }
+
+    @Test
+    fun brandKeyReturnsNullForEmptyInput() {
+        assertNull(brandKey(""))
+    }
+
+    @Test
+    fun amexThreePackUsesCountryCodeSuffix() {
+        val apps = listOf(
+            personalApp("Amex", "com.americanexpress.android.acctsvcs.us"),
+            personalApp("Amex UK", "com.americanexpress.android.acctsvcs.uk"),
+            personalApp("Amex AU", "com.americanexpress.android.acctsvcs.au"),
+        )
+        val disambig = computeDisambiguators(apps).mapKeys { (id, _) ->
+            apps.single { it.id == id }.name
+        }
+        assertEquals(mapOf("Amex" to "US", "Amex UK" to "UK", "Amex AU" to "AU"), disambig)
+    }
+
+    @Test
+    fun chaseSameNamePairOnlyCountryCodeMemberGetsBadge() {
+        val apps = listOf(
+            personalApp("Chase", "com.chase.sig.android"),
+            personalApp("Chase", "com.chase.uk.consumer"),
+        )
+        val disambig = computeDisambiguators(apps)
+        // Only the UK tail contains a country code; "sig" is not a country
+        // code so the sig variant gets no badge.
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun googleFamilyIsNotAmbiguous() {
+        // Google / Google Cloud / Google TV all share brand `google` and the
+        // first word `Google`, but the suffixes "Cloud" / "TV" are not country
+        // codes, so the group is rejected and no badges are rendered.
+        val apps = listOf(
+            personalApp("Google", "com.google.android.googlequicksearchbox"),
+            personalApp("Google Cloud", "com.google.android.apps.cloudconsole"),
+            personalApp("Google TV", "com.google.android.videos"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun youTubeFamilyIsNotAmbiguous() {
+        val apps = listOf(
+            personalApp("YouTube", "com.google.android.youtube"),
+            personalApp("YouTube Music", "com.google.android.apps.youtube.music"),
+            personalApp("YouTube Kids", "com.google.android.apps.youtube.kids"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun unrelatedAppsAreNotGrouped() {
+        val apps = listOf(
+            personalApp("Browser", "com.android.browser"),
+            personalApp("Calculator", "com.android.calculator2"),
+            personalApp("Clock", "com.android.deskclock"),
+        )
+        // Same brand `android` but completely different first words.
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun parenthesisedCountrySuffixCounts() {
+        val apps = listOf(
+            personalApp("Bank (US)", "com.bigbank.us"),
+            personalApp("Bank (UK)", "com.bigbank.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(2, disambig.size)
+        assertEquals("US", disambig[apps[0].id])
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun singletonAppGetsNoBadge() {
+        val apps = listOf(personalApp("Solo", "com.example.solo"))
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun displayNameAppendsSuffixWhenAbsentFromName() {
+        val app = personalApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("Chase (US)", app.displayName)
+    }
+
+    @Test
+    fun displayNameSuppressesRedundantSuffix() {
+        // "Amex UK" already contains "UK" as a token, so a "UK" disambiguator
+        // shouldn't produce the redundant "Amex UK (UK)".
+        val app = personalApp("Amex UK", "com.americanexpress.android.acctsvcs.uk")
+            .copy(disambiguator = "UK")
+        assertEquals("Amex UK", app.displayName)
+    }
+
+    @Test
+    fun displayNameStripsParensWhenCheckingForRedundantSuffix() {
+        // A label that already includes a parenthesised country marker
+        // ("Bank (US)") shouldn't render as "Bank (US) (US)" — the token
+        // comparison normalises surrounding punctuation before checking.
+        val app = personalApp("Bank (US)", "com.bigbank.us")
+            .copy(disambiguator = "US")
+        assertEquals("Bank (US)", app.displayName)
+    }
+
+    @Test
+    fun displayNameUsesCustomNameWhenSet() {
+        val app = personalApp("ChatGPT", "com.openai.chatgpt").copy(customName = "Codex")
+        assertEquals("Codex", app.displayName)
+    }
+
+    @Test
+    fun displayNameCustomNameWinsOverDisambiguator() {
+        // The user explicitly chose a label, so respect it instead of
+        // appending a regional badge that would no longer make sense.
+        val app = personalApp("ChatGPT", "com.openai.chatgpt")
+            .copy(customName = "Codex", disambiguator = "Web")
+        assertEquals("Codex", app.displayName)
+    }
+
+    @Test
+    fun displayNameFallsBackToSystemNameWhenCustomNameIsBlank() {
+        val app = personalApp("ChatGPT", "com.openai.chatgpt").copy(customName = "   ")
+        assertEquals("ChatGPT", app.displayName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameMatchesUnprefixedNameForWorkApp() {
+        // The work copy's visible label is "Work Calendar", but it must also be
+        // searchable by the un-prefixed "Calendar" so a typed "cal" prefix-
+        // matches it in the same bucket as the personal copy.
+        val app = workApp("Calendar", "com.android.calendar")
+        assertEquals("Work Calendar", app.displayName)
+        assertEquals("Calendar", app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameCarriesDisambiguatorSuffix() {
+        // A regional work app keeps the disambiguator suffix on the un-prefixed
+        // search name too, so "(US)" stays searchable without the work prefix.
+        val app = workApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("Work Chase (US)", app.displayName)
+        assertEquals("Chase (US)", app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameStripsLabelThatAlreadyStartsWithWorkToken() {
+        // An app whose own launcher label already begins with the locale's work
+        // token ("Work Email") collapses to a single prefix in displayBase, so
+        // the raw `name` ("Work Email") still carries the prefix. The search
+        // name must be the stripped noun ("Email") so typing "email"
+        // prefix-matches it instead of dropping to a mid-string anchored match.
+        val app = workApp("Work Email", "com.example.email")
+        assertEquals("Work Email", app.displayName)
+        assertEquals("Email", app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameIsNullForPersonalApp() {
+        val app = personalApp("Calendar", "com.android.calendar")
+        assertNull(app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun workPrefixStrippedSearchNameIsNullWhenWorkAppHasCustomName() {
+        // A user-renamed work app already shows its custom label with no forced
+        // prefix, so there's no separate un-prefixed name to match.
+        val app = workApp("Calendar", "com.android.calendar").copy(customName = "Cal")
+        assertEquals("Cal", app.displayName)
+        assertNull(app.workPrefixStrippedSearchName)
+    }
+
+    @Test
+    fun effectiveDisambiguatorFallsBackToModelDisambiguatorWithoutOverride() {
+        val app = personalApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("US", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun effectiveDisambiguatorIsNullWhenNoCustomNameNorAutoBadge() {
+        val app = personalApp("Calculator", "com.example.calc")
+        assertNull(app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun customNameWithParenthesisedCountryTagDrivesBadge() {
+        // Renaming "Chase" to "Chase (US)" must surface a US flag even if the
+        // auto-disambiguator picked something else (or nothing at all).
+        val app = personalApp("Chase", "com.chase.intl")
+            .copy(disambiguator = "INTL", customName = "Chase (US)")
+        assertEquals("US", app.effectiveDisambiguator)
+        assertEquals("Chase (US)", app.displayName)
+    }
+
+    @Test
+    fun customNameWithBareCountryTagDrivesBadge() {
+        val app = personalApp("Foo", "com.example.foo").copy(customName = "Foo UK")
+        assertEquals("UK", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun customNameWithIntlTagDrivesGlobeBadge() {
+        val app = personalApp("Chase", "com.chase.sig.android")
+            .copy(customName = "Chase (intl)")
+        assertEquals("INTL", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun lowercaseEnglishWordTrailingTokenDoesNotGrowAFlag() {
+        // Two-letter ISO codes collide with ordinary English words. Before
+        // the uppercase gate, these renames grew a Dominican Republic /
+        // India / Montenegro flag badge out of their final word.
+        assertNull(
+            personalApp("Tasks", "com.example.tasks")
+                .copy(customName = "To Do").effectiveDisambiguator,
+        )
+        assertNull(
+            personalApp("Attend", "com.example.attend")
+                .copy(customName = "Check In").effectiveDisambiguator,
+        )
+        assertNull(
+            personalApp("Phone", "com.example.phone")
+                .copy(customName = "Call Me").effectiveDisambiguator,
+        )
+    }
+
+    @Test
+    fun titlecaseCountryTokenDoesNotDriveBadge() {
+        // Only the conventional all-uppercase form reads as a deliberate
+        // country tag; "Uk" is treated as a word.
+        assertNull(
+            personalApp("Foo", "com.example.foo")
+                .copy(customName = "Foo Uk").effectiveDisambiguator,
+        )
+    }
+
+    @Test
+    fun customNameWithoutRecognisedTagSuppressesBadge() {
+        // The user explicitly chose a label without a regional tag; do not
+        // silently retain the system-picked badge they were overriding.
+        val app = personalApp("ChatGPT", "com.openai.chatgpt")
+            .copy(disambiguator = "US", customName = "Codex")
+        assertNull(app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun samePackagePersonalWorkPairIsNotDisambiguated() {
+        // Personal Gmail and a work-profile clone of the same Gmail share
+        // the same package — the work-profile badge already disambiguates
+        // them and the package-tail picker would just produce identical
+        // labels for both, so we skip the group entirely.
+        val personal = personalApp("Gmail", "com.google.android.gm")
+        val work = personalApp("Gmail", "com.google.android.gm")
+            // Different `id` because UserHandle differs. We can't easily
+            // construct a foreign UserHandle in a unit test, so simulate
+            // the ID divergence via a different launchIntent component.
+            .let { it.copy(launchIntent = Intent.makeMainActivity(ComponentName(it.packageName, "${it.packageName}.WorkActivity"))) }
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(listOf(personal, work)))
+    }
+
+    @Test
+    fun nonCountryCodeNonRegionalPackageTailsProduceNoBadge() {
+        // "sig" and "premium" are neither country codes nor recognised
+        // regional markers; neither variant gets a badge even though the
+        // group is accepted by the all-same-suffix gate.
+        val apps = listOf(
+            personalApp("Chase", "com.chase.sig.android"),
+            personalApp("Chase", "com.chase.premium.android"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun chaseSigAndIntlPairOnlyIntlVariantGetsBadge() {
+        // Real-world case: both apps ship as the literal display name
+        // "Chase". The `sig` tail isn't a country code or regional marker
+        // (it's a legacy Signature product name, not a region), so the US
+        // Chase stays unbadged. Chase International's `com.chase.intl`
+        // tail contains "intl", so it gets the "INTL" fallback badge.
+        val apps = listOf(
+            personalApp("Chase", "com.chase.sig.android"),
+            personalApp("Chase", "com.chase.intl"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("INTL", disambig[apps[1].id])
+    }
+
+    @Test
+    fun brandKeyHandlesKonyAndIeEtldPrefixes() {
+        assertEquals("capitalone", brandKey("com.konylabs.capitalone"))
+        assertEquals("capitalone", brandKey("com.ie.capitalone.uk"))
+    }
+
+    @Test
+    fun chaseKonyUsAndIeUkOnlyUkVariantGetsBadge() {
+        // Both packages resolve to brand "capitalone" after stripping their
+        // respective eTLD prefixes, grouping them together. The IE/UK package
+        // tail ends in "uk" so it receives the UK badge; the Kony package has
+        // an empty tail after the brand so it gets no badge.
+        val apps = listOf(
+            personalApp("Chase", "com.konylabs.capitalone"),
+            personalApp("Chase", "com.ie.capitalone.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun capitalOneSameNameTwoWordPairOnlyUkVariantGetsBadge() {
+        // Real-world case: both apps ship with the literal display name
+        // "Capital One", grouped under brand "capitalone" via the
+        // com.ie / com.konylabs eTLD prefixes. The two-word name means the
+        // suffix is "One" rather than empty, but the suffixes are identical
+        // for both apps so the user can't tell them apart — the IE/UK
+        // package tail ending in "uk" gets the UK badge, the Kony tail gets
+        // no badge.
+        val apps = listOf(
+            personalApp("Capital One", "com.konylabs.capitalone"),
+            personalApp("Capital One", "com.ie.capitalone.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun differingNonCountrySuffixesStillDoNotProduceBadges() {
+        // "Capital One Premium" vs "Capital One Business" share brand and
+        // first word but the suffixes differ and neither is a country code,
+        // so the group is rejected — the user can already tell them apart
+        // from the display name alone.
+        val apps = listOf(
+            personalApp("Capital One Premium", "com.konylabs.capitalone"),
+            personalApp("Capital One Business", "com.ie.capitalone.uk"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun nonIsoRegionalMarkersAreNotMatched() {
+        // We deliberately don't include "EMEA" / "APAC" / "ANZ" / "ROW" in
+        // the regional-marker list — keeping the set to ISO 3166-1 alpha-2
+        // (plus the colloquial "uk") avoids false grouping like ANZ-the-bank
+        // being mis-classified as a regional variant. Re-add specific
+        // markers if real apps in the wild are observed using them.
+        val apps = listOf(
+            personalApp("Acme EMEA", "com.acme.emea"),
+            personalApp("Acme APAC", "com.acme.apac"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(apps))
+    }
+
+    @Test
+    fun onlyMembersWithCountryCodeTailGetBadge() {
+        // "app" and "premium" are not country codes, so only the "uk" tail
+        // gets a badge; the other group members are left unbadged.
+        val apps = listOf(
+            personalApp("Bank", "com.bigbank.app"),
+            personalApp("Bank UK", "com.bigbank.uk"),
+            personalApp("Bank Premium", "com.bigbank.premium"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals(1, disambig.size)
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun gbAndUkBothAccepted() {
+        // Some apps use the colloquial "uk" suffix, others use the ISO "gb"
+        // — both should be recognised so that an app pair using one or the
+        // other still gets disambiguated.
+        val gb = listOf(
+            personalApp("Acme", "com.acme.us"),
+            personalApp("Acme GB", "com.acme.gb"),
+        )
+        val gbResult = computeDisambiguators(gb)
+        assertEquals("US", gbResult[gb[0].id])
+        assertEquals("GB", gbResult[gb[1].id])
+
+        val uk = listOf(
+            personalApp("Acme", "com.acme.us"),
+            personalApp("Acme UK", "com.acme.uk"),
+        )
+        val ukResult = computeDisambiguators(uk)
+        assertEquals("US", ukResult[uk[0].id])
+        assertEquals("UK", ukResult[uk[1].id])
+    }
+
+    @Test
+    fun tvAndCdSuffixesAreNotRegional() {
+        // Deliberate exclusions to avoid confusing television / compact-disc
+        // with Tuvalu / DR Congo.
+        val tv = listOf(
+            personalApp("Acme", "com.acme.app"),
+            personalApp("Acme TV", "com.acme.tv"),
+        )
+        assertEquals(emptyMap<String, String>(), computeDisambiguators(tv))
+    }
+
+    @Test
+    fun nonBreakingSpaceSeparatedTagDrivesBadge() {
+        // Some renamed labels (and copy/paste from rich-text sources) separate
+        // the brand from its tag with a non-breaking space rather than a plain
+        // space. `String.trim()` strips Unicode whitespace, so the parser must
+        // split on it too — otherwise "Chase\u00A0(US)" stays one token and the
+        // "(US)" tag goes unrecognised.
+        val app = personalApp("Chase", "com.chase.intl")
+            .copy(disambiguator = "INTL", customName = "Chase\u00A0(US)")
+        assertEquals("US", app.effectiveDisambiguator)
+    }
+
+    @Test
+    fun displayNameSuppressesRedundantSuffixSeparatedByNonBreakingSpace() {
+        // "Amex\u00A0UK" already contains the "UK" tag as a (NBSP-separated)
+        // token, so the disambiguator suffix must not be appended again.
+        val app = personalApp("Amex\u00A0UK", "com.americanexpress.uk")
+            .copy(disambiguator = "UK")
+        assertEquals("Amex\u00A0UK", app.displayName)
+    }
+
+    @Test
+    fun nonBreakingSpaceInNameStillGroupsAndBadges() {
+        // Grouping keys off the first whitespace-separated word and the country
+        // suffix; both must treat a non-breaking space as a separator so an
+        // "Acme\u00A0UK" label groups with plain "Acme" and earns its badge.
+        val apps = listOf(
+            personalApp("Acme", "com.acme.us"),
+            personalApp("Acme\u00A0UK", "com.acme.uk"),
+        )
+        val disambig = computeDisambiguators(apps)
+        assertEquals("US", disambig[apps[0].id])
+        assertEquals("UK", disambig[apps[1].id])
+    }
+
+    @Test
+    fun displayNameForWorkAppPrependsWorkPrefix() {
+        val app = workApp("Calendar", "com.android.calendar")
+        assertEquals("Work Calendar", app.displayName)
+    }
+
+    @Test
+    fun displayNameForWorkAppCombinesPrefixAndDisambiguator() {
+        // The disambiguator suffix is appended to the prefixed base, so a
+        // work-profile Chase that auto-picks a "US" regional badge shows up
+        // as "Work Chase (US)" rather than dropping either piece.
+        val app = workApp("Chase", "com.chase.sig.android").copy(disambiguator = "US")
+        assertEquals("Work Chase (US)", app.displayName)
+    }
+
+    @Test
+    fun displayNameForWorkAppRespectsCustomNameVerbatim() {
+        // A user who renames a work-profile app explicitly chose that label;
+        // do not force "Work " on top of it.
+        val app = workApp("Calendar", "com.android.calendar").copy(customName = "Daily")
+        assertEquals("Daily", app.displayName)
+    }
+
+    @Test
+    fun displayNameForWorkAppPrependsEvenWhenNameStartsWithWork() {
+        // "Workplace by Meta" still gets "Work " prepended — the prefix is
+        // applied uniformly so users always know how to type for the work copy.
+        val app = workApp("Workplace", "com.facebook.workplace")
+        assertEquals("Work Workplace", app.displayName)
+    }
+
+    @Test
+    fun applyWorkPrefixWrapsAPlainLabel() {
+        assertEquals("Work Calendar", workPrefix("Calendar"))
+    }
+
+    @Test
+    fun applyWorkPrefixCollapsesASingleLeadingWorkToken() {
+        // Some OEMs ship work-profile-only apps named "Work Email" / "Work
+        // Calendar" already. Re-prepending another "Work " would produce
+        // "Work Work Email", so the helper strips one leading token before
+        // formatting.
+        assertEquals("Work Email", workPrefix("Work Email"))
+    }
+
+    @Test
+    fun applyWorkPrefixCollapsesRepeatedLeadingWorkTokens() {
+        // Pathological but possible: a label that already carries two
+        // "Work " tokens (one from a previous mis-prefix, one inherent) must
+        // still collapse down to a single prefix.
+        assertEquals("Work Something", workPrefix("Work Work Something"))
+        assertEquals("Work Foo", workPrefix("Work Work Work Foo"))
+    }
+
+    @Test
+    fun applyWorkPrefixLeavesSingleWordsAlone() {
+        // "Workplace" / "Workspace" / "Workout" start with the same four
+        // letters but are single words, not a leading "Work " token. They
+        // should still receive the prefix verbatim.
+        assertEquals("Work Workplace", workPrefix("Workplace"))
+        assertEquals("Work Workspace", workPrefix("Workspace"))
+        assertEquals("Work Workout", workPrefix("Workout"))
+    }
+
+    @Test
+    fun applyWorkPrefixHandlesCaseInsensitively() {
+        // Some labels lowercase the prefix; the strip must still recognize
+        // it so we don't render "Work work mail".
+        assertEquals("Work mail", workPrefix("work mail"))
+    }
+
+    @Test
+    fun displayNameForPersonalAppIsUnchanged() {
+        // Sanity check: introducing displayBase must not drift personal apps.
+        val app = personalApp("Calendar", "com.android.calendar")
+        assertEquals("Calendar", app.displayName)
+    }
+
+    // Drives [applyWorkPrefix] with the en-US format string the production
+    // ViewModel uses, so the tests don't have to know about R.string.
+    private fun workPrefix(rawLabel: String): String =
+        applyWorkPrefix(rawLabel = rawLabel, prefixWord = "Work") { stripped ->
+            "Work $stripped"
+        }
+
+    private fun personalApp(name: String, packageName: String): InstalledApp {
+        val component = ComponentName(packageName, "$packageName.LaunchActivity")
+        return InstalledApp(
+            name = name,
+            packageName = packageName,
+            launchIntent = Intent.makeMainActivity(component),
+            user = Process.myUserHandle(),
+            isWorkApp = false,
+            launchWithLauncherApps = true,
+        )
+    }
+
+    // Mirror of [personalApp] for work-profile apps. We can't construct a
+    // foreign UserHandle in a unit test, so set `isWorkApp = true` directly
+    // and pre-format displayBase the way LauncherViewModel.loadInstalledApps
+    // would in production (R.string.app_label_with_work_prefix → "Work %1$s"
+    // for en-US).
+    private fun workApp(name: String, packageName: String): InstalledApp {
+        val component = ComponentName(packageName, "$packageName.LaunchActivity")
+        // Derive displayBase / unprefixedName through the same strip-then-format
+        // helpers loadInstalledApps uses so the helper models the "Work Email"
+        // (label already prefixed) case faithfully, not just plain nouns.
+        return InstalledApp(
+            name = name,
+            packageName = packageName,
+            launchIntent = Intent.makeMainActivity(component),
+            user = Process.myUserHandle(),
+            isWorkApp = true,
+            launchWithLauncherApps = true,
+            displayBase = applyWorkPrefix(name, prefixWord = "Work") { "Work $it" },
+            unprefixedName = stripWorkPrefix(name, prefixWord = "Work"),
+        )
+    }
+}
