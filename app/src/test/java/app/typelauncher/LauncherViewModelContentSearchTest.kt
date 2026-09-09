@@ -1,0 +1,2076 @@
+package app.typelauncher
+
+import android.Manifest
+import android.content.ContentProvider
+import android.content.ContentUris
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ResolveInfo
+import android.database.Cursor
+import android.database.MatrixCursor
+import android.net.Uri
+import android.os.Looper
+import android.provider.CalendarContract
+import android.provider.ContactsContract
+import android.telecom.TelecomManager
+import androidx.test.core.app.ApplicationProvider
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowContentResolver
+
+/**
+ * Integration coverage for the typed-search content sections: index loading
+ * behind the per-source settings + permissions, per-keystroke section results,
+ * the Enter fallback to the first content result when zero apps match, and the
+ * query-clearing contract on opening a result.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+class LauncherViewModelContentSearchTest {
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+
+    @After
+    fun clearPrefs() {
+        listOf(
+            "docked_apps",
+            "dock_settings",
+            "app_launch_stats",
+            "widgets",
+            "app_metadata",
+            "hidden_apps",
+            "renamed_apps",
+        ).forEach { name ->
+            context.getSharedPreferences(name, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+        }
+    }
+
+    @Test
+    fun typedQueryFillsContentSectionsWhenEnabled() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(1, "Maria Lopez"), FakeContact(2, "Bob Oates")))
+        registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("mar")
+
+        assertEquals(listOf("Maria Lopez"), viewModel.uiState.value.contactResults.map { it.displayName })
+        val event = viewModel.uiState.value.eventResults.single()
+        assertEquals("Marathon training", event.title)
+        // The time label is formatted per query (not baked into the index), so
+        // a matched event carries a non-blank now-relative time column — the
+        // default fake event starts an hour out, so it's an upcoming timed row.
+        assertTrue("event row must carry a formatted time label", event.displayTime.contains(":"))
+        // Blank query empties the sections again — they only exist while typing.
+        viewModel.setQuery("")
+        assertTrue(viewModel.uiState.value.contactResults.isEmpty())
+        assertTrue(viewModel.uiState.value.eventResults.isEmpty())
+    }
+
+    @Test
+    fun contactIndexCarriesPhotoThumbnailUri() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(
+            listOf(
+                FakeContact(1, "Maria Lopez", photoUri = "content://com.android.contacts/contacts/1/photo"),
+                FakeContact(2, "Mark Chen"),
+            ),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("ma")
+
+        val results = viewModel.uiState.value.contactResults
+        assertEquals(listOf("Maria Lopez", "Mark Chen"), results.map { it.displayName })
+        // The photo URI rides the index so the row can decode lazily; a
+        // photo-less contact carries null and renders the monogram.
+        assertEquals(
+            listOf("content://com.android.contacts/contacts/1/photo", null),
+            results.map { it.photoThumbnailUri },
+        )
+    }
+
+    @Test
+    fun starredContactRanksAboveAlphabeticallyEarlierNonStarredContact() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(
+            listOf(
+                FakeContact(1, "Marcus Aurelius"),
+                FakeContact(2, "Marge Simpson"),
+                FakeContact(3, "Margot Robbie", starred = true),
+            ),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("mar")
+
+        // All three are equally-good prefix matches for "mar" — Margot ranks
+        // first for being starred despite "Marcus" and "Marge" sorting ahead
+        // of her alphabetically; the two non-starred contacts keep their
+        // alphabetical order behind her.
+        assertEquals(
+            listOf("Margot Robbie", "Marcus Aurelius", "Marge Simpson"),
+            viewModel.uiState.value.contactResults.map { it.displayName },
+        )
+    }
+
+    @Test
+    fun disabledSourcesStayEmptyEvenWithMatches() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        // Providers have data, but neither source is enabled in Settings.
+        registerContactsProvider(listOf(FakeContact(1, "Maria Lopez")))
+        registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("mar")
+
+        assertTrue(viewModel.uiState.value.contactResults.isEmpty())
+        assertTrue(viewModel.uiState.value.eventResults.isEmpty())
+    }
+
+    @Test
+    fun enterOpensFirstContactWhenNoAppMatches() {
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("zoe")
+        assertTrue(
+            "No app should match 'zoe'",
+            viewModel.uiState.value.filteredApps.isEmpty(),
+        )
+        viewModel.launchActiveApp()
+        idle()
+
+        assertEquals(
+            "Enter with only a contact match opens that contact's quick-actions sheet",
+            7L,
+            viewModel.uiState.value.contactActionsMode?.actions?.contact?.contactId,
+        )
+        assertNull(
+            "Opening the sheet launches nothing yet — an action does that",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+        // Opening the mode clears the query so the channel list isn't pre-filtered
+        // by the contact name; the typed text is saved to restore on the way out.
+        assertEquals("Opening the mode clears the query so channels aren't pre-filtered", "", viewModel.uiState.value.query)
+        assertEquals("The typed query is saved to restore on exit", "zoe", viewModel.uiState.value.contactActionsMode?.returnQuery)
+    }
+
+    @Test
+    fun tappingContactOpensActionsSheet() {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+        viewModel.openContactResult(contact)
+        idle()
+
+        assertEquals(
+            "Tapping a contact opens its quick-actions sheet",
+            7L,
+            viewModel.uiState.value.contactActionsMode?.actions?.contact?.contactId,
+        )
+        assertNull(
+            "Opening the mode launches nothing",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+        assertEquals("Opening the mode clears the query", "", viewModel.uiState.value.query)
+
+        viewModel.dismissContactActions()
+        assertNull("Dismissing leaves the mode", viewModel.uiState.value.contactActionsMode)
+        assertEquals("Dismissing restores the saved search query", "zoe", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun openContactCardLaunchesQuickContactAndClearsQuery() {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+        viewModel.openContactResult(contact)
+        idle()
+
+        // The "Open contact" escape hatch opens the full QuickContact card.
+        viewModel.openContactCard(contact)
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertNotNull("Open contact must launch the QuickContact card", started)
+        assertEquals(ContactsContract.QuickContact.ACTION_QUICK_CONTACT, started.action)
+        assertEquals(ContactsContract.Contacts.getLookupUri(7L, "lookup-7"), started.data)
+        assertTrue(
+            "The card launches as its own document task so Back returns to the launcher",
+            started.flags and Intent.FLAG_ACTIVITY_NEW_DOCUMENT != 0,
+        )
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
+        assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun staleContactResolveIsDiscardedAfterDismiss() {
+        // Regression: a slow resolve must not pop a sheet after the user has
+        // already dismissed. The QueueDispatcher parks the resolve so the
+        // dismiss lands first; draining then runs the stale resolve, which the
+        // request token must drop.
+        val io = QueueDispatcher()
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        val contact = ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn")
+        viewModel.openContactResult(contact)
+        // Dismiss before the parked resolve runs.
+        viewModel.dismissContactActions()
+        settle(io)
+
+        assertNull(
+            "A resolve that returns after dismiss must not re-open the sheet",
+            viewModel.uiState.value.contactActionsMode,
+        )
+    }
+
+    @Test
+    fun staleContactResolveIsDiscardedAfterResumeToHome() {
+        // Regression: opening a contact and then backgrounding to Home before the
+        // resolve publishes left `contactActionsMode` null at resume, so the old
+        // guard returned without bumping the request token — and the parked resolve
+        // then popped stale actions onto the clean home. The resume must cancel the
+        // in-flight resolve even when the mode has not been published yet.
+        val io = QueueDispatcher()
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        // Resume to Home before the parked resolve runs.
+        viewModel.closeSecondaryTrayOnResume()
+        settle(io)
+
+        assertNull(
+            "A resolve that returns after a resume must not pop actions onto the home",
+            viewModel.uiState.value.contactActionsMode,
+        )
+    }
+
+    @Test
+    fun laterContactOpenSupersedesEarlierResolve() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn"), FakeContact(8, "Bo Vale")))
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        viewModel.openContactResult(ContactResult(8, "lookup-8", "Bo Vale"))
+        settle(io)
+
+        assertEquals(
+            "The latest opened contact wins regardless of resolve order",
+            8L,
+            viewModel.uiState.value.contactActionsMode?.actions?.contact?.contactId,
+        )
+    }
+
+    @Test
+    fun launchActionStartsIntentAndClearsSearch() {
+        val viewModel = viewModelWithOpenSheet()
+        val sms = ContactAction(
+            label = "Mobile",
+            detail = "+15550100",
+            isDefault = true,
+            kind = ContactActionKind.Launch(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:+15550100"))),
+        )
+
+        viewModel.onContactActionSelected(sms)
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals(Intent.ACTION_SENDTO, started.action)
+        assertEquals("smsto:+15550100", started.data.toString())
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
+        assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun grantedCallPlacesCallThroughTelecom() {
+        // The default "Call using: Phone app" hands the number to Telecom, so
+        // the call starts in the phone's own calling app with no activity
+        // launch — and therefore no "which app do you want to use" step —
+        // between the tap and the call.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals("+15550100", placed.address?.schemeSpecificPart)
+        assertNull(
+            "Telecom takes the call, so nothing is dispatched as an activity",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
+        assertEquals("Acting clears the search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun telecomPlacementIsDispatchedToIoDispatcher() {
+        // TelecomManager.placeCall is a synchronous Binder round-trip, so it
+        // must not run on the frame the tap landed on. Parking the io queue
+        // proves the dispatch: nothing reaches Telecom until the queue drains.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val telecom = shadowOf(context.getSystemService(TelecomManager::class.java))
+        assertTrue(
+            "The Binder call must be parked on the io dispatcher, not run inline",
+            telecom.allOutgoingCalls.isEmpty(),
+        )
+        assertNotNull(
+            "The mode stays up until the placement resolves",
+            viewModel.uiState.value.contactActionsMode,
+        )
+
+        settle(io)
+
+        assertEquals("+15550100", telecom.onlyOutgoingCall.address?.schemeSpecificPart)
+        assertNull("The resolved placement closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun repeatTapIsIgnoredWhileTelecomPlacementIsPending() {
+        // The rows stay interactive across the placement's Binder round-trip,
+        // so a wedged Telecom service must not let a second tap become a
+        // second call — here on a different number, which is the damaging
+        // version of the race.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        viewModel.onContactActionSelected(callAction("+15550199"))
+        idle()
+        settle(io)
+
+        val telecom = shadowOf(context.getSystemService(TelecomManager::class.java))
+        assertEquals(
+            "Only the first tap places a call",
+            listOf("+15550100"),
+            telecom.allOutgoingCalls.map { it.address?.schemeSpecificPart },
+        )
+    }
+
+    @Test
+    fun placementResolvingAfterBackLeavesTheNewQueryAlone() {
+        // Regression: the placement runs off the main thread, so the user can
+        // back out and type something new before it returns. Its completion
+        // must not then clear the query and mode they have moved on to.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        // Back out of the mode and start a fresh search while Telecom thinks.
+        viewModel.onContactActionsBack()
+        viewModel.setQuery("map")
+        idle()
+        settle(io)
+
+        assertEquals(
+            "A superseded placement must not clear the query typed after it",
+            "map",
+            viewModel.uiState.value.query,
+        )
+        assertNull(
+            "It must not reopen or re-clear the contact mode either",
+            viewModel.uiState.value.contactActionsMode,
+        )
+    }
+
+    @Test
+    fun grantedCallSurvivesThePermissionResume() {
+        // The permission result is dispatched before onResume, and it clears
+        // the parked number before starting the placement — so the resume that
+        // follows the grant must not be read as the user navigating away and
+        // supersede the placement in flight. If it did, a Telecom rejection
+        // would lose its promised dialer fallback and the tap would dead-end.
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        settle(io)
+
+        // Grant, then have Telecom refuse the call it just gained permission for.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        shadowOf(context.getSystemService(TelecomManager::class.java)).setCallPhonePermission(false)
+        viewModel.onCallPermissionResult(granted = true)
+        idle()
+        // onResume lands while the placement is still parked.
+        viewModel.closeSecondaryTrayOnResume()
+        settle(io)
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The refused placement still reaches the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun callWithoutATelecomDialerHandsOffRatherThanReportingSuccess() {
+        // TelecomManager.placeCall returns void and fails silently when no
+        // Telecom service is bound, so a normal return proves nothing. With no
+        // dialer coming back from Telecom the route isn't taken at all — the
+        // tap must reach the dialer instead of being reported as placed and
+        // swallowing the fallback.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        assertTrue(
+            "A Telecom service that can't name a dialer is not asked to place the call",
+            shadowOf(context.getSystemService(TelecomManager::class.java)).allOutgoingCalls.isEmpty(),
+        )
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The tap still reaches the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+    }
+
+    @Test
+    fun ordinaryResumeSupersedesAnInFlightPlacement() {
+        // The counterpart to grantedCallSurvivesThePermissionResume: a resume
+        // that isn't the permission dialog coming back — Overview, a
+        // notification — is the user genuinely leaving, so a placement still
+        // pending from an already-granted tap is superseded like any other
+        // navigation. Without that distinction a later Telecom rejection would
+        // pull the dialer into the foreground after they had moved on.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val io = QueueDispatcher()
+        val viewModel = viewModelWithOpenSheet(io)
+        // Telecom will refuse, so an unsuperseded completion would hand off.
+        shadowOf(context.getSystemService(TelecomManager::class.java)).setCallPhonePermission(false)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        viewModel.closeSecondaryTrayOnResume()
+        settle(io)
+
+        assertNull(
+            "A genuine resume drops the contact mode rather than holding it for the placement",
+            viewModel.uiState.value.contactActionsMode,
+        )
+        assertNull(
+            "And the superseded completion must not launch the dialer behind them",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+    }
+
+    @Test
+    fun askWhichAppCallStartsActionCall() {
+        // "Call using: Ask which app" dispatches an untargeted ACTION_CALL
+        // instead, which is what lets Android offer its app chooser when more
+        // than one installed app can place the call.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The chooser route is placed with ACTION_CALL", Intent.ACTION_CALL, started.action)
+        assertNull("An untargeted intent is what raises the chooser", started.`package`)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertTrue(
+            "Nothing goes to Telecom directly on this route",
+            shadowOf(context.getSystemService(TelecomManager::class.java)).allOutgoingCalls.isEmpty(),
+        )
+        assertNull("Acting closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun callMethodPersistsAcrossProcessRestart() {
+        val viewModel = viewModelWithOpenSheet()
+        assertEquals(
+            "Calls start in the phone app unless the user opts into the chooser",
+            CallMethod.PhoneApp,
+            viewModel.uiState.value.callMethod,
+        )
+
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
+        idle()
+
+        assertEquals(CallMethod.AskWhichApp, newViewModel().uiState.value.callMethod)
+    }
+
+    @Test
+    fun failedTelecomCallFallsBackToDialer() {
+        // Telecom can refuse a call the permission check just passed —
+        // CALL_PHONE revoked in between, or a number it won't dial — and that
+        // must fall back to the dialer hand-off rather than dead-ending the
+        // tap. Revoking the shadow's own permission is how placeCall is made
+        // to throw.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+        shadowOf(context.getSystemService(TelecomManager::class.java)).setCallPhonePermission(false)
+        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", "+15550100", null))
+        val dialerResolveInfo = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                packageName = "com.android.dialer"
+                name = "com.android.dialer.DialActivity"
+            }
+        }
+        @Suppress("DEPRECATION")
+        shadowOf(context.packageManager).addResolveInfoForIntent(dialIntent, dialerResolveInfo)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The refused call falls back to the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun failedActionCallFallsBackToDialer() {
+        // Same contract on the chooser route: no call-capable activity to
+        // resolve ACTION_CALL against must not dead-end the tap.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+        viewModel.setCallMethod(CallMethod.AskWhichApp)
+        // Only ACTION_DIAL resolves; the ACTION_CALL start throws.
+        shadowOf(context as android.app.Application).checkActivities(true)
+        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", "+15550100", null))
+        val dialerResolveInfo = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                packageName = "com.android.dialer"
+                name = "com.android.dialer.DialActivity"
+            }
+        }
+        @Suppress("DEPRECATION")
+        shadowOf(context.packageManager).addResolveInfoForIntent(dialIntent, dialerResolveInfo)
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("The failed direct call falls back to the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun legacyDialerSettingOnDiskIsIgnored() {
+        // The removed "Use default dialer" flag may survive on disk from an
+        // upgrade; it must no longer be read — the call is still placed.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        context.getSharedPreferences("dock_settings", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("use_default_dialer", true)
+            .commit()
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals("The stale flag no longer opens the dialer", "+15550100", placed.address?.schemeSpecificPart)
+        assertEquals(
+            "The stale flag does not preselect a call method either",
+            CallMethod.PhoneApp,
+            viewModel.uiState.value.callMethod,
+        )
+    }
+
+    @Test
+    fun callNumberWithHashIsNotTruncated() {
+        // Regression: a '#' in a service / extension / USSD number must reach
+        // the dialer intact. Building "tel:$number" as a string would parse the
+        // '#' as a URI fragment and truncate the dial string.
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.CALL_PHONE)
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+1800555#123"))
+        idle()
+
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals(
+            "The '#' must survive into the dial string, not be dropped as a URI fragment",
+            "+1800555#123",
+            placed.address?.schemeSpecificPart,
+        )
+    }
+
+    @Test
+    fun callWithoutPermissionWaitsThenPlacesOnGrant() {
+        // With CALL_PHONE not yet granted, the tap parks the number and asks
+        // the Activity to prompt rather than dialing anything yet.
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        assertNull(
+            "Nothing launches until the permission is resolved",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+
+        viewModel.onCallPermissionResult(granted = true)
+        idle()
+        val placed = shadowOf(context.getSystemService(TelecomManager::class.java)).onlyOutgoingCall
+        assertEquals("A granted prompt places the parked call", "+15550100", placed.address?.schemeSpecificPart)
+    }
+
+    @Test
+    fun deniedCallFallsBackToDialer() {
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
+        val viewModel = viewModelWithOpenSheet()
+
+        viewModel.onContactActionSelected(callAction("+15550100"))
+        idle()
+        viewModel.onCallPermissionResult(granted = false)
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertEquals("A refused Call falls back to the dialer", Intent.ACTION_DIAL, started.action)
+        assertEquals("The fallback targets the default dialer too", "com.android.dialer", started.`package`)
+        assertEquals("+15550100", started.data?.schemeSpecificPart)
+        assertNull("The fallback still closes the sheet", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun enterStillLaunchesAppWhenBothMatch() {
+        seedApp("Maps", "com.example.maps")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(1, "Maria Lopez")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("ma")
+        viewModel.launchActiveApp()
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertNotNull(started)
+        assertEquals(
+            "Apps own Enter whenever any app matches",
+            "com.example.maps",
+            started.component?.packageName,
+        )
+    }
+
+    @Test
+    fun futureAllDayEventIsSearchable() {
+        // Regression: the search index must use the forSearch organizer — the
+        // agenda's forNow drops all-day events that don't intersect today, so
+        // a next-week all-day vacation was unreachable from search.
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(emptyList())
+        val utcTodayStart = java.time.Instant.ofEpochMilli(System.currentTimeMillis())
+            .atZone(java.time.ZoneOffset.UTC)
+            .toLocalDate()
+        registerCalendarProvider(
+            listOf(
+                FakeEvent(
+                    id = 20,
+                    title = "Vacation in Lisbon",
+                    allDay = true,
+                    beginMillis = utcTodayStart.plusDays(5)
+                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+                    durationMillis = 24 * 60 * 60 * 1000L,
+                ),
+            ),
+        )
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("vac")
+
+        assertEquals(
+            listOf("Vacation in Lisbon"),
+            viewModel.uiState.value.eventResults.map { it.title },
+        )
+    }
+
+    @Test
+    fun dateChangedBroadcastReloadsSearchEventIndex() {
+        // The event index bakes day-relative labels ("Today", "Fri", "Jul 25")
+        // at load time, so the midnight-rollover / clock-change broadcast has
+        // to reload it or the visible rows keep yesterday's labels.
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(emptyList())
+        val calendarProvider = registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        val queriesAfterInitialLoad = calendarProvider.queryCount
+        assertTrue("initial load must query the calendar provider", queriesAfterInitialLoad > 0)
+
+        context.sendBroadcast(Intent(Intent.ACTION_DATE_CHANGED))
+        idle()
+
+        assertTrue(
+            "Date-changed broadcast must reload the search event index",
+            calendarProvider.queryCount > queriesAfterInitialLoad,
+        )
+    }
+
+    @Test
+    fun disableInvalidatesInFlightIndexLoad() {
+        // Regression: disabling a source while its IO load is still parked
+        // must invalidate that load — otherwise it lands after the clear and
+        // the launcher keeps holding just-disabled contact data in memory.
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        val contactsProvider = registerContactsProvider(listOf(FakeContact(1, "Maria Lopez")))
+        registerCalendarProvider(emptyList())
+        val io = QueueDispatcher()
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+
+        viewModel.setContactSearchEnabled(true)
+        idle()
+        // The contact-index load is parked on the io queue; disable before it
+        // runs.
+        viewModel.setContactSearchEnabled(false)
+        settle(io)
+
+        assertEquals(0 to 0, viewModel.contentSearchIndexSizesForTest())
+        // The parked load must not even *query* the just-opted-out provider —
+        // the version re-check runs before the read, not only before publish.
+        assertEquals(0, contactsProvider.queryCount)
+    }
+
+    @Test
+    fun persistedToggleWithoutPermissionIsCoercedOff() {
+        // Regression: Android's permission auto-reset (or a backup restore
+        // onto a fresh install) can leave the toggle persisted on with no
+        // permission behind it. The flag must coerce back to off so the
+        // switch renders off and the next tap prompts, instead of a switch
+        // that's on but silently loads nothing.
+        seedApp("Mail", "com.example.mail")
+        // Deliberately NOT granting permissions.
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(1, "Maria Lopez")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+
+        assertEquals(false, viewModel.uiState.value.isContactSearchEnabled)
+        assertEquals(false, viewModel.uiState.value.isCalendarSearchEnabled)
+        val prefs = context.getSharedPreferences("dock_settings", Context.MODE_PRIVATE)
+        assertEquals(false, prefs.getBoolean("contact_search_enabled", false))
+        assertEquals(false, prefs.getBoolean("calendar_search_enabled", false))
+    }
+
+    @Test
+    fun eventOpenFailurePreservesQuery() {
+        // Regression: on a device/profile with no calendar app, opening an
+        // events-section result throws ActivityNotFoundException internally —
+        // the tap must stay a no-op instead of clearing what the user typed.
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(emptyList())
+        registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("mar")
+        val event = viewModel.uiState.value.eventResults.single()
+
+        // Make startActivity throw ActivityNotFoundException for intents with
+        // no registered handler (the default shadow allows everything).
+        shadowOf(context as android.app.Application).checkActivities(true)
+        viewModel.openEventResult(event)
+        idle()
+
+        assertEquals("Query must survive a failed event handoff", "mar", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun contactProviderFailureDegradesToEmptyIndex() {
+        // Regression: a provider-side RuntimeException (disabled/corrupt OEM
+        // contacts provider) must degrade to an empty section, not escape the
+        // index-load coroutine and crash the launcher.
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        ShadowContentResolver.registerProviderInternal(
+            ContactsContract.AUTHORITY,
+            object : ContentProvider() {
+                override fun onCreate(): Boolean = true
+                override fun query(
+                    uri: Uri,
+                    projection: Array<String>?,
+                    selection: String?,
+                    selectionArgs: Array<String>?,
+                    sortOrder: String?,
+                ): Cursor = throw IllegalStateException("provider database failure")
+
+                override fun getType(uri: Uri): String? = null
+                override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+                override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+                override fun update(
+                    uri: Uri,
+                    values: ContentValues?,
+                    selection: String?,
+                    selectionArgs: Array<String>?,
+                ): Int = 0
+            },
+        )
+        registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("mar")
+
+        assertTrue(viewModel.uiState.value.contactResults.isEmpty())
+        // The calendar source is unaffected by the contacts provider failing.
+        assertEquals(listOf("Marathon training"), viewModel.uiState.value.eventResults.map { it.title })
+    }
+
+    @Test
+    fun favoriteWritesStarredAndFlipsTheRowOptimistically() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val starredWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                starredWrites.add(values?.getAsInteger(ContactsContract.Contacts.STARRED))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+        assertFalse("Starts non-starred", contact.starred)
+
+        viewModel.toggleContactStarred(contact)
+        idle()
+
+        assertEquals("Toggling on writes STARRED = 1", listOf(1), starredWrites)
+        assertTrue(
+            "The visible row stars immediately, without re-querying the provider",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun favoriteWithoutPermissionWaitsThenWritesOnGrant() {
+        grantPermissions() // READ only — WRITE_CONTACTS is not granted.
+        enableBothSources()
+        val starredWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                starredWrites.add(values?.getAsInteger(ContactsContract.Contacts.STARRED))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        idle()
+        assertTrue("Nothing is written until the permission is resolved", starredWrites.isEmpty())
+
+        viewModel.onWriteContactsPermissionResult(granted = true)
+        idle()
+        assertEquals("The parked write replays on grant", listOf(1), starredWrites)
+        assertTrue(viewModel.uiState.value.contactResults.single().starred)
+    }
+
+    @Test
+    fun favoriteFlipsBeforeTheProviderWriteReturns() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")), onUpdate = { 1 })
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+
+        viewModel.toggleContactStarred(contact)
+        idle()
+
+        // The provider update is still parked on the io queue, yet the star has
+        // already flipped — the optimistic flip doesn't wait on I/O.
+        assertTrue(
+            "The star flips before the provider write returns",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+        settle(io)
+        assertTrue(
+            "It stays starred once the write succeeds",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun favoriteRevertsTheFlipWhenTheWriteFails() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        // The provider reports zero rows updated — the write did not take.
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")), onUpdate = { 0 })
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        assertFalse(
+            "A failed write reverts the optimistic flip",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun rapidTogglesThatAllFailLeaveTheRowOnTheConfirmedState() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        // Every write is rejected, and the contact starts (and stays) unstarred.
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")), onUpdate = { 0 })
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+
+        // Favorite then unfavorite while both writes are parked; both fail.
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        settle(io)
+
+        // The failure re-reads the provider (unstarred) rather than inverting the
+        // second failed request, so the row doesn't flip back to starred.
+        assertFalse(
+            "Both writes failed, so the row stays on the confirmed unstarred state",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun rapidFavoriteTogglesSerializeSoTheLatestWins() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val starredWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                starredWrites.add(values?.getAsInteger(ContactsContract.Contacts.STARRED))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+
+        // Favorite, then immediately unfavorite the same row while both writes
+        // are still parked on the io queue.
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        settle(io)
+
+        assertEquals("The two writes land in toggle order, so the latest wins", listOf(1, 0), starredWrites)
+        assertFalse(
+            "Final state is the latest toggle (unstarred)",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun favoriteSurvivesAnIndexReloadThatRacesTheWrite() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        // A provider that reflects the committed STARRED: its query re-reads the
+        // current value, and its update commits the new one.
+        var providerStarred = false
+        val provider = FakeQueryProvider(
+            buildCursor = { projection ->
+                MatrixCursor(projection).apply {
+                    addRow(
+                        projection.map { column ->
+                            when (column) {
+                                ContactsContract.Contacts._ID -> 7L
+                                ContactsContract.Contacts.LOOKUP_KEY -> "lookup-7"
+                                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> "Zoe Quinn"
+                                ContactsContract.Contacts.STARRED -> if (providerStarred) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+            },
+            onUpdate = { values ->
+                providerStarred = (values?.getAsInteger(ContactsContract.Contacts.STARRED) ?: 0) == 1
+                1
+            },
+        )
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+        viewModel.setQuery("zoe")
+        val contact = viewModel.uiState.value.contactResults.single()
+
+        // A resume-driven contact reload is queued first, so its query re-reads
+        // the still-false STARRED and clobbers the optimistic flip mid-write.
+        viewModel.refreshPermissionDrivenUi()
+        viewModel.toggleContactStarred(contact)
+        settle(io)
+
+        // The successful write re-asserts the star, so the row survives the
+        // racing reload rather than being left on the stale value.
+        assertTrue(
+            "Row ends starred despite the mid-write reload",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+        assertTrue("The provider committed the star", providerStarred)
+    }
+
+    @Test
+    fun externalFavoriteChangeAfterCommitIsNotMaskedByThePendingOverride() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        var providerStarred = false
+        val provider = FakeQueryProvider(
+            buildCursor = { projection ->
+                MatrixCursor(projection).apply {
+                    addRow(
+                        projection.map { column ->
+                            when (column) {
+                                ContactsContract.Contacts._ID -> 7L
+                                ContactsContract.Contacts.LOOKUP_KEY -> "lookup-7"
+                                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> "Zoe Quinn"
+                                ContactsContract.Contacts.STARRED -> if (providerStarred) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+            },
+            onUpdate = { values ->
+                providerStarred = (values?.getAsInteger(ContactsContract.Contacts.STARRED) ?: 0) == 1
+                1
+            },
+        )
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        // Favorite in Type Launcher: the write commits.
+        viewModel.toggleContactStarred(viewModel.uiState.value.contactResults.single())
+        idle()
+        assertTrue(viewModel.uiState.value.contactResults.single().starred)
+
+        // The user then unfavorites the same contact in the Contacts app, and
+        // Type Launcher reloads on resume — reading the fresh (unstarred) value.
+        providerStarred = false
+        viewModel.refreshPermissionDrivenUi()
+        idle()
+
+        // The reload is authoritative (its read is after the write committed), so
+        // the external change shows through rather than being masked by the stale
+        // optimistic override.
+        assertFalse(
+            "An external unfavorite after commit is not masked by the pending override",
+            viewModel.uiState.value.contactResults.single().starred,
+        )
+    }
+
+    @Test
+    fun setNumberDefaultWritesSuperPrimary() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val superPrimaryWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                superPrimaryWrites.add(values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        viewModel.setNumberDefault(dataId = 11, makeDefault = true)
+        idle()
+
+        assertEquals("Setting a number default writes IS_SUPER_PRIMARY = 1", listOf(1), superPrimaryWrites)
+    }
+
+    @Test
+    fun clearNumberDefaultWritesZeroSuperPrimary() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val superPrimaryWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                superPrimaryWrites.add(values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        idle()
+
+        viewModel.setNumberDefault(dataId = 11, makeDefault = false)
+        idle()
+
+        assertEquals("Clearing a number default writes IS_SUPER_PRIMARY = 0", listOf(0), superPrimaryWrites)
+    }
+
+    @Test
+    fun rapidNumberDefaultChangesSerializeSoTheLatestWins() {
+        val io = QueueDispatcher()
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        enableBothSources()
+        val superPrimaryWrites = mutableListOf<Int?>()
+        registerContactsProvider(
+            listOf(FakeContact(7, "Zoe Quinn")),
+            onUpdate = { values ->
+                superPrimaryWrites.add(values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY))
+                1
+            },
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = LauncherViewModel(
+            app = ApplicationProvider.getApplicationContext(),
+            workPackages = emptySet(),
+            ioDispatcher = io,
+        )
+        settle(io)
+        viewModel.onHomeReady()
+        settle(io)
+
+        // Make a number the default, then immediately clear it while both writes
+        // are still parked on the io queue.
+        viewModel.setNumberDefault(dataId = 11, makeDefault = true)
+        viewModel.setNumberDefault(dataId = 11, makeDefault = false)
+        settle(io)
+
+        assertEquals(
+            "The two writes land in call order, so the latest wins",
+            listOf(1, 0),
+            superPrimaryWrites,
+        )
+    }
+
+    @Test
+    fun makingANumberDefaultDemotesThePreviousDefaultOnAnotherRawContact() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // Aggregated contact: dataId 11 (one raw contact) is the current
+        // contact-wide default; dataId 12 (a different number on another raw
+        // contact) is not. Making 12 the default must demote 11 — the provider
+        // won't clear super-primary across raw contacts for us.
+        val superPrimaryWritesById = mutableListOf<Pair<Long, Int?>>()
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int {
+                superPrimaryWritesById.add(
+                    ContentUris.parseId(uri) to values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY),
+                )
+                return 1
+            }
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        assertEquals(
+            "Both numbers resolved into the call channel",
+            listOf(11L, 12L),
+            viewModel.uiState.value.contactActionsMode?.actions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
+        )
+
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "The previous default (11) is demoted before the target (12) is set",
+            listOf(11L to 0, 12L to 1),
+            superPrimaryWritesById,
+        )
+    }
+
+    @Test
+    fun aFailedTargetWriteDoesNotReResolveTheSheet() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // The target row's update reports 0 rows (deleted / rejected). The batch's
+        // expected-count guard turns that into a thrown failure, so the whole
+        // rewrite — including the sibling demotion — rolls back atomically and the
+        // sheet is not re-resolved onto a broken state.
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        var queryCount = 0
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                queryCount++
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            // The target (12) reports 0 rows updated; the sibling (11) succeeds.
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int =
+                if (ContentUris.parseId(uri) == 12L) 0 else 1
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        val queriesAfterOpen = queryCount
+
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "A failed target write reports failure and does not re-resolve the sheet",
+            queriesAfterOpen,
+            queryCount,
+        )
+    }
+
+    @Test
+    fun makingANumberDefaultAlsoDemotesAHiddenDuplicateOfTheOldDefault() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // The old default number is synced under two raw contacts (dataIds 11 and
+        // 13, both super-primary); the number picker collapses them to one visible
+        // row. Making a different number (12) the default must demote *both* copies
+        // — clearing only the visible one would leave the hidden duplicate
+        // super-primary and the old number still resolving as a default.
+        val superPrimaryWritesById = mutableListOf<Pair<Long, Int?>>()
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(13, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int {
+                superPrimaryWritesById.add(
+                    ContentUris.parseId(uri) to values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY),
+                )
+                return 1
+            }
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        // The duplicate collapses in the visible picker.
+        assertEquals(
+            "The duplicate number is collapsed to one visible action",
+            listOf(11L, 12L),
+            viewModel.uiState.value.contactActionsMode?.actions?.channels?.first { it.id == "call" }?.actions?.map { it.dataId },
+        )
+
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "Both copies of the old default (11 and hidden 13) are demoted before 12 is set",
+            listOf(11L to 0, 13L to 0, 12L to 1),
+            superPrimaryWritesById,
+        )
+    }
+
+    @Test
+    fun undefaultingANumberAlsoClearsItsHiddenDuplicate() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        // The current default number is backed by two super-primary rows (11 and
+        // 13) collapsed into one picker row. Undefaulting the visible one must also
+        // clear the hidden duplicate, or the number stays resolving as the default.
+        val superPrimaryWritesById = mutableListOf<Pair<Long, Int?>>()
+        val dataRows = listOf(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(13, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                dataRows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int {
+                superPrimaryWritesById.add(
+                    ContentUris.parseId(uri) to values?.getAsInteger(ContactsContract.Data.IS_SUPER_PRIMARY),
+                )
+                return 1
+            }
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+
+        // Undefault the visible default (row 11); its hidden duplicate is 13.
+        viewModel.setNumberDefault(dataId = 11, makeDefault = false)
+        idle()
+
+        assertEquals(
+            "The hidden duplicate (13) is cleared along with the target (11)",
+            listOf(13L to 0, 12L to 0, 11L to 0),
+            superPrimaryWritesById,
+        )
+    }
+
+    @Test
+    fun enterInContactModeDrillsIntoAMultiNumberChannelThenBackExitsRestoringQuery() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+        assertEquals("The mode opens with the query cleared", "", viewModel.uiState.value.query)
+
+        // Enter on the channel list fires the top row — the multi-number Call
+        // channel — which drills into step two rather than acting immediately.
+        viewModel.launchActiveApp()
+        idle()
+        assertEquals("Enter drills into the multi-number Call channel", "call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
+        assertNull(
+            "Drilling in launches nothing",
+            shadowOf(context as android.app.Application).nextStartedActivity,
+        )
+
+        // Back pops step two → step one, then step one → out of the mode.
+        assertTrue("Back is consumed at step two", viewModel.onContactActionsBack())
+        assertNull("Back from step two returns to the channel list", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
+        assertNotNull("Still in the mode at step one", viewModel.uiState.value.contactActionsMode)
+
+        assertTrue("Back is consumed at step one", viewModel.onContactActionsBack())
+        assertNull("Back from step one exits the mode", viewModel.uiState.value.contactActionsMode)
+        assertEquals("Exiting restores the saved query", "zoe", viewModel.uiState.value.query)
+        assertFalse("Back is not consumed once out of the mode", viewModel.onContactActionsBack())
+    }
+
+    @Test
+    fun typingInContactModeFiltersChannelsSoEnterFiresTheMatch() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(contactId = 7, lookupKey = "lookup-7", displayName = "Zoe Quinn"))
+        idle()
+
+        // A single-number Call channel plus a single-number Message channel. Typing
+        // "mess" filters to Message; Enter then fires it (a single-action channel
+        // acts immediately — an SMS intent, needing no permission).
+        viewModel.setQuery("mess")
+        viewModel.launchActiveApp()
+        idle()
+
+        val started = shadowOf(context as android.app.Application).nextStartedActivity
+        assertNotNull("Enter fires the filtered Message channel", started)
+        assertEquals(Intent.ACTION_SENDTO, started.action)
+        assertEquals("smsto", started.data?.scheme)
+        assertNull("Firing an action exits the mode", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun settingADefaultKeepsTheNumberPickerOpenAndPreservesTheReturnQuery() {
+        grantPermissions()
+        shadowOf(context as android.app.Application).grantPermissions(Manifest.permission.WRITE_CONTACTS)
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        // Enter drills into the multi-number Call channel (step two).
+        viewModel.launchActiveApp()
+        idle()
+        assertEquals("call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
+
+        // Setting a default re-resolves the open contact in place; the user must
+        // stay on the number picker and Back must still restore the search.
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+        idle()
+
+        assertEquals(
+            "Still on the number picker after setting a default",
+            "call",
+            viewModel.uiState.value.contactActionsMode?.selectedChannelId,
+        )
+        assertEquals(
+            "The saved search query survives the in-place re-resolve",
+            "zoe",
+            viewModel.uiState.value.contactActionsMode?.returnQuery,
+        )
+        assertNotNull("Still in the contact-actions mode", viewModel.uiState.value.contactActionsMode)
+    }
+
+    @Test
+    fun enteringAndDrillingContactActionsReShowsTheKeyboard() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        val keyboardRequests = AtomicInteger(0)
+        val job = CoroutineScope(Dispatchers.Unconfined).launch {
+            viewModel.keyboardShowRequests.collect { keyboardRequests.incrementAndGet() }
+        }
+        idle()
+
+        // Entering the mode (Enter from search clears the field focus) re-shows the
+        // keyboard so the channel list stays type-to-filter.
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        assertTrue("Entering the mode re-shows the keyboard", keyboardRequests.get() >= 1)
+
+        val afterOpen = keyboardRequests.get()
+        // Enter drills into the multi-number Call channel — also re-shows it.
+        viewModel.launchActiveApp()
+        idle()
+        assertEquals("call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
+        assertTrue("Drilling into a channel re-shows the keyboard", keyboardRequests.get() > afterOpen)
+        job.cancel()
+    }
+
+    @Test
+    fun returningToLauncherHomeClearsTheContactActionsMode() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        viewModel.launchActiveApp() // drill into Call so step-two state is set too
+        idle()
+        assertEquals("call", viewModel.uiState.value.contactActionsMode?.selectedChannelId)
+
+        // A HOME press / relaunch is a fresh start — the mode must not linger.
+        viewModel.returnToLauncherHome()
+        idle()
+
+        // Clearing the single holder drops the step and saved return query with it,
+        // so Back can't restore the pre-contact search Home was meant to clear.
+        assertNull("HOME press clears the contact-actions mode", viewModel.uiState.value.contactActionsMode)
+        assertEquals("...leaving a clean empty search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun resumingToHomeClearsTheContactActionsMode() {
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        // Type a channel filter inside the mode — this lives in `query`, so the
+        // resume reset must clear it too, not just the mode.
+        viewModel.setQuery("mess")
+        assertNotNull("The mode is open", viewModel.uiState.value.contactActionsMode)
+
+        // Backgrounding and resuming to Home is a fresh start, like a HOME press —
+        // the contact's actions must not linger, and the app list must not be left
+        // filtered to the stale channel-filter text.
+        viewModel.closeSecondaryTrayOnResume()
+        idle()
+
+        assertNull("Resuming to Home clears the contact-actions mode", viewModel.uiState.value.contactActionsMode)
+        assertEquals("...leaving a clean empty search", "", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun aPermissionPromptResumeKeepsTheContactActionsMode() {
+        // WRITE_CONTACTS is deliberately NOT granted (grantPermissions() covers only
+        // the read permissions), so the set-default write parks and requests it.
+        grantPermissions()
+        registerPhoneDataProvider(
+            phoneDataRow(11, "+1-555-0100", ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE, superPrimary = true),
+            phoneDataRow(12, "+1-555-0199", ContactsContract.CommonDataKinds.Phone.TYPE_HOME, superPrimary = false),
+        )
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.openContactResult(ContactResult(7, "lookup-7", "Zoe Quinn"))
+        idle()
+        // Long-press "Default" on a number with WRITE_CONTACTS ungranted: the write
+        // is parked and the system permission prompt is requested.
+        viewModel.setNumberDefault(dataId = 12, makeDefault = true)
+
+        // Dismissing that prompt resumes the launcher through the same onResume, but
+        // the user hasn't left the contact flow — the parked write still needs the
+        // open contact to re-resolve, so the mode must survive this resume.
+        viewModel.closeSecondaryTrayOnResume()
+        idle()
+
+        assertNotNull(
+            "A permission-prompt resume keeps the contact-actions mode",
+            viewModel.uiState.value.contactActionsMode,
+        )
+    }
+
+
+    @Test
+    fun dismissContactActionsWhenNotOpenLeavesTheSearchIntact() {
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        viewModel.setQuery("zoe")
+
+        // A contact-result long-press routes here to cancel any in-flight resolve
+        // while opening the favorite menu; with no mode open it must leave the
+        // typed search (and the contact result) untouched.
+        viewModel.dismissContactActions()
+
+        assertNull("No contact-actions mode was open", viewModel.uiState.value.contactActionsMode)
+        assertEquals("The typed search is preserved", "zoe", viewModel.uiState.value.query)
+        assertEquals(
+            "The contact result is still there",
+            "Zoe Quinn",
+            viewModel.uiState.value.contactResults.singleOrNull()?.displayName,
+        )
+    }
+
+    private fun registerPhoneDataProvider(vararg dataRows: Map<String, Any?>) {
+        val rows = dataRows.toList()
+        val provider = object : ContentProvider() {
+            override fun onCreate(): Boolean = true
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor {
+                val columns = projection ?: emptyArray()
+                val cursor = MatrixCursor(columns)
+                rows.forEach { r -> cursor.addRow(columns.map { r[it] }) }
+                return cursor
+            }
+
+            override fun getType(uri: Uri): String? = null
+            override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+            override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+            override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String>?): Int = 1
+        }
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+    }
+
+    private fun phoneDataRow(id: Long, number: String, type: Int, superPrimary: Boolean): Map<String, Any?> = mapOf(
+        ContactsContract.Data._ID to id,
+        ContactsContract.Data.MIMETYPE to ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
+        ContactsContract.Data.DATA1 to number,
+        ContactsContract.Data.DATA2 to type,
+        ContactsContract.Data.DATA3 to null,
+        ContactsContract.Data.IS_SUPER_PRIMARY to if (superPrimary) 1 else 0,
+        ContactsContract.Data.IS_PRIMARY to if (superPrimary) 1 else 0,
+        ContactsContract.RawContacts.ACCOUNT_TYPE to "com.google",
+    )
+
+    private fun newViewModel(): LauncherViewModel = LauncherViewModel(
+        app = ApplicationProvider.getApplicationContext(),
+        workPackages = emptySet(),
+        ioDispatcher = Dispatchers.Unconfined,
+    )
+
+    /**
+     * A view model showing a searched contact's (empty-channel) quick-actions
+     * sheet, query "zoe". Pass a [QueueDispatcher] as [io] to park the view
+     * model's off-main-thread work — the sheet is still fully opened before
+     * returning, so only work started after the call stays queued.
+     */
+    private fun viewModelWithOpenSheet(io: QueueDispatcher? = null): LauncherViewModel {
+        grantPermissions()
+        // Every device with a working Telecom service names a default dialer,
+        // and the Telecom route requires one (see placeCallThroughTelecom), so
+        // the realistic device state is the helper's default; the tests that
+        // care about its absence build their own view model without it.
+        shadowOf(context.getSystemService(TelecomManager::class.java))
+            .setDefaultDialer("com.android.dialer")
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(7, "Zoe Quinn")))
+        registerCalendarProvider(emptyList())
+        val viewModel = if (io == null) {
+            newViewModel()
+        } else {
+            LauncherViewModel(
+                app = ApplicationProvider.getApplicationContext(),
+                workPackages = emptySet(),
+                ioDispatcher = io,
+            )
+        }
+        drain(io)
+        viewModel.onHomeReady()
+        drain(io)
+        viewModel.setQuery("zoe")
+        viewModel.openContactResult(viewModel.uiState.value.contactResults.single())
+        drain(io)
+        return viewModel
+    }
+
+    /** Settles [io] when the test parked one, otherwise just the main looper. */
+    private fun drain(io: QueueDispatcher?) {
+        if (io == null) idle() else settle(io)
+    }
+
+    private fun callAction(number: String) = ContactAction(
+        label = "Mobile",
+        detail = number,
+        isDefault = true,
+        kind = ContactActionKind.Call(number),
+    )
+
+    private fun grantPermissions() {
+        shadowOf(context as android.app.Application).grantPermissions(
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_CALENDAR,
+        )
+    }
+
+    private fun enableBothSources() {
+        context.getSharedPreferences("dock_settings", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("contact_search_enabled", true)
+            .putBoolean("calendar_search_enabled", true)
+            .commit()
+    }
+
+    private fun seedApp(label: String, packageName: String) {
+        val resolveInfo = ResolveInfo().apply {
+            nonLocalizedLabel = label
+            activityInfo = ActivityInfo().apply {
+                this.packageName = packageName
+                name = "$packageName.LaunchActivity"
+            }
+        }
+        @Suppress("DEPRECATION")
+        shadowOf(context.packageManager).addResolveInfoForIntent(launcherIntent, resolveInfo)
+    }
+
+    /** Registers the fake contacts provider; the returned provider exposes [FakeQueryProvider.queryCount]. */
+    private fun registerContactsProvider(
+        contacts: List<FakeContact>,
+        onUpdate: (ContentValues?) -> Int = { 0 },
+    ): FakeQueryProvider {
+        val provider = FakeQueryProvider(
+            buildCursor = { projection ->
+                val cursor = MatrixCursor(projection)
+                contacts.forEach { contact ->
+                    cursor.addRow(
+                        projection.map { column ->
+                            when (column) {
+                                ContactsContract.Contacts._ID -> contact.id
+                                ContactsContract.Contacts.LOOKUP_KEY -> "lookup-${contact.id}"
+                                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY -> contact.name
+                                ContactsContract.Contacts.PHOTO_THUMBNAIL_URI -> contact.photoUri
+                                ContactsContract.Contacts.STARRED -> if (contact.starred) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+                cursor
+            },
+            onUpdate = onUpdate,
+        )
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY, provider)
+        return provider
+    }
+
+    private fun registerCalendarProvider(events: List<FakeEvent>): FakeQueryProvider {
+        // Default begin: one hour from now, so the organizer keeps the event
+        // (it drops instances that already ended).
+        val defaultBegin = System.currentTimeMillis() + 60 * 60 * 1000
+        val provider = FakeQueryProvider(buildCursor = { projection ->
+                val cursor = MatrixCursor(projection)
+                events.forEach { event ->
+                    val begin = event.beginMillis ?: defaultBegin
+                    val end = begin + (event.durationMillis ?: 30 * 60 * 1000L)
+                    cursor.addRow(
+                        projection.map { column ->
+                            when (column) {
+                                CalendarContract.Instances.EVENT_ID -> event.id
+                                CalendarContract.Instances.TITLE -> event.title
+                                CalendarContract.Instances.BEGIN -> begin
+                                CalendarContract.Instances.END -> end
+                                CalendarContract.Instances.ALL_DAY -> if (event.allDay) 1 else 0
+                                else -> null
+                            }
+                        },
+                    )
+                }
+                cursor
+            })
+        ShadowContentResolver.registerProviderInternal(CalendarContract.AUTHORITY, provider)
+        return provider
+    }
+
+    private fun idle() {
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    /**
+     * Alternates draining the parked io queue and the main looper until both
+     * settle, so cold-start coroutines (apps load, snapshot restore, metadata
+     * save) complete when the test uses [QueueDispatcher] instead of
+     * `Dispatchers.Unconfined`.
+     */
+    private fun settle(io: QueueDispatcher) {
+        repeat(6) {
+            io.drain()
+            idle()
+        }
+    }
+
+    /**
+     * Dispatcher that parks dispatched blocks in a queue until [drain] runs
+     * them, letting a test interleave main-thread calls between a coroutine's
+     * launch and its io stage — the disable-while-loading race needs exactly
+     * that window.
+     */
+    private class QueueDispatcher : kotlinx.coroutines.CoroutineDispatcher() {
+        private val queue = ArrayDeque<Runnable>()
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+            queue.add(block)
+        }
+
+        fun drain() {
+            while (queue.isNotEmpty()) queue.removeFirst().run()
+        }
+    }
+
+    private data class FakeContact(
+        val id: Long,
+        val name: String,
+        val photoUri: String? = null,
+        val starred: Boolean = false,
+    )
+    private data class FakeEvent(
+        val id: Long,
+        val title: String,
+        val allDay: Boolean = false,
+        val beginMillis: Long? = null,
+        val durationMillis: Long? = null,
+    )
+
+    /** Minimal provider: answers every query from [buildCursor] (counting calls) and delegates writes to [onUpdate]. */
+    private class FakeQueryProvider(
+        private val buildCursor: (projection: Array<String>) -> Cursor,
+        private val onUpdate: (ContentValues?) -> Int = { 0 },
+    ) : ContentProvider() {
+        var queryCount = 0
+            private set
+
+        override fun onCreate(): Boolean = true
+        override fun query(
+            uri: Uri,
+            projection: Array<String>?,
+            selection: String?,
+            selectionArgs: Array<String>?,
+            sortOrder: String?,
+        ): Cursor {
+            queryCount++
+            return buildCursor(projection ?: emptyArray())
+        }
+
+        override fun getType(uri: Uri): String? = null
+        override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+        override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
+        override fun update(
+            uri: Uri,
+            values: ContentValues?,
+            selection: String?,
+            selectionArgs: Array<String>?,
+        ): Int = onUpdate(values)
+    }
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   Type Launcher currently relies on Android's default cloud-backup include set.
+   Add explicit include/exclude rules here only when product behavior requires
+   custom backup scope.
+-->
+<data-extraction-rules>
+    <cloud-backup />
+    <!--
+    <device-transfer>
+        <include .../>
+        <exclude .../>
+    </device-transfer>
+    -->
+</data-extraction-rules>

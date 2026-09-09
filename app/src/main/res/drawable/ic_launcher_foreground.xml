@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Hollow rectangle above the T, stylised as a search/filter bar -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5"
+        android:pathData="M34,27 H74 V35 H34 Z" />
+    <!-- Caret inside the rectangle -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M39,29.5 H40 V32.5 H39 Z" />
+    <!-- Letter T -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M34,40 H74 V50 H59 V84 H49 V50 H34 Z" />
+</vector>

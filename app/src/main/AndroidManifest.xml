@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Requested only from the Settings "Search contacts" toggle; backs the
+         typed-search contacts section. Never requested at first run. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Requested the first time the user favorites a contact or sets one of
+         their numbers as the default from the long-press menu; a denial simply
+         drops that one action. Never requested at first run. -->
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <!-- Requested the first time the user taps Call on a contact's quick-action
+         card, on both of the routes Settings "Call using" offers (Telecom, or
+         ACTION_CALL for the app chooser); a denial falls back to opening the
+         default dialer with the number pre-filled. Never requested at first
+         run. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- CALL_PHONE implies telephony hardware; declare it optional so the
+         launcher still installs on tablets / ChromeOS with no phone radio (the
+         Call action simply won't resolve there). -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <!-- Backs the long-press menu's Uninstall action, which starts the system
+         uninstaller. A normal permission — granted at install with no prompt,
+         and it grants no ability to remove anything silently: the system still
+         shows its own confirmation and does the removal. Declared because the
+         uninstaller intent family requires it from targetSdk 28 on, and
+         without it the action can only ever end in a SecurityException and the
+         failure toast. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!--
+            Home activities, so the diagnostic that samples what a Home press
+            resolves to can see the full candidate list. Without this, package
+            visibility filters other launchers out, and a resolution to one of
+            them is indistinguishable from a resolution to the system chooser —
+            which is exactly the distinction the diagnostic exists to make.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".TypeLauncherApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="${launcherIcon}"
+        android:label="${appLabel}"
+        android:roundIcon="${launcherRoundIcon}"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.TypeLauncher">
+
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+
+        <!--
+            All three SDKs start OFF, and only an explicit yes turns them on.
+
+            Firebase auto-initializes from a ContentProvider before
+            Application.onCreate, so by the time any launcher code runs the SDKs
+            have already decided whether to collect — and, on an upgrade from a
+            version that collected by default, their own persisted flags say
+            yes. The consent gate applies asynchronously after that, which is
+            far too late: a crash or a startup trace from the very launch that
+            was supposed to be asking permission could already be on its way.
+
+            These are defaults, not kill switches — the runtime setters
+            override and persist over them, which is exactly how consent turns
+            collection on. The permanent variant
+            (firebase_performance_collection_deactivated) is deliberately not
+            used, since that one cannot be undone at runtime.
+        -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_performance_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name=".MainActivity"
+            android:clearTaskOnLaunch="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Applies the platform's old→new widget ID translation after a backup
+            restore. Delivered even when the launcher isn't running, so it must
+            be a manifest receiver. exported="true" is required for the system
+            (a different UID) to deliver it; safe because
+            APPWIDGET_HOST_RESTORED is a framework protected-broadcast that only
+            the system can send.
+        -->
+        <receiver
+            android:name=".WidgetRestoredReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_HOST_RESTORED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>
